@@ -4,12 +4,12 @@
 # License: MIT
 
 from collections.abc import Hashable, Iterator
-from typing import Generic, TypeVar
+from typing import TypeVar
 
 Entry = TypeVar('Entry')
 
 
-class Registry(Generic[Entry]):
+class Registry[Entry]:
     """Mapping from keys to implementations, open to extensions.
 
     Args:

@@ -5,7 +5,6 @@
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import TypeAlias
 
 import numpy as np
 import numpy.typing as npt
@@ -15,8 +14,8 @@ from ..core import Form
 from ..model import Element
 from ._layout import Layout
 
-Vector: TypeAlias = npt.NDArray[np.float64]
-VectorFunction: TypeAlias = Callable[[float, Vector, Vector], Vector]
+type Vector = npt.NDArray[np.float64]
+type VectorFunction = Callable[[float, Vector, Vector], Vector]
 
 
 @dataclass(frozen=True)

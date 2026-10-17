@@ -5,12 +5,12 @@
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, TypeAlias
+from typing import Any
 
 import sympy
 
-Target: TypeAlias = sympy.Symbol | sympy.MatrixBase
-NumericFunction: TypeAlias = Callable[[float, Mapping[str, Any]], Any]
+type Target = sympy.Symbol | sympy.MatrixBase
+type NumericFunction = Callable[[float, Mapping[str, Any]], Any]
 
 
 @dataclass(frozen=True)
@@ -108,4 +108,4 @@ class Update:
     value: object
 
 
-Law: TypeAlias = Rate | Noise | Jump | Update
+type Law = Rate | Noise | Jump | Update

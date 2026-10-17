@@ -212,7 +212,7 @@ to fill in as the project takes shape.
   simulations inherit `sklearn.base.BaseEstimator`, store constructor arguments unmodified, and expose derived state
   with a trailing underscore. Elements and interactions declare their fields with `state`, `parameter`, and `role`,
   which generate a keyword-only dataclass constructor.
-- Language: Python >=3.11, <3.14.
+- Language: Python >=3.12, <3.14.
 - Build and tooling: PDM with SCM-derived versioning and a `src`
   layout. The `nox` sessions are `formatting`, `checks`, `tests`, `docs`, `changelog`, and `release`. The gate covers
   `ruff`, `mypy`, `bandit`, `pip-audit`, `deptry`, `pydoclint`, and `interrogate`, with `pytest` under branch coverage
