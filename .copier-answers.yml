@@ -15,7 +15,7 @@ project_layout: library
 publish_pypi: true
 python_package_distribution_name: scikit-complexity
 python_package_import_name: skcomplex
-python_versions: '>=3.12, <3.13'
+python_versions: '>=3.11, <3.14'
 repository_name: scikit-complexity
 repository_namespace: georgedouzas
 spec_tool: openspec

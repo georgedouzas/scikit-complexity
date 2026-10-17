@@ -8,7 +8,7 @@ description = "A Python package to create and simulate complex systems."
 authors = [{name = "Georgios Douzas", email = "gdouzas@icloud.com"}]
 license = "MIT"
 readme = "README.md"
-requires-python = ">=3.12, <3.13"
+requires-python = ">=3.11, <3.14"
 keywords = []
 dynamic = ["version"]
 classifiers = [
@@ -17,7 +17,9 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Documentation",
     "Topic :: Software Development",
     "Topic :: Utilities",
@@ -102,7 +104,7 @@ release = [
 line-length = 120
 extend-exclude = "(tests/fixtures|docs/generated)"
 skip-string-normalization = true
-target-version = ["py312"]
+target-version = ["py311"]
 
 [tool.docformatter]
 in-place = true
@@ -115,7 +117,7 @@ wrap-summaries = 120
 extend-exclude = ["docs/generated"]
 force-exclude = true
 line-length = 120
-target-version = "py312"
+target-version = "py311"
 
 [tool.ruff.lint]
 ignore = ["D202", "N806", "N803", "S101", "INP001", "Q000", "TRY002", "PLR0913", "EXE001", "EXE002", "E741"]
