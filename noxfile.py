@@ -47,6 +47,7 @@ def docs(session: nox.Session) -> None:
         session: The nox session.
     """
     check_cli(session, ['serve', 'build'])
+    session.run('pdm', 'install', '-dG', 'docs', external=True)
     session.run('mkdocs', session.posargs[0])
 
 
@@ -60,13 +61,14 @@ def formatting(session: nox.Session, file: str) -> None:
         file: The file to be formatted.
     """
     check_cli(session, ['all', 'code', 'docstrings'])
+    session.run('pdm', 'install', '-dG', 'formatting', '--no-default', external=True)
     if session.posargs[0] in ['code', 'all']:
         session.run('black', file)
     if session.posargs[0] in ['docstrings', 'all']:
         session.run('docformatter', '--in-place', '--recursive', '--close-quotes-on-newline', file)
 
 
-@nox.session
+@nox.session(python=PYTHON_VERSIONS)
 @nox.parametrize('file', FILES)
 def checks(session: nox.Session, file: str) -> None:
     """Check code quality, dependencies or type annotations.
@@ -76,6 +78,7 @@ def checks(session: nox.Session, file: str) -> None:
         file: The file to be checked.
     """
     check_cli(session, ['all', 'quality', 'dependencies', 'types'])
+    session.run('pdm', 'install', '-dG', 'checks', external=True)
     if session.posargs[0] in ['quality', 'all']:
         session.run('ruff', 'check', file)
     if session.posargs[0] in ['types', 'all']:
@@ -99,13 +102,14 @@ def checks(session: nox.Session, file: str) -> None:
         session.run('safety', 'check', '-r', requirements_path)
 
 
-@nox.session
+@nox.session(python=PYTHON_VERSIONS)
 def tests(session: nox.Session) -> None:
     """Run tests and coverage.
 
     Arguments:
         session: The nox session.
     """
+    session.run('pdm', 'install', '-dG', 'tests', external=True)
     env = {'COVERAGE_FILE': f'.coverage.{session.python}'}
     if session.posargs:
         session.run('pytest', '-n', 'auto', '-k', *session.posargs, 'tests', env=env)
@@ -123,6 +127,7 @@ def changelog(session: nox.Session) -> None:
     Arguments:
         session: The nox session.
     """
+    session.run('pdm', 'install', '-dG', 'changelog', '--no-default', external=True)
     from git_changelog.cli import build_and_render
 
     build_and_render(**CHANGELOG_ARGS)
@@ -135,6 +140,7 @@ def release(session: nox.Session) -> None:
     Arguments:
         session: The nox session.
     """
+    session.run('pdm', 'install', '-dG', 'changelog', '-dG', 'release', '--no-default', external=True)
     from git_changelog.cli import build_and_render
 
     changelog, _ = build_and_render(**CHANGELOG_ARGS)

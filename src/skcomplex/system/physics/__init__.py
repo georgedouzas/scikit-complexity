@@ -1,4 +1,4 @@
-"""Classical mechanics functionality."""
+"""Collection of physics systems."""
 
 from ._classical_mechanics import (
     ClassicalMechanicsSystem,

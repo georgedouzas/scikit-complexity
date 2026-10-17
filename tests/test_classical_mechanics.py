@@ -4,7 +4,9 @@ import re
 
 import pytest
 from sage.all import assume, symbolic_expression, var
-from skcomplex.physics import (
+
+from skcomplex.component import EuclideanSpace
+from skcomplex.system.physics import (
     ClassicalMechanicsSystem,
     ExternalForce,
     ExternalPotential,
@@ -12,7 +14,6 @@ from skcomplex.physics import (
     InternalPotential,
     PointParticle,
 )
-from skcomplex.spaces import EuclideanSpace
 
 
 @pytest.mark.parametrize('m', ['m', var('m__point')])
@@ -178,7 +179,7 @@ def test_motion_with_constant_velocity():
     """Test the solution of dynamic equations of a free particle."""
     system = ClassicalMechanicsSystem(particles=[PointParticle('1')], space=EuclideanSpace('euclidean', n_dim=3))
     system.simulate()
-    solutions = system.simulation_results_['dynamic_equations']['solutions']
+    solutions = system.dynamic_equations_['solutions']
     assert solutions['1'][0] == symbolic_expression('_K2 * t + _K1')
     assert solutions['1'][1] == symbolic_expression('_K2 * t + _K1')
     assert solutions['1'][2] == symbolic_expression('_K2 * t + _K1')
@@ -192,7 +193,7 @@ def test_motion_with_constant_acceleration():
         space=EuclideanSpace('euclidean', n_dim=3),
     )
     system.simulate()
-    solutions = system.simulation_results_['dynamic_equations']['solutions']
+    solutions = system.dynamic_equations_['solutions']
     assert solutions['particle'][0] == symbolic_expression('_K2 * t + 1 / 2 * F * t**2 / m__particle + _K1')
     assert solutions['particle'][1] == symbolic_expression('_K2 * t + _K1')
     assert solutions['particle'][2] == symbolic_expression('_K2 * t + _K1')
@@ -208,7 +209,7 @@ def test_motion_one_dimensional_harmonic_oscillator():
         space=EuclideanSpace('euclidean', n_dim=3),
     )
     system.simulate()
-    solutions = system.simulation_results_['dynamic_equations']['solutions']
+    solutions = system.dynamic_equations_['solutions']
     assert solutions['sphere'][0] == symbolic_expression(
         '_K2 * cos(sqrt(k) * t / sqrt(m__sphere)) + _K1 * sin(sqrt(k) * t / sqrt(m__sphere))',
     )

@@ -1,96 +1,27 @@
-"""Base classes for systems their components."""
+"""Base classes for systems."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com> License: MIT
 
-import inspect
 from abc import abstractmethod
-from typing import Any, Self
+from typing import Self
 
 import numpy as np
 import numpy.typing as npt
-from sage.all import var
 from sklearn.utils import check_array
 
-
-class BaseSystemComponent:
-    """Base class for all system components.
-
-    Args:
-        label:
-            The label of the component.
-    """
-
-    def __init__(self: Self, label: str) -> None:
-        """Initialize the system component with a label."""
-        self.label = label
-        self._init()
-
-    @abstractmethod
-    def _init_param(self: Self, param_name: str) -> Self:
-        return self
-
-    def _init(self: Self) -> Self:
-        """Initialize the component's properties."""
-        parameters = inspect.signature(self.__init__).parameters.values()  # type: ignore[misc]
-        labels = [
-            getattr(self, parameter.name)
-            for parameter in parameters
-            if parameter.name == 'label' or parameter.name.endswith('_label')
-        ]
-        for parameter in parameters:
-            if parameter.name != 'label' and not parameter.name.endswith('_label'):
-                value = getattr(self, parameter.name)
-                if value is None:
-                    setattr(self, f'{parameter.name}_', var(f'{parameter.name}__{"__".join(labels)}'))
-                else:
-                    self._init_param(parameter.name)
-        return self
+from .component import BaseElement, BaseElementsInteraction, BaseEnvironmentInteraction, BaseSpace
 
 
-class BaseElement(BaseSystemComponent):
-    """Base class for all elements."""
-
-
-class BaseElementsInteraction(BaseSystemComponent):
-    """Base class for all between elements interactions.
+class BaseSystemState:
+    """Base class for system states.
 
     Args:
-        label:
-            The label of the interaction.
+        system:
+            The system to define its state.
 
-        element_1_label:
-            The label of the first element.
-
-        element_2_label:
-            The label of the second element.
+        space:
+            The space of the system.
     """
-
-    def __init__(self: Self, label: str, element_1_label: str, element_2_label: str) -> None:
-        """Initialize the interaction with interaction and elements labels."""
-        self.element_1_label = element_1_label
-        self.element_2_label = element_2_label
-        super().__init__(label)
-
-
-class BaseEnvironmentInteraction(BaseSystemComponent):
-    """Base class for all elements interactions with the environment.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        element_label:
-            The label of the element.
-    """
-
-    def __init__(self: Self, label: str, element_label: str) -> None:
-        """Initialize the interaction with interaction and element labels."""
-        self.element_label = element_label
-        super().__init__(label)
-
-
-class BaseSpace(BaseSystemComponent):
-    """Base class for all spaces."""
 
 
 class BaseSystem:
@@ -113,15 +44,23 @@ class BaseSystem:
     def __init__(
         self: Self,
         elements: list[BaseElement],
+        space: BaseSpace,
         elements_interactions: list[BaseElementsInteraction],
         environment_interactions: list[BaseEnvironmentInteraction],
-        space: BaseSpace | None = None,
     ) -> None:
         """Initialize the system with elements and interactions."""
         self.elements = elements
         self.elements_interactions = elements_interactions
         self.environment_interactions = environment_interactions
         self.space = space
+
+    def _check_space(self: Self) -> Self:
+        if not isinstance(self.space, BaseSpace):
+            error_msg = 'Parameter `space` should be a `Space` object.'
+            raise TypeError(error_msg)
+        else:
+            self.space_ = self.space
+        return self
 
     def _get_element_interactions(
         self: Self,
@@ -235,22 +174,28 @@ class BaseSystem:
         self.environment_interactions_labels_ = check_array(environment_interactions_labels, dtype=str)
         return self
 
-    def _check_space(self: Self) -> Self:
-        if not isinstance(self.space, BaseSpace):
-            error_msg = 'Parameter `space` should be a `Space` object.'
-            raise TypeError(error_msg)
-        else:
-            self.space_ = self.space
-        return self
-
-    def simulate(self: Self) -> Self:
-        """Simulate the complex systems."""
+    @abstractmethod
+    def simulate(self: Self, method: str | None = None) -> Self:
+        """Simulate the complex system."""
         self._check_elements()
         self._check_elements_interactions()
         self._check_environment_interactions()
         self._check_space()
-        self.simulation_results_: dict[str, Any] = {}
         return self
+
+    @abstractmethod
+    def predict(self: Self, time_points: npt.NDArray[np.float32]) -> list[BaseSystemState]:
+        """Predict the system states.
+
+        Args:
+            time_points:
+                The time points to predict the state of the system.
+
+        Returns:
+            system_states:
+                The predicted states of the system.
+        """
+        return []
 
     def __repr__(self: Self) -> str:
         """Representation of the system."""

@@ -51,7 +51,7 @@ htmlcov pip-wheel-metadata site __pycache__ docs/generated .nox .ruff_cache pdm.
 docs = "nox --error-on-external-run -R -s docs -- {args:serve}"
 formatting = "nox --error-on-external-run -R -s formatting -- {args:all}"
 checks = "nox --default-venv-backend uv --error-on-external-run -R -s checks -- {args:all}"
-tests = "nox --default-venv-backend uv --error-on-external-run -R -s tests"
+tests = "nox --default-venv-backend {args:uv} --error-on-external-run -R -s tests"
 changelog = "nox --error-on-external-run -R -s changelog"
 release = "nox --error-on-external-run -R -s release"
 

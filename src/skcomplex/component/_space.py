@@ -1,4 +1,4 @@
-"""Base classeses for systems their components."""
+"""Base classes for systems spaces."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com> License: MIT
 
@@ -7,7 +7,7 @@ from typing import Literal, Self
 from sage.manifolds.all import EuclideanSpace as EuclideanManifold
 from sklearn.utils import check_scalar
 
-from ..base import BaseSpace
+from ..base.system import BaseSpace
 
 N_DIM = 3
 
@@ -27,7 +27,7 @@ class EuclideanSpace(BaseSpace):
         super().__init__(label)
 
     def _init_param(self: Self, param_name: str) -> Self:
-        """Check the particle's mass."""
+        """Check Euclidean space parameters."""
         if param_name == 'n_dim':
             self.n_dim_ = check_scalar(self.n_dim, 'n_dim', int, min_val=1, max_val=3)
         elif param_name == 'coordinate_system':

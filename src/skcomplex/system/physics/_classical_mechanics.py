@@ -9,11 +9,14 @@ dynamical equations of Netwonian systems.
 from collections.abc import Iterable
 from typing import Any, Self, cast
 
+import numpy as np
+import numpy.typing as npt
 from sage.all import Expression, assume, desolve, diff, function, symbolic_expression, var, vector, zero_vector
 from sklearn.utils import check_scalar
 
-from ..base import BaseElement, BaseElementsInteraction, BaseEnvironmentInteraction, BaseSystem
-from ..spaces import EuclideanSpace
+from ...base.component import BaseElement, BaseElementsInteraction, BaseEnvironmentInteraction
+from ...base.system import BaseSystem, BaseSystemState
+from ...component import EuclideanSpace
 
 
 def init_force(F: list[Expression | float | int]) -> list[Expression]:
@@ -118,6 +121,10 @@ class ExternalPotential(BaseEnvironmentInteraction):
         return self
 
 
+class PhaseSpacePoint(BaseSystemState):
+    """Point of the phase space."""
+
+
 class ClassicalMechanicsSystem(BaseSystem):
     """Classical mechanics system of particles.
 
@@ -139,10 +146,10 @@ class ClassicalMechanicsSystem(BaseSystem):
 
     def __init__(
         self: Self,
-        particles: Iterable[PointParticle] | None = None,
+        particles: Iterable[PointParticle],
+        space: EuclideanSpace,
         internal_interactions: Iterable[InternalForce | InternalPotential] | None = None,
         external_interactions: Iterable[ExternalForce | ExternalPotential] | None = None,
-        space: EuclideanSpace | None = None,
     ) -> None:
         super().__init__(
             elements=particles,
@@ -160,10 +167,10 @@ class ClassicalMechanicsSystem(BaseSystem):
                 F += vector(interaction.F_)
             coords = [f'{coord}__{label}' for coord in self.space_.coordinates_[:]]
             velocities = [f'v_{coord}__{label}' for coord in self.space_.coordinates_[:]]
-            self.simulation_results_['dynamic_equations']['formulas'][label] = []
+            self.dynamic_equations_['formulas'][label] = []
             for ind, F_component in enumerate(F):
                 assume(element.m_ > 0)
-                self.simulation_results_['dynamic_equations']['formulas'][label].append(
+                self.dynamic_equations_['formulas'][label].append(
                     element.m_ * diff(function(coords[ind])(t), t, 2)
                     == symbolic_expression(F_component)(
                         **{symbol: function(symbol)(t) for symbol in (coords + velocities)},
@@ -173,11 +180,11 @@ class ClassicalMechanicsSystem(BaseSystem):
 
     def _solve_dynamic_equations(self: Self, I: dict[str, Any] | None = None) -> Self:
         t = var('t')
-        for label, des in self.simulation_results_['dynamic_equations']['formulas'].items():
+        for label, des in self.dynamic_equations_['formulas'].items():
             coords = [f'{coord}__{label}' for coord in self.space_.coordinates_[:]]
-            self.simulation_results_['dynamic_equations']['solutions'][label] = []
+            self.dynamic_equations_['solutions'][label] = []
             for ind, de in enumerate(des):
-                self.simulation_results_['dynamic_equations']['solutions'][label].append(
+                self.dynamic_equations_['solutions'][label].append(
                     desolve(de, dvar=function(coords[ind])(t), ivar=t, ics=I[label][ind] if I is not None else None),
                 )
         return self
@@ -188,7 +195,20 @@ class ClassicalMechanicsSystem(BaseSystem):
 
         # Dynamic equations
         if method == 'dynamic_equations':
-            self.simulation_results_['dynamic_equations'] = {'formulas': {}, 'solutions': {}}
-            self._set_dynamic_equations()._solve_dynamic_equations()
+            self.dynamic_equations_dict[str, dict[str, Any]] = {'formulas': {}, 'solutions': {}}
+            self._set_dynamic_equations()._solve_dynamic_equations(I)
 
         return self
+
+    def predict(self: Self, time_points: npt.NDArray[np.float32]) -> list[PhaseSpacePoint]:
+        """Predict the system states.
+
+        Args:
+            time_points:
+                The time points to predict the state of the system.
+
+        Returns:
+            system_states:
+                The predicted states of the system.
+        """
+        return []
