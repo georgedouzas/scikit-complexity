@@ -153,12 +153,14 @@ class EulerMaruyama(Stepper):
             return x
         n_steps = math.ceil((until - t) / self.dt)
         step = (until - t) / n_steps
+        rows = self.problem_.noise_rows
         state = x.copy()
         for index in range(n_steps):
             time = t + index * step
             amplitudes = diffusion(time, state, p)
-            increments = self.rng_.normal(0.0, math.sqrt(step), size=amplitudes.shape[1])
-            state = state + drift(time, state, p) * step + amplitudes @ increments
+            increments = self.rng_.normal(0.0, math.sqrt(step), size=amplitudes.size)
+            state = state + drift(time, state, p) * step
+            np.add.at(state, rows, amplitudes * increments)
         return state
 
 
@@ -211,9 +213,10 @@ class Gillespie(Stepper):
             SolverError:
                 A propensity is negative or not finite.
         """
-        propensities, stoichiometry = self.problem_.propensities, self.problem_.stoichiometry
-        if propensities is None or stoichiometry is None:
+        propensities, jumps = self.problem_.propensities, self.problem_.jumps
+        if propensities is None:
             return x
+        offsets = np.array([channels.offset for channels in jumps])
         state = x.copy()
         while True:
             rates = propensities(t, state, p)
@@ -226,8 +229,12 @@ class Gillespie(Stepper):
             t += self.rng_.exponential(1 / total)
             if t > until:
                 return state
-            event = int(np.searchsorted(np.cumsum(rates), self.rng_.uniform(0, total), side='right'))
-            state = state + stoichiometry[min(event, len(rates) - 1)]
+            event = min(
+                int(np.searchsorted(np.cumsum(rates), self.rng_.uniform(0, total), side='right')),
+                len(rates) - 1,
+            )
+            channels = jumps[int(np.searchsorted(offsets, event, side='right')) - 1]
+            np.add.at(state, channels.targets[:, event - channels.offset], channels.increments)
 
 
 class Iteration(Stepper):

@@ -63,11 +63,26 @@ inference.
 - Alternative considered: event detection in `solve_ivp`. Rejected because events stop the integrator per crossing,
   which costs one restart per wall hit and does not scale to many members.
 
+### Kernels
+
+Each component and law kind lowers to one kernel: the law expressions compiled once with `lambdify`, the references
+from every symbol to a column of the state or parameter vector, and an evaluation mode. In member mode a kernel runs
+once per member of its group, reading the group's columns as arrays and single elements as scalars, and a contribution
+to a single element bound next to a group is summed over the members. In pair mode it runs once per pair found by the
+neighbour search, and the second role reads aliased symbols so that one group can fill both roles.
+
+- An interaction binds at most one group outside pair mode, so member indices are never ambiguous.
+- Noise and jumps keep one entry per evaluation index instead of dense matrices, which would grow with N squared:
+  `noise_rows` names the state each Wiener process drives, and `JumpChannels` holds the targets and increments of every
+  channel. `Problem.stoichiometry` still returns the dense matrix for small problems.
+
 ### Group visuals
 
 `Element.visual` keeps naming a registered visual. Visuals receive a group with its arrays and log one archetype per
 state, so `PointsVisual` logs one `Points2D` or `Points3D` with N points. A `color_by` option maps a scalar state or a
-vector norm to colors on a fixed scale.
+vector norm to colors on a fixed scale, `color_range` fixes the ends of the scale or takes them from the first frame,
+and `states` selects the other states logged as series. A group can override the visual of its element type, so
+`ideal_gas` draws molecules colored by speed without per-member velocity series.
 
 ## Risks / Trade-offs
 

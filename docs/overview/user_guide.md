@@ -97,6 +97,69 @@ print(trajectory['meadow/rabbits.n'][-1])
 - `update_parameters({'hunt.a': 0.05})` changes parameters before the next frame.
 - `random_state` makes stochastic runs reproducible.
 
+## Groups of many elements
+
+A group holds N identical elements of one type as arrays with one row per member. It compiles once, whatever its size,
+and every law written for one member runs over all members with array operations.
+
+```python
+import numpy as np
+
+from skcomplex.model import EuclideanSpace
+from skcomplex.models.physics import Particle, ReflectingBox
+
+rng = np.random.default_rng(0)
+gas = System(
+    elements=[Particle.group('gas', 10_000, x=rng.uniform(0, 1, (10_000, 2)), v=rng.normal(0, 1, (10_000, 2)))],
+    interactions=[ReflectingBox('box', target='gas', size=1.0)],
+    space=EuclideanSpace(2),
+)
+trajectory = Simulation(gas, dt=0.01).run(until=1).trajectory_
+print(trajectory['gas.x'].shape)
+```
+
+- A value is an array whose first dimension is the size of the group, or one value shared by every member.
+- An interaction whose role binds to a group applies to every member. A single element bound next to the group
+  receives the sum over the members.
+- Group variables are named by the group path, such as `gas.x` with shape `(10000, 2)`, and a group parameter takes
+  one value for every member or one value per member in `update_parameters`.
+- `ideal_gas(n_molecules, kT=..., size=...)` builds a gas of non-interacting molecules in a reflecting box.
+
+### Pair interactions
+
+A pair interaction is written once for a pair of members and summed over every pair closer than its cutoff, inside one
+group or between two groups. `PairPotential` derives the forces from a pair energy.
+
+```python
+from skcomplex.core import Domain, parameter
+from skcomplex.models.physics import PairPotential
+
+
+class LennardJones(PairPotential):
+    epsilon: float = parameter(1.0, domain=Domain.POSITIVE)
+    sigma: float = parameter(1.0, domain=Domain.POSITIVE)
+
+    def pair_energy(self, s, r):
+        return 4 * s.epsilon * ((s.sigma / r) ** 12 - (s.sigma / r) ** 6)
+
+
+side = np.arange(10) * 1.2
+liquid = System(
+    elements=[Particle.group('atoms', 100, x=np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2))],
+    interactions=[LennardJones('lj', first='atoms', second='atoms', cutoff=2.5)],
+    space=EuclideanSpace(2),
+)
+Simulation(liquid, dt=0.05).run(until=1)
+```
+
+`period` gives the side of a periodic box, so pair distances use the nearest periodic image.
+
+### Boundaries
+
+A `Boundary` law sets the value of a state after every solver step. Boundaries combine with every form, so walls and
+periodic boxes work for differential equations, stochastic systems, jump processes, and discrete maps.
+`ReflectingBox` mirrors positions and velocities at the walls, and `PeriodicBox` wraps positions around the box.
+
 ## Visualizing with Rerun
 
 `RerunObserver` streams frames to a spawned viewer, a running viewer, or a `.rrd` file. Entity paths follow the system
@@ -119,7 +182,9 @@ path = Path(tempfile.mkdtemp()) / 'molecule.rrd'
 Simulation(molecule, dt=0.02, observers=[RerunObserver('molecule', save_path=path)]).run(until=5)
 ```
 
-Particles appear as 3D points and populations as time series. A new visual subclasses `Visual` and is registered with
+Particles appear as 3D points and populations as time series. A group is logged as one batch per state, and
+`PointsVisual(position='x', color_by='v')` colors its points by speed. A group can set its own visual with
+`Particle.group(..., visual=VisualSpec('points', {...}))`. A new visual subclasses `Visual` and is registered with
 `register_visual`, and an element type selects it with its `visual` class variable.
 
 ## Analysing symbolically

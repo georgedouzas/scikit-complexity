@@ -12,7 +12,7 @@ from ..model import System
 
 def _functions_of_time(problem: Problem) -> dict[sympy.Symbol, sympy.Expr]:
     """Return one function of time per state component symbol."""
-    return {symbol: sympy.Function(symbol.name)(problem.time) for symbol in problem.state_symbols}
+    return {symbol: sympy.Function(symbol.name)(problem.time) for symbol in problem.equation_symbols.values()}
 
 
 def _equations_of_problem(problem: Problem) -> dict[str, sympy.Eq]:
@@ -21,11 +21,8 @@ def _equations_of_problem(problem: Problem) -> dict[str, sympy.Eq]:
         error_msg = 'A jump process has no symbolic equations. Use a deterministic version of its interactions.'
         raise AnalysisError(error_msg)
     functions = _functions_of_time(problem)
-    names = problem.states.component_names
     equations = {}
-    for name, symbol in zip(names, problem.state_symbols, strict=True):
-        if name not in problem.equations:
-            continue
+    for name, symbol in problem.equation_symbols.items():
         right = problem.equations[name].subs(functions)
         function = functions[symbol]
         left = (
@@ -41,7 +38,9 @@ def equations_of(system: System) -> dict[str, sympy.Eq]:
     """Return the symbolic equations of a system, one per state component.
 
     Each state component is a function of time `t`. Continuous forms give its time derivative, the drift for
-    stochastic systems, and discrete maps give its value at `t + 1`. Components driven by a callable law are left out.
+    stochastic systems, and discrete maps give its value at `t + 1`. The equations of a group hold for every member and
+    are named with the member index `i`. Components driven by a callable law or by a sum over members or pairs are left
+    out.
 
     Args:
         system:
@@ -86,7 +85,7 @@ def solve_symbolically(system: System, *, use_initial_state: bool = False) -> di
 
     Raises:
         AnalysisError:
-            The system is not an ODE, has a callable law, or has equations SymPy cannot solve.
+            The system is not an ODE, has a callable law or groups, or has equations SymPy cannot solve.
 
     Examples:
         >>> from skcomplex.analysis import solve_symbolically
@@ -105,6 +104,9 @@ def solve_symbolically(system: System, *, use_initial_state: bool = False) -> di
         raise AnalysisError(error_msg)
     if problem.has_callables:
         error_msg = 'The system has a callable law, which has no symbolic form.'
+        raise AnalysisError(error_msg)
+    if problem.has_group_sums or any(element.members is not None for element in problem.elements):
+        error_msg = 'The system has element groups, which are not solved symbolically. Solve one member as an element.'
         raise AnalysisError(error_msg)
     equations = _equations_of_problem(problem)
     functions = list(_functions_of_time(problem).values())

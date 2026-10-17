@@ -1,0 +1,124 @@
+"""Test element groups, pair interactions, and boundary laws in the model."""
+
+import numpy as np
+import pytest
+from sklearn.base import clone
+
+from skcomplex.compile import compile_system
+from skcomplex.core import RoleError, ValidationError
+from skcomplex.model import Boundary, EuclideanSpace, Group, PairInteraction, Rate, System
+from skcomplex.models.ecology import ExponentialGrowth, Population, Predation
+from skcomplex.models.physics import Particle
+
+
+class Attraction(PairInteraction):
+    """Pair interaction that returns a boundary law, which pair interactions do not take."""
+
+    def laws(self, s):
+        """Return a boundary law."""
+        return [Boundary(s.first.v, s.first.v)]
+
+
+def test_group_stores_arguments():
+    """Test that a group stores its label, size, and values unmodified."""
+    positions = np.zeros((1000, 2))
+    group = Particle.group('gas', 1000, x=positions)
+    assert group.label == 'gas'
+    assert group.size == 1000
+    assert group.values['x'] is positions
+    assert clone(group).size == 1000
+
+
+def test_group_position_state_has_member_shape():
+    """Test that a group's vector state has one row per member."""
+    system = System(elements=[Particle.group('gas', 1000, x=np.zeros((1000, 2)))], space=EuclideanSpace(2))
+    assert compile_system(system).states.entry('gas.x').shape == (1000, 2)
+
+
+def test_group_wrong_number_of_values_raises_error():
+    """Test that a group with the wrong number of values names the group, variable, and sizes."""
+    system = System(elements=[Particle.group('gas', 1000, x=np.zeros((999, 2)))], space=EuclideanSpace(2))
+    with pytest.raises(ValidationError, match=r'gas\.x .*999 values .* 1000 members'):
+        compile_system(system)
+
+
+@pytest.mark.parametrize(('size', 'match'), [(0, 'positive integer'), (2.5, 'positive integer')])
+def test_group_invalid_size_raises_error(size, match):
+    """Test that a group size must be a positive integer."""
+    with pytest.raises(ValidationError, match=match):
+        compile_system(System(elements=[Population.group('herds', size)]))
+
+
+def test_group_unknown_value_raises_error():
+    """Test that a group can only set variables of its element type."""
+    with pytest.raises(ValidationError, match='does not declare'):
+        compile_system(System(elements=[Population.group('herds', 3, mass=1.0)]))
+
+
+def test_group_non_element_type_raises_error():
+    """Test that a group's element must be an Element subclass."""
+    with pytest.raises(ValidationError, match='not an Element subclass'):
+        compile_system(System(elements=[Group('herds', element=int, size=3)]))
+
+
+def test_role_binds_to_group_and_applies_to_every_member():
+    """Test that an interaction bound to a group applies its law to every member."""
+    system = System(
+        elements=[Population.group('herds', 3, n=[1.0, 2.0, 3.0])],
+        interactions=[ExponentialGrowth('growth', target='herds', r=2.0)],
+    )
+    problem = compile_system(system)
+    drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
+    assert drift.tolist() == [2.0, 4.0, 6.0]
+
+
+def test_single_element_bound_with_group_receives_sum():
+    """Test that a single element bound next to a group receives the sum over the members."""
+    system = System(
+        elements=[Population.group('rabbits', 3, n=[1.0, 2.0, 3.0]), Population('fox', n=2.0)],
+        interactions=[Predation('hunt', predator='fox', prey='rabbits', a=1.0, b=1.0)],
+    )
+    problem = compile_system(system)
+    drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
+    assert drift.tolist() == [-2.0, -4.0, -6.0, 12.0]
+    assert problem.has_group_sums
+    assert 'fox.n' not in problem.equations
+
+
+def test_interaction_binding_two_groups_raises_error():
+    """Test that a non-pair interaction cannot bind two different groups."""
+    system = System(
+        elements=[Population.group('rabbits', 3), Population.group('foxes', 3)],
+        interactions=[Predation('hunt', predator='foxes', prey='rabbits')],
+    )
+    with pytest.raises(RoleError, match='PairInteraction'):
+        compile_system(system)
+
+
+def test_pair_interaction_rejects_other_law_kinds():
+    """Test that pair interactions take rate laws only."""
+    system = System(
+        elements=[Particle.group('gas', 3)],
+        interactions=[Attraction('pull', first='gas', second='gas')],
+        space=EuclideanSpace(2),
+    )
+    with pytest.raises(ValidationError, match='laws other than Rate'):
+        compile_system(system)
+
+
+def test_pair_interaction_needs_vector_position():
+    """Test that pair interactions need a vector position state."""
+
+    class Contact(PairInteraction):
+        """Pair interaction between populations, which have no position."""
+
+        def laws(self, s):
+            """Return a rate law."""
+            return [Rate(s.first.n, s.second.n)]
+
+    system = System(
+        elements=[Population.group('herds', 3)],
+        interactions=[Contact('contact', first='herds', second='herds')],
+    )
+    with pytest.raises(ValidationError, match="vector state 'x'"):
+        compile_system(system)

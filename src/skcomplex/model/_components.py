@@ -4,11 +4,12 @@
 # License: MIT
 
 import dataclasses
+from collections.abc import Mapping
 from typing import Any, ClassVar, dataclass_transform
 
 from sklearn.base import BaseEstimator
 
-from ..core import VisualSpec, parameter, role, state
+from ..core import Domain, VisualSpec, parameter, role, state
 from ._laws import Law
 from ._symbols import Symbols
 
@@ -68,6 +69,90 @@ class Element(Component):
 
     visual: ClassVar[VisualSpec] = VisualSpec()
 
+    @classmethod
+    def group(
+        cls,
+        label: str,
+        size: int,
+        *,
+        visual: VisualSpec | None = None,
+        **values: object,
+    ) -> 'Group':
+        """Return a group of identical members of this element type.
+
+        Args:
+            label:
+                The label of the group.
+
+            size:
+                The number of members.
+
+            visual:
+                The visual of the group, or `None` to use the visual of the element type.
+
+            **values:
+                Per-member arrays whose first dimension is `size`, or values shared by every member.
+
+        Returns:
+            group:
+                The group.
+
+        Examples:
+            >>> from skcomplex.models.ecology import Population
+            >>> Population.group('herds', size=3, n=[10, 20, 30])
+            Group('herds', element=Population, size=3)
+        """
+        return Group(label, element=cls, size=size, values=values, visual=visual)
+
+
+class Group(BaseEstimator):
+    """Group of identical elements of one type, whose variables are arrays with one row per member.
+
+    Groups are usually created with `Element.group`. A value is either an array whose first dimension is the size of
+    the group, or one value shared by every member. Variables without a value take the default of the element type.
+
+    Args:
+        label:
+            The label of the group, unique among the children of its system.
+
+        element:
+            The element type of the members.
+
+        size:
+            The number of members.
+
+        values:
+            A mapping from state or parameter name to its per-member or shared value.
+
+        visual:
+            The visual of the group, or `None` to use the visual of the element type.
+
+    Examples:
+        >>> from skcomplex.model import Group
+        >>> from skcomplex.models.ecology import Population
+        >>> Group('herds', element=Population, size=3).size
+        3
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        element: type[Element],
+        size: int,
+        values: Mapping[str, Any] | None = None,
+        visual: VisualSpec | None = None,
+    ) -> None:
+        self.label = label
+        self.element = element
+        self.size = size
+        self.values = values
+        self.visual = visual
+
+    def __repr__(self, N_CHAR_MAX: int = 700) -> str:
+        """Return the label, element type, and size."""
+        return f'Group({self.label!r}, element={self.element.__name__}, size={self.size})'
+
 
 class Interaction(Component):
     """Base class of laws that couple elements to each other or to the environment.
@@ -91,3 +176,42 @@ class Interaction(Component):
         >>> Growth('growth', target='rabbits', r=0.5)
         Growth(label='growth', r=0.5, target='rabbits')
     """
+
+
+class PairInteraction(Interaction):
+    """Base class of interactions between pairs of members within a cutoff distance.
+
+    The roles `first` and `second` bind to groups or elements, the same group for pairs inside one group. Subclasses
+    return rate laws from `laws`, written for one pair, where `s.first` and `s.second` are the two members. The
+    compiled system sums each law over every pair whose positions are closer than `cutoff`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        first:
+            The path of the group or element of the first members.
+
+        second:
+            The path of the group or element of the second members.
+
+        cutoff:
+            The distance beyond which pairs do not interact.
+
+        period:
+            The side of a periodic box, for minimum image distances, or `None` for an open space.
+
+    Examples:
+        >>> from skcomplex.model import PairInteraction, Rate
+        >>> class Repulsion(PairInteraction):
+        ...     def laws(self, s):
+        ...         return [Rate(s.first.v, s.first.x - s.second.x)]
+        >>> Repulsion('push', first='gas', second='gas', cutoff=0.1).cutoff
+        0.1
+    """
+
+    position: ClassVar[str] = 'x'
+    first: str = role()
+    second: str = role()
+    cutoff: float = parameter(1.0, domain=Domain.POSITIVE)
+    period: float | None = None

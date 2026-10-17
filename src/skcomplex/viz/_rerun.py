@@ -93,7 +93,7 @@ class RerunObserver(Observer):
         elif self.connect:
             self.recording_.connect_grpc()
         self._visuals: list[tuple[CompiledElement, Visual]] = [
-            (element, resolve_visual(type(element.element).visual)) for element in problem.elements
+            (element, resolve_visual(element.visual)) for element in problem.elements
         ]
         self.logged_frames_ = 0
 

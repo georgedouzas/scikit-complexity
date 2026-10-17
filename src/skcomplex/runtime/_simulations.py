@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.base import BaseEstimator
 
-from ..compile import Problem, Vector, compile_system
+from ..compile import Entry, Problem, Vector, compile_system
 from ..core import Domain, Form, ParameterError, SimulationError, ValidationError
 from ..model import System
 from ..solvers import Stepper, resolve_solver
@@ -160,6 +160,8 @@ class Simulation(BaseEstimator):
                 step += 1
                 target = min(step * self.dt_, until)
                 self.state_ = self.stepper_.advance(self.time_, self.state_, self.parameters_, target)
+                if self.problem_.boundary is not None:
+                    self.state_ = self.problem_.boundary(target, self.state_, self.parameters_)
                 self.time_ = target
                 self._emit(step)
                 self.clock_.wait(self.time_)
@@ -173,6 +175,19 @@ class Simulation(BaseEstimator):
             self._loop(until)
         except BaseException as error:  # noqa: BLE001
             self._error = error
+
+    def _check_value(self, name: str, entry: Entry, value: float | npt.ArrayLike) -> Vector:
+        """Return a parameter value broadcast to its entry after checking its domain and shape."""
+        error_msg = (
+            f'{name} = {value!r} is not a value of shape {entry.shape}, or of a shape that broadcasts to it, in the '
+            f'{entry.domain.value} domain.'
+        )
+        if not entry.domain.contains(value):
+            raise ValidationError(error_msg)
+        try:
+            return np.broadcast_to(np.asarray(value, dtype=float), entry.shape).ravel().copy()
+        except ValueError as error:
+            raise ValidationError(error_msg) from error
 
     def _check_prepared(self) -> None:
         """Raise an error when the simulation has not been run or started."""
@@ -267,12 +282,7 @@ class Simulation(BaseEstimator):
                 error_msg = f'No parameter named {name!r}. Available names are: {", ".join(layout.names)}.'
                 raise ParameterError(error_msg)
             entry = layout.entry(name)
-            if not entry.domain.contains(value) or np.size(value) not in (1, entry.size):
-                error_msg = (
-                    f'{name} = {value!r} is not a value of shape {entry.shape} in the {entry.domain.value} domain.'
-                )
-                raise ValidationError(error_msg)
-            self._pending.put((entry.indices, np.broadcast_to(np.asarray(value, dtype=float), entry.size).copy()))
+            self._pending.put((entry.indices, self._check_value(name, entry, value)))
         if self._thread is None or not self._thread.is_alive():
             self._apply_pending()
 

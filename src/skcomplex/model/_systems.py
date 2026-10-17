@@ -7,7 +7,7 @@ from collections.abc import Sequence
 
 from sklearn.base import BaseEstimator
 
-from ._components import Element, Interaction
+from ._components import Element, Group, Interaction
 from ._spaces import Space
 
 
@@ -22,7 +22,7 @@ class System(BaseEstimator):
             The label of the system. It names the system when it is the child of another one.
 
         elements:
-            The elements of the system.
+            The elements and element groups of the system.
 
         interactions:
             The interactions of the system.
@@ -48,7 +48,7 @@ class System(BaseEstimator):
         self,
         label: str = 'system',
         *,
-        elements: Sequence[Element] = (),
+        elements: Sequence[Element | Group] = (),
         interactions: Sequence[Interaction] = (),
         systems: Sequence['System'] = (),
         space: Space | None = None,

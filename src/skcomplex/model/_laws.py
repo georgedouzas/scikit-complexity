@@ -108,4 +108,29 @@ class Update:
     value: object
 
 
-type Law = Rate | Noise | Jump | Update
+@dataclass(frozen=True)
+class Boundary:
+    """Value a state takes after every solver step, such as a reflection at a wall or a wrap around a periodic box.
+
+    Boundary laws do not change the form of a system, so they combine with every other law kind.
+
+    Args:
+        target:
+            The symbol of a scalar state, or the column of symbols of a vector state.
+
+        value:
+            A symbolic expression or a callable `f(t, values)` that gives the new value.
+
+    Examples:
+        >>> import sympy
+        >>> from skcomplex.model import Boundary
+        >>> x = sympy.Symbol('x')
+        >>> Boundary(x, sympy.Mod(x, 1)).value
+        Mod(x, 1)
+    """
+
+    target: Target
+    value: object
+
+
+type Law = Rate | Noise | Jump | Update | Boundary

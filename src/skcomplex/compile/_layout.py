@@ -28,12 +28,16 @@ class Entry:
 
         domain:
             The set of values the variable takes.
+
+        members:
+            The size of the group that holds the variable, or `None` for a single element or an interaction.
     """
 
     name: str
     start: int
     shape: tuple[int, ...]
     domain: Domain
+    members: int | None = None
 
     @property
     def size(self) -> int:
@@ -46,11 +50,52 @@ class Entry:
         return slice(self.start, self.start + self.size)
 
     @property
+    def member_shape(self) -> tuple[int, ...]:
+        """Shape of the variable of one member, `()` for a scalar and `(n_dim,)` for a vector."""
+        return self.shape[1:] if self.members is not None else self.shape
+
+    @property
+    def rows(self) -> int:
+        """Number of members, 1 for a single element or an interaction."""
+        return self.members if self.members is not None else 1
+
+    @property
+    def columns(self) -> int:
+        """Number of components of the variable of one member."""
+        return int(np.prod(self.member_shape, dtype=int))
+
+    @property
     def component_names(self) -> list[str]:
-        """Names of the components, with an index suffix for vectors."""
-        if not self.shape:
-            return [self.name]
-        return [f'{self.name}[{index}]' for index in range(self.size)]
+        """Names of the components, with an index suffix for vectors and a member index for groups."""
+        if self.members is None:
+            if not self.shape:
+                return [self.name]
+            return [f'{self.name}[{index}]' for index in range(self.size)]
+        if not self.member_shape:
+            return [f'{self.name}[{member}]' for member in range(self.rows)]
+        return [f'{self.name}[{member}, {index}]' for member in range(self.rows) for index in range(self.columns)]
+
+    @property
+    def generic_names(self) -> list[str]:
+        """Names of the components of one member, with the member index `i` for groups."""
+        if self.members is None:
+            return self.component_names
+        if not self.member_shape:
+            return [f'{self.name}[i]']
+        return [f'{self.name}[i, {index}]' for index in range(self.columns)]
+
+    def view(self, vector: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+        """Return the variable's components of a flat vector as a view with one row per member.
+
+        Args:
+            vector:
+                A flat vector.
+
+        Returns:
+            view:
+                A `(rows, columns)` view that writes through to the vector.
+        """
+        return vector[self.indices].reshape(self.rows, self.columns)
 
 
 class Layout:
@@ -132,13 +177,11 @@ class Layout:
 
         Returns:
             value:
-                A number for a scalar in a flat vector, or an array otherwise.
+                A number for a scalar in a flat vector, or an array whose shape is the leading shape of `vector`
+                followed by the shape of the variable.
         """
         entry = self.entry(name)
-        values = vector[..., entry.indices]
-        if entry.shape:
-            return values
-        values = values[..., 0]
+        values = vector[..., entry.indices].reshape(vector.shape[:-1] + entry.shape)
         return float(values) if values.ndim == 0 else values
 
     def values(self, vector: npt.NDArray[np.float64]) -> dict[str, npt.NDArray[np.float64] | float]:

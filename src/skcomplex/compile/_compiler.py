@@ -4,7 +4,8 @@
 # License: MIT
 
 import re
-from dataclasses import dataclass, field, replace
+from collections import defaultdict
+from dataclasses import dataclass, field
 
 import numpy as np
 import sympy
@@ -17,12 +18,14 @@ from ..core import (
     ValidationError,
     Variable,
     VariableKind,
+    VisualSpec,
     declarations_of,
 )
-from ..model import Element, Jump, Law, Noise, Rate, Symbols, System, Update
+from ..model import Boundary, Element, Group, Jump, Law, Noise, PairInteraction, Rate, Symbols, System, Update
+from ._kernels import Kernel, Output, PairSearch, Reference, Source, add_into, assign_into
 from ._layout import Entry, Layout
-from ._lowering import Context, Slots, build_function, symbolic_components
-from ._problem import CompiledElement, Problem, Vector, VectorFunction
+from ._lowering import symbolic_components
+from ._problem import CompiledElement, JumpChannels, Problem, Vector, VectorFunction
 from ._tree import Node, coerce_value, flatten_system, shape_of
 
 FORMS: dict[frozenset[type], Form] = {
@@ -33,127 +36,296 @@ FORMS: dict[frozenset[type], Form] = {
     frozenset({Jump}): Form.JUMP,
     frozenset({Update}): Form.DISCRETE,
 }
+ASSIGNED_KINDS = (Update, Boundary)
+
+
+@dataclass
+class _Block:
+    """Variables of a component with the symbols of one member and the components they stand for."""
+
+    node: Node
+    symbols: dict[str, sympy.Symbol | sympy.MatrixBase] = field(default_factory=dict)
+    entries: dict[str, Entry] = field(default_factory=dict)
+    references: dict[sympy.Symbol, Reference] = field(default_factory=dict)
+
+    @property
+    def rows(self) -> int:
+        """Number of members, 1 for a single element or an interaction."""
+        return self.node.members or 1
+
+    def namespace(self, source: Source, alias: str = '') -> tuple[Symbols, dict[sympy.Symbol, Reference]]:
+        """Return the namespace of the block's symbols and their references for one way of reading them.
+
+        Args:
+            source:
+                How the block's components are read.
+
+            alias:
+                A suffix that gives the block's symbols distinct names, used for the second member of a pair.
+
+        Returns:
+            namespace:
+                The namespace and the references of its symbols.
+        """
+        mapping = {symbol: sympy.Symbol(f'{symbol.name}{alias}', **symbol.assumptions0) for symbol in self.references}
+        references = {
+            mapping[symbol]: Reference(reference.entry, reference.is_state, reference.column, source)
+            for symbol, reference in self.references.items()
+        }
+        symbols = {
+            name: (
+                symbol.applyfunc(lambda item: mapping[item])
+                if isinstance(symbol, sympy.MatrixBase)
+                else mapping[symbol]
+            )
+            for name, symbol in self.symbols.items()
+        }
+        return Symbols(**symbols), references
 
 
 @dataclass
 class _Declarations:
-    """Entries, initial values, and symbols collected from the components."""
+    """Entries, initial values, and blocks collected from the components."""
 
     time: sympy.Symbol
     states: list[Entry] = field(default_factory=list)
     parameters: list[Entry] = field(default_factory=list)
     initial_states: list[Vector] = field(default_factory=list)
     initial_parameters: list[Vector] = field(default_factory=list)
-    symbols: dict[str, sympy.Symbol | sympy.MatrixBase] = field(default_factory=dict)
+    blocks: dict[str, _Block] = field(default_factory=dict)
 
-    def _declare(
-        self,
-        node: Node,
-        variable: str,
-        declaration: Variable,
-        entries: list[Entry],
-        values: list[Vector],
-    ) -> sympy.Symbol | sympy.MatrixBase:
-        """Add one variable of a component and return its symbol."""
+    def _declare(self, block: _Block, variable: str, declaration: Variable, is_state: bool) -> None:
+        """Add one variable of a component to its block."""
+        node = block.node
+        entries, values = (self.states, self.initial_states) if is_state else (self.parameters, self.initial_parameters)
         name = f'{node.path}.{variable}'
-        shape = shape_of(name, declaration, node.space)
-        value = coerce_value(name, getattr(node.component, variable), shape, declaration.domain)
-        start = sum(entry.size for entry in entries)
-        entries.append(Entry(name, start, shape, declaration.domain))
-        values.append(value)
+        member_shape = shape_of(name, declaration, node.space)
+        shape = member_shape if node.members is None else (node.members, *member_shape)
+        values.append(coerce_value(name, node.value_of(variable), member_shape, declaration.domain, node.members))
+        entry = Entry(name, sum(item.size for item in entries), shape, declaration.domain, node.members)
+        entries.append(entry)
         base = f'{variable}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}'
         assumptions = declaration.domain.assumptions
-        symbol: sympy.Symbol | sympy.MatrixBase = (
-            sympy.Matrix([sympy.Symbol(f'{base}_{index}', **assumptions) for index in range(shape[0])])
-            if shape
-            else sympy.Symbol(base, **assumptions)
+        components = (
+            [sympy.Symbol(f'{base}_{index}', **assumptions) for index in range(member_shape[0])]
+            if member_shape
+            else [sympy.Symbol(base, **assumptions)]
         )
-        self.symbols[name] = symbol
-        return symbol
+        block.symbols[variable] = sympy.Matrix(components) if member_shape else components[0]
+        block.entries[variable] = entry
+        for column, symbol in enumerate(components):
+            block.references[symbol] = Reference(entry, is_state, column)
 
-    def declare_component(self, node: Node) -> dict[str, sympy.Symbol | sympy.MatrixBase]:
-        """Add the states and parameters of a component and return their symbols by variable name.
+    def declare_component(self, node: Node) -> _Block:
+        """Add the states and parameters of a component and return its block.
 
         Args:
             node:
                 The component with its place in the tree.
 
         Returns:
-            symbols:
-                A mapping from variable name to symbol.
+            block:
+                The block of the component.
         """
-        symbols = {
-            variable: self._declare(node, variable, declaration, self.states, self.initial_states)
-            for variable, declaration in declarations_of(node.component, VariableKind.STATE).items()
-        }
-        symbols.update(
-            {
-                variable: self._declare(node, variable, declaration, self.parameters, self.initial_parameters)
-                for variable, declaration in declarations_of(node.component, VariableKind.PARAMETER).items()
-            },
-        )
-        return symbols
+        block = _Block(node)
+        for variable, declaration in declarations_of(node.component_type, VariableKind.STATE).items():
+            self._declare(block, variable, declaration, is_state=True)
+        for variable, declaration in declarations_of(node.component_type, VariableKind.PARAMETER).items():
+            self._declare(block, variable, declaration, is_state=False)
+        self.blocks[node.path] = block
+        return block
 
 
-def _check_symbol_names(problem_symbols: dict[str, sympy.Symbol | sympy.MatrixBase]) -> None:
+@dataclass
+class _KernelSpec:
+    """Namespace, references, and evaluation indices that the laws of one component are lowered with."""
+
+    owner: str
+    namespace: Symbols
+    references: dict[sympy.Symbol, Reference]
+    rows: int
+    pairs: PairSearch | None = None
+
+
+@dataclass
+class _Lowered:
+    """Kernels of every law kind with the extra data of jumps."""
+
+    kernels: dict[type, list[Kernel]] = field(default_factory=lambda: defaultdict(list))
+    jump_changes: dict[int, list[tuple[Reference, float]]] = field(default_factory=dict)
+
+
+def _check_symbol_names(blocks: dict[str, _Block]) -> None:
     """Raise an error when two variables produce the same symbol name."""
     seen: dict[str, str] = {}
-    for name, symbol in problem_symbols.items():
-        for component in symbol if isinstance(symbol, sympy.MatrixBase) else [symbol]:
-            if component.name in seen:
+    for block in blocks.values():
+        for symbol, reference in block.references.items():
+            if symbol.name in seen and seen[symbol.name] != reference.entry.name:
                 error_msg = (
-                    f'{name} and {seen[component.name]} produce the same symbol {component.name}. Rename one of '
-                    'their labels or variables.'
+                    f'{reference.entry.name} and {seen[symbol.name]} produce the same symbol {symbol.name}. Rename one '
+                    'of their labels or variables.'
                 )
                 raise LabelError(error_msg)
-            seen[component.name] = name
+            seen[symbol.name] = reference.entry.name
 
 
-def _resolve_roles(node: Node, namespaces: dict[str, Symbols]) -> dict[str, Symbols]:
-    """Return the namespace of the element bound to each role of an interaction."""
-    roles = {}
-    for role in declarations_of(node.component, VariableKind.ROLE):
-        label = getattr(node.component, role)
-        path = f'{node.scope}{label}' if isinstance(label, str) else None
-        if path not in namespaces:
-            where = node.scope.rstrip('/') or 'the root system'
-            error_msg = (
-                f'Interaction {node.path} binds the role {role!r} to {label!r}, which is not an element path '
-                f'relative to {where}.'
-            )
-            raise RoleError(error_msg)
-        roles[role] = namespaces[path]
-    return roles
+def _resolve_role(node: Node, role: str, elements: dict[str, _Block]) -> _Block:
+    """Return the block of the element or group bound to a role of an interaction."""
+    label = getattr(node.component, role)
+    path = f'{node.scope}{label}' if isinstance(label, str) else None
+    if path not in elements:
+        where = node.scope.rstrip('/') or 'the root system'
+        error_msg = (
+            f'Interaction {node.path} binds the role {role!r} to {label!r}, which is not an element or group path '
+            f'relative to {where}.'
+        )
+        raise RoleError(error_msg)
+    return elements[path]
 
 
-def _collect_laws(nodes: list[Node], declarations: _Declarations) -> list[tuple[str, Law]]:
-    """Return the laws of every component with the path of the component that returned it."""
-    namespaces: dict[str, Symbols] = {}
-    component_symbols: dict[str, dict[str, sympy.Symbol | sympy.MatrixBase]] = {}
-    for node in nodes:
-        component_symbols[node.path] = declarations.declare_component(node)
-        if isinstance(node.component, Element):
-            namespaces[node.path] = Symbols(t=declarations.time, **component_symbols[node.path])
-    laws: list[tuple[str, Law]] = []
-    for node in nodes:
-        if isinstance(node.component, Element):
-            namespace = namespaces[node.path]
-        else:
-            roles = _resolve_roles(node, namespaces)
-            namespace = Symbols(t=declarations.time, **component_symbols[node.path], **roles)
-        component_laws = node.component.laws(namespace)
-        if not isinstance(component_laws, list | tuple) or not all(
-            isinstance(law, Rate | Noise | Jump | Update) for law in component_laws
-        ):
-            error_msg = f'`laws` of {node.path} must return a list of Rate, Noise, Jump, or Update laws.'
+def _member_spec(block: _Block, time: sympy.Symbol) -> _KernelSpec:
+    """Return the kernel spec of the intrinsic laws of an element or group."""
+    namespace, references = block.namespace(Source.MEMBER)
+    return _KernelSpec(block.node.path, Symbols(t=time, **vars(namespace)), references, block.rows)
+
+
+def _interaction_spec(block: _Block, elements: dict[str, _Block], time: sympy.Symbol) -> _KernelSpec:
+    """Return the kernel spec of an interaction that is evaluated once per member of its group."""
+    node = block.node
+    roles = {role: _resolve_role(node, role, elements) for role in declarations_of(node.component, VariableKind.ROLE)}
+    groups = {bound.node.path for bound in roles.values() if bound.node.members is not None}
+    if len(groups) > 1:
+        error_msg = (
+            f'Interaction {node.path} binds roles to the groups {", ".join(sorted(groups))}. An interaction acts on '
+            'at most one group, and a PairInteraction couples members of two groups.'
+        )
+        raise RoleError(error_msg)
+    parameters, references = block.namespace(Source.SINGLE)
+    namespaces = {}
+    for role, bound in roles.items():
+        namespaces[role], role_references = bound.namespace(
+            Source.MEMBER if bound.node.members is not None else Source.SINGLE,
+        )
+        references.update(role_references)
+    rows = next((bound.rows for bound in roles.values() if bound.node.members is not None), 1)
+    return _KernelSpec(node.path, Symbols(t=time, **vars(parameters), **namespaces), references, rows)
+
+
+def _pair_spec(block: _Block, elements: dict[str, _Block], time: sympy.Symbol) -> _KernelSpec:
+    """Return the kernel spec of a pair interaction that is evaluated once per pair within its cutoff."""
+    node = block.node
+    interaction: PairInteraction = node.component
+    first, second = _resolve_role(node, 'first', elements), _resolve_role(node, 'second', elements)
+    position = type(interaction).position
+    for bound in (first, second):
+        entry = bound.entries.get(position)
+        if entry is None or not entry.member_shape:
+            error_msg = f'Pair interaction {node.path} needs the vector state {position!r} in {bound.node.path}.'
             raise ValidationError(error_msg)
-        laws.extend((node.path, law) for law in component_laws)
-    return laws
+    parameters, references = block.namespace(Source.SINGLE)
+    first_namespace, first_references = first.namespace(Source.FIRST)
+    second_namespace, second_references = second.namespace(Source.SECOND, alias='_pair')
+    references.update(first_references)
+    references.update(second_references)
+    pairs = PairSearch(first.entries[position], second.entries[position], block.entries['cutoff'], interaction.period)
+    namespace = Symbols(t=time, **vars(parameters), first=first_namespace, second=second_namespace)
+    return _KernelSpec(node.path, namespace, references, 0, pairs)
 
 
-def _infer_form(laws: list[tuple[str, Law]]) -> Form:
+def _collect_laws(spec: _KernelSpec, component: object) -> list[Law]:
+    """Return the laws a component returns for its namespace after checking their kinds."""
+    laws = component.laws(spec.namespace)  # type: ignore[attr-defined]
+    kinds = Rate | Noise | Jump | Update | Boundary
+    if not isinstance(laws, list | tuple) or not all(isinstance(law, kinds) for law in laws):
+        error_msg = f'`laws` of {spec.owner} must return a list of Rate, Noise, Jump, Update, or Boundary laws.'
+        raise ValidationError(error_msg)
+    if spec.pairs is not None and not all(isinstance(law, Rate) for law in laws):
+        error_msg = f'Pair interaction {spec.owner} returns laws other than Rate, which pair interactions do not take.'
+        raise ValidationError(error_msg)
+    return list(laws)
+
+
+def _component_of(node: Node) -> object:
+    """Return the object whose `laws` method describes a node, a representative member for a group."""
+    if isinstance(node.component, Group):
+        return node.component.element(node.component.label, **(node.component.values or {}))
+    return node.component
+
+
+def _target_references(target: object, spec: _KernelSpec) -> list[Reference]:
+    """Return the references of the state components a law targets."""
+    components = list(target) if isinstance(target, sympy.MatrixBase) else [target]
+    references = [spec.references.get(component) for component in components]
+    if not all(reference is not None and reference.is_state for reference in references):
+        error_msg = f'A law of {spec.owner} targets {target!r}, which is not a state symbol of the namespace `s`.'
+        raise ValidationError(error_msg)
+    return references  # type: ignore[return-value]
+
+
+def _outputs_of(value: object, targets: list[Reference | None], owner: str) -> list[Output]:
+    """Return the outputs of one law value for its target components."""
+    expressions = symbolic_components(value, len(targets), owner)
+    if expressions is None:
+        return [
+            Output(target, function=value, component=index, components=len(targets))  # type: ignore[arg-type]
+            for index, target in enumerate(targets)
+        ]
+    return [Output(target, expression) for target, expression in zip(targets, expressions, strict=True)]
+
+
+def _check_assignments(spec: _KernelSpec, law: Law, targets: list[Reference], assigned: set[tuple[str, int]]) -> None:
+    """Raise an error for an update or boundary law that sums over members or assigns a component twice."""
+    kind = type(law).__name__
+    for target in targets:
+        if target.source is Source.SINGLE and spec.rows > 1:
+            error_msg = f'A {kind} law of {spec.owner} targets a single element from a group, which has no meaning.'
+            raise ValidationError(error_msg)
+        key = (target.entry.name, target.column)
+        if key in assigned:
+            error_msg = f'A {kind} law of {spec.owner} sets {target.entry.name} a second time. Each takes one law.'
+            raise ValidationError(error_msg)
+        assigned.add(key)
+
+
+def _lower_laws(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Declarations) -> _Lowered:
+    """Return the kernels of every law kind."""
+    states, parameters = Layout(declarations.states), Layout(declarations.parameters)
+    lowered = _Lowered()
+    assigned: dict[type, set[tuple[str, int]]] = defaultdict(set)
+    for spec, laws in specs:
+        outputs: dict[type, list[Output]] = defaultdict(list)
+        for law in laws:
+            if isinstance(law, Jump):
+                output = _outputs_of(law.rate, [None], spec.owner)[0]
+                changes = [
+                    (_target_references(target, spec)[0], float(increment)) for target, increment in law.changes.items()
+                ]
+                lowered.jump_changes[id(output)] = changes
+                outputs[Jump].append(output)
+                continue
+            targets = _target_references(law.target, spec)
+            if isinstance(law, ASSIGNED_KINDS):
+                _check_assignments(spec, law, targets, assigned[type(law)])
+            outputs[type(law)].extend(_outputs_of(law.value, targets, spec.owner))  # type: ignore[arg-type]
+        for kind, kind_outputs in outputs.items():
+            lowered.kernels[kind].append(
+                Kernel(
+                    spec.owner,
+                    declarations.time,
+                    spec.references,
+                    spec.rows,
+                    states,
+                    parameters,
+                    spec.pairs,
+                    kind_outputs,
+                ),
+            )
+    return lowered
+
+
+def _infer_form(laws: list[Law]) -> Form:
     """Return the form that the law kinds of a system determine."""
-    kinds = frozenset(type(law) for _, law in laws)
+    kinds = frozenset(type(law) for law in laws if not isinstance(law, Boundary))
     if kinds not in FORMS:
         found = ', '.join(sorted(kind.__name__ for kind in kinds))
         supported = '; '.join(
@@ -164,143 +336,166 @@ def _infer_form(laws: list[tuple[str, Law]]) -> Form:
     return FORMS[kinds]
 
 
-def _target_indices(target: object, index_of: dict[sympy.Symbol, int], owner: str) -> list[int]:
-    """Return the state vector indices of a law target."""
-    components = list(target) if isinstance(target, sympy.MatrixBase) else [target]
-    if not all(isinstance(component, sympy.Symbol) and component in index_of for component in components):
-        error_msg = f'A law of {owner} targets {target!r}, which is not a state symbol of the namespace `s`.'
-        raise ValidationError(error_msg)
-    return [index_of[component] for component in components]
+def _adding_function(kernels: list[Kernel], size: int) -> VectorFunction:
+    """Return the function that sums the outputs of kernels into a zero vector."""
+
+    def evaluate(t: float, x: Vector, p: Vector) -> Vector:
+        """Sum every kernel's outputs into their targets."""
+        output = np.zeros(size)
+        for kernel in kernels:
+            _, pairs, values = kernel.evaluate(t, x, p)
+            for item, value in zip(kernel.outputs, values, strict=True):
+                add_into(output, item.target, value, pairs)  # type: ignore[arg-type]
+        return output
+
+    return evaluate
 
 
-def _fill_slots(slots: Slots, indices: list[int], value: object, context: Context, owner: str) -> None:
-    """Add a law value to the slots at the given indices."""
-    expressions = symbolic_components(value, len(indices), context, owner)
-    if expressions is None:
-        slots.add_callable(indices, value)  # type: ignore[arg-type]
-        return
-    for index, expression in zip(indices, expressions, strict=True):
-        slots.add_expression(index, expression)
+def _assigning_function(kernels: list[Kernel]) -> VectorFunction:
+    """Return the function that sets the outputs of kernels on a copy of the state vector."""
+
+    def evaluate(t: float, x: Vector, p: Vector) -> Vector:
+        """Set every kernel's outputs on a copy of the state."""
+        output = x.copy()
+        for kernel in kernels:
+            _, _, values = kernel.evaluate(t, x, p)
+            for item, value in zip(kernel.outputs, values, strict=True):
+                assign_into(output, item.target, value)  # type: ignore[arg-type]
+        return output
+
+    return evaluate
 
 
-def _lower_continuous(
-    laws: list[tuple[str, Law]],
-    context: Context,
-    index_of: dict[sympy.Symbol, int],
-) -> tuple[Slots, Slots, VectorFunction, VectorFunction]:
-    """Return the drift and noise slots and the drift and diffusion functions of rate and noise laws."""
-    size = len(context.state_symbols)
-    drift = Slots(size)
-    rows: list[int] = []
-    noise = Slots(0)
-    for owner, law in laws:
-        indices = _target_indices(law.target, index_of, owner)  # type: ignore[union-attr]
-        if isinstance(law, Rate):
-            _fill_slots(drift, indices, law.value, context, owner)
-            continue
-        columns = list(range(len(rows), len(rows) + len(indices)))
-        rows.extend(indices)
-        noise.size = len(rows)
-        _fill_slots(noise, columns, law.value, context, owner)  # type: ignore[union-attr]
-    amplitudes = build_function(noise, context)
-    row_indices = np.asarray(rows, dtype=np.intp)
+def _concatenating_function(kernels: list[Kernel]) -> VectorFunction:
+    """Return the function that concatenates the outputs of kernels, one value per evaluation index."""
 
-    def diffusion(t: float, x: Vector, p: Vector) -> Vector:
-        """Return one column per independent Wiener process."""
-        matrix = np.zeros((size, len(row_indices)))
-        matrix[row_indices, np.arange(len(row_indices))] = amplitudes(t, x, p)
-        return matrix
+    def evaluate(t: float, x: Vector, p: Vector) -> Vector:
+        """Concatenate every kernel's outputs."""
+        values = [value for kernel in kernels for value in kernel.evaluate(t, x, p)[2]]
+        return np.concatenate([np.zeros(0), *values])
 
-    return drift, noise, build_function(drift, context), diffusion
+    return evaluate
 
 
-def _lower_jumps(
-    laws: list[tuple[str, Law]],
-    context: Context,
-    index_of: dict[sympy.Symbol, int],
-) -> tuple[Slots, VectorFunction, Vector]:
-    """Return the rate slots, the propensity function, and the stoichiometry matrix of jump laws."""
-    rates = Slots(len(laws))
-    stoichiometry = np.zeros((len(laws), len(context.state_symbols)))
-    for row, (owner, law) in enumerate(laws):
-        _fill_slots(rates, [row], law.rate, context, owner)  # type: ignore[union-attr]
-        for target, increment in law.changes.items():  # type: ignore[union-attr]
-            (index,) = _target_indices(target, index_of, owner)
-            try:
-                stoichiometry[row, index] = float(increment)
-            except (TypeError, ValueError) as error:
-                error_msg = f'A jump of {owner} changes {target} by {increment!r}, which is not a number.'
-                raise ValidationError(error_msg) from error
-    return rates, build_function(rates, context), stoichiometry
+def _member_indices(reference: Reference, rows: int) -> np.ndarray:
+    """Return the flat index of a target component for every evaluation index of a member kernel."""
+    if reference.source is Source.MEMBER:
+        return reference.flat_indices
+    return np.full(rows, reference.entry.start + reference.column, dtype=np.intp)
 
 
-def _lower_updates(
-    laws: list[tuple[str, Law]],
-    context: Context,
-    index_of: dict[sympy.Symbol, int],
-) -> tuple[Slots, VectorFunction]:
-    """Return the update slots and the function that gives the next state vector."""
-    updates = Slots(len(context.state_symbols))
-    assigned: set[int] = set()
-    for owner, law in laws:
-        indices = _target_indices(law.target, index_of, owner)  # type: ignore[union-attr]
-        if assigned.intersection(indices):
-            error_msg = f'A law of {owner} updates {indices} a second time. Each state takes one update law.'
-            raise ValidationError(error_msg)
-        assigned.update(indices)
-        _fill_slots(updates, indices, law.value, context, owner)  # type: ignore[union-attr]
-    for index, symbol in enumerate(context.state_symbols):
-        if index not in assigned:
-            updates.add_expression(index, symbol)
-    return updates, build_function(updates, context)
+def _noise_rows(kernels: list[Kernel]) -> np.ndarray:
+    """Return the state index driven by every Wiener process."""
+    rows = [_member_indices(item.target, kernel.rows) for kernel in kernels for item in kernel.outputs]  # type: ignore[arg-type]
+    return np.concatenate([np.zeros(0, dtype=np.intp), *rows]).astype(np.intp)
 
 
-def _equations_of(slots: Slots, context: Context) -> dict[str, sympy.Expr]:
-    """Return the symbolic expression of every state component without a callable law."""
-    excluded = slots.callable_indices
-    names = context.states.component_names
-    return {
-        names[index]: slots.expressions.get(index, sympy.Integer(0))
-        for index in range(len(names))
-        if index not in excluded
-    }
+def _jump_channels(
+    kernels: list[Kernel],
+    changes: dict[int, list[tuple[Reference, float]]],
+) -> tuple[JumpChannels, ...]:
+    """Return the channels of every jump law."""
+    channels, offset = [], 0
+    for kernel in kernels:
+        for item in kernel.outputs:
+            law_changes = changes[id(item)]
+            targets = np.array(
+                [_member_indices(reference, kernel.rows) for reference, _ in law_changes],
+                dtype=np.intp,
+            ).reshape(len(law_changes), kernel.rows)
+            increments = np.array([increment for _, increment in law_changes], dtype=float)
+            channels.append(JumpChannels(offset, targets, increments))
+            offset += kernel.rows
+    return tuple(channels)
 
 
-def _lower(
-    problem: Problem,
-    laws: list[tuple[str, Law]],
-    context: Context,
-    index_of: dict[sympy.Symbol, int],
-) -> Problem:
-    """Return the problem with the numeric functions and equations of its form."""
-    if problem.form in (Form.ODE, Form.SDE):
-        slots, noise, drift, diffusion = _lower_continuous(laws, context, index_of)
-        return replace(
-            problem,
-            drift=drift,
-            diffusion=diffusion if problem.form is Form.SDE else None,
-            equations=_equations_of(slots, context),
-            has_callables=bool(slots.callables or noise.callables),
-        )
-    if problem.form is Form.JUMP:
-        rates, propensities, stoichiometry = _lower_jumps(laws, context, index_of)
-        return replace(
-            problem,
-            propensities=propensities,
-            stoichiometry=stoichiometry,
-            has_callables=bool(rates.callables),
-        )
-    updates, update = _lower_updates(laws, context, index_of)
-    return replace(
-        problem,
-        update=update,
-        equations=_equations_of(updates, context),
-        has_callables=bool(updates.callables),
+def _sums_over_members(kernel: Kernel, item: Output) -> bool:
+    """Check whether an output sums over the pairs or the members of a group."""
+    if kernel.pairs is not None:
+        return True
+    return item.target is not None and item.target.source is Source.SINGLE and kernel.rows > 1
+
+
+def _equations_of(
+    kernels: list[Kernel],
+    declarations: _Declarations,
+    form: Form,
+) -> tuple[dict[str, sympy.Expr], dict[str, sympy.Symbol]]:
+    """Return the symbolic equations and their symbols, leaving out components with callables or group sums."""
+    contributions: dict[tuple[str, int], list[sympy.Expr]] = defaultdict(list)
+    excluded: set[tuple[str, int]] = set()
+    for kernel in kernels:
+        for item in kernel.outputs:
+            key = (item.target.entry.name, item.target.column)  # type: ignore[union-attr]
+            if item.expression is None or _sums_over_members(kernel, item):
+                excluded.add(key)
+                continue
+            contributions[key].append(item.expression)
+    equations, symbols = {}, {}
+    for block in declarations.blocks.values():
+        for variable, entry in block.entries.items():
+            if entry not in declarations.states:
+                continue
+            components = block.symbols[variable]
+            for column, symbol in enumerate(components if isinstance(components, sympy.MatrixBase) else [components]):
+                key = (entry.name, column)
+                if key in excluded:
+                    continue
+                default = symbol if form is Form.DISCRETE else sympy.Integer(0)
+                terms = contributions.get(key)
+                name = entry.generic_names[column]
+                equations[name] = sympy.Add(*terms) if terms else default
+                symbols[name] = symbol
+    return equations, symbols
+
+
+def _lower(form: Form, lowered: _Lowered, declarations: _Declarations) -> dict[str, object]:
+    """Return the numeric functions and equations of a form."""
+    kernels, size = lowered.kernels, sum(entry.size for entry in declarations.states)
+    functions: dict[str, object] = {}
+    if kernels[Boundary]:
+        functions['boundary'] = _assigning_function(kernels[Boundary])
+    if form in (Form.ODE, Form.SDE):
+        functions['drift'] = _adding_function(kernels[Rate], size)
+        if form is Form.SDE:
+            functions['diffusion'] = _concatenating_function(kernels[Noise])
+            functions['noise_rows'] = _noise_rows(kernels[Noise])
+        main = kernels[Rate] + kernels[Noise]
+    elif form is Form.JUMP:
+        functions['propensities'] = _concatenating_function(kernels[Jump])
+        functions['jumps'] = _jump_channels(kernels[Jump], lowered.jump_changes)
+        main = kernels[Jump]
+    else:
+        functions['update'] = _assigning_function(kernels[Update])
+        main = kernels[Update]
+    equation_kernels = {Form.DISCRETE: kernels[Update], Form.JUMP: []}.get(form, kernels[Rate])
+    equations, symbols = _equations_of(equation_kernels, declarations, form)
+    functions.update(
+        equations=equations,
+        equation_symbols=symbols,
+        has_callables=any(item.expression is None for kernel in main for item in kernel.outputs),
+        has_group_sums=any(_sums_over_members(kernel, item) for kernel in main for item in kernel.outputs),
     )
+    return functions
+
+
+def _is_interaction(node: Node) -> bool:
+    """Check whether a node is an interaction."""
+    return not isinstance(node.component, Element | Group)
+
+
+def _visual_of(node: Node) -> VisualSpec:
+    """Return the visual of an element, or a group's own visual when it sets one."""
+    if isinstance(node.component, Group) and node.component.visual is not None:
+        return node.component.visual
+    return node.component_type.visual
 
 
 def compile_system(system: System) -> Problem:
     """Compile a system into a problem of the form its law kinds determine.
+
+    Elements and groups are compiled once each, whatever the size of a group. Laws written for one member are
+    evaluated for every member, and pair interactions are evaluated for every pair within their cutoff.
 
     Args:
         system:
@@ -312,13 +507,13 @@ def compile_system(system: System) -> Problem:
 
     Raises:
         ValidationError:
-            A child has the wrong type, a value is outside its domain, or a law is malformed.
+            A child has the wrong type, a value is outside its domain or has the wrong shape, or a law is malformed.
 
         LabelError:
             A label is not valid, duplicated, or produces a symbol collision.
 
         RoleError:
-            A role refers to an element that does not exist.
+            A role refers to an element that does not exist, or an interaction binds two groups.
 
         SpaceError:
             A vector variable has no enclosing space.
@@ -343,32 +538,48 @@ def compile_system(system: System) -> Problem:
     """
     nodes = flatten_system(system)
     declarations = _Declarations(time=sympy.Symbol('t', real=True))
-    laws = _collect_laws(nodes, declarations)
-    _check_symbol_names(declarations.symbols)
+    blocks = [declarations.declare_component(node) for node in nodes]
+    _check_symbol_names(declarations.blocks)
+    elements = {block.node.path: block for block in blocks if not _is_interaction(block.node)}
+    specs: list[tuple[_KernelSpec, list[Law]]] = []
+    for block in blocks:
+        if not _is_interaction(block.node):
+            spec = _member_spec(block, declarations.time)
+        elif isinstance(block.node.component, PairInteraction):
+            spec = _pair_spec(block, elements, declarations.time)
+        else:
+            spec = _interaction_spec(block, elements, declarations.time)
+        specs.append((spec, _collect_laws(spec, _component_of(block.node))))
+    form = _infer_form([law for _, laws in specs for law in laws])
+    lowered = _lower_laws(specs, declarations)
+    functions = _lower(form, lowered, declarations)
     states, parameters = Layout(declarations.states), Layout(declarations.parameters)
-    problem = Problem(
-        form=_infer_form(laws),
+    compiled_elements = tuple(
+        CompiledElement(
+            path=block.node.path,
+            element=block.node.component,
+            states={
+                name: f'{block.node.path}.{name}'
+                for name in declarations_of(block.node.component_type, VariableKind.STATE)
+            },
+            parameters={
+                name: f'{block.node.path}.{name}'
+                for name in declarations_of(block.node.component_type, VariableKind.PARAMETER)
+            },
+            visual=_visual_of(block.node),
+            members=block.node.members,
+        )
+        for block in elements.values()
+    )
+    symbols = {entry.name: block.symbols[variable] for block in blocks for variable, entry in block.entries.items()}
+    return Problem(
+        form=form,
         states=states,
         parameters=parameters,
         initial_state=np.concatenate([np.zeros(0), *declarations.initial_states]),
         initial_parameters=np.concatenate([np.zeros(0), *declarations.initial_parameters]),
         time=declarations.time,
-        symbols=declarations.symbols,
-        equations={},
-        has_callables=False,
-        elements=tuple(
-            CompiledElement(
-                path=node.path,
-                element=node.component,
-                states={name: f'{node.path}.{name}' for name in declarations_of(node.component, VariableKind.STATE)},
-                parameters={
-                    name: f'{node.path}.{name}' for name in declarations_of(node.component, VariableKind.PARAMETER)
-                },
-            )
-            for node in nodes
-            if isinstance(node.component, Element)
-        ),
+        symbols=symbols,
+        elements=compiled_elements,
+        **functions,  # type: ignore[arg-type]
     )
-    context = Context(problem.time, problem.state_symbols, problem.parameter_symbols, states, parameters)
-    index_of = {symbol: index for index, symbol in enumerate(context.state_symbols)}
-    return _lower(problem, laws, context, index_of)

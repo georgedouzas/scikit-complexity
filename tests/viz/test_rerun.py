@@ -8,7 +8,7 @@ import rerun as rr
 from skcomplex.core import VisualSpec
 from skcomplex.model import EuclideanSpace, System
 from skcomplex.models.ecology import ExponentialGrowth, Population
-from skcomplex.models.physics import ConstantForce, Particle
+from skcomplex.models.physics import ConstantForce, Particle, ideal_gas
 from skcomplex.runtime import Frame, Simulation
 from skcomplex.viz import PointsVisual, RerunObserver, ScalarsVisual, Visual, resolve_visual
 
@@ -127,3 +127,50 @@ def test_visual_base_log_is_abstract():
     """Test that the base visual must be subclassed."""
     with pytest.raises(NotImplementedError):
         Visual().log(None, None, None)
+
+
+def test_group_is_logged_as_one_batch(monkeypatch, tmp_path):
+    """Test that a group of 10000 members is logged as one Points2D per frame."""
+    logged = []
+    original = rr.RecordingStream.log
+
+    def log(self, path, archetype, *args, **kwargs):
+        logged.append((path, type(archetype).__name__, getattr(archetype, 'positions', None)))
+        return original(self, path, archetype, *args, **kwargs)
+
+    monkeypatch.setattr(rr.RecordingStream, 'log', log)
+    observer = RerunObserver('test', save_path=tmp_path / 'gas.rrd')
+    Simulation(ideal_gas(10_000, random_state=0), dt=0.01, observers=[observer]).run(until=0.02)
+    batches = [entry for entry in logged if entry[0] == 'gas']
+    assert len(batches) == 3
+    assert all(name == 'Points2D' and len(positions) == 10_000 for _, name, positions in batches)
+    assert not [entry for entry in logged if entry[0].startswith('gas/')]
+
+
+def test_points_colored_by_speed_follow_the_color_scale():
+    """Test that faster members get colors further along the color scale."""
+    system = System(
+        elements=[Particle.group('gas', 3, v=[[0.1, 0.0], [1.0, 0.0], [2.0, 0.0]])],
+        space=EuclideanSpace(2),
+    )
+    simulation = Simulation(system).run(until=0.0)
+    frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
+    recording = LoggedPaths()
+    visual = PointsVisual(position='x', color_by='v', color_range=(0.0, 2.0), states=())
+    colors = []
+    recording.log = lambda path, archetype: colors.append(archetype.colors.as_arrow_array().to_pylist())
+    visual.log(recording, simulation.problem_.elements[0], frame)
+    rgb = [[(value >> shift) & 255 for shift in (24, 16, 8)] for value in colors[0]]
+    assert rgb[0][2] > rgb[0][1]
+    assert rgb[2][1] > rgb[0][1]
+    assert rgb[2][0] > rgb[1][0]
+
+
+def test_points_color_range_is_fixed_on_first_frame():
+    """Test that the color range is fixed from the first logged frame when it is not given."""
+    system = System(elements=[Particle.group('gas', 2, v=[[1.0, 0.0], [3.0, 0.0]])], space=EuclideanSpace(2))
+    simulation = Simulation(system).run(until=0.0)
+    frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
+    visual = PointsVisual(position='x', color_by='v', states=())
+    visual.log(LoggedPaths(), simulation.problem_.elements[0], frame)
+    assert visual.color_range == (1.0, 3.0)
