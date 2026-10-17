@@ -1,6 +1,6 @@
 [build-system]
-requires = ["pdm-pep517"]
-build-backend = "pdm.pep517.api"
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
 
 [project]
 name = "scikit-complexity"
@@ -35,19 +35,17 @@ Changelog = "https://georgedouzas.github.io/scikit-complexity/changelog"
 Repository = "https://github.com/georgedouzas/scikit-complexity"
 Issues = "https://github.com/georgedouzas/scikit-complexity/issues"
 Discussions = "https://github.com/georgedouzas/scikit-complexity/discussions"
-Gitter = "https://gitter.im/scikit-complexity/community"
 Funding = "https://github.com/sponsors/georgedouzas"
 
-[tool.pdm]
-version = {source = "scm"}
-build = {package-dir = "src"}
+[tool.pdm.version]
+source = "scm"
+
+[tool.pdm.build]
+package-dir = "src"
+editable-backend = "editables"
 
 [tool.pdm.scripts]
-clean = {shell = """rm -rf .mypy_cache .pytest_cache tests/.pytest_cache build dist \
-htmlcov pip-wheel-metadata site __pycache__ docs/generated .nox .ruff_cache pdm.lock \
-&& find . -type d -name __pycache__ | xargs rm -rf \
-&& find . -name '*.rej'  -delete \
-&& find . -name '.coverage*'  -delete"""}
+clean = "nox --error-on-external-run -R -s clean"
 docs = "nox --error-on-external-run -R -s docs -- {args:serve}"
 formatting = "nox --error-on-external-run -R -s formatting -- {args:all}"
 checks = "nox --default-venv-backend uv --error-on-external-run -R -s checks -- {args:all}"
@@ -60,7 +58,7 @@ maintenance = [
     "nox[uv]>=2024.4.15",
 ]
 docs = [
-    "mkdocs>=1.6.0",
+    "properdocs>=1.6.7",
     "mkdocs-coverage>=1.1.0",
     "mkdocs-gen-files>=0.5.0",
     "mkdocs-literate-nav>=0.6.1",
@@ -78,10 +76,14 @@ formatting = [
 ]
 checks = [
     "ruff>=0.5.0",
-    "safety>=3.2.3",
+    "pip-audit>=2.7.3",
+    "bandit[toml]>=1.7.5",
     "mypy>=1.10.1",
     "types-markdown>=3.6.0.20240316",
     "types-toml>=0.10.8.20240310",
+    "interrogate>=1.7.0",
+    "pydoclint>=0.9.1",
+    "deptry>=0.25.1",
 ]
 tests = [
     "pytest>=8.2.2",
@@ -100,6 +102,14 @@ release = [
 line-length = 120
 extend-exclude = "(tests/fixtures|docs/generated)"
 skip-string-normalization = true
+target-version = ["py312"]
+
+[tool.docformatter]
+in-place = true
+recursive = true
+close-quotes-on-newline = true
+wrap-descriptions = 120
+wrap-summaries = 120
 
 [tool.ruff]
 extend-exclude = ["docs/generated"]
@@ -128,6 +138,24 @@ ignore_missing_imports = true
 exclude = ["tests/fixtures/", "docs/examples/", "docs/generated/"]
 warn_unused_ignores = true
 show_error_codes = true
+
+[tool.pydoclint]
+# Verifies docstrings match the signature, which interrogate cannot: interrogate counts
+# docstrings, this one reads them.
+style = "google"
+arg-type-hints-in-docstring = false
+check-return-types = false
+check-yield-types = false
+
+[tool.bandit]
+# Read by the checks nox session, which passes `-c pyproject.toml`. B101 is the
+# bandit counterpart of the ruff S101 ignore above: asserts are how tests assert.
+skips = ["B101"]
+
+[tool.pip-audit]
+# Advisory IDs to ignore, read by the checks nox session. PYSEC-2022-42969 is a
+# won't-fix ReDoS in py, pulled in transitively by interrogate.
+ignore-vulns = ["PYSEC-2022-42969"]
 
 [tool.pytest.ini_options]
 python_files = ["test_*.py"]

@@ -3,7 +3,12 @@ name: CI
 on:
   push:
     branches:
-      - main
+      - '**'
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
 
 jobs:
 
@@ -20,16 +25,16 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Install Python versions
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: |
             3.12
-            
+
     - name: Set up PDM
-      uses: pdm-project/setup-pdm@v3
+      uses: pdm-project/setup-pdm@v4
       with:
         cache: true
         cache-dependency-path: pyproject.toml
@@ -46,6 +51,12 @@ jobs:
     - name: Check vulnerabilities in dependencies
       run: pdm checks dependencies
 
+    - name: Check security issues
+      run: pdm checks security
+
+    - name: Check docstring coverage
+      run: pdm checks docs
+
   tests:
 
     strategy:
@@ -59,16 +70,16 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Install Python versions
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: |
             3.12
-            
+
     - name: Set up PDM
-      uses: pdm-project/setup-pdm@v3
+      uses: pdm-project/setup-pdm@v4
       with:
         cache: true
         cache-dependency-path: pyproject.toml
@@ -78,3 +89,29 @@ jobs:
 
     - name: Run the test suite
       run: pdm tests
+
+  doc:
+
+    if: ${{ github.ref != 'refs/heads/main' }}
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ['3.12']
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up PDM
+      uses: pdm-project/setup-pdm@v4
+      with:
+        cache: true
+        cache-dependency-path: pyproject.toml
+
+    - name: Install dependencies
+      run: pdm install -dG maintenance -dG docs
+
+    - name: Build documentation with Python ${{ matrix.python-version }}
+      run: pdm docs build

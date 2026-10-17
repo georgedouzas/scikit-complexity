@@ -19,7 +19,7 @@ from skcomplex.system.physics import (
 @pytest.mark.parametrize('m', ['m', var('m__point')])
 def test_point_particle_wrong_mass_type(m):
     """Test raising an error for wrong mass type."""
-    with pytest.raises(TypeError, match='m must be an instance of {int, float}'):
+    with pytest.raises(TypeError, match=re.escape('m must be an instance of {int, float}')):
         PointParticle('point', m)
 
 

@@ -1,7 +1,5 @@
 """Generate the API pages and navigation."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import mkdocs_gen_files
@@ -18,7 +16,7 @@ paths = [
 ]
 for path in paths:
     module_path = path.relative_to('src').with_suffix('')
-    doc_path = path.relative_to('src', 'skcomplex').with_suffix('.md')
+    doc_path = path.relative_to(Path('src', 'skcomplex')).with_suffix('.md')
     full_doc_path = Path('api', doc_path)
 
     parts = tuple(module_path.parts)

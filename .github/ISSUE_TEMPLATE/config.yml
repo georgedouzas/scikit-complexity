@@ -3,9 +3,6 @@ contact_links:
   - name: Discussions
     url: https://github.com/georgedouzas/scikit-complexity/discussions
     about: Ask questions and discuss with other community members
-  - name: Gitter
-    url: https://gitter.im/scikit-complexity/community
-    about: Users and developers can sometimes be found on the gitter channel
   - name: Blank issue
     url: https://github.com/georgedouzas/scikit-complexity/issues/new
     about: Please note that Github Discussions should be used in most cases instead

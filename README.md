@@ -6,13 +6,25 @@
 [ruff]: <https://github.com/charliermarsh/ruff>
 [mypy badge]: <http://www.mypy-lang.org/static/mypy_badge.svg>
 [mypy]: <http://mypy-lang.org>
-[mkdocs badge]: <https://img.shields.io/badge/docs-mkdocs%20material-blue.svg?style=flat>
-[mkdocs]: <https://squidfunk.github.io/mkdocs-material>
+[properdocs badge]: <https://img.shields.io/badge/docs-properdocs-blue.svg?style=flat>
+[properdocs]: <https://properdocs.org>
+[pip-audit badge]: <https://img.shields.io/badge/security-pip--audit-green>
+[pip-audit]: <https://github.com/pypa/pip-audit>
+[bandit badge]: <https://img.shields.io/badge/security-bandit-yellow>
+[bandit]: <https://github.com/PyCQA/bandit>
+[pytest badge]: <https://img.shields.io/badge/tests-pytest-blue>
+[pytest]: <https://github.com/pytest-dev/pytest>
+[coverage badge]: <https://img.shields.io/badge/coverage-pytest--cov-blue>
+[coverage]: <https://github.com/nedbat/coveragepy>
+[interrogate badge]: <https://img.shields.io/badge/docstring-interrogate-blue>
+[interrogate]: <https://github.com/econchick/interrogate>
+[pre-commit badge]: <https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit>
+[pre-commit]: <https://github.com/pre-commit/pre-commit>
+[nox badge]: <https://img.shields.io/badge/%F0%9F%A6%8A-Nox-D85E00.svg>
+[nox]: <https://github.com/wntrblm/nox>
 [version badge]: <https://img.shields.io/pypi/v/scikit-complexity.svg>
 [pythonversion badge]: <https://img.shields.io/pypi/pyversions/scikit-complexity.svg>
 [downloads badge]: <https://img.shields.io/pypi/dd/scikit-complexity>
-[gitter]: <https://gitter.im/scikit-complexity/community>
-[gitter badge]: <https://badges.gitter.im/join%20chat.svg>
 [discussions]: <https://github.com/georgedouzas/scikit-complexity/discussions>
 [discussions badge]: <https://img.shields.io/github/discussions/georgedouzas/scikit-complexity>
 [ci]: <https://github.com/georgedouzas/scikit-complexity/actions?query=workflow>
@@ -25,9 +37,12 @@
 | Category          | Tools    |
 | ------------------| -------- |
 | **Development**   | [![black][black badge]][black] [![ruff][ruff badge]][ruff] [![mypy][mypy badge]][mypy] [![docformatter][docformatter badge]][docformatter] |
+| **Testing**       | [![pytest][pytest badge]][pytest] [![coverage][coverage badge]][coverage] [![interrogate][interrogate badge]][interrogate] |
+| **Security**      | [![pip-audit][pip-audit badge]][pip-audit] [![bandit][bandit badge]][bandit] |
+| **Automation**    | [![nox][nox badge]][nox] [![pre-commit][pre-commit badge]][pre-commit] |
 | **Package**       | ![version][version badge] ![pythonversion][pythonversion badge] ![downloads][downloads badge] |
-| **Documentation** | [![mkdocs][mkdocs badge]][mkdocs]|
-| **Communication** | [![gitter][gitter badge]][gitter] [![discussions][discussions badge]][discussions] |
+| **Documentation** | [![properdocs][properdocs badge]][properdocs]|
+| **Communication** | [![discussions][discussions badge]][discussions] |
 
 ## Introduction
 
@@ -81,12 +96,12 @@ For example, let's define two independent harmonic oscillators that oscillate in
 
 ```python
 from sage.all import assume, symbolic_expression, var, cos, sin, sqrt
-from skcomplex.physics import (
+from skcomplex.component import EuclideanSpace
+from skcomplex.system.physics import (
     ClassicalMechanicsSystem,
     ExternalForce,
     PointParticle,
 )
-from skcomplex.spaces import EuclideanSpace
 k, x__1, y__2 = var('k x__1 y__2')
 assume(k > 0)
 system = ClassicalMechanicsSystem(
@@ -104,8 +119,15 @@ We can simulate the system and solve the dynamical equations:
 ```python
 system.simulate()
 var('_K1 _K2 m__1 m__2 t')
-assert system.simulation_results_['dynamic_equations']['solutions'] == {
+assert system.dynamic_equations_['solutions'] == {
     '1': [_K2*cos(sqrt(k)*t/sqrt(m__1)) + _K1*sin(sqrt(k)*t/sqrt(m__1)), _K2*t + _K1],
     '2': [_K2*t + _K1, _K2*cos(sqrt(k)*t/sqrt(m__2)) + _K1*sin(sqrt(k)*t/sqrt(m__2))]
 }
 ```
+
+## Spec-driven development
+
+The project's engineering constitution lives in `openspec/constitution.md` and binds all work. The
+project uses [OpenSpec](https://github.com/Fission-AI/OpenSpec) for spec-driven development: run
+`openspec init` once to add the workflow, and `openspec/config.yaml` already names the constitution
+as binding.
