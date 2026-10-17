@@ -1,0 +1,105 @@
+"""Test the Rerun observer and the visuals."""
+
+import pytest
+import rerun as rr
+
+from skcomplex.core import VisualSpec
+from skcomplex.model import EuclideanSpace, System
+from skcomplex.models.ecology import ExponentialGrowth, Population
+from skcomplex.models.physics import ConstantForce, Particle
+from skcomplex.runtime import Frame, Simulation
+from skcomplex.viz import PointsVisual, RerunObserver, ScalarsVisual, Visual, resolve_visual
+
+
+class LoggedPaths:
+    """Recording stand-in that keeps the entity paths and archetypes it receives."""
+
+    def __init__(self):
+        """Start with no logs."""
+        self.logs = []
+
+    def log(self, path, archetype):
+        """Keep a logged entity path and archetype."""
+        self.logs.append((path, type(archetype).__name__))
+
+
+def _run(system, observer, until=1.0, dt=0.1):
+    """Run a system with a Rerun observer whose visuals log to a stand-in."""
+    simulation = Simulation(system, dt=dt, observers=[observer])
+    simulation.run(until=until)
+    return simulation
+
+
+def test_rerun_observer_saves_recording(tmp_path):
+    """Test that a recording file is written."""
+    path = tmp_path / 'run.rrd'
+    system = System(elements=[Population('a')], interactions=[ExponentialGrowth('g', target='a')])
+    _run(system, RerunObserver('test', save_path=path))
+    assert path.exists()
+    assert path.stat().st_size > 0
+
+
+def test_rerun_observer_interval_thins_frames(tmp_path):
+    """Test that only every n-th frame is logged."""
+    observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', interval=10)
+    system = System(elements=[Population('a')])
+    _run(system, observer, until=0.99, dt=0.01)
+    assert observer.logged_frames_ == 10
+
+
+def test_scalars_visual_logs_nested_paths():
+    """Test that scalar states are logged under the element path."""
+    recording = LoggedPaths()
+    system = System(systems=[System('meadow', elements=[Population('rabbits')])])
+    simulation = Simulation(system).run(until=0.0)
+    element = simulation.problem_.elements[0]
+    frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
+    ScalarsVisual().log(recording, element, frame)
+    assert recording.logs == [('meadow/rabbits/n', 'Scalars')]
+
+
+@pytest.mark.parametrize(('n_dim', 'archetype'), [(3, 'Points3D'), (2, 'Points2D'), (1, 'Scalars')])
+def test_points_visual_logs_positions(n_dim, archetype):
+    """Test that positions are logged as points of their dimension."""
+    system = System(
+        elements=[Particle('ball')],
+        interactions=[ConstantForce('push', target='ball', F=1.0)],
+        space=EuclideanSpace(n_dim),
+    )
+    simulation = Simulation(system).run(until=0.0)
+    recording = LoggedPaths()
+    frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
+    PointsVisual(position='x').log(recording, simulation.problem_.elements[0], frame)
+    assert recording.logs[0][1] == archetype
+    assert ('ball/v', 'Scalars') in recording.logs
+
+
+def test_rerun_observer_logs_parameters(monkeypatch, tmp_path):
+    """Test that parameters are logged under the parameters path every frame."""
+    logged = []
+    original = rr.RecordingStream.log
+
+    def log(self, path, *args, **kwargs):
+        logged.append(path)
+        return original(self, path, *args, **kwargs)
+
+    monkeypatch.setattr(rr.RecordingStream, 'log', log)
+    system = System(elements=[Population('a')], interactions=[ExponentialGrowth('g', target='a')])
+    _run(system, RerunObserver('test', save_path=tmp_path / 'run.rrd'), until=0.2)
+    assert logged.count('parameters/g.r') == 3
+    assert logged.count('a/n') == 3
+
+
+def test_resolve_visual_builds_registered_visuals():
+    """Test that visual specs resolve to visuals with their options."""
+    visual = resolve_visual(VisualSpec('points', {'position': 'x', 'radius': 0.2}))
+    assert isinstance(visual, PointsVisual)
+    assert visual.radius == 0.2
+    with pytest.raises(KeyError, match='unknown'):
+        resolve_visual(VisualSpec('unknown'))
+
+
+def test_visual_base_log_is_abstract():
+    """Test that the base visual must be subclassed."""
+    with pytest.raises(NotImplementedError):
+        Visual().log(None, None, None)

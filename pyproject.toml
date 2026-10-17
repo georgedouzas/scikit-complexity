@@ -26,7 +26,18 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    "numpy>=1.26.0",
+    "scipy>=1.13.0",
+    "sympy>=1.13.0",
+    "rerun-sdk>=0.39.0",
     "scikit-learn>=1.5.1",
+]
+
+[project.optional-dependencies]
+sage = [
+    "passagemath-symbolics>=10.8.0",
+]
+lammps = [
     "lammps>=2024.8.29.0.0",
 ]
 
@@ -129,13 +140,13 @@ select = ["C", "E", "F", "W", "B", "I", "D", "N", "UP", "YTT", "ANN", "S",
 [tool.ruff.lint.per-file-ignores]
 "docs/examples/*" = ["ANN", "D", "B018"]
 "docs/generated/*" = ["ANN", "D"]
-"test_*" = ["ANN"]
+"test_*" = ["ANN", "PLR2004"]
+"src/skcomplex/core/_variables.py" = ["ANN401"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [tool.mypy]
-plugins = "numpy.typing.mypy_plugin"
 ignore_missing_imports = true
 exclude = ["tests/fixtures/", "docs/examples/", "docs/generated/"]
 warn_unused_ignores = true
@@ -148,6 +159,10 @@ style = "google"
 arg-type-hints-in-docstring = false
 check-return-types = false
 check-yield-types = false
+# The constitution documents dataclass fields under Args and keeps Attributes for learned state only.
+check-class-attributes = false
+# Raises sections name propagated exceptions too, which pydoclint cannot see in the function body.
+skip-checking-raises = true
 
 [tool.bandit]
 # Read by the checks nox session, which passes `-c pyproject.toml`. B101 is the
@@ -158,6 +173,15 @@ skips = ["B101"]
 # Advisory IDs to ignore, read by the checks nox session. PYSEC-2022-42969 is a
 # won't-fix ReDoS in py, pulled in transitively by interrogate.
 ignore-vulns = ["PYSEC-2022-42969"]
+
+[tool.deptry.package_module_name_map]
+rerun-sdk = "rerun"
+scikit-learn = "sklearn"
+passagemath-symbolics = "sage"
+
+[tool.deptry.per_rule_ignores]
+# The extras are installed for users and reached through `sympify` or external tools, never imported.
+DEP002 = ["passagemath-symbolics", "lammps"]
 
 [tool.pytest.ini_options]
 python_files = ["test_*.py"]

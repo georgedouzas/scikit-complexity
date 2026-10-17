@@ -46,88 +46,108 @@
 
 ## Introduction
 
-A Python package to create and simulate complex systems.
+`scikit-complexity` describes models from any science as elements that carry state, interactions that change that
+state through laws, and systems that nest and compose. It infers the mathematical form of a model from its laws,
+simulates it offline or in real time, and streams the run to the [Rerun](https://rerun.io) viewer.
 
-## Prerequisites
-
-Either `sagemath-standard` or an installation of [SageMath](https://www.sagemath.org/) is required with a version greater than
-10.0.
+- Rate laws give ordinary differential equations, rate and noise laws give stochastic differential equations, jump
+  laws give jump processes simulated with the Gillespie method, and update laws give discrete maps.
+- Laws are SymPy expressions or plain Python functions. Symbolic laws can be inspected and solved exactly, and Sage
+  expressions are accepted through the `sage` extra.
+- Ready-made models cover physics, ecology, epidemiology, economics, and finance.
 
 ## Installation
 
-Initially, create a Python virtual environment with one of the following two ways: 
-
-- Use the command `sage -python -m venv --system-site-packages .venv` to create and activate Python virtual environment with all the prerequisites installed:
-
-- Use one of the standard ways to create a Python virtual environment and install the package `sagemath-standard`.
-
-You can install `scikit-complexity` either as a normal user or for development purposes.
-
-### User
-
-For user installation, `scikit-complexity` is currently available on the PyPi's repository, and you can
-install it via `pip`:
+`scikit-complexity` supports Python 3.11 to 3.13 and is available on PyPI:
 
 ```bash
 pip install scikit-complexity
 ```
 
-### Development
+The optional extras add Sage support and the LAMMPS molecular dynamics package:
 
-Development installation requires to clone the repository and change directory to the project's root:
+```bash
+pip install "scikit-complexity[sage]"
+pip install "scikit-complexity[lammps]"
+```
+
+For development, clone the repository and install the project with [PDM](https://github.com/pdm-project/pdm):
 
 ```bash
 git clone https://github.com/georgedouzas/scikit-complexity.git
 cd scikit-complexity
-```
-
-Finally, use [PDM](https://github.com/pdm-project/pdm) to select the virtual environment and install the project as well as the
-main and development dependencies:
-
-```bash
-pdm use .venv
 pdm install
 ```
 
 ## Usage
 
-One of the `scikit-complexity` main goals is to provide a unified interface for modelling various complex systems.
-For example, let's define two independent harmonic oscillators that oscillate in the axes x and y:
+A predator and prey model assembles from ready-made interactions:
 
 ```python
-from sage.all import assume, symbolic_expression, var, cos, sin, sqrt
-from skcomplex.component import EuclideanSpace
-from skcomplex.system.physics import (
-    ClassicalMechanicsSystem,
-    ExternalForce,
-    PointParticle,
-)
-k, x__1, y__2 = var('k x__1 y__2')
-assume(k > 0)
-system = ClassicalMechanicsSystem(
-    particles=[PointParticle('1'), PointParticle('2')],
-    external_interactions=[
-        ExternalForce('elastic1', '1', [-k * x__1, 0]),
-        ExternalForce('elastic2', '2', [0, -k * y__2])
+from skcomplex.model import System
+from skcomplex.models.ecology import LogisticGrowth, Mortality, Population, Predation
+
+system = System(
+    elements=[Population('rabbits', n=40), Population('foxes', n=9)],
+    interactions=[
+        LogisticGrowth('growth', target='rabbits', r=1.1, K=1000),
+        Predation('hunt', predator='foxes', prey='rabbits', a=0.4, b=0.1),
+        Mortality('death', target='foxes', d=0.4),
     ],
-    space=EuclideanSpace('euclidean', n_dim=2),
 )
 ```
 
-We can simulate the system and solve the dynamical equations:
+A simulation runs it and records the trajectory. Adding a `RerunObserver` streams the run to the Rerun viewer, and a
+`RealTime` clock paces it against wall time:
 
 ```python
-system.simulate()
-var('_K1 _K2 m__1 m__2 t')
-assert system.dynamic_equations_['solutions'] == {
-    '1': [_K2*cos(sqrt(k)*t/sqrt(m__1)) + _K1*sin(sqrt(k)*t/sqrt(m__1)), _K2*t + _K1],
-    '2': [_K2*t + _K1, _K2*cos(sqrt(k)*t/sqrt(m__2)) + _K1*sin(sqrt(k)*t/sqrt(m__2))]
-}
+from skcomplex.runtime import RealTime, Simulation
+from skcomplex.viz import RerunObserver
+
+simulation = Simulation(
+    system,
+    dt=0.05,
+    clock=RealTime(speed=20.0),
+    observers=[RerunObserver('lotka-volterra', spawn=True)],
+)
+trajectory = simulation.run(until=30).trajectory_
+print(trajectory['rabbits.n'].max())
+```
+
+A simulation started with `start` runs in the background, and its parameters can change while it runs:
+
+```python
+simulation = Simulation(system, dt=0.05, clock=RealTime(speed=20.0)).start(until=30)
+simulation.update_parameters({'hunt.a': 0.2})
+simulation.wait()
+```
+
+A new law takes a few lines. The namespace `s` holds the symbols of the interaction's parameters and of the elements
+bound to its roles:
+
+```python
+from skcomplex.analysis import equations_of
+from skcomplex.core import Domain, parameter, role
+from skcomplex.model import Interaction, Rate
+
+
+class Harvest(Interaction):
+    target: str = role()
+    h: float = parameter(0.1, domain=Domain.NONNEGATIVE)
+
+    def laws(self, s):
+        return [Rate(s.target.n, -s.h * s.target.n)]
+
+
+harvested = System(
+    elements=[Population('fish', n=500)],
+    interactions=[LogisticGrowth('growth', target='fish', r=0.5, K=1000), Harvest('fishing', target='fish', h=0.1)],
+)
+print(equations_of(harvested)['fish.n'])
 ```
 
 ## Spec-driven development
 
 The project's engineering constitution lives in `openspec/constitution.md` and binds all work. The
-project uses [OpenSpec](https://github.com/Fission-AI/OpenSpec) for spec-driven development: run
-`openspec init` once to add the workflow, and `openspec/config.yaml` already names the constitution
-as binding.
+project uses [OpenSpec](https://github.com/Fission-AI/OpenSpec) for spec-driven development, and
+`openspec/config.yaml` names the constitution as binding.

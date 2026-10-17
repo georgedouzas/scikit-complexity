@@ -69,6 +69,8 @@ plugins:
             docstring_style: google
             docstring_options:
               ignore_init_summary: yes
+              warn_unknown_params: no
+              warn_missing_types: no
             merge_init_into_class: yes
             show_submodules: no
 
