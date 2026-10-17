@@ -42,10 +42,9 @@ skcomplex/
   models/     physics, ecology, epidemiology, economics, finance
 ```
 
-Imports run downward in this order, so `models` imports only the public surfaces of the layers above it. The
-top-level `skcomplex` re-exports the most used names (`System`, `Simulation`, `EuclideanSpace`, law kinds) because
-the constitution allows the top-level `__init__` to be the library's front page. Each subpackage re-exports its own
-surface once.
+Imports run downward in this order, so `models` imports only the public surfaces of the layers above it. Each
+subpackage re-exports its own surface once. The top-level `skcomplex` carries only its docstring, because the
+constitution forbids a parent package from re-exporting a subpackage's surface a second time.
 
 ### Components are dataclasses with declared variables
 
@@ -106,11 +105,12 @@ component in one vector and every parameter in another, collects the laws, and l
 
 ```python
 class Stepper(Protocol):
-    def initialize(self, problem: Problem, t0: float, x0: NDArray, rng: Generator) -> None: ...
-    def advance(self, t: float, x: NDArray, p: NDArray, until: float) -> tuple[float, NDArray]: ...
+    def initialize(self, problem: Problem, rng: Generator) -> None: ...
+    def advance(self, t: float, x: NDArray, p: NDArray, until: float) -> NDArray: ...
 ```
 
-`advance` integrates from `(t, x)` to `until` with the given parameters and returns the new time and state. Every call
+`Stepper` is a base class rather than a `Protocol`, so it can check the form in `initialize` and follow the estimator
+contract. `advance` integrates from `(t, x)` to `until` with the given parameters and returns the state at `until`. Every call
 receives the current parameters, so a parameter change applies at the next frame without special handling.
 
 - ODE: `scipy.integrate.solve_ivp` from `t` to `until` per frame, with a configurable method and tolerances.
@@ -145,7 +145,7 @@ of dotted names to values on a thread-safe queue that the loop drains before eac
 under the element's path. Parameters go under `parameters/<name>` as `Scalars`.
 
 - `ScalarsVisual` is the default and logs each scalar state as `rerun.Scalars` under `<path>/<state>`.
-- `PointsVisual(position)` logs a vector state as `Points2D` or `Points3D` under `<path>`, and its scalar states as
+- `PointsVisual(position, radius)` logs a vector state as `Points2D` or `Points3D` under `<path>`, and its scalar states as
   series.
 - Visuals are classes registered in `core.registry`, so domain modules add their own.
 
@@ -159,7 +159,7 @@ and calls `sympy.dsolve`. A Sage expression reaches SymPy through `sympify`, whi
 ### Errors
 
 `core/_errors.py` defines `SkcomplexError` and its subclasses `ValidationError`, `LabelError`, `RoleError`,
-`SpaceError`, `IncompatibleLawsError`, `SolverError`, `ParameterError`, and `AnalysisError`. The `core` package
+`SpaceError`, `IncompatibleLawsError`, `SolverError`, `ParameterError`, `SimulationError`, and `AnalysisError`. The `core` package
 re-exports them.
 
 ## Risks / Trade-offs

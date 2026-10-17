@@ -208,12 +208,24 @@ conventions are the taste it cannot check.
 This section instantiates the body above for this repository. It is the repo-specific part, and it is a starting point
 to fill in as the project takes shape.
 
-- Ecosystem contract: TODO name the framework contract this project conforms to (for example, an estimator or plugin
-  contract, a web framework's application contract, or none if the project defines its own).
+- Ecosystem contract: the scikit-learn estimator contract. Components, systems, spaces, steppers, clocks, and
+  simulations inherit `sklearn.base.BaseEstimator`, store constructor arguments unmodified, and expose derived state
+  with a trailing underscore. Elements and interactions declare their fields with `state`, `parameter`, and `role`,
+  which generate a keyword-only dataclass constructor.
 - Language: Python >=3.11, <3.14.
 - Build and tooling: PDM with SCM-derived versioning and a `src`
   layout. The `nox` sessions are `formatting`, `checks`, `tests`, `docs`, `changelog`, and `release`. The gate covers
   `ruff`, `mypy`, `bandit`, `pip-audit`, `deptry`, `pydoclint`, and `interrogate`, with `pytest` under branch coverage
-  and randomized ordering.
-- Layout: library. The importable package under `src/skcomplex` is distributed to others.
-**Version**: 1.0.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2023-01-01
+  and randomized ordering. Docstring examples and the Python blocks of the README and the user guide run as tests.
+- Runtime dependencies: `numpy`, `scipy` for numeric integration, `sympy` as the symbolic layer every law is lowered
+  through, `rerun-sdk` for visualization, and `scikit-learn` for the estimator contract. Rerun is a core dependency,
+  and spawning a local viewer happens only on request, so it is not a real-world side effect.
+- Optional extras: `sage` installs `passagemath-symbolics`, whose expressions reach SymPy through `sympify`, and
+  `lammps` installs the LAMMPS molecular dynamics package.
+- Layout: library. The importable package under `src/skcomplex` is distributed to others. Imports run downward
+  through `core`, `model`, `compile`, `solvers`, `runtime`, `viz`, `analysis`, and `models`. The top-level package
+  re-exports nothing, so every public name is imported from the subpackage that owns it.
+- Extension points: solvers, visuals, and any other registry in `core` accept new entries without changes to
+  existing modules. Base classes users subclass are `Element`, `Interaction`, `Potential`, `Stepper`, `Clock`,
+  `Observer`, and `Visual`.
+**Version**: 1.1.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-17
