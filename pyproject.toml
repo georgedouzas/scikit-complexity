@@ -29,6 +29,7 @@ dependencies = [
     "scipy>=1.13.0",
     "sympy>=1.13.0",
     "rerun-sdk>=0.39.0",
+    "numba>=0.61.0",
     "scikit-learn>=1.5.1",
 ]
 
@@ -142,6 +143,8 @@ select = ["C", "E", "F", "W", "B", "I", "D", "N", "UP", "YTT", "ANN", "S",
 "docs/generated/*" = ["ANN", "D"]
 "test_*" = ["ANN", "PLR2004"]
 "src/skcomplex/core/_variables.py" = ["ANN401"]
+# Numba-compiled helpers take positional arrays because generated kernels call them positionally.
+"src/skcomplex/compile/_numba_cells.py" = ["PLR0917"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

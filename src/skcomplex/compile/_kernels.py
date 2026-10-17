@@ -16,7 +16,7 @@ from scipy.spatial import cKDTree
 from ..core import ValidationError
 from ..model import NumericFunction
 from ._layout import Entry, Layout
-from ._problem import Vector
+from ._problem import JumpChannels, Vector
 
 type Indices = npt.NDArray[np.intp]
 
@@ -147,7 +147,7 @@ class PairSearch:
         if self.period is None:
             return second_positions
         difference = first_positions - second_positions
-        return first_positions - (difference - self.period * np.round(difference / self.period))
+        return first_positions - (difference - self.period * np.rint(difference / self.period))
 
 
 @dataclass
@@ -162,7 +162,10 @@ class Output:
             The symbolic value, or `None` when a callable produces it.
 
         function:
-            The callable that produces the values of every component of its target, or `None`.
+            The callable or `Call` function that produces the values of every component of its target, or `None`.
+
+        arguments:
+            The argument expressions of a `Call` function, or `None` for a callable law.
 
         component:
             The component of the callable's result that this output holds.
@@ -173,7 +176,8 @@ class Output:
 
     target: Reference | None
     expression: sympy.Expr | None = None
-    function: NumericFunction | None = None
+    function: NumericFunction | Callable[..., Any] | None = None
+    arguments: tuple[sympy.Expr, ...] | None = None
     component: int = 0
     components: int = 1
 
@@ -218,11 +222,15 @@ class Kernel:
     outputs: list[Output] = field(default_factory=list)
 
     def __post_init__(self) -> None:
-        """Compile the symbolic outputs into one NumPy function."""
-        self._symbolic = [output for output in self.outputs if output.expression is not None]
-        expressions = [output.expression for output in self.outputs if output.expression is not None]
-        unknown = set().union(*(expression.free_symbols for expression in expressions)) - {self.time}
-        unknown -= set(self.references)
+        """Compile the symbolic outputs and the arguments of calls into one NumPy function."""
+        self._slots: list[tuple[int, int]] = []
+        expressions: list[sympy.Expr] = []
+        for output in self.outputs:
+            parts = [output.expression] if output.expression is not None else list(output.arguments or ())
+            self._slots.append((len(expressions), len(parts)))
+            expressions.extend(parts)
+        used = set().union(*(expression.free_symbols for expression in expressions)) - {self.time}
+        unknown = used - set(self.references)
         if unknown:
             names = ', '.join(sorted(map(str, unknown)))
             error_msg = (
@@ -230,13 +238,17 @@ class Kernel:
                 'or `parameter` and use them through the namespace `s` that `laws` receives.'
             )
             raise ValidationError(error_msg)
-        used = set().union(*(expression.free_symbols for expression in expressions)) - {self.time}
         self._arguments = sorted(used, key=str)
         self._function: Callable[..., Any] | None = (
             sympy.lambdify([self.time, *self._arguments], expressions, modules='numpy', cse=True)
             if expressions
             else None
         )
+
+    @property
+    def has_python_functions(self) -> bool:
+        """Whether an output is computed by a function, either a callable law or a `Call`."""
+        return any(output.function is not None for output in self.outputs)
 
     def _gather(
         self,
@@ -278,27 +290,34 @@ class Kernel:
         """
         pairs = self.pairs.find(x, p) if self.pairs is not None else None
         size = len(pairs[0]) if pairs is not None else self.rows
-        symbolic: list[Any] = []
+        computed: list[Any] = []
         if self._function is not None:
-            symbolic = list(self._function(t, *(self._gather(symbol, x, p, pairs) for symbol in self._arguments)))
+            computed = list(self._function(t, *(self._gather(symbol, x, p, pairs) for symbol in self._arguments)))
         values: list[Vector] = []
-        callable_results: dict[int, Vector] = {}
-        position = 0
-        for output in self.outputs:
+        function_results: dict[tuple[int, int], Vector] = {}
+        for output, (start, count) in zip(self.outputs, self._slots, strict=True):
             if output.expression is not None:
-                values.append(np.broadcast_to(np.asarray(symbolic[position], dtype=float), (size,)))
-                position += 1
+                values.append(np.broadcast_to(np.asarray(computed[start], dtype=float), (size,)))
                 continue
-            key = id(output.function)
-            if key not in callable_results:
-                callable_results[key] = self._call(output, t, x, p, size)
-            values.append(callable_results[key][:, output.component])
+            key = (id(output.function), start)
+            if key not in function_results:
+                arguments = [
+                    np.broadcast_to(np.asarray(value, dtype=float), (size,))
+                    for value in computed[start : start + count]
+                ]
+                function_results[key] = self._call(output, t, x, p, size=size, arguments=arguments)
+            values.append(function_results[key][:, output.component])
         return size, pairs, values
 
-    def _call(self, output: Output, t: float, x: Vector, p: Vector, size: int) -> Vector:
-        """Return the result of a callable as one row per evaluation index and one column per component."""
+    def _call(self, output: Output, t: float, x: Vector, p: Vector, *, size: int, arguments: list[Vector]) -> Vector:
+        """Return the result of a function as one row per evaluation index and one column per component."""
+        function: Callable[..., Any] = output.function  # type: ignore[assignment]
+        if output.arguments is not None:
+            rows = [np.atleast_1d(np.asarray(function(t, *row), dtype=float)) for row in zip(*arguments, strict=True)]
+            result = np.asarray(rows, dtype=float).reshape(size, -1) if rows else np.zeros((0, output.components))
+            return np.broadcast_to(result, (size, output.components))
         values = {**self.layout_states.values(x), **self.layout_parameters.values(p)}
-        result = np.asarray(output.function(t, values), dtype=float)  # type: ignore[misc]
+        result = np.asarray(function(t, values), dtype=float)
         if result.size == size * output.components:
             return result.reshape(size, output.components)
         return np.broadcast_to(result.reshape(-1)[: output.components], (size, output.components))
@@ -345,3 +364,68 @@ def assign_into(output: Vector, target: Reference, values: Vector) -> None:
     """
     column = target.entry.view(output)[:, target.column]
     column[:] = values if target.source is Source.MEMBER else values[0]
+
+
+def member_indices(reference: Reference, rows: int) -> Indices:
+    """Return the flat index of a target component for every evaluation index of a member kernel.
+
+    Args:
+        reference:
+            The target component.
+
+        rows:
+            The number of evaluation indices of the kernel.
+
+    Returns:
+        indices:
+            One flat index per evaluation index.
+    """
+    if reference.source is Source.MEMBER:
+        return reference.flat_indices
+    return np.full(rows, reference.entry.start + reference.column, dtype=np.intp)
+
+
+def noise_rows(kernels: list[Kernel]) -> Indices:
+    """Return the state index driven by every Wiener process of noise kernels.
+
+    Args:
+        kernels:
+            The noise kernels in evaluation order.
+
+    Returns:
+        rows:
+            One state index per Wiener process.
+    """
+    rows = [member_indices(item.target, kernel.rows) for kernel in kernels for item in kernel.outputs]  # type: ignore[arg-type]
+    return np.concatenate([np.zeros(0, dtype=np.intp), *rows]).astype(np.intp)
+
+
+def jump_channels(
+    kernels: list[Kernel],
+    changes: Mapping[int, list[tuple[Reference, float]]],
+) -> tuple[JumpChannels, ...]:
+    """Return the channels of every jump law of jump kernels.
+
+    Args:
+        kernels:
+            The jump kernels in evaluation order.
+
+        changes:
+            The changes of every jump output, keyed by the output's identity.
+
+    Returns:
+        channels:
+            One set of channels per jump law.
+    """
+    channels, offset = [], 0
+    for kernel in kernels:
+        for item in kernel.outputs:
+            law_changes = changes[id(item)]
+            targets = np.array(
+                [member_indices(reference, kernel.rows) for reference, _ in law_changes],
+                dtype=np.intp,
+            ).reshape(len(law_changes), kernel.rows)
+            increments = np.array([increment for _, increment in law_changes], dtype=float)
+            channels.append(JumpChannels(offset, targets, increments))
+            offset += kernel.rows
+    return tuple(channels)

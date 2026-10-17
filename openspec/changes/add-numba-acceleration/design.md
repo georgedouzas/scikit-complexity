@@ -34,8 +34,25 @@ compiled with `numba.njit(cache=True, parallel=True, fastmath=False)`.
 
 ### Backends are registered
 
-`compile_system(system, backend='numba')` resolves the backend from a registry in `core`. `Simulation` gains a
-`backend` parameter passed through. A backend implements `lower(slots, context)` and `lower_pairs(...)`.
+`compile_system(system, backend='auto')` resolves the backend from a registry in `compile`. `auto` picks `numba` when
+the groups of the system hold at least 1000 members in total and `numpy` otherwise. A probe measured Numba's first
+compilation of one small function at 0.6 to 1.3 seconds, so a two-variable model would start seconds later on Numba
+for no gain, while the disk cache removes the cost for repeated large systems. `Simulation` gains a
+`backend` parameter passed through. A backend implements `lower(form, kernels, changes, size)` and returns the numeric
+functions of the form with optional compiled stepper loops. Both backends lower the same backend-neutral kernels, so
+the compiler builds kernels once and the backends only generate code from them.
+
+### Layout as runtime data
+
+Generated kernels read the start and row count of every entry from a layout array passed at call time, so the
+generated source depends on the structure of a system and not on the size of its groups. An ideal gas of 10 and of a
+million molecules share one compiled module. Kinds of laws with a plain Python callable fall back to the NumPy
+functions as a whole, and the problem then has no compiled stepper loops.
+
+### Compilation before the clock
+
+Numba compiles on the first call, so `Simulation` calls every numeric function and compiled loop once while it
+prepares a run, before the clock starts, and real-time runs do not count compilation as lag.
 
 ### Callables
 
@@ -48,6 +65,15 @@ as the current lowering does.
 `RK4`, `EulerMaruyama`, `Gillespie`, and `Iteration` gain compiled inner loops that take the compiled form functions as
 first-class arguments. Random numbers come from a NumPy `Generator` passed in, which Numba supports, so seeded runs stay
 reproducible across backends where the algorithm draws numbers in the same order.
+
+### Velocity Verlet
+
+`VelocityVerlet` reads which components are positions from the compiled equations: a component whose equation is
+another state symbol, as `dx/dt = v`, is a position and that symbol is its velocity. Every other component raises a
+solver error. Each step kicks the velocities by half a step of the drift, moves the positions, and kicks again with
+the drift at the new positions, so a step costs one drift evaluation after the first. A probe measured one drift of
+100000 soft spheres at 5.25 ms on 8 threads, so `RK4`, with four evaluations per step, cannot keep a real-time clock
+at frames of 0.01 for that size on such a machine, while velocity Verlet can, and it conserves energy over long runs.
 
 ### Cell lists
 

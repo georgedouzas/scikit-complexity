@@ -62,6 +62,7 @@ def test_reflecting_box_keeps_members_inside_ode_run():
     assert np.all((positions >= 0) & (positions <= 1))
 
 
+@pytest.mark.benchmark
 def test_ideal_gas_runs_in_real_time():
     """Test that an ideal gas of 10000 molecules keeps a real-time clock within 0.1 seconds."""
     simulation = Simulation(ideal_gas(10_000, random_state=0), dt=0.01, clock=RealTime(speed=1.0), record=False)

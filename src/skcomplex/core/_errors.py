@@ -28,6 +28,10 @@ class IncompatibleLawsError(SkcomplexError):
     """A system mixes law kinds that no single form supports."""
 
 
+class BackendError(SkcomplexError):
+    """A backend is not registered or cannot compile a problem."""
+
+
 class SolverError(SkcomplexError):
     """A solver does not fit the problem or fails to advance it."""
 

@@ -21,11 +21,12 @@ from ..core import (
     VisualSpec,
     declarations_of,
 )
-from ..model import Boundary, Element, Group, Jump, Law, Noise, PairInteraction, Rate, Symbols, System, Update
-from ._kernels import Kernel, Output, PairSearch, Reference, Source, add_into, assign_into
+from ..model import Boundary, Call, Element, Group, Jump, Law, Noise, PairInteraction, Rate, Symbols, System, Update
+from ._backends import Backend, resolve_backend
+from ._kernels import Kernel, Output, PairSearch, Reference, Source
 from ._layout import Entry, Layout
 from ._lowering import symbolic_components
-from ._problem import CompiledElement, JumpChannels, Problem, Vector, VectorFunction
+from ._problem import CompiledElement, Problem, Vector
 from ._tree import Node, coerce_value, flatten_system, shape_of
 
 FORMS: dict[frozenset[type], Form] = {
@@ -264,6 +265,17 @@ def _target_references(target: object, spec: _KernelSpec) -> list[Reference]:
 
 def _outputs_of(value: object, targets: list[Reference | None], owner: str) -> list[Output]:
     """Return the outputs of one law value for its target components."""
+    if isinstance(value, Call):
+        arguments = tuple(
+            item for argument in value.arguments for item in symbolic_components(argument, 1, owner) or []
+        )
+        if len(arguments) != len(value.arguments):
+            error_msg = f'A Call in a law of {owner} has an argument that is not a symbolic expression.'
+            raise ValidationError(error_msg)
+        return [
+            Output(target, function=value.function, arguments=arguments, component=index, components=len(targets))  # type: ignore[arg-type]
+            for index, target in enumerate(targets)
+        ]
     expressions = symbolic_components(value, len(targets), owner)
     if expressions is None:
         return [
@@ -336,79 +348,6 @@ def _infer_form(laws: list[Law]) -> Form:
     return FORMS[kinds]
 
 
-def _adding_function(kernels: list[Kernel], size: int) -> VectorFunction:
-    """Return the function that sums the outputs of kernels into a zero vector."""
-
-    def evaluate(t: float, x: Vector, p: Vector) -> Vector:
-        """Sum every kernel's outputs into their targets."""
-        output = np.zeros(size)
-        for kernel in kernels:
-            _, pairs, values = kernel.evaluate(t, x, p)
-            for item, value in zip(kernel.outputs, values, strict=True):
-                add_into(output, item.target, value, pairs)  # type: ignore[arg-type]
-        return output
-
-    return evaluate
-
-
-def _assigning_function(kernels: list[Kernel]) -> VectorFunction:
-    """Return the function that sets the outputs of kernels on a copy of the state vector."""
-
-    def evaluate(t: float, x: Vector, p: Vector) -> Vector:
-        """Set every kernel's outputs on a copy of the state."""
-        output = x.copy()
-        for kernel in kernels:
-            _, _, values = kernel.evaluate(t, x, p)
-            for item, value in zip(kernel.outputs, values, strict=True):
-                assign_into(output, item.target, value)  # type: ignore[arg-type]
-        return output
-
-    return evaluate
-
-
-def _concatenating_function(kernels: list[Kernel]) -> VectorFunction:
-    """Return the function that concatenates the outputs of kernels, one value per evaluation index."""
-
-    def evaluate(t: float, x: Vector, p: Vector) -> Vector:
-        """Concatenate every kernel's outputs."""
-        values = [value for kernel in kernels for value in kernel.evaluate(t, x, p)[2]]
-        return np.concatenate([np.zeros(0), *values])
-
-    return evaluate
-
-
-def _member_indices(reference: Reference, rows: int) -> np.ndarray:
-    """Return the flat index of a target component for every evaluation index of a member kernel."""
-    if reference.source is Source.MEMBER:
-        return reference.flat_indices
-    return np.full(rows, reference.entry.start + reference.column, dtype=np.intp)
-
-
-def _noise_rows(kernels: list[Kernel]) -> np.ndarray:
-    """Return the state index driven by every Wiener process."""
-    rows = [_member_indices(item.target, kernel.rows) for kernel in kernels for item in kernel.outputs]  # type: ignore[arg-type]
-    return np.concatenate([np.zeros(0, dtype=np.intp), *rows]).astype(np.intp)
-
-
-def _jump_channels(
-    kernels: list[Kernel],
-    changes: dict[int, list[tuple[Reference, float]]],
-) -> tuple[JumpChannels, ...]:
-    """Return the channels of every jump law."""
-    channels, offset = [], 0
-    for kernel in kernels:
-        for item in kernel.outputs:
-            law_changes = changes[id(item)]
-            targets = np.array(
-                [_member_indices(reference, kernel.rows) for reference, _ in law_changes],
-                dtype=np.intp,
-            ).reshape(len(law_changes), kernel.rows)
-            increments = np.array([increment for _, increment in law_changes], dtype=float)
-            channels.append(JumpChannels(offset, targets, increments))
-            offset += kernel.rows
-    return tuple(channels)
-
-
 def _sums_over_members(kernel: Kernel, item: Output) -> bool:
     """Check whether an output sums over the pairs or the members of a group."""
     if kernel.pairs is not None:
@@ -449,25 +388,15 @@ def _equations_of(
     return equations, symbols
 
 
-def _lower(form: Form, lowered: _Lowered, declarations: _Declarations) -> dict[str, object]:
+def _lower(form: Form, lowered: _Lowered, declarations: _Declarations, backend: Backend) -> dict[str, object]:
     """Return the numeric functions and equations of a form."""
     kernels, size = lowered.kernels, sum(entry.size for entry in declarations.states)
-    functions: dict[str, object] = {}
-    if kernels[Boundary]:
-        functions['boundary'] = _assigning_function(kernels[Boundary])
-    if form in (Form.ODE, Form.SDE):
-        functions['drift'] = _adding_function(kernels[Rate], size)
-        if form is Form.SDE:
-            functions['diffusion'] = _concatenating_function(kernels[Noise])
-            functions['noise_rows'] = _noise_rows(kernels[Noise])
-        main = kernels[Rate] + kernels[Noise]
-    elif form is Form.JUMP:
-        functions['propensities'] = _concatenating_function(kernels[Jump])
-        functions['jumps'] = _jump_channels(kernels[Jump], lowered.jump_changes)
-        main = kernels[Jump]
-    else:
-        functions['update'] = _assigning_function(kernels[Update])
-        main = kernels[Update]
+    functions: dict[str, object] = vars(backend.lower(form, kernels, lowered.jump_changes, size)).copy()
+    functions['backend'] = backend.name
+    main = {Form.ODE: kernels[Rate], Form.SDE: kernels[Rate] + kernels[Noise], Form.JUMP: kernels[Jump]}.get(
+        form,
+        kernels[Update],
+    )
     equation_kernels = {Form.DISCRETE: kernels[Update], Form.JUMP: []}.get(form, kernels[Rate])
     equations, symbols = _equations_of(equation_kernels, declarations, form)
     functions.update(
@@ -491,7 +420,7 @@ def _visual_of(node: Node) -> VisualSpec:
     return node.component_type.visual
 
 
-def compile_system(system: System) -> Problem:
+def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
     """Compile a system into a problem of the form its law kinds determine.
 
     Elements and groups are compiled once each, whatever the size of a group. Laws written for one member are
@@ -500,6 +429,10 @@ def compile_system(system: System) -> Problem:
     Args:
         system:
             The system to compile.
+
+        backend:
+            `'auto'`, a registered backend name such as `'numpy'` or `'numba'`, or a backend instance. `'auto'` picks
+            Numba for systems whose groups hold at least 1000 members in total and NumPy otherwise.
 
     Returns:
         problem:
@@ -520,6 +453,9 @@ def compile_system(system: System) -> Problem:
 
         IncompatibleLawsError:
             The system mixes law kinds that no form supports.
+
+        BackendError:
+            The backend is not registered.
 
     Examples:
         >>> from skcomplex.compile import compile_system
@@ -552,7 +488,8 @@ def compile_system(system: System) -> Problem:
         specs.append((spec, _collect_laws(spec, _component_of(block.node))))
     form = _infer_form([law for _, laws in specs for law in laws])
     lowered = _lower_laws(specs, declarations)
-    functions = _lower(form, lowered, declarations)
+    members = sum(block.node.members or 0 for block in blocks)
+    functions = _lower(form, lowered, declarations, resolve_backend(backend, members))
     states, parameters = Layout(declarations.states), Layout(declarations.parameters)
     compiled_elements = tuple(
         CompiledElement(

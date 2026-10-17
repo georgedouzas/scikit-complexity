@@ -13,6 +13,38 @@ type Target = sympy.Symbol | sympy.MatrixBase
 type NumericFunction = Callable[[float, Mapping[str, Any]], Any]
 
 
+@dataclass(frozen=True, init=False)
+class Call:
+    """Law value computed by a function of time and scalar arguments, called once per member or pair.
+
+    The Numba backend calls a Numba-compiled function inside its compiled kernels, and the NumPy backend calls any
+    function from Python. The function returns a number for a scalar target, or one number per component for a vector
+    target.
+
+    Args:
+        function:
+            The function `f(t, *arguments)`.
+
+        *arguments:
+            The symbolic expressions whose values are passed to the function.
+
+    Examples:
+        >>> import sympy
+        >>> from skcomplex.model import Call, Rate
+        >>> n = sympy.Symbol('n')
+        >>> law = Rate(n, Call(lambda t, n: 2 * n, n))
+        >>> law.value.arguments
+        (n,)
+    """
+
+    function: object
+    arguments: tuple[object, ...]
+
+    def __init__(self, function: object, *arguments: object) -> None:
+        object.__setattr__(self, 'function', function)
+        object.__setattr__(self, 'arguments', arguments)
+
+
 @dataclass(frozen=True)
 class Rate:
     """Contribution to the time derivative of a state.

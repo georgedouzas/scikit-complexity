@@ -160,6 +160,58 @@ A `Boundary` law sets the value of a state after every solver step. Boundaries c
 periodic boxes work for differential equations, stochastic systems, jump processes, and discrete maps.
 `ReflectingBox` mirrors positions and velocities at the walls, and `PeriodicBox` wraps positions around the box.
 
+## Backends and speed
+
+Compiling a system produces numeric functions with a backend. `'numpy'` evaluates every law with NumPy arrays, and
+`'numba'` generates one compiled function per form, with compiled cell lists for pair interactions and compiled loops
+for `RK4`, `EulerMaruyama`, `Gillespie`, and `Iteration`. The default `'auto'` picks Numba when the groups of a system
+hold at least 1000 members in total, because compiling takes a second or two that small systems do not win back.
+
+```python
+from skcomplex.compile import NumbaBackend
+from skcomplex.models.physics import ideal_gas
+from skcomplex.solvers import RK4
+
+simulation = Simulation(ideal_gas(50_000, random_state=0), solver=RK4(dt=0.01), backend='numba', dt=0.01)
+print(simulation.run(until=0.5).problem_.backend)
+```
+
+Compiled kernels are cached on disk, under `~/.cache/skcomplex` or the `cache_dir` of `NumbaBackend(cache_dir=...)`,
+so running the same system again skips compilation.
+
+A law value can be a function called once per member with `Call(function, *arguments)`. A Numba-compiled function
+runs inside the compiled kernels, and the NumPy backend calls it from Python.
+
+```python
+import numba
+
+from skcomplex.model import Call, Rate
+from skcomplex.models.ecology import Population
+
+
+@numba.njit
+def saturating(t, n, r):
+    return r * n / (1 + n)
+
+
+class Saturation(Interaction):
+    target: str = role()
+    r: float = parameter(1.0)
+
+    def laws(self, s):
+        return [Rate(s.target.n, Call(saturating, s.target.n, s.r))]
+
+
+herds = System(
+    elements=[Population.group('herds', 2000, n=1.0)],
+    interactions=[Saturation('growth', target='herds')],
+)
+print(Simulation(herds, dt=0.1).run(until=1).trajectory_['herds.n'][-1, 0])
+```
+
+A plain Python callable of the values, as in `Rate(s.target.n, lambda t, values: ...)`, also works with the Numba
+backend, but runs in Python and turns off the compiled stepper loops for that kind of law.
+
 ## Visualizing with Rerun
 
 `RerunObserver` streams frames to a spawned viewer, a running viewer, or a `.rrd` file. Entity paths follow the system

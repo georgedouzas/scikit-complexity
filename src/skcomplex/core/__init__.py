@@ -3,6 +3,7 @@
 from ._domains import Domain
 from ._errors import (
     AnalysisError,
+    BackendError,
     IncompatibleLawsError,
     LabelError,
     ParameterError,
@@ -20,6 +21,7 @@ from ._visuals import VisualSpec
 
 __all__: list[str] = [
     'AnalysisError',
+    'BackendError',
     'Domain',
     'Form',
     'IncompatibleLawsError',

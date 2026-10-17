@@ -76,6 +76,37 @@ class JumpChannels:
 
 
 @dataclass(frozen=True)
+class Accelerated:
+    """Compiled stepper loops of a problem, which run every internal step of a frame in compiled code.
+
+    Every loop takes `(t, x, p, until, ...)` and returns the state at `until`. A loop is `None` when the problem's form
+    does not use it.
+
+    Args:
+        rk4:
+            The fourth-order Runge-Kutta loop `rk4(t, x, p, until, h)`.
+
+        velocity_verlet:
+            The velocity Verlet loop `velocity_verlet(t, x, p, until, h, positions, velocities)`.
+
+        euler_maruyama:
+            The Euler-Maruyama loop `euler_maruyama(t, x, p, until, h, rng)`.
+
+        gillespie:
+            The Gillespie loop `gillespie(t, x, p, until, rng)`.
+
+        iterate:
+            The discrete map loop `iterate(t, x, p, until)`.
+    """
+
+    rk4: Callable[..., Vector] | None = None
+    velocity_verlet: Callable[..., Vector] | None = None
+    euler_maruyama: Callable[..., Vector] | None = None
+    gillespie: Callable[..., Vector] | None = None
+    iterate: Callable[..., Vector] | None = None
+
+
+@dataclass(frozen=True)
 class Problem:
     """System compiled to one mathematical form with flat state and parameter vectors.
 
@@ -143,6 +174,12 @@ class Problem:
 
         boundary:
             The function `B(t, x, p)` that returns the state after the boundary laws.
+
+        backend:
+            The name of the backend that produced the numeric functions.
+
+        accelerated:
+            The compiled stepper loops, or `None` when the backend has none for this problem.
     """
 
     form: Form
@@ -164,6 +201,8 @@ class Problem:
     jumps: tuple[JumpChannels, ...] = field(default=(), repr=False)
     update: VectorFunction | None = field(default=None, repr=False)
     boundary: VectorFunction | None = field(default=None, repr=False)
+    backend: str = 'numpy'
+    accelerated: Accelerated | None = field(default=None, repr=False)
 
     def _flatten_symbols(self, layout: Layout) -> list[sympy.Symbol]:
         """Return the symbols of the entries of a layout as a flat list."""

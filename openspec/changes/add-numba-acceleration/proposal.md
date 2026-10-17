@@ -11,9 +11,11 @@ the group size.
 
 - **BREAKING** Make `numba` a runtime dependency.
 - Lower symbolic laws to Numba kernels: one fused, compiled function per form function, looping over members without
-  temporaries. Keep the NumPy lowering as a reference backend selected with `backend='numpy'`.
-- Compile the fixed-step steppers, a new `RK4`, `EulerMaruyama`, `Gillespie`, and `Iteration`, so all internal steps
-  of a frame run in compiled code.
+  temporaries. Keep the NumPy lowering as a reference backend selected with `backend='numpy'`, and default to
+  `backend='auto'`, which uses Numba only for systems with groups of at least 1000 members in total, because compiling
+  takes seconds that small systems do not win back.
+- Compile the fixed-step steppers, a new `RK4`, a new `VelocityVerlet` for particle dynamics, `EulerMaruyama`,
+  `Gillespie`, and `Iteration`, so all internal steps of a frame run in compiled code.
 - Replace the KD-tree neighbour search of pair interactions with compiled cell lists.
 - Accept Numba-compiled callables as law values inside compiled kernels, and keep plain Python callables working
   through a slower Python path.

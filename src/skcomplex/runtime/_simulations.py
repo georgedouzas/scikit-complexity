@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.base import BaseEstimator
 
-from ..compile import Entry, Problem, Vector, compile_system
+from ..compile import Backend, Entry, Problem, Vector, compile_system
 from ..core import Domain, Form, ParameterError, SimulationError, ValidationError
 from ..model import System
 from ..solvers import Stepper, resolve_solver
@@ -37,6 +37,9 @@ class Simulation(BaseEstimator):
 
         solver:
             `'auto'` for the default solver of the system's form, a registered solver name, or a stepper instance.
+
+        backend:
+            The backend that compiles the system, `'auto'`, `'numpy'`, `'numba'`, or a backend instance.
 
         dt:
             The simulated time between frames. It defaults to 1 for discrete maps and to 0.01 otherwise.
@@ -87,6 +90,7 @@ class Simulation(BaseEstimator):
         system: System,
         *,
         solver: str | Stepper = 'auto',
+        backend: str | Backend = 'auto',
         dt: float | None = None,
         clock: Clock | None = None,
         observers: Sequence[Observer] = (),
@@ -95,6 +99,7 @@ class Simulation(BaseEstimator):
     ) -> None:
         self.system = system
         self.solver = solver
+        self.backend = backend
         self.dt = dt
         self.clock = clock
         self.observers = observers
@@ -115,7 +120,7 @@ class Simulation(BaseEstimator):
 
     def _prepare(self) -> None:
         """Compile the system, build the stepper, and notify the observers of the start."""
-        self.problem_ = compile_system(self.system)
+        self.problem_ = compile_system(self.system, self.backend)
         self.dt_ = self._check_dt(self.problem_)
         self.stepper_ = resolve_solver(self.problem_, self.solver)
         self.stepper_.initialize(self.problem_, np.random.default_rng(self.random_state))
@@ -131,8 +136,31 @@ class Simulation(BaseEstimator):
         self._running.set()
         self._thread: threading.Thread | None = None
         self._error: BaseException | None = None
+        self._compile_functions()
         for observer in self.observers_:
             observer.on_start(self.problem_)
+
+    def _compile_functions(self) -> None:
+        """Call every numeric function once, so compiled backends finish compiling before the clock starts."""
+        problem, x, p = self.problem_, self.state_, self.parameters_
+        for function in (problem.drift, problem.diffusion, problem.propensities, problem.update, problem.boundary):
+            if function is not None:
+                function(0.0, x, p)
+        accelerated = problem.accelerated
+        if accelerated is None:
+            return
+        rng = np.random.default_rng(0)
+        if accelerated.rk4 is not None:
+            accelerated.rk4(0.0, x, p, 0.0, 1.0)
+        if accelerated.velocity_verlet is not None:
+            empty = np.zeros(0, dtype=np.int64)
+            accelerated.velocity_verlet(0.0, x, p, 0.0, 1.0, empty, empty)
+        if accelerated.euler_maruyama is not None:
+            accelerated.euler_maruyama(0.0, x, p, 0.0, 1.0, rng)
+        if accelerated.gillespie is not None:
+            accelerated.gillespie(0.0, x, p, 0.0, rng)
+        if accelerated.iterate is not None:
+            accelerated.iterate(0.0, x, p, 0.0)
 
     def _emit(self, step: int) -> None:
         """Hand the current frame to every observer."""

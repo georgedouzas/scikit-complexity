@@ -3,12 +3,17 @@
 ## ADDED Requirements
 
 ### Requirement: Laws compile to a chosen backend
-Compiling a system SHALL accept a backend, `numba` by default and `numpy` as the reference, and both backends SHALL
-produce the same numeric functions for the same system.
+Compiling a system SHALL accept a backend, `numba`, `numpy` as the reference, or `auto` by default, which picks `numba`
+for systems whose groups hold at least 1000 members in total and `numpy` otherwise, and both backends SHALL produce the
+same numeric functions for the same system.
 
 #### Scenario: Backends agree
 - **WHEN** an ideal gas with pair interactions is compiled with both backends and evaluated on the same state
 - **THEN** the drift, boundary, and update results agree to within 1e-12 relative error
+
+#### Scenario: Automatic choice
+- **WHEN** a system with a group of 1000 members and a system with two single elements are compiled with `auto`
+- **THEN** the first uses the Numba backend and the second uses the NumPy backend
 
 #### Scenario: Unknown backend
 - **WHEN** a user asks for a backend that is not registered
