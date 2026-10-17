@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -11,6 +12,15 @@ import rerun as rr
 from ..compile import CompiledElement, Problem
 from ..runtime import Frame, Observer
 from ._visuals import Visual, resolve_visual
+
+
+def _viewer_executable() -> str | None:
+    """Return the Rerun viewer installed next to the running interpreter, or `None` to search `PATH`."""
+    for name in ('rerun', 'rerun.exe'):
+        candidate = Path(sys.executable).parent / name
+        if candidate.is_file():
+            return str(candidate)
+    return None
 
 
 class RerunObserver(Observer):
@@ -24,7 +34,7 @@ class RerunObserver(Observer):
             The Rerun application id.
 
         spawn:
-            Whether to spawn a Rerun viewer.
+            Whether to spawn the Rerun viewer installed with the running interpreter, or the one on `PATH`.
 
         connect:
             Whether to connect to a running Rerun viewer.
@@ -79,7 +89,7 @@ class RerunObserver(Observer):
         if self.save_path is not None:
             self.recording_.save(self.save_path)
         if self.spawn:
-            self.recording_.spawn()
+            rr.spawn(executable_path=_viewer_executable(), recording=self.recording_)
         elif self.connect:
             self.recording_.connect_grpc()
         self._visuals: list[tuple[CompiledElement, Visual]] = [

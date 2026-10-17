@@ -14,7 +14,7 @@ CODE_BLOCK = re.compile(r'```python\n(.*?)```', re.DOTALL)
 @pytest.mark.parametrize('document', DOCUMENTS, ids=lambda path: path.name)
 def test_documentation_examples_run(document, monkeypatch):
     """Test that the Python blocks of a document run in order without a viewer."""
-    monkeypatch.setattr(rr.RecordingStream, 'spawn', lambda *_, **__: None)
+    monkeypatch.setattr(rr, 'spawn', lambda **_: None)
     namespace: dict[str, object] = {}
     for block in CODE_BLOCK.findall(document.read_text()):
         code = compile(block, str(document), 'exec')

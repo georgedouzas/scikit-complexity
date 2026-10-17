@@ -1,5 +1,7 @@
 """Test the Rerun observer and the visuals."""
 
+import sys
+
 import pytest
 import rerun as rr
 
@@ -88,6 +90,28 @@ def test_rerun_observer_logs_parameters(monkeypatch, tmp_path):
     _run(system, RerunObserver('test', save_path=tmp_path / 'run.rrd'), until=0.2)
     assert logged.count('parameters/g.r') == 3
     assert logged.count('a/n') == 3
+
+
+def test_rerun_observer_spawns_viewer_next_to_interpreter(monkeypatch, tmp_path):
+    """Test that spawning uses the viewer installed with the running interpreter."""
+    viewer = tmp_path / 'rerun'
+    viewer.touch()
+    monkeypatch.setattr(sys, 'executable', str(tmp_path / 'python'))
+    calls = []
+    monkeypatch.setattr(rr, 'spawn', lambda **kwargs: calls.append(kwargs))
+    observer = RerunObserver('test', spawn=True)
+    _run(System(elements=[Population('a')]), observer, until=0.0)
+    assert calls[0]['executable_path'] == str(viewer)
+    assert calls[0]['recording'] is observer.recording_
+
+
+def test_rerun_observer_spawns_viewer_from_path(monkeypatch, tmp_path):
+    """Test that spawning falls back to the viewer on `PATH`."""
+    monkeypatch.setattr(sys, 'executable', str(tmp_path / 'python'))
+    calls = []
+    monkeypatch.setattr(rr, 'spawn', lambda **kwargs: calls.append(kwargs))
+    _run(System(elements=[Population('a')]), RerunObserver('test', spawn=True), until=0.0)
+    assert calls[0]['executable_path'] is None
 
 
 def test_resolve_visual_builds_registered_visuals():
