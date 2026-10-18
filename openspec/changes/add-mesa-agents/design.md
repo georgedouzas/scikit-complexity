@@ -58,7 +58,7 @@ an agent-based problem whose parameters are the declared ones. The backend const
 
 ### Visuals
 
-Agent groups on grids and in continuous spaces log one `Points2D` per group with `instance` keys from agent ids, and
+Agent groups on grids and in continuous spaces log one `Points2D` per group with agent ids as hidden labels, and
 networks log `GraphNodes` and `GraphEdges`. A `color_by` option reuses the group visual's color scale.
 
 ### Dependencies
@@ -86,4 +86,5 @@ networks log `GraphNodes` and `GraphEdges`. A `color_by` option reuses the group
   the behaviour it relies on.
 - [Snapshots copy agent variables every frame] → Snapshots copy only declared variables, and the Rerun observer's
   `interval` thins logging for large models.
-- [Rules cannot be analysed symbolically] → `equations_of` raises its analysis error for the agent-based form.
+- [Rules cannot be analysed symbolically] → `equations_of` returns no equations for the agent-based form, and
+  `solve_symbolically` raises its analysis error because the form is not an ODE.
