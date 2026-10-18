@@ -65,6 +65,21 @@ networks log `GraphNodes` and `GraphEdges`. A `color_by` option reuses the group
 
 `mesa>=3.5` and `networkx` become runtime dependencies. The Project Profile records why `networkx` is explicit.
 
+### Implementation notes
+
+- The Mesa runner is `MesaStepper` in `skcomplex.solvers`, registered as the default solver of the agent-based form,
+  because the runtime resolves default solvers without importing `skcomplex.backends`, and Mesa needs nothing from the
+  model library.
+- A rule of an agent type runs for every agent as `function(agent, model)`, and a rule of an interaction runs once per
+  step after the agents as `function(model)`.
+- `AgentType` has a plain `location` field, one location or one per agent of a group, for initial placement. Without
+  it agents go to random cells, empty ones under a capacity, and network agents fill the nodes in node order.
+- Group names in `create` and `agents_here` resolve as paths, or as labels relative to the acting agent's subsystem,
+  so model libraries keep working when nested.
+- Agent-based models share the discrete map's integer frame duration, which defaults to 1.
+- Every group reports its size as `<group>.count`, and wrapped models report their model reporters as
+  `<label>.<reporter>`. Trajectories return reporters by name and agents with `agents(group, frame)`.
+
 ## Risks / Trade-offs
 
 - [Mesa's continuous space is experimental] → The continuous space adapter is isolated in one module and its tests pin

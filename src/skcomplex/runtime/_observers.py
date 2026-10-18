@@ -55,6 +55,7 @@ class Recorder(Observer):
         self._times: list[float] = []
         self._states: list[Vector] = []
         self._parameters: list[Vector] = []
+        self._frames: list[Frame] = []
 
     def on_start(self, problem: Problem) -> None:
         """Forget earlier frames and keep the problem.
@@ -64,7 +65,7 @@ class Recorder(Observer):
                 The compiled problem.
         """
         self._problem = problem
-        self._times, self._states, self._parameters = [], [], []
+        self._times, self._states, self._parameters, self._frames = [], [], [], []
 
     def on_frame(self, frame: Frame) -> None:
         """Keep the time, state, and parameters of a frame.
@@ -76,6 +77,7 @@ class Recorder(Observer):
         self._times.append(frame.time)
         self._states.append(frame.state)
         self._parameters.append(frame.parameters)
+        self._frames.append(frame)
 
     @property
     def trajectory(self) -> Trajectory:
@@ -83,10 +85,12 @@ class Recorder(Observer):
         if self._problem is None:
             error_msg = 'The recorder has not received a problem. Run a simulation that observes it first.'
             raise SimulationError(error_msg)
-        n_frames = min(len(self._times), len(self._states), len(self._parameters))
+        n_frames = min(len(self._times), len(self._states), len(self._parameters), len(self._frames))
         return Trajectory(
             self._problem,
             np.asarray(self._times[:n_frames], dtype=float),
             np.asarray(self._states[:n_frames], dtype=float).reshape(n_frames, self._problem.states.size),
             np.asarray(self._parameters[:n_frames], dtype=float).reshape(n_frames, self._problem.parameters.size),
+            agents=[frame.agents for frame in self._frames[:n_frames]],
+            reporters=[frame.reporters for frame in self._frames[:n_frames]],
         )

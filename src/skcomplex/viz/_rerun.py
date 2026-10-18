@@ -10,8 +10,9 @@ import numpy as np
 import rerun as rr
 
 from ..compile import CompiledElement, Problem
+from ..model import NetworkSpace
 from ..runtime import Frame, Observer
-from ._visuals import Visual, resolve_visual
+from ._visuals import AgentsVisual, Visual, resolve_visual
 
 
 def _viewer_executable() -> str | None:
@@ -95,6 +96,15 @@ class RerunObserver(Observer):
         self._visuals: list[tuple[CompiledElement, Visual]] = [
             (element, resolve_visual(element.visual)) for element in problem.elements
         ]
+        self._agent_visuals: dict[str, AgentsVisual] = {}
+        for agents in problem.agents:
+            visual = resolve_visual(agents.visual)
+            self._agent_visuals[agents.path] = visual if isinstance(visual, AgentsVisual) else AgentsVisual()
+        self._space = problem.agent_space
+        if isinstance(self._space, NetworkSpace):
+            edges = [(str(first), str(second)) for first, second in self._space.graph.edges]
+            for agents in problem.agents:
+                self.recording_.log(agents.path, rr.GraphEdges(edges, graph_type='undirected'), static=True)
         self.logged_frames_ = 0
 
     def on_frame(self, frame: Frame) -> None:
@@ -110,6 +120,11 @@ class RerunObserver(Observer):
         self.recording_.set_time('sim_time', duration=frame.time)
         for element, visual in self._visuals:
             visual.log(self.recording_, element, frame)
+        for path, snapshot in frame.agents.items():
+            visual = self._agent_visuals.setdefault(path, AgentsVisual())
+            visual.log_agents(self.recording_, path, snapshot, self._space)
+        for name, value in frame.reporters.items():
+            self.recording_.log(f'reporters/{name}', rr.Scalars(np.atleast_1d(value)))
         for name in frame.problem.parameters.names:
             self.recording_.log(f'parameters/{name}', rr.Scalars(np.atleast_1d(frame.value(name))))
         self.logged_frames_ += 1

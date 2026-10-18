@@ -13,3 +13,4 @@ class Form(Enum):
     SDE = 'stochastic differential equations'
     JUMP = 'jump process'
     DISCRETE = 'discrete map'
+    AGENT = 'agent-based model'

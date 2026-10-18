@@ -105,6 +105,39 @@ class Element(Component):
         return Group(label, element=cls, size=size, values=values, visual=visual)
 
 
+class AgentType(Element):
+    """Base class of agents, whose behaviour is a list of rules and whose groups change size during a run.
+
+    States are attributes of every agent and parameters are shared by every agent of a group. `laws` returns `Rule`
+    laws whose functions take the agent and the model. Agent groups are created with `group` like any element group.
+
+    Args:
+        label:
+            The label of the agent type or group.
+
+        location:
+            The initial location, cell coordinates, a network node, or a position, or one location per agent of a
+            group, or `None` for random places.
+
+    Examples:
+        >>> from skcomplex.core import state
+        >>> from skcomplex.model import AgentType, Rule
+        >>> class Walker(AgentType):
+        ...     steps: float = state(0.0)
+        ...
+        ...     def laws(self, s):
+        ...         return [Rule(self.walk)]
+        ...
+        ...     def walk(self, agent, model):
+        ...         agent.steps += 1
+        >>> Walker.group('walkers', 5)
+        Group('walkers', element=Walker, size=5)
+    """
+
+    visual: ClassVar[VisualSpec] = VisualSpec('agents')
+    location: object = None
+
+
 class Group(BaseEstimator):
     """Group of identical elements of one type, whose variables are arrays with one row per member.
 

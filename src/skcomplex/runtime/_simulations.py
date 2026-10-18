@@ -15,7 +15,7 @@ from sklearn.base import BaseEstimator
 from ..compile import Backend, Entry, Problem, Vector, compile_system
 from ..core import Domain, Form, ParameterError, SimulationError, ValidationError
 from ..model import System
-from ..solvers import Stepper, resolve_solver
+from ..solvers import AgentState, Stepper, resolve_solver
 from ._clocks import AsFastAsPossible, Clock
 from ._frames import Frame
 from ._observers import Observer, Recorder
@@ -42,7 +42,8 @@ class Simulation(BaseEstimator):
             The backend that compiles the system, `'auto'`, `'numpy'`, `'numba'`, or a backend instance.
 
         dt:
-            The simulated time between frames. It defaults to 1 for discrete maps and to 0.01 otherwise.
+            The simulated time between frames. It defaults to 1 for discrete maps and agent-based models and to 0.01
+            otherwise.
 
         clock:
             The clock that paces frames against wall time. It defaults to running as fast as possible.
@@ -108,13 +109,14 @@ class Simulation(BaseEstimator):
 
     def _check_dt(self, problem: Problem) -> float:
         """Return the time between frames after validating it for the problem's form."""
-        default = 1.0 if problem.form is Form.DISCRETE else DEFAULT_DT
+        stepwise = problem.form in (Form.DISCRETE, Form.AGENT)
+        default = 1.0 if stepwise else DEFAULT_DT
         dt = default if self.dt is None else self.dt
         if not Domain.POSITIVE.contains(dt):
             error_msg = f'dt = {dt!r} must be a positive number.'
             raise ValidationError(error_msg)
-        if problem.form is Form.DISCRETE and not Domain.INTEGER.contains(dt):
-            error_msg = f'dt = {dt!r} must be a positive integer for a discrete map.'
+        if stepwise and not Domain.INTEGER.contains(dt):
+            error_msg = f'dt = {dt!r} must be a positive integer for a {problem.form.value}.'
             raise ValidationError(error_msg)
         return float(dt)
 
@@ -164,7 +166,9 @@ class Simulation(BaseEstimator):
 
     def _emit(self, step: int) -> None:
         """Hand the current frame to every observer."""
-        frame = Frame(step, self.time_, self.state_.copy(), self.parameters_.copy(), self.problem_)
+        external = self.stepper_.snapshot()
+        agents, reporters = (external.groups, external.reporters) if isinstance(external, AgentState) else ({}, {})
+        frame = Frame(step, self.time_, self.state_.copy(), self.parameters_.copy(), self.problem_, agents, reporters)
         for observer in self.observers_:
             observer.on_frame(frame)
 

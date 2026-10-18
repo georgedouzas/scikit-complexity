@@ -11,7 +11,7 @@ import numpy.typing as npt
 import sympy
 
 from ..core import Form, VisualSpec
-from ..model import Element, Group, Interaction, System
+from ..model import Element, Group, Interaction, Rule, Space, System
 from ._layout import Layout
 
 type Vector = npt.NDArray[np.float64]
@@ -48,6 +48,46 @@ class CompiledElement:
     parameters: Mapping[str, str]
     visual: VisualSpec
     members: int | None = None
+
+
+@dataclass(frozen=True)
+class CompiledAgents:
+    """Agent type or agent group of an agent-based problem, whose states live in the Mesa model.
+
+    Args:
+        path:
+            The slash-separated path of the agents in the system tree.
+
+        element:
+            The agent type instance or the agent group.
+
+        size:
+            The initial number of agents.
+
+        states:
+            The names of the states every agent holds.
+
+        values:
+            A mapping from state name to its initial per-agent array or shared value.
+
+        parameters:
+            A mapping from parameter name to dotted name in the parameter vector.
+
+        rules:
+            The rules every agent runs each step, in declaration order.
+
+        visual:
+            The visual that draws the agents.
+    """
+
+    path: str
+    element: Element | Group
+    size: int
+    states: tuple[str, ...]
+    values: Mapping[str, object]
+    parameters: Mapping[str, str]
+    rules: tuple[Rule, ...]
+    visual: VisualSpec
 
 
 @dataclass(frozen=True)
@@ -180,6 +220,15 @@ class Problem:
         system:
             The system the problem was compiled from.
 
+        agents:
+            The agent types and groups of an agent-based problem.
+
+        model_rules:
+            The rules of interactions of an agent-based problem, with the path of their interaction.
+
+        agent_space:
+            The space the agents of an agent-based problem live in, or `None`.
+
         drift:
             The function `f(t, x, p)` that returns the time derivative or the drift.
 
@@ -222,6 +271,9 @@ class Problem:
     elements: tuple[CompiledElement, ...]
     interactions: tuple[CompiledInteraction, ...] = ()
     system: System | None = field(default=None, repr=False)
+    agents: tuple[CompiledAgents, ...] = ()
+    model_rules: tuple[tuple[str, Rule], ...] = ()
+    agent_space: Space | None = None
     drift: VectorFunction | None = field(default=None, repr=False)
     diffusion: VectorFunction | None = field(default=None, repr=False)
     noise_rows: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)

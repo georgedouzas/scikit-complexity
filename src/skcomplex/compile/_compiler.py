@@ -11,6 +11,7 @@ import numpy as np
 import sympy
 
 from ..core import (
+    Domain,
     Form,
     IncompatibleLawsError,
     LabelError,
@@ -21,12 +22,28 @@ from ..core import (
     VisualSpec,
     declarations_of,
 )
-from ..model import Boundary, Call, Element, Group, Jump, Law, Noise, PairInteraction, Rate, Symbols, System, Update
+from ..model import (
+    Boundary,
+    Call,
+    Element,
+    Group,
+    Jump,
+    Law,
+    MesaSystem,
+    Noise,
+    PairInteraction,
+    Rate,
+    Rule,
+    Space,
+    Symbols,
+    System,
+    Update,
+)
 from ._backends import Backend, resolve_backend
 from ._kernels import Kernel, Output, PairSearch, Reference, Source
 from ._layout import Entry, Layout
 from ._lowering import symbolic_components
-from ._problem import CompiledElement, CompiledInteraction, Problem, Vector
+from ._problem import CompiledAgents, CompiledElement, CompiledInteraction, Problem, Vector
 from ._tree import Node, coerce_value, flatten_system, shape_of
 
 FORMS: dict[frozenset[type], Form] = {
@@ -36,6 +53,7 @@ FORMS: dict[frozenset[type], Form] = {
     frozenset({Rate, Noise}): Form.SDE,
     frozenset({Jump}): Form.JUMP,
     frozenset({Update}): Form.DISCRETE,
+    frozenset({Rule}): Form.AGENT,
 }
 ASSIGNED_KINDS = (Update, Boundary)
 
@@ -101,9 +119,10 @@ class _Declarations:
         entries, values = (self.states, self.initial_states) if is_state else (self.parameters, self.initial_parameters)
         name = f'{node.path}.{variable}'
         member_shape = shape_of(name, declaration, node.space)
-        shape = member_shape if node.members is None else (node.members, *member_shape)
-        values.append(coerce_value(name, node.value_of(variable), member_shape, declaration.domain, node.members))
-        entry = Entry(name, sum(item.size for item in entries), shape, declaration.domain, node.members)
+        members = None if node.is_agent else node.members
+        shape = member_shape if members is None else (members, *member_shape)
+        values.append(coerce_value(name, node.value_of(variable), member_shape, declaration.domain, members))
+        entry = Entry(name, sum(item.size for item in entries), shape, declaration.domain, members)
         entries.append(entry)
         base = f'{variable}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}'
         assumptions = declaration.domain.assumptions
@@ -129,7 +148,8 @@ class _Declarations:
                 The block of the component.
         """
         block = _Block(node)
-        for variable, declaration in declarations_of(node.component_type, VariableKind.STATE).items():
+        states = {} if node.is_agent else declarations_of(node.component_type, VariableKind.STATE)
+        for variable, declaration in states.items():
             self._declare(block, variable, declaration, is_state=True)
         for variable, declaration in declarations_of(node.component_type, VariableKind.PARAMETER).items():
             self._declare(block, variable, declaration, is_state=False)
@@ -236,9 +256,9 @@ def _pair_spec(block: _Block, elements: dict[str, _Block], time: sympy.Symbol) -
 def _collect_laws(spec: _KernelSpec, component: object) -> list[Law]:
     """Return the laws a component returns for its namespace after checking their kinds."""
     laws = component.laws(spec.namespace)  # type: ignore[attr-defined]
-    kinds = Rate | Noise | Jump | Update | Boundary
+    kinds = Rate | Noise | Jump | Update | Boundary | Rule
     if not isinstance(laws, list | tuple) or not all(isinstance(law, kinds) for law in laws):
-        error_msg = f'`laws` of {spec.owner} must return a list of Rate, Noise, Jump, Update, or Boundary laws.'
+        error_msg = f'`laws` of {spec.owner} must return a list of Rate, Noise, Jump, Update, Boundary, or Rule laws.'
         raise ValidationError(error_msg)
     if spec.pairs is not None and not all(isinstance(law, Rate) for law in laws):
         error_msg = f'Pair interaction {spec.owner} returns laws other than Rate, which pair interactions do not take.'
@@ -307,6 +327,8 @@ def _lower_laws(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Decla
     for spec, laws in specs:
         outputs: dict[type, list[Output]] = defaultdict(list)
         for law in laws:
+            if isinstance(law, Rule):
+                continue
             if isinstance(law, Jump):
                 output = _outputs_of(law.rate, [None], spec.owner)[0]
                 changes = [
@@ -408,6 +430,65 @@ def _lower(form: Form, lowered: _Lowered, declarations: _Declarations, backend: 
     return functions
 
 
+def _compile_mesa(system: MesaSystem) -> Problem:
+    """Return the agent-based problem of a wrapped Mesa model, whose numeric constructor arguments are parameters."""
+    entries: list[Entry] = []
+    values: list[float] = []
+    for name, value in (system.parameters or {}).items():
+        if isinstance(value, bool) or not Domain.REAL.contains(value) or np.ndim(value):
+            continue
+        entries.append(Entry(f'{system.label}.{name}', len(entries), (), Domain.REAL))
+        values.append(float(value))
+    return Problem(
+        form=Form.AGENT,
+        states=Layout([]),
+        parameters=Layout(entries),
+        initial_state=np.zeros(0),
+        initial_parameters=np.asarray(values, dtype=float),
+        time=sympy.Symbol('t', real=True),
+        symbols={},
+        equations={},
+        equation_symbols={},
+        has_callables=False,
+        has_group_sums=False,
+        elements=(),
+        system=system,
+    )
+
+
+def _compiled_agents(blocks: list[_Block], specs: list[tuple[_KernelSpec, list[Law]]]) -> tuple[CompiledAgents, ...]:
+    """Return the agent types and groups with their states, initial values, parameters, and rules."""
+    rules = {spec.owner: tuple(law for law in laws if isinstance(law, Rule)) for spec, laws in specs}
+    agents = []
+    for block in blocks:
+        node = block.node
+        if not node.is_agent:
+            continue
+        states = tuple(declarations_of(node.component_type, VariableKind.STATE))
+        agents.append(
+            CompiledAgents(
+                path=node.path,
+                element=node.component,
+                size=node.members or 1,
+                states=states,
+                values={name: node.value_of(name) for name in states},
+                parameters={name: entry.name for name, entry in block.entries.items()},
+                rules=rules.get(node.path, ()),
+                visual=_visual_of(node),
+            ),
+        )
+    return tuple(agents)
+
+
+def _agent_space(blocks: list[_Block]) -> Space | None:
+    """Return the one space every agent group lives in, or raise an error when groups live in different spaces."""
+    spaces = {id(block.node.space): block.node.space for block in blocks if block.node.is_agent}
+    if len(spaces) > 1:
+        error_msg = 'Agent groups of one system must live in the same space.'
+        raise ValidationError(error_msg)
+    return next(iter(spaces.values()), None)
+
+
 def _is_interaction(node: Node) -> bool:
     """Check whether a node is an interaction."""
     return not isinstance(node.component, Element | Group)
@@ -472,6 +553,8 @@ def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
         >>> problem.equations
         {'rabbits.n': n_rabbits*r_growth}
     """
+    if isinstance(system, MesaSystem):
+        return _compile_mesa(system)
     nodes = flatten_system(system)
     declarations = _Declarations(time=sympy.Symbol('t', real=True))
     blocks = [declarations.declare_component(node) for node in nodes]
@@ -488,8 +571,9 @@ def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
         specs.append((spec, _collect_laws(spec, _component_of(block.node))))
     form = _infer_form([law for _, laws in specs for law in laws])
     lowered = _lower_laws(specs, declarations)
-    members = sum(block.node.members or 0 for block in blocks)
-    functions = _lower(form, lowered, declarations, resolve_backend(backend, members))
+    members = sum(block.node.members or 0 for block in blocks if not block.node.is_agent)
+    chosen = resolve_backend('numpy' if form is Form.AGENT else backend, members)
+    functions = _lower(form, lowered, declarations, chosen)
     states, parameters = Layout(declarations.states), Layout(declarations.parameters)
     compiled_elements = tuple(
         CompiledElement(
@@ -507,6 +591,7 @@ def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
             members=block.node.members,
         )
         for block in elements.values()
+        if not block.node.is_agent
     )
     symbols = {entry.name: block.symbols[variable] for block in blocks for variable, entry in block.entries.items()}
     compiled_interactions = tuple(
@@ -532,5 +617,13 @@ def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
         elements=compiled_elements,
         interactions=compiled_interactions,
         system=system,
+        agents=_compiled_agents(blocks, specs),
+        model_rules=tuple(
+            (spec.owner, law)
+            for spec, laws in specs
+            for law in laws
+            if isinstance(law, Rule) and spec.owner not in {block.node.path for block in blocks if block.node.is_agent}
+        ),
+        agent_space=_agent_space(blocks),
         **functions,  # type: ignore[arg-type]
     )

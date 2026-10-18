@@ -12,7 +12,9 @@ import rerun as rr
 
 from ..compile import CompiledElement
 from ..core import Registry, VisualSpec
+from ..model import GridSpace, NetworkSpace, Space
 from ..runtime import Frame
+from ..solvers import AgentSnapshot
 
 MAX_POINT_DIMENSIONS = 3
 COLOR_SCALE = np.array(
@@ -164,6 +166,105 @@ class PointsVisual(Visual):
             recording.log(f'{element.path}/{state}', rr.Scalars(np.ravel(frame.value(element.states[state]))))
 
 
+class AgentsVisual(Visual):
+    """Visual that logs the agents of a group as one batch per frame, colored by a state.
+
+    Agents on a grid or in a continuous space are logged as `Points2D` at their cell centres or positions, and agents
+    on a network as `GraphNodes` at their nodes. Every point carries the agent id as a hidden label, so agents keep
+    their identity across frames and removed agents disappear.
+
+    Args:
+        color_by:
+            The name of a numeric state that colors the agents, or `None` for one color.
+
+        color_range:
+            The values at the two ends of the color scale, or `None` to fix them from the first logged frame.
+
+        radius:
+            The radius of the points.
+
+    Examples:
+        >>> from skcomplex.viz import AgentsVisual
+        >>> AgentsVisual(color_by='opinion').color_by
+        'opinion'
+    """
+
+    def __init__(
+        self,
+        color_by: str | None = None,
+        color_range: tuple[float, float] | None = None,
+        radius: float = 0.4,
+    ) -> None:
+        self.color_by = color_by
+        self.color_range = color_range
+        self.radius = radius
+
+    def _colors(self, snapshot: AgentSnapshot) -> npt.NDArray[np.uint8] | None:
+        """Return one color per agent from the colored state, fixing the range on first use."""
+        if self.color_by is None or not len(snapshot):
+            return None
+        values = np.asarray(snapshot.values[self.color_by], dtype=float)
+        if self.color_range is None:
+            self.color_range = (float(values.min()), float(values.max()))
+        return _colors_of(values, *self.color_range)
+
+    def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+        """Raise an error, because agents are logged with `log_agents`.
+
+        Args:
+            recording:
+                The Rerun recording.
+
+            element:
+                The compiled element.
+
+            frame:
+                The frame.
+
+        Raises:
+            NotImplementedError:
+                Agents are not compiled elements.
+        """
+        raise NotImplementedError
+
+    def log_agents(
+        self,
+        recording: rr.RecordingStream,
+        path: str,
+        snapshot: AgentSnapshot,
+        space: Space | None,
+    ) -> None:
+        """Log the agents of a group at one frame.
+
+        Args:
+            recording:
+                The Rerun recording.
+
+            path:
+                The path of the agent group.
+
+            snapshot:
+                The agents alive at the frame.
+
+            space:
+                The space the agents live in, or `None`.
+        """
+        if snapshot.locations is None:
+            return
+        colors, labels = self._colors(snapshot), [str(agent) for agent in snapshot.ids]
+        if isinstance(space, NetworkSpace):
+            nodes = [str(node) for node in np.ravel(snapshot.locations).tolist()]
+            recording.log(
+                path,
+                rr.GraphNodes(nodes, colors=colors, labels=labels, show_labels=False, radii=self.radius),
+            )
+            return
+        positions = np.asarray(snapshot.locations, dtype=float).reshape(len(snapshot), -1)
+        if isinstance(space, GridSpace):
+            positions = positions + 0.5
+        recording.log(path, rr.Points2D(positions, colors=colors, radii=self.radius, labels=labels, show_labels=False))
+
+
 VISUALS = Registry[type[Visual]]('visual')
 
 
@@ -197,3 +298,4 @@ def resolve_visual(spec: VisualSpec) -> Visual:
 
 register_visual('scalars', ScalarsVisual)
 register_visual('points', PointsVisual)
+register_visual('agents', AgentsVisual)

@@ -5,7 +5,7 @@
 groups = ["default", "changelog", "checks", "docs", "formatting", "maintenance", "release", "sage", "tests"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.1"
-content_hash = "sha256:14df42e9136f4606a6c26f8f7ece8bfd851b5613fdbf2b649389ba27861f98b0"
+content_hash = "sha256:f0ba36dc610b65977f714841358669ebc4c212678c74f06fd7ecfdb928d616e4"
 
 [[metadata.targets]]
 requires_python = ">=3.12,<3.14"
@@ -117,6 +117,21 @@ dependencies = [
 files = [
     {file = "bandit-1.9.4-py3-none-any.whl", hash = "sha256:f89ffa663767f5a0585ea075f01020207e966a9c0f2b9ef56a57c7963a3f6f8e"},
     {file = "bandit-1.9.4.tar.gz", hash = "sha256:b589e5de2afe70bd4d53fa0c1da6199f4085af666fde00e8a034f152a52cd628"},
+]
+
+[[package]]
+name = "beniget"
+version = "0.5.0"
+requires_python = ">=3.6"
+summary = "Extract semantic information about static Python code"
+groups = ["default"]
+marker = "sys_platform == \"darwin\""
+dependencies = [
+    "gast>=0.7.0",
+]
+files = [
+    {file = "beniget-0.5.0-py3-none-any.whl", hash = "sha256:909efcd083af1ac4a5db311f57c415df8cb05c4307eda345edeafac3cd930043"},
+    {file = "beniget-0.5.0.tar.gz", hash = "sha256:e7af11fa8ec7de3d3eb3d98b1e722d15d44017d8b35d8aa11d54f6719b312f22"},
 ]
 
 [[package]]
@@ -333,7 +348,7 @@ name = "colorama"
 version = "0.4.6"
 requires_python = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7"
 summary = "Cross-platform colored terminal text."
-groups = ["checks", "docs", "maintenance", "tests"]
+groups = ["default", "checks", "docs", "maintenance", "tests"]
 files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
@@ -665,6 +680,18 @@ groups = ["checks", "maintenance"]
 files = [
     {file = "filelock-4.2.1-py3-none-any.whl", hash = "sha256:7be2662e9e826b9bba28afc0f843a123280d799a2ea44bb5d35ccec67905ae44"},
     {file = "filelock-4.2.1.tar.gz", hash = "sha256:c4c937ccac2a813cee448e662a56366cfb374c0f8702e75f295c412cc1c5d5a3"},
+]
+
+[[package]]
+name = "gast"
+version = "0.7.0"
+requires_python = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,>=2.7"
+summary = "Python AST that abstracts the underlying Python version"
+groups = ["default"]
+marker = "sys_platform == \"darwin\""
+files = [
+    {file = "gast-0.7.0-py3-none-any.whl", hash = "sha256:99cbf1365633a74099f69c59bd650476b96baa5ef196fec88032b00b31ba36f7"},
+    {file = "gast-0.7.0.tar.gz", hash = "sha256:0bb14cd1b806722e91ddbab6fb86bba148c22b40e7ff11e248974e04c8adfdae"},
 ]
 
 [[package]]
@@ -1143,6 +1170,24 @@ files = [
 ]
 
 [[package]]
+name = "mesa"
+version = "3.5.1"
+requires_python = ">=3.12"
+summary = "Agent-based modeling (ABM) in Python"
+groups = ["default"]
+dependencies = [
+    "numpy",
+    "pandas",
+    "pythran>=0.17.0; sys_platform == \"darwin\"",
+    "scipy",
+    "tqdm",
+]
+files = [
+    {file = "mesa-3.5.1-py3-none-any.whl", hash = "sha256:528f14add1b13f86f4780cf2cf067aea019885b2628720e352447cd0571234f7"},
+    {file = "mesa-3.5.1.tar.gz", hash = "sha256:3f2dce3b8cbe2d89e0ec29e843176788b8cb170413c2cc7def9dbc6339752d78"},
+]
+
+[[package]]
 name = "mkdocs"
 version = "1.6.1"
 requires_python = ">=3.8"
@@ -1487,6 +1532,17 @@ files = [
 ]
 
 [[package]]
+name = "networkx"
+version = "3.7"
+requires_python = "!=3.14.1,>=3.12"
+summary = "Python package for creating and manipulating graphs and networks"
+groups = ["default"]
+files = [
+    {file = "networkx-3.7-py3-none-any.whl", hash = "sha256:e3fd2c13a7814cee3746340d8d7f8598a67f16a58bf47fb7f8793fab6efca1b0"},
+    {file = "networkx-3.7.tar.gz", hash = "sha256:fd77a511bd90f39f3d016351345b52cf5319b813bdca01de3f755d3cca62e96a"},
+]
+
+[[package]]
 name = "nh3"
 version = "0.3.7"
 requires_python = ">=3.8"
@@ -1645,7 +1701,7 @@ name = "pandas"
 version = "3.0.6"
 requires_python = ">=3.11"
 summary = "Powerful data structures for data analysis, time series, and statistics"
-groups = ["docs"]
+groups = ["default", "docs"]
 dependencies = [
     "numpy>=1.26.0; python_version < \"3.14\"",
     "numpy>=2.3.3; python_version >= \"3.14\"",
@@ -2051,6 +2107,17 @@ files = [
 ]
 
 [[package]]
+name = "ply"
+version = "3.11"
+summary = "Python Lex & Yacc"
+groups = ["default"]
+marker = "sys_platform == \"darwin\""
+files = [
+    {file = "ply-3.11-py2.py3-none-any.whl", hash = "sha256:096f9b8350b65ebd2fd1346b12452efe5b9607f7482813ffca50c22722a807ce"},
+    {file = "ply-3.11.tar.gz", hash = "sha256:00c7c1aaa88358b9c765b6d3000c6eec0ba42abca5351b095321aef446081da3"},
+]
+
+[[package]]
 name = "properdocs"
 version = "1.6.7"
 requires_python = ">=3.9"
@@ -2284,7 +2351,7 @@ name = "python-dateutil"
 version = "2.9.0.post0"
 requires_python = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
 summary = "Extensions to the standard Python datetime module"
-groups = ["docs"]
+groups = ["default", "docs"]
 dependencies = [
     "six>=1.5",
 ]
@@ -2305,6 +2372,26 @@ dependencies = [
 files = [
     {file = "python_discovery-1.6.3-py3-none-any.whl", hash = "sha256:cb7654125e3dcb594269a6feb56ac693f1f13b7c654493a93eba72dc22d18034"},
     {file = "python_discovery-1.6.3.tar.gz", hash = "sha256:a62b301d96cf5489cb96ab023b32e068421867fdd5df2e42eece877869047fa2"},
+]
+
+[[package]]
+name = "pythran"
+version = "0.19.0"
+requires_python = ">=3.7"
+summary = "Ahead of Time compiler for numeric kernels"
+groups = ["default"]
+marker = "sys_platform == \"darwin\""
+dependencies = [
+    "beniget~=0.5.0",
+    "gast~=0.7.0",
+    "numpy",
+    "ply>=3.4",
+    "setuptools; python_version >= \"3.12\"",
+    "setuptools<60; python_version < \"3.12\"",
+]
+files = [
+    {file = "pythran-0.19.0-py3-none-any.whl", hash = "sha256:42ab2039b4eaec01084e92a2721a474e893047ba5ec87b14d45ee077ac883d08"},
+    {file = "pythran-0.19.0.tar.gz", hash = "sha256:18a096daa8b4bbe3ace06ce5d7325be5ff57aec4cf67b91834cf1b757b3e5392"},
 ]
 
 [[package]]
@@ -2609,11 +2696,23 @@ files = [
 ]
 
 [[package]]
+name = "setuptools"
+version = "84.0.0"
+requires_python = ">=3.10"
+summary = "Most extensible Python build backend with support for C/C++ extension modules"
+groups = ["default"]
+marker = "python_version >= \"3.12\" and sys_platform == \"darwin\""
+files = [
+    {file = "setuptools-84.0.0-py3-none-any.whl", hash = "sha256:51a52592b3b99e102b609654876bd65f19f999935166d1352678931132b0c670"},
+    {file = "setuptools-84.0.0.tar.gz", hash = "sha256:f4695c21257f0d9b537ec2692c941d02ee143b7cc1276941349a546573b2ef73"},
+]
+
+[[package]]
 name = "six"
 version = "1.17.0"
 requires_python = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
 summary = "Python 2 and 3 compatibility utilities"
-groups = ["docs"]
+groups = ["default", "docs"]
 files = [
     {file = "six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274"},
     {file = "six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81"},
@@ -2721,7 +2820,7 @@ name = "tqdm"
 version = "4.70.1"
 requires_python = ">=3.8"
 summary = "Fast, Extensible Progress Meter"
-groups = ["docs"]
+groups = ["default", "docs"]
 dependencies = [
     "colorama; platform_system == \"Windows\"",
 ]
@@ -2790,7 +2889,7 @@ name = "tzdata"
 version = "2026.5"
 requires_python = ">=2"
 summary = "Provider of IANA time zone data"
-groups = ["docs"]
+groups = ["default", "docs"]
 marker = "sys_platform == \"win32\" or sys_platform == \"emscripten\""
 files = [
     {file = "tzdata-2026.5-py2.py3-none-any.whl", hash = "sha256:b683bd1b6659ddcd810ff02ad09ba821d4bf1065072805063eb35c49617905ac"},

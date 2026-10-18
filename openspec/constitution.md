@@ -218,8 +218,9 @@ to fill in as the project takes shape.
   `ruff`, `mypy`, `bandit`, `pip-audit`, `deptry`, `pydoclint`, and `interrogate`, with `pytest` under branch coverage
   and randomized ordering. Docstring examples and the Python blocks of the README and the user guide run as tests.
 - Runtime dependencies: `numpy`, `scipy` for numeric integration, `sympy` as the symbolic layer every law is lowered
-  through, `numba` for the compiled backend, `lammps` for the LAMMPS backend, `rerun-sdk` for visualization, and
-  `scikit-learn` for the estimator contract. Rerun is a core dependency,
+  through, `numba` for the compiled backend, `lammps` for the LAMMPS backend, `mesa` for agent-based models, `networkx`
+  for networks, which Mesa 3.5 imports without declaring it, `rerun-sdk` for visualization, and `scikit-learn` for the
+  estimator contract. Rerun is a core dependency,
   and spawning a local viewer happens only on request, so it is not a real-world side effect.
 - Optional extras: `sage` installs `passagemath-symbolics`, whose expressions reach SymPy through `sympify`, and
   `cysignals` at a version its wheels need.
@@ -232,6 +233,6 @@ to fill in as the project takes shape.
   solver names. The top-level package
   re-exports nothing, so every public name is imported from the subpackage that owns it.
 - Extension points: solvers, visuals, and any other registry in `core` accept new entries without changes to
-  existing modules. Base classes users subclass are `Element`, `Interaction`, `PairInteraction`, `Potential`,
+  existing modules. Base classes users subclass are `Element`, `AgentType`, `Interaction`, `PairInteraction`, `Potential`,
   `PairPotential`, `Backend`, `Stepper`, `ExternalBackend`, `Clock`, `Observer`, and `Visual`.
 **Version**: 1.2.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-18

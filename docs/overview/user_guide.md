@@ -105,7 +105,7 @@ and every law written for one member runs over all members with array operations
 ```python
 import numpy as np
 
-from skcomplex.model import EuclideanSpace
+from skcomplex.model import EuclideanSpace, MesaSystem
 from skcomplex.models.physics import Particle, ReflectingBox
 
 rng = np.random.default_rng(0)
@@ -252,6 +252,91 @@ law it cannot run. The translation is the following.
 
 Importing `skcomplex.backends` also registers the solver name `'lammps'`.
 
+## Agent-based models
+
+Agents follow rules written as code. An `AgentType` declares the states every agent holds and the parameters its group
+shares, and returns `Rule` laws whose functions take the agent and the model. A system with rules is agent-based and
+runs on Mesa, one Mesa step per unit of time, with every agent activated in random order.
+
+```python
+from skcomplex.core import Domain, VisualSpec, parameter, state
+from skcomplex.model import AgentType, GridSpace, Rule
+
+
+class Forager(AgentType):
+    visual = VisualSpec('agents', {'color_by': 'food'})
+    food: float = state(5.0)
+    hunger: float = parameter(1.0, domain=Domain.NONNEGATIVE)
+
+    def laws(self, s):
+        return [Rule(self.forage)]
+
+    def forage(self, agent, model):
+        cells = agent.neighbor_cells()
+        agent.move_to(cells[int(model.rng.integers(len(cells)))])
+        agent.food += model.rng.poisson(0.8) - agent.hunger
+        if agent.food <= 0:
+            agent.remove()
+        elif agent.food > 10:
+            agent.food /= 2
+            agent.create(food=agent.food)
+
+
+foragers = System(elements=[Forager.group('foragers', 50)], space=GridSpace(30, 30, torus=True))
+trajectory = Simulation(foragers, random_state=0).run(until=20).trajectory_
+print(trajectory['foragers.count'][-1], len(trajectory.agents('foragers', 20)))
+```
+
+- An agent reads and sets its states as attributes and reads its group's parameters, which change live like any
+  parameter. `neighbors`, `neighbor_cells`, `agents_here`, `move_to`, `create`, and `remove` act on its place and its
+  population.
+- The model gives the random generator `model.rng`, the other agents with `model.agents(group)`, and empty cells.
+- `GridSpace` has Moore or von Neumann neighbourhoods and an optional cell capacity, `NetworkSpace` places agents on
+  the nodes of a NetworkX graph, and `ContinuousSpace` finds neighbours within a radius.
+- Frames and trajectories hold every group's agents with their ids, states, and locations, through
+  `trajectory.agents(group, frame)`, and the count of every group as the reporter `<group>.count`.
+- `skcomplex.models.social` has Schelling segregation, Boltzmann wealth exchange, and the voter model, and
+  `skcomplex.models.ecology` has the wolf and sheep model.
+
+### Existing Mesa models
+
+`MesaSystem` runs any Mesa model with the framework's runtime, Rerun visualization, and live parameters, without
+changing its code. Numeric constructor arguments become parameters, model reporters become reporters, and agent
+reporters become agent states.
+
+```python
+import mesa
+
+
+class Coin(mesa.Agent):
+    def __init__(self, model):
+        super().__init__(model)
+        self.heads = 0
+
+    def step(self):
+        self.heads += int(self.model.random.random() < self.model.bias)
+
+
+class Coins(mesa.Model):
+    def __init__(self, n=10, bias=0.5, rng=None):
+        super().__init__(rng=rng)
+        self.bias = bias
+        Coin.create_agents(self, n)
+
+    def step(self):
+        self.agents.do('step')
+
+
+coins = MesaSystem(
+    'coins',
+    model=Coins,
+    parameters={'n': 10, 'bias': 0.5},
+    model_reporters={'heads': lambda model: sum(agent.heads for agent in model.agents)},
+    agent_reporters={'heads': 'heads'},
+)
+print(Simulation(coins, random_state=0).run(until=10).trajectory_['coins.heads'][-1])
+```
+
 ## Visualizing with Rerun
 
 `RerunObserver` streams frames to a spawned viewer, a running viewer, or a `.rrd` file. Entity paths follow the system
@@ -274,7 +359,8 @@ path = Path(tempfile.mkdtemp()) / 'molecule.rrd'
 Simulation(molecule, dt=0.02, observers=[RerunObserver('molecule', save_path=path)]).run(until=5)
 ```
 
-Particles appear as 3D points and populations as time series. A group is logged as one batch per state, and
+Particles appear as 3D points, populations as time series, agents on grids and in continuous spaces as points
+colored by a state, agents on networks as graph nodes, and reporters under `reporters/`. A group is logged as one batch per state, and
 `PointsVisual(position='x', color_by='v')` colors its points by speed. A group can set its own visual with
 `Particle.group(..., visual=VisualSpec('points', {...}))`. A new visual subclasses `Visual` and is registered with
 `register_visual`, and an element type selects it with its `visual` class variable.

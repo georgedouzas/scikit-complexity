@@ -72,6 +72,15 @@ class Stepper(BaseEstimator):
         """
         raise NotImplementedError
 
+    def snapshot(self) -> object | None:
+        """Return the state the stepper keeps outside the state vector, such as agents, or `None`.
+
+        Returns:
+            snapshot:
+                The external state at the current time, or `None` for steppers that keep none.
+        """
+        return None
+
 
 SOLVERS = Registry[type[Stepper]]('solver')
 

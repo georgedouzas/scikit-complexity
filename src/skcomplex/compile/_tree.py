@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ..core import Domain, LabelError, SpaceError, ValidationError, Variable
-from ..model import Element, Group, Interaction, Space, System
+from ..model import AgentType, Element, Group, Interaction, MesaSystem, Space, System
 
 LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
 MAX_SHOWN_COMPONENTS = 10
@@ -45,6 +45,11 @@ class Node:
     def members(self) -> int | None:
         """Size of a group, or `None` for a single element or an interaction."""
         return self.component.size if isinstance(self.component, Group) else None
+
+    @property
+    def is_agent(self) -> bool:
+        """Whether the node is an agent type or an agent group."""
+        return isinstance(self.component, Element | Group) and issubclass(self.component_type, AgentType)
 
     @property
     def component_type(self) -> type[Element] | type[Interaction]:
@@ -149,6 +154,9 @@ def flatten_system(system: System, scope: str = '', space: Space | None = None) 
     """
     if not isinstance(system, System):
         error_msg = f'{system!r} is not an instance of System.'
+        raise ValidationError(error_msg)
+    if isinstance(system, MesaSystem):
+        error_msg = f'{system!r} in {scope or "the root system"} can only be compiled as the root system.'
         raise ValidationError(error_msg)
     _check_children(system, scope)
     space = system.space if system.space is not None else space

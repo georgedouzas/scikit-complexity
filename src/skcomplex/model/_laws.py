@@ -165,4 +165,25 @@ class Boundary:
     value: object
 
 
-type Law = Rate | Noise | Jump | Update | Boundary
+@dataclass(frozen=True)
+class Rule:
+    """Behaviour written as code, run once per step for every agent of an agent type, or once per step for a model.
+
+    A rule of an agent type receives the agent and the model, `function(agent, model)`. A rule of an interaction
+    receives the model alone, `function(model)`. A system with rules is agent-based and runs on Mesa.
+
+    Args:
+        function:
+            The function that runs the rule.
+
+    Examples:
+        >>> from skcomplex.model import Rule
+        >>> rule = Rule(lambda agent, model: None)
+        >>> callable(rule.function)
+        True
+    """
+
+    function: Callable[..., None]
+
+
+type Law = Rate | Noise | Jump | Update | Boundary | Rule

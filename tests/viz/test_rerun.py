@@ -2,13 +2,15 @@
 
 import sys
 
+import networkx as nx
 import pytest
 import rerun as rr
 
 from skcomplex.core import VisualSpec
-from skcomplex.model import EuclideanSpace, System
+from skcomplex.model import AgentType, EuclideanSpace, GridSpace, Rule, System
 from skcomplex.models.ecology import ExponentialGrowth, Population
 from skcomplex.models.physics import ConstantForce, Particle, ideal_gas
+from skcomplex.models.social import schelling, voter_model
 from skcomplex.runtime import Frame, Simulation
 from skcomplex.viz import PointsVisual, RerunObserver, ScalarsVisual, Visual, resolve_visual
 
@@ -174,3 +176,60 @@ def test_points_color_range_is_fixed_on_first_frame():
     visual = PointsVisual(position='x', color_by='v', states=())
     visual.log(LoggedPaths(), simulation.problem_.elements[0], frame)
     assert visual.color_range == (1.0, 3.0)
+
+
+def _agent_logs(monkeypatch, tmp_path, system, until=2):
+    """Return the entity paths and archetypes logged while an agent model runs."""
+    logged = []
+    original = rr.RecordingStream.log
+
+    def log(self, path, archetype, *args, **kwargs):
+        logged.append((path, archetype))
+        return original(self, path, archetype, *args, **kwargs)
+
+    monkeypatch.setattr(rr.RecordingStream, 'log', log)
+    Simulation(system, observers=[RerunObserver('agents', save_path=tmp_path / 'agents.rrd')], random_state=0).run(
+        until=until,
+    )
+    return logged
+
+
+def test_schelling_grid_logs_one_batch_per_frame(monkeypatch, tmp_path):
+    """Test that Schelling residents are logged as one Points2D batch per frame at their cells."""
+    logged = _agent_logs(monkeypatch, tmp_path, schelling(20, 20, random_state=0))
+    batches = [archetype for path, archetype in logged if path == 'residents']
+    assert len(batches) == 3
+    assert all(type(archetype).__name__ == 'Points2D' for archetype in batches)
+    assert len(batches[0].positions.as_arrow_array()) == 320
+
+
+def test_voter_network_logs_graph_with_opinion_colors(monkeypatch, tmp_path):
+    """Test that a voter network is logged as graph edges once and colored graph nodes every frame."""
+    logged = _agent_logs(monkeypatch, tmp_path, voter_model(nx.cycle_graph(10), random_state=0))
+    kinds = [type(archetype).__name__ for path, archetype in logged if path == 'voters']
+    assert kinds.count('GraphEdges') == 1
+    assert kinds.count('GraphNodes') == 3
+    nodes = next(archetype for path, archetype in logged if type(archetype).__name__ == 'GraphNodes')
+    assert nodes.colors is not None
+
+
+def test_removed_agents_disappear_from_logs(monkeypatch, tmp_path):
+    """Test that an agent removed between frames is absent from the next batch."""
+
+    class Mortal(AgentType):
+        """Agent that removes itself when its id is 1."""
+
+        def laws(self, s):
+            """Return the removal rule."""
+            return [Rule(self.die)]
+
+        def die(self, agent, model):
+            """Remove agent 1."""
+            if agent.id == 1:
+                agent.remove()
+
+    logged = _agent_logs(monkeypatch, tmp_path, System(elements=[Mortal.group('mortals', 3)], space=GridSpace(5, 5)), 1)
+    batches = [archetype for path, archetype in logged if path == 'mortals']
+    labels = [archetype.labels.as_arrow_array().to_pylist() for archetype in batches]
+    assert '1' in labels[0]
+    assert '1' not in labels[1]

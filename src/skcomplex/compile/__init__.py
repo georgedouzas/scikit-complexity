@@ -4,12 +4,22 @@ from ._backends import BACKENDS, Backend, Lowering, NumpyBackend, register_backe
 from ._compiler import compile_system
 from ._layout import Entry, Layout
 from ._numba_backend import NumbaBackend
-from ._problem import Accelerated, CompiledElement, CompiledInteraction, JumpChannels, Problem, Vector, VectorFunction
+from ._problem import (
+    Accelerated,
+    CompiledAgents,
+    CompiledElement,
+    CompiledInteraction,
+    JumpChannels,
+    Problem,
+    Vector,
+    VectorFunction,
+)
 
 __all__: list[str] = [
     'BACKENDS',
     'Accelerated',
     'Backend',
+    'CompiledAgents',
     'CompiledElement',
     'CompiledInteraction',
     'Entry',
