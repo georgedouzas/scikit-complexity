@@ -4,7 +4,7 @@
 # License: MIT
 
 import dataclasses
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any, ClassVar, dataclass_transform
 
 from sklearn.base import BaseEstimator
@@ -136,6 +136,40 @@ class AgentType(Element):
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents')
     location: object = None
+
+
+class Aggregate(Element):
+    """Summary of a group, the count of its members or a reduction of one of its states, held in the state `value`.
+
+    In a co-simulation the scheduler computes the value at every synchronisation point, so partitions that cannot
+    see a group's members, such as differential equations next to agents, read the group through the aggregate.
+
+    Args:
+        label:
+            The label of the aggregate.
+
+        group:
+            The path of the agent group or element group, relative to the system that holds the aggregate.
+
+        reduce:
+            `'count'`, `'sum'`, `'mean'`, or a function of the array of the variable's values.
+
+        variable:
+            The state the reduction reads, unused for `'count'`.
+
+        value:
+            The initial value, before the first synchronisation point.
+
+    Examples:
+        >>> from skcomplex.model import Aggregate
+        >>> Aggregate('size', group='farmers').reduce
+        'count'
+    """
+
+    group: str = ''  # type: ignore[assignment]  # the summarised group's label replaces the group constructor
+    reduce: str | Callable[[Any], float] = 'count'
+    variable: str | None = None
+    value: float = state(default=0.0)
 
 
 class Group(BaseEstimator):

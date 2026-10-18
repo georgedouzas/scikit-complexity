@@ -14,3 +14,4 @@ class Form(Enum):
     JUMP = 'jump process'
     DISCRETE = 'discrete map'
     AGENT = 'agent-based model'
+    COUPLED = 'co-simulation'

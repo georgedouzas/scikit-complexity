@@ -105,6 +105,11 @@ class ModelView:
         }
 
     @property
+    def inputs(self) -> dict[str, Any]:
+        """Values of the states of other partitions at the last synchronisation point, by dotted name."""
+        return self._stepper.inputs_
+
+    @property
     def rng(self) -> np.random.Generator:
         """Random number generator of the model, seeded by the simulation's random state."""
         return self._stepper.model_.rng
@@ -384,6 +389,7 @@ class MesaStepper(Stepper):
         """
         super().initialize(problem, rng)
         self.parameters_ = problem.initial_parameters.copy()
+        self.inputs_: dict[str, Any] = {}
         if isinstance(problem.system, MesaSystem):
             self._build_wrapped(problem.system)
             return
@@ -665,7 +671,7 @@ def _shared_default(element_type: type, name: str) -> object:
 
 def _typed_like(reference: object, value: object) -> object:
     """Return a value with the integer type of a reference value when the reference is an integer."""
-    number = float(np.ravel(value)[0])
+    number = float(np.ravel(np.asarray(value, dtype=float))[0])
     return round(number) if isinstance(reference, int) and not isinstance(reference, bool) else number
 
 

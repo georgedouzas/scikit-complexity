@@ -43,7 +43,7 @@ from ._backends import Backend, resolve_backend
 from ._kernels import Kernel, Output, PairSearch, Reference, Source
 from ._layout import Entry, Layout
 from ._lowering import symbolic_components
-from ._problem import CompiledAgents, CompiledElement, CompiledInteraction, Problem, Vector
+from ._problem import CompiledAgents, CompiledElement, CompiledInteraction, Partition, Problem, Vector
 from ._tree import Node, coerce_value, flatten_system, shape_of
 
 FORMS: dict[frozenset[type], Form] = {
@@ -166,6 +166,7 @@ class _KernelSpec:
     references: dict[sympy.Symbol, Reference]
     rows: int
     pairs: PairSearch | None = None
+    roles: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -229,7 +230,8 @@ def _interaction_spec(block: _Block, elements: dict[str, _Block], time: sympy.Sy
         )
         references.update(role_references)
     rows = next((bound.rows for bound in roles.values() if bound.node.members is not None), 1)
-    return _KernelSpec(node.path, Symbols(t=time, **vars(parameters), **namespaces), references, rows)
+    paths = {role: bound.node.path for role, bound in roles.items()}
+    return _KernelSpec(node.path, Symbols(t=time, **vars(parameters), **namespaces), references, rows, roles=paths)
 
 
 def _pair_spec(block: _Block, elements: dict[str, _Block], time: sympy.Symbol) -> _KernelSpec:
@@ -250,7 +252,8 @@ def _pair_spec(block: _Block, elements: dict[str, _Block], time: sympy.Symbol) -
     references.update(second_references)
     pairs = PairSearch(first.entries[position], second.entries[position], block.entries['cutoff'], interaction.period)
     namespace = Symbols(t=time, **vars(parameters), first=first_namespace, second=second_namespace)
-    return _KernelSpec(node.path, namespace, references, 0, pairs)
+    paths = {'first': first.node.path, 'second': second.node.path}
+    return _KernelSpec(node.path, namespace, references, 0, pairs, roles=paths)
 
 
 def _collect_laws(spec: _KernelSpec, component: object) -> list[Law]:
@@ -501,60 +504,96 @@ def _visual_of(node: Node) -> VisualSpec:
     return node.component_type.visual
 
 
-def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
-    """Compile a system into a problem of the form its law kinds determine.
+def _law_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
+    """Return the path of the element or group whose state a law changes, or that a rule acts for.
 
-    Elements and groups are compiled once each, whatever the size of a group. Laws written for one member are
-    evaluated for every member, and pair interactions are evaluated for every pair within their cutoff.
-
-    Args:
-        system:
-            The system to compile.
-
-        backend:
-            `'auto'`, a registered backend name such as `'numpy'` or `'numba'`, or a backend instance. `'auto'` picks
-            Numba for systems whose groups hold at least 1000 members in total and NumPy otherwise.
-
-    Returns:
-        problem:
-            The compiled problem.
-
-    Raises:
-        ValidationError:
-            A child has the wrong type, a value is outside its domain or has the wrong shape, or a law is malformed.
-
-        LabelError:
-            A label is not valid, duplicated, or produces a symbol collision.
-
-        RoleError:
-            A role refers to an element that does not exist, or an interaction binds two groups.
-
-        SpaceError:
-            A vector variable has no enclosing space.
-
-        IncompatibleLawsError:
-            The system mixes law kinds that no form supports.
-
-        BackendError:
-            The backend is not registered.
-
-    Examples:
-        >>> from skcomplex.compile import compile_system
-        >>> from skcomplex.model import System
-        >>> from skcomplex.models.ecology import ExponentialGrowth, Population
-        >>> problem = compile_system(
-        ...     System(
-        ...         elements=[Population('rabbits', n=10)],
-        ...         interactions=[ExponentialGrowth('growth', target='rabbits', r=0.5)],
-        ...     ),
-        ... )
-        >>> problem.form.name
-        'ODE'
-        >>> problem.equations
-        {'rabbits.n': n_rabbits*r_growth}
+    A rule acts for the first agent group among its roles, or for its first role when none is an agent group.
     """
-    if isinstance(system, MesaSystem):
-        return _compile_mesa(system)
+    if isinstance(law, Rule):
+        paths = list(spec.roles.values())
+        return next((path for path in paths if path in agents), next(iter(paths), spec.owner))
+    target = next(iter(law.changes)) if isinstance(law, Jump) else law.target
+    return _target_references(target, spec)[0].entry.name.rpartition('.')[0]
+
+
+def _fits(kinds: set[type]) -> bool:
+    """Check whether a set of law kinds fits one form."""
+    return frozenset(kind for kind in kinds if kind is not Boundary) in FORMS
+
+
+def _mixed_error(name: str, kinds: set[type]) -> IncompatibleLawsError:
+    """Return the error of a subsystem whose own laws fit no form."""
+    found = ', '.join(sorted(kind.__name__ for kind in kinds if kind is not Boundary))
+    supported = '; '.join(
+        ', '.join(sorted(kind.__name__ for kind in combination)) for combination in FORMS if combination
+    )
+    error_msg = (
+        f'Subsystem {name} mixes the law kinds {found}. Supported combinations are: {supported}. Move the laws of '
+        'different kinds into separate subsystems, which then run as partitions of a co-simulation.'
+    )
+    return IncompatibleLawsError(error_msg)
+
+
+def _plan_partitions(system: System, kinds: dict[str, set[type]], scope: str = '') -> list[tuple[str, set[str]]]:
+    """Return the partitions of a system tree as names with the element paths whose laws they hold."""
+    name = scope.rstrip('/') or system.label
+    under = {owner: owner_kinds for owner, owner_kinds in kinds.items() if owner.startswith(scope)}
+    if _fits(set().union(*under.values())):
+        return [(name, set(under))] if under else []
+    own = {owner: owner_kinds for owner, owner_kinds in under.items() if '/' not in owner[len(scope) :]}
+    own_kinds: set[type] = set().union(*own.values())
+    if not system.systems or not _fits(own_kinds):
+        raise _mixed_error(name, own_kinds if system.systems else set().union(*under.values()))
+    plan = [(name, set(own))] if own else []
+    for child in system.systems:
+        plan += _plan_partitions(child, kinds, f'{scope}{child.label}/')
+    return plan
+
+
+def _compile_partitions(system: System, backend: str | Backend, plan: list[tuple[str, set[str]]]) -> Problem:
+    """Return the problem of a system split into partitions, each compiled with the laws of its elements."""
+    partitions = []
+    for name, owners in plan:
+        problem = _compile(system, backend, frozenset(owners))
+        owned = [entry.indices for entry in problem.states if entry.name.rpartition('.')[0] in owners]
+        indices = np.concatenate([np.arange(item.start, item.stop) for item in owned]) if owned else np.zeros(0)
+        partitions.append(Partition(name, problem, indices.astype(np.intp), frozenset(owners)))
+    first = partitions[0].problem
+    equations = {
+        key: value
+        for item in partitions
+        for key, value in item.problem.equations.items()
+        if key.partition('.')[0] in item.owners
+    }
+    symbols = {
+        key: item.problem.equation_symbols[key]
+        for item in partitions
+        for key in item.problem.equations
+        if key in equations
+    }
+    return Problem(
+        form=Form.COUPLED,
+        states=first.states,
+        parameters=first.parameters,
+        initial_state=first.initial_state,
+        initial_parameters=first.initial_parameters,
+        time=first.time,
+        symbols=first.symbols,
+        equations=equations,
+        equation_symbols=symbols,
+        has_callables=any(item.problem.has_callables for item in partitions),
+        has_group_sums=any(item.problem.has_group_sums for item in partitions),
+        elements=first.elements,
+        interactions=first.interactions,
+        system=system,
+        agents=tuple(agents for item in partitions for agents in item.problem.agents),
+        agent_space=next((item.problem.agent_space for item in partitions if item.problem.agents), None),
+        partitions=tuple(partitions),
+    )
+
+
+def _compile(system: System, backend: str | Backend, owners: frozenset[str] | None) -> Problem:
+    """Return the problem of a system, keeping only the laws of the elements in `owners` when it is given."""
     nodes = flatten_system(system)
     declarations = _Declarations(time=sympy.Symbol('t', real=True))
     blocks = [declarations.declare_component(node) for node in nodes]
@@ -569,7 +608,20 @@ def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
         else:
             spec = _interaction_spec(block, elements, declarations.time)
         specs.append((spec, _collect_laws(spec, _component_of(block.node))))
-    form = _infer_form([law for _, laws in specs for law in laws])
+    agents = {block.node.path for block in blocks if block.node.is_agent}
+    if owners is not None:
+        specs = [(spec, [law for law in laws if _law_owner(spec, law, agents) in owners]) for spec, laws in specs]
+    try:
+        form = _infer_form([law for _, laws in specs for law in laws])
+    except IncompatibleLawsError:
+        if owners is not None:
+            raise
+        kinds: dict[str, set[type]] = defaultdict(set)
+        for spec, laws in specs:
+            for law in laws:
+                kinds[_law_owner(spec, law, agents)].add(type(law))
+        plan = _plan_partitions(system, kinds)
+        return _compile_partitions(system, backend, plan)
     lowered = _lower_laws(specs, declarations)
     members = sum(block.node.members or 0 for block in blocks if not block.node.is_agent)
     chosen = resolve_backend('numpy' if form is Form.AGENT else backend, members)
@@ -627,3 +679,103 @@ def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
         agent_space=_agent_space(blocks),
         **functions,  # type: ignore[arg-type]
     )
+
+
+def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
+    """Compile a system into a problem of the form its law kinds determine.
+
+    Elements and groups are compiled once each, whatever the size of a group. Laws written for one member are
+    evaluated for every member, and pair interactions are evaluated for every pair within their cutoff.
+
+    Args:
+        system:
+            The system to compile.
+
+        backend:
+            `'auto'`, a registered backend name such as `'numpy'` or `'numba'`, or a backend instance. `'auto'` picks
+            Numba for systems whose groups hold at least 1000 members in total and NumPy otherwise.
+
+    Returns:
+        problem:
+            The compiled problem.
+
+    Raises:
+        ValidationError:
+            A child has the wrong type, a value is outside its domain or has the wrong shape, or a law is malformed.
+
+        LabelError:
+            A label is not valid, duplicated, or produces a symbol collision.
+
+        RoleError:
+            A role refers to an element that does not exist, or an interaction binds two groups.
+
+        SpaceError:
+            A vector variable has no enclosing space.
+
+        IncompatibleLawsError:
+            The system mixes law kinds that no form supports.
+
+        BackendError:
+            The backend is not registered.
+
+    Examples:
+        >>> from skcomplex.compile import compile_system
+        >>> from skcomplex.model import System
+        >>> from skcomplex.models.ecology import ExponentialGrowth, Population
+        >>> problem = compile_system(
+        ...     System(
+        ...         elements=[Population('rabbits', n=10)],
+        ...         interactions=[ExponentialGrowth('growth', target='rabbits', r=0.5)],
+        ...     ),
+        ... )
+        >>> problem.form.name
+        'ODE'
+        >>> problem.equations
+        {'rabbits.n': n_rabbits*r_growth}
+    """
+    if isinstance(system, MesaSystem):
+        return _compile_mesa(system)
+    return _compile(system, backend, None)
+
+
+def partition_system(system: System, backend: str | Backend = 'auto') -> Problem:
+    """Compile a system as one partition per subsystem, also when the whole system fits one form.
+
+    The elements of the root system form one partition and every child subsystem forms another, so a co-simulation
+    can advance them with separate solvers.
+
+    Args:
+        system:
+            The system to compile.
+
+        backend:
+            The backend of every partition.
+
+    Returns:
+        problem:
+            The partitioned problem.
+
+    Raises:
+        IncompatibleLawsError:
+            A partition mixes law kinds that no form supports.
+
+    Examples:
+        >>> from skcomplex.compile import partition_system
+        >>> from skcomplex.model import System
+        >>> from skcomplex.models.ecology import ExponentialGrowth, Population
+        >>> system = System(
+        ...     systems=[
+        ...         System('a', elements=[Population('x')], interactions=[ExponentialGrowth('g', target='x')]),
+        ...         System('b', elements=[Population('y')], interactions=[ExponentialGrowth('g', target='y')]),
+        ...     ],
+        ... )
+        >>> [partition.name for partition in partition_system(system).partitions]
+        ['a', 'b']
+    """
+    nodes = flatten_system(system)
+    elements = {node.path for node in nodes if not _is_interaction(node)}
+    own = {path for path in elements if '/' not in path}
+    plan = [(system.label, own)] if own else []
+    for child in system.systems:
+        plan.append((child.label, {path for path in elements if path.startswith(f'{child.label}/')}))
+    return _compile_partitions(system, backend, plan)

@@ -39,9 +39,13 @@ interaction in a parent may contribute to several partitions. A leaf subsystem w
 
 ### Inputs
 
-When a partition's law uses a symbol owned by another partition, the compiler turns that symbol into an input of the
-partition: an entry in an input vector that the lowered functions take as a fourth argument, `f(t, x, p, u)`. Steppers
-pass the input vector through unchanged. Agent rules read inputs through `model.inputs[name]`.
+Every partition is compiled with the state layout of the whole system and only the laws of its own elements, so the
+states of other partitions appear in its vector without laws. They stay constant while it advances, which is exactly a
+held input, and the scheduler writes their latest values before every advance. The lowered functions and the
+backends need no change. Agent rules read the values through `model.inputs[name]`.
+
+- Alternative considered: a fourth argument `u` of the lowered functions. Rejected because both backends and every
+  stepper would change, while the held states give the same behaviour.
 
 ### Aggregates
 
@@ -51,7 +55,8 @@ of its group, and other partitions read `label.value` as an input.
 
 ### Scheduler
 
-`PartitionedProblem` holds the partitions in system order and the input wiring. `CoSimulation` is a `Stepper` for
+A partitioned problem is a `Problem` of the form `Form.COUPLED` whose `partitions` hold every `Partition` in system
+order, with its own problem, the state indices it owns, and its owner paths. `CoSimulation` is a `Stepper` for
 partitioned problems, so `Simulation` uses it through `resolve_solver` without other changes. It takes the per-partition
 solvers by partition path, `sync_dt`, and `scheme`.
 
@@ -74,3 +79,12 @@ to the partition that owns the parameter.
   form stay in one solver, and the error message points to a smaller `sync_dt`.
 - [Gauss-Seidel results depend on partition order] → The order is the system declaration order, which is deterministic
   and documented.
+
+## Implementation Notes
+
+- A rule of an interaction acts for the first agent group among its roles, so an interaction may return a rate for an
+  ODE state and a rule for agents.
+- Aggregates are computed before the first frame and at every synchronisation point, through the stepper hook
+  `initial_state`, and only in partitioned problems.
+- The symbolic `equations` of a partition leave out interactions that sum over a group, as for single problems.
+- Each partition draws from its own generator spawned from the simulation's random state, so runs are reproducible.

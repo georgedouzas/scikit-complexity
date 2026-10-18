@@ -109,7 +109,8 @@ class Simulation(BaseEstimator):
 
     def _check_dt(self, problem: Problem) -> float:
         """Return the time between frames after validating it for the problem's form."""
-        stepwise = problem.form in (Form.DISCRETE, Form.AGENT)
+        forms = {problem.form, *(partition.problem.form for partition in problem.partitions)}
+        stepwise = bool(forms & {Form.DISCRETE, Form.AGENT})
         default = 1.0 if stepwise else DEFAULT_DT
         dt = default if self.dt is None else self.dt
         if not Domain.POSITIVE.contains(dt):
@@ -126,11 +127,12 @@ class Simulation(BaseEstimator):
         self.dt_ = self._check_dt(self.problem_)
         self.stepper_ = resolve_solver(self.problem_, self.solver)
         self.stepper_.initialize(self.problem_, np.random.default_rng(self.random_state))
+        initial_state = self.stepper_.initial_state(self.problem_.initial_state.copy())
         self.clock_ = self.clock if self.clock is not None else AsFastAsPossible()
         self.recorder_ = Recorder() if self.record else None
         self.observers_ = [*self.observers, *([self.recorder_] if self.recorder_ is not None else [])]
         self.time_ = 0.0
-        self.state_ = self.problem_.initial_state.copy()
+        self.state_ = initial_state
         self.parameters_ = self.problem_.initial_parameters.copy()
         self._pending: queue.Queue[tuple[slice, Vector]] = queue.Queue()
         self._stop_requested = threading.Event()
@@ -143,8 +145,13 @@ class Simulation(BaseEstimator):
             observer.on_start(self.problem_)
 
     def _compile_functions(self) -> None:
-        """Call every numeric function once, so compiled backends finish compiling before the clock starts."""
-        problem, x, p = self.problem_, self.state_, self.parameters_
+        """Call every numeric function of the problem and its partitions once, before the clock starts."""
+        for problem in (self.problem_, *(partition.problem for partition in self.problem_.partitions)):
+            self._compile_problem(problem)
+
+    def _compile_problem(self, problem: Problem) -> None:
+        """Call every numeric function of one problem once, so compiled backends finish compiling."""
+        x, p = self.state_, self.parameters_
         for function in (problem.drift, problem.diffusion, problem.propensities, problem.update, problem.boundary):
             if function is not None:
                 function(0.0, x, p)

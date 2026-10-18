@@ -72,6 +72,19 @@ class Stepper(BaseEstimator):
         """
         raise NotImplementedError
 
+    def initial_state(self, x: Vector) -> Vector:
+        """Return the state vector of the first frame, which steppers that derive states can fill in.
+
+        Args:
+            x:
+                The initial state vector of the problem.
+
+        Returns:
+            state:
+                The state vector of the first frame.
+        """
+        return x
+
     def snapshot(self) -> object | None:
         """Return the state the stepper keeps outside the state vector, such as agents, or `None`.
 

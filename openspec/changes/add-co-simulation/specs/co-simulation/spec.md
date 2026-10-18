@@ -62,7 +62,8 @@ synchronisation interval shrinks, with an error that shrinks at least linearly w
 #### Scenario: Split predator and prey
 - **WHEN** a Lotka-Volterra system is split into a predator subsystem and a prey subsystem and co-simulated with
   intervals 0.1, 0.05, and 0.025
-- **THEN** the error against the joint ODE solution at time 10 at least halves with each halving of the interval
+- **THEN** the error against the joint ODE solution at time 10 shrinks by a factor of at least 1.8 with each halving of
+  the interval, as first-order convergence requires
 
 ### Requirement: One runtime covers every partition
 A co-simulation SHALL produce frames, trajectories, live parameter updates, reproducible random runs, and Rerun logs

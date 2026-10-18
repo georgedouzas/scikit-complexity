@@ -337,6 +337,39 @@ coins = MesaSystem(
 print(Simulation(coins, random_state=0).run(until=10).trajectory_['coins.heads'][-1])
 ```
 
+## Co-simulation
+
+A system whose laws do not fit one form, such as agents next to differential equations, is split into partitions at
+subsystem boundaries. Every subsystem whose laws fit one form becomes a partition, and a law joins the partition that
+owns its target, so an interaction of the parent system may contribute to several partitions. A subsystem whose own
+elements mix law kinds raises `IncompatibleLawsError` with its path and the suggestion to split it.
+
+```python
+from skcomplex.compile import compile_system
+from skcomplex.models.social import harvesting
+
+farming = harvesting(10, effort=0.05)
+print([(partition.name, partition.problem.form.value) for partition in compile_system(farming).partitions])
+trajectory = Simulation(farming, random_state=0).run(until=50).trajectory_
+print(round(trajectory['land/stock.n'][-1]), trajectory.agents('village/farmers', 50).values['wealth'].size)
+```
+
+- Every partition holds the states of the other partitions as inputs, which keep their values from the last
+  synchronisation point while it advances.
+- `Aggregate(label, group=..., reduce='count' | 'sum' | 'mean' | callable, variable=None)` turns an agent group or an
+  element group into the single state `value`, which other partitions read by its dotted name, such as
+  `village/size.value`.
+- Agent rules read the states of other partitions through `model.inputs[name]`, such as
+  `model.inputs['land/stock.n']`.
+- The `CoSimulation` solver advances every partition with its own solver, chosen per partition through
+  `solvers={'land': ScipyODE()}`, and exchanges inputs every `sync_dt`, which defaults to the frame duration and must
+  divide it, and must be a whole number of steps for discrete and agent partitions.
+- The Gauss-Seidel scheme, the default, advances partitions in system order, each reading the values already advanced
+  by those before it. `scheme='jacobi'` advances all of them from the values at the start of the interval.
+- Splitting adds an error of first order in `sync_dt`, so halving `sync_dt` roughly halves it at the cost of more
+  exchanges. `CoSimulation(split=True)` splits a system that fits one form, which shows the error against the joint
+  solution.
+
 ## Visualizing with Rerun
 
 `RerunObserver` streams frames to a spawned viewer, a running viewer, or a `.rrd` file. Entity paths follow the system
