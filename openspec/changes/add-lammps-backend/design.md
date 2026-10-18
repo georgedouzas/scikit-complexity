@@ -56,6 +56,21 @@ builds the library model, and `advance`, which runs the library to `until` and r
 - The Lepton printer is a SymPy printer that maps `**` to `^` and functions to Lepton names, and raises the backend's
   unsupported error for anything else.
 
+### Implementation notes
+
+- `backends` imports `models.physics` to recognize the interactions it translates, so it is the top layer, above
+  `models`. The runtime does not import it, and importing `skcomplex.backends` registers the solver name `'lammps'`
+  for the ODE and SDE forms. A problem now keeps its system and its interactions with their role bindings, which the
+  translation reads.
+- LAMMPS assigns atoms to a `group ... type` group when the command runs, so groups are defined after the atoms are
+  created.
+- Open dimensions use the `m` boundary, which shrink-wraps without going below the initial box, and the initial box is
+  padded by the largest cutoff, so small systems keep a box larger than the neighbour cutoff.
+- Periodic runs keep ghost atoms after the local atoms, so every per-atom read is cut to `nlocal`.
+- Interactions without a native fix run through `fix external`: the backend compiles a copy of the system that keeps
+  only those interactions, and the callback evaluates its drift and returns mass times acceleration.
+- The thermostat's temperature parameter is named `temperature`, in energy units.
+
 ### Time stepping
 
 `advance(t, x, p, until)` runs `run N pre no post no` with `N = round((until - t) / dt)` and a backend `dt` parameter,

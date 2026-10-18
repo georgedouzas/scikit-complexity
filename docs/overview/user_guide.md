@@ -212,6 +212,46 @@ print(Simulation(herds, dt=0.1).run(until=1).trajectory_['herds.n'][-1, 0])
 A plain Python callable of the values, as in `Rate(s.target.n, lambda t, values: ...)`, also works with the Numba
 backend, but runs in Python and turns off the compiled stepper loops for that kind of law.
 
+## External backends
+
+An external backend runs a whole system in a third-party solver library, and the simulation keeps its frames,
+trajectories, live parameters, and Rerun visualization. `LammpsBackend` runs particle systems in LAMMPS, which
+integrates them with velocity Verlet.
+
+```python
+from skcomplex.backends import LammpsBackend
+from skcomplex.models.physics import LangevinThermostat, LennardJones
+
+atoms = System(
+    elements=[Particle.group('atoms', 100, x=np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2))],
+    interactions=[
+        LennardJones('lj', first='atoms', second='atoms', cutoff=2.5),
+        LangevinThermostat('bath', target='atoms', temperature=0.5, gamma=1.0),
+    ],
+    space=EuclideanSpace(2),
+)
+trajectory = Simulation(atoms, solver=LammpsBackend(dt=0.005), dt=0.05, random_state=0).run(until=1).trajectory_
+print(trajectory['atoms.x'].shape)
+```
+
+Before the first frame the backend checks the system and raises one error that lists every element, interaction, and
+law it cannot run. The translation is the following.
+
+| Framework | LAMMPS |
+| --- | --- |
+| `Particle` and particle groups | one atom type per element or group, with one mass per group |
+| two or three dimensions | `dimension 2` with `fix enforce2d`, or `dimension 3` |
+| `ReflectingBox` | `fix wall/reflect` at `0` and `size` |
+| `PeriodicBox` | periodic boundaries of side `size`, shared by every group |
+| `LennardJones` | `pair_style lj/cut` |
+| other `PairPotential` | `pair_style lepton` with the pair energy printed as a Lepton expression |
+| `ConstantForce` | `fix addforce` |
+| `LinearDrag` | `fix viscous` |
+| `LangevinThermostat` | `fix langevin`, seeded from the simulation's random state |
+| any other interaction that only changes velocities | `fix external`, evaluated by the framework every step |
+
+Importing `skcomplex.backends` also registers the solver name `'lammps'`.
+
 ## Visualizing with Rerun
 
 `RerunObserver` streams frames to a spawned viewer, a running viewer, or a `.rrd` file. Entity paths follow the system

@@ -26,7 +26,7 @@ from ._backends import Backend, resolve_backend
 from ._kernels import Kernel, Output, PairSearch, Reference, Source
 from ._layout import Entry, Layout
 from ._lowering import symbolic_components
-from ._problem import CompiledElement, Problem, Vector
+from ._problem import CompiledElement, CompiledInteraction, Problem, Vector
 from ._tree import Node, coerce_value, flatten_system, shape_of
 
 FORMS: dict[frozenset[type], Form] = {
@@ -509,6 +509,18 @@ def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
         for block in elements.values()
     )
     symbols = {entry.name: block.symbols[variable] for block in blocks for variable, entry in block.entries.items()}
+    compiled_interactions = tuple(
+        CompiledInteraction(
+            path=block.node.path,
+            interaction=block.node.component,
+            roles={
+                role: _resolve_role(block.node, role, elements).node.path
+                for role in declarations_of(block.node.component, VariableKind.ROLE)
+            },
+        )
+        for block in blocks
+        if _is_interaction(block.node)
+    )
     return Problem(
         form=form,
         states=states,
@@ -518,5 +530,7 @@ def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
         time=declarations.time,
         symbols=symbols,
         elements=compiled_elements,
+        interactions=compiled_interactions,
+        system=system,
         **functions,  # type: ignore[arg-type]
     )

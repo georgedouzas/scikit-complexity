@@ -30,6 +30,8 @@ dependencies = [
     "sympy>=1.13.0",
     "rerun-sdk>=0.39.0",
     "numba>=0.61.0",
+    "lammps>=2025.7.22.4.0",
+    "mpich>=4.3.0; sys_platform != 'win32'",
     "scikit-learn>=1.5.1",
 ]
 
@@ -37,9 +39,6 @@ dependencies = [
 sage = [
     "passagemath-symbolics>=10.8.0",
     "cysignals>=1.12.6",
-]
-lammps = [
-    "lammps>=2024.8.29.0.0",
 ]
 
 [project.urls]
@@ -145,6 +144,8 @@ select = ["C", "E", "F", "W", "B", "I", "D", "N", "UP", "YTT", "ANN", "S",
 "src/skcomplex/core/_variables.py" = ["ANN401"]
 # Numba-compiled helpers take positional arrays because generated kernels call them positionally.
 "src/skcomplex/compile/_numba_cells.py" = ["PLR0917"]
+# SymPy printers dispatch to methods named `_print_<ClassName>`.
+"src/skcomplex/backends/_lepton.py" = ["N802"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -184,7 +185,7 @@ passagemath-symbolics = "sage"
 
 [tool.deptry.per_rule_ignores]
 # The extras are installed for users and reached through `sympify` or external tools, never imported.
-DEP002 = ["passagemath-symbolics", "cysignals", "lammps"]
+DEP002 = ["passagemath-symbolics", "cysignals", "mpich"]
 
 [tool.pytest.ini_options]
 python_files = ["test_*.py"]

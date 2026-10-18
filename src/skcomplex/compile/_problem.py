@@ -11,7 +11,7 @@ import numpy.typing as npt
 import sympy
 
 from ..core import Form, VisualSpec
-from ..model import Element, Group
+from ..model import Element, Group, Interaction, System
 from ._layout import Layout
 
 type Vector = npt.NDArray[np.float64]
@@ -48,6 +48,26 @@ class CompiledElement:
     parameters: Mapping[str, str]
     visual: VisualSpec
     members: int | None = None
+
+
+@dataclass(frozen=True)
+class CompiledInteraction:
+    """Interaction of a compiled problem with the paths its roles are bound to.
+
+    Args:
+        path:
+            The slash-separated path of the interaction in the system tree.
+
+        interaction:
+            The interaction.
+
+        roles:
+            A mapping from role name to the path of the element or group bound to it.
+    """
+
+    path: str
+    interaction: Interaction
+    roles: Mapping[str, str]
 
 
 @dataclass(frozen=True)
@@ -154,6 +174,12 @@ class Problem:
         elements:
             The compiled elements and groups in state vector order.
 
+        interactions:
+            The compiled interactions in tree order.
+
+        system:
+            The system the problem was compiled from.
+
         drift:
             The function `f(t, x, p)` that returns the time derivative or the drift.
 
@@ -194,6 +220,8 @@ class Problem:
     has_callables: bool
     has_group_sums: bool
     elements: tuple[CompiledElement, ...]
+    interactions: tuple[CompiledInteraction, ...] = ()
+    system: System | None = field(default=None, repr=False)
     drift: VectorFunction | None = field(default=None, repr=False)
     diffusion: VectorFunction | None = field(default=None, repr=False)
     noise_rows: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)

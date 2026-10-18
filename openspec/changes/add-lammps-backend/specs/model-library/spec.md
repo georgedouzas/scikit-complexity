@@ -15,5 +15,5 @@ The physics module SHALL provide a Langevin thermostat that adds drag and random
 on the native SDE solvers and on the LAMMPS backend.
 
 #### Scenario: Equilibrium temperature
-- **WHEN** an ideal gas starts at temperature 0.5 under a Langevin thermostat at temperature 2
+- **WHEN** an ideal gas starts at temperature 0.5 under a Langevin thermostat whose `temperature` is 2
 - **THEN** its kinetic temperature approaches 2 within 5 percent after many relaxation times

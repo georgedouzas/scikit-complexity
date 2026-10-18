@@ -2,10 +2,10 @@
 # It is not intended for manual editing.
 
 [metadata]
-groups = ["default", "changelog", "checks", "docs", "formatting", "lammps", "maintenance", "release", "sage", "tests"]
+groups = ["default", "changelog", "checks", "docs", "formatting", "maintenance", "release", "sage", "tests"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.1"
-content_hash = "sha256:ea6c71251e72ad4c78927066cfbf3ed2e2b72dd9999d997612f8bc973b7b8a6a"
+content_hash = "sha256:14df42e9136f4606a6c26f8f7ece8bfd851b5613fdbf2b649389ba27861f98b0"
 
 [[metadata.targets]]
 requires_python = ">=3.12,<3.14"
@@ -913,7 +913,7 @@ name = "lammps"
 version = "2025.7.22.4.0"
 requires_python = ">=3.7"
 summary = "unoffical LAMMPS Molecular Dynamics Python package"
-groups = ["lammps"]
+groups = ["default"]
 dependencies = [
     "importlib-metadata>=1.4; python_version < \"3.8\"",
 ]
@@ -1374,6 +1374,19 @@ marker = "platform_machine != \"ppc64le\" and platform_machine != \"s390x\""
 files = [
     {file = "more_itertools-11.2.1-py3-none-any.whl", hash = "sha256:35a7377edd1dd6608dcb2cdf534ded55ea32d49448875ad042cd3f879fb1ded0"},
     {file = "more_itertools-11.2.1.tar.gz", hash = "sha256:cbf08fd0af284dc69718b9b76a8e6203df624d70209ea511e4219d350c856f63"},
+]
+
+[[package]]
+name = "mpich"
+version = "5.0.2"
+summary = "A high performance implementation of MPI"
+groups = ["default"]
+marker = "sys_platform != \"win32\""
+files = [
+    {file = "mpich-5.0.2-py3-none-macosx_11_0_arm64.whl", hash = "sha256:fa6611d3efa2d5a5f624976458d25988bfd5626afc09402f662ff0defbb45cd4"},
+    {file = "mpich-5.0.2-py3-none-macosx_11_0_x86_64.whl", hash = "sha256:425ec71e34fe588f4a917cd4c042fab84a70006537e36bfd6bb0d6ae274bb13c"},
+    {file = "mpich-5.0.2-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:992ae6ebb0da97d49d7a67000ae8112da9a3825da1bb1e6f1d196428a0410f2d"},
+    {file = "mpich-5.0.2-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:8fed465ebff269ea2ebac179a25de02671ddf8df476e0f115be089015015cfd4"},
 ]
 
 [[package]]

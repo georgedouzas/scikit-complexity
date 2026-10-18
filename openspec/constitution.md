@@ -218,14 +218,20 @@ to fill in as the project takes shape.
   `ruff`, `mypy`, `bandit`, `pip-audit`, `deptry`, `pydoclint`, and `interrogate`, with `pytest` under branch coverage
   and randomized ordering. Docstring examples and the Python blocks of the README and the user guide run as tests.
 - Runtime dependencies: `numpy`, `scipy` for numeric integration, `sympy` as the symbolic layer every law is lowered
-  through, `rerun-sdk` for visualization, and `scikit-learn` for the estimator contract. Rerun is a core dependency,
+  through, `numba` for the compiled backend, `lammps` for the LAMMPS backend, `rerun-sdk` for visualization, and
+  `scikit-learn` for the estimator contract. Rerun is a core dependency,
   and spawning a local viewer happens only on request, so it is not a real-world side effect.
 - Optional extras: `sage` installs `passagemath-symbolics`, whose expressions reach SymPy through `sympify`, and
-  `lammps` installs the LAMMPS molecular dynamics package.
+  `cysignals` at a version its wheels need.
+- LAMMPS: `lammps` is a runtime dependency, with `mpich` on platforms other than Windows, because the LAMMPS wheel links
+  an MPI library it does not bundle. LAMMPS on Windows is not verified yet. The `LAMMPS on Windows` workflow checks
+  that it loads, and until it passes, Windows support of the LAMMPS backend is a known limitation.
 - Layout: library. The importable package under `src/skcomplex` is distributed to others. Imports run downward
-  through `core`, `model`, `compile`, `solvers`, `runtime`, `viz`, `analysis`, and `models`. The top-level package
+  through `core`, `model`, `compile`, `solvers`, `runtime`, `viz`, `analysis`, `models`, and `backends`, which
+  translates models into third-party libraries and so sits above them. Importing `skcomplex.backends` registers its
+  solver names. The top-level package
   re-exports nothing, so every public name is imported from the subpackage that owns it.
 - Extension points: solvers, visuals, and any other registry in `core` accept new entries without changes to
-  existing modules. Base classes users subclass are `Element`, `Interaction`, `Potential`, `Stepper`, `Clock`,
-  `Observer`, and `Visual`.
-**Version**: 1.1.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-17
+  existing modules. Base classes users subclass are `Element`, `Interaction`, `PairInteraction`, `Potential`,
+  `PairPotential`, `Backend`, `Stepper`, `ExternalBackend`, `Clock`, `Observer`, and `Visual`.
+**Version**: 1.2.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-18
