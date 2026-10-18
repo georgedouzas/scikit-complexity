@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ..core import Domain
+from ..core import AnyDomain
 
 
 @dataclass(frozen=True)
@@ -36,7 +36,7 @@ class Entry:
     name: str
     start: int
     shape: tuple[int, ...]
-    domain: Domain
+    domain: AnyDomain
     members: int | None = None
 
     @property

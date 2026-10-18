@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -34,6 +35,9 @@ class Trajectory:
         reporters:
             One mapping from dotted reporter name to value per frame, empty for problems without reporters.
 
+        observables:
+            One mapping from observable path to value per frame, empty for systems without observables.
+
     Examples:
         >>> from skcomplex.model import System
         >>> from skcomplex.models.ecology import ExponentialGrowth, Population
@@ -55,6 +59,7 @@ class Trajectory:
         *,
         agents: Sequence[Mapping[str, AgentSnapshot]] = (),
         reporters: Sequence[Mapping[str, float]] = (),
+        observables: Sequence[Mapping[str, Any]] = (),
     ) -> None:
         self.problem = problem
         self.times = times
@@ -62,6 +67,7 @@ class Trajectory:
         self.parameters = parameters
         self.agents_by_frame = agents
         self.reporters = reporters
+        self.observables = observables
 
     def __len__(self) -> int:
         """Return the number of recorded frames."""
@@ -83,13 +89,18 @@ class Trajectory:
                 The name is neither a state nor a parameter.
         """
         if name in self.problem.states:
-            return np.asarray(self.problem.states.read(self.states, name))
+            entry = self.problem.states.entry(name)
+            return entry.domain.decode(np.asarray(self.problem.states.read(self.states, name)))
         if name in self.problem.parameters:
-            return np.asarray(self.problem.parameters.read(self.parameters, name))
+            entry = self.problem.parameters.entry(name)
+            return entry.domain.decode(np.asarray(self.problem.parameters.read(self.parameters, name)))
         if self.reporters and name in self.reporters[0]:
             return np.asarray([frame[name] for frame in self.reporters], dtype=float)
+        if self.observables and name in self.observables[0]:
+            return np.asarray([frame[name] for frame in self.observables])
         reporter_names = list(self.reporters[0]) if self.reporters else []
-        names = [*self.problem.states.names, *self.problem.parameters.names, *reporter_names]
+        observable_names = list(self.observables[0]) if self.observables else []
+        names = [*self.problem.states.names, *self.problem.parameters.names, *reporter_names, *observable_names]
         error_msg = f'No state or parameter named {name!r}. Available names are: {", ".join(names)}.'
         raise KeyError(error_msg)
 

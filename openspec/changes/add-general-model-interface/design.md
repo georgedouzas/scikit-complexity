@@ -95,3 +95,19 @@ trajectory holds every state and observable.
 - [Catalog import cost] → Registration stores factories without calling them, and the formalism is inferred lazily on
   the first `catalog()` call.
 - [Categorical values in floats] → Exact for practical alphabets, and checked mode catches values outside the alphabet.
+
+## Implementation Notes
+
+- The catalog lives in `skcomplex.runtime`, because `run` needs `Simulation`, and `skcomplex.models` re-exports it. Field
+  modules register through that public import, and their factories live in `_factories.py` modules next to the
+  components.
+- `ideal_gas` takes 500 molecules and `voter_model` a ring of 50 nodes by default, so every registered factory can be
+  created without arguments.
+- Laws read observables that reduce a variable or count a group. When a role binds to such an observable, the compiler
+  adds it as an aggregate, and a system of one form whose laws read observables raises a named error, because only
+  co-simulation updates aggregates.
+- The NumPy dialect prints complex numbers, so observables such as `abs(mean(exp(I θ)))` evaluate. The Numba and Lepton
+  dialects still reject them.
+- Checked mode checks every state's domain, not only alphabets.
+- Library fields pass their defaults as `default=`, which mypy needs to recognise defaults of `dataclass_transform`
+  field specifiers.

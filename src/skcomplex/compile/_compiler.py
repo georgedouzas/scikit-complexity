@@ -3,9 +3,11 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import copy
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
+from typing import cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR
@@ -29,6 +31,7 @@ from ..core import (
     vector,
 )
 from ..model import (
+    Aggregate,
     Boundary,
     Call,
     Element,
@@ -49,7 +52,7 @@ from ._backends import Backend, resolve_backend
 from ._kernels import Kernel, Output, PairSearch, Reference, Source
 from ._layout import Entry, Layout
 from ._lowering import symbolic_components
-from ._problem import CompiledAgents, CompiledElement, CompiledInteraction, Partition, Problem, Vector
+from ._problem import CompiledAgents, CompiledElement, CompiledInteraction, Partition, Problem, Vector, VectorFunction
 from ._tree import Node, coerce_value, flatten_system, shape_of
 
 FORMS: dict[frozenset[type], Form] = {
@@ -630,6 +633,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
     chosen = resolve_backend('numpy' if form is Form.AGENT else backend, members)
     functions = _lower(form, lowered, declarations, chosen)
     states, parameters = Layout(declarations.states), Layout(declarations.parameters)
+    functions['boundary'] = _wrapping_angles(cast('VectorFunction | None', functions.get('boundary')), states)
     compiled_elements = tuple(
         CompiledElement(
             path=block.node.path,
@@ -682,6 +686,69 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         agent_space=_agent_space(blocks),
         **functions,  # type: ignore[arg-type]
     )
+
+
+def _wrapping_angles(boundary: VectorFunction | None, states: Layout) -> VectorFunction | None:
+    """Return a boundary function that also wraps every angle state into one turn."""
+    indices = np.concatenate(
+        [np.zeros(0, dtype=np.intp)]
+        + [np.arange(entry.start, entry.start + entry.size) for entry in states if entry.domain is Domain.ANGLE],
+    )
+    if not indices.size:
+        return boundary
+
+    def wrapped(t: float, x: Vector, p: Vector) -> Vector:
+        """Apply the boundary laws, then wrap the angle states."""
+        state = x if boundary is None else boundary(t, x, p)
+        state = state.copy()
+        state[indices] = np.mod(state[indices], 2 * np.pi)
+        return state
+
+    return wrapped
+
+
+def _role_paths(system: System, scope: str = '') -> set[str]:
+    """Return the paths from the root of everything that roles of a system tree bind to."""
+    paths = {
+        f'{scope}/{value}' if scope else value
+        for interaction in system.interactions
+        for name in declarations_of(interaction, VariableKind.ROLE)
+        if isinstance(value := getattr(interaction, name), str)
+    }
+    for child in system.systems:
+        paths |= _role_paths(child, f'{scope}/{child.label}' if scope else child.label)
+    return paths
+
+
+def _with_held_observables(system: System, read: set[str], scope: str = '') -> tuple[System, list[str]]:
+    """Return a system tree in which every observable that a role binds to is also an aggregate, and their paths."""
+    held: list[str] = []
+    aggregates = []
+    for observable in getattr(system, 'observables', ()):
+        path = f'{scope}/{observable.label}' if scope else observable.label
+        if path not in read:
+            continue
+        if observable.group is None or observable.expression is not None:
+            error_msg = (
+                f'A role binds to the observable {path}, but laws read only observables that reduce a variable or '
+                'count the members of a group. Declare it with `group` and `variable`.'
+            )
+            raise ValidationError(error_msg)
+        aggregates.append(
+            Aggregate(observable.label, group=observable.group, reduce=observable.reduce, variable=observable.variable),
+        )
+        held.append(path)
+    children = []
+    for child in system.systems:
+        new_child, child_held = _with_held_observables(child, read, f'{scope}/{child.label}' if scope else child.label)
+        children.append(new_child)
+        held += child_held
+    if not held:
+        return system, held
+    copied = copy.copy(system)
+    copied.elements = [*system.elements, *aggregates]
+    copied.systems = children
+    return copied, held
 
 
 def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
@@ -738,7 +805,15 @@ def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
     """
     if isinstance(system, MesaSystem):
         return _compile_mesa(system)
-    return _compile(system, backend, None)
+    system, held = _with_held_observables(system, _role_paths(system))
+    problem = _compile(system, backend, None)
+    if held and problem.form is not Form.COUPLED:
+        error_msg = (
+            f'Laws read the observables {", ".join(held)} in a system of one form. Laws read observables only from '
+            'other partitions of a co-simulation, so move the reading laws into another subsystem of a different form.'
+        )
+        raise ValidationError(error_msg)
+    return problem
 
 
 def partition_system(system: System, backend: str | Backend = 'auto') -> Problem:

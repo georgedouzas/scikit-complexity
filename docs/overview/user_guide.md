@@ -12,7 +12,12 @@
     - `Jump` fires a random event that changes states by fixed increments.
     - `Update` gives the next value of a state after one discrete step.
 - A **space** gives vector states, such as positions, their dimension.
-- A **system** holds elements, interactions, child systems, and an optional space.
+- A **system** holds elements, interactions, child systems, an optional space, and **observables**, named quantities
+  computed from its states at every frame.
+
+These concepts carry no field-specific meaning. A population, a particle, a firm, and a cell are all elements, so a
+model from any science is a configuration of the same interface, and every ready-made model in `skcomplex.models` is a
+factory that builds such a configuration.
 
 Compiling a system infers its mathematical form from its law kinds and builds fast numeric functions.
 
@@ -98,6 +103,38 @@ Models written with SymPy move to Sage as follows. A SymPy expression in a law r
 | `sympy.diff(f, x)` and `f.subs(x, y)` | `f.diff(x)` and `f.subs({x: y})` |
 | `sympy.Eq(a, b)`, `.lhs`, and `.rhs` | `a == b`, `.lhs()`, and `.rhs()` |
 
+### Defining without classes
+
+`Element.define` and `Interaction.define` build the same types from declarations and a laws function, which suits
+one-off models. The types behave like classes in groups, cloning, and parameter introspection, and pickle when they are
+assigned to a module-level name equal to their name.
+
+```python
+from skcomplex.model import Element
+
+SpeciesDefined = Element.define('SpeciesDefined', states={'n': state(10.0, domain=Domain.NONNEGATIVE)})
+BirthDefined = Interaction.define(
+    'BirthDefined',
+    roles=['target'],
+    parameters={'rate': parameter(0.5, domain=Domain.NONNEGATIVE)},
+    laws=lambda s: [Rate(s.target.n, s.rate * s.target.n)],
+)
+print(BirthDefined('birth', target='deer', rate=0.2))
+```
+
+### State domains
+
+Besides real, positive, nonnegative, and integer values, a state takes booleans, angles, or the labels of a finite
+alphabet. Values are stored as floats: booleans as 0 and 1, labels as their index, and angles wrapped into one turn
+after every frame. Trajectories return booleans and labels, and `Simulation(..., checked=True)` raises an error naming
+any state that leaves its domain.
+
+```python
+health = Domain.categorical('susceptible', 'infected', 'recovered')
+Person = Element.define('Person', states={'health': state('susceptible', domain=health)})
+Rotor = Element.define('Rotor', states={'theta': state(0.0, domain=Domain.ANGLE)})
+```
+
 ## Composing systems
 
 Systems nest. An interaction refers to an element of a child system by a slash-separated path.
@@ -132,6 +169,57 @@ print(trajectory['meadow/rabbits.n'][-1])
 - `start(until)` runs in a background thread, and `pause`, `resume`, `stop`, and `wait` control it.
 - `update_parameters({'hunt.a': 0.05})` changes parameters before the next frame.
 - `random_state` makes stochastic runs reproducible.
+
+## Observables
+
+Observables are named quantities of a system, computed at every frame, recorded in trajectories under the system's
+path, and logged to Rerun. An observable is either an expression of the system namespace, where earlier observables
+appear by label, or a reduction over a group's members of a variable or an expression of one member: `count`, `sum`,
+`mean`, `min`, `max`, `var`, or a function.
+
+```python
+import numpy as np
+from sage.all__sagemath_symbolics import I, exp
+
+from skcomplex.model import Observable
+
+Oscillator = Element.define(
+    'Oscillator',
+    states={'theta': state(0.0, domain=Domain.ANGLE)},
+    parameters={'omega': 1.0},
+    laws=lambda s: [Rate(s.theta, s.omega)],
+)
+oscillators = System(
+    elements=[Oscillator.group('phases', 100, theta=np.linspace(0, 1, 100), omega=np.linspace(0.9, 1.1, 100))],
+    observables=[
+        Observable('z', lambda member: exp(I * member.theta), group='phases'),
+        Observable('order', lambda s: abs(s.z)),
+    ],
+)
+order = Simulation(oscillators, dt=1.0).run(until=50).trajectory_['order']
+print(round(float(order[0]), 3), round(float(order[-1]), 3))
+```
+
+A law reads a reduction observable of another partition through a role bound to the observable's path, as it reads an
+aggregate, so agents and equations exchange macroscopic quantities in a co-simulation.
+
+## The model catalog
+
+Every ready-made model is a factory registered with its field, description, tags, references, and default run
+settings. `catalog` lists them, filtered by field or tag, `describe` gives a model's parameters and the formalism
+inferred by compiling it, `create` builds it by name, and `run` simulates it with its defaults.
+
+```python
+from skcomplex.models import catalog, create, describe, run
+
+print([entry.name for entry in catalog(field='ecology')])
+print(describe('lotka_volterra').formalism)
+predation = create('lotka_volterra', a=0.2)
+print(run('sir').trajectory_['I.n'].max().round())
+```
+
+`register_model` adds a factory of your own to the catalog. Every registered factory needs defaults for all of its
+arguments, so the catalog can create, compile, simulate, visualize, and clone every model through the same interface.
 
 ## Groups of many elements
 

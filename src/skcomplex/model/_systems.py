@@ -9,6 +9,7 @@ from typing import Any
 from sklearn.base import BaseEstimator
 
 from ._components import Element, Group, Interaction
+from ._observables import Observable
 from ._spaces import Space
 
 
@@ -34,6 +35,9 @@ class System(BaseEstimator):
         space:
             The space that gives vector states their dimension. Child systems without a space use it too.
 
+        observables:
+            The observables of the system, computed at every frame.
+
     Examples:
         >>> from skcomplex.model import System
         >>> from skcomplex.models.ecology import LogisticGrowth, Population
@@ -53,12 +57,14 @@ class System(BaseEstimator):
         interactions: Sequence[Interaction] = (),
         systems: Sequence['System'] = (),
         space: Space | None = None,
+        observables: Sequence[Observable] = (),
     ) -> None:
         self.label = label
         self.elements = elements
         self.interactions = interactions
         self.systems = systems
         self.space = space
+        self.observables = observables
 
     def __repr__(self, N_CHAR_MAX: int = 700) -> str:
         """Return the label and the number of children of each kind."""

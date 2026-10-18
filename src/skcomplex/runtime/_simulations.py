@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.base import BaseEstimator
 
-from ..compile import Backend, Entry, Problem, Vector, compile_system
+from ..compile import Backend, Entry, ObservableEvaluator, Problem, Vector, compile_system
 from ..core import Domain, Form, ParameterError, SimulationError, ValidationError
 from ..model import System
 from ..solvers import AgentState, Stepper, resolve_solver
@@ -57,6 +57,10 @@ class Simulation(BaseEstimator):
         random_state:
             The seed or generator of stochastic solvers.
 
+        checked:
+            Whether to check after every frame that every state lies in its domain, such as an alphabet of labels,
+            and raise an error naming the state when it does not.
+
     Attributes:
         problem_:
             The compiled problem.
@@ -97,6 +101,7 @@ class Simulation(BaseEstimator):
         observers: Sequence[Observer] = (),
         record: bool = True,
         random_state: int | np.random.Generator | None = None,
+        checked: bool = False,
     ) -> None:
         self.system = system
         self.solver = solver
@@ -106,6 +111,7 @@ class Simulation(BaseEstimator):
         self.observers = observers
         self.record = record
         self.random_state = random_state
+        self.checked = checked
 
     def _check_dt(self, problem: Problem) -> float:
         """Return the time between frames after validating it for the problem's form."""
@@ -126,6 +132,7 @@ class Simulation(BaseEstimator):
         self.problem_ = compile_system(self.system, self.backend)
         self.dt_ = self._check_dt(self.problem_)
         self.stepper_ = resolve_solver(self.problem_, self.solver)
+        self.observables_ = ObservableEvaluator(self.problem_)
         self.stepper_.initialize(self.problem_, np.random.default_rng(self.random_state))
         initial_state = self.stepper_.initial_state(self.problem_.initial_state.copy())
         self.clock_ = self.clock if self.clock is not None else AsFastAsPossible()
@@ -175,7 +182,17 @@ class Simulation(BaseEstimator):
         """Hand the current frame to every observer."""
         external = self.stepper_.snapshot()
         agents, reporters = (external.groups, external.reporters) if isinstance(external, AgentState) else ({}, {})
-        frame = Frame(step, self.time_, self.state_.copy(), self.parameters_.copy(), self.problem_, agents, reporters)
+        observables = self.observables_.evaluate(self.time_, self.state_, self.parameters_, self.stepper_.agents_of)
+        frame = Frame(
+            step,
+            self.time_,
+            self.state_.copy(),
+            self.parameters_.copy(),
+            self.problem_,
+            agents,
+            reporters,
+            observables,
+        )
         for observer in self.observers_:
             observer.on_frame(frame)
 
@@ -202,6 +219,8 @@ class Simulation(BaseEstimator):
                 if self.problem_.boundary is not None:
                     self.state_ = self.problem_.boundary(target, self.state_, self.parameters_)
                 self.time_ = target
+                if self.checked:
+                    self._check_domains()
                 self._emit(step)
                 self.clock_.wait(self.time_)
         finally:
@@ -215,6 +234,17 @@ class Simulation(BaseEstimator):
         except BaseException as error:  # noqa: BLE001
             self._error = error
 
+    def _check_domains(self) -> None:
+        """Raise an error when a state has left its domain."""
+        for entry in self.problem_.states:
+            values = np.asarray(self.problem_.states.read(self.state_, entry.name))
+            if not entry.domain.contains(values):
+                error_msg = (
+                    f'{entry.name} took the values {np.round(values, 6).tolist()} at t = {self.time_}, outside its '
+                    f'{entry.domain.value} domain. Check the laws that change it.'
+                )
+                raise ValidationError(error_msg)
+
     def _check_value(self, name: str, entry: Entry, value: float | npt.ArrayLike) -> Vector:
         """Return a parameter value broadcast to its entry after checking its domain and shape."""
         error_msg = (
@@ -224,7 +254,7 @@ class Simulation(BaseEstimator):
         if not entry.domain.contains(value):
             raise ValidationError(error_msg)
         try:
-            return np.broadcast_to(np.asarray(value, dtype=float), entry.shape).ravel().copy()
+            return np.broadcast_to(entry.domain.encode(value), entry.shape).ravel().copy()
         except ValueError as error:
             raise ValidationError(error_msg) from error
 

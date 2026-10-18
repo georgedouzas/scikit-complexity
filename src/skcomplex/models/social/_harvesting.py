@@ -6,6 +6,7 @@
 from ...core import Domain, parameter, role, state
 from ...model import AgentType, Aggregate, Interaction, Law, Rate, Rule, Symbols, System
 from ...models.ecology import LogisticGrowth, Population
+from ...runtime import register_model
 from ...solvers import AgentView, ModelView
 
 
@@ -36,7 +37,7 @@ class Farmer(AgentType):
 
     resource: str = 'land/stock.n'
     effort: str = 'harvest.effort'
-    wealth: float = state(0.0, domain=Domain.NONNEGATIVE)
+    wealth: float = state(default=0.0, domain=Domain.NONNEGATIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the catch rule.
@@ -88,7 +89,7 @@ class Harvest(Interaction):
 
     resource: str = role()
     harvesters: str = role()
-    effort: float = parameter(0.05, domain=Domain.NONNEGATIVE)
+    effort: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the harvest rate.
@@ -104,6 +105,12 @@ class Harvest(Interaction):
         return [Rate(s.resource.n, -s.effort * s.harvesters.value * s.resource.n)]
 
 
+@register_model(
+    field='social',
+    tags=('socio-ecological', 'agents', 'ode', 'co-simulation'),
+    references=('Hamill and Gilbert 2016 ch. 10',),
+    defaults={'until': 50},
+)
 def harvesting(farmers: int = 10, *, effort: float = 0.05, r: float = 1.0, K: float = 1000.0) -> System:
     """Return a socio-ecological model of farmer agents harvesting a logistically regrowing resource.
 

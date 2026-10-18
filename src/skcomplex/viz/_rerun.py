@@ -125,6 +125,8 @@ class RerunObserver(Observer):
             visual.log_agents(self.recording_, path, snapshot, self._space)
         for name, value in frame.reporters.items():
             self.recording_.log(f'reporters/{name}', rr.Scalars(np.atleast_1d(value)))
+        for name, value in frame.observables.items():
+            self.recording_.log(name, rr.Scalars(np.atleast_1d(np.abs(value) if np.iscomplexobj(value) else value)))
         for name in frame.problem.parameters.names:
             self.recording_.log(f'parameters/{name}', rr.Scalars(np.atleast_1d(frame.value(name))))
         self.logged_frames_ += 1

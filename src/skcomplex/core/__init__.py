@@ -1,6 +1,6 @@
 """Shared vocabulary of the framework: errors, domains, declarations, forms, and registries."""
 
-from ._domains import Domain
+from ._domains import AnyDomain, Categorical, Domain
 from ._errors import (
     AnalysisError,
     BackendError,
@@ -31,7 +31,9 @@ from ._visuals import VisualSpec
 
 __all__: list[str] = [
     'AnalysisError',
+    'AnyDomain',
     'BackendError',
+    'Categorical',
     'Domain',
     'Expression',
     'Form',

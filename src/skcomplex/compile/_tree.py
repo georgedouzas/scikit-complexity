@@ -11,7 +11,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..core import Domain, LabelError, SpaceError, ValidationError, Variable
+from ..core import AnyDomain, Domain, LabelError, SpaceError, ValidationError, Variable
 from ..model import AgentType, Element, Group, Interaction, MesaSystem, Space, System
 
 LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
@@ -233,7 +233,7 @@ def coerce_value(
     name: str,
     value: object,
     shape: tuple[int, ...],
-    domain: Domain,
+    domain: AnyDomain,
     members: int | None = None,
 ) -> npt.NDArray[np.float64]:
     """Return a value as a flat float array of the given shape after validating it.
@@ -266,7 +266,7 @@ def coerce_value(
     if not domain.contains(value):
         error_msg = f'{name} = {_describe(value)} is not in the {domain.value} domain.'
         raise ValidationError(error_msg)
-    array = np.asarray(value, dtype=float)
+    array = domain.encode(value)
     if members is not None:
         return _coerce_group_value(name, value, array, shape, members)
     if not shape and array.ndim == 0:

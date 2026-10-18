@@ -4,7 +4,7 @@
 # License: MIT
 
 from abc import abstractmethod
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 from sklearn.base import BaseEstimator
@@ -84,6 +84,20 @@ class Stepper(BaseEstimator):
                 The state vector of the first frame.
         """
         return x
+
+    def agents_of(self, group: str) -> list[Any] | None:
+        """Return the agents of an agent group by path, or `None` when the stepper holds no such group.
+
+        Args:
+            group:
+                The path of the agent group.
+
+        Returns:
+            agents:
+                The agents alive now, or `None`.
+        """
+        del group
+        return None
 
     def snapshot(self) -> object | None:
         """Return the state the stepper keeps outside the state vector, such as agents, or `None`.

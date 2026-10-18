@@ -5,6 +5,7 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -38,6 +39,9 @@ class Frame:
 
         reporters:
             A mapping from dotted reporter name to its value at this frame.
+
+        observables:
+            A mapping from observable path to its value at this frame.
     """
 
     step: int
@@ -47,6 +51,7 @@ class Frame:
     problem: Problem
     agents: Mapping[str, AgentSnapshot] = field(default_factory=dict)
     reporters: Mapping[str, float] = field(default_factory=dict)
+    observables: Mapping[str, Any] = field(default_factory=dict)
 
     def value(self, name: str) -> npt.NDArray[np.float64] | float:
         """Return the value of a state or a parameter by dotted name.
@@ -63,4 +68,6 @@ class Frame:
             return self.problem.states.read(self.state, name)
         if name in self.reporters:
             return self.reporters[name]
+        if name in self.observables:
+            return self.observables[name]
         return self.problem.parameters.read(self.parameters, name)

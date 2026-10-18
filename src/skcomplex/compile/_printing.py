@@ -80,6 +80,14 @@ def _is_reciprocal(item: Expression) -> bool:
     return bool(exponent.is_numeric() and exponent.pyobject() < 0)
 
 
+def _is_negative(value: Any) -> bool:  # noqa: ANN401
+    """Check whether a number is real and negative, so complex numbers are never negated."""
+    try:
+        return bool(float(value) < 0)
+    except TypeError:
+        return False
+
+
 def _numeric(item: Expression) -> Any:  # noqa: ANN401
     """Return the Python or Sage number of a numeric expression."""
     return item.pyobject()
@@ -111,6 +119,9 @@ class Dialect:
         exact_rationals:
             Whether rationals print as divisions of integers instead of floating point literals.
 
+        complex_numbers:
+            Whether complex numbers print as Python complex literals instead of raising an error.
+
     Examples:
         >>> from skcomplex.compile import Dialect, print_expressions
         >>> from skcomplex.core import symbol
@@ -126,6 +137,7 @@ class Dialect:
     power: str = '**'
     error: type[Exception] = ValidationError
     exact_rationals: bool = False
+    complex_numbers: bool = False
     folds: frozenset[str] = field(default_factory=lambda: frozenset({'min', 'max', 'either', 'both'}))
 
     def unknown(self, name: str) -> Exception:
@@ -178,6 +190,7 @@ NUMPY_DIALECT = Dialect(
         'mod': 'np.mod({0}, {1})',
     },
     PYTHON_RELATIONS,
+    complex_numbers=True,
 )
 SCALAR_DIALECT = Dialect(
     'Numba',
@@ -241,8 +254,10 @@ class _Printer:
         try:
             number = float(value)
         except TypeError as error:
-            name = f'complex number {value}'
-            raise self.dialect.unknown(name) from error
+            if not self.dialect.complex_numbers:
+                name = f'complex number {value}'
+                raise self.dialect.unknown(name) from error
+            return repr(complex(value)), ATOM
         return repr(number), (ATOM if number >= 0 else NEGATION)
 
     def template(self, name: str, arguments: Sequence[Expression]) -> Printed:
@@ -274,7 +289,7 @@ class _Printer:
                 denominator.append(self.wrap(self.power(base, -exponent), PRODUCT + 1))
                 continue
             numerator.append(self.wrap(self.print(factor), PRODUCT))
-        negative = coefficient < 0
+        negative = _is_negative(coefficient)
         coefficient = -coefficient if negative else coefficient
         if isinstance(coefficient, Rational) and not isinstance(coefficient, Integer):
             if coefficient.numerator() != 1:

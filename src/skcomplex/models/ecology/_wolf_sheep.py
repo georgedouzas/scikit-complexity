@@ -9,6 +9,7 @@ import numpy as np
 
 from ...core import Domain, VisualSpec, parameter, state
 from ...model import AgentType, GridSpace, Law, Rule, Symbols, System
+from ...runtime import register_model
 from ...solvers import AgentView, ModelView
 
 GROWN_SHARE = 0.5
@@ -56,9 +57,9 @@ class Grass(AgentType):
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'grown', 'color_range': (0.0, 1.0), 'radius': 0.5})
-    grown: float = state(1.0, domain=Domain.NONNEGATIVE_INTEGER)
-    countdown: float = state(0.0, domain=Domain.NONNEGATIVE)
-    regrowth: float = parameter(30.0, domain=Domain.POSITIVE)
+    grown: float = state(default=1.0, domain=Domain.NONNEGATIVE_INTEGER)
+    countdown: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+    regrowth: float = parameter(default=30.0, domain=Domain.POSITIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the regrowth rule.
@@ -118,9 +119,9 @@ class Sheep(AgentType):
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'radius': 0.3})
-    energy: float = state(8.0)
-    gain: float = parameter(4.0, domain=Domain.NONNEGATIVE)
-    reproduction: float = parameter(0.04, domain=Domain.NONNEGATIVE)
+    energy: float = state(default=8.0)
+    gain: float = parameter(default=4.0, domain=Domain.NONNEGATIVE)
+    reproduction: float = parameter(default=0.04, domain=Domain.NONNEGATIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the life rule.
@@ -180,9 +181,9 @@ class Wolf(AgentType):
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'radius': 0.35})
-    energy: float = state(20.0)
-    gain: float = parameter(20.0, domain=Domain.NONNEGATIVE)
-    reproduction: float = parameter(0.05, domain=Domain.NONNEGATIVE)
+    energy: float = state(default=20.0)
+    gain: float = parameter(default=20.0, domain=Domain.NONNEGATIVE)
+    reproduction: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the life rule.
@@ -215,6 +216,12 @@ class Wolf(AgentType):
         _live(agent, model, agent.reproduction)
 
 
+@register_model(
+    field='ecology',
+    tags=('predator-prey', 'agents', 'grid'),
+    references=('Wilensky 1997',),
+    defaults={'until': 100},
+)
 def wolf_sheep(
     width: int = 20,
     height: int = 20,

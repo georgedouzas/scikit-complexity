@@ -11,7 +11,7 @@ from sklearn.base import clone
 
 from ..compile import Partition, Problem, Vector, partition_system
 from ..core import Domain, Form, SolverError, ValidationError
-from ..model import Aggregate
+from ..model import Aggregate, reduce_values
 from ._agents import AgentState, MesaStepper
 from ._base import Stepper, register_solver, resolve_solver
 
@@ -129,17 +129,6 @@ class CoSimulation(Stepper):
             for index in range(count)
         ]
 
-    def _reduce(self, aggregate: Aggregate, values: Any) -> float:  # noqa: ANN401
-        """Return the reduction of the values of a group."""
-        if aggregate.reduce == 'count':
-            return float(len(values))
-        array = np.asarray(values, dtype=float)
-        if callable(aggregate.reduce):
-            return float(aggregate.reduce(array))
-        if aggregate.reduce == 'sum':
-            return float(array.sum())
-        return float(array.mean()) if array.size else 0.0
-
     def _update_aggregates(self, x: Vector) -> None:
         """Write the current value of every aggregate into the state vector."""
         problem = self.problem_
@@ -147,20 +136,30 @@ class CoSimulation(Stepper):
             aggregate = cast('Aggregate', element.element)
             scope = element.path.rpartition('/')[0]
             group = f'{scope}/{aggregate.group}' if scope else aggregate.group
-            agents = self._agents_of(group)
+            agents = self.agents_of(group)
             values: Any
             if agents is not None:
                 values = [getattr(agent, aggregate.variable) for agent in agents] if aggregate.variable else agents
             else:
                 values = np.ravel(problem.states.read(x, f'{group}.{aggregate.variable or "value"}'))
             entry = problem.states.entry(f'{element.path}.value')
-            x[entry.indices] = self._reduce(aggregate, values)
+            x[entry.indices] = float(np.real(reduce_values(values, aggregate.reduce)))
 
-    def _agents_of(self, group: str) -> list[Any] | None:
-        """Return the Mesa agents of an agent group, or `None` when no partition holds such a group."""
+    def agents_of(self, group: str) -> list[Any] | None:
+        """Return the agents of an agent group from the partition that holds it, or `None`.
+
+        Args:
+            group:
+                The path of the agent group.
+
+        Returns:
+            agents:
+                The agents alive now, or `None`.
+        """
         for stepper in self.steppers_.values():
-            if isinstance(stepper, MesaStepper) and any(spec.path == group for spec in stepper.problem_.agents):
-                return stepper.group_agents(group)
+            agents = stepper.agents_of(group)
+            if agents is not None:
+                return agents
         return None
 
     def _advance_partition(self, partition: Partition, source: Vector, p: Vector, start: float, end: float) -> Vector:

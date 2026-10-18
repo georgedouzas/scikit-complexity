@@ -41,8 +41,8 @@ class LennardJones(PairPotential):
         1.0
     """
 
-    epsilon: float = parameter(1.0, domain=Domain.POSITIVE)
-    sigma: float = parameter(1.0, domain=Domain.POSITIVE)
+    epsilon: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    sigma: float = parameter(default=1.0, domain=Domain.POSITIVE)
 
     def pair_energy(self, s: Symbols, r: Expression) -> Expression:
         """Return `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)`.
@@ -89,7 +89,7 @@ class SoftSphere(PairPotential):
         50.0
     """
 
-    k: float = parameter(100.0, domain=Domain.POSITIVE)
+    k: float = parameter(default=100.0, domain=Domain.POSITIVE)
 
     def pair_energy(self, s: Symbols, r: Expression) -> Expression:
         """Return `k * (cutoff - r) ** 2 / 2`.
@@ -135,8 +135,8 @@ class LangevinThermostat(Interaction):
     """
 
     target: str = role()
-    temperature: float = parameter(1.0, domain=Domain.NONNEGATIVE)
-    gamma: float = parameter(1.0, domain=Domain.POSITIVE)
+    temperature: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    gamma: float = parameter(default=1.0, domain=Domain.POSITIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the drag and the random force on every velocity component.

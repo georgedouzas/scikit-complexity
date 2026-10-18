@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-from ._domains import Domain
+from ._domains import AnyDomain, Domain
 
 METADATA_KEY = 'skcomplex'
 
@@ -38,7 +38,7 @@ class Variable:
     """
 
     kind: VariableKind
-    domain: Domain = Domain.REAL
+    domain: AnyDomain = Domain.REAL
     vector: bool = False
 
 
@@ -51,7 +51,7 @@ def _declare_field(default: Any, declaration: Variable) -> Any:
     return dataclasses.field(default=default, metadata=metadata)
 
 
-def state(default: Any = 0.0, *, domain: Domain = Domain.REAL, vector: bool = False) -> Any:
+def state(default: Any = 0.0, *, domain: AnyDomain = Domain.REAL, vector: bool = False) -> Any:
     """Declare a state variable of an element, with its initial value as default.
 
     Args:
@@ -82,7 +82,7 @@ def state(default: Any = 0.0, *, domain: Domain = Domain.REAL, vector: bool = Fa
 def parameter(
     default: Any = dataclasses.MISSING,
     *,
-    domain: Domain = Domain.REAL,
+    domain: AnyDomain = Domain.REAL,
     vector: bool = False,
 ) -> Any:
     """Declare a parameter of an element or an interaction.

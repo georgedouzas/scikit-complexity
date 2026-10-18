@@ -4,7 +4,8 @@
 # License: MIT
 
 import dataclasses
-from collections.abc import Callable, Mapping
+import inspect
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any, ClassVar, dataclass_transform
 
 from sklearn.base import BaseEstimator
@@ -48,6 +49,49 @@ class Component(BaseEstimator):
         return []
 
 
+def _is_declaration(value: object) -> bool:
+    """Check whether a value is a field declared with `state`, `parameter`, or `role`."""
+    return isinstance(value, dataclasses.Field)
+
+
+def _method(laws: Callable[..., list[Law]]) -> Callable[..., list[Law]]:
+    """Return a `laws` method from a function of the namespace, or of the component and the namespace."""
+    if len(inspect.signature(laws).parameters) >= 2:  # noqa: PLR2004
+        return laws
+
+    def method(self: Component, s: Symbols) -> list[Law]:
+        """Return the laws of the function."""
+        return laws(s)
+
+    method.__doc__ = laws.__doc__ or 'Return the laws of the component.'
+    return method
+
+
+def _define(
+    base: type['Component'],
+    *,
+    name: str,
+    fields: Mapping[str, Any],
+    laws: Callable[..., list[Law]] | None,
+    attributes: Mapping[str, Any],
+    module: str,
+) -> type:
+    """Return a new component type with declared fields, a laws function, and class attributes."""
+    namespace: dict[str, Any] = {'__annotations__': dict.fromkeys(fields, Any), '__module__': module, **attributes}
+    namespace.update(fields)
+    namespace['__qualname__'] = name
+    if laws is not None:
+        namespace['laws'] = _method(laws)
+    return type(name, (base,), namespace)
+
+
+def _caller_module() -> str:
+    """Return the module name of the code that defines a component type, so the type pickles by reference there."""
+    frame = inspect.currentframe()
+    caller = frame.f_back.f_back if frame is not None and frame.f_back is not None else None
+    return caller.f_globals.get('__name__', __name__) if caller is not None else __name__
+
+
 class Element(Component):
     """Base class of entities that carry state, such as particles, populations, agents, or firms.
 
@@ -68,6 +112,60 @@ class Element(Component):
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec()
+
+    @classmethod
+    def define(
+        cls,
+        name: str,
+        *,
+        states: Mapping[str, Any] | None = None,
+        parameters: Mapping[str, Any] | None = None,
+        laws: Callable[..., list[Law]] | None = None,
+        visual: VisualSpec | None = None,
+    ) -> type['Element']:
+        """Return a new element type built from declarations, without writing a class.
+
+        The type behaves like a subclass in groups, cloning, and parameter introspection. Assign it to a module-level
+        name equal to `name` for it to pickle.
+
+        Args:
+            name:
+                The name of the type.
+
+            states:
+                A mapping from state name to a `state` declaration or to a default value.
+
+            parameters:
+                A mapping from parameter name to a `parameter` declaration or to a default value.
+
+            laws:
+                A function `laws(s)` or `laws(self, s)` that returns the intrinsic laws of the type.
+
+            visual:
+                The visual of the type, or `None` to inherit it.
+
+        Returns:
+            element_type:
+                The new element type, a subclass of the type `define` is called on.
+
+        Examples:
+            >>> from skcomplex.core import Domain, state
+            >>> from skcomplex.model import Element, Rate
+            >>> Decaying = Element.define(
+            ...     'Decaying',
+            ...     states={'n': state(1.0, domain=Domain.NONNEGATIVE)},
+            ...     parameters={'k': 0.5},
+            ...     laws=lambda s: [Rate(s.n, -s.k * s.n)],
+            ... )
+            >>> Decaying('atoms', n=10.0)
+            Decaying(label='atoms', n=10.0)
+        """
+        fields = {
+            **{key: value if _is_declaration(value) else state(value) for key, value in (states or {}).items()},
+            **{key: value if _is_declaration(value) else parameter(value) for key, value in (parameters or {}).items()},
+        }
+        attributes = {} if visual is None else {'visual': visual}
+        return _define(cls, name=name, fields=fields, laws=laws, attributes=attributes, module=_caller_module())
 
     @classmethod
     def group(
@@ -244,6 +342,54 @@ class Interaction(Component):
         Growth(label='growth', r=0.5, target='rabbits')
     """
 
+    @classmethod
+    def define(
+        cls,
+        name: str,
+        *,
+        roles: Sequence[str] = (),
+        parameters: Mapping[str, Any] | None = None,
+        laws: Callable[..., list[Law]] | None = None,
+    ) -> type['Interaction']:
+        """Return a new interaction type built from declarations, without writing a class.
+
+        The type behaves like a subclass in cloning and parameter introspection. Assign it to a module-level name equal
+        to `name` for it to pickle.
+
+        Args:
+            name:
+                The name of the type.
+
+            roles:
+                The names of the roles, each bound to an element path in the constructor.
+
+            parameters:
+                A mapping from parameter name to a `parameter` declaration or to a default value.
+
+            laws:
+                A function `laws(s)` or `laws(self, s)` that returns the laws of the interaction.
+
+        Returns:
+            interaction_type:
+                The new interaction type, a subclass of the type `define` is called on.
+
+        Examples:
+            >>> from skcomplex.model import Interaction, Rate
+            >>> Growth = Interaction.define(
+            ...     'Growth',
+            ...     roles=['target'],
+            ...     parameters={'r': 1.0},
+            ...     laws=lambda s: [Rate(s.target.n, s.r * s.target.n)],
+            ... )
+            >>> Growth('growth', target='rabbits', r=0.5)
+            Growth(label='growth', r=0.5, target='rabbits')
+        """
+        fields = {
+            **{key: role() for key in roles},
+            **{key: value if _is_declaration(value) else parameter(value) for key, value in (parameters or {}).items()},
+        }
+        return _define(cls, name=name, fields=fields, laws=laws, attributes={}, module=_caller_module())
+
 
 class PairInteraction(Interaction):
     """Base class of interactions between pairs of members within a cutoff distance.
@@ -280,5 +426,5 @@ class PairInteraction(Interaction):
     position: ClassVar[str] = 'x'
     first: str = role()
     second: str = role()
-    cutoff: float = parameter(1.0, domain=Domain.POSITIVE)
+    cutoff: float = parameter(default=1.0, domain=Domain.POSITIVE)
     period: float | None = None

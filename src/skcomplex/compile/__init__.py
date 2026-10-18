@@ -4,6 +4,7 @@ from ._backends import BACKENDS, Backend, Lowering, NumpyBackend, register_backe
 from ._compiler import compile_system, partition_system
 from ._layout import Entry, Layout
 from ._numba_backend import NumbaBackend
+from ._observables import ObservableEvaluator, observables_of
 from ._printing import NUMPY_DIALECT, SCALAR_DIALECT, Dialect, numpy_function, print_expressions
 from ._problem import (
     Accelerated,
@@ -33,12 +34,14 @@ __all__: list[str] = [
     'Lowering',
     'NumbaBackend',
     'NumpyBackend',
+    'ObservableEvaluator',
     'Partition',
     'Problem',
     'Vector',
     'VectorFunction',
     'compile_system',
     'numpy_function',
+    'observables_of',
     'partition_system',
     'print_expressions',
     'register_backend',

@@ -22,6 +22,7 @@ from ...model import (
     mod,
     where,
 )
+from ...runtime import register_model
 from ._mechanics import Particle
 
 
@@ -48,7 +49,7 @@ class ReflectingBox(Interaction):
     """
 
     target: str = role()
-    size: float = parameter(1.0, domain=Domain.POSITIVE)
+    size: float = parameter(default=1.0, domain=Domain.POSITIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the reflection of every position and velocity component at the walls.
@@ -94,7 +95,7 @@ class PeriodicBox(Interaction):
     """
 
     target: str = role()
-    size: float = parameter(1.0, domain=Domain.POSITIVE)
+    size: float = parameter(default=1.0, domain=Domain.POSITIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the wrap of every position component into the box.
@@ -168,8 +169,14 @@ class PairPotential(PairInteraction):
         return [Rate(s.first.v, force / s.first.m), Rate(s.second.v, -force / s.second.m)]
 
 
+@register_model(
+    field='physics',
+    tags=('gas', 'ode', 'boundary'),
+    references=('Maxwell 1860',),
+    defaults={'until': 2.0, 'dt': 0.01},
+)
 def ideal_gas(
-    n_molecules: int,
+    n_molecules: int = 500,
     *,
     kT: float = 1.0,
     size: float = 1.0,

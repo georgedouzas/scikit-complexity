@@ -93,4 +93,5 @@ class Recorder(Observer):
             np.asarray(self._parameters[:n_frames], dtype=float).reshape(n_frames, self._problem.parameters.size),
             agents=[frame.agents for frame in self._frames[:n_frames]],
             reporters=[frame.reporters for frame in self._frames[:n_frames]],
+            observables=[frame.observables for frame in self._frames[:n_frames]],
         )

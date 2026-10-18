@@ -55,9 +55,9 @@ class Particle(Element):
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('points', {'position': 'x'})
-    x: npt.ArrayLike = state(0.0, vector=True)
-    v: npt.ArrayLike = state(0.0, vector=True)
-    m: float = parameter(1.0, domain=Domain.POSITIVE)
+    x: npt.ArrayLike = state(default=0.0, vector=True)
+    v: npt.ArrayLike = state(default=0.0, vector=True)
+    m: float = parameter(default=1.0, domain=Domain.POSITIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the kinematic law `dx/dt = v`.
@@ -93,7 +93,7 @@ class ConstantForce(Interaction):
     """
 
     target: str = role()
-    F: npt.ArrayLike = parameter(0.0, vector=True)
+    F: npt.ArrayLike = parameter(default=0.0, vector=True)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the velocity change `F / m`.
@@ -129,7 +129,7 @@ class LinearDrag(Interaction):
     """
 
     target: str = role()
-    gamma: float = parameter(0.1, domain=Domain.NONNEGATIVE)
+    gamma: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the velocity change `-gamma * v / m`.
@@ -214,8 +214,8 @@ class HarmonicPotential(Potential):
     """
 
     target: str = role()
-    k: float = parameter(1.0, domain=Domain.POSITIVE)
-    center: npt.ArrayLike = parameter(0.0, vector=True)
+    k: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    center: npt.ArrayLike = parameter(default=0.0, vector=True)
 
     def energy(self, s: Symbols) -> Expression:
         """Return `k * |x - center|**2 / 2`.
@@ -261,8 +261,8 @@ class Spring(Potential):
 
     first: str = role()
     second: str = role()
-    k: float = parameter(1.0, domain=Domain.POSITIVE)
-    length: float = parameter(0.0, domain=Domain.NONNEGATIVE)
+    k: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    length: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
 
     def energy(self, s: Symbols) -> Expression:
         """Return `k * (|x_first - x_second| - length)**2 / 2`.
@@ -304,7 +304,7 @@ class Gravity(Potential):
 
     first: str = role()
     second: str = role()
-    G: float = parameter(1.0, domain=Domain.POSITIVE)
+    G: float = parameter(default=1.0, domain=Domain.POSITIVE)
 
     def energy(self, s: Symbols) -> Expression:
         """Return `-G * m_first * m_second / |x_first - x_second|`.

@@ -23,7 +23,7 @@ class Asset(Element):
         100.0
     """
 
-    price: float = state(1.0, domain=Domain.POSITIVE)
+    price: float = state(default=1.0, domain=Domain.POSITIVE)
 
 
 class GeometricBrownianMotion(Interaction):
@@ -49,8 +49,8 @@ class GeometricBrownianMotion(Interaction):
     """
 
     target: str = role()
-    mu: float = parameter(0.05, domain=Domain.REAL)
-    sigma: float = parameter(0.2, domain=Domain.NONNEGATIVE)
+    mu: float = parameter(default=0.05, domain=Domain.REAL)
+    sigma: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the drift `mu * S` and the noise amplitude `sigma * S`.

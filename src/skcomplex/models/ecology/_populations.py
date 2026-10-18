@@ -23,7 +23,7 @@ class Population(Element):
         40
     """
 
-    n: float = state(1.0, domain=Domain.NONNEGATIVE)
+    n: float = state(default=1.0, domain=Domain.NONNEGATIVE)
 
 
 class ExponentialGrowth(Interaction):
@@ -46,7 +46,7 @@ class ExponentialGrowth(Interaction):
     """
 
     target: str = role()
-    r: float = parameter(1.0, domain=Domain.REAL)
+    r: float = parameter(default=1.0, domain=Domain.REAL)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the rate `r * n`.
@@ -85,8 +85,8 @@ class LogisticGrowth(Interaction):
     """
 
     target: str = role()
-    r: float = parameter(1.0, domain=Domain.NONNEGATIVE)
-    K: float = parameter(100.0, domain=Domain.POSITIVE)
+    r: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    K: float = parameter(default=100.0, domain=Domain.POSITIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the rate `r * n * (1 - n / K)`.
@@ -122,7 +122,7 @@ class Mortality(Interaction):
     """
 
     target: str = role()
-    d: float = parameter(0.1, domain=Domain.NONNEGATIVE)
+    d: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the rate `-d * n`.
@@ -167,8 +167,8 @@ class Predation(Interaction):
 
     predator: str = role()
     prey: str = role()
-    a: float = parameter(0.1, domain=Domain.NONNEGATIVE)
-    b: float = parameter(0.01, domain=Domain.NONNEGATIVE)
+    a: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+    b: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the rates `-a * predator * prey` and `b * predator * prey`.

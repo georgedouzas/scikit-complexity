@@ -536,6 +536,21 @@ class MesaStepper(Stepper):
         """
         return self._classes[type(agent)]
 
+    def agents_of(self, group: str) -> list[Any] | None:
+        """Return the alive Mesa agents of a group, or `None` when the model has no such group.
+
+        Args:
+            group:
+                The path of the group.
+
+        Returns:
+            agents:
+                The Mesa agents, or `None`.
+        """
+        if not any(spec.path == group for spec in self.problem_.agents):
+            return None
+        return self.group_agents(group)
+
     def group_agents(self, group: str) -> list[mesa.Agent]:
         """Return the alive Mesa agents of a group.
 

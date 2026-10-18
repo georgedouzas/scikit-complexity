@@ -30,7 +30,7 @@ class Compartment(Element):
         990
     """
 
-    n: float = state(0.0, domain=Domain.NONNEGATIVE)
+    n: float = state(default=0.0, domain=Domain.NONNEGATIVE)
 
 
 class Infection(Interaction):
@@ -62,7 +62,7 @@ class Infection(Interaction):
 
     susceptible: str = role()
     infected: str = role()
-    beta: float = parameter(0.001, domain=Domain.NONNEGATIVE)
+    beta: float = parameter(default=0.001, domain=Domain.NONNEGATIVE)
     stochastic: bool = False
 
     def laws(self, s: Symbols) -> list[Law]:
@@ -109,7 +109,7 @@ class Recovery(Interaction):
 
     infected: str = role()
     recovered: str = role()
-    gamma: float = parameter(0.1, domain=Domain.NONNEGATIVE)
+    gamma: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
     stochastic: bool = False
 
     def laws(self, s: Symbols) -> list[Law]:

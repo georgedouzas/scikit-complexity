@@ -1,5 +1,6 @@
 """Economics: Solow growth in continuous time and the cobweb market in discrete time."""
 
+from ._factories import cobweb, solow
 from ._growth import Cobweb, Economy, Market, SolowGrowth
 
 __all__: list[str] = [
@@ -7,4 +8,6 @@ __all__: list[str] = [
     'Economy',
     'Market',
     'SolowGrowth',
+    'cobweb',
+    'solow',
 ]

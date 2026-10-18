@@ -23,7 +23,7 @@ class Economy(Element):
         1.0
     """
 
-    k: float = state(1.0, domain=Domain.NONNEGATIVE)
+    k: float = state(default=1.0, domain=Domain.NONNEGATIVE)
 
 
 class SolowGrowth(Interaction):
@@ -52,9 +52,9 @@ class SolowGrowth(Interaction):
     """
 
     target: str = role()
-    s: float = parameter(0.2, domain=Domain.NONNEGATIVE)
-    alpha: float = parameter(0.3, domain=Domain.POSITIVE)
-    delta: float = parameter(0.05, domain=Domain.POSITIVE)
+    s: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
+    alpha: float = parameter(default=0.3, domain=Domain.POSITIVE)
+    delta: float = parameter(default=0.05, domain=Domain.POSITIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the rate `s * k**alpha - delta * k`.
@@ -86,7 +86,7 @@ class Market(Element):
         2.0
     """
 
-    price: float = state(1.0, domain=Domain.REAL)
+    price: float = state(default=1.0, domain=Domain.REAL)
 
 
 class Cobweb(Interaction):
@@ -121,10 +121,10 @@ class Cobweb(Interaction):
     """
 
     target: str = role()
-    a: float = parameter(10.0, domain=Domain.REAL)
-    b: float = parameter(2.0, domain=Domain.POSITIVE)
-    c: float = parameter(1.0, domain=Domain.REAL)
-    d: float = parameter(1.0, domain=Domain.POSITIVE)
+    a: float = parameter(default=10.0, domain=Domain.REAL)
+    b: float = parameter(default=2.0, domain=Domain.POSITIVE)
+    c: float = parameter(default=1.0, domain=Domain.REAL)
+    d: float = parameter(default=1.0, domain=Domain.POSITIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the next price `(a - c - d * price) / b`.

@@ -10,6 +10,7 @@ import numpy as np
 
 from ...core import Domain, VisualSpec, parameter, state
 from ...model import AgentType, GridSpace, Law, NetworkSpace, Rule, Symbols, System
+from ...runtime import register_model
 from ...solvers import AgentView, ModelView
 
 
@@ -36,8 +37,8 @@ class Resident(AgentType):
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'kind', 'color_range': (0.0, 1.0)})
-    kind: float = state(0.0, domain=Domain.NONNEGATIVE_INTEGER)
-    threshold: float = parameter(0.5, domain=Domain.NONNEGATIVE)
+    kind: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
+    threshold: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the relocation rule.
@@ -89,7 +90,7 @@ class Trader(AgentType):
         Group('traders', element=Trader, size=100)
     """
 
-    wealth: float = state(1.0, domain=Domain.NONNEGATIVE_INTEGER)
+    wealth: float = state(default=1.0, domain=Domain.NONNEGATIVE_INTEGER)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the exchange rule.
@@ -142,7 +143,7 @@ class Voter(AgentType):
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
-    opinion: float = state(0.0, domain=Domain.NONNEGATIVE_INTEGER)
+    opinion: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the imitation rule.
@@ -172,6 +173,12 @@ class Voter(AgentType):
             agent.opinion = neighbors[int(model.rng.integers(len(neighbors)))].opinion
 
 
+@register_model(
+    field='social',
+    tags=('segregation', 'agents', 'grid'),
+    references=('Schelling 1971',),
+    defaults={'until': 50},
+)
 def schelling(
     width: int = 20,
     height: int = 20,
@@ -218,6 +225,12 @@ def schelling(
     return System(elements=[residents], space=GridSpace(width, height, capacity=1))
 
 
+@register_model(
+    field='social',
+    tags=('wealth', 'agents', 'exchange'),
+    references=('Dragulescu and Yakovenko 2000',),
+    defaults={'until': 100},
+)
 def boltzmann_wealth(n_agents: int = 100) -> System:
     """Return a Boltzmann wealth exchange model where every agent starts with one unit.
 
@@ -237,12 +250,23 @@ def boltzmann_wealth(n_agents: int = 100) -> System:
     return System(elements=[Trader.group('traders', n_agents)])
 
 
-def voter_model(graph: object, *, share: float = 0.5, random_state: int | np.random.Generator | None = None) -> System:
+@register_model(
+    field='social',
+    tags=('opinion', 'agents', 'network'),
+    references=('Holley and Liggett 1975',),
+    defaults={'until': 100},
+)
+def voter_model(
+    graph: object = None,
+    *,
+    share: float = 0.5,
+    random_state: int | np.random.Generator | None = None,
+) -> System:
     """Return a voter model with one voter per node of a network.
 
     Args:
         graph:
-            The NetworkX graph.
+            The NetworkX graph, or `None` for a ring of 50 nodes each linked to its four nearest neighbours.
 
         share:
             The share of voters with opinion 1.
@@ -261,6 +285,7 @@ def voter_model(graph: object, *, share: float = 0.5, random_state: int | np.ran
         8
     """
     rng = np.random.default_rng(random_state)
+    graph = nx.watts_strogatz_graph(50, 4, 0.0) if graph is None else graph
     size = nx.number_of_nodes(graph)
     opinions = (rng.random(size) < share).astype(float)
     return System(elements=[Voter.group('voters', size, opinion=opinions)], space=NetworkSpace(graph))

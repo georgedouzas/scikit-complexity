@@ -12,13 +12,13 @@ from sage.modules.free_module_element import FreeModuleElement as SymbolicVector
 from sage.symbolic.assumptions import assume
 from sage.symbolic.expression import Expression
 
-from ._domains import Domain
+from ._domains import AnyDomain, Categorical, Domain
 
-_DOMAINS: dict[str, Domain] = {}
+_DOMAINS: dict[str, AnyDomain] = {}
 _DECLARED: set[str] = set()
 
 
-def symbol(name: str, domain: Domain = Domain.REAL) -> Expression:
+def symbol(name: str, domain: AnyDomain = Domain.REAL) -> Expression:
     """Return the Sage symbol of a name, real or integer, and record its variable domain.
 
     The symbol is declared real or integer without Maxima, which Sage would otherwise load to record the domain, so
@@ -95,7 +95,7 @@ def symbols_of(expressions: Iterable[Expression]) -> set[Expression]:
     return {item for expression in expressions for item in SR(expression).variables()}
 
 
-def domain_of(item: Expression) -> Domain:
+def domain_of(item: Expression) -> AnyDomain:
     """Return the variable domain of a symbol.
 
     Args:
@@ -124,12 +124,16 @@ def declare_domains(items: Iterable[Expression]) -> None:
         if str(item) in _DECLARED:
             continue
         domain = domain_of(item)
-        if domain in {Domain.INTEGER, Domain.NONNEGATIVE_INTEGER}:
+        if isinstance(domain, Categorical) or domain in {Domain.INTEGER, Domain.NONNEGATIVE_INTEGER, Domain.BOOLEAN}:
             assume(item, 'integer')
-        elif domain is Domain.REAL:
+        elif domain in {Domain.REAL, Domain.ANGLE}:
             assume(item, 'real')
         if domain is Domain.POSITIVE:
             assume(item > 0)
-        elif domain in {Domain.NONNEGATIVE, Domain.NONNEGATIVE_INTEGER}:
+        elif isinstance(domain, Categorical) or domain in {
+            Domain.NONNEGATIVE,
+            Domain.NONNEGATIVE_INTEGER,
+            Domain.BOOLEAN,
+        }:
             assume(item >= 0)
         _DECLARED.add(str(item))
