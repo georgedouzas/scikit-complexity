@@ -1,78 +1,88 @@
-"""Print SymPy expressions in the syntax of LAMMPS Lepton expressions."""
+"""Print Sage expressions in the syntax of LAMMPS Lepton expressions."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import sympy
-from sympy.printing.precedence import PRECEDENCE
-from sympy.printing.str import StrPrinter
+from sage.all__sagemath_symbolics import SR
 
-from ..core import BackendError
+from ..compile import Dialect, print_expressions
+from ..core import BackendError, Domain, Expression, symbol, symbols_of
 
-FUNCTIONS = {
-    'exp': 'exp',
-    'log': 'log',
-    'sqrt': 'sqrt',
-    'sin': 'sin',
-    'cos': 'cos',
-    'tan': 'tan',
-    'asin': 'asin',
-    'acos': 'acos',
-    'atan': 'atan',
-    'sinh': 'sinh',
-    'cosh': 'cosh',
-    'tanh': 'tanh',
-    'erf': 'erf',
-    'erfc': 'erfc',
-    'Abs': 'abs',
-    'Min': 'min',
-    'Max': 'max',
-}
+LEPTON = Dialect(
+    'Lepton',
+    {
+        'exp': 'exp({0})',
+        'log': 'log({0})',
+        'sqrt': 'sqrt({0})',
+        'sin': 'sin({0})',
+        'cos': 'cos({0})',
+        'tan': 'tan({0})',
+        'arcsin': 'asin({0})',
+        'arccos': 'acos({0})',
+        'arctan': 'atan({0})',
+        'sinh': 'sinh({0})',
+        'cosh': 'cosh({0})',
+        'tanh': 'tanh({0})',
+        'erf': 'erf({0})',
+        'erfc': 'erfc({0})',
+        'abs': 'abs({0})',
+        'floor': 'floor({0})',
+        'ceil': 'ceil({0})',
+        'min': 'min({0}, {1})',
+        'max': 'max({0}, {1})',
+        'where': 'select({0}, {1}, {2})',
+        'either': 'max({0}, {1})',
+        'both': '({0}*{1})',
+        'mod': '({0} - {1}*floor({0}/{1}))',
+    },
+    {
+        'lt': '(1 - step({0} - {1}))',
+        'le': 'step({1} - {0})',
+        'gt': '(1 - step({1} - {0}))',
+        'ge': 'step({0} - {1})',
+        'eq': 'delta({0} - {1})',
+        'ne': '(1 - delta({0} - {1}))',
+    },
+    power='^',
+    error=BackendError,
+    exact_rationals=True,
+)
 
 
-class LeptonPrinter(StrPrinter):
-    """Printer of SymPy expressions as Lepton expressions, with `^` for powers and Lepton function names.
+class LeptonPrinter:
+    """Printer of Sage expressions as Lepton expressions, with `^` for powers and Lepton function names.
+
+    Conditions become `step` and `select`, and remainders become `floor`, because Lepton has neither comparisons nor
+    a remainder.
 
     Examples:
-        >>> import sympy
+        >>> from sage.all__sagemath_symbolics import exp
         >>> from skcomplex.backends import LeptonPrinter
-        >>> r = sympy.Symbol('r')
-        >>> LeptonPrinter().doprint(2 * sympy.exp(-r / 3) + r**2)
+        >>> from skcomplex.core import symbol
+        >>> r = symbol('r')
+        >>> LeptonPrinter().doprint(2 * exp(-r / 3) + r**2)
         'r^2 + 2*exp(-r/3)'
     """
 
-    def _print_Pow(self, expr: sympy.Pow, rational: bool = False) -> str:
-        """Print a power with `^` and both sides in parentheses where needed."""
-        base, exponent = expr.as_base_exp()
-        if exponent == sympy.Rational(1, 2):
-            return f'sqrt({self._print(base)})'
-        precedence = PRECEDENCE['Pow']
-        return f'{self.parenthesize(base, precedence)}^{self.parenthesize(exponent, precedence + 1)}'
+    def doprint(self, expression: Expression) -> str:
+        """Return the Lepton code of an expression.
 
-    def _print_Rational(self, expr: sympy.Rational) -> str:
-        """Print a rational as a division of two integers."""
-        return f'{expr.p}/{expr.q}'
+        Args:
+            expression:
+                The expression.
 
-    def _print_Function(self, expr: sympy.Function) -> str:
-        """Print a function with its Lepton name, or raise an error when Lepton has none."""
-        name = type(expr).__name__
-        if name not in FUNCTIONS:
-            error_msg = f'The function {name} has no Lepton equivalent.'
-            raise BackendError(error_msg)
-        return f'{FUNCTIONS[name]}({", ".join(self._print(argument) for argument in expr.args)})'
+        Returns:
+            code:
+                The Lepton code.
 
-    def emptyPrinter(self, expr: object) -> str:
-        """Raise an error for an expression that has no Lepton equivalent."""
-        error_msg = f'{type(expr).__name__} has no Lepton equivalent.'
-        raise BackendError(error_msg)
-
-    def _print_Piecewise(self, expr: sympy.Piecewise) -> str:
-        """Raise an error, because Lepton expressions have no conditional branches."""
-        error_msg = 'Piecewise expressions have no Lepton equivalent.'
-        raise BackendError(error_msg)
+        Raises:
+            BackendError:
+                The expression uses a function Lepton does not know.
+        """
+        return print_expressions([expression], LEPTON, shared=False)[1][0]
 
 
-def lepton_expression(expression: sympy.Expr, distance: sympy.Symbol) -> str:
+def lepton_expression(expression: Expression, distance: Expression) -> str:
     """Return a pair energy as a Lepton expression of the distance `r`.
 
     Args:
@@ -91,15 +101,16 @@ def lepton_expression(expression: sympy.Expr, distance: sympy.Symbol) -> str:
             The energy has symbols other than the distance or functions Lepton does not know.
 
     Examples:
-        >>> import sympy
         >>> from skcomplex.backends import lepton_expression
-        >>> x = sympy.Symbol('x', positive=True)
+        >>> from skcomplex.core import Domain, symbol
+        >>> x = symbol('x', Domain.POSITIVE)
         >>> lepton_expression(4 * (x**-12 - x**-6), x)
         '-4/r^6 + 4/r^12'
     """
-    others = expression.free_symbols - {distance}
+    expression = SR(expression)
+    others = symbols_of([expression]) - {distance}
     if others:
         names = ', '.join(sorted(map(str, others)))
         error_msg = f'The pair energy depends on {names}, which have no value for LAMMPS.'
         raise BackendError(error_msg)
-    return LeptonPrinter().doprint(sympy.expand(expression.subs(distance, sympy.Symbol('r', positive=True))))
+    return LeptonPrinter().doprint(expression.subs({distance: symbol('r', Domain.POSITIVE)}).expand())

@@ -52,24 +52,19 @@ simulates it offline or in real time, and streams the run to the [Rerun](https:/
 
 - Rate laws give ordinary differential equations, rate and noise laws give stochastic differential equations, jump
   laws give jump processes simulated with the Gillespie method, and update laws give discrete maps.
-- Laws are SymPy expressions or plain Python functions. Symbolic laws can be inspected and solved exactly, and Sage
-  expressions are accepted through the `sage` extra.
+- Laws are Sage symbolic expressions or plain Python functions. Symbolic laws can be inspected and solved exactly.
 - Ready-made models cover physics, ecology, epidemiology, economics, and finance.
 
 ## Installation
 
-`scikit-complexity` supports Python 3.11 to 3.13 and is available on PyPI:
+`scikit-complexity` supports Python 3.12 and 3.13 on Linux and macOS 13 or later, and is available on PyPI:
 
 ```bash
 pip install scikit-complexity
 ```
 
-The optional extras add Sage support and the LAMMPS molecular dynamics package:
-
-```bash
-pip install "scikit-complexity[sage]"
-pip install "scikit-complexity[lammps]"
-```
+The installation includes Sage through the [passagemath](https://github.com/passagemath/passagemath) distributions,
+LAMMPS, Mesa, Numba, and Rerun. Windows has no passagemath wheels, so on Windows the package runs in WSL.
 
 For development, clone the repository and install the project with [PDM](https://github.com/pdm-project/pdm):
 

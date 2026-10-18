@@ -10,12 +10,12 @@ from typing import Any
 
 import numpy as np
 import numpy.typing as npt
-import sympy
 from scipy.spatial import cKDTree
 
-from ..core import ValidationError
+from ..core import Expression, ValidationError, symbols_of
 from ..model import NumericFunction
 from ._layout import Entry, Layout
+from ._printing import numpy_function
 from ._problem import JumpChannels, Vector
 
 type Indices = npt.NDArray[np.intp]
@@ -175,9 +175,9 @@ class Output:
     """
 
     target: Reference | None
-    expression: sympy.Expr | None = None
+    expression: Expression | None = None
     function: NumericFunction | Callable[..., Any] | None = None
-    arguments: tuple[sympy.Expr, ...] | None = None
+    arguments: tuple[Expression, ...] | None = None
     component: int = 0
     components: int = 1
 
@@ -213,8 +213,8 @@ class Kernel:
     """
 
     owner: str
-    time: sympy.Symbol
-    references: Mapping[sympy.Symbol, Reference]
+    time: Expression
+    references: Mapping[Expression, Reference]
     rows: int
     layout_states: Layout
     layout_parameters: Layout
@@ -224,12 +224,12 @@ class Kernel:
     def __post_init__(self) -> None:
         """Compile the symbolic outputs and the arguments of calls into one NumPy function."""
         self._slots: list[tuple[int, int]] = []
-        expressions: list[sympy.Expr] = []
+        expressions: list[Expression] = []
         for output in self.outputs:
             parts = [output.expression] if output.expression is not None else list(output.arguments or ())
             self._slots.append((len(expressions), len(parts)))
             expressions.extend(parts)
-        used = set().union(*(expression.free_symbols for expression in expressions)) - {self.time}
+        used = symbols_of(expressions) - {self.time}
         unknown = used - set(self.references)
         if unknown:
             names = ', '.join(sorted(map(str, unknown)))
@@ -240,9 +240,7 @@ class Kernel:
             raise ValidationError(error_msg)
         self._arguments = sorted(used, key=str)
         self._function: Callable[..., Any] | None = (
-            sympy.lambdify([self.time, *self._arguments], expressions, modules='numpy', cse=True)
-            if expressions
-            else None
+            numpy_function(self.time, self._arguments, expressions) if expressions else None
         )
 
     @property
@@ -252,7 +250,7 @@ class Kernel:
 
     def _gather(
         self,
-        symbol: sympy.Symbol,
+        symbol: Expression,
         x: Vector,
         p: Vector,
         pairs: tuple[Indices, Indices] | None,

@@ -7,16 +7,27 @@ from abc import abstractmethod
 from typing import ClassVar
 
 import numpy.typing as npt
-import sympy
+from sage.all__sagemath_symbolics import SR, sqrt
 
-from ...core import Domain, VariableKind, VisualSpec, declarations_of, parameter, role, state
+from ...core import (
+    Domain,
+    Expression,
+    SymbolicVector,
+    VariableKind,
+    VisualSpec,
+    declarations_of,
+    parameter,
+    role,
+    state,
+    vector,
+)
 from ...model import Element, Interaction, Law, Rate, Symbols
 
 
-def _distance(first: sympy.MatrixBase, second: sympy.MatrixBase) -> sympy.Expr:
-    """Return the Euclidean distance between two position columns."""
+def _distance(first: SymbolicVector, second: SymbolicVector) -> Expression:
+    """Return the Euclidean distance between two position vectors."""
     difference = first - second
-    return sympy.sqrt(difference.dot(difference))
+    return sqrt(difference.dot_product(difference))
 
 
 class Particle(Element):
@@ -146,7 +157,7 @@ class Potential(Interaction):
     """
 
     @abstractmethod
-    def energy(self, s: Symbols) -> sympy.Expr:
+    def energy(self, s: Symbols) -> Expression:
         """Return the potential energy.
 
         Args:
@@ -173,7 +184,7 @@ class Potential(Interaction):
         laws: list[Law] = []
         for name in declarations_of(self, VariableKind.ROLE):
             particle = getattr(s, name)
-            gradient = sympy.Matrix([sympy.diff(energy, component) for component in particle.x])
+            gradient = vector(SR(energy).diff(component) for component in particle.x)
             laws.append(Rate(particle.v, -gradient / particle.m))
         return laws
 
@@ -206,7 +217,7 @@ class HarmonicPotential(Potential):
     k: float = parameter(1.0, domain=Domain.POSITIVE)
     center: npt.ArrayLike = parameter(0.0, vector=True)
 
-    def energy(self, s: Symbols) -> sympy.Expr:
+    def energy(self, s: Symbols) -> Expression:
         """Return `k * |x - center|**2 / 2`.
 
         Args:
@@ -218,7 +229,7 @@ class HarmonicPotential(Potential):
                 The potential energy as a symbolic expression.
         """
         displacement = s.target.x - s.center
-        return s.k * displacement.dot(displacement) / 2
+        return s.k * displacement.dot_product(displacement) / 2
 
 
 class Spring(Potential):
@@ -253,7 +264,7 @@ class Spring(Potential):
     k: float = parameter(1.0, domain=Domain.POSITIVE)
     length: float = parameter(0.0, domain=Domain.NONNEGATIVE)
 
-    def energy(self, s: Symbols) -> sympy.Expr:
+    def energy(self, s: Symbols) -> Expression:
         """Return `k * (|x_first - x_second| - length)**2 / 2`.
 
         Args:
@@ -295,7 +306,7 @@ class Gravity(Potential):
     second: str = role()
     G: float = parameter(1.0, domain=Domain.POSITIVE)
 
-    def energy(self, s: Symbols) -> sympy.Expr:
+    def energy(self, s: Symbols) -> Expression:
         """Return `-G * m_first * m_second / |x_first - x_second|`.
 
         Args:

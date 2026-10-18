@@ -62,6 +62,42 @@ class Threshold(Interaction):
         return [Rate(s.target.n, lambda t, values: -1.0 if values[name] > 50 else 0.0)]
 ```
 
+### Symbolic expressions
+
+Laws are Sage expressions. The symbols in `s` are Sage symbols that carry the domains of their variables, vector states
+are Sage vectors, and mathematical functions come from Sage. Sage has no condition-based piecewise expression or
+symbolic remainder, so `skcomplex.model` adds `where`, `either`, `both`, and `mod`, which every backend lowers, LAMMPS
+included.
+
+```python
+from sage.all__sagemath_symbolics import exp, sqrt
+
+from skcomplex.model import where
+
+
+class Crowding(Interaction):
+    target: str = role()
+    capacity: float = parameter(100.0, domain=Domain.POSITIVE)
+
+    def laws(self, s):
+        n = s.target.n
+        return [Rate(n, where(n > s.capacity, -sqrt(n - s.capacity), 0.1 * n * exp(-n / s.capacity)))]
+```
+
+Models written with SymPy move to Sage as follows. A SymPy expression in a law raises a `ValidationError`, and
+`expression._sage_()` converts one that is already built.
+
+| SymPy | Sage and `skcomplex` |
+| --- | --- |
+| `sympy.sqrt`, `sympy.exp`, `sympy.sin`, and other functions | `sqrt`, `exp`, `sin`, and others from `sage.all__sagemath_symbolics` |
+| `sympy.Symbol('x', positive=True)` | `skcomplex.core.symbol('x', Domain.POSITIVE)` |
+| `sympy.Matrix([...])` and `a.dot(b)` | `skcomplex.core.vector([...])` and `a.dot_product(b)` |
+| `sympy.Piecewise((a, condition), (b, True))` | `where(condition, a, b)` |
+| `condition1 \| condition2` and `condition1 & condition2` | `either(condition1, condition2)` and `both(condition1, condition2)` |
+| `sympy.Mod(x, m)` | `mod(x, m)` |
+| `sympy.diff(f, x)` and `f.subs(x, y)` | `f.diff(x)` and `f.subs({x: y})` |
+| `sympy.Eq(a, b)`, `.lhs`, and `.rhs` | `a == b`, `.lhs()`, and `.rhs()` |
+
 ## Composing systems
 
 Systems nest. An interaction refers to an element of a child system by a slash-separated path.
@@ -400,7 +436,9 @@ colored by a state, agents on networks as graph nodes, and reporters under `repo
 
 ## Analysing symbolically
 
-`equations_of` returns the equations of a system and `solve_symbolically` solves an ODE system exactly where SymPy can.
+`equations_of` returns the equations of a system as Sage relations, and `solve_symbolically` solves an ODE system
+exactly where Maxima can, with `desolve` for one equation and `desolve_system` for linear systems with constant
+coefficients.
 
 ```python
 from skcomplex.analysis import equations_of, solve_symbolically
@@ -415,4 +453,3 @@ print(equations_of(oscillator)['p.v[0]'])
 print(solve_symbolically(oscillator, use_initial_state=True)['p.x[0]'])
 ```
 
-With the `sage` extra installed, a law also accepts Sage expressions, which are converted to SymPy.

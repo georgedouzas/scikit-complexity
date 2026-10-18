@@ -3,9 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import sympy
+from sage.all__sagemath_symbolics import sqrt
 
-from ...core import Domain, parameter, role
+from ...core import Domain, Expression, parameter, role
 from ...model import Interaction, Law, Noise, Rate, Symbols
 from ._boxes import PairPotential
 
@@ -44,7 +44,7 @@ class LennardJones(PairPotential):
     epsilon: float = parameter(1.0, domain=Domain.POSITIVE)
     sigma: float = parameter(1.0, domain=Domain.POSITIVE)
 
-    def pair_energy(self, s: Symbols, r: sympy.Symbol) -> sympy.Expr:
+    def pair_energy(self, s: Symbols, r: Expression) -> Expression:
         """Return `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)`.
 
         Args:
@@ -91,7 +91,7 @@ class SoftSphere(PairPotential):
 
     k: float = parameter(100.0, domain=Domain.POSITIVE)
 
-    def pair_energy(self, s: Symbols, r: sympy.Symbol) -> sympy.Expr:
+    def pair_energy(self, s: Symbols, r: Expression) -> Expression:
         """Return `k * (cutoff - r) ** 2 / 2`.
 
         Args:
@@ -152,5 +152,5 @@ class LangevinThermostat(Interaction):
         velocity, mass = s.target.v, s.target.m
         return [
             Rate(velocity, -s.gamma * velocity / mass),
-            Noise(velocity, sympy.sqrt(2 * s.gamma * s.temperature) / mass),
+            Noise(velocity, sqrt(2 * s.gamma * s.temperature) / mass),
         ]

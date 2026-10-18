@@ -2,10 +2,10 @@
 # It is not intended for manual editing.
 
 [metadata]
-groups = ["default", "changelog", "checks", "docs", "formatting", "maintenance", "release", "sage", "tests"]
+groups = ["default", "changelog", "checks", "docs", "formatting", "maintenance", "release", "tests"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.1"
-content_hash = "sha256:f0ba36dc610b65977f714841358669ebc4c212678c74f06fd7ecfdb928d616e4"
+content_hash = "sha256:3ab735ad10dbd7e94892a7989d1284b3e302c83a85d160d3fc878e65cb7b65f5"
 
 [[metadata.targets]]
 requires_python = ">=3.12,<3.14"
@@ -519,7 +519,7 @@ name = "cysignals"
 version = "1.12.6"
 requires_python = ">=3.12"
 summary = "Interrupt and signal handling for Cython"
-groups = ["sage"]
+groups = ["default"]
 files = [
     {file = "cysignals-1.12.6-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:3ee654e14c0747d39711d169a664766e0140327a1d3ea1e0fccda1e31ef74e53"},
     {file = "cysignals-1.12.6-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:26a79edceeee7d74609b0cc73b4c3d93301e488dca28b166b3667049a2ee559c"},
@@ -539,7 +539,7 @@ name = "cython"
 version = "3.3.0"
 requires_python = ">=3.9"
 summary = "The Cython compiler for writing C extensions in the Python language."
-groups = ["sage"]
+groups = ["default"]
 files = [
     {file = "cython-3.3.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:03bc5333932f5dda3ba9315298ecdd21daa1b58410bb1f8ce04c78ec8337130a"},
     {file = "cython-3.3.0-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:7e321ae700995a16dc3055ada06ffb8d61e1a7434e5d0e811547a45ac1015ebd"},
@@ -731,7 +731,7 @@ name = "gmpy2"
 version = "2.4.0a1"
 requires_python = ">=3.11"
 summary = "gmpy2 interface to GMP, MPFR, and MPC for Python"
-groups = ["sage"]
+groups = ["default"]
 files = [
     {file = "gmpy2-2.4.0a1-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:0e1492d42c164637a7dd0ce957391774cbe61dd125acc167aaf7ed0d7e40661a"},
     {file = "gmpy2-2.4.0a1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:34e1c1d2dee2ff839fdb55e8230f7befaa0691fe5d27725ff0ddadc0b75d1030"},
@@ -1144,7 +1144,7 @@ name = "memory-allocator"
 version = "0.1.4"
 requires_python = ">=3.8"
 summary = "An extension class to allocate memory easily with cython"
-groups = ["sage"]
+groups = ["default"]
 dependencies = [
     "Cython",
 ]
@@ -1426,7 +1426,6 @@ name = "mpich"
 version = "5.0.2"
 summary = "A high performance implementation of MPI"
 groups = ["default"]
-marker = "sys_platform != \"win32\""
 files = [
     {file = "mpich-5.0.2-py3-none-macosx_11_0_arm64.whl", hash = "sha256:fa6611d3efa2d5a5f624976458d25988bfd5626afc09402f662ff0defbb45cd4"},
     {file = "mpich-5.0.2-py3-none-macosx_11_0_x86_64.whl", hash = "sha256:425ec71e34fe588f4a917cd4c042fab84a70006537e36bfd6bb0d6ae274bb13c"},
@@ -1438,7 +1437,7 @@ files = [
 name = "mpmath"
 version = "1.3.0"
 summary = "Python library for arbitrary-precision floating-point arithmetic"
-groups = ["default", "sage"]
+groups = ["default"]
 files = [
     {file = "mpmath-1.3.0-py3-none-any.whl", hash = "sha256:a0b2b9fe80bbcd81a6647ff13108738cfb482d481d826cc0e02f5b35e5c88d2c"},
     {file = "mpmath-1.3.0.tar.gz", hash = "sha256:7a28eb2a9774d00c7bc92411c19a89209d5da7c4c9a9e227be8330a23a25b91f"},
@@ -1637,7 +1636,7 @@ name = "numpy"
 version = "2.5.4"
 requires_python = ">=3.12"
 summary = "Fundamental package for array computing in Python"
-groups = ["default", "docs", "sage"]
+groups = ["default", "docs"]
 files = [
     {file = "numpy-2.5.4-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:c6342f54c67093cae5c0227eb0eb772fdb79f2a2c37a6eb278b9909ee06aa356"},
     {file = "numpy-2.5.4-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:b11e8fda06a7d69f15ebf542660b74466c2e51094800c1fb794f47ad4faeef17"},
@@ -1680,7 +1679,7 @@ name = "packaging"
 version = "26.3"
 requires_python = ">=3.9"
 summary = "Core utilities for Python packages"
-groups = ["changelog", "checks", "docs", "formatting", "maintenance", "release", "sage", "tests"]
+groups = ["default", "changelog", "checks", "docs", "formatting", "maintenance", "release", "tests"]
 files = [
     {file = "packaging-26.3-py3-none-any.whl", hash = "sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c"},
     {file = "packaging-26.3.tar.gz", hash = "sha256:94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79"},
@@ -1735,7 +1734,7 @@ name = "passagemath-categories"
 version = "10.8.13"
 requires_python = "<3.15,>=3.11"
 summary = "passagemath: Sage categories and basic rings"
-groups = ["sage"]
+groups = ["default"]
 dependencies = [
     "memory-allocator<0.2",
     "passagemath-objects~=10.8.13.0",
@@ -1761,11 +1760,40 @@ files = [
 ]
 
 [[package]]
+name = "passagemath-ecl"
+version = "10.8.13"
+requires_python = "<3.15,>=3.11"
+summary = "passagemath: Embeddable Common Lisp"
+groups = ["default"]
+dependencies = [
+    "cysignals!=1.12.0,>=1.11.2",
+    "cysignals!=1.12.4; sys_platform == \"win32\"",
+    "cysignals>=1.12.6; python_version >= \"3.14\"",
+    "passagemath-categories~=10.8.13.0",
+    "passagemath-environment~=10.8.13.0",
+]
+files = [
+    {file = "passagemath_ecl-10.8.13-cp312-cp312-macosx_13_0_arm64.whl", hash = "sha256:82aca718c8146f2e6d8fad8cfa8655bec3dfe6b2930086e125dd484d1770a503"},
+    {file = "passagemath_ecl-10.8.13-cp312-cp312-macosx_13_0_x86_64.whl", hash = "sha256:8f3253e574d5713d68ee25912360cb979a845dab206e3087721689d8596aa110"},
+    {file = "passagemath_ecl-10.8.13-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:b7c468ec465666c8c64ca4d90a6d58eabd2cdcf7b3f6cb1d5e7181351ec784c4"},
+    {file = "passagemath_ecl-10.8.13-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:a74351166bea2fec4c9096735b398aca8b7df780bc1c387b8bb923dc170371f5"},
+    {file = "passagemath_ecl-10.8.13-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:89e7633d922aa77a5df953ae3dc7b60d917e380b9b13476e57aa64a8810f933d"},
+    {file = "passagemath_ecl-10.8.13-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:2be8f913a2466a4fe272c3f5f7d72dea26b814a6231fcca7bc80d03b92928e39"},
+    {file = "passagemath_ecl-10.8.13-cp313-cp313-macosx_13_0_arm64.whl", hash = "sha256:84909f9c4f284df08a64416d65a9077c603e87701ebd82ba3e8ad4cd25f5cac2"},
+    {file = "passagemath_ecl-10.8.13-cp313-cp313-macosx_13_0_x86_64.whl", hash = "sha256:f14d65b6358ca7c62619f7f57c40689ddee48a0963f6764cd4f10c4f960617c0"},
+    {file = "passagemath_ecl-10.8.13-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:fc020290d9b62a94d23cabbb114f882613c0e818877ff12b108f8245e756777b"},
+    {file = "passagemath_ecl-10.8.13-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:b1f4f20ce9a023b89d5d2af9514f1a129d110e712c4175fb3ac8cb3487e6de11"},
+    {file = "passagemath_ecl-10.8.13-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:14a7c44b6a872045fb36b53e0ef140bee1038154ea4b75dd1870482646fccbd3"},
+    {file = "passagemath_ecl-10.8.13-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:399f0cce27d787bf0608a2c342d5fa9d4dd949b380271191522c5a6b46ef8bc6"},
+    {file = "passagemath_ecl-10.8.13.tar.gz", hash = "sha256:043ebeee83c9a4286fcba50554c7cc1bac1ad19403cda227d1cb96f7ed84c6c5"},
+]
+
+[[package]]
 name = "passagemath-environment"
 version = "10.8.13"
 requires_python = "<3.15,>=3.11"
 summary = "passagemath: System and software environment"
-groups = ["sage"]
+groups = ["default"]
 dependencies = [
     "packaging>=24.2",
     "platformdirs",
@@ -1780,7 +1808,7 @@ name = "passagemath-flint"
 version = "10.8.13"
 requires_python = "<3.15,>=3.11"
 summary = "passagemath: Fast computations with MPFI and FLINT"
-groups = ["sage"]
+groups = ["default"]
 dependencies = [
     "numpy>=2.1",
     "passagemath-categories~=10.8.13.0",
@@ -1807,7 +1835,7 @@ name = "passagemath-gsl"
 version = "10.8.13"
 requires_python = "<3.15,>=3.11"
 summary = "passagemath: Numerics with the GNU Scientific Library"
-groups = ["sage"]
+groups = ["default"]
 dependencies = [
     "cysignals!=1.12.0,>=1.11.2",
     "cysignals!=1.12.4; sys_platform == \"win32\"",
@@ -1837,11 +1865,38 @@ files = [
 ]
 
 [[package]]
+name = "passagemath-maxima"
+version = "10.8.13"
+requires_python = "<3.15,>=3.11"
+summary = "passagemath: Symbolic calculus with Maxima"
+groups = ["default"]
+dependencies = [
+    "passagemath-ecl~=10.8.13.0",
+    "passagemath-environment~=10.8.13.0",
+    "pexpect>=4.8.0",
+]
+files = [
+    {file = "passagemath_maxima-10.8.13-cp312-cp312-macosx_13_0_arm64.whl", hash = "sha256:9a12e48c5455ebe4aa7da1e8a959fc4c9dbd48085ba74bc4df160ec388bd8dc7"},
+    {file = "passagemath_maxima-10.8.13-cp312-cp312-macosx_13_0_x86_64.whl", hash = "sha256:3eb12494b5225e8eda26838d547ae5bbbf798573d2f4613e8464f6ccd277f1a9"},
+    {file = "passagemath_maxima-10.8.13-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:6111c577671d05e141663bf88b0fff8451701fb622bdc1716395083e11a5b223"},
+    {file = "passagemath_maxima-10.8.13-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:44f984d75d3bf6920cee6c6339a57a4a254b9eda7f37104047c27214792ce9d3"},
+    {file = "passagemath_maxima-10.8.13-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:c25bcc437837fc5d21f389440baca7b3eba2531d1ab8a664422d026d080beb40"},
+    {file = "passagemath_maxima-10.8.13-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:1939ef2c71c1d321242e2ead5fb89a00fd4d6e132dbcda9a7e564473e2d1f3bb"},
+    {file = "passagemath_maxima-10.8.13-cp313-cp313-macosx_13_0_arm64.whl", hash = "sha256:8fa811f057bf3f0e0f99c9e81529382a6be97cea090e7ca0e9c926dfd306bcb3"},
+    {file = "passagemath_maxima-10.8.13-cp313-cp313-macosx_13_0_x86_64.whl", hash = "sha256:176974044700b8bdfe260f73eb42d35bb252477060292f530d431c4b3e5e7f8f"},
+    {file = "passagemath_maxima-10.8.13-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:15588da03cf0953a1f8a1df28c49484b6d99f2ae3b9464a4dd4b1f19078b37b0"},
+    {file = "passagemath_maxima-10.8.13-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:546044bcaa4ead9c68843499ece06a769833357aae1af59df7bd7ab9423023d0"},
+    {file = "passagemath_maxima-10.8.13-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:950bd661ce0e30c11e7178361e54812cd41a0e6d9e45366bbfa9b4371bab675a"},
+    {file = "passagemath_maxima-10.8.13-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:eba38dbed7e27878ac4d1111da4f9e5a319a388ed0fd12211376d0f88db06a9e"},
+    {file = "passagemath_maxima-10.8.13.tar.gz", hash = "sha256:abb21303a83771ce17a3e97af1c18828c3775ea91caf980738508a1882525338"},
+]
+
+[[package]]
 name = "passagemath-modules"
 version = "10.8.13"
 requires_python = "<3.15,>=3.11"
 summary = "passagemath: Vectors, matrices, tensors, vector spaces, affine spaces, modules and algebras, additive groups, quadratic forms, homology, coding theory, matroids"
-groups = ["sage"]
+groups = ["default"]
 dependencies = [
     "cysignals!=1.12.0,>=1.11.2",
     "cysignals!=1.12.4; sys_platform == \"win32\"",
@@ -1878,7 +1933,7 @@ name = "passagemath-ntl"
 version = "10.8.13"
 requires_python = "<3.15,>=3.11"
 summary = "passagemath: Computational Number Theory with NTL"
-groups = ["sage"]
+groups = ["default"]
 dependencies = [
     "cysignals!=1.12.0,>=1.11.2",
     "cysignals!=1.12.4; sys_platform == \"win32\"",
@@ -1908,7 +1963,7 @@ name = "passagemath-objects"
 version = "10.8.13"
 requires_python = "<3.15,>=3.11"
 summary = "passagemath: Sage objects, elements, parents, categories, coercion, metaclasses"
-groups = ["sage"]
+groups = ["default"]
 dependencies = [
     "cysignals!=1.12.0,>=1.11.2",
     "cysignals!=1.12.4; sys_platform == \"win32\"",
@@ -1942,7 +1997,7 @@ name = "passagemath-symbolics"
 version = "10.8.13"
 requires_python = "<3.15,>=3.11"
 summary = "passagemath: Symbolic calculus"
-groups = ["sage"]
+groups = ["default"]
 dependencies = [
     "cysignals!=1.12.0,>=1.11.2",
     "cysignals!=1.12.4; sys_platform == \"win32\"",
@@ -1983,6 +2038,19 @@ groups = ["checks", "docs", "formatting"]
 files = [
     {file = "pathspec-1.1.1-py3-none-any.whl", hash = "sha256:a00ce642f577bf7f473932318056212bc4f8bfdf53128c78bbd5af0b9b20b189"},
     {file = "pathspec-1.1.1.tar.gz", hash = "sha256:17db5ecd524104a120e173814c90367a96a98d07c45b2e10c2f3919fff91bf5a"},
+]
+
+[[package]]
+name = "pexpect"
+version = "4.9.0"
+summary = "Pexpect allows easy control of interactive console applications."
+groups = ["default"]
+dependencies = [
+    "ptyprocess>=0.5",
+]
+files = [
+    {file = "pexpect-4.9.0-py2.py3-none-any.whl", hash = "sha256:7236d1e080e4936be2dc3e326cec0af72acf9212a7e1d060210e70a47e253523"},
+    {file = "pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f"},
 ]
 
 [[package]]
@@ -2089,7 +2157,7 @@ name = "platformdirs"
 version = "4.13.4"
 requires_python = ">=3.11"
 summary = "A small Python package for determining appropriate platform-specific dirs, e.g. a `user data dir`."
-groups = ["changelog", "checks", "docs", "formatting", "maintenance", "sage"]
+groups = ["default", "changelog", "checks", "docs", "formatting", "maintenance"]
 files = [
     {file = "platformdirs-4.13.4-py3-none-any.whl", hash = "sha256:502ce08e9d36cf90579ee44e1e764838842fa658e4975ef47344fd053011d2c8"},
     {file = "platformdirs-4.13.4.tar.gz", hash = "sha256:dd96496961684a7f42041923f842ec7494e09f5e87aded99117e1109cd40570e"},
@@ -2165,6 +2233,16 @@ files = [
     {file = "psutil-7.2.2-cp37-abi3-win_amd64.whl", hash = "sha256:eb7e81434c8d223ec4a219b5fc1c47d0417b12be7ea866e24fb5ad6e84b3d988"},
     {file = "psutil-7.2.2-cp37-abi3-win_arm64.whl", hash = "sha256:8c233660f575a5a89e6d4cb65d9f938126312bca76d8fe087b947b3a1aaac9ee"},
     {file = "psutil-7.2.2.tar.gz", hash = "sha256:0746f5f8d406af344fd547f1c8daa5f5c33dbc293bb8d6a16d80b4bb88f59372"},
+]
+
+[[package]]
+name = "ptyprocess"
+version = "0.7.0"
+summary = "Run a subprocess in a pseudo terminal"
+groups = ["default"]
+files = [
+    {file = "ptyprocess-0.7.0-py2.py3-none-any.whl", hash = "sha256:4b41f3967fce3af57cc7e94b888626c18bf37a083e3651ca8feeb66d492fef35"},
+    {file = "ptyprocess-0.7.0.tar.gz", hash = "sha256:5c5d0a3b48ceee0b48485e0c26037c0acd7d29765ca3fbb5cb3831d347423220"},
 ]
 
 [[package]]
@@ -2744,7 +2822,7 @@ name = "sympy"
 version = "1.14.0"
 requires_python = ">=3.9"
 summary = "Computer algebra system (CAS) in Python"
-groups = ["default", "sage"]
+groups = ["default"]
 dependencies = [
     "mpmath<1.4,>=1.1.0",
 ]
@@ -2878,7 +2956,7 @@ name = "typing-extensions"
 version = "4.16.0"
 requires_python = ">=3.9"
 summary = "Backported and Experimental Type Hints for Python 3.9+"
-groups = ["default", "changelog", "checks", "sage"]
+groups = ["default", "changelog", "checks"]
 files = [
     {file = "typing_extensions-4.16.0-py3-none-any.whl", hash = "sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8"},
     {file = "typing_extensions-4.16.0.tar.gz", hash = "sha256:dc983d19a509c94dba722ee6abd33940f7c05a89e243c47e907eb4db6f1a43e5"},
@@ -2890,7 +2968,7 @@ version = "2026.5"
 requires_python = ">=2"
 summary = "Provider of IANA time zone data"
 groups = ["default", "docs"]
-marker = "sys_platform == \"win32\" or sys_platform == \"emscripten\""
+marker = "sys_platform == \"emscripten\" or sys_platform == \"win32\""
 files = [
     {file = "tzdata-2026.5-py2.py3-none-any.whl", hash = "sha256:b683bd1b6659ddcd810ff02ad09ba821d4bf1065072805063eb35c49617905ac"},
     {file = "tzdata-2026.5.tar.gz", hash = "sha256:8cc73c0a0bfca7dbfa59235d60b2eff82231dee33f53d206db1acd9173cfc0a7"},

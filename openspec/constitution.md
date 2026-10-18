@@ -213,20 +213,23 @@ to fill in as the project takes shape.
   with a trailing underscore. Elements and interactions declare their fields with `state`, `parameter`, and `role`,
   which generate a keyword-only dataclass constructor.
 - Language: Python >=3.12, <3.14.
+- Platforms: Linux and macOS 13 or later. Windows is not supported because passagemath publishes no Windows wheels, and
+  Windows users run the package in WSL.
 - Build and tooling: PDM with SCM-derived versioning and a `src`
   layout. The `nox` sessions are `formatting`, `checks`, `tests`, `docs`, `changelog`, and `release`. The gate covers
   `ruff`, `mypy`, `bandit`, `pip-audit`, `deptry`, `pydoclint`, and `interrogate`, with `pytest` under branch coverage
   and randomized ordering. Docstring examples and the Python blocks of the README and the user guide run as tests.
-- Runtime dependencies: `numpy`, `scipy` for numeric integration, `sympy` as the symbolic layer every law is lowered
-  through, `numba` for the compiled backend, `lammps` for the LAMMPS backend, `mesa` for agent-based models, `networkx`
+- Runtime dependencies: `numpy` 2.1 or later, `scipy` for numeric integration, `passagemath-symbolics` as the Sage
+  symbolic layer every law is written in and lowered from, `passagemath-maxima` for exact solutions, `cysignals` at a
+  version the passagemath wheels need, `numba` for the compiled backend, `lammps` for the LAMMPS backend, `mesa` for agent-based models, `networkx`
   for networks, which Mesa 3.5 imports without declaring it, `rerun-sdk` for visualization, and `scikit-learn` for the
   estimator contract. Rerun is a core dependency,
   and spawning a local viewer happens only on request, so it is not a real-world side effect.
-- Optional extras: `sage` installs `passagemath-symbolics`, whose expressions reach SymPy through `sympify`, and
-  `cysignals` at a version its wheels need.
-- LAMMPS: `lammps` is a runtime dependency, with `mpich` on platforms other than Windows, because the LAMMPS wheel links
-  an MPI library it does not bundle. LAMMPS on Windows is not verified yet. The `LAMMPS on Windows` workflow checks
-  that it loads, and until it passes, Windows support of the LAMMPS backend is a known limitation.
+- Symbolic layer: Sage is imported only through `sage.all__sagemath_symbolics` and the modules it loads, and the
+  framework prints expressions to NumPy, Numba, and Lepton code itself. SymPy is installed as a dependency of
+  passagemath, but importing it is banned by a `ruff` rule, and laws reject SymPy values.
+- LAMMPS: `lammps` is a runtime dependency, with `mpich`, because the LAMMPS wheel links an MPI library it does not
+  bundle.
 - Layout: library. The importable package under `src/skcomplex` is distributed to others. Imports run downward
   through `core`, `model`, `compile`, `solvers`, `runtime`, `viz`, `analysis`, `models`, and `backends`, which
   translates models into third-party libraries and so sits above them. Importing `skcomplex.backends` registers its
@@ -235,4 +238,4 @@ to fill in as the project takes shape.
 - Extension points: solvers, visuals, and any other registry in `core` accept new entries without changes to
   existing modules. Base classes users subclass are `Element`, `AgentType`, `Interaction`, `PairInteraction`, `Potential`,
   `PairPotential`, `Backend`, `Stepper`, `ExternalBackend`, `Clock`, `Observer`, and `Visual`.
-**Version**: 1.2.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-18
+**Version**: 1.3.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-18

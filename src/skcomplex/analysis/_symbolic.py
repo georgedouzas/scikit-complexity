@@ -1,46 +1,52 @@
-"""Derive the equations of systems and solve them exactly with SymPy."""
+"""Derive the equations of systems and solve them exactly with Sage."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import sympy
+from sage.all__sagemath_symbolics import desolve, desolve_system, diff, function
 
 from ..compile import Problem, compile_system
-from ..core import AnalysisError, Form
+from ..core import AnalysisError, Expression, Form, declare_domains
 from ..model import System
 
 
-def _functions_of_time(problem: Problem) -> dict[sympy.Symbol, sympy.Expr]:
+def _functions_of_time(problem: Problem) -> dict[Expression, Expression]:
     """Return one function of time per state component symbol."""
-    return {symbol: sympy.Function(symbol.name)(problem.time) for symbol in problem.equation_symbols.values()}
+    return {item: function(str(item))(problem.time) for item in problem.equation_symbols.values()}
 
 
-def _equations_of_problem(problem: Problem) -> dict[str, sympy.Eq]:
-    """Return the equations of a compiled problem as functions of time."""
+def _equations_of_problem(problem: Problem) -> dict[str, Expression]:
+    """Return the equations of a compiled problem as relations between functions of time."""
     if problem.form is Form.JUMP:
         error_msg = 'A jump process has no symbolic equations. Use a deterministic version of its interactions.'
         raise AnalysisError(error_msg)
     functions = _functions_of_time(problem)
     equations = {}
-    for name, symbol in problem.equation_symbols.items():
+    for name, item in problem.equation_symbols.items():
         right = problem.equations[name].subs(functions)
-        function = functions[symbol]
         left = (
-            function.subs(problem.time, problem.time + 1)
+            function(str(item))(problem.time + 1)
             if problem.form is Form.DISCRETE
-            else sympy.Derivative(function, problem.time)
+            else diff(functions[item], problem.time)
         )
-        equations[name] = sympy.Eq(left, right)
+        equations[name] = left == right
     return equations
 
 
-def equations_of(system: System) -> dict[str, sympy.Eq]:
+def _forget_initial_values(functions: list[Expression], time: Expression) -> None:
+    """Reset the values at `t = 0` that `desolve_system` leaves in Maxima for every function but the first."""
+    for item in functions:
+        maxima_function = item._maxima_()
+        maxima_function.atvalue(time == 0, maxima_function)
+
+
+def equations_of(system: System) -> dict[str, Expression]:
     """Return the symbolic equations of a system, one per state component.
 
     Each state component is a function of time `t`. Continuous forms give its time derivative, the drift for
-    stochastic systems, and discrete maps give its value at `t + 1`. The equations of a group hold for every member and
-    are named with the member index `i`. Components driven by a callable law or by a sum over members or pairs are left
-    out.
+    stochastic systems, and discrete maps give its value at `t + 1`. Every equation is a Sage relation. The equations
+    of a group hold for every member and are named with the member index `i`. Components driven by a callable law or by
+    a sum over members or pairs are left out.
 
     Args:
         system:
@@ -63,13 +69,16 @@ def equations_of(system: System) -> dict[str, sympy.Eq]:
         ...     interactions=[LogisticGrowth('growth', target='rabbits', r=1.0, K=100)],
         ... )
         >>> equations_of(system)['rabbits.n']
-        Eq(Derivative(n_rabbits(t), t), r_growth*(1 - n_rabbits(t)/K_growth)*n_rabbits(t))
+        diff(n_rabbits(t), t) == -r_growth*(n_rabbits(t)/K_growth - 1)*n_rabbits(t)
     """
     return _equations_of_problem(compile_system(system))
 
 
-def solve_symbolically(system: System, *, use_initial_state: bool = False) -> dict[str, sympy.Eq]:
-    """Solve the equations of an ODE system exactly as functions of time.
+def solve_symbolically(system: System, *, use_initial_state: bool = False) -> dict[str, Expression]:
+    """Solve the equations of an ODE system exactly as functions of time, with Maxima through Sage.
+
+    One equation is solved with `desolve`, and several with `desolve_system`, which solves linear systems with
+    constant coefficients.
 
     Args:
         system:
@@ -77,15 +86,16 @@ def solve_symbolically(system: System, *, use_initial_state: bool = False) -> di
 
         use_initial_state:
             Whether to use the initial state of the system as initial conditions at `t = 0`. Without them, the
-            solution keeps its integration constants.
+            solution keeps its integration constants, which are the values of the functions at `t = 0`, such as
+            `n_a(0)`, or a constant `_C` for one equation.
 
     Returns:
         solutions:
-            A mapping from state component name to its solution.
+            A mapping from state component name to its solution, a relation `f(t) == solution`.
 
     Raises:
         AnalysisError:
-            The system is not an ODE, has a callable law or groups, or has equations SymPy cannot solve.
+            The system is not an ODE, has a callable law or groups, or has equations Maxima cannot solve.
 
     Examples:
         >>> from skcomplex.analysis import solve_symbolically
@@ -96,7 +106,7 @@ def solve_symbolically(system: System, *, use_initial_state: bool = False) -> di
         ...     interactions=[ExponentialGrowth('g', target='a', r=0.5)],
         ... )
         >>> solve_symbolically(system, use_initial_state=True)['a.n']
-        Eq(n_a(t), 2.0*exp(r_g*t))
+        n_a(t) == 2*e^(r_g*t)
     """
     problem = compile_system(system)
     if problem.form is not Form.ODE:
@@ -110,19 +120,28 @@ def solve_symbolically(system: System, *, use_initial_state: bool = False) -> di
         raise AnalysisError(error_msg)
     equations = _equations_of_problem(problem)
     functions = list(_functions_of_time(problem).values())
-    initial_conditions = (
-        {
-            function.subs(problem.time, 0): value
-            for function, value in zip(functions, problem.initial_state.tolist(), strict=True)
-        }
-        if use_initial_state
-        else None
-    )
+    initial_values = problem.initial_state.tolist() if use_initial_state else None
     try:
-        solutions = sympy.dsolve(list(equations.values()), functions, ics=initial_conditions)
-    except (NotImplementedError, ValueError) as error:
-        error_msg = f'SymPy cannot solve the equations of the system: {error}'
+        declare_domains([*problem.state_symbols, *problem.parameter_symbols, problem.time])
+        if len(functions) == 1:
+            initial_conditions = [0, initial_values[0]] if initial_values is not None else None
+            solution = desolve(next(iter(equations.values())), functions[0], ivar=problem.time, ics=initial_conditions)
+            solutions = [functions[0] == solution]
+        else:
+            initial_conditions = [0, *initial_values] if initial_values is not None else None
+            try:
+                solutions = desolve_system(
+                    list(equations.values()),
+                    functions,
+                    ics=initial_conditions,
+                    ivar=problem.time,
+                )
+            finally:
+                _forget_initial_values(functions, problem.time)
+    except (NotImplementedError, ValueError, TypeError, RuntimeError) as error:
+        error_msg = (
+            f'Maxima cannot solve the equations of the system: {error}. Simulate the system numerically instead.'
+        )
         raise AnalysisError(error_msg) from error
-    solutions = solutions if isinstance(solutions, list) else [solutions]
-    by_function = {solution.lhs: solution for solution in solutions}
-    return {name: by_function[function] for name, function in zip(equations, functions, strict=True)}
+    by_function = {str(solution.lhs()): solution for solution in solutions}
+    return {name: by_function[str(item)] for name, item in zip(equations, functions, strict=True)}

@@ -14,6 +14,8 @@ dynamic = ["version"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
@@ -25,22 +27,18 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "numpy>=1.26.0",
+    "numpy>=2.1.0",
     "scipy>=1.13.0",
-    "sympy>=1.13.0",
+    "passagemath-symbolics>=10.8.13",
+    "passagemath-maxima>=10.8.13",
+    "cysignals>=1.12.6",
     "rerun-sdk>=0.39.0",
     "numba>=0.61.0",
     "lammps>=2025.7.22.4.0",
-    "mpich>=4.3.0; sys_platform != 'win32'",
+    "mpich>=4.3.0",
     "mesa>=3.5.0",
     "networkx>=3.3",
     "scikit-learn>=1.5.1",
-]
-
-[project.optional-dependencies]
-sage = [
-    "passagemath-symbolics>=10.8.0",
-    "cysignals>=1.12.6",
 ]
 
 [project.urls]
@@ -137,7 +135,10 @@ ignore = ["D202", "N806", "N803", "S101", "INP001", "Q000", "TRY002", "PLR0913",
 select = ["C", "E", "F", "W", "B", "I", "D", "N", "UP", "YTT", "ANN", "S",
 "BLE", "A", "COM", "C4", "DTZ", "T10", "EM", "EXE", "ISC", "ICN", "G",
 "INP", "PIE", "T20", "PT", "Q", "RET501", "RET502", "RET503", "SIM",
-"PTH", "PD", "PGH", "PL", "TRY", "RUF", "PLE", "PLR", "PLW", "TRY", "RUF"]
+"PTH", "PD", "PGH", "PL", "TRY", "RUF", "PLE", "PLR", "PLW", "TRY", "RUF", "TID251"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"sympy".msg = "Sage is the symbolic layer. Write expressions with Sage, through `skcomplex.core` or `sage.all__sagemath_symbolics`."
 
 [tool.ruff.lint.per-file-ignores]
 "docs/examples/*" = ["ANN", "D", "B018"]
@@ -146,8 +147,6 @@ select = ["C", "E", "F", "W", "B", "I", "D", "N", "UP", "YTT", "ANN", "S",
 "src/skcomplex/core/_variables.py" = ["ANN401"]
 # Numba-compiled helpers take positional arrays because generated kernels call them positionally.
 "src/skcomplex/compile/_numba_cells.py" = ["PLR0917"]
-# SymPy printers dispatch to methods named `_print_<ClassName>`.
-"src/skcomplex/backends/_lepton.py" = ["N802"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -186,8 +185,8 @@ scikit-learn = "sklearn"
 passagemath-symbolics = "sage"
 
 [tool.deptry.per_rule_ignores]
-# The extras are installed for users and reached through `sympify` or external tools, never imported.
-DEP002 = ["passagemath-symbolics", "cysignals", "mpich"]
+# Maxima and cysignals are loaded by Sage, and MPI by LAMMPS, so the package never imports them.
+DEP002 = ["passagemath-maxima", "cysignals", "mpich"]
 
 [tool.pytest.ini_options]
 python_files = ["test_*.py"]

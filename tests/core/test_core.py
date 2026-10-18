@@ -38,9 +38,9 @@ def test_domain_contains_checks_values(domain, value, expected):
     assert domain.contains(value) is expected
 
 
-def test_domain_assumptions_map_to_sympy():
-    """Test that domains give SymPy assumptions."""
-    assert Domain.NONNEGATIVE_INTEGER.assumptions == {'integer': True, 'nonnegative': True}
+def test_domain_maps_to_sage_domain():
+    """Test that domains give the Sage domains of their symbols, which have no nonnegative domains."""
+    assert Domain.NONNEGATIVE_INTEGER.sage_domain == 'integer'
 
 
 def test_declarations_of_returns_fields_by_kind():

@@ -6,12 +6,12 @@ import time
 
 import numpy as np
 import pytest
-import sympy
+from sage.all__sagemath_symbolics import arcsinh, exp
 
 from skcomplex.backends import LammpsBackend
 from skcomplex.compile import compile_system
 from skcomplex.core import BackendError, Domain, parameter
-from skcomplex.model import EuclideanSpace, System
+from skcomplex.model import EuclideanSpace, System, where
 from skcomplex.models.ecology import LogisticGrowth, Mortality, Population, Predation
 from skcomplex.models.physics import (
     ConstantForce,
@@ -39,15 +39,25 @@ class Exponential(PairPotential):
 
     def pair_energy(self, s, r):
         """Return `eps * exp(-r / sigma)`."""
-        return s.eps * sympy.exp(-r / s.sigma)
+        return s.eps * exp(-r / s.sigma)
 
 
 class Stepwise(PairPotential):
-    """Pair energy with a branch, which has no Lepton form."""
+    """Pair energy with a branch, a harmonic repulsion within a contact distance."""
+
+    contact: float = parameter(1.3, domain=Domain.POSITIVE)
 
     def pair_energy(self, s, r):
-        """Return a piecewise energy."""
-        return sympy.Piecewise((1 - r, r < 1), (0, True))
+        """Return `(contact - r) ** 2` within the contact distance and zero elsewhere."""
+        return where(r < s.contact, (s.contact - r) ** 2, 0)
+
+
+class Hyperbolic(PairPotential):
+    """Pair energy with the inverse hyperbolic sine, which has no Lepton form."""
+
+    def pair_energy(self, s, r):
+        """Return `arcsinh(r)`."""
+        return arcsinh(r)
 
 
 def _lattice(n, spacing=1.2, offset=0.6):
@@ -105,13 +115,13 @@ def test_lammps_rejects_population_model():
 
 
 def test_lammps_rejects_pair_energy_without_lepton_form():
-    """Test that a pair energy with a branch is reported as unsupported."""
+    """Test that a pair energy with a function Lepton does not know is reported as unsupported."""
     system = System(
         elements=[Particle.group('gas', 4, x=_lattice(4))],
-        interactions=[Stepwise('step', first='gas', second='gas', cutoff=1.0)],
+        interactions=[Hyperbolic('hyperbolic', first='gas', second='gas', cutoff=1.0)],
         space=EuclideanSpace(2),
     )
-    with pytest.raises(BackendError, match='Piecewise'):
+    with pytest.raises(BackendError, match='arcsinh has no Lepton'):
         Simulation(system, solver=LammpsBackend()).run(until=0.1)
 
 
@@ -143,6 +153,19 @@ def test_lammps_custom_pair_energy_matches_native_forces():
     native = _run(system, VelocityVerlet(dt=1e-4), 1e-4, dt=1e-4)['gas.v'][-1]
     external = _run(system, LammpsBackend(dt=1e-4), 1e-4, dt=1e-4)['gas.v'][-1]
     assert np.allclose(external, native, rtol=1e-8, atol=1e-8 * np.abs(native).max())
+
+
+def test_lammps_conditional_pair_energy_matches_native_forces():
+    """Test that a pair energy with a condition on the distance gives the native velocity change in LAMMPS."""
+    system = System(
+        elements=[Particle.group('gas', 100, x=_lattice(100) + np.random.default_rng(1).normal(0, 0.1, (100, 2)))],
+        interactions=[Stepwise('contact', first='gas', second='gas', cutoff=CUTOFF)],
+        space=EuclideanSpace(2),
+    )
+    native = _run(system, VelocityVerlet(dt=1e-4), 1e-4, dt=1e-4)['gas.v'][-1]
+    external = _run(system, LammpsBackend(dt=1e-4), 1e-4, dt=1e-4)['gas.v'][-1]
+    assert np.abs(native).max() > 0
+    assert np.allclose(external, native, rtol=1e-10, atol=1e-10 * np.abs(native).max())
 
 
 def test_lammps_short_run_matches_native():

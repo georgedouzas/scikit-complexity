@@ -8,9 +8,8 @@ from dataclasses import dataclass, field
 
 import numpy as np
 import numpy.typing as npt
-import sympy
 
-from ..core import Form, VisualSpec
+from ..core import Expression, Form, SymbolicVector, VisualSpec, components_of
 from ..model import Element, Group, Interaction, Rule, Space, System
 from ._layout import Layout
 
@@ -265,10 +264,10 @@ class Problem:
     parameters: Layout
     initial_state: Vector
     initial_parameters: Vector
-    time: sympy.Symbol
-    symbols: Mapping[str, sympy.Symbol | sympy.MatrixBase]
-    equations: Mapping[str, sympy.Expr]
-    equation_symbols: Mapping[str, sympy.Symbol]
+    time: Expression
+    symbols: Mapping[str, Expression | SymbolicVector]
+    equations: Mapping[str, Expression]
+    equation_symbols: Mapping[str, Expression]
     has_callables: bool
     has_group_sums: bool
     elements: tuple[CompiledElement, ...]
@@ -288,21 +287,17 @@ class Problem:
     backend: str = 'numpy'
     accelerated: Accelerated | None = field(default=None, repr=False)
 
-    def _flatten_symbols(self, layout: Layout) -> list[sympy.Symbol]:
+    def _flatten_symbols(self, layout: Layout) -> list[Expression]:
         """Return the symbols of the entries of a layout as a flat list."""
-        symbols: list[sympy.Symbol] = []
-        for entry in layout:
-            symbol = self.symbols[entry.name]
-            symbols.extend(symbol if isinstance(symbol, sympy.MatrixBase) else [symbol])
-        return symbols
+        return [item for entry in layout for item in components_of(self.symbols[entry.name])]
 
     @property
-    def state_symbols(self) -> list[sympy.Symbol]:
+    def state_symbols(self) -> list[Expression]:
         """Symbols of the state components of single elements and of one member of every group."""
         return self._flatten_symbols(self.states)
 
     @property
-    def parameter_symbols(self) -> list[sympy.Symbol]:
+    def parameter_symbols(self) -> list[Expression]:
         """Symbols of the parameter components of interactions, single elements, and one member of every group."""
         return self._flatten_symbols(self.parameters)
 

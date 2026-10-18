@@ -3,13 +3,11 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import sympy
-
-from ...core import Domain, parameter, role, state
+from ...core import Domain, Expression, parameter, role, state
 from ...model import Element, Interaction, Jump, Law, Rate, Symbols
 
 
-def _transfer(source: sympy.Symbol, destination: sympy.Symbol, rate: sympy.Expr, *, stochastic: bool) -> list[Law]:
+def _transfer(source: Expression, destination: Expression, rate: Expression, *, stochastic: bool) -> list[Law]:
     """Return the laws that move individuals from one compartment to another at a rate."""
     if stochastic:
         return [Jump(rate, {source: -1, destination: 1})]

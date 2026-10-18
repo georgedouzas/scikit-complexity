@@ -2,7 +2,7 @@
 
 import numpy as np
 import pytest
-import sympy
+from sage.all__sagemath_symbolics import SR, cos, function, sqrt
 
 from skcomplex.analysis import equations_of, solve_symbolically
 from skcomplex.compile import compile_system
@@ -21,11 +21,12 @@ def test_equations_of_logistic_growth():
     """Test that logistic growth gives `dn/dt = r * n * (1 - n / K)`."""
     system = System(elements=[Population('p', n=10)], interactions=[LogisticGrowth('g', target='p')])
     problem = compile_system(system)
-    n = sympy.Function('n_p')(problem.time)
+    n = function('n_p')(problem.time)
     r, K = problem.symbols['g.r'], problem.symbols['g.K']
     equation = equations_of(system)['p.n']
-    assert equation.lhs == sympy.Derivative(n, problem.time)
-    assert sympy.simplify(equation.rhs - r * n * (1 - n / K)) == 0
+    assert equation.is_relational()
+    assert bool(equation.lhs() == n.diff(problem.time))
+    assert (equation.rhs() - r * n * (1 - n / K)).simplify_full() == 0
 
 
 def test_equations_of_discrete_map_gives_next_value():
@@ -33,7 +34,7 @@ def test_equations_of_discrete_map_gives_next_value():
     system = System(elements=[Market('m')], interactions=[Cobweb('c', target='m')])
     equation = equations_of(system)['m.price']
     t = compile_system(system).time
-    assert equation.lhs == sympy.Function('price_m')(t + 1)
+    assert bool(equation.lhs() == function('price_m')(t + 1))
 
 
 def test_equations_of_jump_process_raises_error():
@@ -51,9 +52,11 @@ def test_solve_symbolically_free_particle():
     system = System(elements=[Particle('p')], space=EuclideanSpace(1))
     solution = solve_symbolically(system)['p.x[0]']
     t = compile_system(system).time
-    constants = solution.rhs.free_symbols - {t}
-    assert len(constants) == 2
-    assert sympy.diff(solution.rhs, t, 2) == 0
+    slope, start = solution.rhs().diff(t), solution.rhs().subs({t: 0})
+    assert solution.rhs().diff(t, 2) == 0
+    assert not slope.is_numeric()
+    assert not start.is_numeric()
+    assert (solution.rhs() - (slope * t + start)).simplify_full() == 0
 
 
 def test_solve_symbolically_constant_acceleration():
@@ -67,7 +70,7 @@ def test_solve_symbolically_constant_acceleration():
     (F,) = problem.symbols['push.F']
     m = problem.symbols['p.m']
     solution = solve_symbolically(system, use_initial_state=True)['p.x[0]']
-    assert sympy.simplify(solution.rhs - F * problem.time**2 / (2 * m)) == 0
+    assert (solution.rhs() - F * problem.time**2 / (2 * m)).simplify_full() == 0
 
 
 def test_solve_symbolically_harmonic_oscillator():
@@ -80,11 +83,13 @@ def test_solve_symbolically_harmonic_oscillator():
     problem = compile_system(system)
     k, m, t = problem.symbols['trap.k'], problem.symbols['p.m'], problem.time
     (center,) = problem.symbols['trap.center']
-    solution = solve_symbolically(system, use_initial_state=True)['p.x[0]'].rhs.subs(center, 0)
-    expected = sympy.cos(sympy.sqrt(k / m) * t)
+    solution = solve_symbolically(system, use_initial_state=True)['p.x[0]'].rhs().subs({center: 0})
+    expected = cos(sqrt(k / m) * t)
     values = {k: 2.0, m: 0.5}
     for time in np.linspace(0, 5, 6):
-        assert float(solution.subs(values).subs(t, time)) == pytest.approx(float(expected.subs(values).subs(t, time)))
+        assert float(solution.subs(values).subs({t: time})) == pytest.approx(
+            float(expected.subs(values).subs({t: time})),
+        )
 
 
 def test_solve_symbolically_not_ode_raises_error():
@@ -101,10 +106,9 @@ def test_solve_symbolically_callable_raises_error():
         solve_symbolically(system)
 
 
-def test_sage_expression_compiles_like_sympy():
-    """Test that a Sage force simulates like the equivalent SymPy force."""
-    sage = pytest.importorskip('sage.all__sagemath_symbolics')
-    force = sage.SR(2) * sage.SR(1.5)
+def test_sage_expression_compiles_like_number():
+    """Test that a constant force given as a Sage expression simulates like the same force given as a number."""
+    force = SR(2) * SR(1.5)
     system = System(
         elements=[Particle('p')],
         interactions=[ConstantForce('push', target='p', F=float(force))],

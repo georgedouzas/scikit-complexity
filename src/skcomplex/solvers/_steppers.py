@@ -8,11 +8,10 @@ from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
-import sympy
 from scipy.integrate import solve_ivp
 
 from ..compile import Problem, Vector
-from ..core import Form, SolverError
+from ..core import Expression, Form, SolverError, components_of
 from ._base import Stepper, register_solver
 
 
@@ -170,14 +169,13 @@ class RK4(Stepper):
 
 def _position_pairs(problem: Problem) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
     """Return the flat indices of the position components and of their velocities, in matching order."""
-    indices: dict[sympy.Symbol, npt.NDArray[np.int64]] = {}
+    indices: dict[Expression, npt.NDArray[np.int64]] = {}
     for entry in problem.states:
-        symbols = problem.symbols[entry.name]
-        for column, symbol in enumerate(symbols if isinstance(symbols, sympy.MatrixBase) else [symbols]):
-            indices[symbol] = entry.start + np.arange(entry.rows) * entry.columns + column
+        for column, item in enumerate(components_of(problem.symbols[entry.name])):
+            indices[item] = entry.start + np.arange(entry.rows) * entry.columns + column
     positions, velocities = [], []
     for name, equation in problem.equations.items():
-        if isinstance(equation, sympy.Symbol) and equation in indices:
+        if equation.is_symbol() and equation in indices:
             positions.append(indices[problem.equation_symbols[name]])
             velocities.append(indices[equation])
     position_indices = np.concatenate([np.zeros(0, dtype=np.int64), *positions]).astype(np.int64)

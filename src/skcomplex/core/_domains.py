@@ -26,14 +26,14 @@ class Domain(Enum):
     NONNEGATIVE_INTEGER = 'nonnegative integer'
 
     @property
-    def assumptions(self) -> dict[str, bool]:
-        """SymPy assumptions of the symbols of the domain."""
+    def sage_domain(self) -> str:
+        """Sage domain of the symbols of the domain, which has no nonnegative domains."""
         return {
-            Domain.REAL: {'real': True},
-            Domain.POSITIVE: {'positive': True},
-            Domain.NONNEGATIVE: {'nonnegative': True},
-            Domain.INTEGER: {'integer': True},
-            Domain.NONNEGATIVE_INTEGER: {'integer': True, 'nonnegative': True},
+            Domain.REAL: 'real',
+            Domain.POSITIVE: 'positive',
+            Domain.NONNEGATIVE: 'real',
+            Domain.INTEGER: 'integer',
+            Domain.NONNEGATIVE_INTEGER: 'integer',
         }[self]
 
     def contains(self, value: object) -> bool:

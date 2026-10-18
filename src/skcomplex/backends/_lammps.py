@@ -10,11 +10,10 @@ from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
-import sympy
 from lammps import lammps
 
 from ..compile import CompiledElement, CompiledInteraction, Problem, Vector, compile_system
-from ..core import BackendError, Form, VariableKind, declarations_of
+from ..core import BackendError, Domain, Form, VariableKind, declarations_of, symbol
 from ..model import Symbols, System
 from ..models.physics import (
     ConstantForce,
@@ -217,7 +216,7 @@ class LammpsBackend(ExternalBackend):
         velocities = {element.states['v'] for element in sub_problem.elements}
         for name, equation in sub_problem.equations.items():
             base = name.split('[')[0]
-            if base not in velocities and not isinstance(equation, sympy.Symbol):
+            if base not in velocities and not equation.is_symbol():
                 reasons.append(f'a law on {base}')
         if not reasons:
             return []
@@ -231,9 +230,9 @@ class LammpsBackend(ExternalBackend):
             for name in declarations_of(interaction, VariableKind.PARAMETER)
         }
         roles = {role: Symbols(m=float(_parameter(problem, p, path, 'm')[0])) for role, path in item.roles.items()}
-        distance = sympy.Symbol('r', positive=True)
+        distance = symbol('r', Domain.POSITIVE)
         energy = interaction.pair_energy(Symbols(**values, **roles), distance)
-        return lepton_expression(sympy.sympify(energy), distance)
+        return lepton_expression(energy, distance)
 
     def _box_commands(self, problem: Problem, x: Vector) -> list[str]:
         """Return the commands that create the simulation box."""

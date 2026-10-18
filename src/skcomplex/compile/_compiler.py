@@ -8,19 +8,25 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 
 import numpy as np
-import sympy
+from sage.all__sagemath_symbolics import SR
 
 from ..core import (
     Domain,
+    Expression,
     Form,
     IncompatibleLawsError,
     LabelError,
     RoleError,
+    SymbolicVector,
     ValidationError,
     Variable,
     VariableKind,
     VisualSpec,
+    components_of,
     declarations_of,
+    domain_of,
+    symbol,
+    vector,
 )
 from ..model import (
     Boundary,
@@ -63,16 +69,16 @@ class _Block:
     """Variables of a component with the symbols of one member and the components they stand for."""
 
     node: Node
-    symbols: dict[str, sympy.Symbol | sympy.MatrixBase] = field(default_factory=dict)
+    symbols: dict[str, Expression | SymbolicVector] = field(default_factory=dict)
     entries: dict[str, Entry] = field(default_factory=dict)
-    references: dict[sympy.Symbol, Reference] = field(default_factory=dict)
+    references: dict[Expression, Reference] = field(default_factory=dict)
 
     @property
     def rows(self) -> int:
         """Number of members, 1 for a single element or an interaction."""
         return self.node.members or 1
 
-    def namespace(self, source: Source, alias: str = '') -> tuple[Symbols, dict[sympy.Symbol, Reference]]:
+    def namespace(self, source: Source, alias: str = '') -> tuple[Symbols, dict[Expression, Reference]]:
         """Return the namespace of the block's symbols and their references for one way of reading them.
 
         Args:
@@ -86,18 +92,14 @@ class _Block:
             namespace:
                 The namespace and the references of its symbols.
         """
-        mapping = {symbol: sympy.Symbol(f'{symbol.name}{alias}', **symbol.assumptions0) for symbol in self.references}
+        mapping = {item: symbol(f'{item}{alias}', domain_of(item)) for item in self.references}
         references = {
-            mapping[symbol]: Reference(reference.entry, reference.is_state, reference.column, source)
-            for symbol, reference in self.references.items()
+            mapping[item]: Reference(reference.entry, reference.is_state, reference.column, source)
+            for item, reference in self.references.items()
         }
         symbols = {
-            name: (
-                symbol.applyfunc(lambda item: mapping[item])
-                if isinstance(symbol, sympy.MatrixBase)
-                else mapping[symbol]
-            )
-            for name, symbol in self.symbols.items()
+            name: (vector(mapping[item] for item in value) if isinstance(value, SymbolicVector) else mapping[value])
+            for name, value in self.symbols.items()
         }
         return Symbols(**symbols), references
 
@@ -106,7 +108,7 @@ class _Block:
 class _Declarations:
     """Entries, initial values, and blocks collected from the components."""
 
-    time: sympy.Symbol
+    time: Expression
     states: list[Entry] = field(default_factory=list)
     parameters: list[Entry] = field(default_factory=list)
     initial_states: list[Vector] = field(default_factory=list)
@@ -125,16 +127,16 @@ class _Declarations:
         entry = Entry(name, sum(item.size for item in entries), shape, declaration.domain, members)
         entries.append(entry)
         base = f'{variable}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}'
-        assumptions = declaration.domain.assumptions
+        domain = declaration.domain
         components = (
-            [sympy.Symbol(f'{base}_{index}', **assumptions) for index in range(member_shape[0])]
+            [symbol(f'{base}_{index}', domain) for index in range(member_shape[0])]
             if member_shape
-            else [sympy.Symbol(base, **assumptions)]
+            else [symbol(base, domain)]
         )
-        block.symbols[variable] = sympy.Matrix(components) if member_shape else components[0]
+        block.symbols[variable] = vector(components) if member_shape else components[0]
         block.entries[variable] = entry
-        for column, symbol in enumerate(components):
-            block.references[symbol] = Reference(entry, is_state, column)
+        for column, item in enumerate(components):
+            block.references[item] = Reference(entry, is_state, column)
 
     def declare_component(self, node: Node) -> _Block:
         """Add the states and parameters of a component and return its block.
@@ -163,7 +165,7 @@ class _KernelSpec:
 
     owner: str
     namespace: Symbols
-    references: dict[sympy.Symbol, Reference]
+    references: dict[Expression, Reference]
     rows: int
     pairs: PairSearch | None = None
     roles: dict[str, str] = field(default_factory=dict)
@@ -181,14 +183,15 @@ def _check_symbol_names(blocks: dict[str, _Block]) -> None:
     """Raise an error when two variables produce the same symbol name."""
     seen: dict[str, str] = {}
     for block in blocks.values():
-        for symbol, reference in block.references.items():
-            if symbol.name in seen and seen[symbol.name] != reference.entry.name:
+        for item, reference in block.references.items():
+            name = str(item)
+            if name in seen and seen[name] != reference.entry.name:
                 error_msg = (
-                    f'{reference.entry.name} and {seen[symbol.name]} produce the same symbol {symbol.name}. Rename one '
+                    f'{reference.entry.name} and {seen[name]} produce the same symbol {name}. Rename one '
                     'of their labels or variables.'
                 )
                 raise LabelError(error_msg)
-            seen[symbol.name] = reference.entry.name
+            seen[name] = reference.entry.name
 
 
 def _resolve_role(node: Node, role: str, elements: dict[str, _Block]) -> _Block:
@@ -205,13 +208,13 @@ def _resolve_role(node: Node, role: str, elements: dict[str, _Block]) -> _Block:
     return elements[path]
 
 
-def _member_spec(block: _Block, time: sympy.Symbol) -> _KernelSpec:
+def _member_spec(block: _Block, time: Expression) -> _KernelSpec:
     """Return the kernel spec of the intrinsic laws of an element or group."""
     namespace, references = block.namespace(Source.MEMBER)
     return _KernelSpec(block.node.path, Symbols(t=time, **vars(namespace)), references, block.rows)
 
 
-def _interaction_spec(block: _Block, elements: dict[str, _Block], time: sympy.Symbol) -> _KernelSpec:
+def _interaction_spec(block: _Block, elements: dict[str, _Block], time: Expression) -> _KernelSpec:
     """Return the kernel spec of an interaction that is evaluated once per member of its group."""
     node = block.node
     roles = {role: _resolve_role(node, role, elements) for role in declarations_of(node.component, VariableKind.ROLE)}
@@ -234,7 +237,7 @@ def _interaction_spec(block: _Block, elements: dict[str, _Block], time: sympy.Sy
     return _KernelSpec(node.path, Symbols(t=time, **vars(parameters), **namespaces), references, rows, roles=paths)
 
 
-def _pair_spec(block: _Block, elements: dict[str, _Block], time: sympy.Symbol) -> _KernelSpec:
+def _pair_spec(block: _Block, elements: dict[str, _Block], time: Expression) -> _KernelSpec:
     """Return the kernel spec of a pair interaction that is evaluated once per pair within its cutoff."""
     node = block.node
     interaction: PairInteraction = node.component
@@ -278,7 +281,7 @@ def _component_of(node: Node) -> object:
 
 def _target_references(target: object, spec: _KernelSpec) -> list[Reference]:
     """Return the references of the state components a law targets."""
-    components = list(target) if isinstance(target, sympy.MatrixBase) else [target]
+    components = components_of(target)
     references = [spec.references.get(component) for component in components]
     if not all(reference is not None and reference.is_state for reference in references):
         error_msg = f'A law of {spec.owner} targets {target!r}, which is not a state symbol of the namespace `s`.'
@@ -287,13 +290,13 @@ def _target_references(target: object, spec: _KernelSpec) -> list[Reference]:
 
 
 def _outputs_of(value: object, targets: list[Reference | None], owner: str) -> list[Output]:
-    """Return the outputs of one law value for its target components."""
+    """Return the outputs of one law value for its target components, with the law and component as owner."""
     if isinstance(value, Call):
         arguments = tuple(
             item for argument in value.arguments for item in symbolic_components(argument, 1, owner) or []
         )
         if len(arguments) != len(value.arguments):
-            error_msg = f'A Call in a law of {owner} has an argument that is not a symbolic expression.'
+            error_msg = f'A Call in a {owner} has an argument that is not a symbolic expression.'
             raise ValidationError(error_msg)
         return [
             Output(target, function=value.function, arguments=arguments, component=index, components=len(targets))  # type: ignore[arg-type]
@@ -333,7 +336,7 @@ def _lower_laws(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Decla
             if isinstance(law, Rule):
                 continue
             if isinstance(law, Jump):
-                output = _outputs_of(law.rate, [None], spec.owner)[0]
+                output = _outputs_of(law.rate, [None], f'Jump law of {spec.owner}')[0]
                 changes = [
                     (_target_references(target, spec)[0], float(increment)) for target, increment in law.changes.items()
                 ]
@@ -343,7 +346,7 @@ def _lower_laws(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Decla
             targets = _target_references(law.target, spec)
             if isinstance(law, ASSIGNED_KINDS):
                 _check_assignments(spec, law, targets, assigned[type(law)])
-            outputs[type(law)].extend(_outputs_of(law.value, targets, spec.owner))  # type: ignore[arg-type]
+            outputs[type(law)].extend(_outputs_of(law.value, targets, f'{type(law).__name__} law of {spec.owner}'))  # type: ignore[arg-type]
         for kind, kind_outputs in outputs.items():
             lowered.kernels[kind].append(
                 Kernel(
@@ -384,9 +387,9 @@ def _equations_of(
     kernels: list[Kernel],
     declarations: _Declarations,
     form: Form,
-) -> tuple[dict[str, sympy.Expr], dict[str, sympy.Symbol]]:
+) -> tuple[dict[str, Expression], dict[str, Expression]]:
     """Return the symbolic equations and their symbols, leaving out components with callables or group sums."""
-    contributions: dict[tuple[str, int], list[sympy.Expr]] = defaultdict(list)
+    contributions: dict[tuple[str, int], list[Expression]] = defaultdict(list)
     excluded: set[tuple[str, int]] = set()
     for kernel in kernels:
         for item in kernel.outputs:
@@ -401,15 +404,15 @@ def _equations_of(
             if entry not in declarations.states:
                 continue
             components = block.symbols[variable]
-            for column, symbol in enumerate(components if isinstance(components, sympy.MatrixBase) else [components]):
+            for column, item in enumerate(components_of(components)):
                 key = (entry.name, column)
                 if key in excluded:
                     continue
-                default = symbol if form is Form.DISCRETE else sympy.Integer(0)
+                default = item if form is Form.DISCRETE else SR(0)
                 terms = contributions.get(key)
                 name = entry.generic_names[column]
-                equations[name] = sympy.Add(*terms) if terms else default
-                symbols[name] = symbol
+                equations[name] = sum(terms[1:], terms[0]) if terms else default
+                symbols[name] = item
     return equations, symbols
 
 
@@ -448,7 +451,7 @@ def _compile_mesa(system: MesaSystem) -> Problem:
         parameters=Layout(entries),
         initial_state=np.zeros(0),
         initial_parameters=np.asarray(values, dtype=float),
-        time=sympy.Symbol('t', real=True),
+        time=symbol('t'),
         symbols={},
         equations={},
         equation_symbols={},
@@ -595,7 +598,7 @@ def _compile_partitions(system: System, backend: str | Backend, plan: list[tuple
 def _compile(system: System, backend: str | Backend, owners: frozenset[str] | None) -> Problem:
     """Return the problem of a system, keeping only the laws of the elements in `owners` when it is given."""
     nodes = flatten_system(system)
-    declarations = _Declarations(time=sympy.Symbol('t', real=True))
+    declarations = _Declarations(time=symbol('t'))
     blocks = [declarations.declare_component(node) for node in nodes]
     _check_symbol_names(declarations.blocks)
     elements = {block.node.path: block for block in blocks if not _is_interaction(block.node)}

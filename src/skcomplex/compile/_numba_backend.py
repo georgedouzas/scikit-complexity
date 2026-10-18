@@ -15,11 +15,9 @@ from types import ModuleType
 from typing import Any, ClassVar
 
 import numpy as np
-import sympy
 from numba.core.dispatcher import Dispatcher
-from sympy.printing.pycode import PythonCodePrinter
 
-from ..core import Form
+from ..core import Expression, Form, symbols_of
 from ..model import Boundary, Jump, Noise, Rate, Update
 from ._backends import (
     Backend,
@@ -31,6 +29,7 @@ from ._backends import (
 )
 from ._kernels import Kernel, Output, Reference, Source, jump_channels, noise_rows
 from ._layout import Entry
+from ._printing import SCALAR_DIALECT, print_expressions
 from ._problem import Accelerated, Vector
 
 DEFAULT_CACHE_DIR = Path.home() / '.cache' / 'skcomplex' / 'kernels'
@@ -152,7 +151,6 @@ class _Source:
     lines: list[str] = field(default_factory=list)
     slots: dict[str, int] = field(default_factory=dict)
     functions: dict[str, object] = field(default_factory=dict)
-    printer: PythonCodePrinter = field(default_factory=lambda: PythonCodePrinter({'standard': 'python3'}))
 
     def slot(self, entry: Entry) -> int:
         """Return the layout slot of an entry, whose start is `L[2 * slot]` and rows `L[2 * slot + 1]`.
@@ -201,19 +199,6 @@ class _Source:
         self.functions[name] = function
         return name
 
-    def code(self, expression: sympy.Expr) -> str:
-        """Return the Python code of an expression.
-
-        Args:
-            expression:
-                The expression.
-
-        Returns:
-            code:
-                The code.
-        """
-        return self.printer.doprint(expression)
-
 
 def _vector(reference: Reference) -> str:
     """Return the name of the vector that holds a reference."""
@@ -238,30 +223,30 @@ def _index(source: _Source, reference: Reference, member: str | None) -> str:
 def _emit_values(
     source: _Source,
     outputs: list[Output],
-    read: Callable[[sympy.Symbol], str],
+    read: Callable[[Expression], str],
     depth: int,
 ) -> tuple[list[str], list[str]]:
     """Return the lines that read symbols and compute outputs, and the code of every output value."""
     pad = INDENT * depth
     expressions = [output.expression for output in outputs if output.expression is not None]
     arguments = [argument for output in outputs if output.expression is None for argument in output.arguments or ()]
-    symbols = sorted(set().union(*(item.free_symbols for item in expressions + arguments)), key=str)
-    reads = [(symbol.name, read(symbol)) for symbol in symbols if symbol.name != 't']
+    symbols = sorted(symbols_of(expressions + arguments), key=str)
+    reads = [(str(item), read(item)) for item in symbols if str(item) != 't']
     lines = [f'{pad}{name} = {code}' for name, code in reads if name != code]
-    replacements, reduced = sympy.cse(expressions, symbols=sympy.numbered_symbols('_cse')) if expressions else ([], [])
-    lines += [f'{pad}{name} = {source.code(value)}' for name, value in replacements]
+    assignments, codes = print_expressions([*expressions, *arguments], SCALAR_DIALECT)
+    lines += [f'{pad}{name} = {code}' for name, code in assignments]
+    expression_codes, argument_codes = iter(codes[: len(expressions)]), iter(codes[len(expressions) :])
     values: list[str] = []
-    position = 0
     calls: dict[tuple[int, tuple[str, ...]], str] = {}
     for output in outputs:
         if output.expression is not None:
-            values.append(source.code(reduced[position]))
-            position += 1
+            values.append(next(expression_codes))
             continue
-        key = (id(output.function), tuple(map(str, output.arguments or ())))
+        printed = [next(argument_codes) for _ in output.arguments or ()]
+        key = (id(output.function), tuple(printed))
         if key not in calls:
             calls[key] = f'_call{len(calls)}_'
-            call_arguments = ', '.join(['t', *(source.code(argument) for argument in output.arguments or ())])
+            call_arguments = ', '.join(['t', *printed])
             lines.append(f'{pad}{calls[key]} = {source.function_name(output.function)}({call_arguments})')
         values.append(calls[key] if output.components == 1 else f'{calls[key]}[{output.component}]')
     return lines, values
@@ -271,11 +256,11 @@ def _single_reads(source: _Source, kernel: Kernel, outputs: list[Output]) -> lis
     """Return the lines that read every single-element symbol of outputs once, before the member loops."""
     expressions = [output.expression for output in outputs if output.expression is not None]
     arguments = [argument for output in outputs for argument in output.arguments or ()]
-    symbols = sorted(set().union(*(item.free_symbols for item in expressions + arguments)), key=str)
+    symbols = sorted(symbols_of(expressions + arguments), key=str)
     return [
-        f'{INDENT}{symbol.name} = {_vector(reference)}[{_index(source, reference, None)}]'
-        for symbol in symbols
-        if (reference := kernel.references.get(symbol)) is not None and reference.source is Source.SINGLE
+        f'{INDENT}{item} = {_vector(reference)}[{_index(source, reference, None)}]'
+        for item in symbols
+        if (reference := kernel.references.get(item)) is not None and reference.source is Source.SINGLE
     ]
 
 
@@ -294,10 +279,10 @@ def _member_kernel(source: _Source, kernel: Kernel, name: str, mode: str, parall
 
     lines += _single_reads(source, kernel, kernel.outputs)
 
-    def read_single(symbol: sympy.Symbol) -> str:
-        reference = kernel.references[symbol]
+    def read_single(item: Expression) -> str:
+        reference = kernel.references[item]
         if reference.source is Source.SINGLE:
-            return symbol.name
+            return str(item)
         return f'{_vector(reference)}[{_index(source, reference, '_m_')}]'
 
     sums = [
@@ -347,10 +332,10 @@ def _pair_block(
     distance = ' + '.join(f'_d{column}_ * _d{column}_' for column in range(pairs.first.columns))
     lines.append(f'{pad}if {distance} <= _cutoff_ * _cutoff_:')
 
-    def read(symbol: sympy.Symbol) -> str:
-        reference = kernel.references[symbol]
+    def read(item: Expression) -> str:
+        reference = kernel.references[item]
         if reference.source is Source.SINGLE:
-            return symbol.name
+            return str(item)
         if reference.source is Source.SECOND and reference.is_state and reference.entry == pairs.second:
             return f'positions_a[{first}, {reference.column}] - _d{reference.column}_'
         member = first if reference.source is Source.FIRST else second

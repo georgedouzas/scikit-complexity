@@ -6,10 +6,22 @@
 from abc import abstractmethod
 
 import numpy as np
-import sympy
+from sage.all__sagemath_symbolics import SR, sqrt
 
-from ...core import Domain, VisualSpec, parameter, role
-from ...model import Boundary, EuclideanSpace, Interaction, Law, PairInteraction, Rate, Symbols, System
+from ...core import Domain, Expression, VisualSpec, parameter, role, symbol
+from ...model import (
+    Boundary,
+    EuclideanSpace,
+    Interaction,
+    Law,
+    PairInteraction,
+    Rate,
+    Symbols,
+    System,
+    either,
+    mod,
+    where,
+)
 from ._mechanics import Particle
 
 
@@ -52,10 +64,10 @@ class ReflectingBox(Interaction):
         laws: list[Law] = []
         for position, velocity in zip(s.target.x, s.target.v, strict=True):
             below, above = position < 0, position > s.size
-            mirrored = sympy.Piecewise((-position, below), (2 * s.size - position, above), (position, True))
+            mirrored = where(below, -position, where(above, 2 * s.size - position, position))
             laws += [
                 Boundary(position, mirrored),
-                Boundary(velocity, sympy.Piecewise((-velocity, below | above), (velocity, True))),
+                Boundary(velocity, where(either(below, above), -velocity, velocity)),
             ]
         return laws
 
@@ -95,7 +107,7 @@ class PeriodicBox(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Boundary(position, sympy.Mod(position, s.size)) for position in s.target.x]
+        return [Boundary(position, mod(position, s.size)) for position in s.target.x]
 
 
 class PairPotential(PairInteraction):
@@ -122,7 +134,7 @@ class PairPotential(PairInteraction):
     """
 
     @abstractmethod
-    def pair_energy(self, s: Symbols, r: sympy.Symbol) -> sympy.Expr:
+    def pair_energy(self, s: Symbols, r: Expression) -> Expression:
         """Return the potential energy of one pair at distance `r`.
 
         Args:
@@ -148,10 +160,10 @@ class PairPotential(PairInteraction):
             laws:
                 The laws of the component.
         """
-        distance = sympy.Symbol('r', positive=True)
+        distance = symbol('r', Domain.POSITIVE)
         separation = s.first.x - s.second.x
-        r = sympy.sqrt(separation.dot(separation))
-        slope = sympy.diff(self.pair_energy(s, distance), distance).subs(distance, r)
+        r = sqrt(separation.dot_product(separation))
+        slope = SR(self.pair_energy(s, distance)).diff(distance).subs({distance: r})
         force = -slope * separation / r
         return [Rate(s.first.v, force / s.first.m), Rate(s.second.v, -force / s.second.m)]
 

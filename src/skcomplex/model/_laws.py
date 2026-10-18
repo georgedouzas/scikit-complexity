@@ -7,9 +7,9 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-import sympy
+from ..core import Expression, SymbolicVector
 
-type Target = sympy.Symbol | sympy.MatrixBase
+type Target = Expression | SymbolicVector
 type NumericFunction = Callable[[float, Mapping[str, Any]], Any]
 
 
@@ -29,9 +29,9 @@ class Call:
             The symbolic expressions whose values are passed to the function.
 
     Examples:
-        >>> import sympy
+        >>> from skcomplex.core import symbol
         >>> from skcomplex.model import Call, Rate
-        >>> n = sympy.Symbol('n')
+        >>> n = symbol('n')
         >>> law = Rate(n, Call(lambda t, n: 2 * n, n))
         >>> law.value.arguments
         (n,)
@@ -60,9 +60,9 @@ class Rate:
             maps dotted state and parameter names to their current values.
 
     Examples:
-        >>> import sympy
+        >>> from skcomplex.core import symbol
         >>> from skcomplex.model import Rate
-        >>> n = sympy.Symbol('n')
+        >>> n = symbol('n')
         >>> Rate(n, 2 * n).value
         2*n
     """
@@ -83,9 +83,9 @@ class Noise:
             A symbolic expression or a callable `f(t, values)`. A vector target gets one Wiener process per component.
 
     Examples:
-        >>> import sympy
+        >>> from skcomplex.core import symbol
         >>> from skcomplex.model import Noise
-        >>> price = sympy.Symbol('price')
+        >>> price = symbol('price')
         >>> Noise(price, 0.2 * price).value
         0.2*price
     """
@@ -106,15 +106,15 @@ class Jump:
             A mapping from the symbol of a scalar state to its increment when the event fires.
 
     Examples:
-        >>> import sympy
+        >>> from skcomplex.core import symbol
         >>> from skcomplex.model import Jump
-        >>> s, i = sympy.symbols('s i')
+        >>> s, i = symbol('s'), symbol('i')
         >>> Jump(0.1 * s * i, {s: -1, i: 1}).changes[i]
         1
     """
 
     rate: object
-    changes: Mapping[sympy.Symbol, float] = field(default_factory=dict)
+    changes: Mapping[Expression, float] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -129,9 +129,9 @@ class Update:
             A symbolic expression or a callable `f(t, values)` that gives the next value.
 
     Examples:
-        >>> import sympy
+        >>> from skcomplex.core import symbol
         >>> from skcomplex.model import Update
-        >>> x = sympy.Symbol('x')
+        >>> x = symbol('x')
         >>> Update(x, 3.7 * x * (1 - x)).target
         x
     """
@@ -154,11 +154,11 @@ class Boundary:
             A symbolic expression or a callable `f(t, values)` that gives the new value.
 
     Examples:
-        >>> import sympy
-        >>> from skcomplex.model import Boundary
-        >>> x = sympy.Symbol('x')
-        >>> Boundary(x, sympy.Mod(x, 1)).value
-        Mod(x, 1)
+        >>> from skcomplex.core import symbol
+        >>> from skcomplex.model import Boundary, mod
+        >>> x = symbol('x')
+        >>> Boundary(x, mod(x, 1)).value
+        mod(x, 1)
     """
 
     target: Target

@@ -2,7 +2,6 @@
 
 import numpy as np
 import pytest
-import sympy
 
 from skcomplex.compile import compile_system
 from skcomplex.core import (
@@ -14,6 +13,7 @@ from skcomplex.core import (
     ValidationError,
     parameter,
     role,
+    symbol,
 )
 from skcomplex.model import EuclideanSpace, Interaction, Rate, System, Update
 from skcomplex.models.ecology import ExponentialGrowth, LogisticGrowth, Population, Predation
@@ -42,7 +42,7 @@ class Undeclared(Interaction):
 
     def laws(self, s):
         """Return a law with an undeclared symbol."""
-        return [Rate(s.target.n, sympy.Symbol('k') * s.target.n)]
+        return [Rate(s.target.n, symbol('k') * s.target.n)]
 
 
 class DoubleUpdate(Interaction):
@@ -159,7 +159,7 @@ def test_compile_system_keeps_oscillator_equations():
     m = problem.symbols['p.m']
     (center,) = problem.symbols['trap.center']
     assert problem.equations['p.x[0]'] == v
-    assert sympy.simplify(problem.equations['p.v[0]'] + k * (x - center) / m) == 0
+    assert (problem.equations['p.v[0]'] + k * (x - center) / m).simplify_full() == 0
 
 
 def test_compile_system_vector_state_takes_space_dimension():

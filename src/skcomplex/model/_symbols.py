@@ -17,9 +17,9 @@ class Symbols:
             The symbols and nested namespaces by name.
 
     Examples:
-        >>> import sympy
+        >>> from skcomplex.core import symbol
         >>> from skcomplex.model import Symbols
-        >>> s = Symbols(a=sympy.Symbol('a'), prey=Symbols(n=sympy.Symbol('n')))
+        >>> s = Symbols(a=symbol('a'), prey=Symbols(n=symbol('n')))
         >>> s.a * s.prey.n
         a*n
     """

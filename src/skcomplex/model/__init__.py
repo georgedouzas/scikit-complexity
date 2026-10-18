@@ -1,6 +1,7 @@
 """Describe models as elements, interactions, laws, spaces, and systems."""
 
 from ._components import AgentType, Aggregate, Element, Group, Interaction, PairInteraction
+from ._functions import both, either, mod, where
 from ._laws import Boundary, Call, Jump, Law, Noise, NumericFunction, Rate, Rule, Target, Update
 from ._spaces import ContinuousSpace, EuclideanSpace, GridSpace, NetworkSpace, Space
 from ._symbols import Symbols
@@ -31,4 +32,8 @@ __all__: list[str] = [
     'System',
     'Target',
     'Update',
+    'both',
+    'either',
+    'mod',
+    'where',
 ]
