@@ -102,3 +102,15 @@ eating, reproduce, and die.
 #### Scenario: Populations change
 - **WHEN** the wolf and sheep model runs for 100 steps with its default parameters
 - **THEN** both the wolf and sheep counts change over the run and are reported every frame
+
+### Requirement: Coupled harvesting example
+The library SHALL provide a socio-ecological model in which farmer agents harvest a resource whose stock regrows by a
+logistic ODE, and the harvest depends on the number of farmers through an aggregate.
+
+#### Scenario: Overharvesting collapses the resource
+- **WHEN** the harvesting model runs with a harvest effort high enough that harvest exceeds the largest regrowth
+- **THEN** the resource stock falls towards zero over the run
+
+#### Scenario: Sustainable effort
+- **WHEN** the harvesting model runs with a harvest effort below the largest regrowth
+- **THEN** the resource stock settles at a positive level
