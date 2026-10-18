@@ -47,17 +47,21 @@ class Call:
 
 @dataclass(frozen=True)
 class Rate:
-    """Contribution to the time derivative of a state.
+    """Contribution to the highest time derivative of a state, the first for states of order 1.
 
-    Rates on the same state add up, so a system with only rate laws is a system of ordinary differential equations.
+    Rates on the same state add up, so a system with only rate laws is a system of ordinary differential equations. On
+    a state of order `k`, a rate contributes to the `k`-th derivative, so independent mechanisms superpose.
 
     Args:
         target:
             The symbol of a scalar state, or the column of symbols of a vector state.
 
         value:
-            A symbolic expression, anything SymPy can convert to one, or a callable `f(t, values)` where `values`
-            maps dotted state and parameter names to their current values.
+            A symbolic expression or a callable `f(t, values)` where `values` maps dotted state and parameter names to
+            their current values.
+
+        order:
+            The order of the derivative the rate gives, checked against the state's order, or `None` to use it.
 
     Examples:
         >>> from skcomplex.core import symbol
@@ -69,11 +73,12 @@ class Rate:
 
     target: Target
     value: object
+    order: int | None = None
 
 
 @dataclass(frozen=True)
 class Noise:
-    """Amplitude of an independent Wiener process that drives a state.
+    """Amplitude of an independent Wiener process that drives the highest time derivative of a state.
 
     Args:
         target:
@@ -81,6 +86,9 @@ class Noise:
 
         value:
             A symbolic expression or a callable `f(t, values)`. A vector target gets one Wiener process per component.
+
+        order:
+            The order of the derivative the noise drives, checked against the state's order, or `None` to use it.
 
     Examples:
         >>> from skcomplex.core import symbol
@@ -92,6 +100,7 @@ class Noise:
 
     target: Target
     value: object
+    order: int | None = None
 
 
 @dataclass(frozen=True)
@@ -186,4 +195,41 @@ class Rule:
     function: Callable[..., None]
 
 
-type Law = Rate | Noise | Jump | Update | Boundary | Rule
+@dataclass(frozen=True, init=False)
+class Equation:
+    """Implicit relation in which the highest time derivatives of states appear, such as Newton's second law.
+
+    The compiler solves all equations of a system jointly for the highest derivatives, which must appear linearly, and
+    adds the rate laws on the same states to the solution.
+
+    Args:
+        lhs:
+            The left side, or a Sage relation `lhs == rhs`.
+
+        rhs:
+            The right side, or `None` when `lhs` is a relation.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import sin
+        >>> from skcomplex.core import symbol
+        >>> from skcomplex.model import Equation, derivative
+        >>> theta, g, l = symbol('theta'), symbol('g'), symbol('l')
+        >>> Equation(l * derivative(theta, 2) == -g * sin(theta)).rhs
+        -g*sin(theta)
+    """
+
+    lhs: object
+    rhs: object
+
+    def __init__(self, lhs: object, rhs: object = None) -> None:
+        relation: Any = lhs
+        if rhs is None and hasattr(relation, 'is_relational') and relation.is_relational():
+            lhs, rhs = relation.lhs(), relation.rhs()
+        if rhs is None:
+            error_msg = 'An equation takes a left and a right side, or one relation `lhs == rhs`.'
+            raise ValueError(error_msg)
+        object.__setattr__(self, 'lhs', lhs)
+        object.__setattr__(self, 'rhs', rhs)
+
+
+type Law = Rate | Noise | Jump | Update | Boundary | Rule | Equation

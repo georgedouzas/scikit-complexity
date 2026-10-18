@@ -4,13 +4,15 @@
 # License: MIT
 
 import copy
+import itertools
 import re
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import cast
+from typing import Any, cast
 
 import numpy as np
-from sage.all__sagemath_symbolics import SR
+from sage.all__sagemath_symbolics import SR, matrix
 
 from ..core import (
     Domain,
@@ -35,6 +37,7 @@ from ..model import (
     Boundary,
     Call,
     Element,
+    Equation,
     Group,
     Jump,
     Law,
@@ -265,14 +268,289 @@ def _pair_spec(block: _Block, elements: dict[str, _Block], time: Expression) -> 
 def _collect_laws(spec: _KernelSpec, component: object) -> list[Law]:
     """Return the laws a component returns for its namespace after checking their kinds."""
     laws = component.laws(spec.namespace)  # type: ignore[attr-defined]
-    kinds = Rate | Noise | Jump | Update | Boundary | Rule
+    kinds = Rate | Noise | Jump | Update | Boundary | Rule | Equation
     if not isinstance(laws, list | tuple) or not all(isinstance(law, kinds) for law in laws):
-        error_msg = f'`laws` of {spec.owner} must return a list of Rate, Noise, Jump, Update, Boundary, or Rule laws.'
+        error_msg = (
+            f'`laws` of {spec.owner} must return a list of Rate, Noise, Jump, Update, Boundary, Rule, or Equation laws.'
+        )
         raise ValidationError(error_msg)
     if spec.pairs is not None and not all(isinstance(law, Rate) for law in laws):
         error_msg = f'Pair interaction {spec.owner} returns laws other than Rate, which pair interactions do not take.'
         raise ValidationError(error_msg)
     return list(laws)
+
+
+@dataclass(frozen=True)
+class _Orders:
+    """Orders and lags of the states of a system by entry name."""
+
+    orders: dict[str, int]
+    lags: dict[str, int]
+
+    @classmethod
+    def of(cls, blocks: list[_Block]) -> '_Orders':
+        """Return the orders above 1 and the lags of every state of the blocks."""
+        orders, lags = {}, {}
+        for block in blocks:
+            if _is_interaction(block.node) or block.node.is_agent:
+                continue
+            declarations = declarations_of(block.node.component_type, VariableKind.STATE)
+            for variable, entry in block.entries.items():
+                declaration = declarations.get(variable)
+                if declaration is not None and declaration.order > 1:
+                    orders[entry.name] = declaration.order
+                if declaration is not None and declaration.lags:
+                    lags[entry.name] = declaration.lags
+        return cls(orders, lags)
+
+
+def _companion_symbol(spec: _KernelSpec, item: Expression, suffix: str) -> Expression:
+    """Return the symbol of a companion state of the state a symbol reads, in the same namespace and column."""
+    reference = spec.references[item]
+    name = f'{reference.entry.name}{suffix}'
+    for other, candidate in spec.references.items():
+        if (
+            candidate.entry.name == name
+            and candidate.column == reference.column
+            and candidate.source == reference.source
+        ):
+            return other
+    error_msg = f'A law of {spec.owner} reads {name}, which the namespace does not hold.'
+    raise ValidationError(error_msg)
+
+
+def _calls(expression: Expression, name: str) -> list[Expression]:
+    """Return the calls of a symbolic function by name inside an expression."""
+    found, stack = [], [expression]
+    while stack:
+        item = stack.pop()
+        if item.operator() is None:
+            continue
+        if getattr(item.operator(), 'name', lambda: '')() == name:
+            found.append(item)
+        stack.extend(item.operands())
+    return found
+
+
+@dataclass(frozen=True)
+class _Relation:
+    """Equation of a component as `expression == 0`, with the placeholders of its highest derivatives."""
+
+    spec: _KernelSpec
+    expression: Expression
+    highest: dict[Expression, Expression]
+    description: str
+
+
+def _substitute(
+    value: object,
+    spec: _KernelSpec,
+    orders: _Orders,
+    owner: str,
+    highest: dict[Expression, Expression] | None = None,
+) -> object:
+    """Return a law value with derivatives and lags of states replaced by their companion symbols.
+
+    When `highest` is given, derivatives of a state's own order become placeholders that map to the symbol of the
+    state's highest derivative, which an equation solves for.
+    """
+    if isinstance(value, SymbolicVector):
+        return vector(_substitute(item, spec, orders, owner, highest) for item in value)
+    if not isinstance(value, Expression):
+        return value
+    replacements = {}
+    for call in _calls(value, 'derivative'):
+        item, degree = call.operands()
+        reference = spec.references.get(item)
+        order = orders.orders.get(reference.entry.name, 1) if reference is not None else 1
+        if highest is not None and reference is not None and degree.is_integer() and int(degree) == order:
+            top = item if order == 1 else _companion_symbol(spec, item, f'_d{order - 1}')
+            placeholder = symbol(f'_highest_{top}')
+            highest[placeholder] = top
+            replacements[call] = placeholder
+            continue
+        if reference is None or not degree.is_integer() or not 0 < int(degree) < order:
+            error_msg = (
+                f'{owner} uses {call}, but laws read derivatives of a state only below its declared order, here '
+                f'{order}. Declare a higher order with `state(order=...)`, or state the highest derivative with an '
+                '`Equation`.'
+            )
+            raise ValidationError(error_msg)
+        replacements[call] = _companion_symbol(spec, item, f'_d{int(degree)}')
+    for call in _calls(value, 'lag'):
+        item, steps = call.operands()
+        reference = spec.references.get(item)
+        kept = orders.lags.get(reference.entry.name, 0) if reference is not None else 0
+        if reference is None or not steps.is_integer() or not 0 < int(steps) <= kept:
+            error_msg = (
+                f'{owner} uses {call}, but the state keeps {kept} past values. Declare more with `state(lags=...)`.'
+            )
+            raise ValidationError(error_msg)
+        replacements[call] = _companion_symbol(spec, item, f'_lag{int(steps)}')
+    return value.subs(replacements) if replacements else value
+
+
+def _retarget(law: Rate | Noise, spec: _KernelSpec, orders: _Orders) -> Rate | Noise:
+    """Return a rate or noise law that targets the highest derivative of its state, after checking its order."""
+    items = components_of(law.target)
+    references = [spec.references.get(item) for item in items]
+    declared = {orders.orders.get(reference.entry.name, 1) for reference in references if reference is not None}
+    order = max(declared, default=1)
+    if law.order is not None and law.order != order:
+        names = ', '.join(sorted({reference.entry.name for reference in references if reference is not None}))
+        error_msg = (
+            f'A {type(law).__name__} law of {spec.owner} on {names} gives the derivative of order {law.order}, but the '
+            f'state has order {order}. Match the law to the order declared with `state(order=...)`.'
+        )
+        raise ValidationError(error_msg)
+    if order == 1:
+        return law
+    tops = [_companion_symbol(spec, item, f'_d{order - 1}') for item in items]
+    target = vector(tops) if isinstance(law.target, SymbolicVector) else tops[0]
+    return type(law)(target, law.value, law.order)
+
+
+def _intrinsic_laws(spec: _KernelSpec, block: _Block, orders: _Orders) -> list[Law]:
+    """Return the chain `x' = x_d1, ...` of every higher-order state and the shifts of every lagged state."""
+    laws: list[Law] = []
+    for variable, entry in block.entries.items():
+        names = [variable, *(f'{variable}_d{index}' for index in range(1, orders.orders.get(entry.name, 1)))]
+        laws += [
+            Rate(getattr(spec.namespace, lower), getattr(spec.namespace, upper))
+            for lower, upper in itertools.pairwise(names)
+        ]
+        shifted = [variable, *(f'{variable}_lag{index}' for index in range(1, orders.lags.get(entry.name, 0) + 1))]
+        laws += [
+            Update(getattr(spec.namespace, older), getattr(spec.namespace, newer))
+            for newer, older in itertools.pairwise(shifted)
+        ]
+    return laws
+
+
+def _relation(spec: _KernelSpec, law: Equation, orders: _Orders) -> _Relation:
+    """Return an equation law as a relation in placeholders of the highest derivatives it contains."""
+    description = f'the equation {law.lhs} == {law.rhs} of {spec.owner}'
+    if spec.pairs is not None:
+        error_msg = f'Pair interaction {spec.owner} returns {description}. Pair interactions take only rate laws.'
+        raise ValidationError(error_msg)
+    highest: dict[Expression, Expression] = {}
+    lhs = _substitute(SR(law.lhs), spec, orders, f'In {description}, it', highest)
+    rhs = _substitute(SR(law.rhs), spec, orders, f'In {description}, it', highest)
+    if not highest:
+        error_msg = f'{description[0].upper()}{description[1:]} contains no highest derivative of a state to solve for.'
+        raise ValidationError(error_msg)
+    return _Relation(spec, SR(lhs) - SR(rhs), highest, description)
+
+
+def _with_orders(spec: _KernelSpec, laws: list[Law], block: _Block, orders: _Orders) -> list[Any]:
+    """Return laws with derivatives and lags substituted, rates retargeted, equations as relations, and chains added."""
+    if not orders.orders and not orders.lags and not any(isinstance(law, Equation) for law in laws):
+        return laws
+    result: list[Any] = []
+    for law in laws:
+        if isinstance(law, Rule):
+            result.append(law)
+            continue
+        if isinstance(law, Equation):
+            result.append(_relation(spec, law, orders))
+            continue
+        owner = f'A {type(law).__name__} law of {spec.owner}'
+        if isinstance(law, Jump):
+            result.append(Jump(_substitute(law.rate, spec, orders, owner), law.changes))
+            continue
+        value = _substitute(law.value, spec, orders, owner)
+        if isinstance(law, Rate | Noise):
+            result.append(_retarget(type(law)(law.target, value, law.order), spec, orders))
+        else:
+            result.append(type(law)(law.target, value))
+    if not _is_interaction(block.node):
+        result += _intrinsic_laws(spec, block, orders)
+    return result
+
+
+def _companions(blocks: list[_Block]) -> dict[str, tuple[str, str, int]]:
+    """Return every companion state by name, with its kind, the name of its state, and its index."""
+    companions = {}
+    for block in blocks:
+        if _is_interaction(block.node) or block.node.is_agent:
+            continue
+        declarations = declarations_of(block.node.component_type, VariableKind.STATE)
+        for variable, entry in block.entries.items():
+            declaration = declarations.get(variable)
+            if declaration is None or (declaration.derivative_of is None and declaration.lag_of is None):
+                continue
+            kind, base = (
+                ('derivative', declaration.derivative_of) if declaration.derivative_of else ('lag', declaration.lag_of)
+            )
+            companions[entry.name] = (kind, f'{block.node.path}.{base}', declaration.index)
+    return companions
+
+
+EQUATION_UNKNOWNS = 6
+
+
+def _numeric_solution(rows: int, size: int, index: int) -> Callable[..., Any]:
+    """Return a function of the matrix and right side entries that solves the linear system for one unknown."""
+
+    def solve(t: float, *entries: Any) -> Any:  # noqa: ANN401
+        del t
+        values = [np.broadcast_to(np.asarray(entry, dtype=float), (rows,)) for entry in entries]
+        matrix_ = np.stack(values[: size * size], axis=-1).reshape(rows, size, size)
+        right = np.stack(values[size * size :], axis=-1)
+        return np.linalg.solve(matrix_, right[..., None])[..., 0][:, index]
+
+    return solve
+
+
+def _solve_equations(specs: list[tuple[_KernelSpec, list[Any]]]) -> list[tuple[_KernelSpec, list[Law]]]:
+    """Return specs whose equations are replaced by rate laws on the highest derivatives they solve for jointly."""
+    relations = [item for _, laws in specs for item in laws if isinstance(item, _Relation)]
+    kept = [(spec, [law for law in laws if not isinstance(law, _Relation)]) for spec, laws in specs]
+    if not relations:
+        return kept
+    highest: dict[Expression, Expression] = {}
+    for relation in relations:
+        highest.update(relation.highest)
+    unknowns = list(highest)
+    for relation in relations:
+        for first in unknowns:
+            for second in unknowns:
+                if not relation.expression.diff(first).diff(second).is_trivial_zero():
+                    error_msg = (
+                        f'{relation.description[0].upper()}{relation.description[1:]} is not linear in the highest '
+                        f'derivative {highest[first]}. Write the equation so that highest derivatives appear linearly.'
+                    )
+                    raise ValidationError(error_msg)
+    descriptions = '; '.join(relation.description for relation in relations)
+    if len(relations) != len(unknowns):
+        error_msg = (
+            f'{len(relations)} equations give {len(unknowns)} highest derivatives, '
+            f'{", ".join(str(highest[item]) for item in unknowns)}, in {descriptions}. Give one equation per '
+            'derivative.'
+        )
+        raise ValidationError(error_msg)
+    zero = dict.fromkeys(unknowns, 0)
+    coefficients = [[relation.expression.diff(item) for item in unknowns] for relation in relations]
+    right = [-relation.expression.subs(zero) for relation in relations]
+    references = {key: value for relation in relations for key, value in relation.spec.references.items()}
+    rows = max(relation.spec.rows for relation in relations)
+    owner = ', '.join(dict.fromkeys(relation.spec.owner for relation in relations))
+    merged = _KernelSpec(owner, Symbols(), references, rows)
+    laws: list[Law]
+    if len(unknowns) <= EQUATION_UNKNOWNS:
+        try:
+            solution = matrix(SR, coefficients).solve_right(vector(right))
+        except (ValueError, ZeroDivisionError) as error:
+            error_msg = f'The highest derivatives of {descriptions} cannot be solved for: {error}.'
+            raise ValidationError(error_msg) from error
+        laws = [Rate(highest[item], value) for item, value in zip(unknowns, solution, strict=True)]
+    else:
+        entries = [entry for row in coefficients for entry in row] + right
+        laws = [
+            Rate(highest[item], Call(_numeric_solution(rows, len(unknowns), index), *entries))
+            for index, item in enumerate(unknowns)
+        ]
+    return [*kept, (merged, laws)]
 
 
 def _component_of(node: Node) -> object:
@@ -346,6 +624,9 @@ def _lower_laws(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Decla
                 lowered.jump_changes[id(output)] = changes
                 outputs[Jump].append(output)
                 continue
+            if isinstance(law, Equation):
+                error_msg = f'An equation of {spec.owner} reached lowering before it was solved.'
+                raise ValidationError(error_msg)
             targets = _target_references(law.target, spec)
             if isinstance(law, ASSIGNED_KINDS):
                 _check_assignments(spec, law, targets, assigned[type(law)])
@@ -518,6 +799,8 @@ def _law_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
     if isinstance(law, Rule):
         paths = list(spec.roles.values())
         return next((path for path in paths if path in agents), next(iter(paths), spec.owner))
+    if isinstance(law, Equation):
+        return spec.owner
     target = next(iter(law.changes)) if isinstance(law, Jump) else law.target
     return _target_references(target, spec)[0].entry.name.rpartition('.')[0]
 
@@ -614,6 +897,10 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         else:
             spec = _interaction_spec(block, elements, declarations.time)
         specs.append((spec, _collect_laws(spec, _component_of(block.node))))
+    orders = _Orders.of(blocks)
+    specs = _solve_equations(
+        [(spec, _with_orders(spec, laws, block, orders)) for (spec, laws), block in zip(specs, blocks, strict=True)],
+    )
     agents = {block.node.path for block in blocks if block.node.is_agent}
     if owners is not None:
         specs = [(spec, [law for law in laws if _law_owner(spec, law, agents) in owners]) for spec, laws in specs]
@@ -684,6 +971,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
             if isinstance(law, Rule) and spec.owner not in {block.node.path for block in blocks if block.node.is_agent}
         ),
         agent_space=_agent_space(blocks),
+        companions=_companions(blocks),
         **functions,  # type: ignore[arg-type]
     )
 

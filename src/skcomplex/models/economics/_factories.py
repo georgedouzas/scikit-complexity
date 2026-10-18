@@ -3,7 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ...model import System
+from ...core import state
+from ...model import Element, System, Update, lag
 from ...runtime import register_model
 from ._growth import Cobweb, Economy, Market, SolowGrowth
 
@@ -83,3 +84,57 @@ def cobweb(price: float = 1.0, *, a: float = 10.0, b: float = 2.0, c: float = 1.
         elements=[Market('market', price=price)],
         interactions=[Cobweb('cobweb', target='market', a=a, b=b, c=c, d=d)],
     )
+
+
+Income = Element.define(
+    'Income',
+    states={'Y': state(default=110.0, lags=1, initial=(100.0,))},
+    parameters={'c': 0.8, 'v': 1.5, 'G': 20.0},
+    laws=lambda s: [Update(s.Y, s.c * (1 + s.v) * s.Y - s.c * s.v * lag(s.Y, 1) + s.G)],
+)
+
+
+@register_model(
+    field='economics',
+    tags=('business cycle', 'discrete map', 'second order'),
+    references=('Samuelson 1939',),
+    defaults={'until': 40, 'dt': 1},
+)
+def multiplier_accelerator(
+    income: float = 110.0,
+    previous: float = 100.0,
+    *,
+    c: float = 0.8,
+    v: float = 1.5,
+    G: float = 20.0,
+) -> System:
+    """Return Samuelson's multiplier-accelerator, `Y_{t+1} = c (1 + v) Y_t - c v Y_{t-1} + G`.
+
+    Income oscillates around `G / (1 - c)`, with growing amplitude when `c v > 1` and complex characteristic roots.
+
+    Args:
+        income:
+            The income of the current period.
+
+        previous:
+            The income of the previous period.
+
+        c:
+            The marginal propensity to consume.
+
+        v:
+            The accelerator, the investment response to the change in consumption.
+
+        G:
+            The government spending.
+
+    Returns:
+        system:
+            The model, with the income `economy.Y` and its previous value `economy.Y_lag1`.
+
+    Examples:
+        >>> from skcomplex.models.economics import multiplier_accelerator
+        >>> multiplier_accelerator(v=0.5).elements[0].v
+        0.5
+    """
+    return System(elements=[Income('economy', Y=income, Y_lag1=previous, c=c, v=v, G=G)])

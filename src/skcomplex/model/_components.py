@@ -10,7 +10,7 @@ from typing import Any, ClassVar, dataclass_transform
 
 from sklearn.base import BaseEstimator
 
-from ..core import Domain, VisualSpec, parameter, role, state
+from ..core import Domain, VisualSpec, companions_of, declaration_of, parameter, role, state
 from ._laws import Law
 from ._symbols import Symbols
 
@@ -31,8 +31,19 @@ class Component(BaseEstimator):
     label: str
 
     def __init_subclass__(cls, **kwargs: Any) -> None:  # noqa: ANN401
-        """Turn the subclass into a keyword-only dataclass."""
+        """Add the companion states of higher-order and lagged states, and turn the subclass into a dataclass."""
         super().__init_subclass__(**kwargs)
+        annotations = dict(inspect.get_annotations(cls))
+        for name, value in list(vars(cls).items()):
+            declaration = declaration_of(value)
+            if declaration is None or (declaration.order == 1 and not declaration.lags):
+                continue
+            default = value.default if value.default is not dataclasses.MISSING else 0.0
+            for companion, field in companions_of(name, declaration, default).items():
+                if companion not in vars(cls):
+                    setattr(cls, companion, field)
+                    annotations[companion] = Any
+        cls.__annotations__ = annotations
         dataclasses.dataclass(kw_only=True, eq=False, repr=False)(cls)
 
     def laws(self, s: Symbols) -> list[Law]:

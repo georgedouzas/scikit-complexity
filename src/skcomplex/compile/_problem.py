@@ -228,6 +228,10 @@ class Problem:
         agent_space:
             The space the agents of an agent-based problem live in, or `None`.
 
+        companions:
+            A mapping from the name of every companion state to its kind, `'derivative'` or `'lag'`, the name of the
+            state it belongs to, and the order of the derivative or the number of steps back.
+
         partitions:
             The partitions of a co-simulation problem, in system order.
 
@@ -277,6 +281,7 @@ class Problem:
     model_rules: tuple[tuple[str, Rule], ...] = ()
     agent_space: Space | None = None
     partitions: tuple['Partition', ...] = ()
+    companions: Mapping[str, tuple[str, str, int]] = field(default_factory=dict)
     drift: VectorFunction | None = field(default=None, repr=False)
     diffusion: VectorFunction | None = field(default=None, repr=False)
     noise_rows: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)

@@ -135,6 +135,40 @@ Person = Element.define('Person', states={'health': state('susceptible', domain=
 Rotor = Element.define('Rotor', states={'theta': state(0.0, domain=Domain.ANGLE)})
 ```
 
+### Equations of any order
+
+Laws give the highest time derivative of a state, and a state declares how high that is with `order`. Newton's second
+law for a pendulum, `m l θ'' = -m g sin θ`, is written as it reads. The framework adds the angular velocity as the
+companion state `theta_d1`, sets its initial value from the constructor, and reduces the equation to first order for
+the solvers.
+
+```python
+from sage.all__sagemath_symbolics import sin
+
+from skcomplex.model import Equation, derivative
+
+Pendulum = Element.define(
+    'Pendulum',
+    states={'theta': state(default=0.5, domain=Domain.ANGLE, order=2)},
+    parameters={'m': 1.0, 'g': 9.81, 'l': 1.0},
+    laws=lambda s: [Equation(s.m * s.l * derivative(s.theta, 2) == -s.m * s.g * sin(s.theta))],
+)
+```
+
+- On a state of order `k`, rate and noise laws contribute to the `k`-th derivative and add up, so separate interactions
+  supply separate forces, voltages, or growth terms: `Rate(s.target.x, -s.k * s.target.x / s.target.m)` from a spring
+  and `Rate(s.target.x, -s.c * derivative(s.target.x, 1) / s.target.m)` from a damper superpose.
+- `derivative(x, j)` reads the companion `x_d<j>` below the state's order. An `Equation` may contain the derivative of
+  the state's own order, linearly, and the compiler solves all equations of a system jointly for those derivatives,
+  which couples, for example, the two angles of a double pendulum.
+- Any order works the same way, such as Sprott's chaotic jerk equation `x''' = -A x'' - x' + |x| - 1` on a state of
+  order 3.
+- Difference equations keep past values with `lags`. `lag(x, j)` reads the value `j` steps before the current one, and
+  an update law gives the next value, so `Update(s.x, s.x + lag(s.x, 1))` with one lag is the Fibonacci recurrence.
+
+`equations_of` returns these equations in the order they were written, and `solve_symbolically` takes the initial
+values of every derivative and returns a solution only when it has a closed form.
+
 ## Composing systems
 
 Systems nest. An interaction refers to an element of a child system by a slash-separated path.

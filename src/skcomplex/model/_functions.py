@@ -82,6 +82,32 @@ class _Mod(BuiltinFunction):
         return SR(value).diff(diff_param) - floor(value / divisor) * SR(divisor).diff(diff_param)
 
 
+class _Derivative(BuiltinFunction):
+    """Time derivative of a state of a given order, `derivative(x, j)`."""
+
+    def __init__(self) -> None:
+        super().__init__('derivative', nargs=2)
+
+    def _eval_(self, value: Expression, order: Expression) -> Expression | None:
+        """Return the state itself for order 0, or `None` to stay unevaluated."""
+        if SR(order).is_numeric() and SR(order).pyobject() == 0:
+            return value
+        return None
+
+
+class _Lag(BuiltinFunction):
+    """Value of a state of a discrete map a given number of steps back, `lag(x, j)`."""
+
+    def __init__(self) -> None:
+        super().__init__('lag', nargs=2)
+
+    def _eval_(self, value: Expression, steps: Expression) -> Expression | None:
+        """Return the state itself for zero steps, or `None` to stay unevaluated."""
+        if SR(steps).is_numeric() and SR(steps).pyobject() == 0:
+            return value
+        return None
+
+
 where = _Where()
 where.__doc__ = """Return `then` where a condition holds and `otherwise` elsewhere.
 
@@ -172,4 +198,60 @@ Examples:
     0.75
 """
 
-__test__ = {'where': where.__doc__, 'either': either.__doc__, 'both': both.__doc__, 'mod': mod.__doc__}
+derivative = _Derivative()
+derivative.__doc__ = """Return the time derivative of a state of a given order.
+
+The compiler replaces derivatives below a state's order with its companion states `<name>_d<j>`, and an equation law
+solves for the derivative of the state's own order.
+
+Args:
+    value:
+        The symbol of a state.
+
+    order:
+        The order of the derivative, 0 for the state itself.
+
+Returns:
+    derivative:
+        The symbolic derivative.
+
+Examples:
+    >>> from skcomplex.core import symbol
+    >>> from skcomplex.model import derivative
+    >>> x = symbol('x')
+    >>> derivative(x, 2) + derivative(x, 0)
+    x + derivative(x, 2)
+"""
+
+lag = _Lag()
+lag.__doc__ = """Return the value of a state of a discrete map a given number of steps back.
+
+The compiler replaces lags with the state's companion states `<name>_lag<j>`, which keep its past values.
+
+Args:
+    value:
+        The symbol of a state.
+
+    steps:
+        The number of steps back, 0 for the current value.
+
+Returns:
+    lagged:
+        The symbolic lagged value.
+
+Examples:
+    >>> from skcomplex.core import symbol
+    >>> from skcomplex.model import lag
+    >>> y = symbol('y')
+    >>> lag(y, 1) - lag(y, 0)
+    -y + lag(y, 1)
+"""
+
+__test__ = {
+    'where': where.__doc__,
+    'either': either.__doc__,
+    'both': both.__doc__,
+    'mod': mod.__doc__,
+    'derivative': derivative.__doc__,
+    'lag': lag.__doc__,
+}

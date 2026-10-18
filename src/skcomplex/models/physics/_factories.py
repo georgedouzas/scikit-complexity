@@ -4,8 +4,10 @@
 # License: MIT
 
 import numpy as np
+from sage.all__sagemath_symbolics import cos, sin
 
-from ...model import EuclideanSpace, Interaction, System
+from ...core import Domain, parameter, state
+from ...model import Element, Equation, EuclideanSpace, Interaction, Rate, System, derivative
 from ...runtime import register_model
 from ._boxes import PeriodicBox
 from ._mechanics import ConstantForce, Gravity, HarmonicPotential, LinearDrag, Particle
@@ -214,3 +216,191 @@ def lennard_jones_fluid(
         interactions=interactions,
         space=EuclideanSpace(2),
     )
+
+
+Pendulum = Element.define(
+    'Pendulum',
+    states={'theta': state(default=0.5, domain=Domain.ANGLE, order=2)},
+    parameters={
+        'm': parameter(default=1.0, domain=Domain.POSITIVE),
+        'g': parameter(default=9.81, domain=Domain.POSITIVE),
+        'l': parameter(default=1.0, domain=Domain.POSITIVE),
+    },
+    laws=lambda s: [Equation(s.m * s.l * derivative(s.theta, 2) == -s.m * s.g * sin(s.theta))],
+)
+
+Oscillator = Element.define(
+    'Oscillator',
+    states={'x': state(default=1.0, order=2)},
+    parameters={
+        'm': parameter(default=1.0, domain=Domain.POSITIVE),
+        'k': parameter(default=1.0, domain=Domain.NONNEGATIVE),
+        'c': parameter(default=0.1, domain=Domain.NONNEGATIVE),
+        'F': parameter(default=0.0),
+        'omega': parameter(default=1.0, domain=Domain.NONNEGATIVE),
+    },
+    laws=lambda s: [Rate(s.x, (-s.k * s.x - s.c * derivative(s.x, 1) + s.F * cos(s.omega * s.t)) / s.m)],
+)
+
+Circuit = Element.define(
+    'Circuit',
+    states={'q': state(default=1.0, order=2)},
+    parameters={
+        'L': parameter(default=1.0, domain=Domain.POSITIVE),
+        'R': parameter(default=0.1, domain=Domain.NONNEGATIVE),
+        'C': parameter(default=1.0, domain=Domain.POSITIVE),
+        'V': parameter(default=0.0),
+        'omega': parameter(default=1.0, domain=Domain.NONNEGATIVE),
+    },
+    laws=lambda s: [
+        Equation(s.L * derivative(s.q, 2) + s.R * derivative(s.q, 1) + s.q / s.C == s.V * cos(s.omega * s.t)),
+    ],
+)
+
+
+@register_model(
+    field='physics',
+    tags=('mechanics', 'ode', 'second order', 'oscillation'),
+    references=('Newton 1687',),
+    defaults={'until': 10.0, 'dt': 0.01},
+)
+def pendulum(
+    theta: float = 0.5,
+    omega: float = 0.0,
+    *,
+    m: float = 1.0,
+    g: float = 9.81,
+    l: float = 1.0,
+) -> System:
+    """Return a pendulum written as Newton's second law, `m l θ'' = -m g sin θ`.
+
+    Args:
+        theta:
+            The initial angle, in radians.
+
+        omega:
+            The initial angular velocity.
+
+        m:
+            The mass of the bob.
+
+        g:
+            The gravitational acceleration.
+
+        l:
+            The length of the rod.
+
+    Returns:
+        system:
+            The model, with the pendulum `bob`, whose angle has order 2 and angular velocity `bob.theta_d1`.
+
+    Examples:
+        >>> from skcomplex.models.physics import pendulum
+        >>> pendulum(theta=0.1).elements[0].theta_d1
+        0.0
+    """
+    return System(elements=[Pendulum('bob', theta=theta, theta_d1=omega, m=m, g=g, l=l)])
+
+
+@register_model(
+    field='physics',
+    tags=('mechanics', 'ode', 'second order', 'oscillation', 'forcing'),
+    references=('Hooke 1678',),
+    defaults={'until': 50.0, 'dt': 0.05},
+)
+def driven_damped_oscillator(
+    x: float = 1.0,
+    v: float = 0.0,
+    *,
+    m: float = 1.0,
+    k: float = 1.0,
+    c: float = 0.1,
+    F: float = 0.0,
+    omega: float = 1.0,
+) -> System:
+    """Return a mass on a spring with damping and a periodic force, `m x'' = -k x - c x' + F cos(ω t)`.
+
+    Args:
+        x:
+            The initial displacement.
+
+        v:
+            The initial velocity.
+
+        m:
+            The mass.
+
+        k:
+            The stiffness.
+
+        c:
+            The damping coefficient.
+
+        F:
+            The amplitude of the driving force.
+
+        omega:
+            The angular frequency of the driving force.
+
+    Returns:
+        system:
+            The model, with the oscillator `mass`, whose displacement has order 2.
+
+    Examples:
+        >>> from skcomplex.models.physics import driven_damped_oscillator
+        >>> driven_damped_oscillator(F=0.5).elements[0].F
+        0.5
+    """
+    return System(elements=[Oscillator('mass', x=x, x_d1=v, m=m, k=k, c=c, F=F, omega=omega)])
+
+
+@register_model(
+    field='physics',
+    tags=('electromagnetism', 'circuit', 'ode', 'second order'),
+    references=('Kirchhoff 1845',),
+    defaults={'until': 50.0, 'dt': 0.05},
+)
+def rlc_circuit(
+    q: float = 1.0,
+    current: float = 0.0,
+    *,
+    L: float = 1.0,
+    R: float = 0.1,
+    C: float = 1.0,
+    V: float = 0.0,
+    omega: float = 1.0,
+) -> System:
+    """Return a series RLC circuit written as Kirchhoff's voltage law, `L q'' + R q' + q / C = V cos(ω t)`.
+
+    Args:
+        q:
+            The initial charge of the capacitor.
+
+        current:
+            The initial current.
+
+        L:
+            The inductance.
+
+        R:
+            The resistance.
+
+        C:
+            The capacitance.
+
+        V:
+            The amplitude of the source voltage.
+
+        omega:
+            The angular frequency of the source.
+
+    Returns:
+        system:
+            The model, with the circuit `circuit`, whose charge has order 2 and current `circuit.q_d1`.
+
+    Examples:
+        >>> from skcomplex.models.physics import rlc_circuit
+        >>> rlc_circuit(R=0.5).elements[0].R
+        0.5
+    """
+    return System(elements=[Circuit('circuit', q=q, q_d1=current, L=L, R=R, C=C, V=V, omega=omega)])

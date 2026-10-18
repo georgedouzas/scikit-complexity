@@ -3,19 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from sage.all__sagemath_symbolics import SR
 from sage.all__sagemath_symbolics import vector as sage_vector
 from sage.modules.free_module_element import FreeModuleElement as SymbolicVector
-from sage.symbolic.assumptions import assume
+from sage.symbolic.assumptions import assume, forget
 from sage.symbolic.expression import Expression
 
 from ._domains import AnyDomain, Categorical, Domain
 
 _DOMAINS: dict[str, AnyDomain] = {}
 _DECLARED: set[str] = set()
+_SIGNS: dict[str, Expression] = {}
 
 
 def symbol(name: str, domain: AnyDomain = Domain.REAL) -> Expression:
@@ -109,31 +110,52 @@ def domain_of(item: Expression) -> AnyDomain:
     return _DOMAINS.get(str(item), Domain.REAL)
 
 
-def declare_domains(items: Iterable[Expression]) -> None:
+def declare_domains(items: Iterable[Expression], values: Mapping[Expression, float] | None = None) -> None:
     """Give Maxima the domains of symbols, once per symbol, so exact solutions use them.
+
+    A symbol of a real domain with a nonzero value also gets the sign of its value, which replaces the sign of an
+    earlier value.
 
     Args:
         items:
             The symbols.
+
+        values:
+            Current values of symbols whose sign Maxima takes when their domain is real.
 
     Raises:
         ValueError:
             A domain contradicts an assumption Maxima already holds.
     """
     for item in items:
-        if str(item) in _DECLARED:
-            continue
+        name = str(item)
         domain = domain_of(item)
-        if isinstance(domain, Categorical) or domain in {Domain.INTEGER, Domain.NONNEGATIVE_INTEGER, Domain.BOOLEAN}:
-            assume(item, 'integer')
-        elif domain in {Domain.REAL, Domain.ANGLE}:
-            assume(item, 'real')
-        if domain is Domain.POSITIVE:
-            assume(item > 0)
-        elif isinstance(domain, Categorical) or domain in {
-            Domain.NONNEGATIVE,
-            Domain.NONNEGATIVE_INTEGER,
-            Domain.BOOLEAN,
-        }:
-            assume(item >= 0)
-        _DECLARED.add(str(item))
+        if name not in _DECLARED:
+            if isinstance(domain, Categorical) or domain in {
+                Domain.INTEGER,
+                Domain.NONNEGATIVE_INTEGER,
+                Domain.BOOLEAN,
+            }:
+                assume(item, 'integer')
+            elif domain in {Domain.REAL, Domain.ANGLE}:
+                assume(item, 'real')
+            if domain is Domain.POSITIVE:
+                assume(item > 0)
+            elif isinstance(domain, Categorical) or domain in {
+                Domain.NONNEGATIVE,
+                Domain.NONNEGATIVE_INTEGER,
+                Domain.BOOLEAN,
+            }:
+                assume(item >= 0)
+            _DECLARED.add(name)
+        value = (values or {}).get(item)
+        if domain is not Domain.REAL or not value:
+            continue
+        sign = item > 0 if value > 0 else item < 0
+        previous = _SIGNS.get(name)
+        if previous is not None and str(previous) == str(sign):
+            continue
+        if previous is not None:
+            forget(previous)
+        assume(sign)
+        _SIGNS[name] = sign

@@ -3,7 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ...model import Interaction, System
+from ...core import Domain, state
+from ...model import Element, Interaction, System, Update, lag
 from ...runtime import register_model
 from ._populations import ExponentialGrowth, LogisticGrowth, Mortality, Population, Predation
 
@@ -135,3 +136,40 @@ def lotka_volterra(
             Mortality('death', target='predators', d=d),
         ],
     )
+
+
+Rabbits = Element.define(
+    'Rabbits',
+    states={'pairs': state(default=1.0, domain=Domain.NONNEGATIVE, lags=1, initial=(0.0,))},
+    laws=lambda s: [Update(s.pairs, s.pairs + lag(s.pairs, 1))],
+)
+
+
+@register_model(
+    field='ecology',
+    tags=('population', 'discrete map', 'second order', 'age structure'),
+    references=('Fibonacci 1202',),
+    defaults={'until': 20, 'dt': 1},
+)
+def fibonacci_rabbits(pairs: float = 1.0, previous: float = 0.0) -> System:
+    """Return Fibonacci's rabbits, `N_{t+1} = N_t + N_{t-1}`, where every pair older than one month breeds a new pair.
+
+    The previous population counts the pairs old enough to breed, so the recurrence is an age structure of two classes.
+
+    Args:
+        pairs:
+            The number of pairs this month.
+
+        previous:
+            The number of pairs last month.
+
+    Returns:
+        system:
+            The model, with the population `rabbits.pairs` and last month's `rabbits.pairs_lag1`.
+
+    Examples:
+        >>> from skcomplex.models.ecology import fibonacci_rabbits
+        >>> fibonacci_rabbits().elements[0].pairs
+        1.0
+    """
+    return System(elements=[Rabbits('rabbits', pairs=pairs, pairs_lag1=previous)])

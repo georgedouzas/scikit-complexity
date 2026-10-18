@@ -5,6 +5,7 @@
 
 import copy
 import dataclasses
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -35,11 +36,35 @@ class Variable:
 
         vector:
             Whether the field has one component per dimension of the enclosing space.
+
+        order:
+            The order of the highest time derivative that laws give for a state.
+
+        lags:
+            The number of past values a state of a discrete map keeps.
+
+        initial:
+            The default initial values of the derivatives of orders 1 to `order - 1`, or of the lags 1 to `lags`.
+
+        derivative_of:
+            The state whose derivative a companion state holds, or `None`.
+
+        lag_of:
+            The state whose past value a companion state holds, or `None`.
+
+        index:
+            The order of the derivative or the lag that a companion state holds.
     """
 
     kind: VariableKind
     domain: AnyDomain = Domain.REAL
     vector: bool = False
+    order: int = 1
+    lags: int = 0
+    initial: tuple[Any, ...] = ()
+    derivative_of: str | None = None
+    lag_of: str | None = None
+    index: int = 0
 
 
 def _declare_field(default: Any, declaration: Variable) -> Any:
@@ -51,8 +76,20 @@ def _declare_field(default: Any, declaration: Variable) -> Any:
     return dataclasses.field(default=default, metadata=metadata)
 
 
-def state(default: Any = 0.0, *, domain: AnyDomain = Domain.REAL, vector: bool = False) -> Any:
+def state(
+    default: Any = 0.0,
+    *,
+    domain: AnyDomain = Domain.REAL,
+    vector: bool = False,
+    order: int = 1,
+    lags: int = 0,
+    initial: Sequence[Any] = (),
+) -> Any:
     """Declare a state variable of an element, with its initial value as default.
+
+    A state of order `k` gets companion states `<name>_d1` to `<name>_d<k-1>` that hold its time derivatives, and laws
+    on it give its `k`-th derivative. A state of a discrete map with `m` lags gets companion states `<name>_lag1` to
+    `<name>_lag<m>` that hold its past values.
 
     Args:
         default:
@@ -64,9 +101,24 @@ def state(default: Any = 0.0, *, domain: AnyDomain = Domain.REAL, vector: bool =
         vector:
             Whether the state has one component per dimension of the enclosing space.
 
+        order:
+            The order of the highest time derivative that laws give, 1 for first-order equations.
+
+        lags:
+            The number of past values the state keeps for difference equations, 0 for none.
+
+        initial:
+            The default initial values of the derivatives of orders 1 to `order - 1`, or of the past values at steps
+            -1 to `-lags`. Missing derivatives default to 0, and missing past values to `default`.
+
     Returns:
         field:
             A dataclass field that carries the declaration.
+
+    Raises:
+        ValueError:
+            The order is below 1, the lags are negative, both are given, or there are more initial values than
+            companions.
 
     Examples:
         >>> from skcomplex.core import Domain, state
@@ -76,7 +128,62 @@ def state(default: Any = 0.0, *, domain: AnyDomain = Domain.REAL, vector: bool =
         >>> Population('rabbits', n=40).n
         40
     """
-    return _declare_field(default, Variable(VariableKind.STATE, domain, vector))
+    if not (isinstance(order, int) and order >= 1 and isinstance(lags, int) and lags >= 0):
+        error_msg = f'order = {order!r} must be an integer of at least 1 and lags = {lags!r} a nonnegative integer.'
+        raise ValueError(error_msg)
+    if order > 1 and lags:
+        error_msg = 'A state takes either an order above 1 for differential equations or lags for difference equations.'
+        raise ValueError(error_msg)
+    if len(initial) > max(order - 1, lags):
+        error_msg = f'{len(initial)} initial values were given for {max(order - 1, lags)} companion states.'
+        raise ValueError(error_msg)
+    declaration = Variable(VariableKind.STATE, domain, vector, order, lags, tuple(initial))
+    return _declare_field(default, declaration)
+
+
+def declaration_of(value: object) -> Variable | None:
+    """Return the declaration a dataclass field carries, or `None` for any other value.
+
+    Args:
+        value:
+            A class attribute of a component.
+
+    Returns:
+        declaration:
+            The declaration of a field made by `state`, `parameter`, or `role`, or `None`.
+    """
+    if isinstance(value, dataclasses.Field):
+        return value.metadata.get(METADATA_KEY)
+    return None
+
+
+def companions_of(name: str, declaration: Variable, default: Any) -> dict[str, Any]:
+    """Return the companion state fields of a state of higher order or with lags, by field name.
+
+    Args:
+        name:
+            The name of the state.
+
+        declaration:
+            The declaration of the state.
+
+        default:
+            The default value of the state, which missing past values take.
+
+    Returns:
+        fields:
+            The companion fields, empty for a first-order state without lags.
+    """
+    fields = {}
+    for index in range(1, declaration.order):
+        value = declaration.initial[index - 1] if index <= len(declaration.initial) else 0.0
+        companion = Variable(VariableKind.STATE, Domain.REAL, declaration.vector, derivative_of=name, index=index)
+        fields[f'{name}_d{index}'] = _declare_field(value, companion)
+    for index in range(1, declaration.lags + 1):
+        value = declaration.initial[index - 1] if index <= len(declaration.initial) else default
+        companion = Variable(VariableKind.STATE, declaration.domain, declaration.vector, lag_of=name, index=index)
+        fields[f'{name}_lag{index}'] = _declare_field(value, companion)
+    return fields
 
 
 def parameter(

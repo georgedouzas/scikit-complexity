@@ -1,7 +1,7 @@
 """Ready-made models as registered factories, built from the general interface, with the catalog that lists them."""
 
 from ..runtime import MODELS, ModelEntry, catalog, create, describe, register_model, run
-from . import ecology, economics, epidemiology, finance, physics, social
+from . import ecology, economics, epidemiology, finance, nonlinear, physics, social
 
 __all__: list[str] = [
     'MODELS',
@@ -13,6 +13,7 @@ __all__: list[str] = [
     'economics',
     'epidemiology',
     'finance',
+    'nonlinear',
     'physics',
     'register_model',
     'run',

@@ -56,9 +56,10 @@ derivatives.
 ### Difference equations of any order
 
 `state(default=..., lags=m, initial=(...))` on a state of a discrete map keeps its last `m` values in companion states
-`<state>_lag<j>`. Initial values give the values at steps `-1` to `-m`. `lag(x, j)` reads the value `j` steps back in
-update laws, and the iteration shifts the companions after every update. Samuelson's model becomes
-`Update(Y, c * (1 + v) * lag(Y, 1) - c * v * lag(Y, 2) + G)` with two lags.
+`<state>_lag<j>`. Initial values give the values at steps `-1` to `-m`. `lag(x, j)` reads the value `j` steps before
+the current one in update laws, which give the next value from the current state, and the iteration shifts the
+companions after every update. Samuelson's model `Y_{t+1} = c (1 + v) Y_t - c v Y_{t-1} + G` therefore keeps one lag:
+`Update(Y, c * (1 + v) * Y - c * v * lag(Y, 1) + G)`.
 
 ### Analysis
 
@@ -82,3 +83,17 @@ declaring them with `domain=Domain.POSITIVE`.
   declared values, and the docstring states that the sign comes from the value when the domain is real.
 - [Generated constructor fields] → They follow one naming rule, appear in `get_params`, and the user guide documents
   them next to the declaration.
+
+## Implementation Notes
+
+- Companion states of derivatives take the real domain, whatever the domain of their state, because a derivative of a
+  positive quantity can be negative. Companions of lags take the domain of their state.
+- Problems record every companion with its kind, state, and index in `Problem.companions`, which the analysis uses to
+  write equations in their order.
+- Equations with up to six highest derivatives are solved symbolically. Larger systems are solved per evaluation with
+  `numpy.linalg.solve` through `Call` laws. Rate laws on a state that also has an equation add to the solved derivative.
+- One equation of order 1 or 2 is solved with `desolve`, and one of higher order with `desolve_laplace`. Values of
+  unknown functions at fixed times, such as `x(0)`, count as integration constants and do not make a solution unclosed.
+- `declare_domains` takes parameter values and gives real parameters the sign of their value, replacing the sign of an
+  earlier value with Maxima's `forget`.
+- The `nonlinear` library module starts here with Sprott's jerk equation, and `add-analysis-toolkit` extends it.

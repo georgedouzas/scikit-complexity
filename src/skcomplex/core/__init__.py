@@ -26,7 +26,7 @@ from ._symbolic import (
     symbols_of,
     vector,
 )
-from ._variables import Variable, VariableKind, declarations_of, parameter, role, state
+from ._variables import Variable, VariableKind, companions_of, declaration_of, declarations_of, parameter, role, state
 from ._visuals import VisualSpec
 
 __all__: list[str] = [
@@ -51,7 +51,9 @@ __all__: list[str] = [
     'Variable',
     'VariableKind',
     'VisualSpec',
+    'companions_of',
     'components_of',
+    'declaration_of',
     'declarations_of',
     'declare_domains',
     'domain_of',
