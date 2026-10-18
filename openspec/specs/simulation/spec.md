@@ -125,3 +125,11 @@ real-time clock of speed 1 with frames every 0.01 time units.
 - **WHEN** a gas of 100000 soft spheres with cutoff pair forces runs with `VelocityVerlet` and step 0.01 for 2 seconds
   with a real-time clock
 - **THEN** the run falls behind by no more than 0.2 seconds
+
+### Requirement: Trajectories record observables
+Trajectories SHALL hold the value of every observable of every system at every frame under the observable's path,
+alongside the states.
+
+#### Scenario: Observable by path
+- **WHEN** a user asks a trajectory for `market/volume`, an observable of the subsystem `market`
+- **THEN** it returns one value per frame
