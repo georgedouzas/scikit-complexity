@@ -556,6 +556,43 @@ colored by a state, agents on networks as graph nodes, and reporters under `repo
 `Particle.group(..., visual=VisualSpec('points', {...}))`. A new visual subclasses `Visual` and is registered with
 `register_visual`, and an element type selects it with its `visual` class variable.
 
+## Experiments
+
+Complex systems are studied through many runs. `Experiment` runs a model, a registered name, a factory, or a system,
+over a design of factory arguments and dotted paths, scenarios, and replicates. Every design row and replicate gets
+its own random stream spawned from `random_state` in a fixed order, so results are the same serially, on threads, or on
+processes, and every scenario of a row and replicate shares its stream. Parameter and initial-state overrides reuse one
+compiled problem, so sweeps of thousands of runs compile once.
+
+```python
+from skcomplex.experiments import Experiment, Grid, LatinHypercube, Scenario, calibrate, sensitivity
+
+ensemble = Experiment('sir', Grid(stochastic=[True], gamma=[0.1, 0.2]), replicates=10, until=60, random_state=0)
+print(ensemble.run().summary()[0]['I.n.mean'])
+
+policies = [Scenario('baseline'), Scenario('quota', schedule=[(50.0, 'harvest.effort', 0.025)])]
+stocks = Experiment('harvesting', scenarios=policies, until=80, outputs=['land/stock.n']).run()
+print([round(float(row['land/stock.n'])) for row in stocks.rows])
+```
+
+- Designs are `Grid`, `RandomDesign`, `LatinHypercube`, `SobolDesign`, and `Rows`. They cross with `*` and
+  concatenate with `+`, and their bounds are pairs or SciPy distributions.
+- `outputs` keeps states and observables as series, after `warmup`, and functions of a trajectory as scalars. Results
+  give one row per run, `series`, `summary` with means, standard deviations, and quantiles across replicates, and
+  `to_frame` for pandas.
+- `sensitivity` ranks parameters one at a time, by Morris screening, or by Sobol indices with SALib.
+- `calibrate` fits dotted paths to observed series by least squares or a Gaussian likelihood, and reports the
+  covariance of the estimates with R², RMSE, MAE, and MAPE.
+
+```python
+import numpy as np
+
+times = np.arange(0.0, 21.0)
+observed = 500 / (1 + 49 * np.exp(-0.8 * times))
+fit = calibrate('logistic_growth', {'population.n': (times, observed)}, {'growth.r': (0.1, 2.0), 'growth.K': (100, 1000)})
+print(round(fit.estimates['growth.r'], 2), round(fit.r2, 4))
+```
+
 ## Analysing symbolically
 
 `equations_of` returns the equations of a system as Sage relations, and `solve_symbolically` solves an ODE system

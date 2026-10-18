@@ -222,7 +222,8 @@ to fill in as the project takes shape.
 - Runtime dependencies: `numpy` 2.1 or later, `scipy` for numeric integration, `passagemath-symbolics` as the Sage
   symbolic layer every law is written in and lowered from, `passagemath-maxima` for exact solutions, `cysignals` at a
   version the passagemath wheels need, `numba` for the compiled backend, `lammps` for the LAMMPS backend, `mesa` for agent-based models, `networkx`
-  for networks, which Mesa 3.5 imports without declaring it, `rerun-sdk` for visualization, and `scikit-learn` for the
+  for networks, which Mesa 3.5 imports without declaring it, `rerun-sdk` for visualization, `SALib` for sensitivity
+  analysis, and `scikit-learn` for the
   estimator contract. Rerun is a core dependency,
   and spawning a local viewer happens only on request, so it is not a real-world side effect.
 - Symbolic layer: Sage is imported only through `sage.all__sagemath_symbolics` and the modules it loads, and the
@@ -231,7 +232,8 @@ to fill in as the project takes shape.
 - LAMMPS: `lammps` is a runtime dependency, with `mpich`, because the LAMMPS wheel links an MPI library it does not
   bundle.
 - Layout: library. The importable package under `src/skcomplex` is distributed to others. Imports run downward
-  through `core`, `model`, `compile`, `solvers`, `runtime`, `viz`, `analysis`, `models`, and `backends`, which
+  through `core`, `model`, `compile`, `solvers`, `runtime`, `viz`, `experiments`, `analysis`, `models`, and
+  `backends`, which
   translates models into third-party libraries and so sits above them. Importing `skcomplex.backends` registers its
   solver names. The top-level package
   re-exports nothing, so every public name is imported from the subpackage that owns it.

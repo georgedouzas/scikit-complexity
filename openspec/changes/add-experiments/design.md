@@ -29,8 +29,9 @@ for their parameters, and systems receive them as overrides of parameter and ini
 
 ### Seeds
 
-The experiment's `random_state` spawns one `SeedSequence` child per run in a fixed order over designs, scenarios, and
-replicates. Each run receives its own generator whatever process executes it, so results do not depend on scheduling.
+The experiment's `random_state` spawns one `SeedSequence` child per design row and replicate, in a fixed order. Every
+scenario of a row and replicate shares the child, as common random numbers, so scenarios differ only through what they
+change. Each run receives its own generator whatever process executes it, so results do not depend on scheduling.
 
 ### Designs
 
@@ -67,3 +68,15 @@ RMSE, MAE, and MAPE as in Bala et al. (2017 ch. 6).
 - [Process start-up cost] → Runs are batched per worker, and a thread or serial executor is the default for small
   experiments.
 - [Stochastic calibration is noisy] → The ensemble size per evaluation is a parameter, and the loss averages it.
+
+## Implementation Notes
+
+- `Simulation` accepts a compiled problem in place of a system. The runner compiles each source once per set of factory
+  arguments, per process, and replaces only the initial state and parameter vectors for dotted-path overrides, so a
+  Sobol analysis of 10,000 runs compiles once.
+- Designs sample with `scipy.stats.qmc`, and SALib serves only Morris and Sobol sensitivity.
+- Process executors receive the factory resolved from a registered name, which pickles by reference, so workers
+  register the library by importing it.
+- Scheduled changes go through an observer that queues parameter updates from the first frame at or after their time.
+- Outputs default to every observable, or to every state when the model declares none.
+

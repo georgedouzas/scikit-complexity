@@ -33,7 +33,8 @@ class Simulation(BaseEstimator):
 
     Args:
         system:
-            The system to simulate.
+            The system to simulate, or a problem already compiled from one, which skips compiling for repeated runs
+            that change only parameters or initial values.
 
         solver:
             `'auto'` for the default solver of the system's form, a registered solver name, or a stepper instance.
@@ -92,7 +93,7 @@ class Simulation(BaseEstimator):
 
     def __init__(
         self,
-        system: System,
+        system: System | Problem,
         *,
         solver: str | Stepper = 'auto',
         backend: str | Backend = 'auto',
@@ -129,7 +130,7 @@ class Simulation(BaseEstimator):
 
     def _prepare(self) -> None:
         """Compile the system, build the stepper, and notify the observers of the start."""
-        self.problem_ = compile_system(self.system, self.backend)
+        self.problem_ = self.system if isinstance(self.system, Problem) else compile_system(self.system, self.backend)
         self.dt_ = self._check_dt(self.problem_)
         self.stepper_ = resolve_solver(self.problem_, self.solver)
         self.observables_ = ObservableEvaluator(self.problem_)

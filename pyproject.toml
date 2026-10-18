@@ -39,6 +39,7 @@ dependencies = [
     "mesa>=3.5.0",
     "networkx>=3.3",
     "scikit-learn>=1.5.1",
+    "SALib>=1.5",
 ]
 
 [project.urls]
@@ -183,10 +184,13 @@ ignore-vulns = ["PYSEC-2022-42969"]
 rerun-sdk = "rerun"
 scikit-learn = "sklearn"
 passagemath-symbolics = "sage"
+SALib = "SALib"
 
 [tool.deptry.per_rule_ignores]
 # Maxima and cysignals are loaded by Sage, and MPI by LAMMPS, so the package never imports them.
 DEP002 = ["passagemath-maxima", "cysignals", "mpich"]
+# pandas is optional: `ExperimentResult.to_frame` imports it on demand and names it when it is missing.
+DEP004 = ["pandas"]
 
 [tool.pytest.ini_options]
 python_files = ["test_*.py"]
