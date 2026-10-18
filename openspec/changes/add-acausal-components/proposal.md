@@ -43,5 +43,5 @@ assign derivatives to states and cannot state algebraic equations.
 
 - `skcomplex.model` gains `Port`, `Equation`, `connect`, and the port domains, and `skcomplex.compile` gains the
   matching, block sorting, and symbolic elimination stage.
-- Depends on `add-general-model-interface`, and on `add-optimal-control` for the thermostat controller in the heated
-  room.
+- Depends on `add-general-model-interface`, on `add-higher-order-equations` for `Equation` and `derivative`, and on
+  `add-optimal-control` for the thermostat controller in the heated room.

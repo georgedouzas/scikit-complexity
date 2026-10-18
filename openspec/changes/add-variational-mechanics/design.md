@@ -22,8 +22,10 @@ particles with Cartesian positions. Sage differentiates, solves linear systems, 
 ### Hamiltonian and Lagrangian interactions
 
 `Hamiltonian(coordinates, momenta, H)` derives `Rate(q, ∂H/∂p)` and `Rate(p, -∂H/∂q)` for every pair.
-`Lagrangian(coordinates, velocities, L)` derives the Euler-Lagrange equations. It solves the mass matrix `∂²L/∂v∂v`
-symbolically for the accelerations, or numerically per step when the symbolic inverse is too large. Coordinates and
+`Lagrangian(coordinates, L)` derives the Euler-Lagrange equations over coordinates of order 2 from
+`add-higher-order-equations`, whose companion `<q>_d1` states are the velocities. It returns them as `Equation` laws, so
+that change's joint solve for the highest derivatives inverts the mass matrix `∂²L/∂v∂v`, symbolically or numerically
+per step. Coordinates and
 momenta are states of the elements the interaction binds, so these interactions compose with forces and dissipation
 written as ordinary laws.
 

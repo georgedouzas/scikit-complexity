@@ -28,8 +28,9 @@ domains.
 
 ### Equations
 
-`Equation(lhs, rhs)` is a law of a component, such as `Equation(p.v - n.v, R * p.i)` and
-`Equation(C * derivative(v), p.i)`. `derivative(x)` marks the state variables of the system. A system may mix
+`Equation(lhs, rhs)` and `derivative(x, j)` come from `add-higher-order-equations`. A component states relations such
+as `Equation(p.v - n.v, R * p.i)` and `Equation(C * derivative(v, 1), p.i)`, and this change extends equations from
+relations in highest derivatives to algebraic relations between port variables. A system may mix
 equation laws with ordinary rate laws.
 
 ### Connections
