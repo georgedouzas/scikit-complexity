@@ -10,9 +10,9 @@ from skcomplex.core.compile import compile_system
 from skcomplex.core.model import AgentType, Aggregate, Interaction, Rate, Rule, System
 from skcomplex.core.runtime import RealTime, Simulation
 from skcomplex.core.solvers import CoSimulation, ScipyODE
-from skcomplex.models.ecology import ExponentialGrowth, LogisticGrowth, Mortality, Population, Predation
-from skcomplex.models.economics import Cobweb, Market
-from skcomplex.models.social import harvesting
+from skcomplex.models.biology.ecology import ExponentialGrowth, LogisticGrowth, Mortality, Population, Predation
+from skcomplex.models.economics.markets import Cobweb, Market
+from skcomplex.models.economics.resources import harvesting
 
 
 class Breeder(AgentType):

@@ -293,7 +293,7 @@ class Experiment(BaseEstimator):
 
     Examples:
         >>> from skcomplex.core.experiments import Experiment, Grid
-        >>> from skcomplex.models.ecology import logistic_growth
+        >>> from skcomplex.models.biology.ecology import logistic_growth
         >>> result = Experiment('logistic_growth', Grid(r=[0.5, 1.0]), until=5, outputs=['population.n']).run()
         >>> len(result.rows)
         2

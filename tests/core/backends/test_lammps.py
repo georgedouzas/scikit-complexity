@@ -11,12 +11,9 @@ from sage.all__sagemath_symbolics import arcsinh, exp
 from skcomplex.core.backends import LammpsBackend
 from skcomplex.core.base import BackendError, Domain, parameter
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import EuclideanSpace, System, where
-from skcomplex.core.runtime import RealTime, Simulation
-from skcomplex.core.solvers import VelocityVerlet
-from skcomplex.models.ecology import LogisticGrowth, Mortality, Population, Predation
-from skcomplex.models.physics import (
+from skcomplex.core.model import (
     ConstantForce,
+    EuclideanSpace,
     HarmonicPotential,
     LangevinThermostat,
     LennardJones,
@@ -25,8 +22,13 @@ from skcomplex.models.physics import (
     Particle,
     PeriodicBox,
     ReflectingBox,
-    ideal_gas,
+    System,
+    where,
 )
+from skcomplex.core.runtime import RealTime, Simulation
+from skcomplex.core.solvers import VelocityVerlet
+from skcomplex.models.biology.ecology import LogisticGrowth, Mortality, Population, Predation
+from skcomplex.models.physics.statistical_mechanics import ideal_gas
 
 CUTOFF = 2.5
 

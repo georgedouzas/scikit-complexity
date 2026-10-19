@@ -7,17 +7,13 @@ from skcomplex.core.analysis import histogram
 from skcomplex.core.experiments import Experiment, Grid
 from skcomplex.core.runtime import Frame, Observer, Simulation
 from skcomplex.core.viz import ImageVisual, RerunObserver
-from skcomplex.models.lattices import (
-    earthquakes,
-    hodgepodge,
-    ising,
-    langtons_ant,
-    majority_rule,
-    nagel_schreckenberg,
-    potts,
-    sandpile,
-    xy,
-)
+from skcomplex.models.chemistry.kinetics import hodgepodge
+from skcomplex.models.computer_science.automata import langtons_ant
+from skcomplex.models.earth.seismology import earthquakes
+from skcomplex.models.engineering.traffic import nagel_schreckenberg
+from skcomplex.models.physics.criticality import sandpile
+from skcomplex.models.physics.statistical_mechanics import ising, potts, xy
+from skcomplex.models.social.opinion_dynamics import majority_rule
 
 CRITICAL_TEMPERATURE = 2 / np.log(1 + np.sqrt(2))
 

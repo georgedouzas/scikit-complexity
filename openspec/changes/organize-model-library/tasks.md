@@ -19,11 +19,11 @@
 
 ## 3. Taxonomy and migration
 
-- [ ] 3.1 Create the field and subfield packages, move every existing model to its new home following the migration
+- [x] 3.1 Create the field and subfield packages, move every existing model to its new home following the migration
   table, move the domain-agnostic shared components into the core and give every package its own science-specific
   components, use catalog field paths, and remove the technique packages, and verify the conformance suite, the layout
   check, and the removal scenario pass over the moved library
-- [ ] 3.2 Update the tests, the user guide, the README, and the gallery to the new paths, and verify the documentation
+- [x] 3.2 Update the tests, the user guide, the README, and the gallery to the new paths, and verify the documentation
   test passes
 
 ## 4. Inventory

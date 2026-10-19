@@ -175,7 +175,7 @@ Systems nest. An interaction refers to an element of a child system by a slash-s
 
 ```python
 from skcomplex.core.model import System
-from skcomplex.models.ecology import Population, Predation
+from skcomplex.models.biology.ecology import Population, Predation
 
 landscape = System(
     systems=[
@@ -332,7 +332,7 @@ inferred by compiling it, `create` builds it by name, and `run` simulates it wit
 ```python
 from skcomplex.models import catalog, create, describe, run
 
-print([entry.name for entry in catalog(field='ecology')])
+print([entry.name for entry in catalog(field='biology/ecology')])
 print(describe('lotka_volterra').formalism)
 predation = create('lotka_volterra', a=0.2)
 print(run('sir').trajectory_['I.n'].max().round())
@@ -350,7 +350,7 @@ and every law written for one member runs over all members with array operations
 import numpy as np
 
 from skcomplex.core.model import EuclideanSpace, MesaSystem
-from skcomplex.models.physics import Particle, ReflectingBox
+from skcomplex.core.model import Particle, ReflectingBox
 
 rng = np.random.default_rng(0)
 gas = System(
@@ -376,7 +376,7 @@ group or between two groups. `PairPotential` derives the forces from a pair ener
 
 ```python
 from skcomplex.core.base import Domain, parameter
-from skcomplex.models.physics import PairPotential
+from skcomplex.core.model import PairPotential
 
 
 class LennardJones(PairPotential):
@@ -443,7 +443,7 @@ relaxation is recorded among the trajectory's events with its size, duration, an
 that count as updates, such as the toppling sites of a sandpile.
 
 ```python
-from skcomplex.models.lattices import sandpile
+from skcomplex.models.physics.criticality import sandpile
 
 trajectory = Simulation(sandpile((20, 20)), dt=100, random_state=0).run(until=2000).trajectory_
 print(max(event.size for event in trajectory.events))
@@ -475,7 +475,8 @@ print(abs(Simulation(spins, dt=50, random_state=0).run(until=200).state_.mean())
 
 Lattice groups stream to Rerun as images colored by value. The library has `elementary_automaton`, `game_of_life`,
 `majority_rule`, `langtons_ant`, `nagel_schreckenberg`, `hodgepodge`, `sandpile`, `forest_fire`, `earthquakes`,
-`ising`, `potts`, and `xy` in `skcomplex.models.lattices`.
+`ising`, `potts`, and `xy`, each in the subfield of its science, such as `skcomplex.models.computer_science.automata`
+for `game_of_life` and `skcomplex.models.physics.statistical_mechanics` for `ising`.
 
 ## Fields
 
@@ -514,7 +515,8 @@ Agents on a grid of the same shape couple to a field in co-simulation. A rule re
 `model.field('ground/pheromone.level', cell)` and adds to it with `model.deposit(name, cell, amount)`, and the
 deposits reach the field at the next synchronisation point. Lattice fields stream to Rerun as images. The library has
 `heat_diffusion`, `fisher_kpp`, `gray_scott`, `brusselator`, `fitzhugh_nagumo`, `schnakenberg`, and
-`pheromone_foraging` in `skcomplex.models.fields`.
+`pheromone_foraging`, such as `gray_scott` in `skcomplex.models.chemistry.pattern_formation` and `heat_diffusion` in
+`skcomplex.models.physics.heat`.
 
 ### Discretizations and stiff solvers
 
@@ -557,11 +559,11 @@ line = Field(
 print(np.abs(Simulation(System(elements=[line]), dt=10, solver=ETDRK4(dt=0.25)).run(until=100).state_).max())
 ```
 
-`skcomplex.models.fluids.incompressible_flow(shape, size, nu=..., forcing=..., buoyancy=...)` builds two-dimensional
+`skcomplex.models.physics.fluids.incompressible_flow(shape, size, nu=..., forcing=..., buoyancy=...)` builds two-dimensional
 incompressible flow in vorticity-streamfunction form, with Boussinesq convection when `buoyancy` gives `Ra` and `Pr`.
-The library has `kuramoto_sivashinsky`, `complex_ginzburg_landau`, `swift_hohenberg`, and `heat_l_shape` in
-`skcomplex.models.fields`, and `burgers`, `shallow_water`, `decaying_turbulence`, and `rayleigh_benard` in
-`skcomplex.models.fluids`.
+The library has `kuramoto_sivashinsky`, `complex_ginzburg_landau`, `swift_hohenberg`, and `heat_l_shape` in the
+subfields `fluids`, `pattern_formation`, and `heat` of `skcomplex.models.physics`, and `burgers`, `shallow_water`,
+`decaying_turbulence`, and `rayleigh_benard` in `skcomplex.models.physics.fluids`.
 
 ## Backends and speed
 
@@ -572,7 +574,7 @@ hold at least 1000 members in total, because compiling takes a second or two tha
 
 ```python
 from skcomplex.core.compile import NumbaBackend
-from skcomplex.models.physics import ideal_gas
+from skcomplex.models.physics.statistical_mechanics import ideal_gas
 from skcomplex.core.solvers import RK4
 
 simulation = Simulation(ideal_gas(50_000, random_state=0), solver=RK4(dt=0.01), backend='numba', dt=0.01)
@@ -589,7 +591,7 @@ runs inside the compiled kernels, and the NumPy backend calls it from Python.
 import numba
 
 from skcomplex.core.model import Call, Rate
-from skcomplex.models.ecology import Population
+from skcomplex.models.biology.ecology import Population
 
 
 @numba.njit
@@ -623,7 +625,7 @@ integrates them with velocity Verlet.
 
 ```python
 from skcomplex.core.backends import LammpsBackend
-from skcomplex.models.physics import LangevinThermostat, LennardJones
+from skcomplex.core.model import LangevinThermostat, LennardJones
 
 atoms = System(
     elements=[Particle.group('atoms', 100, x=np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2))],
@@ -698,8 +700,8 @@ print(trajectory['foragers.count'][-1], len(trajectory.agents('foragers', 20)))
   the nodes of a NetworkX graph, and `ContinuousSpace` finds neighbours within a radius.
 - Frames and trajectories hold every group's agents with their ids, states, and locations, through
   `trajectory.agents(group, frame)`, and the count of every group as the reporter `<group>.count`.
-- `skcomplex.models.social` has Schelling segregation, Boltzmann wealth exchange, and the voter model, and
-  `skcomplex.models.ecology` has the wolf and sheep model.
+- `skcomplex.models.social` has Schelling segregation and the voter model, `skcomplex.models.economics.econophysics`
+  has Boltzmann wealth exchange, and `skcomplex.models.biology.ecology` has the wolf and sheep model.
 
 ### Existing Mesa models
 
@@ -749,7 +751,7 @@ elements mix law kinds raises `IncompatibleLawsError` with its path and the sugg
 
 ```python
 from skcomplex.core.compile import compile_system
-from skcomplex.models.social import harvesting
+from skcomplex.models.economics.resources import harvesting
 
 farming = harvesting(10, effort=0.05)
 print([(partition.name, partition.problem.form.value) for partition in compile_system(farming).partitions])
@@ -783,7 +785,7 @@ import tempfile
 from pathlib import Path
 
 from skcomplex.core.model import EuclideanSpace
-from skcomplex.models.physics import Particle, Spring
+from skcomplex.core.model import Particle, Spring
 from skcomplex.core.viz import RerunObserver
 
 molecule = System(
@@ -846,7 +848,7 @@ coefficients.
 
 ```python
 from skcomplex.core.analysis import equations_of, solve_symbolically
-from skcomplex.models.physics import HarmonicPotential
+from skcomplex.core.model import HarmonicPotential
 
 oscillator = System(
     elements=[Particle('p', x=1.0)],
@@ -869,8 +871,8 @@ vector field of a flow or a map. `lyapunov_spectrum` integrates its tangent dyna
 
 ```python
 from skcomplex.core.analysis import fixed_points, lyapunov_spectrum, orbit_diagram, stability
-from skcomplex.models.ecology import lotka_volterra
-from skcomplex.models.nonlinear import logistic_map, lorenz
+from skcomplex.models.biology.ecology import lotka_volterra
+from skcomplex.models.mathematics.dynamical_systems import logistic_map, lorenz
 
 predation = lotka_volterra()
 print([stability(predation, point).classification for point in fixed_points(predation)])
@@ -886,7 +888,7 @@ event, and `stroboscopic` samples a periodically forced system once per period.
 import math
 
 from skcomplex.core.analysis import stroboscopic
-from skcomplex.models.nonlinear import duffing
+from skcomplex.models.physics.nonlinear_oscillators import duffing
 
 section = stroboscopic(duffing(), 2 * math.pi / 1.2, n_points=200)
 print(len(np.unique(np.round(section.states, 4), axis=0)))

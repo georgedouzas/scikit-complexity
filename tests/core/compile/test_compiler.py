@@ -15,12 +15,20 @@ from skcomplex.core.base import (
     symbol,
 )
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import EuclideanSpace, Interaction, Rate, System, Update
-from skcomplex.models.ecology import ExponentialGrowth, LogisticGrowth, Population, Predation
-from skcomplex.models.economics import Cobweb, Market
-from skcomplex.models.epidemiology import Compartment, Infection, Recovery
-from skcomplex.models.finance import Asset, GeometricBrownianMotion
-from skcomplex.models.physics import ConstantForce, HarmonicPotential, Particle
+from skcomplex.core.model import (
+    ConstantForce,
+    EuclideanSpace,
+    HarmonicPotential,
+    Interaction,
+    Particle,
+    Rate,
+    System,
+    Update,
+)
+from skcomplex.models.biology.ecology import ExponentialGrowth, LogisticGrowth, Population, Predation
+from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
+from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion
+from skcomplex.models.economics.markets import Cobweb, Market
 
 
 class CallableGrowth(Interaction):

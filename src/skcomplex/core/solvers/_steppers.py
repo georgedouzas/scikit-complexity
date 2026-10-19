@@ -67,7 +67,7 @@ class ScipyODE(Stepper):
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
         >>> from skcomplex.core.model import System
-        >>> from skcomplex.models.ecology import ExponentialGrowth, Population
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> from skcomplex.core.solvers import ScipyODE
         >>> problem = compile_system(
         ...     System(elements=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1)]),
@@ -194,7 +194,7 @@ class RK4(Stepper):
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
         >>> from skcomplex.core.model import System
-        >>> from skcomplex.models.ecology import ExponentialGrowth, Population
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> from skcomplex.core.solvers import RK4
         >>> problem = compile_system(
         ...     System(elements=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1)]),
@@ -419,7 +419,7 @@ class VelocityVerlet(Stepper):
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
         >>> from skcomplex.core.model import EuclideanSpace, System
-        >>> from skcomplex.models.physics import ConstantForce, Particle
+        >>> from skcomplex.core.model import ConstantForce, Particle
         >>> from skcomplex.core.solvers import VelocityVerlet
         >>> problem = compile_system(
         ...     System(
@@ -513,7 +513,7 @@ class EulerMaruyama(Stepper):
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
         >>> from skcomplex.core.model import System
-        >>> from skcomplex.models.finance import Asset, GeometricBrownianMotion
+        >>> from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion
         >>> from skcomplex.core.solvers import EulerMaruyama
         >>> problem = compile_system(
         ...     System(
@@ -609,7 +609,7 @@ class Milstein(Stepper):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.models.finance import geometric_brownian_motion
+        >>> from skcomplex.models.economics.finance import geometric_brownian_motion
         >>> from skcomplex.core.solvers import Milstein
         >>> problem = compile_system(geometric_brownian_motion())
         >>> stepper = Milstein(dt=0.01)
@@ -683,7 +683,7 @@ class Heun(Stepper):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.models.finance import geometric_brownian_motion
+        >>> from skcomplex.models.economics.finance import geometric_brownian_motion
         >>> from skcomplex.core.solvers import Heun
         >>> problem = compile_system(geometric_brownian_motion())
         >>> stepper = Heun(dt=0.01)
@@ -740,7 +740,7 @@ class Gillespie(Stepper):
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
         >>> from skcomplex.core.model import System
-        >>> from skcomplex.models.epidemiology import Compartment, Recovery
+        >>> from skcomplex.models.biology.epidemiology import Compartment, Recovery
         >>> from skcomplex.core.solvers import Gillespie
         >>> problem = compile_system(
         ...     System(
@@ -835,7 +835,7 @@ class Iteration(Stepper):
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
         >>> from skcomplex.core.model import System
-        >>> from skcomplex.models.economics import Cobweb, Market
+        >>> from skcomplex.models.economics.markets import Cobweb, Market
         >>> from skcomplex.core.solvers import Iteration
         >>> problem = compile_system(
         ...     System(elements=[Market('m', price=1)], interactions=[Cobweb('c', target='m', a=10, b=2, c=1, d=1)]),

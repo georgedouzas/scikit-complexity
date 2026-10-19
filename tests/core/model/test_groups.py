@@ -6,9 +6,8 @@ from sklearn.base import clone
 
 from skcomplex.core.base import RoleError, ValidationError
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import Boundary, EuclideanSpace, Group, PairInteraction, Rate, System
-from skcomplex.models.ecology import ExponentialGrowth, Population, Predation
-from skcomplex.models.physics import Particle
+from skcomplex.core.model import Boundary, EuclideanSpace, Group, PairInteraction, Particle, Rate, System
+from skcomplex.models.biology.ecology import ExponentialGrowth, Population, Predation
 
 
 class Attraction(PairInteraction):

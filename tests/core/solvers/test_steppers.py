@@ -7,10 +7,10 @@ from skcomplex.core.base import SolverError, role
 from skcomplex.core.compile import compile_system
 from skcomplex.core.model import Interaction, Rate, System
 from skcomplex.core.solvers import EulerMaruyama, Gillespie, Iteration, ScipyODE, resolve_solver
-from skcomplex.models.ecology import ExponentialGrowth, Population
-from skcomplex.models.economics import Cobweb, Market
-from skcomplex.models.epidemiology import Compartment, Recovery
-from skcomplex.models.finance import Asset, GeometricBrownianMotion
+from skcomplex.models.biology.ecology import ExponentialGrowth, Population
+from skcomplex.models.biology.epidemiology import Compartment, Recovery
+from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion
+from skcomplex.models.economics.markets import Cobweb, Market
 
 
 def _growth_problem():

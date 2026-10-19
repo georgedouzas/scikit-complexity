@@ -48,7 +48,7 @@ class System(BaseEstimator):
 
     Examples:
         >>> from skcomplex.core.model import System
-        >>> from skcomplex.models.ecology import LogisticGrowth, Population
+        >>> from skcomplex.models.biology.ecology import LogisticGrowth, Population
         >>> system = System(
         ...     elements=[Population('rabbits', n=10)],
         ...     interactions=[LogisticGrowth('growth', target='rabbits', r=1.0, K=100)],

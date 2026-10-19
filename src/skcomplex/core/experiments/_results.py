@@ -61,7 +61,7 @@ class ExperimentResult:
 
     Examples:
         >>> from skcomplex.core.experiments import Experiment, Grid
-        >>> from skcomplex.models.epidemiology import sir
+        >>> from skcomplex.models.biology.epidemiology import sir
         >>> result = Experiment('sir', Grid(gamma=[0.1, 0.2]), until=10).run()
         >>> [row['gamma'] for row in result.rows]
         [0.1, 0.2]

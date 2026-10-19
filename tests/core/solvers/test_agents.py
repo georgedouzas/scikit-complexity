@@ -20,7 +20,7 @@ from skcomplex.core.model import (
     System,
 )
 from skcomplex.core.runtime import RealTime, Simulation
-from skcomplex.models.ecology import ExponentialGrowth, Population
+from skcomplex.models.biology.ecology import ExponentialGrowth, Population
 
 
 class Breeder(AgentType):

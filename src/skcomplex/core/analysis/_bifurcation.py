@@ -97,7 +97,7 @@ def orbit_diagram(
 
     Examples:
         >>> from skcomplex.core.analysis import orbit_diagram
-        >>> from skcomplex.models.nonlinear import logistic_map
+        >>> from skcomplex.models.mathematics.dynamical_systems import logistic_map
         >>> diagram = orbit_diagram('logistic_map', 'map.r', [2.9, 3.2], 'map.x', transient=1000, keep=20, dt=1)
         >>> diagram.periods().tolist()
         [1, 2]
@@ -181,7 +181,7 @@ def basin_stability(
 
     Examples:
         >>> from skcomplex.core.analysis import basin_stability
-        >>> from skcomplex.models.ecology import logistic_growth
+        >>> from skcomplex.models.biology.ecology import logistic_growth
         >>> result = basin_stability('logistic_growth', {'population.n': (0.1, 10)},
         ...                          lambda trajectory: 'capacity', n=5, until=5)
         >>> result.fractions

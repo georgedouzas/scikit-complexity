@@ -6,9 +6,10 @@ import numpy as np
 import pytest
 
 from skcomplex.core.runtime import Simulation
-from skcomplex.models.neuroscience import integrate_and_fire, izhikevich
-from skcomplex.models.nonlinear import delayed_kuramoto, stochastic_resonance
-from skcomplex.models.physics import brownian_near_wall, circular_billiard, newtons_cradle
+from skcomplex.models.biology.neuroscience import integrate_and_fire, izhikevich
+from skcomplex.models.physics.mechanics import circular_billiard, newtons_cradle
+from skcomplex.models.physics.soft_matter import brownian_near_wall, stochastic_resonance
+from skcomplex.models.physics.synchronization import delayed_kuramoto
 
 
 def test_izhikevich_regular_spiking():

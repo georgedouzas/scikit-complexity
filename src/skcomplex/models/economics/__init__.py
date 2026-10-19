@@ -1,15 +1,11 @@
-"""Economics: Solow growth in continuous time and the cobweb market in discrete time."""
+"""Economics: macroeconomics, markets, finance, econophysics, and natural resources."""
 
-from ._factories import Income, cobweb, multiplier_accelerator, solow
-from ._growth import Cobweb, Economy, Market, SolowGrowth
+from . import econophysics, finance, macroeconomics, markets, resources
 
 __all__: list[str] = [
-    'Cobweb',
-    'Economy',
-    'Income',
-    'Market',
-    'SolowGrowth',
-    'cobweb',
-    'multiplier_accelerator',
-    'solow',
+    'econophysics',
+    'finance',
+    'macroeconomics',
+    'markets',
+    'resources',
 ]

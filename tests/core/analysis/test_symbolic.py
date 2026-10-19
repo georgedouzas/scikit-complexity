@@ -7,13 +7,12 @@ from sage.all__sagemath_symbolics import SR, cos, function, sqrt
 from skcomplex.core.analysis import equations_of, solve_symbolically
 from skcomplex.core.base import AnalysisError, role
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import EuclideanSpace, Interaction, Rate, System
+from skcomplex.core.model import ConstantForce, EuclideanSpace, HarmonicPotential, Interaction, Particle, Rate, System
 from skcomplex.core.runtime import Simulation
-from skcomplex.models.ecology import LogisticGrowth, Population
-from skcomplex.models.economics import Cobweb, Market
-from skcomplex.models.epidemiology import Compartment, Recovery
-from skcomplex.models.finance import Asset, GeometricBrownianMotion
-from skcomplex.models.physics import ConstantForce, HarmonicPotential, Particle
+from skcomplex.models.biology.ecology import LogisticGrowth, Population
+from skcomplex.models.biology.epidemiology import Compartment, Recovery
+from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion
+from skcomplex.models.economics.markets import Cobweb, Market
 from tests.core.compile.test_compiler import CallableGrowth
 
 

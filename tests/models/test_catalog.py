@@ -1,5 +1,6 @@
 """Test the model catalog, the library's use of the public interface, and the conformance of every model."""
 
+import importlib
 import pickle  # nosec B403: the tests pickle and load only objects they create
 
 import numpy as np
@@ -12,21 +13,65 @@ from skcomplex.core.model import System
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
 from skcomplex.models import catalog, create, describe, register_model, run
-from skcomplex.models.ecology import ExponentialGrowth, Mortality, Population, Predation
+from skcomplex.models.biology.ecology import ExponentialGrowth, Mortality, Population, Predation
 
 CONFORMANCE_FRAMES = 10
+FIELDS = [
+    'biology',
+    'chemistry',
+    'computer_science',
+    'earth',
+    'economics',
+    'engineering',
+    'mathematics',
+    'physics',
+    'social',
+]
 
 
 def test_catalog_filters_by_field():
-    """Test that the catalog lists the ecology models with descriptions, references, and formalisms."""
-    entries = catalog(field='ecology')
+    """Test that the catalog lists the models of a field or a subfield with descriptions, references, and formalisms."""
+    entries = catalog(field='biology/ecology')
     names = [entry.name for entry in entries]
     assert {'exponential_growth', 'logistic_growth', 'lotka_volterra', 'wolf_sheep'} <= set(names)
-    assert all(entry.field == 'ecology' and entry.description and entry.references for entry in entries)
+    assert all(entry.field == 'biology/ecology' and entry.description and entry.references for entry in entries)
+    biology = catalog(field='biology')
+    assert {entry.name for entry in entries} < {entry.name for entry in biology}
+    assert {entry.field.partition('/')[0] for entry in biology} == {'biology'}
     lotka = describe('lotka_volterra')
     assert lotka.formalism == 'ordinary differential equations'
     assert lotka.parameters['a'] == 0.4
     assert not lotka.description.startswith('Return')
+
+
+def test_every_model_has_one_field_path():
+    """Test that every library model lives in one subfield, named by a field path of a known field."""
+    library = [entry for entry in catalog() if not entry.field.startswith(('examples', 'test'))]
+    assert len({entry.name for entry in library}) == len(library)
+    fields = {entry.field.split('/')[0] for entry in library}
+    assert fields == set(FIELDS)
+    assert all(len(entry.field.split('/')) == 2 for entry in library)
+
+
+@pytest.mark.parametrize(
+    ('package', 'names'),
+    [
+        ('skcomplex.models.physics.fluids', ['burgers']),
+        ('skcomplex.models.biology.ecology', ['lotka_volterra']),
+        ('skcomplex.models.chemistry.pattern_formation', ['gray_scott']),
+    ],
+)
+def test_import_by_field(package, names):
+    """Test that a subfield package exports the factories of its subfield."""
+    module = importlib.import_module(package)
+    assert all(callable(getattr(module, name)) for name in names)
+
+
+@pytest.mark.parametrize('package', ['fluids', 'lattices', 'fields', 'nonlinear'])
+def test_technique_packages_are_gone(package):
+    """Test that the technique-based model packages no longer exist."""
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module(f'skcomplex.models.{package}')
 
 
 def test_catalog_filters_by_tag():

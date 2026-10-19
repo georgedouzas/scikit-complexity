@@ -178,7 +178,7 @@ class NumpyBackend(Backend):
     Examples:
         >>> from skcomplex.core.compile import NumpyBackend, compile_system
         >>> from skcomplex.core.model import System
-        >>> from skcomplex.models.ecology import Population
+        >>> from skcomplex.models.biology.ecology import Population
         >>> compile_system(System(elements=[Population('a')]), backend=NumpyBackend()).backend
         'numpy'
     """

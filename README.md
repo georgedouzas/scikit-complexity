@@ -80,7 +80,7 @@ A predator and prey model assembles from ready-made interactions:
 
 ```python
 from skcomplex.core.model import System
-from skcomplex.models.ecology import LogisticGrowth, Mortality, Population, Predation
+from skcomplex.models.biology.ecology import LogisticGrowth, Mortality, Population, Predation
 
 system = System(
     elements=[Population('rabbits', n=40), Population('foxes', n=9)],

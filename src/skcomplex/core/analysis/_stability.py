@@ -132,7 +132,7 @@ def jacobian(system: System | Problem) -> Expression:
 
     Examples:
         >>> from skcomplex.core.analysis import jacobian
-        >>> from skcomplex.models.ecology import logistic_growth
+        >>> from skcomplex.models.biology.ecology import logistic_growth
         >>> jacobian(logistic_growth()).dimensions()
         (1, 1)
     """
@@ -164,7 +164,7 @@ def fixed_points(system: System | Problem, parameters: Mapping[str, float] | Non
 
     Examples:
         >>> from skcomplex.core.analysis import fixed_points
-        >>> from skcomplex.models.ecology import logistic_growth
+        >>> from skcomplex.models.biology.ecology import logistic_growth
         >>> sorted(str(point['population.n']) for point in fixed_points(logistic_growth()))
         ['0', 'K_growth']
     """
@@ -256,7 +256,7 @@ def stability(
 
     Examples:
         >>> from skcomplex.core.analysis import stability
-        >>> from skcomplex.models.ecology import logistic_growth
+        >>> from skcomplex.models.biology.ecology import logistic_growth
         >>> stability(logistic_growth(), {'population.n': 100.0}).classification
         'stable node'
     """
@@ -312,7 +312,7 @@ def nullclines(system: System | Problem) -> dict[str, Expression]:
 
     Examples:
         >>> from skcomplex.core.analysis import nullclines
-        >>> from skcomplex.models.ecology import exponential_growth
+        >>> from skcomplex.models.biology.ecology import exponential_growth
         >>> nullclines(exponential_growth())
         {'population.n': n_population*r_growth == 0}
     """
@@ -340,7 +340,7 @@ def divergence(system: System | Problem) -> Expression:
 
     Examples:
         >>> from skcomplex.core.analysis import divergence
-        >>> from skcomplex.models.physics import harmonic_oscillator
+        >>> from skcomplex.models.physics.mechanics import harmonic_oscillator
         >>> divergence(harmonic_oscillator())
         0
     """

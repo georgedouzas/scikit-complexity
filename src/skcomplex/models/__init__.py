@@ -1,16 +1,14 @@
-"""Ready-made models as registered factories, built from the general interface, with the catalog that lists them."""
+"""Ready-made models of every science, built from the core and organized by field and subfield."""
 
 from ..core.runtime import MODELS, ModelEntry, catalog, create, describe, register_model, run
 from . import (
-    ecology,
+    biology,
+    chemistry,
+    computer_science,
+    earth,
     economics,
-    epidemiology,
-    fields,
-    finance,
-    fluids,
-    lattices,
-    neuroscience,
-    nonlinear,
+    engineering,
+    mathematics,
     physics,
     social,
 )
@@ -18,18 +16,16 @@ from . import (
 __all__: list[str] = [
     'MODELS',
     'ModelEntry',
+    'biology',
     'catalog',
+    'chemistry',
+    'computer_science',
     'create',
     'describe',
-    'ecology',
+    'earth',
     'economics',
-    'epidemiology',
-    'fields',
-    'finance',
-    'fluids',
-    'lattices',
-    'neuroscience',
-    'nonlinear',
+    'engineering',
+    'mathematics',
     'physics',
     'register_model',
     'run',

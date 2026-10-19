@@ -7,9 +7,20 @@ import pytest
 
 from skcomplex.core.base import Domain, ValidationError, parameter, role
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import EuclideanSpace, Interaction, Jump, Noise, Rate, System, Update
-from skcomplex.models.ecology import Population
-from skcomplex.models.physics import PairPotential, Particle, PeriodicBox, ReflectingBox
+from skcomplex.core.model import (
+    EuclideanSpace,
+    Interaction,
+    Jump,
+    Noise,
+    PairPotential,
+    Particle,
+    PeriodicBox,
+    Rate,
+    ReflectingBox,
+    System,
+    Update,
+)
+from skcomplex.models.biology.ecology import Population
 
 CUTOFF = 2.5
 

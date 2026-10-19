@@ -542,7 +542,7 @@ class NumbaBackend(Backend):
     Examples:
         >>> from skcomplex.core.compile import compile_system
         >>> from skcomplex.core.model import System
-        >>> from skcomplex.models.ecology import ExponentialGrowth, Population
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> system = System(
         ...     elements=[Population.group('herds', 2, n=[1.0, 2.0])],
         ...     interactions=[ExponentialGrowth('growth', target='herds', r=3.0)],

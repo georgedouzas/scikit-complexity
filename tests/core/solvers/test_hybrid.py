@@ -10,9 +10,9 @@ from skcomplex.core.compile import compile_system
 from skcomplex.core.model import Element, Event, Noise, Rate, System, delayed, pulse_train, series, step
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4, EulerMaruyama, Gillespie, Heun, Milstein, VelocityVerlet
-from skcomplex.models.ecology import hutchinson
-from skcomplex.models.nonlinear import mackey_glass
-from skcomplex.models.physics import bouncing_ball
+from skcomplex.models.biology.ecology import hutchinson
+from skcomplex.models.biology.physiology import mackey_glass
+from skcomplex.models.physics.mechanics import bouncing_ball
 
 Clock = Element.define('Clock', states={'x': 0.0}, laws=lambda s: [Rate(s.x, 1), Event(s.x - 3.2, terminal=True)])
 

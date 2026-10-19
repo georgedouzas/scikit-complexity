@@ -5,14 +5,14 @@ import pytest
 
 from skcomplex.core.base import Form
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import EuclideanSpace, System
+from skcomplex.core.model import ConstantForce, EuclideanSpace, Gravity, LinearDrag, Particle, Spring, System
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import ScipyODE
-from skcomplex.models.ecology import LogisticGrowth, Mortality, Population, Predation
-from skcomplex.models.economics import Cobweb, Economy, Market, SolowGrowth
-from skcomplex.models.epidemiology import Compartment, Infection, Recovery
-from skcomplex.models.finance import Asset, GeometricBrownianMotion
-from skcomplex.models.physics import ConstantForce, Gravity, LinearDrag, Particle, Spring
+from skcomplex.models.biology.ecology import LogisticGrowth, Mortality, Population, Predation
+from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
+from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion
+from skcomplex.models.economics.macroeconomics import Economy, SolowGrowth
+from skcomplex.models.economics.markets import Cobweb, Market
 
 
 def test_particle_constant_acceleration():

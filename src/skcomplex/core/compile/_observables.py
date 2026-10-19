@@ -87,7 +87,7 @@ class ObservableEvaluator:
     Examples:
         >>> from skcomplex.core.compile import ObservableEvaluator, compile_system
         >>> from skcomplex.core.model import Observable, System
-        >>> from skcomplex.models.ecology import Population
+        >>> from skcomplex.models.biology.ecology import Population
         >>> system = System(
         ...     elements=[Population('a', n=2.0), Population('b', n=6.0)],
         ...     observables=[Observable('total', lambda s: s.a.n + s.b.n)],

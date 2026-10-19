@@ -42,7 +42,7 @@ class Recorder(Observer):
 
     Examples:
         >>> from skcomplex.core.model import System
-        >>> from skcomplex.models.ecology import Population
+        >>> from skcomplex.models.biology.ecology import Population
         >>> from skcomplex.core.runtime import Recorder, Simulation
         >>> recorder = Recorder()
         >>> _ = Simulation(System(elements=[Population('a')]), dt=1, observers=[recorder]).run(until=2)

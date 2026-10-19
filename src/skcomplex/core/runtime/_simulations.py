@@ -84,7 +84,7 @@ class Simulation(BaseEstimator):
 
     Examples:
         >>> from skcomplex.core.model import System
-        >>> from skcomplex.models.ecology import LogisticGrowth, Population
+        >>> from skcomplex.models.biology.ecology import LogisticGrowth, Population
         >>> from skcomplex.core.runtime import Simulation
         >>> system = System(
         ...     elements=[Population('rabbits', n=10)],

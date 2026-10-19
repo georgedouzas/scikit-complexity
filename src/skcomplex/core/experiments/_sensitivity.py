@@ -116,7 +116,7 @@ def sensitivity(
 
     Examples:
         >>> from skcomplex.core.experiments import sensitivity
-        >>> from skcomplex.models.ecology import logistic_growth
+        >>> from skcomplex.models.biology.ecology import logistic_growth
         >>> result = sensitivity('logistic_growth', {'growth.r': (0.1, 1.0), 'growth.K': (50, 150)},
         ...                      'population.n', method='oat', until=20)
         >>> result.ranking()[0]

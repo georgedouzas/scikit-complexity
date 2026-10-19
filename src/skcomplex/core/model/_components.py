@@ -210,7 +210,7 @@ class Element(Component):
                 The group.
 
         Examples:
-            >>> from skcomplex.models.ecology import Population
+            >>> from skcomplex.models.biology.ecology import Population
             >>> Population.group('herds', size=3, n=[10, 20, 30])
             Group('herds', element=Population, size=3)
         """
@@ -358,7 +358,7 @@ class Group(BaseEstimator):
 
     Examples:
         >>> from skcomplex.core.model import Group
-        >>> from skcomplex.models.ecology import Population
+        >>> from skcomplex.models.biology.ecology import Population
         >>> Group('herds', element=Population, size=3).size
         3
     """

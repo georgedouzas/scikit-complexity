@@ -1686,7 +1686,7 @@ def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
     Examples:
         >>> from skcomplex.core.compile import compile_system
         >>> from skcomplex.core.model import System
-        >>> from skcomplex.models.ecology import ExponentialGrowth, Population
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> problem = compile_system(
         ...     System(
         ...         elements=[Population('rabbits', n=10)],
@@ -1735,7 +1735,7 @@ def partition_system(system: System, backend: str | Backend = 'auto') -> Problem
     Examples:
         >>> from skcomplex.core.compile import partition_system
         >>> from skcomplex.core.model import System
-        >>> from skcomplex.models.ecology import ExponentialGrowth, Population
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> system = System(
         ...     systems=[
         ...         System('a', elements=[Population('x')], interactions=[ExponentialGrowth('g', target='x')]),

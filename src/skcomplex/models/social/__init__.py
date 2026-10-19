@@ -1,16 +1,8 @@
-"""Social systems: segregation, wealth exchange, opinion dynamics, and farmers harvesting a resource."""
+"""Social science: opinion dynamics, segregation, and cooperation."""
 
-from ._agents import Resident, Trader, Voter, boltzmann_wealth, schelling, voter_model
-from ._harvesting import Farmer, Harvest, harvesting
+from . import opinion_dynamics, segregation
 
 __all__: list[str] = [
-    'Farmer',
-    'Harvest',
-    'Resident',
-    'Trader',
-    'Voter',
-    'boltzmann_wealth',
-    'harvesting',
-    'schelling',
-    'voter_model',
+    'opinion_dynamics',
+    'segregation',
 ]

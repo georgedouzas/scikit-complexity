@@ -352,7 +352,7 @@ class IMEXEuler(_SplitStepper):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.models.fields import heat_diffusion
+        >>> from skcomplex.models.physics.heat import heat_diffusion
         >>> from skcomplex.core.solvers import IMEXEuler
         >>> problem = compile_system(heat_diffusion((16, 16)))
         >>> stepper = IMEXEuler(dt=1.0)
@@ -514,7 +514,7 @@ class SSPRK(Stepper):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.models.fluids import burgers
+        >>> from skcomplex.models.physics.fluids import burgers
         >>> from skcomplex.core.solvers import SSPRK
         >>> problem = compile_system(burgers(64))
         >>> stepper = SSPRK()

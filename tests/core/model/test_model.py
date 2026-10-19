@@ -4,7 +4,7 @@ import pytest
 from sklearn.base import clone
 
 from skcomplex.core.model import EuclideanSpace, Symbols, System
-from skcomplex.models.ecology import Population, Predation
+from skcomplex.models.biology.ecology import Population, Predation
 
 
 def test_element_stores_arguments():

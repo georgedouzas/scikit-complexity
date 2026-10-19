@@ -19,7 +19,7 @@ class LatticeStepper(Stepper):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.models.lattices import elementary_automaton
+        >>> from skcomplex.models.computer_science.automata import elementary_automaton
         >>> from skcomplex.core.solvers import LatticeStepper
         >>> problem = compile_system(elementary_automaton(30, size=11))
         >>> stepper = LatticeStepper()
@@ -68,7 +68,7 @@ class MonteCarlo(LatticeStepper):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.models.lattices import ising
+        >>> from skcomplex.models.physics.statistical_mechanics import ising
         >>> from skcomplex.core.solvers import MonteCarlo
         >>> problem = compile_system(ising(size=8, temperature=1.0))
         >>> stepper = MonteCarlo()

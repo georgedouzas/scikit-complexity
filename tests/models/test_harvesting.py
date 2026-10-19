@@ -3,7 +3,7 @@
 import pytest
 
 from skcomplex.core.runtime import Simulation
-from skcomplex.models.social import harvesting
+from skcomplex.models.economics.resources import harvesting
 
 
 def test_high_effort_collapses_the_stock():

@@ -5,9 +5,8 @@ import pytest
 
 from skcomplex.core.base import symbol
 from skcomplex.core.compile import NUMPY_DIALECT, SCALAR_DIALECT, numpy_function, print_expressions
-from skcomplex.core.model import EuclideanSpace, System, both, either, mod, where
+from skcomplex.core.model import EuclideanSpace, Particle, PeriodicBox, ReflectingBox, System, both, either, mod, where
 from skcomplex.core.runtime import Simulation
-from skcomplex.models.physics import Particle, PeriodicBox, ReflectingBox
 
 
 def test_functions_stay_unevaluated_on_symbols():

@@ -31,7 +31,7 @@ class ModelEntry:
             The function that returns the model's system.
 
         field:
-            The science the model belongs to, such as `ecology`.
+            The field path of the model, its science and subfield, such as `biology/ecology`.
 
         description:
             One sentence on what the model shows.
@@ -91,7 +91,7 @@ def register_model(
             The name of the model, or `None` for the factory's name.
 
         field:
-            The science the model belongs to.
+            The field path of the model, its science and subfield, such as `biology/ecology`.
 
         description:
             One sentence on what the model shows, or `None` for the first line of the factory's docstring.
@@ -115,9 +115,9 @@ def register_model(
 
     Examples:
         >>> from skcomplex.core.model import System
-        >>> from skcomplex.models.ecology import Population
+        >>> from skcomplex.models.biology.ecology import Population
         >>> from skcomplex.core.runtime import create, register_model
-        >>> @register_model(field='examples', references=('This docstring',), defaults={'until': 5})
+        >>> @register_model(field='examples/demo', references=('This docstring',), defaults={'until': 5})
         ... def constant_population(n: float = 3.0) -> System:
         ...     '''Return one population that does not change.'''
         ...     return System(elements=[Population('a', n=n)])
@@ -163,7 +163,8 @@ def catalog(field: str | None = None, tag: str | None = None) -> list[ModelEntry
 
     Args:
         field:
-            The field to keep, or `None` for every field.
+            The field, such as `biology`, or the field path, such as `biology/ecology`, to keep, or `None` for every
+            field.
 
         tag:
             The tag to keep, or `None` for every model.
@@ -174,12 +175,19 @@ def catalog(field: str | None = None, tag: str | None = None) -> list[ModelEntry
 
     Examples:
         >>> from skcomplex.models import catalog
-        >>> 'lotka_volterra' in [entry.name for entry in catalog(field='ecology')]
+        >>> 'lotka_volterra' in [entry.name for entry in catalog(field='biology/ecology')]
         True
+        >>> sorted({entry.field for entry in catalog(field='chemistry')})
+        ['chemistry/kinetics', 'chemistry/pattern_formation']
     """
     entries = [MODELS.resolve(name) for name in MODELS]
     return sorted(
-        (entry for entry in entries if (field is None or entry.field == field) and (tag is None or tag in entry.tags)),
+        (
+            entry
+            for entry in entries
+            if (field is None or entry.field == field or entry.field.startswith(f'{field}/'))
+            and (tag is None or tag in entry.tags)
+        ),
         key=lambda entry: (entry.field, entry.name),
     )
 

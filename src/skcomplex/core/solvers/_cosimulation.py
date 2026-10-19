@@ -48,7 +48,7 @@ class CoSimulation(Stepper):
 
     Examples:
         >>> from skcomplex.core.model import System
-        >>> from skcomplex.models.ecology import ExponentialGrowth, Population
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> from skcomplex.core.runtime import Simulation
         >>> from skcomplex.core.solvers import CoSimulation
         >>> system = System(

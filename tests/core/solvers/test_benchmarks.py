@@ -7,12 +7,12 @@ import pytest
 
 from skcomplex.core.base import Domain, parameter
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import EuclideanSpace, System
+from skcomplex.core.model import EuclideanSpace, PairPotential, Particle, ReflectingBox, System
 from skcomplex.core.runtime import RealTime, Simulation
 from skcomplex.core.solvers import VelocityVerlet
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models.lattices import game_of_life
-from skcomplex.models.physics import PairPotential, Particle, ReflectingBox, ideal_gas
+from skcomplex.models.computer_science.automata import game_of_life
+from skcomplex.models.physics.statistical_mechanics import ideal_gas
 
 
 class SoftSphere(PairPotential):

@@ -6,15 +6,11 @@ import pytest
 from skcomplex.core.runtime import Frame, Simulation
 from skcomplex.core.solvers import RK4
 from skcomplex.core.viz import RerunObserver, resolve_visual
-from skcomplex.models.fields import (
-    brusselator,
-    fisher_kpp,
-    fitzhugh_nagumo,
-    gray_scott,
-    heat_diffusion,
-    pheromone_foraging,
-    schnakenberg,
-)
+from skcomplex.models.biology.collective_behaviour import pheromone_foraging
+from skcomplex.models.biology.ecology import fisher_kpp
+from skcomplex.models.biology.physiology import fitzhugh_nagumo
+from skcomplex.models.chemistry.pattern_formation import brusselator, gray_scott, schnakenberg
+from skcomplex.models.physics.heat import heat_diffusion
 
 
 class Images:

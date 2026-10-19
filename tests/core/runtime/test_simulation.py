@@ -9,9 +9,9 @@ from skcomplex.core.base import ParameterError, SimulationError, SolverError, Va
 from skcomplex.core.model import System
 from skcomplex.core.runtime import Observer, RealTime, Simulation
 from skcomplex.core.solvers import Gillespie
-from skcomplex.models.ecology import ExponentialGrowth, Population
-from skcomplex.models.economics import Cobweb, Market
-from skcomplex.models.epidemiology import Compartment, Infection, Recovery
+from skcomplex.models.biology.ecology import ExponentialGrowth, Population
+from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
+from skcomplex.models.economics.markets import Cobweb, Market
 
 
 class FrameCounter(Observer):

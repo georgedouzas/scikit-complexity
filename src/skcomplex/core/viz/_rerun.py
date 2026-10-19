@@ -54,7 +54,7 @@ class RerunObserver(Observer):
         >>> import tempfile
         >>> from pathlib import Path
         >>> from skcomplex.core.model import System
-        >>> from skcomplex.models.ecology import ExponentialGrowth, Population
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> from skcomplex.core.runtime import Simulation
         >>> from skcomplex.core.viz import RerunObserver
         >>> system = System(elements=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1)])

@@ -4,7 +4,8 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import basin_stability, orbit_diagram
-from skcomplex.models.nonlinear import duffing, logistic_map
+from skcomplex.models.mathematics.dynamical_systems import logistic_map
+from skcomplex.models.physics.nonlinear_oscillators import duffing
 
 
 def test_period_doubling_of_logistic_map():

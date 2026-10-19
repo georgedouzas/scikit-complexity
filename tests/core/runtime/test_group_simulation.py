@@ -6,9 +6,9 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import ValidationError
-from skcomplex.core.model import EuclideanSpace, System
+from skcomplex.core.model import ConstantForce, EuclideanSpace, Particle, System
 from skcomplex.core.runtime import RealTime, Simulation
-from skcomplex.models.physics import ConstantForce, Particle, ideal_gas
+from skcomplex.models.physics.statistical_mechanics import ideal_gas
 
 
 def _pushed_gas(n=500):

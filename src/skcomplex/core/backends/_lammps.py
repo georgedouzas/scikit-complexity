@@ -12,7 +12,9 @@ import numpy as np
 import numpy.typing as npt
 from lammps import lammps
 
-from ...models.physics import (
+from ..base import BackendError, Domain, Form, VariableKind, declarations_of, symbol
+from ..compile import CompiledElement, CompiledInteraction, Problem, Vector, compile_system
+from ..model import (
     ConstantForce,
     LangevinThermostat,
     LennardJones,
@@ -21,10 +23,9 @@ from ...models.physics import (
     Particle,
     PeriodicBox,
     ReflectingBox,
+    Symbols,
+    System,
 )
-from ..base import BackendError, Domain, Form, VariableKind, declarations_of, symbol
-from ..compile import CompiledElement, CompiledInteraction, Problem, Vector, compile_system
-from ..model import Symbols, System
 from ..solvers import SOLVERS, register_solver
 from ._base import ExternalBackend
 from ._lepton import lepton_expression
@@ -149,7 +150,7 @@ class LammpsBackend(ExternalBackend):
         >>> import numpy as np
         >>> from skcomplex.core.backends import LammpsBackend
         >>> from skcomplex.core.model import EuclideanSpace, System
-        >>> from skcomplex.models.physics import LennardJones, Particle
+        >>> from skcomplex.core.model import LennardJones, Particle
         >>> from skcomplex.core.runtime import Simulation
         >>> system = System(
         ...     elements=[Particle.group('gas', 2, x=[[0.0, 0.0], [1.5, 0.0]])],

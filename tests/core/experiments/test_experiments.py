@@ -19,9 +19,9 @@ from skcomplex.core.experiments import (
     sensitivity,
 )
 from skcomplex.core.model import Element, Observable, System, Update
-from skcomplex.models.ecology import logistic_growth
-from skcomplex.models.epidemiology import sir
-from skcomplex.models.social import harvesting
+from skcomplex.models.biology.ecology import logistic_growth
+from skcomplex.models.biology.epidemiology import sir
+from skcomplex.models.economics.resources import harvesting
 
 LogisticMap = Element.define(
     'LogisticMap',

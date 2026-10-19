@@ -23,7 +23,9 @@ from skcomplex.core.model import (
     neighbors,
 )
 from skcomplex.core.runtime import Simulation
-from skcomplex.models.lattices import elementary_automaton, forest_fire, game_of_life, ising
+from skcomplex.models.computer_science.automata import elementary_automaton, game_of_life
+from skcomplex.models.physics.criticality import forest_fire
+from skcomplex.models.physics.statistical_mechanics import ising
 
 Shift = Element.define(
     'Shift',

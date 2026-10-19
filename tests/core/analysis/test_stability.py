@@ -5,10 +5,10 @@ from sage.all__sagemath_symbolics import SR
 
 from skcomplex.core.analysis import divergence, fixed_points, jacobian, nullclines, stability
 from skcomplex.core.base import AnalysisError
-from skcomplex.models.ecology import lotka_volterra
-from skcomplex.models.epidemiology import sir
-from skcomplex.models.nonlinear import logistic_map, lorenz
-from skcomplex.models.physics import harmonic_oscillator
+from skcomplex.models.biology.ecology import lotka_volterra
+from skcomplex.models.biology.epidemiology import sir
+from skcomplex.models.mathematics.dynamical_systems import logistic_map, lorenz
+from skcomplex.models.physics.mechanics import harmonic_oscillator
 
 
 def test_lotka_volterra_centre():

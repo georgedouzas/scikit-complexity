@@ -10,12 +10,24 @@ import pytest
 
 from skcomplex.core.base import BackendError, Domain, SolverError, parameter, role
 from skcomplex.core.compile import NumbaBackend, NumpyBackend, compile_system
-from skcomplex.core.model import Call, EuclideanSpace, Interaction, Jump, Noise, Rate, System, Update
+from skcomplex.core.model import (
+    Call,
+    EuclideanSpace,
+    HarmonicPotential,
+    Interaction,
+    Jump,
+    Noise,
+    PairPotential,
+    Particle,
+    Rate,
+    ReflectingBox,
+    System,
+    Update,
+)
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4, EulerMaruyama, Gillespie, Iteration, VelocityVerlet
-from skcomplex.models.ecology import Population
-from skcomplex.models.epidemiology import Compartment, Infection, Recovery
-from skcomplex.models.physics import HarmonicPotential, PairPotential, Particle, ReflectingBox
+from skcomplex.models.biology.ecology import Population
+from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
 
 CUTOFF = 2.5
 
@@ -226,7 +238,7 @@ def test_numba_kernels_are_cached_on_disk(tmp_path):
         f"""
         import time
         from skcomplex.core.compile import NumbaBackend, compile_system
-        from skcomplex.models.physics import ideal_gas
+        from skcomplex.models.physics.statistical_mechanics import ideal_gas
         start = time.perf_counter()
         problem = compile_system(ideal_gas(2000, random_state=0), backend=NumbaBackend(cache_dir={str(tmp_path)!r}))
         problem.drift(0.0, problem.initial_state, problem.initial_parameters)
@@ -245,7 +257,7 @@ def test_second_process_loads_kernels_from_cache(tmp_path):
         f"""
         import sys
         from skcomplex.core.compile import NumbaBackend, compile_system
-        from skcomplex.models.physics import ideal_gas
+        from skcomplex.models.physics.statistical_mechanics import ideal_gas
         problem = compile_system(ideal_gas(2000, random_state=0), backend=NumbaBackend(cache_dir={str(tmp_path)!r}))
         problem.drift(0.0, problem.initial_state, problem.initial_parameters)
         problem.boundary(0.0, problem.initial_state, problem.initial_parameters)

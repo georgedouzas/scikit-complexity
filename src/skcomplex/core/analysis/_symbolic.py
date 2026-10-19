@@ -176,7 +176,7 @@ def equations_of(system: System) -> dict[str, Expression]:
     Examples:
         >>> from skcomplex.core.analysis import equations_of
         >>> from skcomplex.core.model import System
-        >>> from skcomplex.models.ecology import LogisticGrowth, Population
+        >>> from skcomplex.models.biology.ecology import LogisticGrowth, Population
         >>> system = System(
         ...     elements=[Population('rabbits', n=10)],
         ...     interactions=[LogisticGrowth('growth', target='rabbits', r=1.0, K=100)],
@@ -217,7 +217,7 @@ def solve_symbolically(system: System, *, use_initial_state: bool = False) -> di
     Examples:
         >>> from skcomplex.core.analysis import solve_symbolically
         >>> from skcomplex.core.model import System
-        >>> from skcomplex.models.ecology import ExponentialGrowth, Population
+        >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> system = System(
         ...     elements=[Population('a', n=2)],
         ...     interactions=[ExponentialGrowth('g', target='a', r=0.5)],

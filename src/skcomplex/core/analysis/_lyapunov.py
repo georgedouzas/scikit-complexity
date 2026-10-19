@@ -132,7 +132,7 @@ def lyapunov_spectrum(
 
     Examples:
         >>> from skcomplex.core.analysis import lyapunov_spectrum
-        >>> from skcomplex.models.nonlinear import logistic_map
+        >>> from skcomplex.models.mathematics.dynamical_systems import logistic_map
         >>> float(lyapunov_spectrum(logistic_map(r=4.0), until=20000)[0].round(2))
         0.69
     """

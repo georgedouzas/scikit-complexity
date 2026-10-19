@@ -11,9 +11,16 @@ from skcomplex.core.model import Element, Field, Flux, LatticeSpace, Mesh, Rate,
 from skcomplex.core.runtime import Frame, Simulation
 from skcomplex.core.solvers import ETDRK4, IMEX2, SSPRK, CrankNicolson, IMEXEuler, SplitOperator
 from skcomplex.core.viz import RerunObserver, resolve_visual
-from skcomplex.models.ecology import logistic_growth
-from skcomplex.models.fields import harmonic, heat_l_shape, kuramoto_sivashinsky, swift_hohenberg
-from skcomplex.models.fluids import burgers, decaying_turbulence, rayleigh_benard, shallow_water
+from skcomplex.models.biology.ecology import logistic_growth
+from skcomplex.models.physics.fluids import (
+    burgers,
+    decaying_turbulence,
+    kuramoto_sivashinsky,
+    rayleigh_benard,
+    shallow_water,
+)
+from skcomplex.models.physics.heat import harmonic, heat_l_shape
+from skcomplex.models.physics.pattern_formation import swift_hohenberg
 
 Heat = Element.define('Heat', states={'u': 0.0}, laws=lambda s: [Rate(s.u, laplacian(s.u))])
 
