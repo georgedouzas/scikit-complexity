@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 import rerun.blueprint as rrb
-from PIL import Image, ImageChops
+from PIL import Image
 
 from ._errors import GalleryError
 
@@ -23,13 +23,16 @@ MIN_BRIGHTNESS = 40
 NOTIFICATION_COLOR = (33, 33, 33)
 NOTIFICATION_TOLERANCE = 2
 MAX_NOTIFICATION_SHARE = 0.05
+MIN_NOTIFICATION_WIDTH = 0.25
+MIN_NOTIFICATION_FILL = 0.5
 MARGIN = 0.02
 PLACEHOLDER_TOLERANCE = 2.0
 LIGHT_GREY = 215
 MAX_LIGHT_SHARE = 0.2
 BORDER_TOLERANCE = 8
 MAX_BAND_SHARE = 0.1
-PALETTE_SIZES = (256, 128, 64, 32)
+MIN_SOLID_SHARE = 0.5
+PALETTE_SIZES = (256, 128, 64, 32, 16)
 
 
 def _split(box: Box, shares: Sequence[float], *, horizontal: bool) -> list[Box]:
@@ -140,6 +143,9 @@ def is_blank(pixels: npt.NDArray[np.uint8]) -> bool:
 def has_notification(pixels: npt.NDArray[np.uint8]) -> bool:
     """Return whether a viewer notification covers the top right of an image, by its background colour.
 
+    A notification is a filled panel of its background colour, at least a quarter as wide as the top right quarter of
+    the image. Content of the same grey, such as a thin strip or scattered pixels, fills no such panel.
+
     Args:
         pixels:
             The RGB pixels of the image, without the title bars of its views.
@@ -153,17 +159,58 @@ def has_notification(pixels: npt.NDArray[np.uint8]) -> bool:
         >>> from gallery_tools import has_notification
         >>> has_notification(np.zeros((100, 100, 3), dtype=np.uint8))
         False
+        >>> pixels = np.zeros((100, 100, 3), dtype=np.uint8)
+        >>> pixels[2:20, 60:98] = 33
+        >>> has_notification(pixels)
+        True
     """
     height, width = pixels.shape[:2]
     corner = pixels[: height // 4, width // 2 :].astype(int)
     matches = np.all(np.abs(corner - np.array(NOTIFICATION_COLOR)) <= NOTIFICATION_TOLERANCE, axis=-1)
-    return bool(matches.size) and float(matches.mean()) > MAX_NOTIFICATION_SHARE
+    if not matches.size or float(matches.mean()) <= MAX_NOTIFICATION_SHARE:
+        return False
+    rows, columns = np.flatnonzero(matches.any(axis=1)), np.flatnonzero(matches.any(axis=0))
+    panel = matches[rows[0] : rows[-1] + 1, columns[0] : columns[-1] + 1]
+    wide = panel.shape[1] >= MIN_NOTIFICATION_WIDTH * matches.shape[1]
+    return wide and float(panel.mean()) >= MIN_NOTIFICATION_FILL
+
+
+def _content_box(pixels: npt.NDArray[np.uint8]) -> Box | None:
+    """Return the box of the pixels that differ from the top left corner, or `None` when none does."""
+    differs = np.any(np.abs(pixels.astype(int) - pixels[0, 0].astype(int)) > BORDER_TOLERANCE, axis=-1)
+    rows, columns = np.flatnonzero(differs.any(axis=1)), np.flatnonzero(differs.any(axis=0))
+    if not rows.size:
+        return None
+    return int(columns[0]), int(rows[0]), int(columns[-1]) + 1, int(rows[-1]) + 1
+
+
+def _letterbox(pixels: npt.NDArray[np.uint8]) -> Box | None:
+    """Return the box of an image a view draws inside bands of its background, or `None` for other content.
+
+    The content is such an image when the corner has the grey of the view background, its box spans the width or the
+    height of the view, as a view fits an image, and the edges of its box are mostly not of the background colour.
+    Sparse content, such as points or a network, leaves background along the edges of its box, and is not letterboxed.
+    """
+    box = _content_box(pixels)
+    if box is None or _colorful_share(pixels[:1, :1]) > 0:
+        return None
+    height, width = pixels.shape[:2]
+    left, top, right, bottom = box
+    tall = top <= MARGIN * height and bottom >= (1 - MARGIN) * height
+    wide = left <= MARGIN * width and right >= (1 - MARGIN) * width
+    if not tall and not wide:
+        return None
+    inside = pixels[top:bottom, left:right].astype(int)
+    edges = np.concatenate([inside[0], inside[-1], inside[:, 0], inside[:, -1]])
+    differs = np.any(np.abs(edges - pixels[0, 0].astype(int)) > BORDER_TOLERANCE, axis=-1)
+    return box if float(differs.mean()) > MIN_SOLID_SHARE else None
 
 
 def trim_border(image: Image.Image) -> Image.Image:
-    """Return an image without the bands of the colour of its top left corner along its edges.
+    """Return an image without the bands of background a view leaves around an image of a fixed aspect.
 
     A view with a fixed aspect, such as a square lattice, leaves bands of background on two sides of a wider view.
+    Sparse content, such as points or a network, is left as it is, since its empty margins belong to the view.
 
     Args:
         image:
@@ -171,7 +218,7 @@ def trim_border(image: Image.Image) -> Image.Image:
 
     Returns:
         image:
-            The smallest part of the image that holds everything not of the corner colour.
+            The image of the view without its bands, or the image itself when the view draws no letterboxed image.
 
     Examples:
         >>> from PIL import Image
@@ -180,23 +227,19 @@ def trim_border(image: Image.Image) -> Image.Image:
         >>> image.paste((200, 50, 50), (30, 0, 70, 70))
         >>> trim_border(image).size
         (40, 70)
+        >>> image = Image.new('RGB', (100, 70))
+        >>> image.paste((200, 50, 50), (30, 0, 34, 4))
+        >>> image.paste((200, 50, 50), (60, 66, 64, 70))
+        >>> trim_border(image).size
+        (100, 70)
     """
     image = image.convert('RGB')
-    corner = image.getpixel((0, 0))
-    difference = ImageChops.difference(image, Image.new('RGB', image.size, corner)).convert('L')
-    box = difference.point(lambda value: 255 if value > BORDER_TOLERANCE else 0).getbbox()
+    box = _letterbox(np.asarray(image))
     return image.crop(box) if box else image
 
 
-def _band(pixels: npt.NDArray[np.uint8]) -> int:
-    """Return the number of leading rows of an image that hold one colour, the colour of its first row."""
-    values = pixels.astype(int)
-    uniform = np.all(np.abs(values - values[0, 0]) <= BORDER_TOLERANCE, axis=(1, 2))
-    return int(np.argmin(uniform)) if not uniform.all() else len(uniform)
-
-
 def has_bands(pixels: npt.NDArray[np.uint8]) -> bool:
-    """Return whether an image has a uniform band along an edge wider than a tenth of its side, as letterboxing leaves.
+    """Return whether an image is letterboxed by bands wider than a tenth of its side, as a view with a fixed aspect is.
 
     Args:
         pixels:
@@ -204,8 +247,8 @@ def has_bands(pixels: npt.NDArray[np.uint8]) -> bool:
 
     Returns:
         bands:
-            Whether a band of one colour covers more than a tenth of the width or the height from an edge, in an
-            image that is not of one colour throughout.
+            Whether an image drawn inside bands of the colour of the top left corner leaves a band wider than a tenth
+            of the width or the height. Sparse content with empty margins has no bands.
 
     Examples:
         >>> import numpy as np
@@ -214,13 +257,17 @@ def has_bands(pixels: npt.NDArray[np.uint8]) -> bool:
         >>> pixels[:, 20:80] = (200, 50, 50)
         >>> has_bands(pixels)
         True
+        >>> pixels = np.zeros((70, 100, 3), dtype=np.uint8)
+        >>> pixels[0:4, 40:44] = pixels[66:70, 60:64] = (200, 50, 50)
+        >>> has_bands(pixels)
+        False
     """
-    height, width = pixels.shape[:2]
-    rows = [_band(pixels), _band(pixels[::-1])]
-    columns = [_band(pixels.transpose(1, 0, 2)), _band(pixels.transpose(1, 0, 2)[::-1])]
-    if max(rows) == height:
+    box = _letterbox(pixels)
+    if box is None:
         return False
-    return max(rows) > MAX_BAND_SHARE * height or max(columns) > MAX_BAND_SHARE * width
+    height, width = pixels.shape[:2]
+    left, top, right, bottom = box
+    return max(top, height - bottom) > MAX_BAND_SHARE * height or max(left, width - right) > MAX_BAND_SHARE * width
 
 
 def has_light_chrome(pixels: npt.NDArray[np.uint8]) -> bool:
@@ -296,7 +343,7 @@ def find_problems(
 
 
 def encode_png(image: Image.Image, path: Path, max_bytes: int) -> Path:
-    """Write an image as an optimised PNG, reduced to smaller and smaller palettes while it is larger than the limit.
+    """Write an image as an optimised PNG, reduced to smaller adaptive palettes while it is larger than the limit.
 
     Args:
         image:
@@ -331,7 +378,8 @@ def encode_png(image: Image.Image, path: Path, max_bytes: int) -> Path:
     if path.stat().st_size <= max_bytes:
         return path
     for colors in PALETTE_SIZES:
-        image.quantize(colors=colors, dither=Image.Dither.NONE).save(path, format='PNG', optimize=True)
+        palette = image.convert('P', palette=Image.Palette.ADAPTIVE, colors=colors, dither=Image.Dither.NONE)
+        palette.save(path, format='PNG', optimize=True)
         if path.stat().st_size <= max_bytes:
             return path
     error_msg = (

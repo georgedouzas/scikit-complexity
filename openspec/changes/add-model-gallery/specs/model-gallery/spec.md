@@ -102,6 +102,16 @@ capture once with a longer wait, and then fail the build, naming the example and
 - **THEN** it is an optimised PNG, a format `mkdocs-gallery` turns into thumbnails, of the gallery size and at most
   300 KB
 
+#### Scenario: Sparse content
+- **WHEN** a view shows points or a network with empty margins, or a lattice whose background colour reaches its edges
+- **THEN** the capture keeps the whole view, and the band check passes, since only an image drawn inside bands of the
+  grey view background is letterboxed
+
+#### Scenario: Grey content
+- **WHEN** a view draws content of the grey of a notification, such as a thin grey strip
+- **THEN** the notification check passes, since a notification is a filled panel at least a quarter as wide as the
+  top right of the view
+
 ### Requirement: Captures use a chosen backend with a fallback
 The capture SHALL support two backends: the native Rerun viewer in headless mode, driven by Rerun's viewer client, and
 the Rerun web viewer in headless Chromium through Playwright. The design SHALL name the default chosen by a measured comparison, and the other

@@ -19,6 +19,10 @@
 - [x] 2.3 Add the `blueprint` argument of `RerunObserver`, which sends the blueprint and saves it next to a saved
   recording, and verify the saved recording and no blueprint scenarios
 - [x] 2.4 Document layouts and blueprints in the user guide with a runnable example, and verify the documentation test
+- [x] 2.5 Make the visuals legible at the thumbnail size: the space-time image of one-dimensional lattices as their
+  primary view, point radii that scale with the extent of the positions, trails of small groups of points, and agent
+  radii that scale with a continuous space, and verify the space-time view, legible points, and agents without a
+  space scenarios
 
 ## 3. Capture, checks, and cache
 
@@ -30,6 +34,8 @@
   scenarios
 - [x] 3.3 Add the content-based cache and its key, and verify the warm build and changed model scenarios
 - [x] 3.4 Verify the repeated capture scenario on both backends
+- [x] 3.5 Tell letterboxing from sparse content and from coloured backgrounds, tell notifications from grey content,
+  and encode with adaptive palettes, and verify the sparse content and grey content scenarios
 
 ## 4. Examples and documentation
 

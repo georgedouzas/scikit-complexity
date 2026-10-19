@@ -1121,15 +1121,19 @@ Simulation(molecule, dt=0.02, observers=[RerunObserver('molecule', save_path=pat
 
 Particles appear as 3D points, populations as time series, agents on grids and in continuous spaces as points
 colored by a state, agents on networks as graph nodes, and reporters under `reporters/`. A group is logged as one batch per state, and
-`PointsVisual(position='x', color_by='v')` colors its points by speed. A group can set its own visual with
+`PointsVisual(position='x', color_by='v')` colors its points by speed. Points and agents in a continuous space without
+a given `radius` take a share of the extent of the view, and a group of at most ten points draws the trail of its recent
+positions, which `trail=0` turns off. A one-dimensional lattice also logs a space-time image, one row per logged frame
+with the oldest at the top, holding at most `ImageVisual(history=...)` rows. A group can set its own visual with
 `Particle.group(..., visual=VisualSpec('points', {...}))`. A new visual subclasses `Visual` and is registered with
 `register_visual`, and an element type selects it with its `visual` class variable.
 
 ### Layouts and blueprints
 
 Every visual declares the Rerun views that show what it logs, through its `views` method. Scalars go in time series
-views, points in 2D or 3D spatial views by their dimension, lattices and fields in one 2D view per state, meshes in 3D
-views, and agents in a 2D view or, on a network, a graph view. `default_blueprint` arranges these views into a Rerun
+views, points in 2D or 3D spatial views by their dimension, lattices and fields in one 2D view per state, after the
+2D views of their space-time images in one dimension, meshes in 3D views, and agents in a 2D view or, on a network, a
+graph view. Agents without a space get no spatial view. `default_blueprint` arranges these views into a Rerun
 blueprint:
 - spatial views come first and side by side, with time series views below them;
 - scalar elements of one type share a time series view with at most six series;

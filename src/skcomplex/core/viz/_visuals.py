@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections import deque
 from collections.abc import Sequence
 from typing import Any
 
@@ -14,13 +15,23 @@ import rerun.blueprint as rrb
 
 from ..base import Registry, VisualSpec
 from ..compile import CompiledAgents, CompiledElement, Problem
-from ..model import GridSpace, NetworkSpace, Space
+from ..model import ContinuousSpace, GridSpace, NetworkSpace, Space
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
 
 MAX_POINT_DIMENSIONS = 3
 LAYOUT_SEED = 0
 NODE_SPACING = 40.0
+POINT_SHARE = 0.02
+CROWD_SIZE = 10
+CROWD_EXPONENT = 0.25
+TRAIL_LENGTH = 256
+MAX_TRAIL_POINTS = 10
+TRAIL_WIDTH = 0.25
+GRID_RADIUS = 0.4
+MIN_HISTORY = 64
+MAX_HISTORY = 256
+SPACE_TIME = 'space_time'
 COLOR_SCALE = np.array(
     [[68, 1, 84], [59, 82, 139], [33, 145, 140], [94, 201, 98], [253, 231, 37]],
     dtype=float,
@@ -54,6 +65,18 @@ def _palette_colors(values: npt.NDArray[np.float64], low: float, high: float) ->
         return np.broadcast_to(PALETTE[0], (*values.shape, 3))
     levels = np.clip((values - low) * (255.0 / (high - low)), 0.0, 255.0).astype(np.uint8)
     return PALETTE[levels]
+
+
+def _radius_of(extent: float, count: int) -> float:
+    """Return a point radius that is a share of the extent of a view, smaller for crowds so they do not overlap."""
+    return POINT_SHARE * (extent if extent > 0 else 1.0) / max(count / CROWD_SIZE, 1.0) ** CROWD_EXPONENT
+
+
+def _levels_of(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
+    """Return the values as levels from 1 to 255 of a color map, with 0 left for no data."""
+    if high <= low:
+        return np.ones(values.shape, dtype=np.uint8)
+    return (1 + np.clip((values - low) * (254.0 / (high - low)), 0.0, 254.0)).astype(np.uint8)
 
 
 def _network_layout(graph: nx.Graph) -> dict[str, npt.NDArray[np.float64]]:
@@ -171,14 +194,17 @@ class ScalarsVisual(Visual):
 class PointsVisual(Visual):
     """Visual that logs a vector state as points, one per member of a group, and other states as time series.
 
-    Each state is logged as one batch, so a group of any size takes one log call per state and frame.
+    Each state is logged as one batch, so a group of any size takes one log call per state and frame. Without a given
+    radius, the points take a share of the extent of the positions logged so far, smaller for larger groups. A group of
+    at most ten points in two or three dimensions also logs the trail of its recent positions as line strips under
+    `<path>/trail`, a quarter as wide as that share, whatever the radius.
 
     Args:
         position:
             The name of the vector state that holds the position.
 
         radius:
-            The radius of the points.
+            The radius of the points, or `None` for a share of the extent of the positions.
 
         color_by:
             The name of a scalar state, or of a vector state whose norm, colors the points, or `None` for one color.
@@ -189,6 +215,9 @@ class PointsVisual(Visual):
         states:
             The names of the other states to log as time series, or `None` for all of them.
 
+        trail:
+            The number of recent positions the trail of each point holds, or 0 for no trail.
+
     Examples:
         >>> from skcomplex.core.viz import PointsVisual
         >>> PointsVisual(position='x', color_by='v').color_by
@@ -198,16 +227,21 @@ class PointsVisual(Visual):
     def __init__(
         self,
         position: str,
-        radius: float = 0.05,
+        radius: float | None = None,
         color_by: str | None = None,
         color_range: tuple[float, float] | None = None,
         states: Sequence[str] | None = None,
+        *,
+        trail: int = TRAIL_LENGTH,
     ) -> None:
         self.position = position
         self.radius = radius
         self.color_by = color_by
         self.color_range = color_range
         self.states = states
+        self.trail = trail
+        self._trail: deque[npt.NDArray[np.float64]] = deque(maxlen=max(trail, 1))
+        self._bounds: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]] | None = None
 
     def _colors(self, element: CompiledElement, frame: Frame, count: int) -> npt.NDArray[np.uint8] | None:
         """Return the colors of the points, fixing the color range on first use when it is not given."""
@@ -219,8 +253,42 @@ class PointsVisual(Visual):
             self.color_range = (float(magnitudes.min()), float(magnitudes.max()))
         return _colors_of(magnitudes, *self.color_range)
 
+    def _extent_radius(self, points: npt.NDArray[np.float64]) -> float:
+        """Return a share of the extent of every position logged so far, keeping the bounds of the positions."""
+        low, high = points.min(axis=0), points.max(axis=0)
+        if self._bounds is not None:
+            low, high = np.minimum(low, self._bounds[0]), np.maximum(high, self._bounds[1])
+        self._bounds = (low, high)
+        extent = float((high - low).max()) or float(np.abs(points).max())
+        return _radius_of(extent, len(points))
+
+    def _radius(self, points: npt.NDArray[np.float64]) -> float:
+        """Return the given radius, or a share of the extent of every position logged so far."""
+        extent_radius = self._extent_radius(points)
+        return extent_radius if self.radius is None else float(self.radius)
+
+    def _log_trail(
+        self,
+        recording: rr.RecordingStream,
+        path: str,
+        points: npt.NDArray[np.float64],
+        colors: npt.NDArray[np.uint8] | None,
+    ) -> None:
+        """Log the recent positions of each point as one line strip per point, for small groups only."""
+        if not self.trail or len(points) > MAX_TRAIL_POINTS:
+            return
+        if self._trail and self._trail[-1].shape != points.shape:
+            self._trail.clear()
+        self._trail.append(points)
+        strips = list(np.stack(self._trail, axis=1))
+        radius = self._extent_radius(points) * TRAIL_WIDTH
+        if points.shape[1] == MAX_POINT_DIMENSIONS:
+            recording.log(f'{path}/trail', rr.LineStrips3D(strips, radii=radius, colors=colors))
+        else:
+            recording.log(f'{path}/trail', rr.LineStrips2D(strips, radii=radius, colors=colors))
+
     def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
-        """Log the position under `<path>` and the other states under `<path>/<state>`.
+        """Log the position under `<path>`, the trail under `<path>/trail`, and the other states under `<path>/<state>`.
 
         Args:
             recording:
@@ -235,9 +303,11 @@ class PointsVisual(Visual):
         points = np.atleast_2d(np.asarray(frame.value(element.states[self.position]), dtype=float))
         colors = self._colors(element, frame, len(points))
         if points.shape[1] == MAX_POINT_DIMENSIONS:
-            recording.log(element.path, rr.Points3D(points, radii=self.radius, colors=colors))
+            recording.log(element.path, rr.Points3D(points, radii=self._radius(points), colors=colors))
+            self._log_trail(recording, element.path, points, colors)
         elif points.shape[1] == MAX_POINT_DIMENSIONS - 1:
-            recording.log(element.path, rr.Points2D(points, radii=self.radius, colors=colors))
+            recording.log(element.path, rr.Points2D(points, radii=self._radius(points), colors=colors))
+            self._log_trail(recording, element.path, points, colors)
         else:
             recording.log(f'{element.path}/{self.position}', rr.Scalars(points.ravel()))
         others = (
@@ -295,9 +365,10 @@ class AgentsVisual(Visual):
 
     Agents on a grid or in a continuous space are logged as `Points2D` at their cell centres or positions, and agents
     on a network as `GraphNodes` at their nodes, which keep the `pos` attributes of the nodes, or the positions of a
-    seeded spring layout of the network. On a network the radius is a fraction of the spacing of neighbouring nodes.
-    Every point carries the agent id as a hidden label, so agents keep their identity across frames and removed agents
-    disappear.
+    seeded spring layout of the network. On a grid the radius is in cells, and on a network a fraction of the spacing
+    of neighbouring nodes. Without a given radius, agents in a continuous space take a share of the side of the space,
+    smaller for larger groups. Every point carries the agent id as a hidden label, so agents keep their identity across
+    frames and removed agents disappear.
 
     Args:
         color_by:
@@ -307,7 +378,7 @@ class AgentsVisual(Visual):
             The values at the two ends of the color scale, or `None` to fix them from the first logged frame.
 
         radius:
-            The radius of the points.
+            The radius of the points, or `None` for 0.4 on grids and networks and a share of the side of other spaces.
 
     Examples:
         >>> from skcomplex.core.viz import AgentsVisual
@@ -319,7 +390,7 @@ class AgentsVisual(Visual):
         self,
         color_by: str | None = None,
         color_range: tuple[float, float] | None = None,
-        radius: float = 0.4,
+        radius: float | None = None,
     ) -> None:
         self.color_by = color_by
         self.color_range = color_range
@@ -340,6 +411,17 @@ class AgentsVisual(Visual):
         if self.color_range is None:
             self.color_range = (float(values.min()), float(values.max()))
         return _colors_of(values, *self.color_range)
+
+    def _radius(self, space: Space | None, positions: npt.NDArray[np.float64]) -> float:
+        """Return the given radius, a radius in cells on grids and networks, or a share of the side of other spaces."""
+        if self.radius is not None:
+            return float(self.radius)
+        if space is None or isinstance(space, GridSpace | NetworkSpace):
+            return GRID_RADIUS
+        if isinstance(space, ContinuousSpace):
+            return _radius_of(float(max(space.width, space.height)), len(positions))
+        extent = float(np.ptp(positions, axis=0).max()) if len(positions) else 0.0
+        return _radius_of(extent, len(positions))
 
     def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
         """Raise an error, because agents are logged with `log_agents`.
@@ -396,14 +478,15 @@ class AgentsVisual(Visual):
                     colors=colors,
                     labels=labels,
                     show_labels=False,
-                    radii=self.radius * NODE_SPACING / 2,
+                    radii=self._radius(space, np.zeros((0, 2))) * NODE_SPACING / 2,
                 ),
             )
             return
         positions = np.asarray(snapshot.locations, dtype=float).reshape(len(snapshot), -1)
         if isinstance(space, GridSpace):
             positions = positions + 0.5
-        recording.log(path, rr.Points2D(positions, colors=colors, radii=self.radius, labels=labels, show_labels=False))
+        radius = self._radius(space, positions)
+        recording.log(path, rr.Points2D(positions, colors=colors, radii=radius, labels=labels, show_labels=False))
 
     def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
         """Return a graph view of the whole network, a 2D spatial view for agents in a space, and none without one.
@@ -440,6 +523,9 @@ class AgentsVisual(Visual):
 class ImageVisual(Visual):
     """Visual that logs every state of a lattice group as an image colored by value, or a tensor in 3D and more.
 
+    A one-dimensional lattice also logs a space-time image under `<path>/space_time/<state>`, with one row per logged
+    frame, the oldest at the top, and at most `history` rows. Its colors span the values of the rows it shows.
+
     Args:
         states:
             The states to log, or `None` for every state.
@@ -450,10 +536,14 @@ class ImageVisual(Visual):
         high:
             The value of the brightest color, or `None` for the largest value of every frame.
 
+        history:
+            The largest number of rows of the space-time image of a one-dimensional lattice, 0 for no space-time
+            image, or `None` for as many rows as the lattice has sites, between 64 and 256.
+
     Examples:
         >>> from skcomplex.core.viz import ImageVisual
         >>> ImageVisual(low=0, high=1)
-        ImageVisual(states=None, low=0, high=1)
+        ImageVisual(states=None, low=0, high=1, history=None)
     """
 
     def __init__(
@@ -461,17 +551,43 @@ class ImageVisual(Visual):
         states: Sequence[str] | None = None,
         low: float | None = None,
         high: float | None = None,
+        history: int | None = None,
     ) -> None:
         self.states = states
         self.low = low
         self.high = high
+        self.history = history
+        self._rows: dict[str, deque[npt.NDArray[np.float64]]] = {}
 
     def __repr__(self) -> str:
         """Return the options."""
-        return f'ImageVisual(states={self.states!r}, low={self.low!r}, high={self.high!r})'
+        return f'ImageVisual(states={self.states!r}, low={self.low!r}, high={self.high!r}, history={self.history!r})'
+
+    def _history_of(self, sites: int) -> int:
+        """Return the number of rows of the space-time image of a one-dimensional lattice of a number of sites."""
+        if self.history is not None:
+            return self.history
+        return int(np.clip(sites, MIN_HISTORY, MAX_HISTORY))
+
+    def _range(self, values: npt.NDArray[np.float64]) -> tuple[float, float]:
+        """Return the values of the two ends of the color scale, the given ones or the extremes of the values."""
+        low = float(values.min()) if self.low is None else float(self.low)
+        high = float(values.max()) if self.high is None else float(self.high)
+        return low, high
+
+    def _log_space_time(self, recording: rr.RecordingStream, path: str, values: npt.NDArray[np.float64]) -> None:
+        """Log the recent rows of a one-dimensional lattice as a space-time depth image with a color map."""
+        rows = self._history_of(len(values))
+        if not rows:
+            return
+        history = self._rows.setdefault(path, deque(maxlen=rows))
+        history.append(values)
+        image = np.stack(history)
+        depth = rr.DepthImage(_levels_of(image, *self._range(image)), colormap='viridis', depth_range=(0.0, 255.0))
+        recording.log(path, depth)
 
     def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
-        """Log every chosen state of a lattice group under `<path>/<state>`.
+        """Log every chosen state of a lattice group under `<path>/<state>`, and a space-time image in one dimension.
 
         Args:
             recording:
@@ -491,13 +607,20 @@ class ImageVisual(Visual):
             if values.ndim > 2:  # noqa: PLR2004
                 recording.log(path, rr.Tensor(values))
                 continue
+            if values.ndim == 1:
+                self._log_space_time(recording, f'{element.path}/{SPACE_TIME}/{state}', values)
             values = np.atleast_2d(values)
-            low = float(values.min()) if self.low is None else float(self.low)
-            high = float(values.max()) if self.high is None else float(self.high)
-            recording.log(path, rr.Image(_palette_colors(values, low, high)))
+            colors = _palette_colors(values, *self._range(values))
+            height, width = values.shape
+            recording.log(
+                path,
+                rr.Image(bytes=colors.tobytes(), width=width, height=height, color_model='RGB', datatype='U8'),
+            )
 
     def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
         """Return one 2D spatial view per chosen state, or a tensor view for a lattice of three or more dimensions.
+
+        A one-dimensional lattice gets the 2D spatial views of its space-time images first, named `<state> history`.
 
         Args:
             element:
@@ -508,7 +631,8 @@ class ImageVisual(Visual):
 
         Returns:
             views:
-                One view per chosen state, with `<path>/<state>` as origin.
+                One view per chosen state with `<path>/<state>` as origin, after one view per state with
+                `<path>/space_time/<state>` as origin in one dimension.
 
         Examples:
             >>> from skcomplex.core.compile import compile_system
@@ -517,17 +641,25 @@ class ImageVisual(Visual):
             >>> problem = compile_system(create('gray_scott', shape=(16, 16)))
             >>> [str(view.origin) for view in ImageVisual().views(problem.elements[0], problem)]
             ['cells/u', 'cells/v']
+            >>> problem = compile_system(create('elementary_automaton'))
+            >>> [str(view.origin) for view in ImageVisual().views(problem.elements[0], problem)]
+            ['cells/space_time/alive', 'cells/alive']
         """
         if not isinstance(element, CompiledElement):
             return []
+        histories: list[rrb.View] = []
         views: list[rrb.View] = []
         for state, name in element.states.items():
             if self.states is not None and state not in self.states:
                 continue
             path, shape = f'{element.path}/{state}', problem.lattice_shape(name) or ()
+            if len(shape) == 1 and self._history_of(shape[0]):
+                histories.append(
+                    rrb.Spatial2DView(origin=f'{element.path}/{SPACE_TIME}/{state}', name=f'{state} history'),
+                )
             kind = rrb.TensorView if len(shape) > 2 else rrb.Spatial2DView  # noqa: PLR2004
             views.append(kind(origin=path, name=state))
-        return views
+        return [*histories, *views]
 
 
 class MeshVisual(Visual):

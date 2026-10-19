@@ -73,6 +73,8 @@ the same way:
 - `PointsVisual` gives a `Spatial2DView` or a `Spatial3DView` by the dimension of its position, and a `TimeSeriesView`
   of its other logged states.
 - `ImageVisual` gives a `Spatial2DView` per field state, or a `TensorView` for lattices of three or more dimensions.
+  A one-dimensional lattice also logs a space-time image under `<path>/space_time/<state>`, and its `Spatial2DView`,
+  named `<state> history`, comes first, so the space-time diagram is the primary view.
 - `AgentsVisual` gives a `Spatial2DView` in grids and continuous spaces, a `GraphView` framed on the network on
   networks, and no view for agents without a space, which log no location.
 - `MeshVisual` gives a `Spatial3DView`, not the `Spatial2DView` first planned, because it logs a `Mesh3D` with the
@@ -95,11 +97,25 @@ the same way:
 in a saved `.rrd` as its default blueprint, writes it next to the recording as a `.rbl`, and exposes it as
 `blueprint_`.
 
-Two visual fixes came out of the reference set, because without them the captures were not reproducible or not legible:
+Visual fixes came out of the reference set and of the first full run, because without them the captures were not
+reproducible or not legible:
 - agents on a network are logged with fixed positions: the `pos` attributes of the nodes when every node has one, and
   a spring layout with seed 0 otherwise, scaled in the user-interface points the graph view draws in. Without fixed
   positions the viewer's force layout makes every capture different, and without the scale the nodes are invisible;
-- the default series lines are 2.5 points wide, so they read at the grid size.
+- the default series lines are 2.5 points wide, so they read at the grid size;
+- a one-dimensional lattice drew one row of pixels, a thin strip that failed the blank check, and Rerun read an image of
+  one row as a grey column. The row is now logged with an explicit width, height, and colour model, and the visual keeps
+  the most recent rows, at most `history`, by default as many as the lattice has sites between 64 and 256, and logs
+  them as a `DepthImage` of 8-bit levels with the viridis colour map. The levels are a quarter of the size of RGB, and
+  the recording's LZ4 chunks compress them well: 251 frames of TASEP take 3.1 MB. `DepthImage.compress`, which writes
+  a PNG, was rejected, because Rerun 0.39 draws the PNG depth image in one colour;
+- points had a fixed radius of 0.05 whatever the scale of the system, so a projectile or an orbit was invisible. Without
+  a given radius they now take a fiftieth of the extent of the positions logged so far, divided by the fourth root of a
+  tenth of the group size beyond ten, and a group of at most ten points logs the line strip of its last 256 positions
+  under `<path>/trail`. Radii in user-interface points were rejected, since a radius fixed on screen ignores the zoom of
+  the view and grows crowds into blobs;
+- agents in a continuous space had the radius of a grid cell, 0.4, invisible in a space of side 280. Without a given
+  radius they now take the same share of the side of the space.
 
 Rerun's blueprint API is the mature mechanism, so the framework only maps its visuals onto it. The alternative was a
 blueprint per model by hand. It was rejected because 301 hand-made layouts would drift from the visuals, and users
@@ -215,14 +231,18 @@ The checks use Pillow and NumPy on the captured image:
 - **Blank views:** every view rectangle, without its title bar, has a pixel standard deviation above 2 and at least
   0.05% of saturated pixels. The viewer's chrome is grey, and everything the visuals draw is coloured, so an empty
   plot with its axes and labels counts as blank. The rectangles come from the blueprint's containers and shares.
-- **Notifications:** no more than 5% of the top right of a view has the notification background (33, 33, 33).
-- **Letterboxing:** a view with a fixed aspect, such as a square lattice, leaves background bands in the 10:7 frame. The
-  capture trims the bands of the corner colour and scales the content to fill the frame, cropping around the centre,
-  and the check rejects a band of one colour wider than a tenth of the width or height along an edge.
+- **Notifications:** the top right of a view holds no filled panel of the notification background (33, 33, 33) that
+  covers more than 5% of it and is at least a quarter as wide. Grey content, such as a thin strip, is not a panel.
+- **Letterboxing:** a view with a fixed aspect, such as a square lattice, leaves background bands in the 10:7 frame. An
+  image is letterboxed when the corner has the grey of the view background, the content spans the width or the height,
+  and the edges of its box are mostly content. The capture trims the bands of such an image and scales it to fill the
+  frame, cropping around the centre, and the check rejects bands wider than a tenth of the width or height. Points or
+  a network with empty margins, and a lattice whose coloured background reaches the edges, are not letterboxed. The
+  first full run rejected eight such captures before this distinction.
 - **Chrome:** no more than a fifth of the image is near-white grey, which catches a persisted light theme or open
   panels, as the baseline showed.
-- **Encoding:** a PNG optimised by Pillow, with the size at most 300 KB, reduced to a palette of 256, 128, 64, or 32
-  colours while it is larger. WebP was rejected because `mkdocs-gallery`
+- **Encoding:** a PNG optimised by Pillow, with the size at most 300 KB, reduced to an adaptive palette of 256, 128,
+  64, 32, or 16 colours, without dithering, while it is larger. WebP was rejected because `mkdocs-gallery`
   0.10.4 finds and rescales thumbnails only from PNG, JPG, SVG, and GIF, and silently falls back to its placeholder
   image otherwise.
 - **Placeholder:** the gallery build compares every generated thumbnail with the `mkdocs-gallery` placeholder
@@ -269,7 +289,8 @@ Playwright, which are development dependencies, and the package keeps only `core
 - `rerun.__version__`;
 - the backend name;
 - the capture settings, which are the window size, density, waits, encoder settings, and a version of the capture
-  procedure, raised whenever the capture or its processing changes the images.
+  procedure, raised whenever the capture, its processing, or the core visuals change the images, since the key does not
+  hold the sources of the core.
 
 Screenshots are stored under `docs/generated/gallery/_cache/` locally and in the CI cache, and `exclude_docs` keeps the
 cache out of the site. The scraper writes the key of the screenshots a page shows next to the page, and the

@@ -7,6 +7,7 @@ from gallery_tools import (
     GalleryError,
     encode_png,
     find_problems,
+    has_bands,
     has_notification,
     is_blank,
     is_placeholder,
@@ -71,8 +72,7 @@ def test_find_problems_names_blank_view_and_size():
         ),
     )
     boxes = view_boxes(rrb.Horizontal(rrb.TimeSeriesView(name='lines'), rrb.Spatial2DView(name='field')), SIZE)
-    band = 'a uniform band covers more than a tenth of the image along an edge'
-    assert find_problems(image, SIZE, boxes) == ['the view field is blank', band]
+    assert find_problems(image, SIZE, boxes) == ['the view field is blank']
     assert find_problems(image, (400, 280), boxes) == ['the size is 200x140, not 400x280']
 
 
@@ -126,3 +126,35 @@ def test_find_problems_names_letterbox_bands():
     problems = find_problems(Image.fromarray(pixels), SIZE, [('view', (0, 0, *SIZE))])
     assert problems == ['a uniform band covers more than a tenth of the image along an edge']
     assert trim_border(Image.fromarray(pixels)).size == (140, 140)
+
+
+def test_has_notification_ignores_grey_content():
+    """Test that grey content of the notification colour, as a thin strip, is not a notification."""
+    pixels = np.asarray(_image()).copy()
+    pixels[:, 150:156] = (33, 33, 33)
+    assert not has_notification(pixels)
+
+
+def test_find_problems_accepts_sparse_content():
+    """Test that points with empty margins leave no band, and are not trimmed."""
+    pixels = np.zeros((140, 200, 3), dtype=np.uint8)
+    pixels[0:6, 0:6] = pixels[134:140, 194:200] = pixels[60:66, 100:106] = (230, 80, 60)
+    assert not has_bands(pixels)
+    assert find_problems(Image.fromarray(pixels), SIZE, [('view', (0, 0, *SIZE))]) == []
+    assert trim_border(Image.fromarray(pixels)).size == SIZE
+
+
+def test_find_problems_accepts_coloured_background():
+    """Test that a lattice whose background colour fills the edges is content, not letterboxing."""
+    pixels = np.zeros((140, 200, 3), dtype=np.uint8)
+    pixels[:] = (68, 1, 84)
+    pixels[:, 90:110] = (33, 145, 140)
+    assert not has_bands(pixels)
+
+
+def test_encode_png_uses_adaptive_palette(tmp_path):
+    """Test that an image over the limit is written with a palette."""
+    noise = np.random.default_rng(0).integers(0, 4, (280, 400, 3), dtype=np.uint8) * 60
+    path = encode_png(Image.fromarray(noise), tmp_path / 'noise.png', 100_000)
+    with Image.open(path) as image:
+        assert image.mode == 'P'

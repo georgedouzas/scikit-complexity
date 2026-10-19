@@ -1,0 +1,147 @@
+"""Test what the built-in visuals log for points, agents, and one-dimensional lattices."""
+
+import numpy as np
+import pytest
+
+from skcomplex.core.model import ContinuousSpace, EuclideanSpace, Particle, System
+from skcomplex.core.runtime import Frame, Observer, Simulation
+from skcomplex.core.viz import AgentsVisual, ImageVisual, PointsVisual
+from skcomplex.models import create
+
+
+class Logs:
+    """Recording stand-in that keeps the entity paths and archetypes it receives."""
+
+    def __init__(self):
+        """Start with no logs."""
+        self.logs = []
+
+    def log(self, path, archetype):
+        """Keep a logged entity path and archetype."""
+        self.logs.append((path, archetype))
+
+    def of(self, path):
+        """Return the archetypes logged under a path."""
+        return [archetype for logged, archetype in self.logs if logged == path]
+
+
+def _frames(system, steps, dt=0.1):
+    """Return the problem and the frames of a run of a system."""
+    frames = []
+
+    class Keep(Observer):
+        """Observer that keeps every frame."""
+
+        def on_frame(self, frame):
+            """Keep a frame."""
+            frames.append(frame)
+
+    simulation = Simulation(system, dt=dt, observers=[Keep()], random_state=0)
+    simulation.run(until=steps * dt)
+    return simulation.problem_, frames
+
+
+def _first_frame(system):
+    """Return the problem and the first frame of a system."""
+    simulation = Simulation(system).run(until=0.0)
+    problem = simulation.problem_
+    return problem, Frame(0, 0.0, simulation.state_, simulation.parameters_, problem)
+
+
+def _format(archetype):
+    """Return the width and the height of a logged image."""
+    image_format = archetype.format.as_arrow_array()[0].as_py()
+    return image_format['width'], image_format['height']
+
+
+def _radius(archetype):
+    """Return the first radius of logged points."""
+    return archetype.radii.as_arrow_array().to_pylist()[0]
+
+
+def test_image_visual_logs_space_time_of_one_dimensional_lattice():
+    """Test that a one-dimensional lattice logs a space-time image that grows by one row per frame."""
+    problem, frames = _frames(create('elementary_automaton', size=21), steps=5, dt=1.0)
+    visual, logs = ImageVisual(), Logs()
+    for frame in frames:
+        visual.log(logs, problem.elements[0], frame)
+    images = logs.of('cells/space_time/alive')
+    assert [type(image).__name__ for image in images] == ['DepthImage'] * len(frames)
+    assert [_format(image) for image in images] == [(21, rows) for rows in range(1, len(frames) + 1)]
+
+
+def test_image_visual_bounds_space_time_rows():
+    """Test that the space-time image keeps only the most recent rows."""
+    problem, frames = _frames(create('elementary_automaton', size=21), steps=5, dt=1.0)
+    visual, logs = ImageVisual(history=3), Logs()
+    for frame in frames:
+        visual.log(logs, problem.elements[0], frame)
+    assert _format(logs.of('cells/space_time/alive')[-1]) == (21, 3)
+
+
+def test_image_visual_logs_one_row_as_rgb_image():
+    """Test that the current row of a one-dimensional lattice is an image one pixel high, not a column of grey."""
+    problem, frame = _first_frame(create('elementary_automaton', size=21))
+    logs = Logs()
+    ImageVisual(history=0).log(logs, problem.elements[0], frame)
+    assert [path for path, _ in logs.logs] == ['cells/alive']
+    image = logs.of('cells/alive')[0].format.as_arrow_array()[0].as_py()
+    assert (image['width'], image['height'], image['color_model']) == (21, 1, 2)
+
+
+def test_points_visual_radius_scales_with_extent():
+    """Test that points without a given radius take a share of the extent of the positions."""
+    system = System(elements=[Particle.group('bodies', 2, x=[[0.0, 0.0], [100.0, 0.0]])], space=EuclideanSpace(2))
+    problem, frame = _first_frame(system)
+    logs = Logs()
+    PointsVisual(position='x', states=()).log(logs, problem.elements[0], frame)
+    assert _radius(logs.of('bodies')[0]) == pytest.approx(2.0)
+    logs = Logs()
+    PointsVisual(position='x', radius=0.5, states=()).log(logs, problem.elements[0], frame)
+    assert _radius(logs.of('bodies')[0]) == pytest.approx(0.5)
+
+
+def test_points_visual_logs_trail_of_small_groups():
+    """Test that a small group logs one line strip per point with its recent positions."""
+    system = System(elements=[Particle.group('bodies', 2, v=[[1.0, 0.0], [0.0, 1.0]])], space=EuclideanSpace(2))
+    problem, frames = _frames(system, steps=4)
+    visual, logs = PointsVisual(position='x', states=(), trail=3), Logs()
+    for frame in frames:
+        visual.log(logs, problem.elements[0], frame)
+    trails = logs.of('bodies/trail')
+    assert type(trails[-1]).__name__ == 'LineStrips2D'
+    strips = trails[-1].strips.as_arrow_array().to_pylist()
+    assert [len(strip) for strip in strips] == [3, 3]
+    assert np.allclose(strips[0][-1], frames[-1].value(problem.elements[0].states['x'])[0])
+
+
+@pytest.mark.parametrize(('count', 'trail'), [(11, 256), (2, 0)])
+def test_points_visual_leaves_out_trail(count, trail):
+    """Test that large groups and a trail of 0 positions log no trail."""
+    system = System(elements=[Particle.group('bodies', count)], space=EuclideanSpace(3))
+    problem, frame = _first_frame(system)
+    logs = Logs()
+    PointsVisual(position='x', states=(), trail=trail).log(logs, problem.elements[0], frame)
+    assert [path for path, _ in logs.logs] == ['bodies']
+
+
+def test_agents_visual_radius_scales_with_continuous_space():
+    """Test that agents in a continuous space take a share of its side, and agents on a grid 0.4 cells."""
+    problem, frames = _frames(create('obesity', n_people=10, n_places=4, random_state=0), steps=1, dt=1.0)
+    space = problem.agent_space
+    assert isinstance(space, ContinuousSpace)
+    logs = Logs()
+    snapshot = frames[0].agents['people']
+    AgentsVisual().log_agents(logs, 'people', snapshot, space)
+    assert _radius(logs.of('people')[0]) == pytest.approx(0.02 * 280.0)
+    AgentsVisual().log_agents(logs, 'grid', snapshot, None)
+    assert _radius(logs.of('grid')[0]) == pytest.approx(0.4)
+
+
+def test_points_visual_trail_width_follows_extent():
+    """Test that the trail is a quarter as wide as the extent share, even when a tiny radius is given."""
+    system = System(elements=[Particle.group('bodies', 2, x=[[0.0, 0.0], [100.0, 0.0]])], space=EuclideanSpace(2))
+    problem, frame = _first_frame(system)
+    logs = Logs()
+    PointsVisual(position='x', radius=0.05, states=()).log(logs, problem.elements[0], frame)
+    assert _radius(logs.of('bodies/trail')[0]) == pytest.approx(0.5)

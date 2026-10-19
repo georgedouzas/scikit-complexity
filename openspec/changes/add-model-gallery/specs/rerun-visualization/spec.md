@@ -13,6 +13,28 @@ a user SHALL be able to declare its views the same way.
 - **THEN** they are a time series view, a 3D spatial view, a 2D spatial view, and a graph view, each with the visual's
   entity path as origin
 
+### Requirement: One-dimensional lattices show their space-time image
+A one-dimensional lattice or field SHALL log, besides its current row, a space-time image with one row per logged frame,
+the oldest at the top, holding a bounded number of the most recent rows. Its view SHALL come before the view of the row.
+
+#### Scenario: Space-time view
+- **WHEN** the primary view of `elementary_automaton` is asked for
+- **THEN** it is the 2D view of the space-time image of its cells, whose rows are the generations
+
+### Requirement: Points and agents stay legible at any scale
+Points without a given radius SHALL take a share of the extent of the positions logged so far, and a group of at most
+ten points in two or three dimensions SHALL log the trail of its recent positions as line strips. Agents in a
+continuous space without a given radius SHALL take a share of the side of the space. Agents without a space SHALL get
+no spatial view.
+
+#### Scenario: Legible points
+- **WHEN** `two_body_orbit` is recorded with its default visual
+- **THEN** the bodies have a radius of a fiftieth of the extent of the orbit, and each draws its recent orbit as a line
+
+#### Scenario: Agents without a space
+- **WHEN** the default blueprint of an agent model without a space, such as `moran_process`, is built
+- **THEN** it holds no spatial view, and its primary view is the time series view of the reporters
+
 ### Requirement: Systems get a default blueprint
 `default_blueprint(system)` SHALL return a Rerun blueprint built from the views of the system's visuals, ordered with
 the primary view first, which `primary_view(system)` returns, unless `primary` names another view. Its scalar views SHALL be grouped by element, its

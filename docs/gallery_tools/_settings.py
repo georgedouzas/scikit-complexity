@@ -38,7 +38,7 @@ class CaptureSettings:
     wait: float = 20.0
     settle: float = 0.4
     max_png_bytes: int = 300_000
-    version: int = 2
+    version: int = 4
 
     def logical(self, size: tuple[int, int]) -> tuple[int, int]:
         """Return the logical size of an image size.

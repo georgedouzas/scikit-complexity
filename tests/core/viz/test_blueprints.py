@@ -172,3 +172,27 @@ def test_default_blueprint_rejects_unknown_primary_view():
     """Test that a primary view that matches no view is rejected with the names of the views."""
     with pytest.raises(ValidationError, match='The views are: u, v'):
         default_blueprint(create('gray_scott', shape=(16, 16)), primary='cells/w')
+
+
+def test_primary_view_of_one_dimensional_lattice_is_space_time():
+    """Test that a one-dimensional lattice puts its space-time image first."""
+    view = primary_view(create('elementary_automaton'))
+    assert type(view).__name__ == 'Spatial2DView'
+    assert str(view.origin) == 'cells/space_time/alive'
+    assert str(view.name) == 'alive history'
+
+
+def test_primary_view_of_agents_without_space_is_reporters():
+    """Test that agents without a space get no spatial view, so the reporters come first."""
+    problem = compile_system(create('moran_process'))
+    assert problem.agent_space is None
+    assert AgentsVisual().views(problem.agents[0], problem) == []
+    view = primary_view(problem)
+    assert (type(view).__name__, str(view.name)) == ('TimeSeriesView', 'reporters')
+
+
+def test_views_of_image_without_history_leave_out_space_time():
+    """Test that a history of 0 rows declares no space-time view."""
+    problem = compile_system(create('elementary_automaton'))
+    views = ImageVisual(history=0).views(problem.elements[0], problem)
+    assert [str(view.origin) for view in views] == ['cells/alive']
