@@ -29,26 +29,12 @@ YEAST_INPUTS = {
 }
 YEAST_DECAYING = ('Cln3', 'Cln1_2', 'Swi5', 'Cdc20', 'Mcm1')
 YEAST_START = ('Cln3', 'Cdh1', 'Sic1')
-INPUT_ROLES = ('input_0', 'input_1', 'input_2', 'input_3', 'input_4')
-
-
-def _inputs_of(s: Symbols) -> list[Expression]:
-    """Return the values of the five input roles of a Boolean update."""
-    return [getattr(s, name).x for name in INPUT_ROLES]
 
 
 def _pattern(inputs: Sequence[Expression], index: int) -> Expression:
     """Return the product that is 1 when the inputs, read as bits from the most significant, spell an index."""
     bits = [(index >> (len(inputs) - 1 - position)) & 1 for position in range(len(inputs))]
     return prod((value if bit else 1 - value for value, bit in zip(inputs, bits, strict=True)), start=SR(1))
-
-
-def _padded_inputs(target: str, sources: Sequence[str]) -> list[str]:
-    """Return the paths bound to the five input roles, the sources followed by the target for the unused roles."""
-    if len(sources) > len(INPUT_ROLES):
-        error_msg = f'A node reads at most {len(INPUT_ROLES)} inputs, and {target} reads {len(sources)}.'
-        raise ValidationError(error_msg)
-    return [*sources, *[target] * (len(INPUT_ROLES) - len(sources))]
 
 
 class BooleanNode(Element):
@@ -71,11 +57,11 @@ class BooleanNode(Element):
 
 
 class BooleanFunction(Interaction):
-    """Synchronous update of a node by a truth table of up to five input nodes.
+    """Synchronous update of a node by a truth table of any number of input nodes.
 
-    A table of `2^k` entries reads the first `k` inputs as the bits of a binary number, from the most significant,
-    and gives the next value of the target. The update is the sum, over the patterns whose entry is 1, of the product
-    that is 1 exactly on that pattern. Unused inputs are ignored, so they may be bound to any node.
+    A table of `2^k` entries reads the `k` inputs as the bits of a binary number, from the most significant, and gives
+    the next value of the target. The update is the sum, over the patterns whose entry is 1, of the product that is 1
+    exactly on that pattern.
 
     Args:
         label:
@@ -84,37 +70,20 @@ class BooleanFunction(Interaction):
         target:
             The path of the updated node.
 
-        input_0:
-            The path of the first input.
-
-        input_1:
-            The path of the second input.
-
-        input_2:
-            The path of the third input.
-
-        input_3:
-            The path of the fourth input.
-
-        input_4:
-            The path of the fifth input.
+        inputs:
+            The paths of the input nodes, in the order of the bits of the table.
 
         table:
             The next value of the target for each of the `2^k` input patterns.
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import BooleanFunction
-        >>> inputs = {'input_0': 'a', 'input_1': 'b', 'input_2': 'c', 'input_3': 'c', 'input_4': 'c'}
-        >>> BooleanFunction('and', target='c', table=(0, 0, 0, 1), **inputs).table
+        >>> BooleanFunction('and', target='c', inputs=['a', 'b'], table=(0, 0, 0, 1)).table
         (0, 0, 0, 1)
     """
 
     target: str = role()
-    input_0: str = role()
-    input_1: str = role()
-    input_2: str = role()
-    input_3: str = role()
-    input_4: str = role()
+    inputs: list[str] = role(variadic=True)
     table: tuple[int, ...] = (0,)
 
     def laws(self, s: Symbols) -> list[Law]:
@@ -127,8 +96,18 @@ class BooleanFunction(Interaction):
         Returns:
             laws:
                 The laws of the component.
+
+        Raises:
+            ValidationError:
+                The table does not have one entry per pattern of the inputs.
         """
-        inputs = _inputs_of(s)[: (len(self.table) - 1).bit_length()]
+        if len(self.table) != 2 ** len(s.inputs):
+            error_msg = (
+                f'BooleanFunction {self.label} reads {len(s.inputs)} inputs, which take {2 ** len(s.inputs)} '
+                f'patterns, but its table has {len(self.table)} entries.'
+            )
+            raise ValidationError(error_msg)
+        inputs = [item.x for item in s.inputs]
         terms = [_pattern(inputs, index) for index, entry in enumerate(self.table) if entry]
         return [Update(s.target.x, sum(terms, start=SR(0)))]
 
@@ -136,8 +115,8 @@ class BooleanFunction(Interaction):
 class ThresholdFunction(Interaction):
     """Synchronous update of a node by the sign of the weighted sum of its active inputs, after Li et al.
 
-    The node turns on when the sum `w_0 x_0 + ... + w_4 x_4` is positive and off when it is negative. When the sum is
-    zero, a node that decays turns off and any other node keeps its value. Inputs with zero weight are ignored.
+    The node turns on when the sum `w_0 x_0 + w_1 x_1 + ...` over its inputs is positive and off when it is negative.
+    When the sum is zero, a node that decays turns off and any other node keeps its value.
 
     Args:
         label:
@@ -146,57 +125,24 @@ class ThresholdFunction(Interaction):
         target:
             The path of the updated node.
 
-        input_0:
-            The path of the first input.
+        inputs:
+            The paths of the input nodes.
 
-        input_1:
-            The path of the second input.
-
-        input_2:
-            The path of the third input.
-
-        input_3:
-            The path of the fourth input.
-
-        input_4:
-            The path of the fifth input.
-
-        w_0:
-            The weight of the first input, positive for activation and negative for inhibition.
-
-        w_1:
-            The weight of the second input.
-
-        w_2:
-            The weight of the third input.
-
-        w_3:
-            The weight of the fourth input.
-
-        w_4:
-            The weight of the fifth input.
+        weights:
+            The weight of every input, positive for activation and negative for inhibition.
 
         decays:
             Whether the node turns off without net input.
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import ThresholdFunction
-        >>> inputs = {'input_0': 'Swi5', 'input_1': 'Sic1', 'input_2': 'Sic1', 'input_3': 'Sic1', 'input_4': 'Sic1'}
-        >>> ThresholdFunction('sic1', target='Sic1', w_0=1.0, **inputs).w_0
-        1.0
+        >>> ThresholdFunction('sic1', target='Sic1', inputs=['Swi5', 'Cln1_2'], weights=[1.0, -1.0]).weights
+        [1.0, -1.0]
     """
 
     target: str = role()
-    input_0: str = role()
-    input_1: str = role()
-    input_2: str = role()
-    input_3: str = role()
-    input_4: str = role()
-    w_0: float = parameter(default=0.0)
-    w_1: float = parameter(default=0.0)
-    w_2: float = parameter(default=0.0)
-    w_3: float = parameter(default=0.0)
-    w_4: float = parameter(default=0.0)
+    inputs: list[str] = role(variadic=True)
+    weights: list[float] = parameter(default=(), per='inputs')
     decays: bool = False
 
     def laws(self, s: Symbols) -> list[Law]:
@@ -210,46 +156,9 @@ class ThresholdFunction(Interaction):
             laws:
                 The laws of the component.
         """
-        weights = [s.w_0, s.w_1, s.w_2, s.w_3, s.w_4]
-        total = sum((weight * value for weight, value in zip(weights, _inputs_of(s), strict=True)), start=SR(0))
+        total = sum((weight * item.x for weight, item in zip(s.weights, s.inputs, strict=True)), start=SR(0))
         unchanged = 0 if self.decays else s.target.x
         return [Update(s.target.x, where(total > 0, 1, where(total < 0, 0, unchanged)))]
-
-
-def _truth_table_update(label: str, target: str, sources: Sequence[str], table: tuple[int, ...]) -> BooleanFunction:
-    """Return the truth table update of a target by its sources."""
-    first, second, third, fourth, fifth = _padded_inputs(target, sources)
-    return BooleanFunction(
-        label,
-        target=target,
-        input_0=first,
-        input_1=second,
-        input_2=third,
-        input_3=fourth,
-        input_4=fifth,
-        table=table,
-    )
-
-
-def _threshold_update(label: str, target: str, inputs: Sequence[tuple[str, int]], *, decays: bool) -> ThresholdFunction:
-    """Return the threshold update of a target by weighted sources."""
-    first, second, third, fourth, fifth = _padded_inputs(target, [source for source, _ in inputs])
-    weights = [float(weight) for _, weight in inputs] + [0.0] * (len(INPUT_ROLES) - len(inputs))
-    return ThresholdFunction(
-        label,
-        target=target,
-        input_0=first,
-        input_1=second,
-        input_2=third,
-        input_3=fourth,
-        input_4=fifth,
-        w_0=weights[0],
-        w_1=weights[1],
-        w_2=weights[2],
-        w_3=weights[3],
-        w_4=weights[4],
-        decays=decays,
-    )
 
 
 @register_model(
@@ -276,7 +185,7 @@ def random_boolean_network(
             The number of nodes.
 
         k:
-            The number of inputs per node, at most five.
+            The number of inputs per node, at most the number of nodes.
 
         bias:
             The probability that an entry of a truth table is 1.
@@ -290,21 +199,24 @@ def random_boolean_network(
 
     Raises:
         ValidationError:
-            `k` exceeds five.
+            `k` is not between 1 and the number of nodes.
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import random_boolean_network
         >>> len(random_boolean_network(10, 3).interactions[0].table)
         8
     """
+    if not 1 <= k <= n_nodes:
+        error_msg = f'k = {k} inputs per node must be between 1 and the number of nodes, n_nodes = {n_nodes}.'
+        raise ValidationError(error_msg)
     rng = np.random.default_rng(random_state)
     nodes = [BooleanNode(f'node_{index}', x=int(rng.integers(2))) for index in range(n_nodes)]
     functions = [
-        _truth_table_update(
+        BooleanFunction(
             f'function_{index}',
-            f'node_{index}',
-            [f'node_{source}' for source in rng.choice(n_nodes, size=k, replace=False)],
-            tuple(int(entry) for entry in rng.random(2**k) < bias),
+            target=f'node_{index}',
+            inputs=[f'node_{source}' for source in rng.choice(n_nodes, size=k, replace=False)],
+            table=tuple(int(entry) for entry in rng.random(2**k) < bias),
         )
         for index in range(n_nodes)
     ]
@@ -340,7 +252,13 @@ def yeast_cell_cycle(active: Sequence[str] = YEAST_START) -> System:
     """
     nodes = [BooleanNode(name, x=int(name in active)) for name in YEAST_NODES]
     functions = [
-        _threshold_update(f'regulation_{name}', name, YEAST_INPUTS[name], decays=name in YEAST_DECAYING)
+        ThresholdFunction(
+            f'regulation_{name}',
+            target=name,
+            inputs=[source for source, _ in YEAST_INPUTS[name]],
+            weights=[float(weight) for _, weight in YEAST_INPUTS[name]],
+            decays=name in YEAST_DECAYING,
+        )
         for name in YEAST_NODES
     ]
     return System(elements=nodes, interactions=functions)

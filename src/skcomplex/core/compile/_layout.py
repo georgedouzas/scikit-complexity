@@ -165,6 +165,38 @@ class Layout:
             raise KeyError(error_msg)
         return self._by_name[name]
 
+    def locate(self, name: str) -> tuple[Entry, slice]:
+        """Return the entry of a variable or of one of its components, and the slice of the vector it covers.
+
+        Args:
+            name:
+                The dotted name of a variable, or of one component such as `regulation.weights[1]`.
+
+        Returns:
+            location:
+                The entry of the variable, a scalar entry for a component, and the slice of its values.
+
+        Raises:
+            KeyError:
+                The name is neither a variable nor a component of the layout.
+
+        Examples:
+            >>> from skcomplex.core.compile import Entry, Layout
+            >>> from skcomplex.core.base import Domain
+            >>> layout = Layout([Entry('a.n', 0, (), Domain.REAL), Entry('b.w', 1, (3,), Domain.REAL)])
+            >>> layout.locate('b.w[1]')
+            (Entry(name='b.w[1]', start=2, shape=(), domain=<Domain.REAL: 'real'>, members=None), slice(2, 3, None))
+        """
+        if name in self._by_name:
+            entry = self._by_name[name]
+            return entry, entry.indices
+        found = self._by_name.get(name.partition('[')[0])
+        if found is not None and name in found.component_names:
+            start = found.start + found.component_names.index(name)
+            return Entry(name, start, (), found.domain), slice(start, start + 1)
+        error_msg = f'No variable or component named {name!r}. Available names are: {", ".join(self.names)}.'
+        raise KeyError(error_msg)
+
     def read(self, vector: npt.NDArray[np.float64], name: str) -> npt.NDArray[np.float64] | float:
         """Return the value of a variable from a flat vector or from rows of flat vectors.
 

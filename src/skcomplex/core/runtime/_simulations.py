@@ -246,11 +246,12 @@ class Simulation(BaseEstimator):
         """Set every scheduled parameter to the value of its function at the current time."""
         for name, function in (self.schedule or {}).items():
             layout = self.problem_.parameters
-            if name not in layout:
+            try:
+                entry, indices = layout.locate(name)
+            except KeyError as error:
                 error_msg = f'No parameter named {name!r} to schedule. Available names are: {", ".join(layout.names)}.'
-                raise ParameterError(error_msg)
-            entry = layout.entry(name)
-            self.parameters_[entry.indices] = self._check_value(name, entry, function(self.time_))
+                raise ParameterError(error_msg) from error
+            self.parameters_[indices] = self._check_value(name, entry, function(self.time_))
 
     def _run_in_background(self, until: float) -> None:
         """Run the loop and keep any error for `wait` to raise."""
@@ -360,11 +361,12 @@ class Simulation(BaseEstimator):
 
         Args:
             values:
-                A mapping from dotted parameter name, such as `growth.r`, to its new value.
+                A mapping from dotted parameter name, such as `growth.r`, or name of one component, such as
+                `regulation.weights[1]`, to its new value.
 
         Raises:
             ParameterError:
-                A name is not a parameter of the problem.
+                A name is not a parameter or a parameter component of the problem.
 
             ValidationError:
                 A value has the wrong shape or is outside the domain of its parameter.
@@ -372,11 +374,12 @@ class Simulation(BaseEstimator):
         self._check_prepared()
         layout = self.problem_.parameters
         for name, value in values.items():
-            if name not in layout:
+            try:
+                entry, indices = layout.locate(name)
+            except KeyError as error:
                 error_msg = f'No parameter named {name!r}. Available names are: {", ".join(layout.names)}.'
-                raise ParameterError(error_msg)
-            entry = layout.entry(name)
-            self._pending.put((entry.indices, self._check_value(name, entry, value)))
+                raise ParameterError(error_msg) from error
+            self._pending.put((indices, self._check_value(name, entry, value)))
         if self._thread is None or not self._thread.is_alive():
             self._apply_pending()
 

@@ -3,11 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
 
 import numpy as np
 
-from ....core.base import Domain, parameter, state
+from ....core.base import Domain, parameter, role, state
 from ....core.model import AgentType, Interaction, Law, Observable, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
@@ -152,16 +151,19 @@ class ReflectingFloor(Interaction):
         label:
             The label of the interaction.
 
+        firms:
+            The path of the group of firms.
+
         c:
             The fraction of the previous mean size below which no size falls.
 
     Examples:
         >>> from skcomplex.models.economics.finance import ReflectingFloor
-        >>> ReflectingFloor('floor', c=0.5).c
+        >>> ReflectingFloor('floor', firms='firms', c=0.5).c
         0.5
     """
 
-    group: ClassVar[str] = 'firms'
+    firms: str = role()
     c: float = parameter(default=0.9, domain=Domain.NONNEGATIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
@@ -184,8 +186,8 @@ class ReflectingFloor(Interaction):
             model:
                 The model.
         """
-        firms = model.agents(self.group)
-        floor = model.parameters[f'{self.label}.c'] * float(np.mean([firm.previous for firm in firms]))
+        firms = model.agents('firms')
+        floor = model.parameter('c') * float(np.mean([firm.previous for firm in firms]))
         for firm in firms:
             firm.x = max(firm.x, floor)
 
@@ -276,7 +278,11 @@ def multiplicative_process(
         0.5
     """
     firms = GibratFirm.group('firms', n_firms, x=x, previous=x, mu=mu, sigma=sigma)
-    return System(elements=[firms], interactions=[ReflectingFloor('floor', c=c)], observables=_size_observables())
+    return System(
+        elements=[firms],
+        interactions=[ReflectingFloor('floor', firms='firms', c=c)],
+        observables=_size_observables(),
+    )
 
 
 @register_model(

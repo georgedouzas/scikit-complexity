@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+from typing import ClassVar, cast
 
 import numpy as np
 
@@ -154,13 +154,13 @@ class CarelessBraking(Interaction):
             model:
                 The model.
         """
-        cars = sorted(model.agents(self.cars), key=lambda car: car.rank)
+        cars = sorted(model.agents('cars'), key=lambda car: car.rank)
         if not cars:
             return
-        if model.rng.random() < model.parameters[f'{self.label}.probability']:
+        if model.rng.random() < model.parameter('probability'):
             careless = cars[int(model.rng.integers(len(cars)))]
             careless.v = max(careless.v - careless.braking, 0.0)
-        gap = model.parameters[f'{self.label}.gap']
+        gap = model.parameter('gap')
         positions = [car.x for car in cars]
         for index, car in enumerate(cars):
             moved = car.x + car.v
@@ -172,7 +172,7 @@ class Driver(AgentType):
 
     The speed changes by the acceleration, bounded by `min_acc` and `max_acc`, is multiplied by a random factor between
     `1 - eps` and `1 + eps`, and stays between 0 and the speed limit. A speed larger than the distance to the car ahead
-    becomes 0. The car then moves along the ring by its speed.
+    becomes 0. The car then moves along the ring by its speed, and the ring is as long as the width of the space.
 
     Args:
         label:
@@ -202,9 +202,6 @@ class Driver(AgentType):
         eps:
             The relative amplitude of the random error of speed.
 
-        road_length:
-            The length of the ring road, the width of its space.
-
     Examples:
         >>> from skcomplex.models.engineering.traffic import Driver
         >>> Driver.group('drivers', 2, location=[(0.0, 0.5), (10.0, 0.5)]).size
@@ -219,7 +216,6 @@ class Driver(AgentType):
     max_acc: float = parameter(default=1.0)
     speed_limit: float = parameter(default=40.0, domain=Domain.POSITIVE)
     eps: float = parameter(default=0.02, domain=Domain.NONNEGATIVE)
-    road_length: float = parameter(default=1000.0, domain=Domain.POSITIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the driving rule.
@@ -245,7 +241,7 @@ class Driver(AgentType):
                 The model.
         """
         cars = model.agents(agent.group)
-        length = agent.road_length
+        length = cast('tuple[float, float]', model.dimensions)[0]
         ahead = _car_ahead(agent, model, len(cars))
         x, y = _position(agent)
         distance = (_position(ahead)[0] - x) % length if ahead is not None else length
@@ -363,6 +359,5 @@ def ring_road_drivers(
         rank=np.arange(n_cars, dtype=float),
         eps=eps,
         speed_limit=speed_limit,
-        road_length=length,
     )
     return System(elements=[drivers], space=ContinuousSpace(length, ROAD_WIDTH, torus=True))

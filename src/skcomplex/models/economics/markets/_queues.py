@@ -5,7 +5,7 @@
 
 from typing import ClassVar
 
-from ....core.base import Domain, parameter, state
+from ....core.base import Domain, VariableKind, declarations_of, parameter, role, state
 from ....core.model import AgentType, Interaction, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
@@ -175,6 +175,12 @@ class CarWashOperation(Interaction):
         label:
             The label of the interaction.
 
+        cars:
+            The path of the group of cars.
+
+        till:
+            The path of the group that holds the till.
+
         p_pass:
             The probability that a car passes in a second.
 
@@ -201,12 +207,12 @@ class CarWashOperation(Interaction):
 
     Examples:
         >>> from skcomplex.models.economics.markets import CarWashOperation
-        >>> CarWashOperation('wash', p_enter=0.01).p_enter
+        >>> CarWashOperation('wash', cars='cars', till='till', p_enter=0.01).p_enter
         0.01
     """
 
-    cars: ClassVar[str] = 'cars'
-    till: ClassVar[str] = 'till'
+    cars: str = role()
+    till: str = role()
     p_pass: float = parameter(default=0.33, domain=Domain.NONNEGATIVE)
     p_enter: float = parameter(default=0.005, domain=Domain.NONNEGATIVE)
     p_valet: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
@@ -249,20 +255,18 @@ class CarWashOperation(Interaction):
             model:
                 The model.
         """
-        prefix = f'{self.label}.'
-        parameters = model.parameters.items()
-        values = {name.removeprefix(prefix): value for name, value in parameters if name.startswith(prefix)}
-        till = model.agents(self.till)[0]
-        for car in model.agents(self.cars):
+        values = {name: float(model.parameter(name)) for name in declarations_of(self, VariableKind.PARAMETER)}
+        till = model.agents('till')[0]
+        for car in model.agents('cars'):
             car.crew = 0
             if car.work <= 0:
                 self._finish(car, till, model, values)
         if model.rng.random() >= values['p_pass'] * values['p_enter']:
             return
-        if sum(car.stage == WASH for car in model.agents(self.cars)) >= values['balk']:
+        if sum(car.stage == WASH for car in model.agents('cars')) >= values['balk']:
             till.turned_away += 1
             return
-        model.create(self.cars, stage=WASH, work=values['wash_work'])
+        model.create('cars', stage=WASH, work=values['wash_work'])
 
 
 @register_model(
@@ -332,6 +336,8 @@ def car_wash(
     """
     operation = CarWashOperation(
         'wash',
+        cars='cars',
+        till='till',
         p_pass=p_pass,
         p_enter=p_enter,
         p_valet=p_valet,

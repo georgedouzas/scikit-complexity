@@ -40,6 +40,11 @@ into a model:
   `meadow_capacity` with roles on both groups, and `ring_road_drivers` and `trafficking` on the space dimensions.
 - **BREAKING:** the ring roads report `cars.x` and `cars.v` with one column per car instead of `car_<i>.x` and
   `car_<i>.v`.
+- **BREAKING:** interactions of the library that named their group by a class variable or a string field bind it
+  through a role, so `Redesign`, `Invention`, `CournotAdjustment`, `CarWashOperation`, `DebtRankCascade`,
+  `ReflectingFloor`, `Reproduction`, and `Evolution` take the role as a required argument. The meadow grazes through
+  the new interaction `Grazing`, and `BooleanFunction` and `ThresholdFunction` take `inputs` and `weights` instead of
+  five input roles and weights.
 
 ## Capabilities
 
@@ -60,12 +65,17 @@ None.
 - `skcomplex.core.base`: `role` gains `variadic`, `parameter` gains `per`, and `LabelError` covers reserved names.
 - `skcomplex.core.model`: `Element.group` and `Element.lattice` take positional-only arguments, and the new symbolic
   function `shift_member` is re-exported.
-- `skcomplex.core.compile`: role resolution for sequences and member references, several groups per interaction, and
-  member offset reads lowered through the existing `NeighborRead` tables of the field lowering.
+- `skcomplex.core.compile`: role resolution for sequences and member references, several groups per interaction,
+  member offset reads lowered through the existing `NeighborRead` tables of the field lowering, and `Layout.locate`
+  for parameter components such as `regulation.weights[1]`.
+- `skcomplex.core.runtime`: `update_parameters` and `schedule` take parameter components.
 - `skcomplex.core.solvers`: `ModelView` gains `parameter`, `dimensions`, and `torus`, and rule views are scoped to the
   rule's owner. `AgentView` gains `group_label`, `displacement_to`, and `distance_to`.
-- Models in `biology/systems_biology`, `engineering/traffic`, `social/organizations`, and `biology/ecology`, and every
-  call of `Element.group` that passes `size=` by keyword.
+- Models in `biology/systems_biology`, `engineering/traffic`, `social/organizations`, and `biology/ecology`, every
+  interaction of the library that reads its own parameters by its label or a group by a fixed path, and every call of
+  `Element.group` that passes `size=` by keyword.
+- Reconciled with `add-group-reductions`, which added element sets: a variadic role gives one law the sequence of its
+  entries, where an element set maps the laws over its elements. design.md records the adjustments.
 - No new dependency. NumPy, Mesa, and NetworkX, already dependencies, cover the index tables, the space geometry, and
   the network distances.
 - Composes with `extend-agent-spaces`: dimensions and displacements cover a third dimension when that change adds one,

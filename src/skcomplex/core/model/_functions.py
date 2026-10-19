@@ -4,13 +4,15 @@
 # License: MIT
 
 import itertools
+import numbers
 from collections.abc import Sequence
 from typing import Any
 
 from sage.all__sagemath_symbolics import SR, floor
 from sage.symbolic.function import BuiltinFunction
 
-from ..base import Expression
+from ..base import Expression, ValidationError
+from ._lattices import BOUNDARIES
 
 
 def _is_decided(*arguments: Any) -> bool:  # noqa: ANN401
@@ -121,6 +123,29 @@ class _Delayed(BuiltinFunction):
         if len(arguments) >= 2 and SR(arguments[1]).is_numeric() and SR(arguments[1]).pyobject() == 0:  # noqa: PLR2004
             return arguments[0]
         return None
+
+
+class _ShiftMember(BuiltinFunction):
+    """Expression of group members read a number of members along the group order, with a boundary code and a fill."""
+
+    def __init__(self) -> None:
+        super().__init__('shift_member', nargs=4)
+
+    def _eval_(
+        self,
+        expression: Expression,
+        offset: Expression,
+        boundary: Expression,
+        fill: Expression,
+    ) -> Expression | None:
+        """Return the expression itself for an offset of 0 or an expression without symbols, or `None` otherwise."""
+        del boundary, fill
+        if (SR(offset).is_numeric() and SR(offset).pyobject() == 0) or not SR(expression).variables():
+            return expression
+        return None
+
+
+SHIFT_MEMBER = _ShiftMember()
 
 
 where = _Where()
@@ -290,6 +315,82 @@ Examples:
     >>> delayed(x, tau)
     delayed(x, tau)
 """
+
+
+def shift_member(
+    expression: Expression,
+    offset: int,
+    *,
+    boundary: str = 'periodic',
+    fill: float = 0.0,
+) -> Expression:
+    """Return an expression of a group's members read at the member a number of places along the group order.
+
+    The order of a group is the member index, so member `i` reads the expression at member `i + offset`. Past the
+    ends, `'periodic'` wraps around to close a ring, `'reflecting'` mirrors the order so the end member reads itself
+    for an offset of 1, and `'fixed'` reads `fill`. The expression reads states or parameters of one group through a
+    role, and nested offsets add. The compiler lowers the read to an index table of the group, so it runs in the
+    group's kernel on every backend.
+
+    Args:
+        expression:
+            An expression of the member symbols of one group.
+
+        offset:
+            The number of members along the group order, negative to read members behind.
+
+        boundary:
+            `'periodic'`, `'reflecting'`, or `'fixed'`.
+
+        fill:
+            The value read past the ends of a fixed boundary.
+
+    Returns:
+        shifted:
+            The symbolic read at the offset member.
+
+    Raises:
+        ValidationError:
+            The offset is not an integer or the boundary is unknown.
+
+    Examples:
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import mod, shift_member
+        >>> x = symbol('x')
+        >>> mod(shift_member(x, 1) - x, 40)
+        mod(-x + shift_member(x, 1, 0, 0.0), 40)
+        >>> shift_member(x, 0)
+        x
+    """
+    if boundary not in BOUNDARIES or isinstance(offset, bool) or not isinstance(offset, numbers.Integral):
+        error_msg = (
+            f'shift_member takes a whole number of members and a boundary among {", ".join(BOUNDARIES)}, but '
+            f'got the offset {offset!r} and the boundary {boundary!r}.'
+        )
+        raise ValidationError(error_msg)
+    return SHIFT_MEMBER(expression, int(offset), BOUNDARIES.index(boundary), float(fill))
+
+
+def shift_arguments(call: Expression) -> tuple[Expression, int, str, float]:
+    """Return the expression, the offset, the boundary, and the fill of a member offset read.
+
+    Args:
+        call:
+            A call returned by `shift_member`.
+
+    Returns:
+        arguments:
+            The expression of member symbols, the number of members along the group order, the boundary, and the
+            value read past the ends of a fixed boundary.
+
+    Examples:
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import shift_arguments, shift_member
+        >>> shift_arguments(shift_member(symbol('x'), -2, boundary='fixed', fill=1.0))
+        (x, -2, 'fixed', 1.0)
+    """
+    expression, offset, boundary, fill = call.operands()
+    return expression, int(offset), BOUNDARIES[int(boundary)], float(fill)
 
 
 def step(t: Expression, at: float, height: float = 1.0) -> Expression:

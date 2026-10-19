@@ -54,6 +54,12 @@ class Variable:
 
         index:
             The order of the derivative or the lag that a companion state holds.
+
+        variadic:
+            Whether a role binds a sequence of element paths and group member references instead of one path.
+
+        per:
+            The variadic role whose entries a parameter holds one value for, or `None`.
     """
 
     kind: VariableKind
@@ -65,6 +71,8 @@ class Variable:
     derivative_of: str | None = None
     lag_of: str | None = None
     index: int = 0
+    variadic: bool = False
+    per: str | None = None
 
 
 def _declare_field(default: Any, declaration: Variable) -> Any:
@@ -191,8 +199,13 @@ def parameter(
     *,
     domain: AnyDomain = Domain.REAL,
     vector: bool = False,
+    per: str | None = None,
 ) -> Any:
     """Declare a parameter of an element or an interaction.
+
+    A parameter declared per entry of a variadic role holds a sequence with one value per entry of the role. Laws read
+    it as a tuple of symbols, and the component `i` of the parameter `name` of the interaction at `path` is addressed
+    as `<path>.<name>[<i>]`.
 
     Args:
         default:
@@ -204,23 +217,45 @@ def parameter(
         vector:
             Whether the parameter has one component per dimension of the enclosing space.
 
+        per:
+            The name of a variadic role of the interaction whose entries the parameter holds one value for, or `None`.
+
     Returns:
         field:
             A dataclass field that carries the declaration.
 
+    Raises:
+        ValueError:
+            The parameter is both a vector and declared per entry of a role.
+
     Examples:
-        >>> from skcomplex.core.base import Domain, parameter
+        >>> from skcomplex.core.base import Domain, parameter, role
         >>> from skcomplex.core.model import Interaction
         >>> class Growth(Interaction):
         ...     r: float = parameter(1.0, domain=Domain.POSITIVE)
         >>> Growth('growth', r=0.5).r
         0.5
+        >>> class Regulation(Interaction):
+        ...     inputs: list[str] = role(variadic=True)
+        ...     weights: list[float] = parameter(per='inputs')
+        >>> Regulation('regulation', inputs=['a', 'b'], weights=[1.0, -1.0]).weights
+        [1.0, -1.0]
     """
-    return _declare_field(default, Variable(VariableKind.PARAMETER, domain, vector))
+    if vector and per is not None:
+        error_msg = f'A parameter takes either `vector=True` or `per={per!r}`, not both.'
+        raise ValueError(error_msg)
+    return _declare_field(default, Variable(VariableKind.PARAMETER, domain, vector, per=per))
 
 
-def role() -> Any:
+def role(*, variadic: bool = False) -> Any:
     """Declare a role of an interaction, bound to an element path in the constructor.
+
+    A variadic role binds a sequence of element paths and group member references `<group>[<index>]`, and laws read
+    it as a tuple of namespaces, one per entry in the given order.
+
+    Args:
+        variadic:
+            Whether the role binds a sequence of entries instead of one path.
 
     Returns:
         field:
@@ -233,8 +268,13 @@ def role() -> Any:
         ...     target: str = role()
         >>> Mortality('death', target='foxes').target
         'foxes'
+        >>> class Sum(Interaction):
+        ...     target: str = role()
+        ...     inputs: list[str] = role(variadic=True)
+        >>> Sum('sum', target='total', inputs=['a', 'nodes[3]']).inputs
+        ['a', 'nodes[3]']
     """
-    return _declare_field(dataclasses.MISSING, Variable(VariableKind.ROLE))
+    return _declare_field(dataclasses.MISSING, Variable(VariableKind.ROLE, variadic=variadic))
 
 
 def declarations_of(component: Any, kind: VariableKind) -> dict[str, Variable]:

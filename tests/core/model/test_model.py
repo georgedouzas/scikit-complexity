@@ -3,7 +3,8 @@
 import pytest
 from sklearn.base import clone
 
-from skcomplex.core.model import EuclideanSpace, Symbols, System
+from skcomplex.core.base import LabelError, state
+from skcomplex.core.model import AgentType, Element, EuclideanSpace, Symbols, System
 from skcomplex.models.biology.ecology import Population, Predation
 
 
@@ -39,3 +40,16 @@ def test_system_repr_counts_children():
     """Test that a system shows its label and the number of each child kind."""
     system = System('meadow', elements=[Population('rabbits')], space=EuclideanSpace(2))
     assert repr(system) == "System('meadow', elements=1, interactions=0, systems=0)"
+
+
+def test_element_state_named_visual_raises_error():
+    """Test that an element type with a state named visual names the state and lists the reserved names."""
+    with pytest.raises(LabelError, match=r"'visual'.*label, visual are reserved"):
+        Element.define('Painted', states={'visual': 0.0})
+
+
+@pytest.mark.parametrize('name', ['location', 'alive'])
+def test_agent_state_named_like_view_raises_error(name):
+    """Test that an agent type with a state named like an attribute of the agent view raises a label error."""
+    with pytest.raises(LabelError, match=rf"'{name}'.*agents_here.*reserved"):
+        type('Settler', (AgentType,), {'__annotations__': {name: float}, name: state(0.0)})

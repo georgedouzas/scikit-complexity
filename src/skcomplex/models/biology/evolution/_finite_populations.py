@@ -131,8 +131,8 @@ class MoranStep(Interaction):
                 The model.
         """
         individuals = model.agents(self.population)
-        selection = model.parameters[f'{self.label}.selection']
-        mutation = model.parameters[f'{self.label}.mutation']
+        selection = model.parameter('selection')
+        mutation = model.parameter('mutation')
         traits = np.asarray([individual.trait for individual in individuals], dtype=float)
         rng = model.rng
         for _ in range(len(traits)):
@@ -196,20 +196,18 @@ class TangledNatureStep(Interaction):
 
     def _reproduce(self, model: ModelView, alive: list[AgentView], counts: Array, chosen: int) -> None:
         """Replace an organism by two offspring with probability `1 / (1 + exp(-H))`."""
-        values = model.parameters
-        prefix = self.label
         parent = alive[chosen]
         genome = int(parent.trait)
         size = len(alive)
-        weight = values[f'{prefix}.k'] / size * _couplings(self.seed, self.length)[genome] @ counts
-        weight -= values[f'{prefix}.mu'] * size
+        weight = model.parameter('k') / size * _couplings(self.seed, self.length)[genome] @ counts
+        weight -= model.parameter('mu') * size
         if model.rng.random() >= 1 / (1 + np.exp(-weight)):
             return
         parent.remove()
         alive.pop(chosen)
         counts[genome] -= 1
         for _ in range(2):
-            child = _mutate(genome, self.length, values[f'{prefix}.p_mut'], model.rng)
+            child = _mutate(genome, self.length, model.parameter('p_mut'), model.rng)
             alive.append(model.create(self.organisms, trait=float(child)))
             counts[child] += 1
 
@@ -235,7 +233,7 @@ class TangledNatureStep(Interaction):
         """
         alive = model.agents(self.organisms)
         counts = np.bincount([int(organism.trait) for organism in alive], minlength=2**self.length).astype(float)
-        p_kill = model.parameters[f'{self.label}.p_kill']
+        p_kill = model.parameter('p_kill')
         for _ in range(int(len(alive) / p_kill)):
             if not alive:
                 return
@@ -304,7 +302,7 @@ class AdaptiveClimbing(Interaction):
         genome = int(individuals[0].trait)
         current = _random_fitness(genome, self.seed)
         rng = model.rng
-        mutated = rng.random(len(individuals)) < model.parameters[f'{self.label}.u']
+        mutated = rng.random(len(individuals)) < model.parameter('u')
         mutants = [genome ^ (1 << int(rng.integers(self.length))) for _ in range(int(mutated.sum()))]
         if not mutants:
             return

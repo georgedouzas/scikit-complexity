@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+from typing import ClassVar, cast
 
 import numpy as np
 
@@ -96,7 +96,8 @@ class DailyMovements(Interaction):
 
     One random free woman moves to a random cell of a random city. Every month the traffickers move a random number
     of the victims of every brothel to random brothels. A move between cities counts as a train trip. Then the bills
-    of every premises grow, and every quarter they are recorded and reset.
+    of every premises grow, and every quarter they are recorded and reset. The cities are vertical bands of equal
+    width of the grid.
 
     Args:
         label:
@@ -108,12 +109,6 @@ class DailyMovements(Interaction):
         premises:
             The path of the group of premises, which the rule reads and updates.
 
-        width:
-            The number of columns of the grid.
-
-        height:
-            The number of rows of the grid.
-
         n_cities:
             The number of cities, vertical bands of equal width.
 
@@ -124,9 +119,7 @@ class DailyMovements(Interaction):
     """
 
     women: str = role()
-    premises: str = 'premises'
-    width: int = 30
-    height: int = 30
+    premises: str = role()
     n_cities: int = 3
 
     def laws(self, s: Symbols) -> list[Law]:
@@ -142,13 +135,13 @@ class DailyMovements(Interaction):
         """
         return [Rule(self.pass_day)]
 
-    def _city(self, location: object) -> int:
-        """Return the city of a cell."""
-        return _cell(location)[0] * self.n_cities // self.width
+    def _city(self, location: object, width: int) -> int:
+        """Return the city of a cell of a grid of a given width."""
+        return _cell(location)[0] * self.n_cities // width
 
-    def _travel(self, woman: AgentView, cell: tuple[int, int]) -> None:
+    def _travel(self, woman: AgentView, cell: tuple[int, int], width: int) -> None:
         """Move a woman to a cell and count a trip when the city changes."""
-        if self._city(cell) != self._city(woman.location):
+        if self._city(cell, width) != self._city(woman.location, width):
             woman.trips += 1
         woman.move_to(cell)
 
@@ -157,18 +150,20 @@ class DailyMovements(Interaction):
         free = [woman for woman in women if not woman.victim]
         if not free:
             return
+        width, height = cast('tuple[int, int]', model.dimensions)
         city = int(model.rng.integers(self.n_cities))
-        start, stop = city * self.width // self.n_cities, (city + 1) * self.width // self.n_cities
-        cell = (int(model.rng.integers(start, stop)), int(model.rng.integers(self.height)))
-        self._travel(free[int(model.rng.integers(len(free)))], cell)
+        start, stop = city * width // self.n_cities, (city + 1) * width // self.n_cities
+        cell = (int(model.rng.integers(start, stop)), int(model.rng.integers(height)))
+        self._travel(free[int(model.rng.integers(len(free)))], cell, width)
 
     def _move_victims(self, women: list[AgentView], brothels: list[tuple[int, int]], model: ModelView) -> None:
         """Move a random number of the victims of every brothel to random brothels."""
+        width = cast('tuple[int, int]', model.dimensions)[0]
         for brothel in brothels:
             victims = [woman for woman in women if woman.victim and _cell(woman.location) == brothel]
             moved = model.rng.permutation(len(victims))[: int(model.rng.integers(len(victims) + 1))]
             for index in moved:
-                self._travel(victims[index], brothels[int(model.rng.integers(len(brothels)))])
+                self._travel(victims[index], brothels[int(model.rng.integers(len(brothels)))], width)
 
     def pass_day(self, model: ModelView) -> None:
         """Move the women of one day and update the bills.
@@ -177,7 +172,7 @@ class DailyMovements(Interaction):
             model:
                 The model.
         """
-        women, premises = model.agents(self.women), model.agents(self.premises)
+        women, premises = model.agents('women'), model.agents('premises')
         if not premises:
             return
         day = premises[0].day + 1
@@ -263,5 +258,5 @@ def trafficking(
     homes += [(int(rng.integers(width)), int(rng.integers(height))) for _ in range(n_free)]
     victim = (np.arange(n_victims + n_free) < n_victims).astype(float)
     women = Traveller.group('women', n_victims + n_free, location=homes, victim=victim)
-    day = DailyMovements('day', women='women', premises='premises', width=width, height=height, n_cities=n_cities)
+    day = DailyMovements('day', women='women', premises='premises', n_cities=n_cities)
     return System(elements=[premises, women], interactions=[day], space=GridSpace(width, height))

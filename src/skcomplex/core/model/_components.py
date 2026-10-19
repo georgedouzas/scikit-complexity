@@ -11,11 +11,40 @@ from typing import Any, ClassVar, dataclass_transform
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from ..base import Domain, VisualSpec, companions_of, declaration_of, parameter, role, state
+from ..base import Domain, LabelError, VisualSpec, companions_of, declaration_of, parameter, role, state
 from ._lattices import LatticeSpace
 from ._laws import Law
 from ._spaces import Space
 from ._symbols import Symbols
+
+AGENT_VIEW_NAMES = frozenset(
+    {
+        'id',
+        'group',
+        'group_label',
+        'location',
+        'alive',
+        'neighbor_cells',
+        'neighbors',
+        'agents_here',
+        'move_to',
+        'remove',
+        'create',
+        'displacement_to',
+        'distance_to',
+    },
+)
+
+
+def _check_reserved(cls: type, reserved: frozenset[str]) -> None:
+    """Raise an error for a state or parameter whose name a component or the views of rules reserve."""
+    for name, value in vars(cls).items():
+        if name in reserved and declaration_of(value) is not None:
+            error_msg = (
+                f'{cls.__name__} declares the variable {name!r}, whose name is reserved. Rename it, since '
+                f'{", ".join(sorted(reserved))} are reserved names.'
+            )
+            raise LabelError(error_msg)
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=(dataclasses.field, state, parameter, role))
@@ -24,18 +53,21 @@ class Component(BaseEstimator):
     """Base class of elements and interactions.
 
     Every subclass becomes a dataclass whose fields after `label` are keyword-only, so the constructor stores every
-    argument unmodified under its own name.
+    argument unmodified under its own name. A state or parameter whose name is in `reserved_names` raises `LabelError`
+    when the subclass is created.
 
     Args:
         label:
             The label of the component, unique among the children of its system.
     """
 
+    reserved_names: ClassVar[frozenset[str]] = frozenset({'label'})
     label: str
 
     def __init_subclass__(cls, **kwargs: Any) -> None:  # noqa: ANN401
         """Add the companion states of higher-order and lagged states, and turn the subclass into a dataclass."""
         super().__init_subclass__(**kwargs)
+        _check_reserved(cls, cls.reserved_names)
         annotations = dict(inspect.get_annotations(cls))
         for name, value in list(vars(cls).items()):
             declaration = declaration_of(value)
@@ -125,6 +157,7 @@ class Element(Component):
         Population(label='rabbits', n=40)
     """
 
+    reserved_names: ClassVar[frozenset[str]] = frozenset({'label', 'visual'})
     visual: ClassVar[VisualSpec] = VisualSpec()
 
     @classmethod
@@ -186,11 +219,14 @@ class Element(Component):
         cls,
         label: str,
         size: int,
+        /,
         *,
         visual: VisualSpec | None = None,
         **values: object,
     ) -> 'Group':
         """Return a group of identical members of this element type.
+
+        The label and the size are given by position, so a state named `size` takes per-member values by keyword.
 
         Args:
             label:
@@ -211,7 +247,7 @@ class Element(Component):
 
         Examples:
             >>> from skcomplex.models.biology.ecology import Population
-            >>> Population.group('herds', size=3, n=[10, 20, 30])
+            >>> Population.group('herds', 3, n=[10, 20, 30])
             Group('herds', element=Population, size=3)
         """
         return Group(label, element=cls, size=size, values=values, visual=visual)
@@ -221,6 +257,7 @@ class Element(Component):
         cls,
         label: str,
         space: LatticeSpace,
+        /,
         *,
         visual: VisualSpec | None = None,
         **values: Any,  # noqa: ANN401
@@ -228,7 +265,7 @@ class Element(Component):
         """Return a group of cells of this element type, one member per site of a lattice.
 
         Laws of the element type are written for one cell, and local rules read the cells around it. Lattice groups
-        stream to Rerun as images unless a visual is given.
+        stream to Rerun as images unless a visual is given. The label and the lattice are given by position.
 
         Args:
             label:
@@ -268,6 +305,7 @@ class AgentType(Element):
 
     States are attributes of every agent and parameters are shared by every agent of a group. `laws` returns `Rule`
     laws whose functions take the agent and the model. Agent groups are created with `group` like any element group.
+    States and parameters cannot take the names of the attributes and methods of the agent views rules receive.
 
     Args:
         label:
@@ -292,6 +330,7 @@ class AgentType(Element):
         Group('walkers', element=Walker, size=5)
     """
 
+    reserved_names: ClassVar[frozenset[str]] = frozenset({'label', 'visual', *AGENT_VIEW_NAMES})
     visual: ClassVar[VisualSpec] = VisualSpec('agents')
     location: object = None
 

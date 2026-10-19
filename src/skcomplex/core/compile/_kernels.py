@@ -45,7 +45,8 @@ class Reference:
             Whether the variable is a state, as opposed to a parameter.
 
         column:
-            The component of the variable of one member.
+            The component of the variable of one member, or for a single read of one group member, the component
+            counted from the group's first component.
 
         source:
             How the component is read for each evaluation index.
@@ -72,9 +73,13 @@ class Reference:
 
         Returns:
             column:
-                A view with one value per member.
+                A view with one value per member, or with the one value of a single read.
         """
-        return self.entry.view(x if self.is_state else p)[:, self.column]
+        vector = x if self.is_state else p
+        if self.source is Source.SINGLE:
+            index = self.entry.start + self.column
+            return vector[index : index + 1]
+        return self.entry.view(vector)[:, self.column]
 
     @property
     def flat_indices(self) -> Indices:
@@ -387,11 +392,12 @@ def add_into(output: Vector, target: Reference, values: Vector, pairs: tuple[Ind
         pairs:
             The pairs of a pair kernel, or `None` in member mode.
     """
+    if target.source is Source.SINGLE:
+        output[target.entry.start + target.column] += values.sum()
+        return
     column = target.entry.view(output)[:, target.column]
     if target.source is Source.MEMBER:
         column += values
-    elif target.source is Source.SINGLE:
-        column[0] += values.sum()
     else:
         assert pairs is not None
         np.add.at(column, pairs[0] if target.source is Source.FIRST else pairs[1], values)
@@ -410,8 +416,10 @@ def assign_into(output: Vector, target: Reference, values: Vector) -> None:
         values:
             One value per evaluation index.
     """
-    column = target.entry.view(output)[:, target.column]
-    column[:] = values if target.source is Source.MEMBER else values[0]
+    if target.source is not Source.MEMBER:
+        output[target.entry.start + target.column] = values[0]
+        return
+    target.entry.view(output)[:, target.column] = values
 
 
 def member_indices(reference: Reference, rows: int) -> Indices:

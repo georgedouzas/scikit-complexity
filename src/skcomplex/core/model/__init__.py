@@ -13,6 +13,8 @@ from ._functions import (
     pulse_train,
     ramp,
     series,
+    shift_arguments,
+    shift_member,
     step,
     where,
 )
@@ -134,6 +136,8 @@ __all__: list[str] = [
     'reduce_values',
     'reductions_in',
     'series',
+    'shift_arguments',
+    'shift_member',
     'step',
     'total',
     'variance',

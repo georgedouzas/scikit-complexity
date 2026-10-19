@@ -11,13 +11,14 @@ from dataclasses import dataclass, field
 from typing import Any, ClassVar, cast
 
 import mesa
+import networkx as nx
 import numpy as np
 import numpy.typing as npt
 from mesa.discrete_space import CellAgent, Network, OrthogonalMooreGrid, OrthogonalVonNeumannGrid
 from mesa.experimental.continuous_space import ContinuousSpace as MesaContinuousSpace
 from mesa.experimental.continuous_space import ContinuousSpaceAgent
 
-from ..base import Form, SimulationError
+from ..base import Form, SimulationError, SpaceError
 from ..compile import CompiledAgents, Problem, Vector
 from ..model import ContinuousSpace, GridSpace, Group, MesaSystem, NetworkSpace, Space
 from ._base import Stepper, register_solver
@@ -87,13 +88,73 @@ def _location_of(agent: mesa.Agent) -> object:
 class ModelView:
     """Model as rules see it: parameters, random numbers, time, agents, and the space.
 
+    Every rule receives the view scoped to the interaction or agent group that owns it, so the rule reads the owner's
+    parameters by name and the groups bound to the owner's roles by role, also when its system is nested in another.
+
     Args:
         stepper:
             The stepper that runs the model.
+
+        owner:
+            The path of the interaction or agent group whose rules receive the view, or `''` for no owner.
+
+        roles:
+            The paths of the elements and groups the owner's roles bind to, by role.
     """
 
-    def __init__(self, stepper: 'MesaStepper') -> None:
+    def __init__(
+        self,
+        stepper: 'MesaStepper',
+        owner: str = '',
+        roles: Mapping[str, str | tuple[str, ...]] | None = None,
+    ) -> None:
         self._stepper = stepper
+        self._owner = owner
+        self._roles = dict(roles or {})
+
+    def _paths(self, name: str) -> list[str]:
+        """Return the paths of the groups a role of the owner binds to, or of a group by relative or absolute path."""
+        bound = self._roles.get(name)
+        if bound is not None:
+            return [bound] if isinstance(bound, str) else list(bound)
+        try:
+            return [self._stepper.resolve_group(name, self._owner)]
+        except SimulationError as error:
+            roles, owner = ', '.join(self._roles) or 'none', self._owner or 'the model'
+            error_msg = f'No role or agent group named {name!r} for {owner}. Its roles are: {roles}. {error}'
+            raise SimulationError(error_msg) from error
+
+    def parameter(self, name: str) -> float:
+        """Return the current value of a parameter of the owner, or of one component as `name[i]`.
+
+        Args:
+            name:
+                The name of a scalar parameter, such as `threshold`, or of one component, such as `weights[1]`.
+
+        Returns:
+            value:
+                The value.
+
+        Raises:
+            SimulationError:
+                The owner has no such parameter, or the parameter has several components and no index.
+        """
+        stepper = self._stepper
+        layout = stepper.problem_.parameters
+        try:
+            entry, indices = layout.locate(f'{self._owner}.{name}')
+        except KeyError as error:
+            prefix = f'{self._owner}.'
+            names = [item.name[len(prefix) :] for item in layout if item.name.startswith(prefix)]
+            error_msg = (
+                f'{self._owner or "The model"} has no parameter {name!r}. Its parameters are: '
+                f'{", ".join(names) or "none"}.'
+            )
+            raise SimulationError(error_msg) from error
+        if entry.size != 1:
+            error_msg = f'{entry.name} has {entry.size} components. Read one of them as {name}[i].'
+            raise SimulationError(error_msg)
+        return float(stepper.parameters_[indices][0])
 
     @property
     def parameters(self) -> dict[str, float]:
@@ -119,32 +180,55 @@ class ModelView:
         """Number of steps run so far."""
         return float(self._stepper.model_.time)
 
-    def agents(self, group: str) -> list['AgentView']:
-        """Return the agents of a group.
+    @property
+    def dimensions(self) -> tuple[float, ...] | None:
+        """Extent of the agent space per axis, cells of a grid or lengths of a continuous space, `None` otherwise."""
+        space = self._stepper.space_
+        if isinstance(space, MesaContinuousSpace):
+            return (float(space.width), float(space.height))
+        if isinstance(space, OrthogonalMooreGrid | OrthogonalVonNeumannGrid):
+            return tuple(int(item) for item in space.dimensions)
+        return None
+
+    @property
+    def torus(self) -> bool:
+        """Whether the agent space wraps around at its edges."""
+        return bool(getattr(self._stepper.space_, 'torus', False))
+
+    def agents(self, name: str) -> list['AgentView']:
+        """Return the agents of a group bound to a role of the owner, or of a group by relative or absolute path.
 
         Args:
-            group:
-                The path of the group.
+            name:
+                A role of the owner, the path of a group relative to the owner's system, or the path of a group.
 
         Returns:
             agents:
-                The agents alive in the group.
+                The agents alive in the group, or in every group of a role that binds several.
+
+        Raises:
+            SimulationError:
+                No role or group has that name.
         """
         stepper = self._stepper
-        return [AgentView(agent, stepper) for agent in stepper.group_agents(group)]
+        return [AgentView(agent, stepper) for path in self._paths(name) for agent in stepper.group_agents(path)]
 
-    def count(self, group: str) -> int:
-        """Return the number of agents of a group.
+    def count(self, name: str) -> int:
+        """Return the number of agents of a group bound to a role of the owner, or of a group by path.
 
         Args:
-            group:
-                The path of the group.
+            name:
+                A role of the owner, the path of a group relative to the owner's system, or the path of a group.
 
         Returns:
             count:
-                The number of agents alive in the group.
+                The number of agents alive in the group, or in every group of a role that binds several.
+
+        Raises:
+            SimulationError:
+                No role or group has that name.
         """
-        return len(self._stepper.group_agents(group))
+        return sum(len(self._stepper.group_agents(path)) for path in self._paths(name))
 
     def _site(self, name: str, cell: object) -> int:
         """Return the member index of a field state's site at a cell or network node."""
@@ -294,6 +378,11 @@ class AgentView:
         return self._stepper.spec_of(self._agent).path
 
     @property
+    def group_label(self) -> str:
+        """Label of the agent's group, the last part of its path."""
+        return self.group.rpartition('/')[2]
+
+    @property
     def location(self) -> object:
         """Grid coordinates, network node, or position of the agent."""
         return _location_of(self._agent)
@@ -302,6 +391,57 @@ class AgentView:
     def alive(self) -> bool:
         """Whether the agent has not been removed."""
         return not getattr(self._agent, 'removed_', False)
+
+    def displacement_to(self, other: 'AgentView | object') -> npt.NDArray[np.float64]:
+        """Return the vector from the agent to another agent or a location, the shortest one on a torus.
+
+        Args:
+            other:
+                An agent, or grid coordinates or a position.
+
+        Returns:
+            displacement:
+                One component per axis of the space.
+
+        Raises:
+            SpaceError:
+                The agents live on a network or in no space.
+        """
+        model = ModelView(self._stepper)
+        dimensions = model.dimensions
+        if dimensions is None:
+            error_msg = (
+                'Displacements need a grid or a continuous space, and the agents live on a network or in no space. '
+                'Use `distance_to` for the number of hops on a network.'
+            )
+            raise SpaceError(error_msg)
+        target = other.location if isinstance(other, AgentView) else other
+        delta = np.asarray(target, dtype=float) - np.asarray(self.location, dtype=float)
+        if not model.torus:
+            return delta
+        size = np.asarray(dimensions, dtype=float)
+        return delta - size * np.round(delta / size)
+
+    def distance_to(self, other: 'AgentView | object') -> float:
+        """Return the distance to another agent or a location, the number of hops on a network.
+
+        Args:
+            other:
+                An agent, or a network node, grid coordinates, or a position.
+
+        Returns:
+            distance:
+                The Euclidean length of the shortest displacement, or the length of the shortest path on a network.
+
+        Raises:
+            SpaceError:
+                The agents live in no space.
+        """
+        space = self._stepper.problem_.agent_space
+        if isinstance(space, NetworkSpace):
+            target = other.location if isinstance(other, AgentView) else other
+            return float(nx.shortest_path_length(space.graph, self.location, target))
+        return float(np.linalg.norm(self.displacement_to(other)))
 
     def neighbor_cells(self) -> list[object]:
         """Return the coordinates of the cells or nodes around the agent's cell or node.
@@ -463,7 +603,9 @@ class MesaStepper(Stepper):
         self._classes: dict[type, CompiledAgents] = {}
         self.model_ = mesa.Model(rng=self._seed())
         self.space_: Any = _build_space(problem.agent_space, self.model_, sum(spec.size for spec in problem.agents))
-        self._model_view = ModelView(self)
+        roles = {item.path: item.roles for item in problem.interactions}
+        self._views = {spec.path: ModelView(self, spec.path) for spec in problem.agents}
+        self._rules = [(ModelView(self, owner, roles.get(owner)), rule) for owner, rule in problem.model_rules]
         for spec in problem.agents:
             self._populate(spec)
 
@@ -477,6 +619,7 @@ class MesaStepper(Stepper):
             CellAgent if isinstance(space, GridSpace | NetworkSpace) else ContinuousSpaceAgent if space else mesa.Agent
         )
         stepper = self
+        model = self._views[spec.path]
 
         def step(agent: mesa.Agent) -> None:
             """Run the rules of the agent's type unless the agent was removed earlier in the step."""
@@ -484,7 +627,7 @@ class MesaStepper(Stepper):
             for rule in spec.rules:
                 if getattr(agent, 'removed_', False):
                     return
-                rule.function(view, stepper._model_view)
+                rule.function(view, model)
 
         agent_class = type(f'{spec.path.replace("/", "_")}_agent', (base,), {'step': step})
         self._classes[agent_class] = spec
@@ -505,14 +648,14 @@ class MesaStepper(Stepper):
                 agent.cell = self.space_.all_cells.select_random_cell()
 
     def resolve_group(self, group: str, scope: str = '') -> str:
-        """Return the path of a group named by its path, or by its label relative to the scope of another group.
+        """Return the path of a group named relative to the system of a component, or by its path.
 
         Args:
             group:
-                The path or the relative label of the group.
+                The path of the group relative to the system that holds `scope`, or from the root.
 
             scope:
-                The path of a group whose subsystem relative labels are resolved in.
+                The path of a group or an interaction whose system relative paths are resolved in.
 
         Returns:
             path:
@@ -522,12 +665,10 @@ class MesaStepper(Stepper):
             SimulationError:
                 No group has that path or label.
         """
-        if group in self._specs:
-            return group
         prefix = scope.rpartition('/')[0]
-        candidate = f'{prefix}/{group}' if prefix else group
-        if candidate in self._specs:
-            return candidate
+        for candidate in (f'{prefix}/{group}' if prefix else group, group):
+            if candidate in self._specs:
+                return candidate
         error_msg = f'No agent group {group!r}. Available groups are: {", ".join(self._specs)}.'
         raise SimulationError(error_msg)
 
@@ -672,8 +813,8 @@ class MesaStepper(Stepper):
                 self.model_.step()
                 continue
             self.model_.agents.shuffle_do('step')
-            for _, rule in self.problem_.model_rules:
-                rule.function(self._model_view)
+            for model, rule in self._rules:
+                rule.function(model)
         return x
 
     def snapshot(self) -> AgentState:

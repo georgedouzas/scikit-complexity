@@ -6,7 +6,17 @@ from sklearn.base import clone
 
 from skcomplex.core.base import RoleError, ValidationError
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import Boundary, EuclideanSpace, Group, PairInteraction, Particle, Rate, System
+from skcomplex.core.model import (
+    Boundary,
+    Element,
+    EuclideanSpace,
+    Group,
+    Interaction,
+    PairInteraction,
+    Particle,
+    Rate,
+    System,
+)
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population, Predation
 
 
@@ -84,14 +94,46 @@ def test_single_element_bound_with_group_receives_sum():
     assert 'fox.n' not in problem.equations
 
 
-def test_interaction_binding_two_groups_raises_error():
-    """Test that a non-pair interaction cannot bind two different groups."""
+Box = Element.define('Box', states={'n': 0.0})
+Flow = Interaction.define('Flow', roles=['source', 'sink'], laws=lambda s: [Rate(s.sink.n, s.source.n)])
+Cell = Element.define('Cell', states={'size': 0.0})
+
+
+@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+def test_interaction_reads_two_groups_member_by_member(backend):
+    """Test that an interaction bound to two groups of equal size reads row `i` of both together."""
     system = System(
-        elements=[Population.group('rabbits', 3), Population.group('foxes', 3)],
-        interactions=[Predation('hunt', predator='foxes', prey='rabbits')],
+        elements=[Box.group('source', 5, n=np.arange(5.0)), Box.group('sink', 5)],
+        interactions=[Flow('flow', source='source', sink='sink')],
     )
-    with pytest.raises(RoleError, match='PairInteraction'):
+    problem = compile_system(system, backend=backend)
+    drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
+    assert problem.backend == backend
+    assert problem.states.read(drift, 'sink.n').tolist() == [0.0, 1.0, 2.0, 3.0, 4.0]
+
+
+def test_interaction_reading_groups_of_different_sizes_raises_error():
+    """Test that an interaction reading groups of different sizes member by member names both groups and sizes."""
+    system = System(
+        elements=[Box.group('source', 5), Box.group('sink', 7)],
+        interactions=[Flow('flow', source='source', sink='sink')],
+    )
+    with pytest.raises(RoleError, match=r'sink of 7 members, source of 5 members.*PairInteraction'):
         compile_system(system)
+
+
+def test_group_takes_state_named_size():
+    """Test that a state named size takes per-member values, since the group size is given by position."""
+    group = Cell.group('cells', 3, size=[1.0, 2.0, 3.0])
+    problem = compile_system(System(elements=[group]))
+    assert group.size == 3
+    assert problem.states.read(problem.initial_state, 'cells.size').tolist() == [1.0, 2.0, 3.0]
+
+
+def test_group_label_and_size_are_positional_only():
+    """Test that the label and the size of a group cannot be given by keyword."""
+    with pytest.raises(TypeError, match='positional argument'):
+        Box.group(label='boxes', size=3)
 
 
 def test_pair_interaction_rejects_other_law_kinds():

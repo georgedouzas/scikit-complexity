@@ -8,7 +8,7 @@ from typing import ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, VisualSpec, parameter, state
+from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.model import AgentType, Interaction, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import ModelView
@@ -144,12 +144,12 @@ class Evolution(Interaction):
 
     Examples:
         >>> from skcomplex.models.computer_science.evolutionary_computation import Evolution
-        >>> Evolution('evolution').sessions
+        >>> Evolution('evolution', population='strategies').sessions
         10
     """
 
     mutation: float = parameter(0.005, domain=Domain.NONNEGATIVE)
-    population: str = 'strategies'
+    population: str = role()
     sessions: int = 10
     n_actions: int = 100
     side: int = 10
@@ -198,10 +198,10 @@ class Evolution(Interaction):
             model:
                 The model.
         """
-        agents = model.agents(self.population)
+        agents = model.agents('population')
         strategies = np.array([agent.actions for agent in agents], dtype=np.int64)
         scores = np.array([agent.score for agent in agents], dtype=float)
-        children = _offspring(strategies, scores, model.rng, model.parameters[f'{self.label}.mutation'])
+        children = _offspring(strategies, scores, model.rng, model.parameter('mutation'))
         for agent, actions, score in zip(agents, children, self.score(children, model.rng), strict=True):
             agent.actions = actions
             agent.score = float(score)
@@ -252,7 +252,13 @@ def robby_ga(
         (5, 243)
     """
     rng = np.random.default_rng(random_state)
-    evolution = Evolution('evolution', mutation=mutation, sessions=sessions, n_actions=n_actions)
+    evolution = Evolution(
+        'evolution',
+        population='strategies',
+        mutation=mutation,
+        sessions=sessions,
+        n_actions=n_actions,
+    )
     actions = rng.integers(0, N_ACTIONS, size=(n_strategies, N_SITUATIONS))
     scores = evolution.score(actions, rng)
     return System(

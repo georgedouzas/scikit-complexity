@@ -68,6 +68,69 @@ def _violations(path):
     return found
 
 
+GROUP_READS = frozenset({'agents', 'count', 'create'})
+
+
+def _roles_of(node):
+    """Return the names of the roles a class body declares with `role()`."""
+    return {
+        item.target.id
+        for item in node.body
+        if isinstance(item, ast.AnnAssign)
+        and isinstance(item.target, ast.Name)
+        and isinstance(item.value, ast.Call)
+        and getattr(item.value.func, 'id', None) == 'role'
+    }
+
+
+def _is_own_label(node):
+    """Check whether a formatted string starts with the component's own label followed by a dot."""
+    values = node.values
+    return (
+        len(values) > 1
+        and isinstance(values[0], ast.FormattedValue)
+        and ast.unparse(values[0].value) == 'self.label'
+        and isinstance(values[1], ast.Constant)
+        and str(values[1].value).startswith('.')
+    )
+
+
+def _group_read(node, roles):
+    """Return the group a call of the model view names, when it is neither a role nor a role's path."""
+    function = node.func
+    if not (isinstance(function, ast.Attribute) and function.attr in GROUP_READS and node.args):
+        return None
+    if ast.unparse(function.value) != 'model':
+        return None
+    argument = node.args[0]
+    if isinstance(argument, ast.Constant) and argument.value not in roles:
+        return repr(argument.value)
+    is_attribute = isinstance(argument, ast.Attribute) and ast.unparse(argument.value) == 'self'
+    if is_attribute and argument.attr not in roles:
+        return f'self.{argument.attr}'
+    return None
+
+
+def _rule_violations(source, module):
+    """Return the rules of interactions that read groups other than through roles, or parameters by their label."""
+    found = []
+    tree = ast.parse(source)
+    found += [
+        f'{module}:{node.lineno}: reads a parameter by its own label'
+        for node in ast.walk(tree)
+        if isinstance(node, ast.JoinedStr) and _is_own_label(node)
+    ]
+    for cls in (node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)):
+        roles = _roles_of(cls)
+        if not roles and 'Interaction' not in {ast.unparse(base) for base in cls.bases}:
+            continue
+        for node in ast.walk(cls):
+            group = _group_read(node, roles) if isinstance(node, ast.Call) else None
+            if group is not None:
+                found.append(f'{module}:{node.lineno}: {cls.name} reads the group {group}, which is not a role')
+    return found
+
+
 def test_layout_has_core_and_models():
     """Test that the package holds exactly the core and the models, and the core holds every framework package."""
     children = sorted(path.name for path in PACKAGE.iterdir() if path.is_dir() and path.name != '__pycache__')
@@ -141,3 +204,32 @@ def test_core_works_without_models():
         ],
     )
     subprocess.run([sys.executable, '-c', code], check=True)  # noqa: S603  # nosec B603: runs code written above
+
+
+def test_no_rule_reads_its_own_label():
+    """Test that rules read their parameters through the scoped view and groups of interactions through roles."""
+    paths = (PACKAGE / 'models').rglob('*.py')
+    found = [item for path in paths for item in _rule_violations(path.read_text(), _module_of(path)[0])]
+    assert found == []
+
+
+@pytest.mark.parametrize(
+    ('source', 'message'),
+    [
+        ("def f(self, model):\n    return model.parameters[f'{self.label}.rate']\n", 'by its own label'),
+        (
+            "class Herding:\n    cows: str = role()\n\n    def herd(self, model):\n        model.agents('pasture')\n",
+            "reads the group 'pasture'",
+        ),
+        (
+            (
+                "class Day:\n    women: str = role()\n    premises: str = 'premises'\n\n    def run(self, model):\n"
+                '        model.count(self.premises)\n'
+            ),
+            'reads the group self.premises',
+        ),
+    ],
+)
+def test_rule_check_finds_planted_reads(source, message):
+    """Test that the rule check reports reads by the own label and by group paths that are not roles."""
+    assert any(message in item for item in _rule_violations(source, 'planted'))

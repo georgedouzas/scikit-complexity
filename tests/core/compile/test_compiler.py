@@ -17,6 +17,7 @@ from skcomplex.core.base import (
 from skcomplex.core.compile import compile_system
 from skcomplex.core.model import (
     ConstantForce,
+    Element,
     EuclideanSpace,
     HarmonicPotential,
     Interaction,
@@ -25,6 +26,7 @@ from skcomplex.core.model import (
     System,
     Update,
 )
+from skcomplex.core.runtime import Simulation
 from skcomplex.models.biology.ecology import ExponentialGrowth, LogisticGrowth, Population, Predation
 from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
 from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion
@@ -239,3 +241,85 @@ def test_compile_system_jump_stoichiometry():
     problem = compile_system(system)
     assert problem.stoichiometry.tolist() == [[-1.0, 1.0]]
     assert problem.propensities(0.0, problem.initial_state, problem.initial_parameters).tolist() == [4.5]
+
+
+Node = Element.define('Node', states={'x': 0.0})
+
+
+class WeightedSum(Interaction):
+    """Update of a target to the weighted sum of the states of a variable number of inputs."""
+
+    target: str = role()
+    inputs: list[str] = role(variadic=True)
+    weights: list[float] = parameter(1.0, per='inputs')
+
+    def laws(self, s):
+        """Return the update of the target."""
+        return [Update(s.target.x, sum((w * item.x for w, item in zip(s.weights, s.inputs, strict=True)), 0))]
+
+
+def _summed(inputs, weights=1.0, **settings):
+    """Return the system of a weighted sum of inputs read from three elements and a group of ten nodes."""
+    elements = [
+        Node('a', x=1.0),
+        Node('b', x=2.0),
+        Node('c', x=4.0),
+        Node('hub', x=8.0),
+        Node('target'),
+        Node.group('nodes', 10, x=np.arange(10.0)),
+    ]
+    return System(elements=elements, interactions=[WeightedSum('sum', target='target', inputs=inputs, weights=weights)])
+
+
+@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+def test_compile_variadic_role_sums_any_number_of_inputs(backend):
+    """Test that a variadic role binds a sequence of elements that laws read as a tuple of namespaces."""
+    problem = compile_system(_summed(['a', 'b', 'c']), backend=backend)
+    state = problem.update(0.0, problem.initial_state, problem.initial_parameters)
+    assert problem.states.read(state, 'target.x') == 7.0
+    assert problem.interactions[0].roles['inputs'] == ('a', 'b', 'c')
+
+
+@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+def test_compile_variadic_member_reference_reads_one_member(backend):
+    """Test that a member reference of a variadic role reads the states of that member of a group."""
+    problem = compile_system(_summed(['hub', 'nodes[3]'], weights=[0.0, 1.0]), backend=backend)
+    state = problem.update(0.0, problem.initial_state, problem.initial_parameters)
+    assert problem.states.read(state, 'target.x') == 3.0
+
+
+@pytest.mark.parametrize(
+    ('inputs', 'match'),
+    [
+        (['a', 'nodes[12]'], r"sum .*'nodes\[12\]'.*'inputs'.*10 members"),
+        (['a', 'nodes'], 'binds the group nodes'),
+        (['a', 'missing'], "'missing'"),
+        ('a', 'Bind a list'),
+    ],
+)
+def test_compile_variadic_role_with_wrong_entry_raises_error(inputs, match):
+    """Test that a variadic entry naming a missing member, a group, or no element raises a role error."""
+    with pytest.raises(RoleError, match=match):
+        compile_system(_summed(inputs))
+
+
+def test_compile_per_entry_parameter_with_wrong_length_raises_error():
+    """Test that a per-entry parameter of another length than its role names the interaction and both lengths."""
+    with pytest.raises(ValidationError, match=r"sum .*'weights' 2 values.*'inputs' binds 3 entries"):
+        compile_system(_summed(['a', 'b', 'c'], weights=[1.0, 2.0]))
+
+
+def test_compile_per_entry_parameter_has_one_component_per_entry():
+    """Test that a per-entry parameter is laid out with one addressable component per entry."""
+    problem = compile_system(_summed(['a', 'b', 'c'], weights=[1.0, 2.0, 3.0]))
+    assert problem.parameters.component_names == ['sum.weights[0]', 'sum.weights[1]', 'sum.weights[2]']
+
+
+def test_simulation_updates_one_per_entry_weight_live():
+    """Test that a live update of one component of a per-entry parameter changes that entry only."""
+    schedule = {'sum.weights[1]': lambda t: 1.0 if t < 1 else 10.0}
+    trajectory = Simulation(_summed(['a', 'b', 'c']), dt=1, schedule=schedule).run(until=2).trajectory_
+    assert trajectory['target.x'].tolist() == [0.0, 7.0, 25.0]
+    simulation = Simulation(_summed(['a', 'b', 'c'])).run(until=1)
+    simulation.update_parameters({'sum.weights[2]': 5.0})
+    assert simulation.parameters_.tolist() == [1.0, 1.0, 5.0]

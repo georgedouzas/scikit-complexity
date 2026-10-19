@@ -4,12 +4,11 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, state
+from ....core.base import Domain, role, state
 from ....core.model import AgentType, Interaction, Law, Observable, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
@@ -99,16 +98,19 @@ class DebtRankCascade(Interaction):
         label:
             The label of the interaction.
 
+        banks:
+            The path of the group of banks.
+
         impact:
             The impact matrix, `impact[i][j]` the relative loss of `j` when `i` defaults.
 
     Examples:
         >>> from skcomplex.models.economics.finance import DebtRankCascade
-        >>> DebtRankCascade('cascade', impact=[[0.0, 0.5], [0.0, 0.0]]).impact
+        >>> DebtRankCascade('cascade', banks='banks', impact=[[0.0, 0.5], [0.0, 0.0]]).impact
         [[0.0, 0.5], [0.0, 0.0]]
     """
 
-    group: ClassVar[str] = 'banks'
+    banks: str = role()
     impact: Sequence[Sequence[float]] = ()
 
     def laws(self, s: Symbols) -> list[Law]:
@@ -131,7 +133,7 @@ class DebtRankCascade(Interaction):
             model:
                 The model.
         """
-        banks = sorted(model.agents(self.group), key=lambda bank: bank.id)
+        banks = sorted(model.agents('banks'), key=lambda bank: bank.id)
         h = np.array([bank.h for bank in banks])
         status = np.array([bank.status for bank in banks])
         distressed = status == DISTRESSED
@@ -206,6 +208,6 @@ def debtrank(
     banks = Bank.group('banks', size, h=h, status=status, value=_economic_values(matrix))
     return System(
         elements=[banks],
-        interactions=[DebtRankCascade('cascade', impact=_impact(matrix, capitals).tolist())],
+        interactions=[DebtRankCascade('cascade', banks='banks', impact=_impact(matrix, capitals).tolist())],
         observables=[Observable('value_at_risk', _value_at_risk, group='banks', reduce='sum')],
     )

@@ -39,8 +39,9 @@ car ahead by a periodic member offset, for any number of cars.
 
 ### Requirement: Agent models read groups through roles and the space through the model
 `trafficking` and `meadow_capacity` SHALL bind every group their rules read to a role, `trafficking` and
-`ring_road_drivers` SHALL read the space's extent from the model view, and no rule in the library SHALL read a group by
-a hard-coded path or its own parameters by its label.
+`ring_road_drivers` SHALL read the space's extent from the model view, no rule of an interaction in the library SHALL
+read a group other than through its roles, and no rule SHALL read its own parameters by its label. Rules of agent
+types, which have no roles, SHALL read the groups of their own system by relative label.
 
 #### Scenario: Trafficking with two roles
 - **WHEN** `trafficking(random_state=0)` is built and run for 90 days
@@ -49,12 +50,14 @@ a hard-coded path or its own parameters by its label.
 
 #### Scenario: Nested meadow
 - **WHEN** the meadow model built with random state 0 is placed as the subsystem `farm` of another system and run
-- **THEN** it runs and its cow counts equal those of the model run at the root
+- **THEN** it runs, its grazing and herding interactions bind the role `pasture`, and its cow counts equal those of the
+  model run at the root
 
 #### Scenario: Ring road without a length parameter
 - **WHEN** `ring_road_drivers(10, length=500.0)` runs
 - **THEN** the drivers have no `road_length` parameter and every position stays in `[0, 500)`
 
 #### Scenario: No rule reads its own label
-- **WHEN** the library's layout test scans the rule functions of every registered model
-- **THEN** none reads `model.parameters` with its own label or names a group by a literal path
+- **WHEN** the library's layout test scans the source of every model
+- **THEN** no rule reads a parameter by its own label, and no interaction names a group in `model.agents`,
+  `model.count`, or `model.create` by a string or an attribute that is not one of its roles

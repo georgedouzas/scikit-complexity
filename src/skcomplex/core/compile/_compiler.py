@@ -91,6 +91,7 @@ from ._lattices import (
 )
 from ._layout import Entry, Layout
 from ._lowering import symbolic_components
+from ._members import MemberShifts
 from ._observables import _join, _tree, observables_of
 from ._printing import numpy_function
 from ._problem import CompiledAgents, CompiledElement, CompiledInteraction, Partition, Problem, Vector, VectorFunction
@@ -116,6 +117,7 @@ FORMS: dict[frozenset[type], Form] = {
     frozenset({Energy, Move, Sampler}): Form.MONTE_CARLO,
 }
 ASSIGNED_KINDS = (Update, Boundary)
+MEMBER_REFERENCE = re.compile(r'^(?P<path>.+)\[(?P<index>-?\d+)\]$')
 LATTICE_LAWS = (LocalRule, Drive, Relaxation, Energy, Move, Sampler)
 KERNEL_FREE = (*LATTICE_LAWS, Flux)
 
@@ -128,11 +130,24 @@ class _Block:
     symbols: dict[str, Expression | SymbolicVector] = field(default_factory=dict)
     entries: dict[str, Entry] = field(default_factory=dict)
     references: dict[Expression, Reference] = field(default_factory=dict)
+    per: set[str] = field(default_factory=set)
 
     @property
     def rows(self) -> int:
         """Number of members, 1 for a single element or an interaction."""
         return self.node.members or 1
+
+    def _namespace(self, mapping: dict[Expression, Expression]) -> Symbols:
+        """Return the namespace of the block's variables in renamed symbols, with tuples for per-entry parameters."""
+        symbols: dict[str, Any] = {}
+        for name, value in self.symbols.items():
+            if not isinstance(value, SymbolicVector):
+                symbols[name] = mapping[value]
+            elif name in self.per:
+                symbols[name] = tuple(mapping[item] for item in value)
+            else:
+                symbols[name] = vector(mapping[item] for item in value)
+        return Symbols(**symbols)
 
     def namespace(self, source: Source, alias: str = '') -> tuple[Symbols, dict[Expression, Reference]]:
         """Return the namespace of the block's symbols and their references for one way of reading them.
@@ -153,11 +168,52 @@ class _Block:
             mapping[item]: Reference(reference.entry, reference.is_state, reference.column, source)
             for item, reference in self.references.items()
         }
-        symbols = {
-            name: (vector(mapping[item] for item in value) if isinstance(value, SymbolicVector) else mapping[value])
-            for name, value in self.symbols.items()
+        return self._namespace(mapping), references
+
+    def member_namespace(self, index: int) -> tuple[Symbols, dict[Expression, Reference]]:
+        """Return the namespace of one member of a group, read like a single element, and the references of its symbols.
+
+        Args:
+            index:
+                The index of the member.
+
+        Returns:
+            namespace:
+                The namespace and the references of its symbols, whose columns count from the group's first component.
+        """
+        mapping = {item: symbol(f'{item}__m{index}', domain_of(item)) for item in self.references}
+        references = {
+            mapping[item]: Reference(
+                reference.entry,
+                reference.is_state,
+                index * reference.entry.columns + reference.column,
+                Source.SINGLE,
+            )
+            for item, reference in self.references.items()
         }
-        return Symbols(**symbols), references
+        return self._namespace(mapping), references
+
+
+def _per_entry_shape(node: Node, variable: str, declaration: Variable) -> tuple[int, ...]:
+    """Return the shape of a parameter with one value per entry of a variadic role, after checking its length."""
+    roles = declarations_of(node.component_type, VariableKind.ROLE)
+    role = declaration.per
+    if role not in roles or not roles[role].variadic:
+        error_msg = (
+            f'{node.path}.{variable} is declared per entry of {role!r}, which is not a variadic role of '
+            f'{node.component_type.__name__}. Declare the role with `role(variadic=True)`.'
+        )
+        raise ValidationError(error_msg)
+    entries = len(getattr(node.component, role))
+    value = node.value_of(variable)
+    given = len(value) if isinstance(value, list | tuple | np.ndarray) and np.ndim(value) else None
+    if given is not None and given != entries:
+        error_msg = (
+            f'Interaction {node.path} gives its parameter {variable!r} {given} values, but its role {role!r} binds '
+            f'{entries} entries. Give one value per entry.'
+        )
+        raise ValidationError(error_msg)
+    return (entries,)
 
 
 @dataclass
@@ -176,7 +232,11 @@ class _Declarations:
         node = block.node
         entries, values = (self.states, self.initial_states) if is_state else (self.parameters, self.initial_parameters)
         name = f'{node.path}.{variable}'
-        member_shape = shape_of(name, declaration, node.space)
+        if declaration.per is None:
+            member_shape = shape_of(name, declaration, node.space)
+        else:
+            member_shape = _per_entry_shape(node, variable, declaration)
+            block.per.add(variable)
         members = None if node.is_agent else node.members
         shape = member_shape if members is None else (members, *member_shape)
         values.append(coerce_value(name, node.value_of(variable), member_shape, declaration.domain, members))
@@ -238,6 +298,7 @@ class _KernelSpec:
     groups: dict[str, int] = field(default_factory=dict)
     sets: dict[Expression, _SetSymbol] = field(default_factory=dict)
     set_index: int = 0
+    aligned: tuple[str, ...] = ()
 
 
 @dataclass
@@ -279,6 +340,55 @@ def _resolve_path(node: Node, role: str, label: object, elements: dict[str, _Blo
 def _resolve_role(node: Node, role: str, elements: dict[str, _Block]) -> _Block:
     """Return the block of the element or group bound to a role of an interaction."""
     return _resolve_path(node, role, getattr(node.component, role), elements)
+
+
+def _resolve_entry(node: Node, role: str, entry: object, elements: dict[str, _Block]) -> tuple[_Block, int | None]:
+    """Return the block of one entry of a variadic role, with the member index of a member reference."""
+    match = MEMBER_REFERENCE.match(entry) if isinstance(entry, str) else None
+    block = _resolve_path(node, role, match['path'] if match else entry, elements)
+    size = block.node.members
+    if match is None:
+        if size is not None:
+            error_msg = (
+                f'Interaction {node.path} binds the group {block.node.path} as an entry of its variadic role {role!r}. '
+                f'Bind single elements or members of the group, such as {entry}[0].'
+            )
+            raise RoleError(error_msg)
+        return block, None
+    index = int(match['index'])
+    if size is None or not 0 <= index < size:
+        error_msg = (
+            f'Interaction {node.path} binds the entry {entry!r} to its variadic role {role!r}, but '
+            f'{block.node.path} holds {size or "no"} members. Give a member index from 0 to the group size minus 1.'
+        )
+        raise RoleError(error_msg)
+    return block, index
+
+
+def _resolve_entries(
+    node: Node,
+    role: str,
+    entries: object,
+    elements: dict[str, _Block],
+) -> list[tuple[_Block, int | None]]:
+    """Return the blocks and member indices of the entries of a variadic role, in the given order."""
+    if not isinstance(entries, list | tuple):
+        error_msg = (
+            f'Interaction {node.path} binds its variadic role {role!r} to {entries!r}. Bind a list of element paths '
+            'and group member references.'
+        )
+        raise RoleError(error_msg)
+    return [_resolve_entry(node, role, entry, elements) for entry in entries]
+
+
+def _entry_path(block: _Block, index: int | None) -> str:
+    """Return the path of an entry of a variadic role, with the member index of a member reference."""
+    return block.node.path if index is None else f'{block.node.path}[{index}]'
+
+
+def _entry_namespace(block: _Block, index: int | None) -> tuple[Symbols, dict[Expression, Reference]]:
+    """Return the namespace of an entry of a variadic role, an element or one member of a group."""
+    return block.namespace(Source.SINGLE) if index is None else block.member_namespace(index)
 
 
 def _resolve_set(node: Node, role: str, labels: Sequence[str], elements: dict[str, _Block]) -> list[_Block]:
@@ -457,18 +567,28 @@ def _interaction_specs(
 ) -> list[_KernelSpec]:
     """Return the kernel specs of an interaction, one per element of its element sets, or else one."""
     node = block.node
-    labels = {role: getattr(node.component, role) for role in declarations_of(node.component, VariableKind.ROLE)}
+    declared = declarations_of(node.component, VariableKind.ROLE)
+    labels = {role: getattr(node.component, role) for role in declared}
+    variadic = {
+        role: _resolve_entries(node, role, labels[role], elements)
+        for role, declaration in declared.items()
+        if declaration.variadic
+    }
     sets = {
         role: _resolve_set(node, role, label, elements)
         for role, label in labels.items()
-        if isinstance(label, list | tuple)
+        if role not in variadic and isinstance(label, list | tuple)
     }
     observed = {
         role: found
         for role, label in labels.items()
-        if role not in sets and (found := observe(node, label)) is not None
+        if role not in sets and role not in variadic and (found := observe(node, label)) is not None
     }
-    bound = {role: _resolve_role(node, role, elements) for role in labels if role not in sets and role not in observed}
+    bound = {
+        role: _resolve_role(node, role, elements)
+        for role in labels
+        if role not in sets and role not in observed and role not in variadic
+    }
     sizes = {len(members) for members in sets.values()}
     if len(sizes) > 1:
         error_msg = f'Interaction {node.path} binds roles to element sets of different sizes. Give the sets one size.'
@@ -478,10 +598,11 @@ def _interaction_specs(
     paths: dict[str, str | tuple[str, ...]] = {role: item.node.path for role, item in bound.items()}
     paths.update({role: tuple(member.node.path for member in members) for role, members in sets.items()})
     paths.update({role: f'{node.scope}{labels[role]}' for role in observed})
+    paths.update({role: tuple(_entry_path(*entry) for entry in entries) for role, entries in variadic.items()})
     specs = []
     for index in range(next(iter(sizes), 1)):
         parameters, references = block.namespace(Source.SINGLE)
-        namespaces: dict[str, Symbols] = {}
+        namespaces: dict[str, Symbols | tuple[Symbols, ...]] = {}
         set_symbols: dict[Expression, _SetSymbol] = {}
         for role, members in sets.items():
             namespaces[role], role_references = members[index].namespace(Source.SINGLE)
@@ -490,6 +611,11 @@ def _interaction_specs(
         for role, value in observed.items():
             namespaces[role] = value.namespace
             references.update(value.references)
+        for role, entries in variadic.items():
+            read = [_entry_namespace(*entry) for entry in entries]
+            namespaces[role] = tuple(namespace for namespace, _ in read)
+            for _, entry_references in read:
+                references.update(entry_references)
         for role, item in bound.items():
             namespaces[role], role_references = item.namespace(
                 Source.MEMBER if item.node.members is not None else Source.SINGLE,
@@ -518,11 +644,25 @@ def _outside_reductions(value: object) -> set[Expression]:
     return symbols_of(kept)
 
 
+def _check_aligned(spec: _KernelSpec, groups: list[str]) -> None:
+    """Raise an error when the groups an interaction reads member by member differ in size."""
+    sizes = {group: spec.groups[group] for group in groups}
+    if len(set(sizes.values())) <= 1:
+        return
+    described = ', '.join(f'{group} of {size} members' for group, size in sizes.items())
+    error_msg = (
+        f'Interaction {spec.owner} reads the groups {described} member by member, which needs groups of one size. '
+        'Read the other groups through reductions, or couple every pair of members with a PairInteraction.'
+    )
+    raise RoleError(error_msg)
+
+
 def _settle_rows(spec: _KernelSpec, laws: list[Law]) -> None:
-    """Set the group an interaction is evaluated over from the member symbols its laws read outside reductions.
+    """Set the groups an interaction is evaluated over from the member symbols its laws read outside reductions.
 
     Laws without reductions keep the group their one group role binds to, so a single element bound next to it
-    receives the sum over the members.
+    receives the sum over the members. Groups of one size that laws read outside reductions are read member by
+    member, row `i` of each together.
     """
     values = [law.rate if isinstance(law, Jump) else getattr(law, 'value', None) for law in laws]
     if not spec.groups or (len(spec.groups) == 1 and not any(has_reductions(value) for value in values)):
@@ -537,13 +677,9 @@ def _settle_rows(spec: _KernelSpec, laws: list[Law]) -> None:
         if (reference := spec.references.get(item)) is not None and reference.source is Source.MEMBER
     }
     groups = sorted(owners & set(spec.groups))
-    if len(groups) > 1:
-        error_msg = (
-            f'Interaction {spec.owner} binds roles to the groups {", ".join(groups)}. An interaction acts on at most '
-            'one group and reads the others through reductions, and a PairInteraction couples members of two groups.'
-        )
-        raise RoleError(error_msg)
+    _check_aligned(spec, groups)
     spec.group = next(iter(groups), None)
+    spec.aligned = tuple(groups)
     spec.rows = spec.groups[spec.group] if spec.group is not None else 1
 
 
@@ -853,7 +989,7 @@ def _substitute_delays(value: object, spec: _KernelSpec, declarations: _Declarat
             replacements[call] = hybrid.placeholders[key]
             continue
         entry = reference.entry
-        members = entry.members
+        members = entry.members if reference.source is Source.MEMBER else None
         indices = (
             entry.start + np.arange(members) * entry.columns + reference.column
             if members is not None
@@ -1015,6 +1151,27 @@ def _with_fields(spec: _KernelSpec, laws: list[Law], declarations: _Declarations
             result.append(type(law)(law.target, lowered))
     fields.limits += lowering.limits
     return result
+
+
+def _with_member_shifts(spec: _KernelSpec, laws: list[Law], time: Expression) -> list[Law]:
+    """Return laws whose member offset reads are lowered to neighbour reads of the group's index table."""
+    shifts = MemberShifts(spec.owner, spec.references, time)
+    result: list[Law] = []
+    for law in laws:
+        if isinstance(law, Jump):
+            result.append(Jump(shifts.lower(law.rate), law.changes))
+        elif isinstance(law, Rate | Noise):
+            result.append(type(law)(law.target, shifts.lower(law.value), law.order))
+        elif isinstance(law, Update | Boundary):
+            result.append(type(law)(law.target, shifts.lower(law.value)))
+        else:
+            result.append(law)
+    return result
+
+
+def _with_neighbor_reads(spec: _KernelSpec, laws: list[Law], declarations: _Declarations, fields: _Fields) -> list[Law]:
+    """Return laws whose differential operators and member offset reads are lowered to neighbour reads."""
+    return _with_member_shifts(spec, _with_fields(spec, laws, declarations, fields), declarations.time)
 
 
 def _written_equations(equations: dict[str, Expression], states: Layout, fields: _Fields) -> dict[str, Expression]:
@@ -1494,7 +1651,7 @@ def _prune_foreign(spec: _KernelSpec, declarations: _Declarations) -> None:
         if reference.source is Source.MEMBER
     }
     groups = {path for path, block in declarations.blocks.items() if block.node.members is not None}
-    foreign = (owners & groups) - {spec.group}
+    foreign = (owners & groups) - {spec.group, *spec.aligned}
     if not foreign:
         return
     spec.references = {
@@ -1872,7 +2029,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
     hybrid = _Hybrid()
     specs = [(spec, _with_hybrid(spec, laws, declarations, hybrid, NOISE_CONVENTIONS[noise])) for spec, laws in specs]
     fields = _Fields()
-    specs = [(spec, _with_fields(spec, laws, declarations, fields)) for spec, laws in specs]
+    specs = [(spec, _with_neighbor_reads(spec, laws, declarations, fields)) for spec, laws in specs]
     agents = {block.node.path for block in blocks if block.node.is_agent}
     if owners is not None:
         specs = [(spec, [law for law in laws if _law_owner(spec, law, agents) in owners]) for spec, laws in specs]
@@ -2309,7 +2466,8 @@ def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
             A label is not valid, duplicated, or produces a symbol collision.
 
         RoleError:
-            A role refers to an element that does not exist, or an interaction binds two groups.
+            A role refers to an element that does not exist, or an interaction reads groups of different sizes member
+            by member.
 
         SpaceError:
             A vector variable has no enclosing space.

@@ -4,6 +4,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
+from skcomplex.core.model import System
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import ScipyODE
 from skcomplex.models import catalog
@@ -215,6 +216,16 @@ def test_stigmergic_marks_follow_emotions():
         assert trajectory['life/prey.count'][-1] > 0
     assert marks[True] > 0
     assert marks[False] == 0
+
+
+@pytest.mark.parametrize('growth', [0.0, 0.2])
+def test_meadow_runs_nested_in_a_farm(growth):
+    """Test that the meadow placed as the subsystem `farm` runs as the meadow at the root."""
+    root = _run(meadow_capacity(growth=growth, random_state=0), 25, random_state=0)
+    nested = meadow_capacity(growth=growth, random_state=0).set_params(label='farm')
+    farm = _run(System(systems=[nested]), 25, random_state=0)
+    assert farm['farm/cows.count'].tolist() == root['cows.count'].tolist()
+    assert {interaction.pasture for interaction in nested.interactions} == {'pasture'}
 
 
 def test_meadow_regrowth_raises_carrying_capacity():

@@ -470,6 +470,9 @@ trajectory = Simulation(gas, dt=0.01).run(until=1).trajectory_
 print(trajectory['gas.x'].shape)
 ```
 
+- The label and the size of a group are given by position, `Particle.group('gas', 10_000, ...)`, so a state named
+  `size` takes per-member values by keyword. States and parameters cannot be named `label` or `visual`, and those of
+  agent types cannot take the names of the agent view, such as `location` or `alive`.
 - A value is an array whose first dimension is the size of the group, or one value shared by every member.
 - An interaction whose role binds to a group applies to every member. A single element bound next to the group
   receives the sum over the members, unless its law reads the group only through reductions.
@@ -491,8 +494,8 @@ evaluated once per evaluation, before the member laws, at a cost linear in the s
 - `over` names the group by its namespace, such as `over=s.neurons`, when the expression reads no symbol of it.
 - A reduction reads one group, and an argument that reads two groups raises an error. Reductions nest, so the mean
   fitness `total(s.x * total(s.x, weights=A))` of replicator dynamics evaluates the inner reduction first.
-- An interaction acts on one group and reads others through reductions. A law that sets a single element from
-  reductions alone runs once, not once per member.
+- An interaction reads groups member by member outside reductions, which needs groups of one size, and reads other
+  groups through reductions. A law that sets a single element from reductions alone runs once, not once per member.
 - Discrete maps read the reductions at step `n`, jump propensities after every event, and events at the state they
   receive.
 
@@ -541,6 +544,79 @@ network = System(
     interactions=[Inhibition('inhibition', units=['unit_0', 'unit_1', 'unit_2'])],
 )
 print(Simulation(network, dt=1.0).run(until=30).state_.round(3))
+```
+
+### Variadic roles
+
+A role declared with `role(variadic=True)` binds a list of element paths and group member references `<group>[<i>]`,
+and laws read it as a tuple of namespaces in the given order, so a law can take any number of inputs. A parameter
+declared with `parameter(per='<role>')` holds one value per entry, laws read it as a tuple of symbols, and each value is
+the parameter component `<path>.<name>[<i>]`, which `update_parameters` and `schedule` set like any parameter.
+
+```python
+from skcomplex.core.base import parameter, role
+from skcomplex.core.model import Element, Interaction, System, Update
+from skcomplex.core.runtime import Simulation
+
+Node = Element.define('Node', states={'x': 0.0})
+
+
+class WeightedSum(Interaction):
+    target: str = role()
+    inputs: list[str] = role(variadic=True)
+    weights: list[float] = parameter(1.0, per='inputs')
+
+    def laws(self, s):
+        total_input = sum(weight * item.x for weight, item in zip(s.weights, s.inputs, strict=True))
+        return [Update(s.target.x, total_input)]
+
+
+summed = System(
+    elements=[Node('a', x=1.0), Node('b', x=2.0), Node('out'), Node.group('nodes', 5, x=[0.0, 1.0, 2.0, 3.0, 4.0])],
+    interactions=[WeightedSum('sum', target='out', inputs=['a', 'b', 'nodes[3]'], weights=[1.0, 1.0, 10.0])],
+)
+simulation = Simulation(summed, dt=1).run(until=1)
+simulation.update_parameters({'sum.weights[2]': 0.0})
+print(simulation.trajectory_['out.x'], simulation.parameters_)
+```
+
+An element set and a variadic role both bind a list. An element set applies the laws once per element, each element
+read like a single element, while a variadic role gives one law the whole sequence. `random_boolean_network` and
+`yeast_cell_cycle` read the inputs of every node through one variadic role.
+
+### Several groups and member offsets
+
+Roles of one interaction bind several groups of one size, and the laws read row `i` of every group together. Groups of
+different sizes raise a `RoleError`, since coupling every member of one group with every member of another is the work
+of a pair interaction or a reduction.
+
+`shift_member(expression, offset, boundary='periodic', fill=0.0)` reads an expression of a group's members at the
+member `offset` places along the group order, the member index. Past the ends, `'periodic'` wraps around, `'reflecting'`
+mirrors the order, and `'fixed'` reads `fill`. Nested offsets add, and an offset read of a single element raises an
+error. The read compiles to an index table of the group, so one kernel runs over every member on the NumPy and the
+Numba backends. The ring roads of `optimal_velocity` and `intelligent_driver_model` read the car ahead this way, with
+`mod` for the headway across the point where positions wrap.
+
+```python
+import numpy as np
+from sage.all__sagemath_symbolics import tanh
+
+from skcomplex.core.model import Rate, mod, shift_member
+
+Car = Element.define('Car', states={'x': 0.0, 'v': 1.0}, laws=lambda s: [Rate(s.x, s.v)])
+Following = Interaction.define(
+    'Following',
+    roles=['cars'],
+    parameters={'length': 40.0},
+    laws=lambda s: [
+        Rate(s.cars.v, tanh(mod(shift_member(s.cars.x, 1) - s.cars.x, s.length) - 2.0) + tanh(2.0) - s.cars.v),
+    ],
+)
+ring = System(
+    elements=[Car.group('cars', 20, x=np.arange(20) * 2.0 + np.eye(20)[0] * 0.1)],
+    interactions=[Following('following', cars='cars', length=40.0)],
+)
+print(Simulation(ring, dt=1.0).run(until=50).trajectory_['cars.v'][-1].std() > 0.1)
 ```
 
 ### Jacobians of reductions
@@ -890,13 +966,64 @@ print(trajectory['foragers.count'][-1], len(trajectory.agents('foragers', 20)))
 - An agent reads and sets its states as attributes and reads its group's parameters, which change live like any
   parameter. `neighbors`, `neighbor_cells`, `agents_here`, `move_to`, `create`, and `remove` act on its place and its
   population.
-- The model gives the random generator `model.rng`, the other agents with `model.agents(group)`, and empty cells.
+- The model gives the random generator `model.rng`, the other agents with `model.agents(name)` and
+  `model.count(name)`, and empty cells.
+- Every rule receives the model view scoped to the interaction or agent group that owns it. `model.parameter('name')`
+  reads the owner's parameter, and `model.agents('role')` reads the group bound to a role of the owner, then a group by
+  its path relative to the owner's system, then by its path from the root, so a rule works unchanged in a subsystem.
+  Interactions with agent rules bind any number of agent groups, of any sizes, through their roles.
+- `model.dimensions` gives the extent of the space per axis and `model.torus` whether it wraps.
+  `agent.displacement_to(other)` gives the vector to another agent or a location, the shortest one on a torus, and
+  `agent.distance_to(other)` its length, or the number of hops on a network. `agent.group` is the path of the agent's
+  group and `agent.group_label` its label.
 - `GridSpace` has Moore or von Neumann neighbourhoods and an optional cell capacity, `NetworkSpace` places agents on
   the nodes of a NetworkX graph, and `ContinuousSpace` finds neighbours within a radius.
 - Frames and trajectories hold every group's agents with their ids, states, and locations, through
   `trajectory.agents(group, frame)`, and the count of every group as the reporter `<group>.count`.
 - `skcomplex.models.social` has Schelling segregation and the voter model, `skcomplex.models.economics.econophysics`
   has Boltzmann wealth exchange, and `skcomplex.models.biology.ecology` has the wolf and sheep model.
+
+```python
+from skcomplex.core.model import ContinuousSpace
+
+
+class Walker(AgentType):
+    def laws(self, s):
+        return [Rule(self.step)]
+
+    def step(self, agent, model):
+        width, height = model.dimensions
+        x, y = agent.location
+        agent.move_to(((x + model.rng.uniform(0, 2)) % width, y))
+
+
+class Spread(Interaction):
+    walkers: str = role()
+    reach: float = parameter(10.0)
+
+    def laws(self, s):
+        return [Rule(self.measure)]
+
+    def measure(self, model):
+        walkers = model.agents('walkers')
+        close = [a for a in walkers for b in walkers if a != b and a.distance_to(b) < model.parameter('reach')]
+        counts.append(len(close) // 2)
+
+
+counts = []
+road = System(
+    systems=[
+        System(
+            'road',
+            elements=[Walker.group('walkers', 5, location=[(10.0 * index, 0.5) for index in range(5)])],
+            interactions=[Spread('spread', walkers='walkers')],
+        ),
+    ],
+    space=ContinuousSpace(50.0, 1.0, torus=True),
+)
+Simulation(road, random_state=0).run(until=5)
+print(counts)
+```
 
 ### Existing Mesa models
 

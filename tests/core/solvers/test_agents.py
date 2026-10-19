@@ -7,7 +7,16 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.base import Form, IncompatibleLawsError, ValidationError, parameter, role, state
+from skcomplex.core.base import (
+    Form,
+    IncompatibleLawsError,
+    SimulationError,
+    SpaceError,
+    ValidationError,
+    parameter,
+    role,
+    state,
+)
 from skcomplex.core.compile import compile_system
 from skcomplex.core.model import (
     AgentType,
@@ -20,6 +29,7 @@ from skcomplex.core.model import (
     System,
 )
 from skcomplex.core.runtime import RealTime, Simulation
+from skcomplex.core.solvers import AgentView
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population
 
 
@@ -258,3 +268,123 @@ def test_mesa_system_must_be_root():
     """Test that a wrapped Mesa model nested in another system is rejected."""
     with pytest.raises(ValidationError, match='root system'):
         compile_system(System(systems=[_money_system()]))
+
+
+SEEN: list[object] = []
+
+
+class Cattle(AgentType):
+    """Agent that stays where it is and that a census interaction counts."""
+
+    def laws(self, s):
+        """Return the rule of staying."""
+        return [Rule(self.stay)]
+
+    def stay(self, agent, model):
+        """Stay in place."""
+
+
+class Census(Interaction):
+    """Interaction whose rule records its parameter, the groups of its roles, and the labels of their agents."""
+
+    counted: str = role()
+    others: str = role()
+    threshold: float = parameter(0.9)
+    looked_up: str = 'counted'
+
+    def laws(self, s):
+        """Return the census rule."""
+        return [Rule(self.record)]
+
+    def record(self, model):
+        """Record the parameter, the counts and labels of the groups, and the space of the model."""
+        counted = model.agents(self.looked_up)
+        SEEN.append(
+            {
+                'threshold': model.parameter('threshold'),
+                'counted': len(counted),
+                'others': model.count('others'),
+                'labels': {agent.group_label for agent in counted},
+                'paths': {agent.group for agent in counted},
+                'dimensions': model.dimensions,
+                'torus': model.torus,
+            },
+        )
+
+
+def _census(looked_up='counted', space=None, schedule=None):
+    """Return the records of a census of two groups of 42 and 43 agents nested in the subsystem `farm`."""
+    SEEN.clear()
+    farm = System(
+        'farm',
+        elements=[Cattle.group('cows', 42), Cattle.group('patches', 43)],
+        interactions=[Census('census', counted='cows', others='patches', looked_up=looked_up)],
+    )
+    system = System(systems=[farm], space=space)
+    simulation = Simulation(system, schedule=schedule, random_state=0).run(until=3)
+    return simulation, list(SEEN)
+
+
+def test_rule_reads_parameter_of_nested_owner():
+    """Test that a nested interaction reads its own parameter by name, also after a live update."""
+    _, records = _census(schedule={'farm/census.threshold': lambda t: 0.9 if t < 2 else 0.5})
+    assert [record['threshold'] for record in records] == [0.9, 0.9, 0.5]
+
+
+def test_rule_binds_two_agent_groups_through_roles():
+    """Test that an interaction binds two agent groups of different sizes and reads each through its role."""
+    simulation, records = _census()
+    assert simulation.problem_.form is Form.AGENT
+    assert records[0]['counted'] == 42
+    assert records[0]['others'] == 43
+    assert records[0]['paths'] == {'farm/cows'}
+    assert records[0]['labels'] == {'cows'}
+
+
+def test_rule_reads_group_by_relative_path():
+    """Test that a rule reads a group of its system by a path relative to the system."""
+    _, records = _census(looked_up='patches')
+    assert records[0]['counted'] == 43
+
+
+def test_rule_reading_unknown_name_raises_error():
+    """Test that a rule reading no role and no group lists the owner's roles and the available groups."""
+    with pytest.raises(SimulationError, match=r"'meadow'.*counted, others.*farm/cows, farm/patches"):
+        _census(looked_up='meadow')
+
+
+def test_rule_reads_grid_dimensions_and_torus():
+    """Test that a rule reads the extent and the wrap of a grid."""
+    _, records = _census(space=GridSpace(30, 20, torus=True))
+    assert records[0]['dimensions'] == (30, 20)
+    assert records[0]['torus'] is True
+
+
+def _views(space, locations):
+    """Return views of two agents placed at given locations of a space."""
+    system = System(elements=[Cattle.group('cows', 2, location=locations)], space=space)
+    simulation = Simulation(system, random_state=0).run(until=0)
+    stepper = simulation.stepper_
+    return [AgentView(agent, stepper) for agent in stepper.group_agents('cows')]
+
+
+def test_displacement_across_torus_seam():
+    """Test that the displacement in a toroidal continuous space is the shortest image across the seam."""
+    first, second = _views(ContinuousSpace(100.0, 1.0, torus=True), [(99.0, 0.5), (1.0, 0.5)])
+    assert first.displacement_to(second).tolist() == [2.0, 0.0]
+    assert first.distance_to(second) == 2.0
+    assert first.distance_to((97.0, 0.5)) == 2.0
+
+
+def test_network_distance_counts_hops():
+    """Test that the distance on a network counts hops and that a displacement raises a space error."""
+    first, second = _views(NetworkSpace(nx.path_graph(5)), [0, 3])
+    assert first.distance_to(second) == 3.0
+    with pytest.raises(SpaceError, match='network'):
+        first.displacement_to(second)
+
+
+def test_agent_view_names_are_reserved():
+    """Test that every public name of the agent view is reserved for the states of agent types."""
+    public = {name for name in dir(AgentView) if not name.startswith('_')}
+    assert public <= AgentType.reserved_names

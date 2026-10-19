@@ -8,7 +8,7 @@ from typing import ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, VisualSpec, parameter, state
+from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.model import AgentType, Interaction, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import ModelView
@@ -81,13 +81,13 @@ class Reproduction(Interaction):
 
     Examples:
         >>> from skcomplex.models.computer_science.evolutionary_computation import Reproduction
-        >>> Reproduction('reproduction', zero_values=(0.1, 0.2), one_values=(0.9, 0.3)).mutation
+        >>> Reproduction('reproduction', population='genomes', zero_values=(0.1, 0.2), one_values=(0.9, 0.3)).mutation
         0.05
     """
 
     death: float = parameter(0.1, domain=Domain.NONNEGATIVE)
     mutation: float = parameter(0.05, domain=Domain.NONNEGATIVE)
-    population: str = 'genomes'
+    population: str = role()
     zero_values: tuple[float, ...] = ()
     one_values: tuple[float, ...] = ()
 
@@ -111,13 +111,13 @@ class Reproduction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents(self.population)
+        agents = model.agents('population')
         genomes = np.array([agent.genome for agent in agents], dtype=float)
         fitness = np.array([agent.fitness for agent in agents], dtype=float)
         rng = model.rng
-        dead = np.flatnonzero(rng.random(len(agents)) < model.parameters[f'{self.label}.death'])
+        dead = np.flatnonzero(rng.random(len(agents)) < model.parameter('death'))
         parents = rng.choice(len(agents), size=dead.size, p=fitness / fitness.sum())
-        flips = rng.random(dead.size) < model.parameters[f'{self.label}.mutation']
+        flips = rng.random(dead.size) < model.parameter('mutation')
         loci = rng.integers(0, len(self.zero_values), size=dead.size)
         genomes[dead] = genomes[parents].astype(np.int64) ^ (flips.astype(np.int64) << loci)
         zero_values, one_values = np.asarray(self.zero_values), np.asarray(self.one_values)
@@ -176,6 +176,7 @@ def bit_string_evolution(
     fitness = _fitness_of(genomes, zero_values, one_values)
     reproduction = Reproduction(
         'reproduction',
+        population='genomes',
         death=death,
         mutation=mutation,
         zero_values=tuple(zero_values.tolist()),

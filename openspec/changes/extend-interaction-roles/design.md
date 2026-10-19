@@ -158,3 +158,77 @@ still leaves `visual` and `space` to collide, so positional-only arguments plus 
 Each model rebuild keeps its registered name and arguments, except that `random_boolean_network` accepts any `k` up to
 `n_nodes` and `trafficking` and `ring_road_drivers` no longer pass the space size to their interactions and agents.
 Their per-car or per-node trajectories are compared with the old versions before the old code is removed.
+
+## Reconciliation and Implementation Notes
+
+`add-group-reductions` landed before this change was applied. It added element sets, reductions, `Source.REDUCED`, and
+observable reads, and it relaxed the one-group check. The decisions above hold with these adjustments:
+- **Element sets and variadic roles stay two mechanisms.** Both bind a list of paths. An element set, a list bound to
+  an ordinary role, applies the interaction's laws once per element, each read like a single element, and reductions
+  over the role reduce over the set. A variadic role, declared with `role(variadic=True)`, gives one law the whole
+  sequence as a tuple of namespaces, the fan-in of a Boolean node. A variadic role cannot be expressed as an element
+  set, since a set maps laws over its elements instead of joining them, so the declaration tells the two apart. The
+  resolution of plain paths is shared through `_resolve_path`. An entry of a variadic role is a single element or a
+  member reference, and a bare group path raises `RoleError` that suggests a member reference. Laws combine the
+  entries with Python's `sum` over the tuple, since the number of entries is fixed per interaction, and reductions do
+  not take a variadic role.
+- **The one-group check was already partly relaxed.** After `add-group-reductions`, `_settle_rows` raised only when
+  laws read the members of two groups outside reductions, and rule-only interactions read no symbols, so they already
+  passed. This change replaces that error with the equal-size check and keeps every group read outside reductions as
+  an aligned group of the kernel, so `_prune_foreign` keeps their references. Rule-only interactions stay exempt
+  because rules read no symbols, and a test covers two agent groups of 42 and 43 agents.
+- **Member references reuse the single read.** A member reference `nodes[3]` is read with `Source.SINGLE` and a column
+  counted from the group's first component, `3 * columns + column`, instead of a new source. The Numba backend and the
+  Jacobian already index single reads by `start + column`, and NumPy single reads and writes now index the flat
+  vector the same way. The member's symbols carry the suffix `__m<i>`.
+- **Per-entry parameters are vectors of the layout.** A parameter declared `per=<role>` has the shape `(k,)`, so its
+  components are named `<path>.<name>[<i>]` by the existing component names. `Layout.locate` resolves a variable or
+  one component, and `Simulation.update_parameters`, `schedule`, and `ModelView.parameter` take component names. A
+  scalar value is shared by every entry. Laws read the parameter as a tuple of symbols.
+- **`shift_member` lowers in its own module.** `skcomplex.core.compile._members` replaces each call, innermost first,
+  by a symbol with a `Source.NEIGHBOR` reference whose `NeighborRead` holds the table of a one-dimensional
+  `LatticeSpace` of the group size, the sizes `(rows,)`, the step `(offset,)`, and the mode of the boundary. Sage
+  functions take neither keywords nor strings, so the Python function `shift_member` passes the boundary as its index
+  in `('periodic', 'reflecting', 'fixed')` and the fill as a fourth operand. The lowering runs right after the
+  operator lowering, through one helper, and reads only member symbols of one group.
+- **Group resolution is relative first everywhere.** `MesaStepper.resolve_group` now tries the path relative to the
+  owner's system before the path from the root, so `agents_here` and `create` resolve like the scoped view.
+  `ModelView.parameter` returns a number, and a parameter with several components must be read by component.
+- **Displacements use NumPy on Mesa's geometry.** Mesa's `calculate_difference_vector` takes agents, not locations, so
+  `displacement_to` applies the same minimum image rule with NumPy to the extent and the torus flag that the Mesa
+  space holds. `ModelView.dimensions` reads the Mesa grid's dimensions and the continuous space's width and height.
+- **Reserved names are a class variable.** `Component.reserved_names` holds `label`, elements add `visual`, and agent
+  types add every public name of `AgentView`. A test checks that the agent view's public names are reserved.
+- **The meadow grazes in an interaction.** The cow's rule read the pasture with `agents_here('pasture')`, a group named
+  by path. Grazing moves into the interaction `Grazing`, which binds `cows` and `pasture` like `Herding`. The week now
+  regrows the grass, then the cows graze, then they move, where before regrowth and grazing interleaved in the random
+  activation. The recorded cow counts of random state 0 are unchanged, and the nested scenario compares the nested
+  run with the root run.
+- **The layout check covers interactions.** The check reads the source of every model. It rejects a formatted string
+  that starts with `{self.label}.`, and in every interaction a call `model.agents`, `model.count`, or `model.create`
+  whose group is a string or `self.<attribute>` that is not one of its roles. Agent types have no roles, and their
+  rules read groups of their own system by relative label through `agents_here` and `create`, which resolves inside
+  the agent's system, so the check leaves them. Eight interactions named their group by a class variable or a plain
+  string field, and their groups become roles: `Redesign.components`, `Invention.technologies`,
+  `CournotAdjustment.firms`, `CarWashOperation.cars` and `till`, `DebtRankCascade.banks`, `ReflectingFloor.firms`,
+  `Reproduction.population`, and `Evolution.population`. Their factories bind the same paths as before.
+- **The ring roads name the ring length `road_length`.** `OptimalVelocity` and `IntelligentDriver` bind the role
+  `cars` and take `road_length`, and `IntelligentDriver.length` stays the car length.
+- **Recorded trajectories live in the tests.** The yeast states and the trafficking trips and bills of random state 0
+  are literals in the model tests. The ring roads are compared with a per-car rebuild of the old interactions inside
+  the test, which runs the old laws instead of storing arrays.
+- **The changelog comes from commit messages.** `CHANGELOG.md` is generated by the changelog session from the commit
+  history, so the breaking changes go into the commit message instead of an edited changelog.
+
+### Right-hand side timings
+
+One evaluation of the drift of the optimal velocity ring with NumPy:
+
+| Cars | One interaction per car | One group |
+| --- | --- | --- |
+| 20 | 1.27 ms | 0.047 ms |
+| 200 | 12.3 ms | |
+| 1000 | | 0.057 ms |
+
+The per-car ring of 1000 cars was not timed, since its compile time grows with the number of interactions.
+

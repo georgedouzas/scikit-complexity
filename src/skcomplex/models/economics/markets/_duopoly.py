@@ -4,11 +4,10 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import ClassVar
 
 import numpy as np
 
-from ....core.base import Domain, Expression, parameter, state
+from ....core.base import Domain, Expression, parameter, role, state
 from ....core.model import AgentType, Interaction, Law, Observable, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import ModelView
@@ -70,6 +69,9 @@ class CournotAdjustment(Interaction):
         label:
             The label of the interaction.
 
+        firms:
+            The path of the group of the two firms.
+
         a:
             The intercept of the inverse demand.
 
@@ -81,11 +83,11 @@ class CournotAdjustment(Interaction):
 
     Examples:
         >>> from skcomplex.models.economics.markets import CournotAdjustment
-        >>> CournotAdjustment('market', error=0.1).error
+        >>> CournotAdjustment('market', firms='firms', error=0.1).error
         0.1
     """
 
-    group: ClassVar[str] = 'firms'
+    firms: str = role()
     a: float = parameter(default=1500.0, domain=Domain.POSITIVE)
     b: float = parameter(default=10.0, domain=Domain.POSITIVE)
     error: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
@@ -110,8 +112,8 @@ class CournotAdjustment(Interaction):
             model:
                 The model.
         """
-        a, b, error = (model.parameters[f'{self.label}.{name}'] for name in ('a', 'b', 'error'))
-        first, second = model.agents(self.group)
+        a, b, error = (model.parameter(name) for name in ('a', 'b', 'error'))
+        first, second = model.agents('firms')
         beliefs = np.array([second.output, first.output]) * (1 + error * model.rng.uniform(-1.0, 1.0, N_FIRMS))
         for firm, belief in zip((first, second), beliefs, strict=True):
             firm.output = max((a - firm.cost) / (2 * b) - float(belief) / 2, 0.0)
@@ -164,7 +166,7 @@ def cournot_duopoly(
     firms = Duopolist.group('firms', N_FIRMS, output=list(outputs), cost=list(costs))
     return System(
         elements=[firms],
-        interactions=[CournotAdjustment('market', a=a, b=b, error=error)],
+        interactions=[CournotAdjustment('market', firms='firms', a=a, b=b, error=error)],
         observables=[
             Observable('total', group='firms', reduce='sum', variable='output'),
             Observable('price', _price),

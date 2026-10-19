@@ -12,8 +12,6 @@ from ....core.model import AgentType, GridSpace, Interaction, Law, Rule, Symbols
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
-PASTURE = 'pasture'
-
 
 def _cell(agent: AgentView) -> tuple[int, ...]:
     """Return the cell of an agent as a tuple of integers."""
@@ -74,7 +72,7 @@ class Pasture(AgentType):
 
 
 class Cow(AgentType):
-    """Cow that eats a fixed amount of the grass of its patch every week.
+    """Cow of the meadow, which the grazing and herding interactions feed and move every week.
 
     Args:
         label:
@@ -95,6 +93,29 @@ class Cow(AgentType):
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'radius': 0.4})
     bite: float = parameter(default=0.75, domain=Domain.NONNEGATIVE)
 
+
+class Grazing(Interaction):
+    """Weekly meal of every cow, which eats its bite of the grass of the patch in its cell.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        cows:
+            The path of the group of cows.
+
+        pasture:
+            The path of the group of patches.
+
+    Examples:
+        >>> from skcomplex.models.biology.ecology import Grazing
+        >>> Grazing('grazing', cows='cows', pasture='pasture').pasture
+        'pasture'
+    """
+
+    cows: str = role()
+    pasture: str = role()
+
     def laws(self, s: Symbols) -> list[Law]:
         """Return the grazing rule.
 
@@ -108,23 +129,22 @@ class Cow(AgentType):
         """
         return [Rule(self.graze)]
 
-    def graze(self, agent: AgentView, model: ModelView) -> None:
-        """Eat grass from the patch of the cow's cell.
+    def graze(self, model: ModelView) -> None:
+        """Make every cow eat grass from the patch of its cell.
 
         Args:
-            agent:
-                The cow.
-
             model:
                 The model.
         """
-        del model
-        for patch in agent.agents_here(PASTURE):
-            patch.grass = max(patch.grass - agent.bite, 0.0)
+        patches = {_cell(patch): patch for patch in model.agents('pasture')}
+        for cow in model.agents('cows'):
+            patch = patches.get(_cell(cow))
+            if patch is not None:
+                patch.grass = max(patch.grass - cow.bite, 0.0)
 
 
 class Herding(Interaction):
-    """Weekly move of every cow, in random order, to the nearest free patch of `pasture` with enough grass, or death.
+    """Weekly move of every cow, in random order, to the nearest free patch with enough grass, or death.
 
     Args:
         label:
@@ -133,16 +153,20 @@ class Herding(Interaction):
         cows:
             The path of the group of cows.
 
+        pasture:
+            The path of the group of patches.
+
         threshold:
             The least grass a patch needs for a cow to move there.
 
     Examples:
         >>> from skcomplex.models.biology.ecology import Herding
-        >>> Herding('herding', cows='cows').threshold
+        >>> Herding('herding', cows='cows', pasture='pasture').threshold
         0.9
     """
 
     cows: str = role()
+    pasture: str = role()
     threshold: float = parameter(default=0.9, domain=Domain.NONNEGATIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
@@ -165,12 +189,12 @@ class Herding(Interaction):
             model:
                 The model.
         """
-        patches = model.agents(PASTURE)
-        cells = [tuple(int(item) for item in np.atleast_1d(cast('Any', patch.location))) for patch in patches]
+        patches = model.agents('pasture')
+        cells = [_cell(patch) for patch in patches]
         index = {cell: number for number, cell in enumerate(cells)}
         positions = np.asarray(cells, dtype=float)
-        grown = np.asarray([patch.grass for patch in patches]) >= model.parameters[f'{self.label}.threshold']
-        cows = model.agents(self.cows)
+        grown = np.asarray([patch.grass for patch in patches]) >= model.parameter('threshold')
+        cows = model.agents('cows')
         occupied = np.zeros(len(cells), dtype=bool)
         occupied[[index[_cell(cow)] for cow in cows]] = True
         for number in model.rng.permutation(len(cows)):
@@ -204,7 +228,7 @@ def meadow_capacity(
 ) -> System:
     """Return cows that graze a summer of 25 weeks on a meadow, which shows how many cows the meadow can carry.
 
-    Every week each cow eats `bite` of the grass of its patch, the grass regrows logistically, and each cow moves to the
+    Every week the grass regrows logistically, each cow eats `bite` of the grass of its patch, and each cow moves to the
     nearest patch that no other cow occupies and whose grass reaches `threshold`. A cow that finds none dies. Without
     regrowth the meadow feeds `width * height / 25` cows for the summer, and regrowth raises its carrying capacity.
 
@@ -244,9 +268,12 @@ def meadow_capacity(
     picks = rng.choice(len(cells), size=cows, replace=False)
     return System(
         elements=[
-            Pasture.group(PASTURE, len(cells), location=cells, growth=growth),
+            Pasture.group('pasture', len(cells), location=cells, growth=growth),
             Cow.group('cows', cows, location=[cells[int(pick)] for pick in picks], bite=bite),
         ],
-        interactions=[Herding('herding', cows='cows', threshold=threshold)],
+        interactions=[
+            Grazing('grazing', cows='cows', pasture='pasture'),
+            Herding('herding', cows='cows', pasture='pasture', threshold=threshold),
+        ],
         space=GridSpace(width, height),
     )

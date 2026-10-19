@@ -33,19 +33,32 @@ any name that is not reserved takes values.
 - **THEN** the group has 3 members and its `size` state holds 1, 2, and 3
 
 ### Requirement: Roles bind to groups
-An interaction role SHALL bind to a group as well as to a single element, and the interaction's laws SHALL then apply
-to every member of the group. Roles of one interaction SHALL bind several groups of equal size, read member by member.
+An interaction role SHALL bind to a group, to a single element, or to a set of single elements of one type, and the
+interaction's laws SHALL then apply to every member of the group or every element of the set. Roles of one interaction
+SHALL bind several groups, and the groups that its laws read outside reductions SHALL have one size and be read member
+by member.
 
 #### Scenario: Wall law on a whole gas
 - **WHEN** a reflecting wall interaction binds its role to a group of 1000 molecules
 - **THEN** every molecule is reflected at the walls
+
+#### Scenario: Role bound to an element set
+- **WHEN** an interaction binds its role to the three single elements `unit_0`, `unit_1`, and `unit_2` of one type and
+  reads `total(x)` over the role
+- **THEN** its law applies to each of the three elements, the total equals the sum of their three states, and the
+  elements keep their own state names
+
+#### Scenario: Element set of mixed types
+- **WHEN** a role binds to a set of elements of two different types
+- **THEN** compiling raises a named error that names the role and both types
 
 #### Scenario: Two groups member by member
 - **WHEN** an interaction adds `s.source.n` to the rate of `s.sink.n`, with both roles bound to groups of 5 members
 - **THEN** the rate of member `i` of the sink equals the count of member `i` of the source for every `i`
 
 #### Scenario: Groups of different sizes
-- **WHEN** an interaction with symbolic laws binds its roles to groups of 5 and 7 members
+- **WHEN** an interaction with symbolic laws binds its roles to groups of 5 and 7 members and reads both outside
+  reductions
 - **THEN** compiling the system raises a named role error that names both groups and both sizes
 
 ## ADDED Requirements
@@ -53,7 +66,8 @@ to every member of the group. Roles of one interaction SHALL bind several groups
 ### Requirement: Variadic roles bind sequences of elements
 A role declared variadic SHALL bind any number of element paths or group member references in order, laws SHALL read
 it as a sequence of namespaces of that length, and a parameter declared per entry of the role SHALL hold one value per
-entry, each addressed by path and index.
+entry, each addressed by path and index. A variadic role SHALL give one law the whole sequence, where an element set
+bound to an ordinary role applies the laws once per element.
 
 #### Scenario: Sum over a variable number of inputs
 - **WHEN** an interaction whose variadic role binds the elements `a`, `b`, and `c` updates `target.x` to the sum of

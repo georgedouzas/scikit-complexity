@@ -4,12 +4,11 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
-from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, parameter, state
+from ....core.base import Domain, parameter, role, state
 from ....core.model import AgentType, Interaction, Law, Observable, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
@@ -122,16 +121,19 @@ class Redesign(Interaction):
         label:
             The label of the interaction.
 
+        components:
+            The path of the group of components.
+
         dependencies:
             The design structure matrix.
 
     Examples:
         >>> from skcomplex.models.economics.innovation import Redesign
-        >>> Redesign('redesign', dependencies=[[1.0]]).dependencies
+        >>> Redesign('redesign', components='components', dependencies=[[1.0]]).dependencies
         [[1.0]]
     """
 
-    group: ClassVar[str] = 'components'
+    components: str = role()
     dependencies: Sequence[Sequence[float]] = ()
 
     def laws(self, s: Symbols) -> list[Law]:
@@ -154,7 +156,7 @@ class Redesign(Interaction):
             model:
                 The model.
         """
-        components = sorted(model.agents(self.group), key=lambda component: component.id)
+        components = sorted(model.agents('components'), key=lambda component: component.id)
         cost = np.array([component.cost for component in components])
         proposal, changed = _components(cost, np.asarray(self.dependencies, dtype=float), model.rng)
         if proposal.sum() >= cost.sum():
@@ -220,6 +222,9 @@ class Invention(Interaction):
         label:
             The label of the interaction.
 
+        technologies:
+            The path of the group of technologies.
+
         max_components:
             The largest number of technologies in a circuit.
 
@@ -228,19 +233,19 @@ class Invention(Interaction):
 
     Examples:
         >>> from skcomplex.models.economics.innovation import Invention
-        >>> Invention('invention', max_components=6).max_components
+        >>> Invention('invention', technologies='technologies', max_components=6).max_components
         6
     """
 
-    group: ClassVar[str] = 'technologies'
+    technologies: str = role()
     max_components: float = parameter(default=12, domain=Domain.POSITIVE)
     max_inputs: float = parameter(default=3, domain=Domain.POSITIVE)
 
     def _wire(self, pool: list[AgentView], model: ModelView) -> tuple[int, int, int]:
         """Return the arity, the truth table, and the cost of a random circuit of technologies of the pool."""
         rng = model.rng
-        n_inputs = int(rng.integers(1, int(model.parameters[f'{self.label}.max_inputs']) + 1))
-        n_parts = int(rng.integers(2, int(model.parameters[f'{self.label}.max_components']) + 1))
+        n_inputs = int(rng.integers(1, int(model.parameter('max_inputs')) + 1))
+        n_parts = int(rng.integers(2, int(model.parameter('max_components')) + 1))
         signals, cost = _input_signals(n_inputs), 0
         for _ in range(n_parts):
             part = pool[int(rng.integers(len(pool)))]
@@ -269,13 +274,13 @@ class Invention(Interaction):
             model:
                 The model.
         """
-        pool = model.agents(self.group)
+        pool = model.agents('technologies')
         arity, table, cost = self._wire(pool, model)
         if (arity, table) not in GOALS:
             return
         known = [technology for technology in pool if (technology.arity, technology.table) == (arity, table)]
         if not known:
-            model.create(self.group, arity=arity, table=table, cost=cost)
+            model.create('technologies', arity=arity, table=table, cost=cost)
         elif cost < known[0].cost:
             known[0].cost = cost
 
@@ -322,7 +327,7 @@ def nk_technology(
     components = Component.group('components', n_components, cost=rng.random(n_components))
     return System(
         elements=[components],
-        interactions=[Redesign('redesign', dependencies=dependencies.tolist())],
+        interactions=[Redesign('redesign', components='components', dependencies=dependencies.tolist())],
         observables=[Observable('total_cost', group='components', reduce='sum', variable='cost')],
     )
 
@@ -365,5 +370,10 @@ def arthur_polak(*, max_components: int = 12, max_inputs: int = 3) -> System:
         table=[float(table) for _, table in primitives],
         cost=[1.0, 0.0, 0.0],
     )
-    invention = Invention('invention', max_components=float(max_components), max_inputs=float(max_inputs))
+    invention = Invention(
+        'invention',
+        technologies='technologies',
+        max_components=float(max_components),
+        max_inputs=float(max_inputs),
+    )
     return System(elements=[technologies], interactions=[invention])

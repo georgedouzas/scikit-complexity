@@ -7,6 +7,7 @@ import pytest
 from scipy.integrate import solve_ivp
 
 from skcomplex.core.analysis import autocorrelation
+from skcomplex.core.base import ValidationError
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4, ScipyODE
 from skcomplex.models.biology.collective_behaviour import (
@@ -125,6 +126,42 @@ def test_random_boolean_network_reaches_a_cycle():
     states = Simulation(random_boolean_network(), dt=1).run(until=60).trajectory_.states
     seen = {tuple(row) for row in states[:30]}
     assert tuple(states[-1]) in seen or len({tuple(row) for row in states}) < len(states)
+
+
+YEAST_RECORDED = (
+    '10001000100',
+    '01101000100',
+    '01111000100',
+    '01110000000',
+    '01110001000',
+    '01110001011',
+    '00010011011',
+    '00000110011',
+    '00000110111',
+    '00000110101',
+    '00001110100',
+    '00001100100',
+    *('00001000100',) * 4,
+)
+
+
+def test_random_boolean_network_takes_eight_inputs():
+    """Test that every node reads eight distinct nodes through a table of 256 entries, and the network runs."""
+    system = random_boolean_network(n_nodes=12, k=8)
+    assert all(len(set(function.inputs)) == 8 and len(function.table) == 256 for function in system.interactions)
+    assert len(Simulation(system, dt=1).run(until=50).trajectory_.times) == 51
+
+
+def test_random_boolean_network_rejects_more_inputs_than_nodes():
+    """Test that a node cannot read more inputs than the network has nodes."""
+    with pytest.raises(ValidationError, match=r'k = 5 .*n_nodes = 4'):
+        random_boolean_network(n_nodes=4, k=5)
+
+
+def test_yeast_cell_cycle_matches_recorded_trajectory():
+    """Test that the yeast network on one variadic role per node runs as the five-role version recorded before."""
+    states = Simulation(yeast_cell_cycle(), dt=1).run(until=15).trajectory_.states
+    assert [''.join(str(int(value)) for value in row) for row in states] == list(YEAST_RECORDED)
 
 
 def test_yeast_cell_cycle_returns_to_g1():

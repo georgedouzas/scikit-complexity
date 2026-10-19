@@ -6,8 +6,8 @@
 import numpy as np
 from sage.all__sagemath_symbolics import cos, sqrt, tanh
 
-from ....core.base import Domain, parameter
-from ....core.model import Element, Interaction, Rate, System, delayed
+from ....core.base import Domain, Expression, parameter
+from ....core.model import Element, Interaction, Rate, System, delayed, mod, shift_member
 from ....core.runtime import register_model
 
 Car = Element.define(
@@ -27,26 +27,32 @@ LeadCar = Element.define(
     laws=lambda s: [Rate(s.x, s.v), Rate(s.v, -s.u * s.amplitude * s.omega * cos(s.omega * s.t))],
 )
 
+
+def _headway(x: Expression, road_length: Expression) -> Expression:
+    """Return the distance from every car of a ring road to the car ahead, the next member of the group."""
+    return mod(shift_member(x, 1) - x, road_length)
+
+
 OptimalVelocity = Interaction.define(
     'OptimalVelocity',
-    roles=['leader', 'follower'],
+    roles=['cars'],
     parameters={
         'a': parameter(default=1.0, domain=Domain.POSITIVE),
         'V0': parameter(default=1.0, domain=Domain.POSITIVE),
         'hc': parameter(default=2.0, domain=Domain.POSITIVE),
-        'offset': 0.0,
+        'road_length': parameter(default=40.0, domain=Domain.POSITIVE),
     },
     laws=lambda s: [
         Rate(
-            s.follower.v,
-            s.a * (s.V0 * (tanh(s.leader.x - s.follower.x + s.offset - s.hc) + tanh(s.hc)) - s.follower.v),
+            s.cars.v,
+            s.a * (s.V0 * (tanh(_headway(s.cars.x, s.road_length) - s.hc) + tanh(s.hc)) - s.cars.v),
         ),
     ],
 )
 
 IntelligentDriver = Interaction.define(
     'IntelligentDriver',
-    roles=['leader', 'follower'],
+    roles=['cars'],
     parameters={
         'v0': parameter(default=30.0, domain=Domain.POSITIVE),
         'T': parameter(default=1.5, domain=Domain.NONNEGATIVE),
@@ -55,18 +61,18 @@ IntelligentDriver = Interaction.define(
         's0': parameter(default=2.0, domain=Domain.NONNEGATIVE),
         'delta': parameter(default=4.0, domain=Domain.POSITIVE),
         'length': parameter(default=5.0, domain=Domain.NONNEGATIVE),
-        'offset': 0.0,
+        'road_length': parameter(default=500.0, domain=Domain.POSITIVE),
     },
     laws=lambda s: [
         Rate(
-            s.follower.v,
+            s.cars.v,
             s.a
             * (
                 1
-                - (s.follower.v / s.v0) ** s.delta
+                - (s.cars.v / s.v0) ** s.delta
                 - (
-                    (s.s0 + s.follower.v * s.T + s.follower.v * (s.follower.v - s.leader.v) / (2 * sqrt(s.a * s.b)))
-                    / (s.leader.x - s.follower.x + s.offset - s.length)
+                    (s.s0 + s.cars.v * s.T + s.cars.v * (s.cars.v - shift_member(s.cars.v, 1)) / (2 * sqrt(s.a * s.b)))
+                    / (_headway(s.cars.x, s.road_length) - s.length)
                 )
                 ** 2
             ),
@@ -119,7 +125,8 @@ def optimal_velocity(
 
     Car `i` relaxes its speed towards the optimal velocity of its headway `h`, `v_i' = a (V(h) - v_i)` with
     `V(h) = V0 (tanh(h - hc) + tanh(hc))`. Uniform flow with headway `b = length / n_cars` is unstable when
-    `V'(b) > a / 2`, and then a jam forms that moves against the direction of travel.
+    `V'(b) > a / 2`, and then a jam forms that moves against the direction of travel. The cars are one group, and the
+    headway of car `i` is the distance along the ring to member `i + 1`.
 
     Args:
         n_cars:
@@ -142,30 +149,19 @@ def optimal_velocity(
 
     Returns:
         system:
-            The model, with the positions `car_<i>.x` and speeds `car_<i>.v`, car `i + 1` ahead of car `i`.
+            The model, with the group `cars` of positions `cars.x` and speeds `cars.v`, car `i + 1` ahead of car `i`.
 
     Examples:
         >>> from skcomplex.models.engineering.traffic import optimal_velocity
-        >>> len(optimal_velocity(n_cars=5).interactions)
-        5
+        >>> system = optimal_velocity(n_cars=5)
+        >>> system.elements[0].size, len(system.interactions)
+        (5, 1)
     """
     headway = length / n_cars
     speed = V0 * (np.tanh(headway - hc) + np.tanh(hc))
-    positions = _ring_positions(n_cars, length, perturbation)
-    elements = [Car(f'car_{index}', x=positions[index], v=float(speed)) for index in range(n_cars)]
-    interactions = [
-        OptimalVelocity(
-            f'follow_{index}',
-            leader=f'car_{(index + 1) % n_cars}',
-            follower=f'car_{index}',
-            a=a,
-            V0=V0,
-            hc=hc,
-            offset=length if index == n_cars - 1 else 0.0,
-        )
-        for index in range(n_cars)
-    ]
-    return System(elements=elements, interactions=interactions)
+    cars = Car.group('cars', n_cars, x=_ring_positions(n_cars, length, perturbation), v=float(speed))
+    following = OptimalVelocity('follow', cars='cars', a=a, V0=V0, hc=hc, road_length=length)
+    return System(elements=[cars], interactions=[following])
 
 
 @register_model(
@@ -191,6 +187,7 @@ def intelligent_driver_model(
 
     Car `i` accelerates as `v' = a (1 - (v / v0)^δ - (s* / s)^2)` with the gap `s` to the car ahead and the desired
     gap `s* = s0 + v T + v Δv / (2 sqrt(a b))`, where `Δv` is the speed difference to the car ahead. Cars start at rest.
+    The cars are one group, and the car ahead of car `i` is member `i + 1` along the ring.
 
     Args:
         n_cars:
@@ -225,32 +222,27 @@ def intelligent_driver_model(
 
     Returns:
         system:
-            The model, with the positions `car_<i>.x` and speeds `car_<i>.v`, car `i + 1` ahead of car `i`.
+            The model, with the group `cars` of positions `cars.x` and speeds `cars.v`, car `i + 1` ahead of car `i`.
 
     Examples:
         >>> from skcomplex.models.engineering.traffic import intelligent_driver_model
-        >>> intelligent_driver_model(n_cars=4).interactions[3].offset
+        >>> intelligent_driver_model(n_cars=4).interactions[0].road_length
         500.0
     """
-    positions = _ring_positions(n_cars, length, perturbation)
-    elements = [Car(f'car_{index}', x=positions[index], v=0.0) for index in range(n_cars)]
-    interactions = [
-        IntelligentDriver(
-            f'follow_{index}',
-            leader=f'car_{(index + 1) % n_cars}',
-            follower=f'car_{index}',
-            v0=v0,
-            T=T,
-            a=a,
-            b=b,
-            s0=s0,
-            delta=delta,
-            length=car_length,
-            offset=length if index == n_cars - 1 else 0.0,
-        )
-        for index in range(n_cars)
-    ]
-    return System(elements=elements, interactions=interactions)
+    cars = Car.group('cars', n_cars, x=_ring_positions(n_cars, length, perturbation), v=0.0)
+    following = IntelligentDriver(
+        'follow',
+        cars='cars',
+        v0=v0,
+        T=T,
+        a=a,
+        b=b,
+        s0=s0,
+        delta=delta,
+        length=car_length,
+        road_length=length,
+    )
+    return System(elements=[cars], interactions=[following])
 
 
 @register_model(

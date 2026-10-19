@@ -12,7 +12,7 @@ from ._factories import (
     varying_capacity_logistic,
 )
 from ._fronts import FisherKPP, fisher_kpp
-from ._meadow import Cow, Herding, Pasture, meadow_capacity
+from ._meadow import Cow, Grazing, Herding, Pasture, meadow_capacity
 from ._neutral import NeutralSpecies, neutral_macroecology
 from ._populations import (
     DelayedLogisticGrowth,
@@ -52,6 +52,7 @@ __all__: list[str] = [
     'FisherKPP',
     'Forager',
     'Grass',
+    'Grazing',
     'Herding',
     'LogisticGrowth',
     'Mortality',
