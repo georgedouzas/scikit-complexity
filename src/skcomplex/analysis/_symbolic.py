@@ -34,6 +34,15 @@ def _components(problem: Problem) -> dict[str, tuple[str, int, int]]:
     return found
 
 
+def _delayed_functions(problem: Problem, substitution: dict[Expression, Expression]) -> dict[Expression, Expression]:
+    """Return the substitution of every delayed state by its unknown function at the delayed time."""
+    delayed = {}
+    for delay in problem.delays:
+        lag = SR(delay.delay).subs(substitution)
+        delayed[delay.symbol] = SR(delay.state).subs(substitution).subs({problem.time: problem.time - lag})
+    return delayed
+
+
 def _written(problem: Problem) -> tuple[dict[str, Expression], list[_Unknown], dict[Expression, Expression]]:
     """Return the equations in their written order, the unknown functions, and the substitution of symbols."""
     components = _components(problem)
@@ -61,6 +70,7 @@ def _written(problem: Problem) -> tuple[dict[str, Expression], list[_Unknown], d
                 lagged = by_entry[(companion_name, column)]
                 substitution[problem.equation_symbols[lagged]] = function(str(item))(problem.time - steps)
         unknowns.append(_Unknown(name, unknown_function, order, tuple(indices)))
+    substitution.update(_delayed_functions(problem, substitution))
     equations = {}
     for unknown in unknowns:
         entry, column, _ = components[unknown.name]

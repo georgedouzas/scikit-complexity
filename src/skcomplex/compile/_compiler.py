@@ -6,12 +6,13 @@
 import copy
 import itertools
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, cast
 
 import numpy as np
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, matrix
 
 from ..core import (
@@ -38,6 +39,7 @@ from ..model import (
     Call,
     Element,
     Equation,
+    Event,
     Group,
     Jump,
     Law,
@@ -52,6 +54,7 @@ from ..model import (
     Update,
 )
 from ._backends import Backend, resolve_backend
+from ._hybrid import Breakpoints, CompiledEvent, Delay, Scalars, breakpoints_of, flat_sources, scalar_function
 from ._kernels import Kernel, Output, PairSearch, Reference, Source
 from ._layout import Entry, Layout
 from ._lowering import symbolic_components
@@ -268,10 +271,11 @@ def _pair_spec(block: _Block, elements: dict[str, _Block], time: Expression) -> 
 def _collect_laws(spec: _KernelSpec, component: object) -> list[Law]:
     """Return the laws a component returns for its namespace after checking their kinds."""
     laws = component.laws(spec.namespace)  # type: ignore[attr-defined]
-    kinds = Rate | Noise | Jump | Update | Boundary | Rule | Equation
+    kinds = Rate | Noise | Jump | Update | Boundary | Rule | Equation | Event
     if not isinstance(laws, list | tuple) or not all(isinstance(law, kinds) for law in laws):
         error_msg = (
-            f'`laws` of {spec.owner} must return a list of Rate, Noise, Jump, Update, Boundary, Rule, or Equation laws.'
+            f'`laws` of {spec.owner} must return a list of Rate, Noise, Jump, Update, Boundary, Rule, Equation, or '
+            'Event laws.'
         )
         raise ValidationError(error_msg)
     if spec.pairs is not None and not all(isinstance(law, Rate) for law in laws):
@@ -458,6 +462,14 @@ def _with_orders(spec: _KernelSpec, laws: list[Law], block: _Block, orders: _Ord
         if isinstance(law, Jump):
             result.append(Jump(_substitute(law.rate, spec, orders, owner), law.changes))
             continue
+        if isinstance(law, Event):
+            reset = {
+                _substitute(SR(target), spec, orders, owner): _substitute(SR(value), spec, orders, owner)
+                for target, value in (law.reset or {}).items()
+            }
+            guard = _substitute(SR(law.guard), spec, orders, owner)
+            result.append(replace(law, guard=guard, reset=reset if law.reset is not None else None))
+            continue
         value = _substitute(law.value, spec, orders, owner)
         if isinstance(law, Rate | Noise):
             result.append(_retarget(type(law)(law.target, value, law.order), spec, orders))
@@ -484,6 +496,248 @@ def _companions(blocks: list[_Block]) -> dict[str, tuple[str, str, int]]:
             )
             companions[entry.name] = (kind, f'{block.node.path}.{base}', declaration.index)
     return companions
+
+
+NOISE_CONVENTIONS = {'ito': 0.0, 'stratonovich': 0.5, 'anti-ito': 1.0}
+
+
+@dataclass
+class _Hybrid:
+    """Delays, events, and corrected noise collected from the laws of a system."""
+
+    delays: list[dict[str, Any]] = field(default_factory=list)
+    placeholders: dict[tuple[int, str, int, str], Expression] = field(default_factory=dict)
+    events: list[tuple[_KernelSpec, Event]] = field(default_factory=list)
+    noisy: set[tuple[str, int]] = field(default_factory=set)
+
+
+def _delay_minimum(
+    spec: _KernelSpec,
+    tau: Expression,
+    minimum: Expression | None,
+    declarations: _Declarations,
+) -> float:
+    """Return the smallest value of a delay: the delay itself, its declared minimum, or a parameter's value."""
+    if SR(tau).is_numeric():
+        return float(tau)
+    if minimum is not None and SR(minimum).is_numeric():
+        return float(minimum)
+    reference = spec.references.get(SR(tau))
+    if reference is not None and not reference.is_state:
+        values = np.concatenate([np.zeros(0), *declarations.initial_parameters])
+        return float(values[reference.entry.start + reference.column])
+    error_msg = (
+        f'A delay of {spec.owner} is the expression {tau}, whose smallest value is unknown. Give it as the third '
+        'argument, `delayed(x, tau, minimum)`.'
+    )
+    raise ValidationError(error_msg)
+
+
+def _substitute_delays(value: object, spec: _KernelSpec, declarations: _Declarations, hybrid: _Hybrid) -> object:
+    """Return a law value with every delayed state replaced by a hidden parameter that solvers fill from history."""
+    if isinstance(value, SymbolicVector):
+        return vector(_substitute_delays(item, spec, declarations, hybrid) for item in value)
+    if not isinstance(value, Expression):
+        return value
+    replacements = {}
+    for call in _calls(value, 'delayed'):
+        arguments = call.operands()
+        item, tau = arguments[0], arguments[1]
+        reference = spec.references.get(item)
+        if reference is None or not reference.is_state or reference.source not in {Source.SINGLE, Source.MEMBER}:
+            error_msg = f'{spec.owner} delays {item}, which is not a state of an element or a group member.'
+            raise ValidationError(error_msg)
+        key = (id(spec), reference.entry.name, reference.column, str(tau))
+        if key in hybrid.placeholders:
+            replacements[call] = hybrid.placeholders[key]
+            continue
+        entry = reference.entry
+        members = entry.members
+        indices = (
+            entry.start + np.arange(members) * entry.columns + reference.column
+            if members is not None
+            else np.asarray([entry.start + reference.column])
+        )
+        initial = np.concatenate([np.zeros(0), *declarations.initial_states])[indices]
+        index = len(hybrid.delays)
+        hidden = Entry(
+            f'__delayed_{index}',
+            sum(item.size for item in declarations.parameters),
+            (members,) if members is not None else (),
+            Domain.REAL,
+            members,
+        )
+        declarations.parameters.append(hidden)
+        declarations.initial_parameters.append(np.asarray(initial, dtype=float))
+        placeholder = symbol(f'_delayed_{index}')
+        spec.references[placeholder] = Reference(hidden, False, 0, reference.source)
+        hybrid.delays.append(
+            {
+                'entry': hidden,
+                'states': indices,
+                'tau': tau,
+                'minimum': _delay_minimum(
+                    spec,
+                    tau,
+                    next(iter(arguments[2:]), None),
+                    declarations,
+                ),
+                'spec': spec,
+                'symbol': placeholder,
+                'state': item,
+            },
+        )
+        hybrid.placeholders[key] = placeholder
+        replacements[call] = placeholder
+    return value.subs(replacements) if replacements else value
+
+
+def _noise_corrections(spec: _KernelSpec, law: Noise, alpha: float, hybrid: _Hybrid) -> list[Law]:
+    """Return the drift corrections `alpha g dg/dx` that turn a noise law of a convention into the Itô form."""
+    if not alpha:
+        return []
+    targets = components_of(law.target)
+    values = (
+        components_of(law.value) if isinstance(law.value, SymbolicVector | list | tuple) else [law.value] * len(targets)
+    )
+    corrections: list[Law] = []
+    for target, value in zip(targets, values, strict=True):
+        reference = spec.references[target]
+        key = (reference.entry.name, reference.column)
+        if key in hybrid.noisy:
+            error_msg = (
+                f'{reference.entry.name} receives noise from several laws, so its drift correction for the '
+                'Stratonovich or anti-Itô convention is ambiguous. Join the noise into one law.'
+            )
+            raise ValidationError(error_msg)
+        hybrid.noisy.add(key)
+        if isinstance(value, Expression | int | float):
+            correction = alpha * SR(value) * SR(value).diff(target)
+            if not correction.is_zero():
+                corrections.append(Rate(target, correction))
+    return corrections
+
+
+def _with_hybrid(
+    spec: _KernelSpec,
+    laws: list[Law],
+    declarations: _Declarations,
+    hybrid: _Hybrid,
+    alpha: float,
+) -> list[Law]:
+    """Return laws with delays substituted and noise corrected, keeping events aside."""
+    result: list[Law] = []
+    for law in laws:
+        if isinstance(law, Rule):
+            result.append(law)
+        elif isinstance(law, Event):
+            guard = _substitute_delays(SR(law.guard), spec, declarations, hybrid)
+            reset = {
+                target: _substitute_delays(SR(value), spec, declarations, hybrid)
+                for target, value in (law.reset or {}).items()
+            }
+            hybrid.events.append((spec, Event(guard, reset, law.direction, law.terminal, law.label)))
+        elif isinstance(law, Jump):
+            result.append(Jump(_substitute_delays(law.rate, spec, declarations, hybrid), law.changes))
+        elif isinstance(law, Rate | Noise):
+            rebuilt = type(law)(law.target, _substitute_delays(law.value, spec, declarations, hybrid), law.order)
+            result.append(rebuilt)
+            if isinstance(rebuilt, Noise):
+                result += _noise_corrections(spec, rebuilt, alpha, hybrid)
+        elif isinstance(law, Update | Boundary):
+            result.append(type(law)(law.target, _substitute_delays(law.value, spec, declarations, hybrid)))
+        else:
+            result.append(law)
+    return result
+
+
+def _compile_events(hybrid: _Hybrid, time: Expression) -> tuple[CompiledEvent, ...]:
+    """Return the events of a system compiled into guard and reset functions of the state vector."""
+    compiled = []
+    counts = Counter(spec.owner for spec, _ in hybrid.events)
+    positions: Counter[str] = Counter()
+    for spec, event in hybrid.events:
+        position = positions[spec.owner]
+        positions[spec.owner] += 1
+        sources = flat_sources(spec.references, spec.owner)
+        guard = scalar_function([event.guard], sources, time, spec.owner)
+        targets = [item for target in (event.reset or {}) for item in components_of(target)]
+        values = [
+            item
+            for target, value in (event.reset or {}).items()
+            for item in (
+                components_of(value) if isinstance(value, SymbolicVector) else [value] * len(components_of(target))
+            )
+        ]
+        if any(item not in sources or not sources[item][0] for item in targets):
+            error_msg = f'An event of {spec.owner} resets a symbol that is not a state of a single element.'
+            raise ValidationError(error_msg)
+        indices = np.asarray([sources[item][1] for item in targets], dtype=np.intp)
+        reset = _reset_function(scalar_function(values, sources, time, spec.owner), indices) if targets else None
+        compiled.append(
+            CompiledEvent(
+                event.label or (spec.owner if counts[spec.owner] == 1 else f'{spec.owner}:{position}'),
+                _first_value(guard),
+                reset,
+                int(event.direction),
+                bool(event.terminal),
+            ),
+        )
+    return tuple(compiled)
+
+
+def _first_value(function: Scalars) -> Callable[[float, Vector, Vector], float]:
+    """Return a function that gives the single value of a scalar function."""
+
+    def first(t: float, x: Vector, p: Vector) -> float:
+        return function(t, x, p)[0]
+
+    return first
+
+
+def _reset_function(evaluate: Scalars, indices: npt.NDArray[np.intp]) -> VectorFunction:
+    """Return a function that sets state components to the values of an event's reset."""
+
+    def reset(t: float, x: Vector, p: Vector) -> Vector:
+        state = x.copy()
+        state[indices] = evaluate(t, x, p)
+        return state
+
+    return reset
+
+
+def _compile_delays(hybrid: _Hybrid, time: Expression) -> tuple[Delay, ...]:
+    """Return the delays of a system with their delay functions compiled."""
+    delays = []
+    for item in hybrid.delays:
+        spec = item['spec']
+        tau = scalar_function([item['tau']], flat_sources(spec.references, spec.owner), time, spec.owner)
+        hidden = item['entry']
+        delays.append(
+            Delay(
+                parameters=hidden.start + np.arange(hidden.size),
+                states=np.asarray(item['states'], dtype=np.intp),
+                tau=_first_value(tau),
+                minimum=float(item['minimum']),
+                symbol=item['symbol'],
+                state=item['state'],
+                delay=SR(item['tau']),
+            ),
+        )
+    return tuple(delays)
+
+
+def _breakpoints(specs: list[tuple[_KernelSpec, list[Law]]], hybrid: _Hybrid, time: Expression) -> Breakpoints:
+    """Return the breakpoints of the time-dependent inputs in every law and event guard."""
+    expressions: list[Any] = []
+    for _, laws in specs:
+        for law in laws:
+            value = law.rate if isinstance(law, Jump) else getattr(law, 'value', None)
+            expressions += (
+                [item for item in components_of(value) if isinstance(item, Expression)] if value is not None else []
+            )
+    expressions += [event.guard for _, event in hybrid.events]
+    return breakpoints_of(expressions, time)
 
 
 EQUATION_UNKNOWNS = 6
@@ -614,7 +868,7 @@ def _lower_laws(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Decla
     for spec, laws in specs:
         outputs: dict[type, list[Output]] = defaultdict(list)
         for law in laws:
-            if isinstance(law, Rule):
+            if isinstance(law, Rule | Event):
                 continue
             if isinstance(law, Jump):
                 output = _outputs_of(law.rate, [None], f'Jump law of {spec.owner}')[0]
@@ -649,7 +903,7 @@ def _lower_laws(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Decla
 
 def _infer_form(laws: list[Law]) -> Form:
     """Return the form that the law kinds of a system determine."""
-    kinds = frozenset(type(law) for law in laws if not isinstance(law, Boundary))
+    kinds = frozenset(type(law) for law in laws if not isinstance(law, Boundary | Event))
     if kinds not in FORMS:
         found = ', '.join(sorted(kind.__name__ for kind in kinds))
         supported = '; '.join(
@@ -799,7 +1053,7 @@ def _law_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
     if isinstance(law, Rule):
         paths = list(spec.roles.values())
         return next((path for path in paths if path in agents), next(iter(paths), spec.owner))
-    if isinstance(law, Equation):
+    if isinstance(law, Equation | Event):
         return spec.owner
     target = next(iter(law.changes)) if isinstance(law, Jump) else law.target
     return _target_references(target, spec)[0].entry.name.rpartition('.')[0]
@@ -807,12 +1061,12 @@ def _law_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
 
 def _fits(kinds: set[type]) -> bool:
     """Check whether a set of law kinds fits one form."""
-    return frozenset(kind for kind in kinds if kind is not Boundary) in FORMS
+    return frozenset(kind for kind in kinds if kind not in {Boundary, Event}) in FORMS
 
 
 def _mixed_error(name: str, kinds: set[type]) -> IncompatibleLawsError:
     """Return the error of a subsystem whose own laws fit no form."""
-    found = ', '.join(sorted(kind.__name__ for kind in kinds if kind is not Boundary))
+    found = ', '.join(sorted(kind.__name__ for kind in kinds if kind not in {Boundary, Event}))
     supported = '; '.join(
         ', '.join(sorted(kind.__name__ for kind in combination)) for combination in FORMS if combination
     )
@@ -901,6 +1155,12 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
     specs = _solve_equations(
         [(spec, _with_orders(spec, laws, block, orders)) for (spec, laws), block in zip(specs, blocks, strict=True)],
     )
+    noise = getattr(system, 'noise', 'ito')
+    if noise not in NOISE_CONVENTIONS:
+        error_msg = f'Unknown noise convention {noise!r}. Use one of {", ".join(NOISE_CONVENTIONS)}.'
+        raise ValidationError(error_msg)
+    hybrid = _Hybrid()
+    specs = [(spec, _with_hybrid(spec, laws, declarations, hybrid, NOISE_CONVENTIONS[noise])) for spec, laws in specs]
     agents = {block.node.path for block in blocks if block.node.is_agent}
     if owners is not None:
         specs = [(spec, [law for law in laws if _law_owner(spec, law, agents) in owners]) for spec, laws in specs]
@@ -972,8 +1232,25 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         ),
         agent_space=_agent_space(blocks),
         companions=_companions(blocks),
+        delays=_compile_delays(hybrid, declarations.time),
+        events=_compile_events(hybrid, declarations.time),
+        breakpoints=_breakpoints(specs, hybrid, declarations.time),
+        history=_history(system, states),
         **functions,  # type: ignore[arg-type]
     )
+
+
+def _history(system: System, states: Layout) -> dict[str, Any]:
+    """Return the declared history of a system after checking that it names states."""
+    history = dict(getattr(system, 'history', None) or {})
+    unknown = [name for name in history if name not in states]
+    if unknown:
+        error_msg = (
+            f'The history names {", ".join(map(repr, unknown))}, which are not states. Available states are: '
+            f'{", ".join(states.names)}.'
+        )
+        raise ValidationError(error_msg)
+    return history
 
 
 def _wrapping_angles(boundary: VectorFunction | None, states: Layout) -> VectorFunction | None:

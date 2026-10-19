@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..compile import Problem
+from ..compile import EventRecord, Problem
 from ..solvers import AgentSnapshot
 
 
@@ -38,6 +38,10 @@ class Trajectory:
         observables:
             One mapping from observable path to value per frame, empty for systems without observables.
 
+        events:
+            The events that fired during the run, in order, each with its time and the states before and after its
+            reset.
+
     Examples:
         >>> from skcomplex.model import System
         >>> from skcomplex.models.ecology import ExponentialGrowth, Population
@@ -60,6 +64,7 @@ class Trajectory:
         agents: Sequence[Mapping[str, AgentSnapshot]] = (),
         reporters: Sequence[Mapping[str, float]] = (),
         observables: Sequence[Mapping[str, Any]] = (),
+        events: Sequence[EventRecord] = (),
     ) -> None:
         self.problem = problem
         self.times = times
@@ -68,6 +73,7 @@ class Trajectory:
         self.agents_by_frame = agents
         self.reporters = reporters
         self.observables = observables
+        self.events = list(events)
 
     def __len__(self) -> int:
         """Return the number of recorded frames."""

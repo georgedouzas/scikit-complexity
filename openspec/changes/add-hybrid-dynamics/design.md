@@ -60,3 +60,32 @@ the crossings. `stroboscopic(system, period)` samples at multiples of the period
 - [History memory] → The buffer keeps only the last `max τ` of dense output.
 - [Chattering events] → Events have a minimum separation, and a guard that triggers again within it raises a named
   error.
+
+## Implementation Notes
+
+- The compiler replaces every distinct `delayed(x, tau)` by a hidden parameter `__delayed_<k>`, and the hybrid steppers
+  fill it from the history buffer before every evaluation of the drift. Equations and kernels therefore stay ordinary
+  functions of `(t, x, p)`, and `equations_of` shows the delayed states as `x(t - tau)` again. Stability and Lyapunov
+  analysis reject delay systems, whose state space is infinite-dimensional.
+- SciPy steps manually with the integrator classes instead of `solve_ivp(events=...)`. Each step adds its dense output
+  to the history and is checked for strict sign changes of every guard. The root is found with `brentq` on the
+  interpolant and then moved just past the root, so a restart never finds the same crossing again. RK4 interpolates its
+  steps with cubic Hermite polynomials. The SDE steppers interpolate linearly.
+- The maximum step is capped at the smallest delay, by the method of steps. A delay that depends on states declares its
+  smallest value as `minimum`. A fixed step longer than the smallest delay raises an error.
+- Breakpoints come from the time relations in `where` conditions, including periodic `mod` patterns in pulse trains.
+  Within an interval that ends at a breakpoint, inputs are evaluated at the last floating-point time before it, so a
+  step response is exact to the solver tolerance. Steppers take the hybrid path only when a problem has delays or
+  events, or a breakpoint falls in the frame including its end, so other problems keep their compiled fast path.
+- Event labels default to the owner's path, with an index only when the owner declares several events.
+- Noise corrections are symbolic. A component that receives several noise laws under a non-Itô convention is rejected,
+  because the correction would need the cross terms. `Milstein` is Platen's derivative-free scheme and `Heun` is the
+  Itô-consistent predictor-corrector that averages only the drift.
+- `Simulation(schedule=...)` sets parameters from functions of time at every frame, and the frame records the value
+  that holds until the next frame.
+- `poincare_section` adds a non-terminal event to a copy of the compiled problem. `stroboscopic` samples frames at the
+  period, so long sections inherit the per-frame cost of the runtime.
+- The Brownian particle near a wall uses the smooth diffusion `D0 z² / (z² + a²)` with laws symmetric about the wall,
+  because boundaries apply at frame ends and the noise amplitude must stay defined between them.
+- Izhikevich and integrate-and-fire live in the new `neuroscience` field. Newton's cradle leaves small gaps between
+  balls, so collisions are separate events rather than simultaneous ones.

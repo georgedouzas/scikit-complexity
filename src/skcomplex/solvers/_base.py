@@ -9,8 +9,9 @@ from typing import Any, ClassVar
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from ..compile import Problem, Vector
+from ..compile import EventRecord, Problem, Vector
 from ..core import Form, Registry, SolverError
+from ._hybrid import EventLocator, History
 
 
 class Stepper(BaseEstimator):
@@ -44,6 +45,8 @@ class Stepper(BaseEstimator):
             raise SolverError(error_msg)
         self.problem_ = problem
         self.rng_ = rng
+        self.locator_ = EventLocator(problem)
+        self.history_: History | None = None
 
     @abstractmethod
     def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
@@ -84,6 +87,25 @@ class Stepper(BaseEstimator):
                 The state vector of the first frame.
         """
         return x
+
+    def drain_events(self) -> list[EventRecord]:
+        """Return the events recorded since the last call, and forget them.
+
+        Returns:
+            events:
+                The events in the order they happened.
+        """
+        locator = getattr(self, 'locator_', None)
+        if locator is None:
+            return []
+        records, locator.records = locator.records, []
+        return records
+
+    @property
+    def stopped_at(self) -> float | None:
+        """Time at which a terminal event ended the run, or `None` while it goes on."""
+        locator = getattr(self, 'locator_', None)
+        return None if locator is None else locator.stopped_at
 
     def agents_of(self, group: str) -> list[Any] | None:
         """Return the agents of an agent group by path, or `None` when the stepper holds no such group.

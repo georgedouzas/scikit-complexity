@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..compile import Problem, Vector
+from ..compile import EventRecord, Problem, Vector
 from ..solvers import AgentSnapshot
 
 
@@ -42,6 +42,9 @@ class Frame:
 
         observables:
             A mapping from observable path to its value at this frame.
+
+        events:
+            The events that fired since the previous frame, in order.
     """
 
     step: int
@@ -52,6 +55,7 @@ class Frame:
     agents: Mapping[str, AgentSnapshot] = field(default_factory=dict)
     reporters: Mapping[str, float] = field(default_factory=dict)
     observables: Mapping[str, Any] = field(default_factory=dict)
+    events: tuple[EventRecord, ...] = ()
 
     def value(self, name: str) -> npt.NDArray[np.float64] | float:
         """Return the value of a state or a parameter by dotted name.

@@ -6,7 +6,7 @@
 import math
 import queue
 import threading
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 
 import numpy as np
 import numpy.typing as npt
@@ -62,6 +62,10 @@ class Simulation(BaseEstimator):
             Whether to check after every frame that every state lies in its domain, such as an alphabet of labels,
             and raise an error naming the state when it does not.
 
+        schedule:
+            A mapping from dotted parameter name to a function of time, such as a ramp of a control parameter. At every
+            frame the parameter takes the value of its function at the frame's time and keeps it until the next frame.
+
     Attributes:
         problem_:
             The compiled problem.
@@ -103,6 +107,7 @@ class Simulation(BaseEstimator):
         record: bool = True,
         random_state: int | np.random.Generator | None = None,
         checked: bool = False,
+        schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,
     ) -> None:
         self.system = system
         self.solver = solver
@@ -113,6 +118,7 @@ class Simulation(BaseEstimator):
         self.record = record
         self.random_state = random_state
         self.checked = checked
+        self.schedule = schedule
 
     def _check_dt(self, problem: Problem) -> float:
         """Return the time between frames after validating it for the problem's form."""
@@ -180,7 +186,7 @@ class Simulation(BaseEstimator):
             accelerated.iterate(0.0, x, p, 0.0)
 
     def _emit(self, step: int) -> None:
-        """Hand the current frame to every observer."""
+        """Hand the current frame, with the events since the previous one, to every observer."""
         external = self.stepper_.snapshot()
         agents, reporters = (external.groups, external.reporters) if isinstance(external, AgentState) else ({}, {})
         observables = self.observables_.evaluate(self.time_, self.state_, self.parameters_, self.stepper_.agents_of)
@@ -193,6 +199,7 @@ class Simulation(BaseEstimator):
             agents,
             reporters,
             observables,
+            tuple(self.stepper_.drain_events()),
         )
         for observer in self.observers_:
             observer.on_frame(frame)
@@ -207,6 +214,7 @@ class Simulation(BaseEstimator):
         """Advance frame by frame until `until` or until a stop is requested."""
         step = 0
         self.clock_.start()
+        self._apply_schedule()
         self._emit(step)
         try:
             while self.time_ < until - TIME_TOLERANCE and not self._stop_requested.is_set():
@@ -217,16 +225,32 @@ class Simulation(BaseEstimator):
                 step += 1
                 target = min(step * self.dt_, until)
                 self.state_ = self.stepper_.advance(self.time_, self.state_, self.parameters_, target)
+                stopped_at = self.stepper_.stopped_at
+                if stopped_at is not None:
+                    target = stopped_at
                 if self.problem_.boundary is not None:
                     self.state_ = self.problem_.boundary(target, self.state_, self.parameters_)
                 self.time_ = target
+                self._apply_schedule()
                 if self.checked:
                     self._check_domains()
                 self._emit(step)
+                if stopped_at is not None:
+                    break
                 self.clock_.wait(self.time_)
         finally:
             for observer in self.observers_:
                 observer.on_stop()
+
+    def _apply_schedule(self) -> None:
+        """Set every scheduled parameter to the value of its function at the current time."""
+        for name, function in (self.schedule or {}).items():
+            layout = self.problem_.parameters
+            if name not in layout:
+                error_msg = f'No parameter named {name!r} to schedule. Available names are: {", ".join(layout.names)}.'
+                raise ParameterError(error_msg)
+            entry = layout.entry(name)
+            self.parameters_[entry.indices] = self._check_value(name, entry, function(self.time_))
 
     def _run_in_background(self, until: float) -> None:
         """Run the loop and keep any error for `wait` to raise."""

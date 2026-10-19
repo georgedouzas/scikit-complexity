@@ -175,6 +175,44 @@ class Boundary:
 
 
 @dataclass(frozen=True)
+class Event:
+    """Discrete event: when a guard crosses zero, states take new values, or the run ends.
+
+    Solvers locate the crossing within their tolerance. Events do not change the form of a system, so they combine with
+    rate laws, and the trajectory records every event with its time and the states before and after it.
+
+    Args:
+        guard:
+            A symbolic expression of states and time whose crossing of zero triggers the event.
+
+        reset:
+            A mapping from state symbol to its new value, symbolic, applied all at once, or `None` to keep the states.
+
+        direction:
+            `1` for crossings from negative to positive, `-1` for the opposite, and `0` for both.
+
+        terminal:
+            Whether the event ends the run.
+
+        label:
+            The name of the event in the trajectory, or `None` for the component's path.
+
+    Examples:
+        >>> from skcomplex.core import symbol
+        >>> from skcomplex.model import Event
+        >>> height, velocity = symbol('height'), symbol('velocity')
+        >>> Event(height, {velocity: -0.8 * velocity}, direction=-1).direction
+        -1
+    """
+
+    guard: object
+    reset: Mapping[Any, object] | None = None
+    direction: int = 0
+    terminal: bool = False
+    label: str | None = None
+
+
+@dataclass(frozen=True)
 class Rule:
     """Behaviour written as code, run once per step for every agent of an agent type, or once per step for a model.
 
@@ -232,4 +270,4 @@ class Equation:
         object.__setattr__(self, 'rhs', rhs)
 
 
-type Law = Rate | Noise | Jump | Update | Boundary | Rule | Equation
+type Law = Rate | Noise | Jump | Update | Boundary | Rule | Equation | Event

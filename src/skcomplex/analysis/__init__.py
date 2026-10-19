@@ -18,6 +18,7 @@ from ._information import (
 )
 from ._lyapunov import lyapunov_spectrum
 from ._networks import NetworkSummary, as_graph, centrality, degrees, summarize_network
+from ._sections import Section, poincare_section, stroboscopic
 from ._series import (
     Displacement,
     EarlyWarning,
@@ -42,6 +43,7 @@ __all__: list[str] = [
     'NetworkSummary',
     'OrbitDiagram',
     'PowerLawFit',
+    'Section',
     'Stability',
     'as_graph',
     'autocorrelation',
@@ -77,10 +79,12 @@ __all__: list[str] = [
     'nullclines',
     'orbit_diagram',
     'permutation_entropy',
+    'poincare_section',
     'power_spectrum',
     'shannon_entropy',
     'solve_symbolically',
     'stability',
+    'stroboscopic',
     'summarize_network',
     'symbolize',
     'transfer_entropy',

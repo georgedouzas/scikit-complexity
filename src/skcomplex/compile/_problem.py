@@ -5,12 +5,14 @@
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 
 from ..core import Expression, Form, SymbolicVector, VisualSpec, components_of
 from ..model import Element, Group, Interaction, Rule, Space, System
+from ._hybrid import Breakpoints, CompiledEvent, Delay
 from ._layout import Layout
 
 type Vector = npt.NDArray[np.float64]
@@ -235,6 +237,18 @@ class Problem:
         partitions:
             The partitions of a co-simulation problem, in system order.
 
+        delays:
+            The delayed states that laws read, which solvers fill from the run's history.
+
+        events:
+            The discrete events, with their guard and reset functions.
+
+        breakpoints:
+            The times where time-dependent inputs jump, at which solvers restart.
+
+        history:
+            The values of states before the start, by dotted state path, as numbers or functions of time.
+
         drift:
             The function `f(t, x, p)` that returns the time derivative or the drift.
 
@@ -282,6 +296,10 @@ class Problem:
     agent_space: Space | None = None
     partitions: tuple['Partition', ...] = ()
     companions: Mapping[str, tuple[str, str, int]] = field(default_factory=dict)
+    delays: tuple[Delay, ...] = ()
+    events: tuple[CompiledEvent, ...] = ()
+    breakpoints: Breakpoints = field(default_factory=Breakpoints)
+    history: Mapping[str, Any] = field(default_factory=dict)
     drift: VectorFunction | None = field(default=None, repr=False)
     diffusion: VectorFunction | None = field(default=None, repr=False)
     noise_rows: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)

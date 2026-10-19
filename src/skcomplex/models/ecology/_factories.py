@@ -6,7 +6,7 @@
 from ...core import Domain, state
 from ...model import Element, Interaction, System, Update, lag
 from ...runtime import register_model
-from ._populations import ExponentialGrowth, LogisticGrowth, Mortality, Population, Predation
+from ._populations import DelayedLogisticGrowth, ExponentialGrowth, LogisticGrowth, Mortality, Population, Predation
 
 
 @register_model(
@@ -71,6 +71,45 @@ def logistic_growth(n: float = 10.0, r: float = 1.0, K: float = 100.0) -> System
     return System(
         elements=[Population('population', n=n)],
         interactions=[LogisticGrowth('growth', target='population', r=r, K=K)],
+    )
+
+
+@register_model(
+    field='ecology',
+    tags=('population', 'delay', 'oscillation'),
+    references=('Hutchinson 1948', 'Erneux 2009'),
+    defaults={'until': 100.0, 'dt': 0.1},
+)
+def hutchinson(n: float = 50.0, *, r: float = 1.0, K: float = 100.0, tau: float = 2.0) -> System:
+    """Return Hutchinson's delayed logistic equation, which oscillates around `K` when `r * tau` exceeds π/2.
+
+    The history before the start is the initial size.
+
+    Args:
+        n:
+            The initial size, also its history.
+
+        r:
+            The per-capita growth rate at low density.
+
+        K:
+            The carrying capacity.
+
+        tau:
+            The delay of the density feedback.
+
+    Returns:
+        system:
+            The model, with the population `population`.
+
+    Examples:
+        >>> from skcomplex.models.ecology import hutchinson
+        >>> hutchinson(tau=1.0).interactions[0].tau
+        1.0
+    """
+    return System(
+        elements=[Population('population', n=n)],
+        interactions=[DelayedLogisticGrowth('growth', target='population', r=r, K=K, tau=tau)],
     )
 
 

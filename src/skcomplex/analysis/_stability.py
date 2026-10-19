@@ -88,6 +88,12 @@ def dynamics_of(system: System | Problem, parameters: Mapping[str, float] | None
     ):
         error_msg = 'The system has callable laws or groups, which have no symbolic vector field. Analyse one member.'
         raise AnalysisError(error_msg)
+    if problem.delays:
+        error_msg = (
+            'The system reads delayed states, so its state space is infinite-dimensional and it has no vector field '
+            'of finitely many states. Analyse its trajectories instead.'
+        )
+        raise AnalysisError(error_msg)
     values = problem.initial_parameters.copy()
     for name, value in (parameters or {}).items():
         if name not in problem.parameters:

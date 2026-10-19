@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import itertools
+from collections.abc import Sequence
 from typing import Any
 
 from sage.all__sagemath_symbolics import SR, floor
@@ -105,6 +107,19 @@ class _Lag(BuiltinFunction):
         """Return the state itself for zero steps, or `None` to stay unevaluated."""
         if SR(steps).is_numeric() and SR(steps).pyobject() == 0:
             return value
+        return None
+
+
+class _Delayed(BuiltinFunction):
+    """Value of a state a delay before the current time, `delayed(x, tau)` or `delayed(x, tau, minimum)`."""
+
+    def __init__(self) -> None:
+        super().__init__('delayed', nargs=0)
+
+    def _eval_(self, *arguments: Expression) -> Expression | None:
+        """Return the state itself for a delay of 0, or `None` to stay unevaluated."""
+        if len(arguments) >= 2 and SR(arguments[1]).is_numeric() and SR(arguments[1]).pyobject() == 0:  # noqa: PLR2004
+            return arguments[0]
         return None
 
 
@@ -247,6 +262,208 @@ Examples:
     -y + lag(y, 1)
 """
 
+delayed = _Delayed()
+delayed.__doc__ = """Return the value of a state a delay before the current time, for delay differential equations.
+
+The compiler replaces the delayed value with a value the solver takes from the run's history, and before the start
+from the history declared on the system. A delay that depends on states needs its smallest value as `minimum`, which
+bounds the steps of the method of steps.
+
+Args:
+    value:
+        The symbol of a state.
+
+    tau:
+        The delay, a number, a parameter, or an expression.
+
+    minimum:
+        The smallest value the delay takes, needed when it is not a number or a parameter.
+
+Returns:
+    delayed:
+        The symbolic delayed value.
+
+Examples:
+    >>> from skcomplex.core import symbol
+    >>> from skcomplex.model import delayed
+    >>> x, tau = symbol('x'), symbol('tau')
+    >>> delayed(x, tau)
+    delayed(x, tau)
+"""
+
+
+def step(t: Expression, at: float, height: float = 1.0) -> Expression:
+    """Return a step input, 0 before a time and `height` from it on.
+
+    Args:
+        t:
+            The time symbol, `s.t` in laws.
+
+        at:
+            The time of the step.
+
+        height:
+            The height of the step.
+
+    Returns:
+        input:
+            The symbolic input.
+
+    Examples:
+        >>> from skcomplex.core import symbol
+        >>> from skcomplex.model import step
+        >>> t = symbol('t')
+        >>> [float(step(t, 5, 2).subs({t: time})) for time in (4, 5)]
+        [0.0, 2.0]
+    """
+    return where(t >= at, height, 0)
+
+
+def ramp(t: Expression, start: float, end: float, height: float = 1.0) -> Expression:
+    """Return a ramp input, 0 before `start`, rising linearly to `height` at `end`, and constant after.
+
+    Args:
+        t:
+            The time symbol, `s.t` in laws.
+
+        start:
+            The time the ramp starts.
+
+        end:
+            The time the ramp ends.
+
+        height:
+            The value after the ramp.
+
+    Returns:
+        input:
+            The symbolic input.
+
+    Examples:
+        >>> from skcomplex.core import symbol
+        >>> from skcomplex.model import ramp
+        >>> t = symbol('t')
+        >>> [float(ramp(t, 0, 10, 5).subs({t: time})) for time in (-1, 4, 20)]
+        [0.0, 2.0, 5.0]
+    """
+    return where(t < start, 0, where(t < end, height * (t - start) / (end - start), height))
+
+
+def pulse(t: Expression, start: float, width: float, height: float = 1.0) -> Expression:
+    """Return a rectangular pulse of a width and a height that starts at a time.
+
+    Args:
+        t:
+            The time symbol, `s.t` in laws.
+
+        start:
+            The time the pulse starts.
+
+        width:
+            The duration of the pulse.
+
+        height:
+            The height of the pulse.
+
+    Returns:
+        input:
+            The symbolic input.
+
+    Examples:
+        >>> from skcomplex.core import symbol
+        >>> from skcomplex.model import pulse
+        >>> t = symbol('t')
+        >>> [float(pulse(t, 2, 1, 3).subs({t: time})) for time in (1.5, 2.5, 3.5)]
+        [0.0, 3.0, 0.0]
+    """
+    return where(both(t >= start, t < start + width), height, 0)
+
+
+def pulse_train(t: Expression, period: float, width: float, height: float = 1.0, start: float = 0.0) -> Expression:
+    """Return a periodic train of rectangular pulses, each of a width, starting at `start`.
+
+    Args:
+        t:
+            The time symbol, `s.t` in laws.
+
+        period:
+            The time between the starts of pulses.
+
+        width:
+            The duration of every pulse.
+
+        height:
+            The height of every pulse.
+
+        start:
+            The time of the first pulse.
+
+    Returns:
+        input:
+            The symbolic input.
+
+    Examples:
+        >>> from skcomplex.core import symbol
+        >>> from skcomplex.model import pulse_train
+        >>> t = symbol('t')
+        >>> [float(pulse_train(t, 10, 1).subs({t: time})) for time in (0.5, 5, 20.5)]
+        [1.0, 0.0, 1.0]
+    """
+    return where(both(t >= start, mod(t - start, period) < width), height, 0)
+
+
+def series(t: Expression, times: Sequence[float], values: Sequence[float], kind: str = 'linear') -> Expression:
+    """Return an input that follows data, interpolated linearly or held from each time to the next.
+
+    Before the first time the input takes the first value, and after the last time the last value.
+
+    Args:
+        t:
+            The time symbol, `s.t` in laws.
+
+        times:
+            The increasing times of the data.
+
+        values:
+            The values at those times.
+
+        kind:
+            `'linear'` for linear interpolation, or `'previous'` to hold every value until the next time.
+
+    Returns:
+        input:
+            The symbolic input, nested conditions that every backend lowers.
+
+    Raises:
+        ValueError:
+            The times do not increase, the lengths differ, or the kind is unknown.
+
+    Examples:
+        >>> from skcomplex.core import symbol
+        >>> from skcomplex.model import series
+        >>> t = symbol('t')
+        >>> data = series(t, [0, 10, 20], [0.0, 5.0, 1.0])
+        >>> [float(data.subs({t: time})) for time in (-5, 5, 15, 30)]
+        [0.0, 2.5, 3.0, 1.0]
+    """
+    points, levels = [float(item) for item in times], [float(item) for item in values]
+    if len(points) != len(levels) or not points or any(b <= a for a, b in itertools.pairwise(points)):
+        error_msg = 'A series takes increasing times and as many values.'
+        raise ValueError(error_msg)
+    if kind not in {'linear', 'previous'}:
+        error_msg = f"Unknown series kind {kind!r}. Use 'linear' or 'previous'."
+        raise ValueError(error_msg)
+    expression: Expression = SR(levels[-1])
+    for index in range(len(points) - 2, -1, -1):
+        start, end = points[index], points[index + 1]
+        if kind == 'linear':
+            segment = levels[index] + (levels[index + 1] - levels[index]) * (t - start) / (end - start)
+        else:
+            segment = SR(levels[index])
+        expression = where(t < end, segment, expression)
+    return where(t < points[0], levels[0], expression)
+
+
 __test__ = {
     'where': where.__doc__,
     'either': either.__doc__,
@@ -254,4 +471,5 @@ __test__ = {
     'mod': mod.__doc__,
     'derivative': derivative.__doc__,
     'lag': lag.__doc__,
+    'delayed': delayed.__doc__,
 }

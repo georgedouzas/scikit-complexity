@@ -4,7 +4,7 @@
 # License: MIT
 
 from ...core import Domain, parameter, role, state
-from ...model import Element, Interaction, Law, Rate, Symbols
+from ...model import Element, Interaction, Law, Rate, Symbols, delayed
 
 
 class Population(Element):
@@ -100,6 +100,53 @@ class LogisticGrowth(Interaction):
                 The laws of the component.
         """
         return [Rate(s.target.n, s.r * s.target.n * (1 - s.target.n / s.K))]
+
+
+class DelayedLogisticGrowth(Interaction):
+    """Growth limited by the population a delay ago, `dn/dt = r * n * (1 - n(t - tau) / K)`, of Hutchinson.
+
+    The delay stands for maturation or resource regeneration. The equilibrium `K` loses stability to oscillations when
+    `r * tau` exceeds π/2.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the population.
+
+        r:
+            The per capita growth rate at low density.
+
+        K:
+            The carrying capacity.
+
+        tau:
+            The delay of the density feedback.
+
+    Examples:
+        >>> from skcomplex.models.ecology import DelayedLogisticGrowth
+        >>> DelayedLogisticGrowth('growth', target='rabbits', tau=2.0).tau
+        2.0
+    """
+
+    target: str = role()
+    r: float = parameter(default=1.0, domain=Domain.REAL)
+    K: float = parameter(default=100.0, domain=Domain.POSITIVE)
+    tau: float = parameter(default=1.0, domain=Domain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[Law]:
+        """Return the rate `r * n * (1 - n(t - tau) / K)`.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return [Rate(s.target.n, s.r * s.target.n * (1 - delayed(s.target.n, s.tau) / s.K))]
 
 
 class Mortality(Interaction):

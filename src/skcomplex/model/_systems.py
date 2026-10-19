@@ -38,6 +38,14 @@ class System(BaseEstimator):
         observables:
             The observables of the system, computed at every frame.
 
+        history:
+            The values of states before the start, which delayed laws read, as a mapping from dotted state path to a
+            number or a function of time. States without a history keep their initial value before the start.
+
+        noise:
+            The stochastic convention of noise laws, `'ito'`, `'stratonovich'`, or `'anti-ito'`. The compiler adds the
+            drift correction of the convention, so every solver integrates the Itô form.
+
     Examples:
         >>> from skcomplex.model import System
         >>> from skcomplex.models.ecology import LogisticGrowth, Population
@@ -58,6 +66,8 @@ class System(BaseEstimator):
         systems: Sequence['System'] = (),
         space: Space | None = None,
         observables: Sequence[Observable] = (),
+        history: Mapping[str, Any] | None = None,
+        noise: str = 'ito',
     ) -> None:
         self.label = label
         self.elements = elements
@@ -65,6 +75,8 @@ class System(BaseEstimator):
         self.systems = systems
         self.space = space
         self.observables = observables
+        self.history = history
+        self.noise = noise
 
     def __repr__(self, N_CHAR_MAX: int = 700) -> str:
         """Return the label and the number of children of each kind."""

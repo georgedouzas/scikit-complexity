@@ -203,6 +203,92 @@ print(trajectory['meadow/rabbits.n'][-1])
 - `start(until)` runs in a background thread, and `pause`, `resume`, `stop`, and `wait` control it.
 - `update_parameters({'hunt.a': 0.05})` changes parameters before the next frame.
 - `random_state` makes stochastic runs reproducible.
+- `schedule={'hunt.a': lambda t: 0.02 + 0.001 * t}` sets parameters from functions of time at every frame, such as a
+  slow ramp of a control parameter.
+
+## Delays, events, drivers, and noise
+
+Laws can read the past, change states at discrete events, follow inputs that switch in time, and take noise in the
+convention of the field.
+
+**Delays.** `delayed(x, tau)` is the state `x` at `t - tau`, for a constant or a state-dependent delay. The solvers keep
+a history of dense output and step no further than the smallest delay, by the method of steps. Before the start the
+history is the initial value, or what `history={path: value or function of time}` on the system gives.
+
+```python
+import numpy as np
+
+from skcomplex.model import Event, Noise, Rate, delayed, step
+
+MackeyGlass = Element.define(
+    'MackeyGlass',
+    states={'x': 0.5},
+    parameters={'beta': 0.2, 'gamma': 0.1, 'n': 10.0, 'tau': 17.0},
+    laws=lambda s: [Rate(s.x, s.beta * delayed(s.x, s.tau) / (1 + delayed(s.x, s.tau) ** s.n) - s.gamma * s.x)],
+)
+cells = System(elements=[MackeyGlass('cells')], history={'cells.x': lambda t: 0.5 + 0.1 * np.sin(t)})
+print(Simulation(cells, dt=0.5).run(until=300).trajectory_['cells.x'][-1])
+```
+
+**Events.** `Event(guard, reset, direction, terminal, label)` fires when the guard crosses zero, upward for
+`direction=1`, downward for `-1`, and either way for `0`. The solver locates the crossing on its interpolant to the
+precision of the root finder, applies the reset to every named state at once, and restarts from there. A terminal
+event ends the run at the crossing. Every frame carries the events since the previous one, and the trajectory keeps
+them all with their times and the states before and after the reset. A guard that fires again right after its reset
+raises an error that names the chattering event.
+
+```python
+Ball = Element.define(
+    'Ball',
+    states={'h': state(default=1.0, order=2)},
+    parameters={'g': 9.81, 'e': 0.8},
+    laws=lambda s: [
+        Rate(s.h, -s.g),
+        Event(s.h, {derivative(s.h, 1): -s.e * derivative(s.h, 1)}, direction=-1, label='impact'),
+    ],
+)
+trajectory = Simulation(System(elements=[Ball('ball')]), dt=0.01).run(until=3).trajectory_
+print([round(event.time, 6) for event in trajectory.events])
+```
+
+**Drivers.** `step`, `ramp`, `pulse`, `pulse_train`, and `series` with `'linear'` or `'previous'` interpolation are
+inputs of time `s.t`. The compiler finds the times where they jump or bend, including the periodic edges of pulse
+trains, and the solvers stop at every one and evaluate the inputs on the correct side of it, so a step response is
+exact to the solver tolerance.
+
+```python
+Filter = Element.define(
+    'Filter',
+    states={'y': 0.0},
+    parameters={'k': 1.0},
+    laws=lambda s: [Rate(s.y, -s.k * s.y + step(s.t, 5.0))],
+)
+print(Simulation(System(elements=[Filter('filter')]), dt=0.5).run(until=10).trajectory_['filter.y'][-1])
+```
+
+**Noise conventions.** `System(..., noise='stratonovich')` or `'anti-ito'` declares how noise laws are read. The
+compiler adds the drift correction `α g ∂g/∂x`, with `α = 1/2` and `1`, so every SDE solver integrates the equivalent
+Itô equation. `EulerMaruyama` has strong order 1/2. `Milstein`, in Platen's derivative-free form, has strong order 1 for
+diagonal noise, and `Heun` averages the drift over every step.
+
+```python
+from skcomplex.solvers import Milstein
+
+Growth = Element.define(
+    'Growth',
+    states={'x': 1.0},
+    parameters={'mu': 0.5, 'sigma': 0.8},
+    laws=lambda s: [Rate(s.x, s.mu * s.x), Noise(s.x, s.sigma * s.x)],
+)
+growth = System(elements=[Growth('asset')], noise='stratonovich')
+print(Simulation(growth, solver=Milstein(dt=0.01), random_state=0).run(until=1).state_)
+```
+
+SciPy, RK4, Euler-Maruyama, Milstein, and Heun handle delays, events, and drivers. Velocity Verlet, Gillespie, and map
+iteration reject delays and events with an error that names the solvers to use. The library has these models ready:
+`mackey_glass`, `delayed_kuramoto`, and `stochastic_resonance` in nonlinear dynamics, `hutchinson` in ecology,
+`bouncing_ball`, `newtons_cradle`, `circular_billiard`, and `brownian_near_wall` in physics, and
+`integrate_and_fire` and `izhikevich` in neuroscience.
 
 ## Observables
 
@@ -632,6 +718,19 @@ print([stability(predation, point).classification for point in fixed_points(pred
 print(lyapunov_spectrum(lorenz(), until=200).round(2))
 diagram = orbit_diagram(logistic_map, 'map.r', [2.9, 3.2, 3.5], 'map.x', transient=500, keep=32, dt=1)
 print(diagram.periods())
+```
+
+**Sections.** `poincare_section` returns the states where a state crosses a value in a direction, located like an
+event, and `stroboscopic` samples a periodically forced system once per period.
+
+```python
+import math
+
+from skcomplex.analysis import stroboscopic
+from skcomplex.models.nonlinear import duffing
+
+section = stroboscopic(duffing(), 2 * math.pi / 1.2, n_points=200)
+print(len(np.unique(np.round(section.states, 4), axis=0)))
 ```
 
 **Distributions and events.** `histogram` with logarithmic bins, `ccdf`, `fit_power_law` with Clauset, Shalizi, and
