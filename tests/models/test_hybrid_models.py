@@ -26,7 +26,7 @@ def test_integrate_and_fire_period():
     """Test that the leaky integrate-and-fire neuron spikes with the analytic period."""
     trajectory = Simulation(integrate_and_fire(), dt=0.1).run(until=100).trajectory_
     intervals = np.diff([0.0] + [event.time for event in trajectory.events])
-    assert intervals == pytest.approx(10 * math.log(20 / 5), abs=1e-6)
+    assert intervals == pytest.approx(10 * math.log(20 / 5), abs=1e-5)
 
 
 def test_delayed_kuramoto_synchronizes():

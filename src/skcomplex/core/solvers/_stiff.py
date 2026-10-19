@@ -289,6 +289,18 @@ class _SplitStepper(Stepper):
             error_msg = f'{type(self).__name__} does not integrate delays or events. Use ScipyODE or RK4.'
             raise SolverError(error_msg)
         self._parameters: Vector | None = None
+        self._last: tuple[float, Vector, float] | None = None
+
+    def _continues(self, t: float, x: Vector, h: float) -> bool:
+        """Check whether a call continues the time, state, and step of the previous call."""
+        if self._last is None:
+            return False
+        time, state, step = self._last
+        tolerance = 1e-9 * max(1.0, abs(t))
+        return abs(t - time) <= tolerance and abs(h - step) <= tolerance and np.array_equal(x, state)
+
+    def _forget(self) -> None:
+        """Hook that forgets the steps of earlier calls, which multistep schemes override."""
 
     def _prepare(self, p: Vector) -> None:
         """Build the linear part for parameter values when they change."""
@@ -333,9 +345,16 @@ class _SplitStepper(Stepper):
         self._prepare(p)
         n_steps = max(1, math.ceil((until - t) / self.dt - 1e-9))
         step = (until - t) / n_steps
+        if not self._continues(t, x, step):
+            self._forget()
         state = x.copy()
         for index in range(n_steps):
-            state = self._step(t + index * step, state, p, step)
+            time = t + (index + 1) * step
+            following = self._step(t + index * step, state, p, step)
+            state = self._bounded(time, following, p)
+            if not np.array_equal(state, following):
+                self._forget()
+        self._last = (until, state.copy(), step)
         return state
 
 
@@ -371,7 +390,8 @@ class IMEX2(_SplitStepper):
     """Crank-Nicolson Adams-Bashforth scheme of second order: trapezoidal linear part and extrapolated remainder.
 
     Every step solves `(I - h L / 2) x_{n+1} = (I + h L / 2) x_n + h (3 N_n - N_{n-1}) / 2`, starting with one
-    Crank-Nicolson step with an Euler remainder.
+    Crank-Nicolson step with an Euler remainder. A call that does not continue the time, state, and step of the
+    previous call starts the scheme again.
 
     Args:
         dt:
@@ -383,9 +403,13 @@ class IMEX2(_SplitStepper):
         0.1
     """
 
+    def _forget(self) -> None:
+        """Forget the previous remainder, so the next step starts the scheme again."""
+        self._previous: Vector | None = None
+
     def _built(self, p: Vector) -> None:
         """Forget the previous remainder when the linear part changes."""
-        self._previous: Vector | None = None
+        self._forget()
 
     def _step(self, t: float, x: Vector, p: Vector, h: float) -> Vector:
         """Return the state after one Crank-Nicolson Adams-Bashforth step."""
@@ -498,8 +522,9 @@ class SSPRK(Stepper):
     """Strong-stability-preserving Runge-Kutta of order 2 or 3, with steps from the CFL condition of conservation laws.
 
     The schemes of Shu and Osher are convex combinations of Euler steps, so they keep the total variation bound of a
-    limited finite-volume scheme. With finite-volume fields the step is `cfl * h / s`, for the cell size `h` and the
-    largest wave speed `s`, and otherwise `dt`.
+    limited finite-volume scheme. With finite-volume fields the step is the smaller of `cfl * h / s`, for the cell size
+    `h` and the largest wave speed `s`, and the stability limit of the Laplacian rates at the current parameters, and
+    otherwise `dt`.
 
     Args:
         order:
@@ -552,11 +577,15 @@ class SSPRK(Stepper):
         self.spacing_ = min((min(volume.spacings) for volume in problem.volumes), default=None)
 
     def _step_size(self, x: Vector, p: Vector) -> float:
-        """Return the step allowed by the CFL condition, at most `dt`."""
+        """Return the step allowed by the CFL condition and the diffusion of finite-volume fields, at most `dt`."""
+        step = self.dt
+        diffusive = self.problem_.diffusive_step(p)
+        if diffusive is not None:
+            step = min(step, diffusive)
         speed = self.problem_.max_speed(x, p)
         if speed is None or self.spacing_ is None or speed <= 0:
-            return self.dt
-        return min(self.dt, self.cfl * self.spacing_ / speed)
+            return step
+        return min(step, self.cfl * self.spacing_ / speed)
 
     def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Integrate from time `t` to time `until` with steps of the CFL condition.
@@ -589,6 +618,7 @@ class SSPRK(Stepper):
                 second = 0.75 * state + 0.25 * (first + h * drift(time + h, first, p))
                 state = state / 3 + 2 / 3 * (second + h * drift(time + h / 2, second, p))
             time += h
+            state = self._bounded(time, state, p)
         return state
 
 

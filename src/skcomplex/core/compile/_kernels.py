@@ -19,6 +19,22 @@ from ._printing import numpy_function
 from ._problem import JumpChannels, Vector
 
 type Indices = npt.NDArray[np.intp]
+type Pairs = tuple[Indices, Indices] | None
+type Reader = Callable[[Vector, Vector, Pairs, float], Any]
+
+
+def _single_reader(is_state: bool, index: int) -> Reader:
+    """Return the function that reads one component shared by every evaluation index."""
+    if is_state:
+        return lambda x, p, pairs, t: x[index]
+    return lambda x, p, pairs, t: p[index]
+
+
+def _broadcast(value: Any, size: int) -> Vector:  # noqa: ANN401
+    """Return the values of an output as one float per evaluation index."""
+    if np.ndim(value) == 0:
+        return np.full(size, value, dtype=float)
+    return np.broadcast_to(np.asarray(value, dtype=float), (size,))
 
 
 class Source(Enum):
@@ -60,6 +76,24 @@ class Reference:
     column: int
     source: Source = Source.SINGLE
     neighbor: Any = field(default=None, compare=False, repr=False)
+    _index: int = field(init=False, compare=False, repr=False)
+    _members: slice = field(init=False, compare=False, repr=False)
+
+    def __post_init__(self) -> None:
+        """Compute the flat index of a single read and the strided slice of a member read once."""
+        entry = self.entry
+        object.__setattr__(self, '_index', entry.start + self.column)
+        object.__setattr__(self, '_members', slice(entry.start + self.column, entry.start + entry.size, entry.columns))
+
+    @property
+    def index(self) -> int:
+        """Flat index of the component of a single read, or of the first member."""
+        return self._index
+
+    @property
+    def members(self) -> slice:
+        """Strided slice of the component of every member in the flat vector."""
+        return self._members
 
     def column_of(self, x: Vector, p: Vector) -> Vector:
         """Return the component of every member as a view into the state or parameter vector.
@@ -77,9 +111,8 @@ class Reference:
         """
         vector = x if self.is_state else p
         if self.source is Source.SINGLE:
-            index = self.entry.start + self.column
-            return vector[index : index + 1]
-        return self.entry.view(vector)[:, self.column]
+            return vector[self._index : self._index + 1]
+        return vector[self._members]
 
     @property
     def flat_indices(self) -> Indices:
@@ -254,6 +287,8 @@ class Kernel:
         self._function: Callable[..., Any] | None = (
             numpy_function(self.time, self._arguments, expressions) if expressions else None
         )
+        self._readers: dict[Expression, Reader] = {}
+        self._argument_readers = [self._reader(item) for item in self._arguments]
 
     @property
     def arguments(self) -> list[Expression]:
@@ -277,7 +312,7 @@ class Kernel:
             values:
                 One value or one array of values per symbol of `arguments`.
         """
-        return [self._gather(item, x, p, None, t) for item in self._arguments]
+        return [read(x, p, None, t) for read in self._argument_readers]
 
     @property
     def has_python_functions(self) -> bool:
@@ -299,30 +334,50 @@ class Kernel:
         values = [self._gather(item, x, p, pairs, t) for item in read.symbols]
         return read.evaluate(t, values, reference.entry.rows)
 
-    def _gather(
-        self,
-        symbol: Expression,
-        x: Vector,
-        p: Vector,
-        pairs: tuple[Indices, Indices] | None,
-        t: float = 0.0,
-    ) -> Any:  # noqa: ANN401
-        """Return the values of a symbol for every evaluation index."""
+    def _reader(self, symbol: Expression) -> Reader:
+        """Return the function that reads the values of a symbol for every evaluation index, resolved once."""
+        if symbol in self._readers:
+            return self._readers[symbol]
         reference = self.references[symbol]
-        if reference.source in {Source.DERIVED, Source.NEIGHBOR}:
-            return self._gather_around(reference, x, p, pairs, t)
-        column = reference.column_of(x, p)
-        shared = reference.source is Source.REDUCED and reference.entry.members is None
-        if reference.source is Source.SINGLE or shared:
-            return column[0]
-        if reference.source is Source.MEMBER or pairs is None:
-            return column
-        first, second = pairs
-        if reference.source is Source.FIRST:
-            return column[first]
-        if self.pairs is not None and reference.entry == self.pairs.second and reference.is_state:
-            return self.pairs.second_images(x, first, second)[:, reference.column]
-        return column[second]
+        source = reference.source
+        read: Reader
+        if source is Source.DERIVED or source is Source.NEIGHBOR:
+            if source is Source.DERIVED:
+                for item in reference.neighbor.symbols:
+                    self._reader(item)
+
+            def read(x: Vector, p: Vector, pairs: Pairs, t: float) -> Any:  # noqa: ANN401
+                return self._gather_around(reference, x, p, pairs, t)
+
+        elif source is Source.SINGLE or (source is Source.REDUCED and reference.entry.members is None):
+            read = _single_reader(reference.is_state, reference.index)
+        else:
+            read = self._member_reader(reference)
+        self._readers[symbol] = read
+        return read
+
+    def _member_reader(self, reference: Reference) -> Reader:
+        """Return the function that reads a member symbol, indexed by the pairs of a pair kernel."""
+        is_state, members, source = reference.is_state, reference.members, reference.source
+        images = self.pairs is not None and reference.entry == self.pairs.second and is_state
+        column = reference.column
+
+        def read(x: Vector, p: Vector, pairs: Pairs, t: float) -> Any:  # noqa: ANN401
+            values = (x if is_state else p)[members]
+            if source is Source.MEMBER or pairs is None:
+                return values
+            first, second = pairs
+            if source is Source.FIRST:
+                return values[first]
+            if images:
+                return self.pairs.second_images(x, first, second)[:, column]  # type: ignore[union-attr]
+            return values[second]
+
+        return read
+
+    def _gather(self, symbol: Expression, x: Vector, p: Vector, pairs: Pairs, t: float = 0.0) -> Any:  # noqa: ANN401
+        """Return the values of a symbol for every evaluation index."""
+        return self._reader(symbol)(x, p, pairs, t)
 
     def evaluate(self, t: float, x: Vector, p: Vector) -> tuple[int, tuple[Indices, Indices] | None, list[Vector]]:
         """Return the values of every output for every evaluation index.
@@ -345,12 +400,12 @@ class Kernel:
         size = len(pairs[0]) if pairs is not None else self.rows
         computed: list[Any] = []
         if self._function is not None:
-            computed = list(self._function(t, *(self._gather(symbol, x, p, pairs, t) for symbol in self._arguments)))
+            computed = list(self._function(t, *[read(x, p, pairs, t) for read in self._argument_readers]))
         values: list[Vector] = []
         function_results: dict[tuple[int, int], Vector] = {}
         for output, (start, count) in zip(self.outputs, self._slots, strict=True):
             if output.expression is not None:
-                values.append(np.broadcast_to(np.asarray(computed[start], dtype=float), (size,)))
+                values.append(_broadcast(computed[start], size))
                 continue
             key = (id(output.function), start)
             if key not in function_results:
@@ -393,9 +448,9 @@ def add_into(output: Vector, target: Reference, values: Vector, pairs: tuple[Ind
             The pairs of a pair kernel, or `None` in member mode.
     """
     if target.source is Source.SINGLE:
-        output[target.entry.start + target.column] += values.sum()
+        output[target.index] += values.sum()
         return
-    column = target.entry.view(output)[:, target.column]
+    column = output[target.members]
     if target.source is Source.MEMBER:
         column += values
     else:
@@ -417,9 +472,9 @@ def assign_into(output: Vector, target: Reference, values: Vector) -> None:
             One value per evaluation index.
     """
     if target.source is not Source.MEMBER:
-        output[target.entry.start + target.column] = values[0]
+        output[target.index] = values[0]
         return
-    target.entry.view(output)[:, target.column] = values
+    output[target.members] = values
 
 
 def member_indices(reference: Reference, rows: int) -> Indices:

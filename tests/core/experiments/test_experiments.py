@@ -137,11 +137,16 @@ def test_unknown_path_is_rejected():
         Experiment('logistic_growth', Grid(**{'growth.rate': [1.0]}), until=1).run()
 
 
+def _ishigami(s):
+    """Return the Ishigami function of the point's coordinates."""
+    return sin(s.p.x1) + 7 * sin(s.p.x2) ** 2 + 0.1 * s.p.x3**4 * sin(s.p.x1)
+
+
 def test_sobol_indices_of_ishigami():
     """Test that Sobol first-order indices of the Ishigami function match the known values within 0.05."""
     system = System(
         elements=[Point('p')],
-        observables=[Observable('y', lambda s: sin(s.p.x1) + 7 * sin(s.p.x2) ** 2 + 0.1 * s.p.x3**4 * sin(s.p.x1))],
+        observables=[Observable('y', _ishigami)],
     )
     bounds = {f'p.x{index}': (-math.pi, math.pi) for index in (1, 2, 3)}
     result = sensitivity(system, bounds, 'y', method='sobol', n=2048, until=0, random_state=0)

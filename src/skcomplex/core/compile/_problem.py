@@ -287,6 +287,9 @@ class Problem:
             The largest step of explicit fixed-step solvers for which the diffusion of fields is stable,
             `h^2 / (degree * D)`, or `None` when the system has no diffusion with numeric coefficients.
 
+        diffusive_limits:
+            The stability limits of the diffusion of finite-volume fields, which depend on the parameters.
+
         drift:
             The function `f(t, x, p)` that returns the time derivative or the drift.
 
@@ -340,6 +343,7 @@ class Problem:
     history: Mapping[str, Any] = field(default_factory=dict)
     lattice: tuple[LatticeStep, ...] = field(default=(), repr=False)
     stable_step: float | None = None
+    diffusive_limits: tuple[Any, ...] = field(default=(), repr=False)
     linear: tuple[Any, ...] = field(default=(), repr=False)
     volumes: tuple[Any, ...] = field(default=(), repr=False)
     constrained: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
@@ -386,6 +390,21 @@ class Problem:
         if not self.volumes:
             return None
         return max(volume.max_speed(x, p) for volume in self.volumes)
+
+    def diffusive_step(self, p: Vector) -> float | None:
+        """Return the largest stable explicit step for the diffusion of finite-volume fields, or `None` without it.
+
+        Args:
+            p:
+                The parameter vector.
+
+        Returns:
+            step:
+                The smallest limit over the finite-volume fields at the parameter values.
+        """
+        if not self.diffusive_limits:
+            return None
+        return min(limit.step(p) for limit in self.diffusive_limits)
 
     def lattice_shape(self, name: str) -> tuple[int, ...] | None:
         """Return the lattice shape of a state that lattice laws read or change, or `None` for other states.

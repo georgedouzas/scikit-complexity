@@ -5,11 +5,11 @@ import time
 import numpy as np
 import pytest
 
-from skcomplex.core.base import ParameterError, SimulationError, SolverError, ValidationError
-from skcomplex.core.model import System
+from skcomplex.core.base import ParameterError, SimulationError, SolverError, ValidationError, parameter, state
+from skcomplex.core.model import AgentType, Rule, System
 from skcomplex.core.runtime import Observer, RealTime, Simulation
 from skcomplex.core.solvers import Gillespie
-from skcomplex.models.biology.ecology import ExponentialGrowth, Population
+from skcomplex.models.biology.ecology import ExponentialGrowth, LogisticGrowth, Population
 from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
 from skcomplex.models.economics.markets import Cobweb, Market
 
@@ -172,3 +172,77 @@ def test_simulation_same_random_state_is_reproducible():
     first = Simulation(_epidemic(), dt=0.5, random_state=0).run(until=20).trajectory_
     second = Simulation(_epidemic(), dt=0.5, random_state=0).run(until=20).trajectory_
     assert np.array_equal(first.states, second.states)
+
+
+def _logistic():
+    """Return a logistic population."""
+    return System(
+        elements=[Population('rabbits', n=10)],
+        interactions=[LogisticGrowth('growth', target='rabbits', r=1.0, K=100)],
+    )
+
+
+def test_simulation_parameters_carry_over_runs():
+    """Test that a growth rate set between runs is used by the next run and recorded in every frame."""
+    simulation = Simulation(_logistic(), dt=1.0).run(until=5)
+    simulation.update_parameters({'growth.r': 0.0})
+    trajectory = simulation.run(until=10).trajectory_
+    assert np.all(trajectory['rabbits.n'] == 10.0)
+    assert np.all(trajectory['growth.r'] == 0.0)
+
+
+class Saver(AgentType):
+    """Agent that adds its group's rate to its savings every step."""
+
+    savings: float = state(0.0)
+    rate: float = parameter(1.0)
+
+    def laws(self, s):
+        """Return the saving rule."""
+        return [Rule(self.save)]
+
+    def save(self, agent, model):
+        """Add the rate to the savings."""
+        del model
+        agent.savings += agent.rate
+
+
+def test_simulation_agent_parameters_carry_over_runs():
+    """Test that an agent group parameter set between runs is read by the rules of the next run."""
+    simulation = Simulation(System(elements=[Saver.group('savers', 3)])).run(until=0)
+    simulation.update_parameters({'savers.rate': 5.0})
+    trajectory = simulation.run(until=2).trajectory_
+    assert trajectory.agents('savers', 2).values['savings'].tolist() == [10.0, 10.0, 10.0]
+
+
+def test_simulation_extend_runs_in_two_parts():
+    """Test that an extended run appends frames that follow a parameter change."""
+    simulation = Simulation(_logistic(), dt=1.0).run(until=5)
+    simulation.update_parameters({'growth.r': 0.0})
+    trajectory = simulation.extend(until=10).trajectory_
+    reference = Simulation(_logistic(), dt=1.0).run(until=5).trajectory_['rabbits.n']
+    assert trajectory.times.tolist() == [float(time) for time in range(11)]
+    assert trajectory['rabbits.n'][:6] == pytest.approx(reference)
+    assert np.all(trajectory['rabbits.n'][5:] == trajectory['rabbits.n'][5])
+
+
+def test_simulation_extend_backwards_raises_error():
+    """Test that extending to an earlier time raises a named error that names the current time."""
+    simulation = Simulation(_logistic(), dt=1.0).run(until=5)
+    with pytest.raises(SimulationError, match=r'current time 5\.0'):
+        simulation.extend(until=3)
+
+
+def test_simulation_extend_before_run_raises_error():
+    """Test that extending a simulation that has not run raises a named error."""
+    with pytest.raises(SimulationError, match='has not been run'):
+        Simulation(_logistic()).extend(until=3)
+
+
+@pytest.mark.parametrize(('until', 'frames', 'dt'), [(1, 101, 0.01), (1000, 1001, 1.0), (15, 751, 0.02)])
+def test_simulation_default_frames(until, frames, dt):
+    """Test that default frames are 0.01 apart for short runs and grow in 1, 2, 5 steps to at most 1000 frames."""
+    counter = FrameCounter()
+    simulation = Simulation(_growth(r=0.0), observers=[counter]).run(until=until)
+    assert len(counter.times) == frames
+    assert simulation.dt_ == dt

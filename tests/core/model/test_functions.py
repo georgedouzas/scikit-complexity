@@ -1,5 +1,7 @@
 """Test the symbolic functions for conditions and remainders."""
 
+import warnings
+
 import numpy as np
 import pytest
 
@@ -7,6 +9,7 @@ from skcomplex.core.base import symbol
 from skcomplex.core.compile import NUMPY_DIALECT, SCALAR_DIALECT, numpy_function, print_expressions
 from skcomplex.core.model import EuclideanSpace, Particle, PeriodicBox, ReflectingBox, System, both, either, mod, where
 from skcomplex.core.runtime import Simulation
+from skcomplex.core.solvers import RK4, ScipyODE
 
 
 def test_functions_stay_unevaluated_on_symbols():
@@ -73,3 +76,32 @@ def test_periodic_box_wraps_leaving_particle():
     trajectory = Simulation(system, dt=0.2).run(until=0.2).trajectory_
     assert trajectory['p.x'][-1, 0] == pytest.approx(0.1)
     assert trajectory['p.v'][-1, 0] == pytest.approx(1.0)
+
+
+def test_where_with_equal_branches_simplifies():
+    """Test that the second derivative of a condition times a symbol is exactly zero."""
+    x, y = symbol('x'), symbol('y')
+    assert where(x < 0, 3, 3) == 3
+    assert (where(x < 0, 1, 2) * y).diff(y, 2).is_trivial_zero()
+
+
+def test_where_branch_not_chosen_raises_no_warning():
+    """Test that NumPy evaluates a condition with a division in the discarded branch without warnings."""
+    t, x = symbol('t'), symbol('x')
+    function = numpy_function(t, [x], [where(x > 0, 1 / x, 0)])
+    with warnings.catch_warnings():
+        warnings.simplefilter('error')
+        assert function(0.0, np.array([0.0, 2.0]))[0].tolist() == [0.0, 0.5]
+
+
+@pytest.mark.parametrize('solver', [RK4(), ScipyODE()], ids=['rk4', 'scipy'])
+def test_long_frame_keeps_particle_in_reflecting_box(solver):
+    """Test that a frame of duration 5 reflects a particle four times and ends at 0.5 with velocity -1."""
+    system = System(
+        elements=[Particle('p', x=[0.5], v=[1.0])],
+        interactions=[ReflectingBox('box', target='p', size=1.0)],
+        space=EuclideanSpace(1),
+    )
+    trajectory = Simulation(system, solver=solver, dt=5.0).run(until=5).trajectory_
+    assert trajectory['p.x'][-1, 0] == pytest.approx(0.5, abs=1e-6)
+    assert trajectory['p.v'][-1, 0] == pytest.approx(-1.0, abs=1e-6)

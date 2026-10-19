@@ -66,6 +66,23 @@ a named error when they cannot be solved.
   `m derivative(x, 2) == where(x < 0, -k x, -2 k x)`
 - **THEN** both compile, and each run equals the run of the matching rate law within the solver tolerance
 
+### Requirement: Systems declare observables
+A system SHALL declare observables, named symbolic expressions of its states, parameters, and time or reductions over
+its groups, that are evaluated at every frame and readable by laws of other partitions. The namespaces that
+observable expressions receive SHALL hold the time as `t`.
+
+#### Scenario: Order parameter
+- **WHEN** a system of phase oscillators declares the observable `order` as the modulus of the mean of `exp(i θ)`
+- **THEN** the trajectory returns `order` at every frame with values between 0 and 1
+
+#### Scenario: Reduction of a group
+- **WHEN** a system declares the mean of the state `wealth` over a group of agents as an observable
+- **THEN** the trajectory returns the mean at every frame, and an ODE in another partition can read it
+
+#### Scenario: Observable of time
+- **WHEN** a system declares the observable `s.a.n * s.t` and the reduction over a group of `member.n + member.t`
+- **THEN** both are recorded at every frame with the time of the frame, and no `AttributeError` is raised
+
 ## ADDED Requirements
 
 ### Requirement: Jump increments are numbers

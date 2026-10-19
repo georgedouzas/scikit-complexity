@@ -5,9 +5,12 @@
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
-from ..base import Expression, SymbolicVector
+import numpy as np
+from sage.all__sagemath_symbolics import SR
+
+from ..base import Expression, SymbolicVector, ValidationError
 from ._lattices import Drive, Energy, LocalRule, Move, Relaxation, Sampler
 
 if TYPE_CHECKING:
@@ -15,6 +18,33 @@ if TYPE_CHECKING:
 
 type Target = Expression | SymbolicVector
 type NumericFunction = Callable[[float, Mapping[str, Any]], Any]
+
+
+def _checked_value(description: str, value: object) -> object:
+    """Return a law value with a NumPy scalar turned into a Sage number, after rejecting NumPy arrays."""
+    if isinstance(value, np.ndarray):
+        error_msg = (
+            f'The {description} is a NumPy array, which NumPy builds when a NumPy scalar multiplies a symbolic '
+            'vector. Convert the NumPy scalar with `float(...)` first.'
+        )
+        raise ValidationError(error_msg)
+    if isinstance(value, np.generic):
+        return SR(value.item())
+    return value
+
+
+def _check_value(law: object, name: str, description: str) -> None:
+    """Replace a value field of a frozen law by its checked value."""
+    object.__setattr__(law, name, _checked_value(description, getattr(law, name)))
+
+
+def _is_number(value: object) -> bool:
+    """Check whether a value is a number, with no symbol in it."""
+    try:
+        complex(cast('Any', value))
+    except (TypeError, ValueError):
+        return False
+    return True
 
 
 @dataclass(frozen=True, init=False)
@@ -79,6 +109,10 @@ class Rate:
     value: object
     order: int | None = None
 
+    def __post_init__(self) -> None:
+        """Check the value of the law."""
+        _check_value(self, 'value', f'value of the {type(self).__name__.lower()} law of {self.target}')
+
 
 @dataclass(frozen=True)
 class Noise:
@@ -106,6 +140,10 @@ class Noise:
     value: object
     order: int | None = None
 
+    def __post_init__(self) -> None:
+        """Check the value of the law."""
+        _check_value(self, 'value', f'value of the {type(self).__name__.lower()} law of {self.target}')
+
 
 @dataclass(frozen=True)
 class Jump:
@@ -129,6 +167,17 @@ class Jump:
     rate: object
     changes: Mapping[Expression, float] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        """Check the rate and the increments of the jump."""
+        _check_value(self, 'rate', f'rate of the jump of {", ".join(map(str, self.changes))}')
+        for state, increment in self.changes.items():
+            if not _is_number(increment):
+                error_msg = (
+                    f'The jump of {state} has the increment {increment}, which holds a symbol. Give the increment as a '
+                    'number.'
+                )
+                raise ValidationError(error_msg)
+
 
 @dataclass(frozen=True)
 class Update:
@@ -151,6 +200,10 @@ class Update:
 
     target: Target
     value: object
+
+    def __post_init__(self) -> None:
+        """Check the value of the law."""
+        _check_value(self, 'value', f'value of the {type(self).__name__.lower()} law of {self.target}')
 
 
 @dataclass(frozen=True)
@@ -176,6 +229,10 @@ class Boundary:
 
     target: Target
     value: object
+
+    def __post_init__(self) -> None:
+        """Check the value of the law."""
+        _check_value(self, 'value', f'value of the {type(self).__name__.lower()} law of {self.target}')
 
 
 @dataclass(frozen=True)

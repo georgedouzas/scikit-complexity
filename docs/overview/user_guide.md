@@ -197,12 +197,22 @@ from skcomplex.core.runtime import RealTime, Simulation
 
 trajectory = Simulation(landscape, dt=0.1).run(until=10).trajectory_
 print(trajectory['meadow/rabbits.n'][-1])
+
+simulation = Simulation(landscape, dt=0.1).run(until=10)
+simulation.update_parameters({'hunt.a': 0.0})
+print(len(simulation.extend(until=20).trajectory_))
 ```
 
+- `dt` defaults to 1 for discrete maps and agents. For other forms it defaults to 0.01, raised to the smallest of 0.02,
+  0.05, 0.1, and so on, in steps of 1, 2, and 5 times a power of ten, that keeps the run at most 1000 frames long, so
+  `run(until=1000)` takes frames of 1.
 - `clock=RealTime(speed)` paces frames so that simulated time advances `speed` times faster than wall time.
 - `start(until)` runs in a background thread, and `pause`, `resume`, `stop`, and `wait` control it.
-- `update_parameters({'hunt.a': 0.05})` changes parameters before the next frame.
+- `update_parameters({'hunt.a': 0.05})` changes parameters before the next frame. Values set between runs stay in
+  force for the later runs of the same simulation, and `clone(simulation).run(until)` starts afresh.
 - `random_state` makes stochastic runs reproducible.
+- `extend(until)` continues a finished run from its last frame with the same stepper, clock, and observers, and
+  appends the new frames to the trajectory, while `run` starts again from time 0.
 - `schedule={'hunt.a': lambda t: 0.02 + 0.001 * t}` sets parameters from functions of time at every frame, such as a
   slow ramp of a control parameter.
 
@@ -295,7 +305,8 @@ iteration reject delays and events with an error that names the solvers to use. 
 Observables are named quantities of a system, computed at every frame, recorded in trajectories under the system's
 path, and logged to Rerun. An observable is either an expression of the system namespace, where earlier observables
 appear by label, or a reduction over a group's members of a variable or an expression of one member: `count`, `sum`,
-`mean`, `min`, `max`, `var`, or a function.
+`mean`, `min`, `max`, `var`, or a function. Expressions and reductions given as functions must be module-level
+functions, so that systems pickle, and a lambda raises an error.
 
 ```python
 import numpy as np
@@ -309,12 +320,19 @@ Oscillator = Element.define(
     parameters={'omega': 1.0},
     laws=lambda s: [Rate(s.theta, s.omega)],
 )
+
+
+def phase_vector(member):
+    return exp(I * member.theta)
+
+
+def order_parameter(s):
+    return abs(s.z)
+
+
 oscillators = System(
     elements=[Oscillator.group('phases', 100, theta=np.linspace(0, 1, 100), omega=np.linspace(0.9, 1.1, 100))],
-    observables=[
-        Observable('z', lambda member: exp(I * member.theta), group='phases'),
-        Observable('order', lambda s: abs(s.z)),
-    ],
+    observables=[Observable('z', phase_vector, group='phases'), Observable('order', order_parameter)],
 )
 order = Simulation(oscillators, dt=1.0).run(until=50).trajectory_['order']
 print(round(float(order[0]), 3), round(float(order[-1]), 3))
@@ -336,13 +354,20 @@ MeanField = Interaction.define(
     parameters={'K': 1.0},
     laws=lambda s: [Rate(s.target.theta, s.K * (s.Y.value * cos(s.target.theta) - s.X.value * sin(s.target.theta)))],
 )
+
+
+def cosine(member):
+    return cos(member.theta)
+
+
+def sine(member):
+    return sin(member.theta)
+
+
 coupled = System(
     elements=[Oscillator.group('phases', 100, theta=np.linspace(0, 6, 100), omega=np.linspace(0.9, 1.1, 100))],
     interactions=[MeanField('coupling', target='phases', X='X', Y='Y', K=2.0)],
-    observables=[
-        Observable('X', lambda member: cos(member.theta), group='phases'),
-        Observable('Y', lambda member: sin(member.theta), group='phases'),
-    ],
+    observables=[Observable('X', cosine, group='phases'), Observable('Y', sine, group='phases')],
 )
 print(Simulation(coupled, dt=1.0).run(until=20).trajectory_['X'][-1].round(2))
 ```
@@ -671,8 +696,10 @@ Simulation(liquid, dt=0.05).run(until=1)
 
 ### Boundaries
 
-A `Boundary` law sets the value of a state after every solver step. Boundaries combine with every form, so walls and
-periodic boxes work for differential equations, stochastic systems, jump processes, and discrete maps.
+A `Boundary` law sets the value of a state after every internal solver step, however long the frame, so a frame never
+reports a state that a boundary would change. Adaptive solvers find the first time in a step where a boundary acts and
+restart there. Boundaries combine with every form, so walls and periodic boxes work for differential equations,
+stochastic systems, jump processes, and discrete maps.
 `ReflectingBox` mirrors positions and velocities at the walls, and `PeriodicBox` wraps positions around the box.
 
 ## Lattice models
@@ -799,7 +826,7 @@ The same laws of a field run with another discretization by changing `Field(...,
   lattice. `LatticeSpace(spacing=(dx, dy))` sets a spacing per axis.
 - `'finite-volume'` fields take `Flux(state, flux)` laws, `du/dt + divergence(flux) = 0`, updated with MUSCL
   reconstruction, minmod or van Leer limiters, and Rusanov or exact Godunov fluxes. `SSPRK` steps them by the CFL
-  condition and conserves their totals.
+  condition and by the stability limit of their Laplacian rates at the current parameters, and conserves their totals.
 - `'finite-element'` fields live on a `Mesh`, such as `Mesh.l_shape`, `Mesh.rectangle`, `Mesh.disk`, or
   `Mesh.load(path)`, with stiffness and mass matrices from scikit-fem and boundary values that can be functions of
   the coordinates. They stream to Rerun as colored meshes.

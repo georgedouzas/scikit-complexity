@@ -5,7 +5,7 @@ import pytest
 from sage.all__sagemath_symbolics import cos, sin
 
 from skcomplex.core.base import Domain, ValidationError, parameter, state
-from skcomplex.core.model import Element, Equation, Interaction, Rate, System, derivative
+from skcomplex.core.model import Element, Equation, Interaction, Rate, System, derivative, step, where
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import ScipyODE
 
@@ -96,3 +96,38 @@ def test_equation_takes_two_sides():
     assert Equation(1, 2).rhs == 2
     with pytest.raises(ValueError, match='left and a right side'):
         Equation(1)
+
+
+def _driven_equation(s):
+    """Return a mass on a spring pushed by a step at time 1, as an equation."""
+    return [Equation(s.m * derivative(s.x, 2) == -s.k * s.x + step(s.t, 1))]
+
+
+def _driven_rate(s):
+    """Return a mass on a spring pushed by a step at time 1, as a rate law."""
+    return [Rate(s.x, (-s.k * s.x + step(s.t, 1)) / s.m)]
+
+
+def _switched_equation(s):
+    """Return a spring that stiffens on the positive side, as an equation."""
+    return [Equation(s.m * derivative(s.x, 2) == where(s.x < 0, -s.k * s.x, -2 * s.k * s.x))]
+
+
+def _switched_rate(s):
+    """Return a spring that stiffens on the positive side, as a rate law."""
+    return [Rate(s.x, where(s.x < 0, -s.k * s.x, -2 * s.k * s.x) / s.m)]
+
+
+@pytest.mark.parametrize(
+    ('equation', 'rate'),
+    [(_driven_equation, _driven_rate), (_switched_equation, _switched_rate)],
+    ids=['driver', 'condition'],
+)
+def test_equation_with_driver_or_condition_matches_rate(equation, rate):
+    """Test that equations with a driver or a condition on the right side run like their rate laws."""
+    fields = {'states': {'x': state(default=1.0, order=2)}, 'parameters': {'m': 2.0, 'k': 3.0}}
+    written = System(elements=[Element.define('WrittenSpring', **fields, laws=equation)('mass')])
+    solved = System(elements=[Element.define('SolvedSpring', **fields, laws=rate)('mass')])
+    first = Simulation(written, solver=PRECISE, dt=0.1).run(until=3).trajectory_['mass.x']
+    second = Simulation(solved, solver=PRECISE, dt=0.1).run(until=3).trajectory_['mass.x']
+    assert first == pytest.approx(second, abs=1e-8)

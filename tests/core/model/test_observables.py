@@ -1,10 +1,12 @@
 """Test observables: expressions and reductions computed at every frame, recorded, logged, and read by laws."""
 
+import pickle
+
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import I, exp
 
-from skcomplex.core.base import Domain, parameter, state
+from skcomplex.core.base import Domain, ValidationError, parameter, state
 from skcomplex.core.model import AgentType, Element, Interaction, Observable, Rate, Rule, System
 from skcomplex.core.runtime import Frame, Simulation
 from skcomplex.core.viz import RerunObserver
@@ -52,13 +54,43 @@ class LoggedPaths:
         """Ignore the time."""
 
 
+def _phase_vector(member):
+    """Return the unit complex number of a member's phase."""
+    return exp(I * member.theta)
+
+
+def _modulus(s):
+    """Return the modulus of the complex mean field."""
+    return abs(s.z)
+
+
+def _total(s):
+    """Return the sum of the two populations."""
+    return s.a.n + s.b.n
+
+
+def _share(s):
+    """Return the share of the first population in the total."""
+    return s.a.n / s.total
+
+
+def _volume(s):
+    """Return twice the population of the market."""
+    return 2 * s.a.n
+
+
+def _herd(s):
+    """Return the symbol of a group member, outside a reduction."""
+    return s.herd.n
+
+
 def _oscillators():
     """Return oscillators with an order parameter built from a complex mean."""
     return System(
         elements=[Oscillator.group('osc', 50, theta=np.linspace(0, 1, 50), omega=np.linspace(0.5, 1.5, 50))],
         observables=[
-            Observable('z', lambda m: exp(I * m.theta), group='osc'),
-            Observable('order', lambda s: abs(s.z)),
+            Observable('z', _phase_vector, group='osc'),
+            Observable('order', _modulus),
         ],
     )
 
@@ -78,7 +110,7 @@ def test_expression_observable_of_elements():
     system = System(
         elements=[Population('a', n=2.0), Population('b', n=6.0)],
         interactions=[ExponentialGrowth('g', target='a', r=1.0)],
-        observables=[Observable('total', lambda s: s.a.n + s.b.n), Observable('share', lambda s: s.a.n / s.total)],
+        observables=[Observable('total', _total), Observable('share', _share)],
     )
     trajectory = Simulation(system, dt=0.5).run(until=1).trajectory_
     assert np.allclose(trajectory['total'], trajectory['a.n'] + trajectory['b.n'])
@@ -92,7 +124,7 @@ def test_observable_by_subsystem_path():
             System(
                 'market',
                 elements=[Population('a', n=3.0)],
-                observables=[Observable('volume', lambda s: 2 * s.a.n)],
+                observables=[Observable('volume', _volume)],
             ),
         ],
     )
@@ -132,10 +164,34 @@ def test_unknown_symbol_is_rejected():
     """Test that an observable using a group member's symbol outside a reduction is rejected."""
     system = System(
         elements=[Population.group('herd', 3)],
-        observables=[Observable('bad', lambda s: s.herd.n)],
+        observables=[Observable('bad', _herd)],
     )
     with pytest.raises(AttributeError, match='herd'):
         Simulation(system).run(until=1)
+
+
+def test_observable_lambda_is_rejected():
+    """Test that an observable whose expression is a lambda raises a named error that names it at once."""
+    with pytest.raises(ValidationError, match="'total'"):
+        Observable('total', lambda s: s.a.n + s.b.n)
+
+
+def test_observable_lambda_reduction_is_rejected():
+    """Test that an observable whose reduction is a lambda raises a named error."""
+    with pytest.raises(ValidationError, match='reduction'):
+        Observable('spread', group='herd', variable='n', reduce=lambda values: values.ptp())
+
+
+def test_observable_module_function_pickles():
+    """Test that a system with a module-level observable pickles and records the same values once restored."""
+    system = System(
+        elements=[Population('a', n=2.0), Population('b', n=6.0)],
+        interactions=[ExponentialGrowth('g', target='a', r=1.0)],
+        observables=[Observable('total', _total)],
+    )
+    restored = pickle.loads(pickle.dumps(system))  # noqa: S301
+    expected = Simulation(system, dt=0.5).run(until=1).trajectory_['total']
+    assert np.allclose(Simulation(restored, dt=0.5).run(until=1).trajectory_['total'], expected)
 
 
 def test_observables_logged_to_rerun(tmp_path):
@@ -146,3 +202,24 @@ def test_observables_logged_to_rerun(tmp_path):
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_, observables={'order': 0.5})
     observer.on_frame(frame)
     assert 'order' in observer.recording_.paths
+
+
+def _timed(s):
+    """Return the population times the time."""
+    return s.a.n * s.t
+
+
+def _member_timed(member):
+    """Return a member's population plus the time."""
+    return member.n + member.t
+
+
+def test_observables_read_time():
+    """Test that system observables and member expressions of reductions read the time as `s.t`."""
+    system = System(
+        elements=[Population('a', n=2.0), Population.group('herd', 2, n=[1.0, 3.0])],
+        observables=[Observable('timed', _timed), Observable('member_timed', _member_timed, group='herd')],
+    )
+    trajectory = Simulation(system, dt=1.0).run(until=2).trajectory_
+    assert trajectory['timed'].tolist() == [0.0, 2.0, 4.0]
+    assert trajectory['member_timed'].tolist() == [2.0, 3.0, 4.0]

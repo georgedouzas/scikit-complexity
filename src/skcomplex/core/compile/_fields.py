@@ -4,6 +4,7 @@
 # License: MIT
 
 import functools
+import math
 import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
@@ -25,6 +26,7 @@ type Offset = tuple[int, ...]
 MODES = {'periodic': 0, 'zero-flux': 1, 'fixed': 2}
 OPERATOR_NAMES = ('laplacian', 'partial', 'upwind', 'inverse_laplacian')
 LATTICE_BOUNDARIES = {'periodic': 'periodic', 'zero-flux': 'reflecting', 'fixed': 'fixed'}
+TIME = symbol('t')
 
 
 @dataclass(frozen=True, eq=False)
@@ -229,6 +231,41 @@ def _tag(offset: Offset | int) -> str:
     return '_'.join(f'{"m" if step < 0 else "p"}{abs(step)}' for step in offset)
 
 
+@dataclass(frozen=True, eq=False)
+class DiffusiveLimit:
+    """Stability limit of explicit steps for the diffusion of a finite-volume field, at the current parameters.
+
+    Args:
+        coefficient:
+            The NumPy function of time and parameters that returns the diffusion coefficient.
+
+        parameters:
+            The references of the parameters the coefficient reads, in argument order.
+
+        stiffness:
+            The largest eigenvalue magnitude of the unit Laplacian, `sum(2 / h^2)` over the axes.
+    """
+
+    coefficient: Callable[..., list[Any]]
+    parameters: tuple[Reference, ...]
+    stiffness: float
+
+    def step(self, p: npt.NDArray[np.float64]) -> float:
+        """Return the largest stable step of explicit Euler for the diffusion at parameter values.
+
+        Args:
+            p:
+                The parameter vector.
+
+        Returns:
+            step:
+                The step `1 / (stiffness * max |D|)`, infinite without diffusion.
+        """
+        values = [reference.column_of(np.zeros(0), p) for reference in self.parameters]
+        magnitude = float(np.max(np.abs(self.coefficient(0.0, *values)[0])))
+        return math.inf if magnitude == 0 else 1 / (self.stiffness * magnitude)
+
+
 @dataclass
 class FieldLowering:
     """Stencils of the operators in the laws of one component, with the symbols they read.
@@ -254,6 +291,7 @@ class FieldLowering:
     shifted: dict[Expression, tuple[Expression, Offset | int]] = field(default_factory=dict)
     derived: dict[Expression, tuple[Field, DerivedRead]] = field(default_factory=dict)
     limits: list[float] = field(default_factory=list)
+    volume_limits: list[DiffusiveLimit] = field(default_factory=list)
     _tables: dict[tuple[Any, ...], tuple[Indices, float | None]] = field(default_factory=dict)
 
     def _field_of(self, item: Expression) -> Field | None:
@@ -512,8 +550,20 @@ class FieldLowering:
         read = DerivedRead(operand, symbols, lambda values: matrix @ values)
         return self._derived(place, read)
 
+    def _note_volume_limit(self, coefficient: Expression, stiffness: float) -> None:
+        """Record the diffusive step limit of a finite-volume field as a function of the parameters it reads."""
+        symbols = sorted(set(coefficient.variables()) - {TIME}, key=str)
+        references = [self.references[item] for item in symbols if item in self.references]
+        if len(references) < len(symbols) or any(reference.is_state for reference in references):
+            return
+        function = numpy_function(TIME, symbols, [coefficient])
+        self.volume_limits.append(DiffusiveLimit(function, tuple(references), stiffness))
+
     def note_limit(self, value: object) -> None:
-        """Record the diffusive step limit of the Laplacians in a law value, when their coefficients are numbers.
+        """Record the diffusive step limit of the Laplacians in a law value.
+
+        A finite-difference field records the limit when the coefficient is a number at the initial values, and a
+        finite-volume field records it as a function of the parameters the coefficient reads.
 
         Args:
             value:
@@ -523,20 +573,24 @@ class FieldLowering:
             return
         for call in _operator_calls(value, 'laplacian'):
             placeholder = symbol('_laplacian_')
-            coefficient = SR(value.subs({call: placeholder})).diff(placeholder).subs(self.initial)
-            if coefficient.variables():
-                continue
-            magnitude = abs(float(coefficient))
-            if magnitude == 0:
-                continue
+            expression = SR(value.subs({call: placeholder})).diff(placeholder)
             place = self._place(call.operands()[0])
-            if place.discretization != 'finite-difference':
+            if place.discretization not in {'finite-difference', 'finite-volume'}:
                 continue
             space = place.space
             if isinstance(space, NetworkSpace):
                 stiffness = max((item for _, item in space.graph.degree), default=1)
             else:
                 stiffness = sum(2 / step**2 for step in cast('LatticeSpace', space).spacings)
+            if place.discretization == 'finite-volume':
+                self._note_volume_limit(expression, stiffness)
+                continue
+            coefficient = expression.subs(self.initial)
+            if coefficient.variables():
+                continue
+            magnitude = abs(float(coefficient))
+            if magnitude == 0:
+                continue
             self.limits.append(1 / (stiffness * magnitude))
 
 

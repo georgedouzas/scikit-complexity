@@ -177,7 +177,7 @@ class ModelView:
 
     @property
     def time(self) -> float:
-        """Number of steps run so far."""
+        """Time of Mesa's clock, which is `k` during the step that produces frame `k`."""
         return float(self._stepper.model_.time)
 
     @property
@@ -529,6 +529,18 @@ class AgentView:
         return AgentView(stepper.create_agent(target, place, values), stepper)
 
 
+class _AgentModel(mesa.Model):
+    """Mesa model whose step runs the agent and model rules of a stepper, so Mesa's clock moves with the run."""
+
+    def __init__(self, run_rules: Callable[[], None], rng: int) -> None:
+        self._run_rules = run_rules
+        super().__init__(rng=rng)
+
+    def step(self) -> None:
+        """Run the agent rules in random order and then the model rules."""
+        self._run_rules()
+
+
 type MesaSpace = OrthogonalMooreGrid | OrthogonalVonNeumannGrid | Network | MesaContinuousSpace
 
 
@@ -548,8 +560,8 @@ def _build_space(space: Space | None, model: mesa.Model, n_agents: int) -> MesaS
 class MesaStepper(Stepper):
     """Stepper of agent-based problems and wrapped Mesa models, one Mesa step per unit of time.
 
-    Every step activates all agents in random order, and each agent runs the rules of its type in declaration order.
-    Interaction rules run once after the agents. A wrapped Mesa model runs its own `step`.
+    Every step advances Mesa's clock by one, activates all agents in random order, and each agent runs the rules of its
+    type in declaration order. Interaction rules run once after the agents. A wrapped Mesa model runs its own `step`.
 
     Attributes:
         model_:
@@ -601,7 +613,7 @@ class MesaStepper(Stepper):
             return
         self._specs = {spec.path: spec for spec in problem.agents}
         self._classes: dict[type, CompiledAgents] = {}
-        self.model_ = mesa.Model(rng=self._seed())
+        self.model_ = _AgentModel(self._run_rules, self._seed())
         self.space_: Any = _build_space(problem.agent_space, self.model_, sum(spec.size for spec in problem.agents))
         roles = {item.path: item.roles for item in problem.interactions}
         self._views = {spec.path: ModelView(self, spec.path) for spec in problem.agents}
@@ -785,6 +797,12 @@ class MesaStepper(Stepper):
                     value = self.problem_.parameters.read(p, entry)
                     setattr(self.model_, name, _typed_like(getattr(self.model_, name, value), value))
 
+    def _run_rules(self) -> None:
+        """Activate the agents in random order and run the model rules once."""
+        self.model_.agents.shuffle_do('step')
+        for model, rule in self._rules:
+            rule.function(model)
+
     def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Run one Mesa step per integer time from `t` up to `until`.
 
@@ -809,12 +827,7 @@ class MesaStepper(Stepper):
             self._push_parameters(p)
         for step in range(math.floor(t + 1e-9), math.floor(until + 1e-9)):
             del step
-            if isinstance(self.problem_.system, MesaSystem):
-                self.model_.step()
-                continue
-            self.model_.agents.shuffle_do('step')
-            for model, rule in self._rules:
-                rule.function(model)
+            self.model_.step()
         return x
 
     def snapshot(self) -> AgentState:
@@ -868,7 +881,7 @@ def _wrapped_snapshot(system: MesaSystem, model: mesa.Model) -> AgentState:
 def _member_value(value: object, index: int, size: int) -> object:
     """Return the initial value of one agent from a per-agent array or a shared value."""
     array = np.asarray(value)
-    if array.ndim and array.shape[0] == size and size > 1:
+    if array.ndim and array.shape[0] == size:
         item = array[index]
         return item.item() if np.ndim(item) == 0 else item
     return value
@@ -879,7 +892,7 @@ def _member_location(location: object, index: int, size: int) -> object:
     if location is None:
         return None
     array = np.asarray(location, dtype=object if isinstance(location, list | tuple) else None)
-    if size > 1 and array.ndim >= 1 and array.shape[0] == size:
+    if array.ndim >= 1 and array.shape[0] == size:
         return _cell_key(np.asarray(array[index]))
     return _cell_key(location)
 

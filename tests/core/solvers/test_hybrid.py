@@ -9,7 +9,7 @@ from skcomplex.core.base import SolverError, ValidationError
 from skcomplex.core.compile import compile_system
 from skcomplex.core.model import Element, Event, Noise, Rate, System, delayed, pulse_train, series, step
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import RK4, EulerMaruyama, Gillespie, Heun, Milstein, VelocityVerlet
+from skcomplex.core.solvers import RK4, EulerMaruyama, Gillespie, Heun, Milstein, ScipyODE, VelocityVerlet
 from skcomplex.models.biology.ecology import hutchinson
 from skcomplex.models.biology.physiology import mackey_glass
 from skcomplex.models.physics.mechanics import bouncing_ball
@@ -250,3 +250,46 @@ def test_events_are_attached_to_frames():
 
     Simulation(bouncing_ball(), dt=0.5, observers=[Collector()]).run(until=1.5)
     assert [len(frame.events) for frame in frames] == [0, 1, 0, 1]
+
+
+def _short_delay(s):
+    """Return a decay driven by the state a delay `tau` ago."""
+    return [Rate(s.x, -delayed(s.x, s.tau))]
+
+
+@pytest.mark.parametrize('tau', [1e-4, 1e-6])
+def test_very_short_delay_with_scipy(tau):
+    """Test that ScipyODE integrates a delay shorter than its first step and matches the delay-free decay."""
+    Short = Element.define('Short', states={'x': 1.0}, parameters={'tau': tau}, laws=_short_delay)
+    system = System(elements=[Short('d')], history={'d.x': 1.0})
+    trajectory = Simulation(system, solver=ScipyODE()).run(until=0.2).trajectory_
+    assert trajectory['d.x'][-1] == pytest.approx(math.exp(-0.2), abs=1e-3)
+
+
+def _monthly_dose(s):
+    """Return a decay with a short dose every 21 days."""
+    return [Rate(s.c, -s.k * s.c + pulse_train(s.t, 21, 1 / 24))]
+
+
+def test_periodic_breakpoints_over_unbounded_runs():
+    """Test that periodic breakpoints bound a persistent integrator, which looks for the next one without an end."""
+    Dosed = Element.define('Dosed', states={'c': 0.0}, parameters={'k': 0.1}, laws=_monthly_dose)
+    problem = compile_system(System(elements=[Dosed('a')]))
+    assert problem.breakpoints.next_after(1.0) == 21.0
+    trajectory = Simulation(problem, dt=0.5).run(until=10).trajectory_
+    expected = (1 - math.exp(-0.1 / 24)) / 0.1 * math.exp(-0.1 * (10 - 1 / 24))
+    assert trajectory['a.c'][-1] == pytest.approx(expected, rel=1e-5)
+
+
+def _scaled_delay(s):
+    """Return a decay driven by the state twice the parameter `tau` ago."""
+    return [Rate(s.x, -delayed(s.x, 2 * s.tau))]
+
+
+def test_delay_of_parameter_expression():
+    """Test that a delay that is an expression of parameters takes its smallest value from their values."""
+    Scaled = Element.define('Scaled', states={'x': 1.0}, parameters={'tau': 0.5}, laws=_scaled_delay)
+    problem = compile_system(System(elements=[Scaled('d')]))
+    assert problem.delays[0].minimum == 1.0
+    trajectory = Simulation(problem, dt=0.5).run(until=3).trajectory_
+    assert trajectory['d.x'][-1] == pytest.approx(-1 / 6, abs=1e-6)

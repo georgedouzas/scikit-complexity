@@ -21,6 +21,7 @@ from numba.core.dispatcher import Dispatcher
 from ..base import Expression, Form, ValidationError, symbols_of
 from ..model import Boundary, Jump, Noise, Rate, Update
 from ._backends import (
+    AUTO_MEMBERS,
     Backend,
     Lowering,
     adding_function,
@@ -42,6 +43,15 @@ FORM_KINDS: dict[Form, list[type]] = {
     Form.DISCRETE: [Update],
 }
 INDENT = '    '
+NO_BOUNDARY = """
+HAS_BOUNDARY = False
+
+
+@njit(cache=CACHE)
+def boundary(t, x, p, L):
+    return x
+"""
+EVENT_FORMS = (Form.JUMP, Form.DISCRETE)
 HEADER = """import math
 
 import numpy as np
@@ -66,6 +76,8 @@ def rk4(t, x, p, L, until, h):
         k3 = drift(time + step / 2, y + step / 2 * k2, p, L)
         k4 = drift(time + step, y + step * k3, p, L)
         y = y + step / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+        if HAS_BOUNDARY:
+            y = boundary(time + step, y, p, L)
     return y
 """,
     'velocity_verlet': """
@@ -78,11 +90,14 @@ def velocity_verlet(t, x, p, L, until, h, positions, velocities):
     y = x.copy()
     rates = drift(t, y, p, L)
     for index in range(n_steps):
+        time = t + (index + 1) * step
         for component in range(velocities.size):
             y[velocities[component]] += step / 2 * rates[velocities[component]]
         for component in range(positions.size):
             y[positions[component]] += step * y[velocities[component]]
-        rates = drift(t + (index + 1) * step, y, p, L)
+        if HAS_BOUNDARY:
+            y = boundary(time, y, p, L)
+        rates = drift(time, y, p, L)
         for component in range(velocities.size):
             y[velocities[component]] += step / 2 * rates[velocities[component]]
     return y
@@ -103,6 +118,8 @@ def euler_maruyama(t, x, p, L, until, h, rng, rows):
         y = y + drift(time, y, p, L) * step
         for process in range(amplitudes.size):
             y[rows[process]] += amplitudes[process] * increments[process]
+        if HAS_BOUNDARY:
+            y = boundary(time + step, y, p, L)
     return y
 """,
     'gillespie': """
@@ -127,6 +144,8 @@ def gillespie(t, x, p, L, until, rng, targets, increments):
         for change in range(targets.shape[1]):
             if targets[channel, change] >= 0:
                 y[targets[channel, change]] += increments[channel, change]
+        if HAS_BOUNDARY:
+            y = boundary(t, y, p, L)
 """,
     'iterate': """
 @njit(cache=CACHE)
@@ -134,6 +153,8 @@ def iterate(t, x, p, L, until):
     y = x.copy()
     for step in range(int(round(t)), int(math.floor(until + 1e-9))):
         y = update(float(step), y, p, L)
+        if HAS_BOUNDARY:
+            y = boundary(float(step + 1), y, p, L)
     return y
 """,
 }
@@ -684,7 +705,8 @@ class NumbaBackend(Backend):
             The directory of the generated kernel sources and Numba's cache, or `None` for `~/.cache/skcomplex`.
 
         parallel:
-            Whether member and pair loops run in parallel threads.
+            Whether member and pair loops over groups of at least 1000 members run in parallel threads. Kernels that
+            the compiled loops of jump processes and discrete maps call once per event always run serially.
 
     Examples:
         >>> from skcomplex.core.compile import compile_system
@@ -705,6 +727,17 @@ class NumbaBackend(Backend):
         self.cache_dir = cache_dir
         self.parallel = parallel
 
+    def _is_parallel(self, kernel: Kernel, form: Form) -> bool:
+        """Check whether a kernel runs in parallel threads: outside event loops, over groups of many members."""
+        if not self.parallel or form in EVENT_FORMS:
+            return False
+        rows = [
+            reference.entry.rows
+            for reference in kernel.references.values()
+            if reference.source in {Source.MEMBER, Source.FIRST, Source.SECOND}
+        ]
+        return max(rows, default=0) >= AUTO_MEMBERS
+
     def _kind(
         self,
         source: _Source,
@@ -712,16 +745,18 @@ class NumbaBackend(Backend):
         label: str,
         mode: str,
         *,
+        form: Form,
         reduced: bool,
     ) -> tuple[str, str]:
         """Add the kernels of one law kind and return the top-level function name and its output size."""
         names = []
         for index, kernel in enumerate(kernels):
             name = f'_{label}{index}_'
+            parallel = self._is_parallel(kernel, form)
             if kernel.pairs is not None:
-                _pair_kernel(source, kernel, name, self.parallel)
+                _pair_kernel(source, kernel, name, parallel)
             else:
-                _member_kernel(source, kernel, name, mode, self.parallel)
+                _member_kernel(source, kernel, name, mode, parallel)
             names.append(name)
         size = ' + '.join(_output_count(source, kernel) for kernel in kernels) or '0'
         _entry_function(source, label, names, mode, size, reduced=reduced)
@@ -772,7 +807,7 @@ class NumbaBackend(Backend):
         compiled = {kind: fused and all(_is_compilable(kernel) for kernel in items) for kind, items in used.items()}
         source = _Source()
         if reduced and fused:
-            _reduce_function(source, reductions, self.parallel)
+            _reduce_function(source, reductions, self.parallel and form not in EVENT_FORMS)
         plan: dict[type, tuple[str, str]] = {
             Rate: ('drift', 'add'),
             Noise: ('diffusion', 'concatenate'),
@@ -785,15 +820,18 @@ class NumbaBackend(Backend):
             needed = [*needed, Boundary]
         for kind in needed:
             if compiled[kind]:
-                self._kind(source, used[kind], *plan[kind], reduced=reduced)
+                self._kind(source, used[kind], *plan[kind], form=form, reduced=reduced)
         accelerated_loop = {
             Form.ODE: 'rk4',
             Form.SDE: 'euler_maruyama',
             Form.JUMP: 'gillespie',
             Form.DISCRETE: 'iterate',
         }[form]
-        has_loop = all(compiled[kind] for kind in needed if kind is not Boundary)
-        loops = [LOOPS[accelerated_loop], LOOPS['velocity_verlet'] if form is Form.ODE else ''] if has_loop else []
+        has_loop = all(compiled[kind] for kind in needed)
+        bounded = 'HAS_BOUNDARY = True\n' if Boundary in needed else NO_BOUNDARY
+        loops = (
+            [bounded, LOOPS[accelerated_loop], LOOPS['velocity_verlet'] if form is Form.ODE else ''] if has_loop else []
+        )
         text = '\n'.join([HEADER, *source.lines, *loops]) + '\n'
         cache_dir = Path(self.cache_dir) if self.cache_dir is not None else DEFAULT_CACHE_DIR
         module = _load(text, source.functions, cache_dir)

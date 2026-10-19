@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import pickle  # nosec B403: pickles the model's own functions to check that they pickle, and never loads
 from collections.abc import Callable
 from typing import Any
 
@@ -59,6 +60,18 @@ def reduce_values(values: Any, reduce: str | Callable[[Any], Any]) -> Any:  # no
     return float(result) if np.isrealobj(result) else complex(result)
 
 
+def _check_pickles(label: str, name: str, value: object) -> None:
+    """Raise an error when a value of an observable cannot be pickled."""
+    try:
+        pickle.dumps(value)
+    except (pickle.PicklingError, AttributeError, TypeError) as error:
+        error_msg = (
+            f'The {name} of the observable {label!r} cannot be pickled: {error}. Use a module-level function or a '
+            'symbolic expression instead of a lambda or a local function.'
+        )
+        raise ValidationError(error_msg) from error
+
+
 class Observable(BaseEstimator):
     """Named quantity of a system, computed from its states and parameters at every frame.
 
@@ -84,6 +97,10 @@ class Observable(BaseEstimator):
         variable:
             The name of the member variable to reduce, instead of an expression.
 
+    Raises:
+        ValidationError:
+            The expression or a function reduction cannot be pickled, such as a lambda.
+
     Examples:
         >>> from skcomplex.core.model import Observable
         >>> Observable('mean_wealth', group='traders', variable='wealth').reduce
@@ -104,6 +121,9 @@ class Observable(BaseEstimator):
         self.group = group
         self.reduce = reduce
         self.variable = variable
+        _check_pickles(label, 'expression', expression)
+        if callable(reduce):
+            _check_pickles(label, 'reduction', reduce)
 
     def __repr__(self, N_CHAR_MAX: int = 700) -> str:
         """Return the label and whether the observable reduces a group."""

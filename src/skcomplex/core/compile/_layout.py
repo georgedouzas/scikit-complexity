@@ -3,8 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
 from collections.abc import Iterable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 import numpy.typing as npt
@@ -38,16 +39,28 @@ class Entry:
     shape: tuple[int, ...]
     domain: AnyDomain
     members: int | None = None
+    _size: int = field(init=False, repr=False, compare=False)
+    _indices: slice = field(init=False, repr=False, compare=False)
+    _rows: int = field(init=False, repr=False, compare=False)
+    _columns: int = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        """Compute the size, slice, rows, and columns of the variable once."""
+        size = math.prod(self.shape)
+        object.__setattr__(self, '_size', size)
+        object.__setattr__(self, '_indices', slice(self.start, self.start + size))
+        object.__setattr__(self, '_rows', self.members if self.members is not None else 1)
+        object.__setattr__(self, '_columns', math.prod(self.member_shape))
 
     @property
     def size(self) -> int:
         """Number of components of the variable."""
-        return int(np.prod(self.shape, dtype=int))
+        return self._size
 
     @property
     def indices(self) -> slice:
         """Slice of the variable's components in the vector."""
-        return slice(self.start, self.start + self.size)
+        return self._indices
 
     @property
     def member_shape(self) -> tuple[int, ...]:
@@ -57,12 +70,12 @@ class Entry:
     @property
     def rows(self) -> int:
         """Number of members, 1 for a single element or an interaction."""
-        return self.members if self.members is not None else 1
+        return self._rows
 
     @property
     def columns(self) -> int:
         """Number of components of the variable of one member."""
-        return int(np.prod(self.member_shape, dtype=int))
+        return self._columns
 
     @property
     def component_names(self) -> list[str]:
@@ -95,7 +108,7 @@ class Entry:
             view:
                 A `(rows, columns)` view that writes through to the vector.
         """
-        return vector[self.indices].reshape(self.rows, self.columns)
+        return vector[self._indices].reshape(self._rows, self._columns)
 
 
 class Layout:

@@ -1,11 +1,15 @@
 """Test the steppers and the solver registry."""
 
+import dataclasses
+
 import numpy as np
 import pytest
+from scipy.integrate import solve_ivp
 
 from skcomplex.core.base import SolverError, role
 from skcomplex.core.compile import compile_system
 from skcomplex.core.model import Interaction, Rate, System
+from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import EulerMaruyama, Gillespie, Iteration, ScipyODE, resolve_solver
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population
 from skcomplex.models.biology.epidemiology import Compartment, Recovery
@@ -115,3 +119,36 @@ def test_iteration_applies_one_step_per_unit_time():
     stepper = Iteration()
     stepper.initialize(problem, np.random.default_rng(0))
     assert stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 2.0).tolist() == [2.5]
+
+
+def _decay():
+    """Return the system of exponential decay."""
+    return System(elements=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=-1.0)])
+
+
+def test_scipy_ode_keeps_integrator_across_frames():
+    """Test that 1000 frames of ScipyODE evaluate the drift at most twice as often as one SciPy integration."""
+    problem = compile_system(_decay())
+    calls = []
+
+    def counted(t, x, p):
+        calls.append(t)
+        return problem.drift(t, x, p)
+
+    trajectory = Simulation(dataclasses.replace(problem, drift=counted), dt=0.01).run(until=10).trajectory_
+    frames = len(calls)
+    calls.clear()
+    p = problem.initial_parameters
+    solve_ivp(lambda t, x: counted(t, x, p), (0.0, 10.0), problem.initial_state, rtol=1e-6, atol=1e-9)
+    assert len(trajectory) == 1001
+    assert frames <= 2 * len(calls)
+    assert trajectory['a.n'][-1] == pytest.approx(np.exp(-10.0), rel=1e-4)
+
+
+def test_scipy_ode_restarts_on_parameter_change():
+    """Test that a decay rate set to zero at time 5 keeps the state constant from then on."""
+    simulation = Simulation(_decay(), dt=0.01).run(until=5)
+    simulation.update_parameters({'g.r': 0.0})
+    values = simulation.extend(until=10).trajectory_['a.n']
+    assert values[500] == pytest.approx(np.exp(-5.0), rel=1e-5)
+    assert np.all(values[500:] == values[500])

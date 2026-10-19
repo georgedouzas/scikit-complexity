@@ -5,11 +5,12 @@
 
 import math
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
-from scipy.integrate import BDF, DOP853, LSODA, RK23, RK45, OdeSolver, Radau, solve_ivp
+from scipy.integrate import BDF, DOP853, LSODA, RK23, RK45, OdeSolver, Radau
 
 from ..base import Expression, Form, SolverError, components_of
 from ..compile import Problem, Vector
@@ -18,6 +19,8 @@ from ._hybrid import History, hermite, with_delays
 
 METHODS = {'RK45': RK45, 'RK23': RK23, 'DOP853': DOP853, 'Radau': Radau, 'BDF': BDF, 'LSODA': LSODA}
 RESTART = 1e-12
+DISCONTINUITY_ORDERS = 3
+STEPS_PER_FRAME = 100
 
 
 def _is_hybrid(problem: Problem, t: float, until: float) -> bool:
@@ -50,12 +53,28 @@ def _unsupported(stepper: Stepper, problem: Problem) -> None:
         raise SolverError(error_msg)
 
 
+@dataclass(frozen=True)
+class _Segment:
+    """Accepted step of an integrator, with its states at both ends and its dense output."""
+
+    start: float
+    end: float
+    before: Vector
+    after: Vector
+    dense: Callable[[float], Vector]
+
+
 class ScipyODE(Stepper):
-    """Integrator of ordinary differential equations based on `scipy.integrate.solve_ivp`.
+    """Integrator of ordinary differential equations based on the step solvers of `scipy.integrate`.
+
+    One integrator runs across the frames of a run, and every frame reads its state from the dense output of the step
+    that covers the frame's time, and it restarts at every frame when a condition on time jumps at a time that depends
+    on parameters. With delays, steps are at most the shortest delay, or a hundredth of the frame when
+    the delay is shorter, and a delay shorter than the step reads the extension of the previous step.
 
     Args:
         method:
-            The integration method of `solve_ivp`, such as `RK45`, `DOP853`, or `LSODA` for stiff systems.
+            The integration method, such as `RK45`, `DOP853`, or `LSODA` for stiff systems.
 
         rtol:
             The relative tolerance.
@@ -86,8 +105,146 @@ class ScipyODE(Stepper):
         self.rtol = rtol
         self.atol = atol
 
+    def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
+        """Prepare the stepper for a problem, with no integrator yet.
+
+        Args:
+            problem:
+                The compiled problem.
+
+            rng:
+                The random number generator, unused by this deterministic stepper.
+
+        Raises:
+            SolverError:
+                The problem is not an ODE.
+        """
+        super().initialize(problem, rng)
+        self._solver: OdeSolver | None = None
+        self._segment: _Segment | None = None
+        self._time = math.nan
+        self._frame = math.inf
+        self._until = math.inf
+        self._state = np.zeros(0)
+        self._parameters = np.zeros(0)
+
+    def _continues(self, t: float, x: Vector, p: Vector) -> bool:
+        """Check whether a call continues the state, time, and parameters the integrator returned last."""
+        return (
+            self._solver is not None
+            and abs(t - self._time) <= RESTART * max(1.0, abs(t))
+            and np.array_equal(x, self._state)
+            and np.array_equal(p, self._parameters)
+        )
+
+    def _next_discontinuity(self, time: float) -> float:
+        """Return the first time after a time where a delay carries the jump in slope at the start of the run."""
+        history = self.history_
+        if history is None:
+            return math.inf
+        times = [
+            history.start + order * delay.minimum
+            for delay in self.problem_.delays
+            for order in range(1, DISCONTINUITY_ORDERS + 1)
+            if history.start + order * delay.minimum > time
+        ]
+        return min(times, default=math.inf)
+
+    def _restart(self, t: float, x: Vector, p: Vector) -> None:
+        """Start a new integrator at a time and state, bounded by the next breakpoint."""
+        problem = self.problem_
+        drift = problem.drift
+        history = self.history_
+        if history is not None:
+            history.truncate(t)
+        after = t + RESTART * max(1.0, abs(t))
+        later = problem.breakpoints.next_after(after)
+        if problem.breakpoints.unresolved:
+            later = self._until if later is None else min(later, self._until)
+        bound = min(later if later is not None else math.inf, self._next_discontinuity(after))
+        ceiling = _left_limit(bound) if math.isfinite(bound) and later == bound else math.inf
+
+        def field(time: float, state: Vector) -> Vector:
+            time = min(time, ceiling)
+            return drift(time, state, with_delays(problem, history, time, state, p))  # type: ignore[misc]
+
+        delay = _smallest_delay(problem)
+        first_step = min(delay / 2, bound - t) if problem.delays else None
+        self._solver = METHODS[self.method](
+            field,
+            t,
+            x.copy(),
+            bound,
+            rtol=self.rtol,
+            atol=self.atol,
+            max_step=max(delay, self._frame / STEPS_PER_FRAME),
+            first_step=first_step,
+        )
+        self._segment = None
+        self._time, self._state, self._parameters = t, x.copy(), p.copy()
+
+    def _next_segment(self, p: Vector) -> _Segment:
+        """Return the step that covers the current time, taking a new step or restarting at a breakpoint."""
+        segment = self._segment
+        while segment is None or segment.end <= self._time:
+            solver = self._solver
+            assert solver is not None
+            if solver.status != 'running':
+                self._restart(solver.t, solver.y, p)
+                solver = self._solver
+                assert solver is not None
+            start, before = solver.t, solver.y.copy()
+            message = solver.step()
+            if solver.status == 'failed':
+                error_msg = f'The {self.method} integrator failed at t = {start}: {message}'
+                raise SolverError(error_msg)
+            segment = _Segment(start, solver.t, before, solver.y.copy(), solver.dense_output())
+            if self.history_ is not None:
+                self.history_.add(start, solver.t, segment.dense)
+            self._segment = segment
+        return segment
+
+    def _first_change(self, dense: Callable[[float], Vector], end: float, p: Vector) -> float:
+        """Return the first time of a step, up to its end, at which the boundary laws change the state, by bisection."""
+
+        def changed(time: float) -> bool:
+            state = np.asarray(dense(time), dtype=float)
+            return not np.array_equal(self._bounded(time, state, p), state)
+
+        low, high = self._time, end
+        if changed(low):
+            return end
+        while high - low > RESTART * max(1.0, abs(high)):
+            middle = (low + high) / 2
+            low, high = (low, middle) if changed(middle) else (middle, high)
+        return high
+
+    def _to_event(self, p: Vector, until: float) -> None:
+        """Integrate the current step up to a time or to its first event, and apply the event or the boundary."""
+        segment = self._next_segment(p)
+        end = min(segment.end, until)
+        after = segment.after if end == segment.end else np.asarray(segment.dense(end), dtype=float)
+        hit = (
+            self.locator_.crossing(self._time, end, self._state, after, p=p, interpolant=segment.dense)
+            if self.problem_.events
+            else None
+        )
+        if hit is not None:
+            time, index = hit
+            state = self.locator_.apply(time, index, np.asarray(segment.dense(time), dtype=float), p)
+            self._restart(time, self._bounded(time, state, p), p)
+            return
+        if np.array_equal(self._bounded(end, after, p), after):
+            self._time, self._state = end, after
+            return
+        time = self._first_change(segment.dense, end, p)
+        self._restart(time, self._bounded(time, np.asarray(segment.dense(time), dtype=float), p), p)
+
     def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
-        """Integrate the drift from time `t` to time `until`.
+        """Integrate the drift from time `t` to time `until`, continuing the integrator of the previous call.
+
+        The integrator restarts when the parameters change, when the state or time is not the one it returned, at
+        breakpoints, at events, and when a boundary law changes the state.
 
         Args:
             t:
@@ -110,75 +267,20 @@ class ScipyODE(Stepper):
             SolverError:
                 The integrator fails.
         """
-        drift = self.problem_.drift
-        if until <= t or x.size == 0 or drift is None:
-            return x
-        if _is_hybrid(self.problem_, t, until):
-            return self._advance_hybrid(t, x, p, until)
-        solution = solve_ivp(
-            lambda time, state: drift(time, state, p),
-            (t, until),
-            x,
-            method=self.method,
-            rtol=self.rtol,
-            atol=self.atol,
-        )
-        if not solution.success:
-            error_msg = f'The {self.method} integrator failed between t = {t} and t = {until}: {solution.message}'
-            raise SolverError(error_msg)
-        return np.asarray(solution.y[:, -1], dtype=float)
-
-    def _advance_hybrid(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
-        """Integrate step by step, restarting at breakpoints and events, and recording dense output for delays."""
         problem = self.problem_
-        drift = problem.drift
+        if until <= t or x.size == 0 or problem.drift is None:
+            return x
         if problem.delays and self.history_ is None:
-            self.history_ = History(problem, t, x)
-        history = self.history_
-
-        def field(time: float, state: Vector, ceiling: float) -> Vector:
-            time = min(time, ceiling)
-            return drift(time, state, with_delays(problem, history, time, state, p))  # type: ignore[misc]
-
-        state, time = x.copy(), t
-        for bound in _bounds(problem, t, until):
-            ceiling = _left_limit(bound)
-            while time < bound - RESTART * max(1.0, abs(bound)):
-                solver = METHODS[self.method](
-                    lambda s, y, ceiling=ceiling: field(s, y, ceiling),
-                    time,
-                    state,
-                    bound,
-                    rtol=self.rtol,
-                    atol=self.atol,
-                    max_step=_smallest_delay(problem),
-                )
-                state, time = self._step_to_event(solver, history, p)
-                if self.locator_.stopped_at is not None:
-                    return state
-            time = bound
-        return state
-
-    def _step_to_event(self, solver: OdeSolver, history: History | None, p: Vector) -> tuple[Vector, float]:
-        """Step an integrator to its end or to the first event, and return the state and the time where it stopped."""
-        while solver.status == 'running':
-            start, before = solver.t, solver.y.copy()
-            message = solver.step()
-            if solver.status == 'failed':
-                error_msg = f'The {self.method} integrator failed at t = {start}: {message}'
-                raise SolverError(error_msg)
-            dense = solver.dense_output()
-            if history is not None:
-                history.add(start, solver.t, dense)
-            if not self.problem_.events:
-                continue
-            hit = self.locator_.crossing(start, solver.t, before, solver.y, p=p, interpolant=dense)
-            if hit is not None:
-                time, index = hit
-                if history is not None:
-                    history.truncate(time)
-                return self.locator_.apply(time, index, np.asarray(dense(time), dtype=float), p), time
-        return solver.y.copy(), solver.t
+            self.history_ = History(problem, t, x, extrapolate=True)
+        self._until = until
+        if not self._continues(t, x, p):
+            self._frame = until - t
+            self._restart(t, x, p)
+        while self._time < until - RESTART * max(1.0, abs(until)):
+            self._to_event(p, until)
+            if self.locator_.stopped_at is not None:
+                return self._state.copy()
+        return self._state.copy()
 
 
 class RK4(Stepper):
@@ -254,7 +356,7 @@ class RK4(Stepper):
             k2 = drift(time + step / 2, state + step / 2 * k1, p)
             k3 = drift(time + step / 2, state + step / 2 * k2, p)
             k4 = drift(time + step, state + step * k3, p)
-            state = state + step / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+            state = self._bounded(time + step, state + step / 6 * (k1 + 2 * k2 + 2 * k3 + k4), p)
         return state
 
     def _advance_hybrid(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
@@ -312,11 +414,11 @@ def _advance_rk4_hybrid(stepper: Stepper, t: float, x: Vector, p: Vector, until:
                 time, index = hit
                 if history is not None:
                     history.truncate(time)
-                state = stepper.locator_.apply(time, index, interpolant(time), p)
+                state = stepper._bounded(time, stepper.locator_.apply(time, index, interpolant(time), p), p)
                 if stepper.locator_.stopped_at is not None:
                     return state
                 continue
-            state, time = following, time + step
+            state, time = stepper._bounded(time + step, following, p), time + step
         time = bound
     return state
 
@@ -369,11 +471,11 @@ def _advance_sde_hybrid(
                 time, index = hit
                 if history is not None:
                     history.truncate(time)
-                state = stepper.locator_.apply(time, index, interpolant(time), p)
+                state = stepper._bounded(time, stepper.locator_.apply(time, index, interpolant(time), p), p)
                 if stepper.locator_.stopped_at is not None:
                     return state
                 continue
-            state, time = following, time + step
+            state, time = stepper._bounded(time + step, following, p), time + step
         time = bound
     return state
 
@@ -407,9 +509,10 @@ def _position_pairs(problem: Problem) -> tuple[npt.NDArray[np.int64], npt.NDArra
 class VelocityVerlet(Stepper):
     """Velocity Verlet integrator of particle systems, whose positions move with their velocities.
 
-    Every step kicks the velocities by half a step, moves the positions, and kicks the velocities again with the
-    accelerations at the new positions, so a step costs one drift evaluation. It conserves energy over long runs of
-    conservative forces. With the Numba backend every internal step of a frame runs in compiled code.
+    Every step kicks the velocities by half a step, moves the positions, applies the boundary laws, and kicks the
+    velocities again with the accelerations at the new positions, so a step costs one drift evaluation. It conserves
+    energy over long runs of conservative forces. With the Numba backend every internal step of a frame runs in
+    compiled code.
 
     Args:
         dt:
@@ -495,9 +598,11 @@ class VelocityVerlet(Stepper):
         state = x.copy()
         rates = drift(t, state, p)
         for index in range(n_steps):
+            time = t + (index + 1) * step
             state[self.velocities_] += step / 2 * rates[self.velocities_]
             state[self.positions_] += step * state[self.velocities_]
-            rates = drift(t + (index + 1) * step, state, p)
+            state = self._bounded(time, state, p)
+            rates = drift(time, state, p)
             state[self.velocities_] += step / 2 * rates[self.velocities_]
         return state
 
@@ -577,6 +682,7 @@ class EulerMaruyama(Stepper):
             increments = self.rng_.normal(0.0, math.sqrt(step), size=amplitudes.size)
             state = state + drift(time, state, p) * step
             np.add.at(state, rows, amplitudes * increments)
+            state = self._bounded(time + step, state, p)
         return state
 
     def _increment(
@@ -826,6 +932,7 @@ class Gillespie(Stepper):
             )
             channels = jumps[int(np.searchsorted(offsets, event, side='right')) - 1]
             np.add.at(state, channels.targets[:, event - channels.offset], channels.increments)
+            state = self._bounded(t, state, p)
 
 
 class Iteration(Stepper):
@@ -893,7 +1000,7 @@ class Iteration(Stepper):
             return accelerated.iterate(t, x, p, until)
         state = x.copy()
         for step in range(round(t), math.floor(until + 1e-9)):
-            state = update(float(step), state, p)
+            state = self._bounded(float(step + 1), update(float(step), state, p), p)
         return state
 
 

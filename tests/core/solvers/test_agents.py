@@ -388,3 +388,36 @@ def test_agent_view_names_are_reserved():
     """Test that every public name of the agent view is reserved for the states of agent types."""
     public = {name for name in dir(AgentView) if not name.startswith('_')}
     assert public <= AgentType.reserved_names
+
+
+class Clocked(AgentType):
+    """Agent that records the model time at every step."""
+
+    seen: float = state(-1.0)
+    n: float = state(0.0)
+
+    def laws(self, s):
+        """Return the recording rule."""
+        return [Rule(self.record)]
+
+    def record(self, agent, model):
+        """Store the model time."""
+        agent.seen = model.time
+
+
+def test_rules_read_model_time():
+    """Test that rules read the model time k during the step that produces frame k."""
+    trajectory = Simulation(System(elements=[Clocked.group('clocks', 2)])).run(until=3).trajectory_
+    assert [trajectory.agents('clocks', step).values['seen'].tolist() for step in (1, 2, 3)] == [
+        [1.0, 1.0],
+        [2.0, 2.0],
+        [3.0, 3.0],
+    ]
+
+
+def test_one_agent_takes_one_entry_values():
+    """Test that a group of one agent reads a one-entry location and a one-entry value as its own."""
+    system = System(elements=[Clocked.group('one', 1, location=[(1, 1)], n=[3.0])], space=GridSpace(5, 5))
+    snapshot = Simulation(system).run(until=0).trajectory_.agents('one', 0)
+    assert snapshot.locations.tolist() == [[1, 1]]
+    assert snapshot.values['n'].tolist() == [3.0]

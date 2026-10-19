@@ -22,14 +22,31 @@ from ._observers import Observer, Recorder
 from ._trajectories import Trajectory
 
 DEFAULT_DT = 0.01
+MAX_FRAMES = 1000
+FRAME_MANTISSAS = (1, 2, 5)
 TIME_TOLERANCE = 1e-9
+
+
+def _default_dt(until: float) -> float:
+    """Return the smallest of 0.01, 0.02, 0.05, 0.1, and so on, that keeps a run until a time at most 1000 frames."""
+    if not math.isfinite(until):
+        return DEFAULT_DT
+    exponent = round(math.log10(DEFAULT_DT))
+    while True:
+        for mantissa in FRAME_MANTISSAS:
+            dt = float(f'{mantissa}e{exponent}')
+            if until / dt <= MAX_FRAMES * (1 + TIME_TOLERANCE):
+                return dt
+        exponent += 1
 
 
 class Simulation(BaseEstimator):
     """Simulation of a system with the solver of its form.
 
     Each frame advances simulated time by `dt` and is handed to every observer. Parameters can change between
-    frames through `update_parameters`, also while a background run started with `start` is going.
+    frames through `update_parameters`, also while a background run started with `start` is going. Values set
+    between runs stay in force for the later runs of the simulation, and `extend` continues a run from its last
+    frame.
 
     Args:
         system:
@@ -43,8 +60,9 @@ class Simulation(BaseEstimator):
             The backend that compiles the system, `'auto'`, `'numpy'`, `'numba'`, or a backend instance.
 
         dt:
-            The simulated time between frames. It defaults to 1 for discrete maps and agent-based models and to 0.01
-            otherwise.
+            The simulated time between frames. It defaults to 1 for discrete maps and agent-based models. Otherwise
+            it defaults to 0.01, raised to the smallest of 0.02, 0.05, 0.1, 0.2, and so on, in steps of 1, 2, and 5
+            times a power of ten, that keeps a run at most 1000 frames long.
 
         clock:
             The clock that paces frames against wall time. It defaults to running as fast as possible.
@@ -120,11 +138,11 @@ class Simulation(BaseEstimator):
         self.checked = checked
         self.schedule = schedule
 
-    def _check_dt(self, problem: Problem) -> float:
-        """Return the time between frames after validating it for the problem's form."""
+    def _check_dt(self, problem: Problem, until: float) -> float:
+        """Return the time between frames of a run until a time, after validating it for the problem's form."""
         forms = {problem.form, *(partition.problem.form for partition in problem.partitions)}
         stepwise = bool(forms & {Form.DISCRETE, Form.AGENT, Form.LATTICE, Form.MONTE_CARLO})
-        default = 1.0 if stepwise else DEFAULT_DT
+        default = 1.0 if stepwise else _default_dt(until)
         dt = default if self.dt is None else self.dt
         if not Domain.POSITIVE.contains(dt):
             error_msg = f'dt = {dt!r} must be a positive number.'
@@ -134,10 +152,19 @@ class Simulation(BaseEstimator):
             raise ValidationError(error_msg)
         return float(dt)
 
-    def _prepare(self) -> None:
+    def _previous_parameters(self) -> tuple[list[str], Vector] | None:
+        """Return the parameter names and values of the previous run of the same system, or `None` without one."""
+        if getattr(self, '_prepared_system', None) is not self.system or not hasattr(self, 'parameters_'):
+            return None
+        problem: Problem = self.problem_
+        return problem.parameters.names, self.parameters_.copy()
+
+    def _prepare(self, until: float) -> None:
         """Compile the system, build the stepper, and notify the observers of the start."""
+        previous = self._previous_parameters()
         self.problem_ = self.system if isinstance(self.system, Problem) else compile_system(self.system, self.backend)
-        self.dt_ = self._check_dt(self.problem_)
+        self._prepared_system = self.system
+        self.dt_ = self._check_dt(self.problem_, until)
         self.stepper_ = resolve_solver(self.problem_, self.solver)
         self.observables_ = ObservableEvaluator(self.problem_)
         self.stepper_.initialize(self.problem_, np.random.default_rng(self.random_state))
@@ -148,6 +175,9 @@ class Simulation(BaseEstimator):
         self.time_ = 0.0
         self.state_ = initial_state
         self.parameters_ = self.problem_.initial_parameters.copy()
+        if previous is not None and previous[0] == self.problem_.parameters.names:
+            self.parameters_ = previous[1] if previous[1].shape == self.parameters_.shape else self.parameters_
+        self._step = 0
         self._pending: queue.Queue[tuple[slice, Vector]] = queue.Queue()
         self._stop_requested = threading.Event()
         self._running = threading.Event()
@@ -211,33 +241,32 @@ class Simulation(BaseEstimator):
             self.parameters_[indices] = values
 
     def _loop(self, until: float) -> None:
-        """Advance frame by frame until `until` or until a stop is requested."""
-        step = 0
+        """Advance frame by frame from the current time until `until` or until a stop is requested."""
+        origin, first = self.time_, self._step
         self.clock_.start()
         self._apply_schedule()
-        self._emit(step)
+        if first == 0:
+            self._emit(0)
         try:
             while self.time_ < until - TIME_TOLERANCE and not self._stop_requested.is_set():
                 self._running.wait()
                 if self._stop_requested.is_set():
                     break
                 self._apply_pending()
-                step += 1
-                target = min(step * self.dt_, until)
+                self._step += 1
+                target = min(self._step * self.dt_, until)
                 self.state_ = self.stepper_.advance(self.time_, self.state_, self.parameters_, target)
                 stopped_at = self.stepper_.stopped_at
                 if stopped_at is not None:
                     target = stopped_at
-                if self.problem_.boundary is not None:
-                    self.state_ = self.problem_.boundary(target, self.state_, self.parameters_)
                 self.time_ = target
                 self._apply_schedule()
                 if self.checked:
                     self._check_domains()
-                self._emit(step)
+                self._emit(self._step)
                 if stopped_at is not None:
                     break
-                self.clock_.wait(self.time_)
+                self.clock_.wait(self.time_ - origin)
         finally:
             for observer in self.observers_:
                 observer.on_stop()
@@ -293,6 +322,9 @@ class Simulation(BaseEstimator):
     def run(self, until: float) -> 'Simulation':
         """Run the simulation from time 0 to `until` in the calling thread.
 
+        The run starts from the initial state and keeps the parameter values of the previous run of the same system,
+        such as values set with `update_parameters` between runs. `clone(simulation).run(until)` starts afresh.
+
         Args:
             until:
                 The simulated time to stop at.
@@ -301,7 +333,57 @@ class Simulation(BaseEstimator):
             simulation:
                 The simulation itself.
         """
-        self._prepare()
+        self._prepare(until)
+        self._loop(until)
+        return self
+
+    def extend(self, until: float) -> 'Simulation':
+        """Continue a finished run from its last frame to `until` in the calling thread.
+
+        The run keeps its state, parameters, stepper, clock, observers, and frame duration, applies pending parameter
+        changes, and appends its frames to the trajectory.
+
+        Args:
+            until:
+                The simulated time to stop at, later than the time of the last frame.
+
+        Returns:
+            simulation:
+                The simulation itself.
+
+        Raises:
+            SimulationError:
+                The simulation has not run, is running in the background, ended at a terminal event, or `until` is not
+                later than its time.
+
+        Examples:
+            >>> from skcomplex.core.model import System
+            >>> from skcomplex.models.biology.ecology import LogisticGrowth, Population
+            >>> from skcomplex.core.runtime import Simulation
+            >>> system = System(
+            ...     elements=[Population('rabbits', n=10)],
+            ...     interactions=[LogisticGrowth('growth', target='rabbits', r=1.0, K=100)],
+            ... )
+            >>> simulation = Simulation(system, dt=1.0).run(until=5)
+            >>> simulation.update_parameters({'growth.r': 0.0})
+            >>> trajectory = simulation.extend(until=10).trajectory_
+            >>> trajectory.times.tolist()
+            [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
+            >>> bool(trajectory['rabbits.n'][5] == trajectory['rabbits.n'][10])
+            True
+        """
+        self._check_prepared()
+        if self._thread is not None and self._thread.is_alive():
+            error_msg = 'The simulation is running in the background. Call `wait` or `stop` before `extend`.'
+            raise SimulationError(error_msg)
+        if not until > self.time_ + TIME_TOLERANCE:
+            error_msg = f'Cannot extend the run to t = {until}, which is not later than its current time {self.time_}.'
+            raise SimulationError(error_msg)
+        if self.stepper_.stopped_at is not None:
+            error_msg = f'A terminal event ended the run at t = {self.time_}, so it cannot be extended.'
+            raise SimulationError(error_msg)
+        self._stop_requested.clear()
+        self._running.set()
         self._loop(until)
         return self
 
@@ -316,7 +398,7 @@ class Simulation(BaseEstimator):
             simulation:
                 The simulation itself.
         """
-        self._prepare()
+        self._prepare(until)
         self._thread = threading.Thread(target=self._run_in_background, args=(until,), daemon=True)
         self._thread.start()
         return self

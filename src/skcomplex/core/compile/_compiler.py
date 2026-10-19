@@ -76,7 +76,7 @@ from ..model import (
     variance,
 )
 from ._backends import Backend, resolve_backend
-from ._fields import FieldLowering, has_operators
+from ._fields import DiffusiveLimit, FieldLowering, has_operators
 from ._hybrid import Breakpoints, CompiledEvent, Delay, Scalars, breakpoints_of, flat_sources, scalar_function
 from ._jacobians import ExactJacobian
 from ._kernels import Kernel, Output, PairSearch, Reference, Source
@@ -954,15 +954,18 @@ def _delay_minimum(
     minimum: Expression | None,
     declarations: _Declarations,
 ) -> float:
-    """Return the smallest value of a delay: the delay itself, its declared minimum, or a parameter's value."""
+    """Return the smallest value of a delay: the delay itself, its declared minimum, or its value at the parameters."""
     if SR(tau).is_numeric():
         return float(tau)
     if minimum is not None and SR(minimum).is_numeric():
         return float(minimum)
-    reference = spec.references.get(SR(tau))
-    if reference is not None and not reference.is_state:
+    symbols = sorted(SR(tau).variables(), key=str)
+    references = [spec.references.get(item) for item in symbols]
+    if symbols and all(reference is not None and not reference.is_state for reference in references):
         values = np.concatenate([np.zeros(0), *declarations.initial_parameters])
-        return float(values[reference.entry.start + reference.column])
+        columns = [reference.column_of(np.zeros(0), values) for reference in references if reference is not None]
+        delays = numpy_function(declarations.time, symbols, [SR(tau)])(0.0, *columns)[0]
+        return float(np.min(delays))
     error_msg = (
         f'A delay of {spec.owner} is the expression {tau}, whose smallest value is unknown. Give it as the third '
         'argument, `delayed(x, tau, minimum)`.'
@@ -1096,6 +1099,7 @@ class _Fields:
         default_factory=lambda: defaultdict(list),
     )
     limits: list[float] = field(default_factory=list)
+    volume_limits: list[DiffusiveLimit] = field(default_factory=list)
     linear: list[LinearTerm] = field(default_factory=list)
 
 
@@ -1150,6 +1154,7 @@ def _with_fields(spec: _KernelSpec, laws: list[Law], declarations: _Declarations
         else:
             result.append(type(law)(law.target, lowered))
     fields.limits += lowering.limits
+    fields.volume_limits += lowering.volume_limits
     return result
 
 
@@ -1352,11 +1357,11 @@ def _solve_equations(specs: list[tuple[_KernelSpec, list[Any]]]) -> list[tuple[_
     merged = _KernelSpec(owner, Symbols(), references, rows)
     laws: list[Law]
     if len(unknowns) <= EQUATION_UNKNOWNS:
-        try:
-            solution = matrix(SR, coefficients).solve_right(vector(right))
-        except (ValueError, ZeroDivisionError) as error:
-            error_msg = f'The highest derivatives of {descriptions} cannot be solved for: {error}.'
-            raise ValidationError(error_msg) from error
+        system = matrix(SR, coefficients)
+        if system.det().simplify_full().is_trivial_zero():
+            error_msg = f'The highest derivatives of {descriptions} cannot be solved for: the system is singular.'
+            raise ValidationError(error_msg)
+        solution = system.solve_right(vector([SR(item) for item in right]), check=False)
         laws = [Rate(highest[item], value) for item, value in zip(unknowns, solution, strict=True)]
     else:
         entries = [entry for row in coefficients for entry in row] + right
@@ -2117,6 +2122,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         history=_history(system, states),
         lattice=_compile_lattice(specs, declarations, fused),
         stable_step=min(fields.limits, default=None),
+        diffusive_limits=tuple(fields.volume_limits),
         linear=tuple(fields.linear),
         volumes=volumes,
         constrained=constrained[0],

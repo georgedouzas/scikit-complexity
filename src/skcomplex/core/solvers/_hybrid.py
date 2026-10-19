@@ -29,10 +29,15 @@ class History:
 
         state:
             The state vector at the start.
+
+        extrapolate:
+            Whether a time after the last recorded segment reads the extension of that segment, for adaptive solvers
+            whose steps outgrow the shortest delay, instead of raising an error.
     """
 
-    def __init__(self, problem: Problem, start: float, state: Vector) -> None:
+    def __init__(self, problem: Problem, start: float, state: Vector, *, extrapolate: bool = False) -> None:
         self.start = start
+        self.extrapolate = extrapolate
         self.initial = state.copy()
         self.declared: dict[int, Any] = {}
         for name, value in problem.history.items():
@@ -99,7 +104,7 @@ class History:
 
         Raises:
             SolverError:
-                The time is after the last recorded segment.
+                The time is after the last recorded segment, and the history does not extrapolate.
         """
         if time <= self.start:
             return np.asarray(
@@ -110,7 +115,11 @@ class History:
                 dtype=float,
             )
         position = bisect.bisect_right(self.starts, time) - 1
+        if position < 0:
+            return self.initial[indices]
         _, last, interpolant = self.segments[position]
+        if self.extrapolate:
+            return np.asarray(interpolant(time), dtype=float)[indices]
         if time > last + 1e-9 * max(1.0, abs(last)):
             error_msg = (
                 f'A delay reads the state at t = {time}, after the last integrated time {last}. Keep solver steps '

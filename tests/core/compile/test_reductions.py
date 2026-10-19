@@ -28,6 +28,18 @@ from skcomplex.core.model import (
 from skcomplex.core.runtime import Simulation
 
 RNG = np.random.default_rng(0)
+
+
+def _cosine(member):
+    """Return the cosine of a member's phase."""
+    return cos(member.theta)
+
+
+def _sine(member):
+    """Return the sine of a member's phase."""
+    return sin(member.theta)
+
+
 Unit = Element.define('Unit', states={'x': 0.0})
 Phase = Element.define(
     'Phase',
@@ -89,8 +101,8 @@ def _kuramoto(size, *, observables=False):
                 elements=[oscillators],
                 interactions=[MeanFieldCoupling('coupling', target='oscillators', X='X', Y='Y', K=2.0)],
                 observables=[
-                    Observable('X', lambda member: cos(member.theta), group='oscillators'),
-                    Observable('Y', lambda member: sin(member.theta), group='oscillators'),
+                    Observable('X', _cosine, group='oscillators'),
+                    Observable('Y', _sine, group='oscillators'),
                 ],
             ),
             theta,

@@ -27,7 +27,9 @@ class _Where(BuiltinFunction):
         super().__init__('where', nargs=3)
 
     def _eval_(self, condition: Expression, then: Expression, otherwise: Expression) -> Expression | None:
-        """Return the chosen value when the condition is decided, or `None` to stay unevaluated."""
+        """Return the chosen value when the condition is decided or both values are equal, or `None` otherwise."""
+        if SR(then).is_trivially_equal(SR(otherwise)):
+            return SR(then)
         if _is_decided(condition):
             return then if bool(condition) else otherwise
         return None

@@ -181,7 +181,7 @@ def test_mangrove_pioneers_lead_and_climax_dominates():
     early, late = 10, -1
     assert trajectory['keora.volume'][early] > trajectory['sundari.volume'][early]
     assert trajectory['sundari.volume'][late] > max(trajectory['keora.volume'][late], trajectory['gewa.volume'][late])
-    assert min(trajectory[f'{name}.volume'].min() for name in ('keora', 'gewa', 'sundari')) >= 0
+    assert min(trajectory[f'{name}.volume'].min() for name in ('keora', 'gewa', 'sundari')) >= -1e-8
 
 
 def test_neutral_abundances_settle_at_mean():

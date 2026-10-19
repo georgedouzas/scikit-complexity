@@ -1,6 +1,7 @@
 """Test spectral fields, stiff steppers, finite volumes, finite elements, and incompressible flow."""
 
 import math
+import warnings
 
 import numpy as np
 import pytest
@@ -222,3 +223,36 @@ def test_swift_hohenberg_rolls():
     peak = np.hypot(waves[:, None], waves[None, :]).ravel()[np.argmax(spectrum)]
     assert 2 * math.pi / peak == pytest.approx(2 * math.pi, rel=0.05)
     assert np.abs(values).max() > 0.5
+
+
+def test_imex2_second_call_restarts_history():
+    """Test that IMEX2 gives the same state from the same start twice in a row, as a fresh stepper does."""
+    problem = compile_system(kuramoto_sivashinsky())
+    x, p = problem.initial_state, problem.initial_parameters
+    stepper, fresh = IMEX2(dt=0.01), IMEX2(dt=0.01)
+    stepper.initialize(problem, np.random.default_rng(0))
+    fresh.initialize(problem, np.random.default_rng(0))
+    first = stepper.advance(0.0, x, p, 0.1)
+    second = stepper.advance(0.0, x, p, 0.1)
+    assert np.array_equal(first, second)
+    assert np.array_equal(second, fresh.advance(0.0, x, p, 0.1))
+
+
+def _viscous_burgers_laws(s):
+    """Return the Burgers flux and its viscous Laplacian."""
+    return [Flux(s.u, s.u**2 / 2), Rate(s.u, s.nu * laplacian(s.u))]
+
+
+def test_viscous_burgers_respects_diffusive_limit():
+    """Test that SSPRK keeps viscous Burgers within its initial range with no stability warning."""
+    n = 200
+    spacing = 2 * math.pi / n
+    initial = 1.5 + np.sin((np.arange(n) + 0.5) * spacing)
+    Viscous = Element.define('Viscous', states={'u': 0.0}, parameters={'nu': 0.5}, laws=_viscous_burgers_laws)
+    space = LatticeSpace(n, spacing=spacing)
+    field = Field('line', Viscous, space, values={'u': initial}, discretization='finite-volume')
+    with warnings.catch_warnings():
+        warnings.simplefilter('error')
+        values = Simulation(System(elements=[field]), solver=SSPRK(), dt=0.05).run(until=0.5).trajectory_['line.u']
+    assert values.min() >= initial.min() - 1e-12
+    assert values.max() <= initial.max() + 1e-12

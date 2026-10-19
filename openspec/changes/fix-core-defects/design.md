@@ -80,8 +80,12 @@ Every stepper applies `problem.boundary` after each internal step. This covers t
 of `RK4`, `Euler`, `Heun`, `EulerMaruyama`, `Milstein`, `VelocityVerlet`, `SSPRK`, the split steppers, and `Iteration`,
 and Gillespie after each event. The Numba loops receive the compiled boundary as one more kernel argument.
 
-`ScipyODE` treats a boundary like an event. After each accepted step it applies the boundary, and when the state
-changes it restarts the integrator from the new state at that time. `Simulation._loop` and the co-simulation loop stop
+`ScipyODE` treats a boundary like an event. After each accepted step, and at each frame time inside a step, it
+applies the boundary. When the boundary changes the state, it finds the first time in the step at which the boundary
+changes the dense output by bisection, applies the boundary there, and restarts the integrator from that time, so long
+adaptive steps cannot carry a particle through two walls. `VelocityVerlet` applies the boundary after it moves the
+positions and before it computes the accelerations of the second half kick, so a step still costs one drift
+evaluation. `Simulation._loop` and the co-simulation loop stop
 applying the boundary per frame, so a boundary that is not idempotent, such as a counter, is not applied twice.
 
 The alternative of shortening frames to the internal step was rejected. It changes what observers receive, and it
@@ -99,9 +103,11 @@ The stepper builds its model from a `mesa.Model` subclass whose `step` activates
 derivatives of conditions vanish where both branch derivatives do. Driver functions build their expressions on
 `where`, so they gain the same simplification.
 
-The NumPy printer lowers `where` to a helper that evaluates both branches inside `np.errstate(divide='ignore',
-invalid='ignore', over='ignore')` and then selects. A masked evaluation of each branch on its own members was
-rejected, because every input of the branch would need to be broadcast and indexed. The scalar Numba and Lepton
+The NumPy printer keeps `np.where`, and `numpy_function` runs the whole body of a function whose code holds a condition
+inside `np.errstate(divide='ignore', invalid='ignore', over='ignore')`. A helper that takes the branches as values
+cannot silence them, because Python evaluates them before the call, and the common subexpressions of a branch are bound
+to names before the condition. A masked evaluation of each branch on its own members was rejected, because every input
+of the branch would need to be broadcast and indexed. The scalar Numba and Lepton
 printers already emit conditionals and stay as they are.
 
 ### NumPy values in laws
@@ -133,12 +139,14 @@ pickled by value breaks across versions.
 every size, including 1. A location is per-member when it is a list of locations whose length is the group size.
 
 `AgentType` rejects state names that Mesa or the stepper read from agents, which are `position`, `pos`, `cell`,
-`unique_id`, and `model`. It raises a named `ValidationError` when the type is defined.
+`unique_id`, and `model`. They join the reserved names of agent types, so the type raises the same named `LabelError`
+as for the names of the agent view when it is defined.
 
 ### Runs that keep their parameters and can be extended
 
-`_prepare` takes the parameters from the previous run when there was one, so values set with `update_parameters`
-stay in force. `run` still starts from time 0 and the initial state.
+`_prepare` takes the parameters from the previous run when there was one of the same system object with the same
+parameter names and sizes, so values set with `update_parameters` stay in force. `run` still starts from time 0 and
+the initial state.
 
 `Simulation.extend(until)` continues from the last frame. It keeps the stepper, the clock, the observers, and the
 recorder, applies pending parameter changes, and appends frames with steps numbered after the last one. It raises a
@@ -161,16 +169,31 @@ breakpoints and no events. The frame state comes from the dense output at the fr
 The solver restarts when:
 - the parameters change;
 - the incoming state or time differs from the state and time it returned;
-- a breakpoint, an event, or a boundary changes the state.
+- a breakpoint, an event, or a boundary changes the state;
+- a frame ends and a condition on time jumps at a time that depends on parameters, such as `step(t, s.step_time)`,
+  which `breakpoints_of` cannot place and marks as `unresolved`. These problems keep the restart per frame they had
+  before, so their frames still see the left limit of the input at a frame time.
 
 `first_step` is set to at most half of the smallest delay, so SciPy's initial-step probe stays inside the recorded
-history. When `adopt-scipy-sparse-jacobians` lands, the persistent solver receives the Jacobian or its sparsity once,
+history. Steps are at most the smallest delay, or a hundredth of the frame when the delay is shorter, and the history
+of `ScipyODE` reads a time after its last step from the extension of that step's dense output. Bounding steps by a
+delay of 1e-6 alone takes about a minute for a run until 0.2. The first three multiples of every delay after the start
+are breakpoints of the persistent integrator, where the slope inherited from the history jumps. Breakpoints gain
+`next_after(time)`, which finds the next periodic breakpoint without an end time. When `adopt-scipy-sparse-jacobians`
+lands, the persistent solver receives the Jacobian or its sparsity once,
 when it is built.
+
+### Equations with floating point numbers
+
+`_solve_equations` solves the linear system of the highest derivatives with `solve_right(check=False)` after checking
+that its determinant is not zero. Sage's check fails on Python floats inside expressions, such as the height `1.0` of
+`step(t, 1)` or the coefficient of `3.0 * x`.
 
 ### Serial event loops
 
 `NumbaBackend` compiles every kernel that the fused event loops of Gillespie, `Iteration`, and lattice updates call per
-event with `parallel=False`, whatever its `parallel` argument. It keeps `parallel` for the drift and pair kernels of
+event with `parallel=False`, whatever its `parallel` argument. The compiled lattice updates already run serially. It
+keeps `parallel` for the drift and pair kernels of
 groups of at least 1000 members, the same threshold as the automatic backend choice. Fused reductions from
 `add-group-reductions` that run inside an event loop follow the same rule.
 

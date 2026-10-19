@@ -53,6 +53,14 @@ Runs:
 - `ScipyODE` keeps one integrator across frames and restarts it only when the parameters, the state, or a breakpoint
   forces it. Today it restarts `solve_ivp` every frame.
 
+Found while applying:
+- System observables read the time as `s.t`. Today `s.t` raises "No symbol named 't'".
+- A delay that is an expression of parameters, such as `delayed(x, 2 * s.tau)`, takes its smallest value from the
+  parameter values. Today it raises "smallest value is unknown".
+- Periodic breakpoints are found without an end time. Today a persistent integrator with `pulse_train` overflows.
+- Equations whose right sides hold Python floats, such as the height of `step(t, 1)`, solve for their highest
+  derivatives. Today Sage's check of exact rings fails on the float.
+
 Compiled code:
 - The Numba backend compiles the kernels that event loops call per event as serial code. Today `parallel=True` makes
   the compiled Gillespie loop about 20 times slower per run, and about 1000 times slower per event.
@@ -86,5 +94,7 @@ None.
 - `skcomplex.core.solvers`: `_steppers.py`, `_stiff.py`, `_hybrid.py`, `_agents.py`, and `_cosimulation.py`.
 - `skcomplex.core.runtime`: `_simulations.py`.
 - Tests, docstring examples, and the user guide that use lambda observables move to module-level functions or
-  symbolic expressions. The changelog lists the three breaking changes.
+  symbolic expressions. The documentation test runs each document as a registered module, so its functions pickle.
+  The changelog entries for the three breaking changes are left to the release, since the parallel apply runs
+  forbid edits of the changelog.
 - No new dependency.

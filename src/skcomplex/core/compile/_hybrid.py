@@ -122,10 +122,34 @@ class Breakpoints:
 
         periodic:
             Pairs of an origin and a period, each giving the times `origin + k period`.
+
+        unresolved:
+            Whether a condition on time has jumps at times that depend on parameters, so solvers restart at every
+            frame instead.
     """
 
     fixed: tuple[float, ...] = ()
     periodic: tuple[tuple[float, float], ...] = field(default=())
+    unresolved: bool = False
+
+    def next_after(self, time: float) -> float | None:
+        """Return the first breakpoint strictly after a time, or `None` when none follows.
+
+        Args:
+            time:
+                The time.
+
+        Returns:
+            breakpoint:
+                The first later breakpoint.
+        """
+        candidates = [item for item in self.fixed if item > time]
+        for origin, period in self.periodic:
+            following = origin + (math.floor((time - origin) / period) + 1) * period
+            while following <= time:
+                following += period
+            candidates.append(following)
+        return min(candidates, default=None)
 
     def between(self, start: float, end: float) -> list[float]:
         """Return the breakpoints strictly between two times, in order.
@@ -245,6 +269,7 @@ def breakpoints_of(expressions: Iterable[Any], time: Expression) -> Breakpoints:
     """
     fixed: set[float] = set()
     periodic: set[tuple[float, float]] = set()
+    unresolved = False
     stack = [SR(expression) for expression in expressions]
     while stack:
         item = stack.pop()
@@ -255,6 +280,7 @@ def breakpoints_of(expressions: Iterable[Any], time: Expression) -> Breakpoints:
             left, right = item.operands()
             difference = left - right
             root = _linear_root(difference, time)
+            resolved = root is not None or time not in difference.variables()
             if root is not None:
                 fixed.add(root)
             for call in _mod_calls(difference):
@@ -264,8 +290,10 @@ def breakpoints_of(expressions: Iterable[Any], time: Expression) -> Breakpoints:
                     span = float(period)
                     offset = float(-(difference - call).subs({time: 0}))
                     periodic.update({(zero, span), (zero + offset, span)})
+                    resolved = True
+            unresolved = unresolved or not resolved
         stack.extend(item.operands())
-    return Breakpoints(tuple(sorted(fixed)), tuple(sorted(periodic)))
+    return Breakpoints(tuple(sorted(fixed)), tuple(sorted(periodic)), unresolved=unresolved)
 
 
 def _mod_calls(expression: Expression) -> list[Expression]:

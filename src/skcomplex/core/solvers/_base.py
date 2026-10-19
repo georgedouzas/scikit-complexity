@@ -19,12 +19,18 @@ class Stepper(BaseEstimator):
     """Base class of solvers that advance a problem of one form through time.
 
     Subclasses set the class variable `form` and implement `advance`. Every call to `advance` receives the current
-    parameters, so parameter changes apply at the next call. Steppers that treat diffusion implicitly set `implicit`,
+    parameters, so parameter changes apply at the next call, and applies the boundary laws of the problem after every
+    internal step. Steppers that treat diffusion implicitly set `implicit`,
     so they do not warn about the stability limit of explicit steps.
     """
 
     form: ClassVar[Form]
     implicit: ClassVar[bool] = False
+
+    def _bounded(self, t: float, x: Vector, p: Vector) -> Vector:
+        """Return a state after the boundary laws of the problem, or the state itself without boundary laws."""
+        boundary = self.problem_.boundary
+        return x if boundary is None else boundary(t, x, p)
 
     def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
         """Prepare the stepper for a problem.

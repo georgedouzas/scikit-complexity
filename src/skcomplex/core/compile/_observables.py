@@ -59,8 +59,8 @@ def observables_of(system: System, scope: str = '') -> Iterator[tuple[str, Obser
         yield from observables_of(child, _join(scope, child.label))
 
 
-def _tree(items: Mapping[str, Any]) -> Symbols:
-    """Return nested namespaces from paths such as `forest/foxes.n` mapped to values."""
+def _tree(items: Mapping[str, Any], **root: Any) -> Symbols:  # noqa: ANN401
+    """Return nested namespaces from paths such as `forest/foxes.n` mapped to values, with extra values at the root."""
     nested: dict[str, Any] = {}
     for path, value in items.items():
         *systems, last = path.split('/')
@@ -73,7 +73,7 @@ def _tree(items: Mapping[str, Any]) -> Symbols:
     def build(node: dict[str, Any]) -> Symbols:
         return Symbols(**{key: build(value) if isinstance(value, dict) else value for key, value in node.items()})
 
-    return build(nested)
+    return Symbols(**{key: build(value) for key, value in nested.items()}, **root)
 
 
 @dataclass
@@ -89,8 +89,8 @@ class ObservableEvaluator:
         >>> from skcomplex.core.model import Observable, System
         >>> from skcomplex.models.biology.ecology import Population
         >>> system = System(
-        ...     elements=[Population('a', n=2.0), Population('b', n=6.0)],
-        ...     observables=[Observable('total', lambda s: s.a.n + s.b.n)],
+        ...     elements=[Population.group('herd', 2, n=[2.0, 6.0])],
+        ...     observables=[Observable('total', group='herd', reduce='sum', variable='n')],
         ... )
         >>> problem = compile_system(system)
         >>> ObservableEvaluator(problem).evaluate(0.0, problem.initial_state, problem.initial_parameters)
@@ -175,7 +175,7 @@ class ObservableEvaluator:
             for index, other in enumerate(self.getters_)
             if other.startswith(prefix) and '/' not in other[len(prefix) :]
         }
-        namespace = _tree(items)
+        namespace = _tree(items, t=self.problem.time)
         for other, item in earlier.items():
             setattr(namespace, other[len(prefix) :], item)
         expression = observable.expression(namespace) if callable(observable.expression) else observable.expression
@@ -222,7 +222,10 @@ class ObservableEvaluator:
             for column, item in enumerate(components_of(self.problem.symbols[name])):
                 indices = entry.start + np.arange(size) * entry.columns + column
                 members[item] = _from_vector(is_state, indices)
-        namespace = Symbols(**{variable: self.problem.symbols[name] for variable, name in names.items()})
+        namespace = Symbols(
+            **{variable: self.problem.symbols[name] for variable, name in names.items()},
+            t=self.problem.time,
+        )
         expression = observable.expression(namespace) if callable(observable.expression) else observable.expression
         evaluate = self._compile(path, expression, {}, members)
 

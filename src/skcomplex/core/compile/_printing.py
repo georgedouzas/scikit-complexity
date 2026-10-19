@@ -37,6 +37,9 @@ PYTHON_RELATIONS = {
     'ne': '({0} != {1})',
 }
 
+CONDITION = 'np.where('
+QUIET_ERRORS = "with np.errstate(divide='ignore', invalid='ignore', over='ignore'):"
+
 type Printed = tuple[str, int]
 
 
@@ -440,6 +443,9 @@ def numpy_function(
 ) -> Callable[..., list[Any]]:
     """Return a NumPy function of time and arguments that evaluates expressions over arrays.
 
+    NumPy evaluates both values of a condition, so a function of expressions with conditions runs in a NumPy error
+    state that ignores division, invalid, and overflow warnings.
+
     Args:
         time:
             The time symbol, the first argument of the function.
@@ -464,11 +470,10 @@ def numpy_function(
     """
     names = {item: f'_a{index}' for index, item in enumerate(arguments)} | {time: 't'}
     assignments, codes = print_expressions(expressions, NUMPY_DIALECT, lambda item: names[item])
-    lines = [
-        f'def _function(t, {", ".join(names[item] for item in arguments)}):',
-        *(f'    {name} = {code}' for name, code in assignments),
-        f'    return [{", ".join(codes)}]',
-    ]
+    body = [*(f'{name} = {code}' for name, code in assignments), f'return [{", ".join(codes)}]']
+    if any(CONDITION in code for _, code in assignments) or any(CONDITION in code for code in codes):
+        body = [QUIET_ERRORS, *(f'    {line}' for line in body)]
+    lines = [f'def _function(t, {", ".join(names[item] for item in arguments)}):', *(f'    {line}' for line in body)]
     namespace = dict(NAMESPACE)
     exec('\n'.join(lines), namespace)  # noqa: S102  # nosec B102: runs code printed from the model's own expressions
     return namespace['_function']
