@@ -63,5 +63,5 @@ For every task in this section:
 
 - [ ] 7.1 Document the core and models layout, the taxonomy, the model pattern, and the coverage page in the user guide,
   list the moved paths in the changelog, and verify the documentation test passes
-- [ ] 7.2 Run formatting, checks, the docs build, and tests through nox, and the benchmarks with `--benchmarks`, and
+- [x] 7.2 Run formatting, checks, the docs build, and tests through nox, and the benchmarks with `--benchmarks`, and
   verify all of them pass

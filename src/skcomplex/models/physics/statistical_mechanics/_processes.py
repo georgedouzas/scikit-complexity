@@ -56,16 +56,16 @@ def _spread(infected: Array, *around: Array, rate: Any, tau: Any, random: Array)
 
 def _hop_ring(occupied: Array, *, random: np.random.Generator, p: Any) -> Array:  # noqa: ANN401
     """Return the occupations of a ring after one parallel update of the exclusion process."""
-    hops = (occupied == 1) & (np.roll(occupied, -1) == 0) & (random.random(occupied.shape) < p)
+    hops = (occupied == 1) & (np.roll(occupied, -1) == 0) & (random.random(occupied.shape) < p)  # nosec B311: seeded NumPy
     return occupied - hops + np.roll(hops, 1)
 
 
 def _hop_open(occupied: Array, *, random: np.random.Generator, p: Any, alpha: Any, beta: Any) -> Array:  # noqa: ANN401
     """Return the occupations of an open line after one parallel update with entry at the left and exit at the right."""
     free = np.append(occupied[1:], 1.0) == 0
-    hops = (occupied == 1) & free & (random.random(occupied.shape) < p)
-    exits = (occupied[-1] == 1) & (random.random() < np.ravel(beta)[-1])
-    enters = (occupied[0] == 0) & (random.random() < np.ravel(alpha)[0])
+    hops = (occupied == 1) & free & (random.random(occupied.shape) < p)  # nosec B311: seeded NumPy generator
+    exits = (occupied[-1] == 1) & (random.random() < np.ravel(beta)[-1])  # nosec B311: seeded NumPy generator
+    enters = (occupied[0] == 0) & (random.random() < np.ravel(alpha)[0])  # nosec B311: seeded NumPy generator
     following = occupied - hops
     following[1:] += hops[:-1]
     following[-1] -= exits
