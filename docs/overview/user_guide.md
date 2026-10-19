@@ -612,3 +612,69 @@ print(equations_of(oscillator)['p.v[0]'])
 print(solve_symbolically(oscillator, use_initial_state=True)['p.x[0]'])
 ```
 
+
+## Analysing dynamics and data
+
+`skcomplex.analysis` measures complex dynamics in the same way for every field. Every measure takes a system, or plain
+arrays from trajectories or measured data.
+
+**Stability and chaos.** `fixed_points`, `jacobian`, `stability`, `nullclines`, and `divergence` work on the symbolic
+vector field of a flow or a map. `lyapunov_spectrum` integrates its tangent dynamics compiled with Numba, and
+`orbit_diagram` and `basin_stability` run experiments over parameters or initial conditions.
+
+```python
+from skcomplex.analysis import fixed_points, lyapunov_spectrum, orbit_diagram, stability
+from skcomplex.models.ecology import lotka_volterra
+from skcomplex.models.nonlinear import logistic_map, lorenz
+
+predation = lotka_volterra()
+print([stability(predation, point).classification for point in fixed_points(predation)])
+print(lyapunov_spectrum(lorenz(), until=200).round(2))
+diagram = orbit_diagram(logistic_map, 'map.r', [2.9, 3.2, 3.5], 'map.x', transient=500, keep=32, dt=1)
+print(diagram.periods())
+```
+
+**Distributions and events.** `histogram` with logarithmic bins, `ccdf`, `fit_power_law` with Clauset, Shalizi, and
+Newman's cutoff, bootstrap p-value, and likelihood-ratio comparisons, `hill`, and `gini` describe heavy tails, and
+`detect_events` turns series into avalanches or bursts with sizes, durations, and waiting times.
+
+```python
+from skcomplex.analysis import detect_events, fit_power_law, gini
+
+samples = (1 - np.random.default_rng(0).random(5000)) ** (-1 / 1.5)
+fit = fit_power_law(samples, bootstrap=20, random_state=0)
+print(round(fit.alpha, 2), fit.p_value, round(gini(samples), 2))
+print(detect_events([0, 2, 3, 0, 0, 1, 0]).sizes)
+```
+
+**Time series and information.** `autocorrelation`, `power_spectrum`, `mean_squared_displacement`, `hurst_exponent` by
+detrended fluctuation analysis, and `early_warning` for critical slowing down describe memory and diffusion.
+`symbolize`, `shannon_entropy`, `block_entropy`, `entropy_rate`, `excess_entropy`, `mutual_information`,
+`transfer_entropy`, `permutation_entropy`, and `lempel_ziv_complexity` measure structure and information flow, as in
+Lindgren's information theory of complex systems.
+
+```python
+from skcomplex.analysis import entropy_rate, excess_entropy, hurst_exponent, transfer_entropy
+
+noise = np.random.default_rng(1).standard_normal(20_000)
+print(round(hurst_exponent(noise), 2), round(hurst_exponent(np.cumsum(noise)), 2))
+print(round(entropy_rate([0, 0, 1, 1] * 200, 4), 3), round(excess_entropy([0, 0, 1, 1] * 200, 4), 3))
+driver = np.random.default_rng(2).integers(0, 2, 5000)
+print(round(transfer_entropy(driver, np.roll(driver, 1)), 2))
+```
+
+**Space and networks.** `label_clusters` labels clusters of a grid, with periodic edges, `correlation_function` gives
+radially averaged correlations, and `box_counting_dimension` measures fractals. `degrees`, `summarize_network`, and
+`centrality` measure NetworkX graphs and network spaces.
+
+```python
+import networkx as nx
+
+from skcomplex.analysis import box_counting_dimension, label_clusters, summarize_network
+
+clusters = label_clusters(np.random.default_rng(3).random((100, 100)) < 0.6)
+print(clusters.spans(0), clusters.sizes.max())
+rows, columns = np.indices((512, 512))
+print(round(box_counting_dimension((rows & columns) == columns), 2))
+print(summarize_network(nx.watts_strogatz_graph(200, 6, 0.1, seed=0)).diameter)
+```

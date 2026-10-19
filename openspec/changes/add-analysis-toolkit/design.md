@@ -64,3 +64,19 @@ snapshots of network spaces, so dynamic networks from later changes are measured
 - [Breadth] → Each measure is small and tested against a known value from the references, and the toolkit grows by
   submodule.
 - [Plug-in entropy bias] → The functions document their bias, and block entropies warn when blocks exceed the data.
+
+## Implementation Notes
+
+- The measures live in private modules of `skcomplex.analysis` and are re-exported from the package, as the
+  constitution requires, rather than in public submodules.
+- `lyapunov_spectrum` prints the vector field and its Jacobian, with parameter values substituted, through the scalar
+  dialect and compiles them with Numba, so the Benettin integration runs compiled. It reproduces Lorenz's 0.906, ln 2
+  for the logistic map at 4, and the Hénon map's 0.419 and -1.62.
+- Stability classification evaluates eigenvalues at the parameter values, so symbolic eigenvalues such as
+  `±i sqrt(r d)` classify reliably as a centre.
+- Power-law cutoffs are chosen among sample values, so discrete fits use integer cutoffs with the Hurwitz zeta
+  normalisation.
+- Basin stability through experiments inherits the cost of the frame-by-frame ODE runtime, about a second per long
+  run with SciPy at small steps, so examples use coarse frames. A faster stepper path would help long ensembles.
+- The `register_model` docstring example registers under the field `examples`, so it never changes the library's
+  fields in tests.

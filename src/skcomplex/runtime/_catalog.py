@@ -117,7 +117,7 @@ def register_model(
         >>> from skcomplex.model import System
         >>> from skcomplex.models.ecology import Population
         >>> from skcomplex.runtime import create, register_model
-        >>> @register_model(field='ecology', defaults={'until': 5})
+        >>> @register_model(field='examples', references=('This docstring',), defaults={'until': 5})
         ... def constant_population(n: float = 3.0) -> System:
         ...     '''Return one population that does not change.'''
         ...     return System(elements=[Population('a', n=n)])

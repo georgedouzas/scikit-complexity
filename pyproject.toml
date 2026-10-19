@@ -148,6 +148,8 @@ select = ["C", "E", "F", "W", "B", "I", "D", "N", "UP", "YTT", "ANN", "S",
 "src/skcomplex/core/_variables.py" = ["ANN401"]
 # Numba-compiled helpers take positional arrays because generated kernels call them positionally.
 "src/skcomplex/compile/_numba_cells.py" = ["PLR0917"]
+# Numba-compiled loops take positional arrays and compiled functions, whose Numba types have no Python annotation.
+"src/skcomplex/analysis/_lyapunov.py" = ["PLR0917", "ANN401"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

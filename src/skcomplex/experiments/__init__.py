@@ -3,7 +3,7 @@
 from ._calibration import CalibrationResult, calibrate
 from ._designs import Design, Grid, LatinHypercube, RandomDesign, Rows, SobolDesign
 from ._results import ExperimentResult, RunResult
-from ._runner import Experiment, Task, run_task
+from ._runner import Experiment, Output, Source, Task, run_task
 from ._scenarios import Scenario
 from ._sensitivity import SensitivityResult, sensitivity
 
@@ -14,12 +14,14 @@ __all__: list[str] = [
     'ExperimentResult',
     'Grid',
     'LatinHypercube',
+    'Output',
     'RandomDesign',
     'Rows',
     'RunResult',
     'Scenario',
     'SensitivityResult',
     'SobolDesign',
+    'Source',
     'Task',
     'calibrate',
     'run_task',
