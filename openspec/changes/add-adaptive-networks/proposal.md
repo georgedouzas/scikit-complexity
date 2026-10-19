@@ -44,7 +44,7 @@ interactions, and the interactions change through the states. The references bui
 
 ## Impact
 
-- `skcomplex.model` gains `generators`, `Edges`, `Layer`, `neighbors`, and the topology laws `AddEdge`, `RemoveEdge`,
+- `skcomplex.core.model` gains `generators`, `Edges`, `Layer`, `neighbors`, and the topology laws `AddEdge`, `RemoveEdge`,
   `Rewire`, `AddNode`, and `RemoveNode`.
 - Group sizes become variable outside Mesa. The compiler supports this with capacity-based layouts and active masks.
 - Depends on `add-general-model-interface` for observables and on `add-analysis-toolkit` for network measures.

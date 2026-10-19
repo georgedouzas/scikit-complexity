@@ -52,7 +52,7 @@ change generalises the universe to finitely presented groups and adds the automa
 
 ## Impact
 
-- `skcomplex.model` gains `GroupSpace` and `Subshift`, and a new module `skcomplex.analysis.automata` gains
+- `skcomplex.core.model` gains `GroupSpace` and `Subshift`, and a new module `skcomplex.core.analysis.automata` gains
   `is_injective`, `is_surjective`, `is_pre_injective`, `garden_of_eden`, `inverse`, `compose`, `LinearAutomaton`,
   `configuration_entropy`, and `difference_pattern`.
 - Depends on `add-lattice-dynamics` for local rules and on `add-analysis-toolkit` for block entropies.

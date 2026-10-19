@@ -11,3 +11,34 @@ escalation), Bass diffusion, the beer game, and a stock-flow consistent monetary
 - **WHEN** the car-dealership inventory model receives a 10% step in demand
 - **THEN** the inventory oscillates before settling, and shortening the perception delay reduces the oscillation's
   amplitude
+
+### Requirement: Models are recorded in the model inventory
+Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
+inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
+model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+twice.
+
+#### Scenario: Inventory models registered
+- **WHEN** the change is applied and the inventory check runs
+- **THEN** these entries are registered under their field paths and marked implemented:
+  - `energy_return` in `earth/climate`
+  - `stock_flow_consistent_economy` in `economics/macroeconomics`
+  - `commodity_cycle` in `economics/markets`
+  - `beer_game` in `economics/markets`
+  - `cocoa` in `economics/resources`
+  - `hilsa_fishery` in `economics/resources`
+  - `food_security` in `economics/resources`
+  - `renewable_resource` in `economics/resources`
+  - `nonrenewable_resource` in `economics/resources`
+  - `bass_diffusion` in `economics/innovation`
+  - `success_to_the_successful` in `social/organizations`
+  - `shifting_the_burden` in `social/organizations`
+  - `escalation` in `social/organizations`
+  - `rice_milling` in `engineering/processes`
+  - `solid_waste` in `engineering/processes`
+  - `food_relief` in `engineering/processes`
+  - `irrigation` in `engineering/processes`
+
+#### Scenario: New model recorded
+- **WHEN** the change registers a model with no inventory entry
+- **THEN** the inventory check fails until the entry is added with its sources and field path

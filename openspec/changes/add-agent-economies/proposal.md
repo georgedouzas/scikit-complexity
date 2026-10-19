@@ -48,7 +48,7 @@ None.
 
 ## Impact
 
-- `skcomplex.model` gains `Phase`, `Market` with its protocols, `Institution`, `memory`, `heuristics`,
+- `skcomplex.core.model` gains `Phase`, `Market` with its protocols, `Institution`, `memory`, `heuristics`,
   `logit_choice`, `imitate`, and `evolve`.
 - The Mesa stepper runs phases instead of one activation per step.
 - Depends on `add-stocks-and-flows` for transfers and on `add-general-model-interface` for observables.

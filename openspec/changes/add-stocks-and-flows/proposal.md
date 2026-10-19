@@ -53,6 +53,6 @@ time.
 
 ## Impact
 
-- `skcomplex.model` gains `Flow`, `Source`, `Sink`, `quantity`, `Auxiliary`, `lookup`, `smooth`, `delay1`, `delay3`,
-  `Transfer`, and `Identity`, and `skcomplex.analysis` gains `loops` and `flow_matrix`.
+- `skcomplex.core.model` gains `Flow`, `Source`, `Sink`, `quantity`, `Auxiliary`, `lookup`, `smooth`, `delay1`, `delay3`,
+  `Transfer`, and `Identity`, and `skcomplex.core.analysis` gains `loops` and `flow_matrix`.
 - Depends on `add-general-model-interface` for observables, and on `add-hybrid-dynamics` for drivers in the systems zoo.

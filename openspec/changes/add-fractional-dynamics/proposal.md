@@ -30,7 +30,7 @@ law kind and solver.
 
 ## Impact
 
-- `skcomplex.model` gains `FractionalRate`, `skcomplex.solvers` gains `GrunwaldLetnikov`, `L1Scheme`, and
+- `skcomplex.core.model` gains `FractionalRate`, `skcomplex.core.solvers` gains `GrunwaldLetnikov`, `L1Scheme`, and
   `FractionalABM`, and the analysis layer gains `mittag_leffler`.
 - A new form `Form.FRACTIONAL` that co-simulates with the other forms.
 - Depends on `add-general-model-interface`, and on `add-hybrid-dynamics` for the history buffer it reuses.

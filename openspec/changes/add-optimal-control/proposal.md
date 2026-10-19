@@ -42,7 +42,7 @@ The framework has no notion of a control input, a cost, or a controller.
 
 ## Impact
 
-- `skcomplex.model` gains `Control` and `Controller` with `PID` and `StateFeedback`, and a new package
+- `skcomplex.core.model` gains `Control` and `Controller` with `PID` and `StateFeedback`, and a new package
   `skcomplex.control` gains `OptimalControlProblem`, `pontryagin`, `collocation`, `linearize`, `controllability`,
   `observability`, and `lqr`.
 - Depends on `add-general-model-interface` for observables, `add-hybrid-dynamics` for time-dependent inputs, and

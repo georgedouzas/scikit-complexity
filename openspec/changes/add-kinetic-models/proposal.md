@@ -45,7 +45,7 @@ whose state is a distribution and no encounter law between distributions.
 
 ## Impact
 
-- `skcomplex.model` gains `Distribution`, `Encounter`, `Proliferation`, `Destruction`, `Relaxation`, and
-  `ExternalAction`, and `skcomplex.solvers` gains `ParticleKinetics`.
+- `skcomplex.core.model` gains `Distribution`, `Encounter`, `Proliferation`, `Destruction`, `Relaxation`, and
+  `ExternalAction`, and `skcomplex.core.solvers` gains `ParticleKinetics`.
 - Depends on `add-general-model-interface` for observables, on `add-adaptive-networks` for distributions on network
   nodes, and on `add-experiments` for the convergence ensembles.

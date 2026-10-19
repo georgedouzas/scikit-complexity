@@ -13,6 +13,7 @@ INVENTORY = ROOT / 'docs' / 'overview' / 'inventory.toml'
 CHANGES = ROOT / 'openspec' / 'changes'
 ARXIV = re.compile(r'(\d{4}\.\d{4,5}|[a-z-]+/\d{7})( |$)')
 CITATION = re.compile(r'.+ \d{4}( |$)')
+INVENTORY_CHANGE = 'organize-model-library'
 STATUSES = re.compile(r'implemented|out of scope|(pending|blocked) [a-z0-9-]+')
 
 
@@ -35,8 +36,12 @@ def _registered():
 
 
 def _changes():
-    """Return the names of the active and of the archived OpenSpec changes."""
-    active = {path.name for path in CHANGES.iterdir() if path.is_dir() and path.name != 'archive'}
+    """Return the specs of every active OpenSpec change by name, and the names of the archived changes."""
+    active = {
+        path.name: ' '.join(spec.read_text() for spec in sorted(path.glob('specs/**/*.md')))
+        for path in CHANGES.iterdir()
+        if path.is_dir() and path.name != 'archive'
+    }
     archived = {re.sub(r'^\d{4}-\d{2}-\d{2}-', '', path.name) for path in (CHANGES / 'archive').iterdir()}
     return active, archived
 
@@ -57,16 +62,22 @@ def _catalog_problems(entries, registered):
 
 
 def _change_problems(entries, active, archived):
-    """Return the entries whose status does not name an existing change or lacks its details."""
+    """Return the entries whose status does not name an existing change or lacks its details.
+
+    The change that introduces the inventory lists its own pending models by the inventory itself, so only the specs of
+    other pending changes must list a model by its name.
+    """
     problems = []
     for name, _, entry in entries:
         status, _, change = entry['status'].partition(' ')
-        if status == 'blocked' and change not in active | archived:
+        if status == 'blocked' and change not in set(active) | archived:
             problems.append(f'{name} is blocked on {change}, which is not an OpenSpec change')
         if status == 'blocked' and not entry.get('feature'):
             problems.append(f'{name} is blocked without naming the missing feature')
         if status == 'pending' and change not in active:
             problems.append(f'{name} is pending {change}, which is not an active OpenSpec change')
+        elif status == 'pending' and change != INVENTORY_CHANGE and f'`{name}`' not in active[change]:
+            problems.append(f'{name} is pending {change}, whose specs do not list it')
         if entry['status'] == 'out of scope' and not (entry.get('reason') and entry.get('library')):
             problems.append(f'{name} is out of scope without a reason and a library')
     return problems
@@ -125,11 +136,12 @@ def test_inventory_check_names_catalog_disagreements(entries, registered, messag
         ({'status': 'blocked add-something'}, 'is blocked without naming the missing feature'),
         ({'status': 'pending add-archived'}, 'is pending add-archived, which is not an active'),
         ({'status': 'out of scope', 'reason': 'Static'}, 'is out of scope without a reason and a library'),
+        ({'status': 'pending add-something'}, 'is pending add-something, whose specs do not list it'),
     ],
 )
 def test_inventory_check_names_change_problems(entry, message):
     """Test that the inventory check names a blocked or pending entry without an existing change or its details."""
-    problems = _change_problems([('model', 'physics/mechanics', entry)], {'add-something'}, {'add-archived'})
+    problems = _change_problems([('model', 'physics/mechanics', entry)], {'add-something': '`other`'}, {'add-archived'})
     assert [problem for problem in problems if message in problem]
 
 

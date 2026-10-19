@@ -56,7 +56,7 @@ For every task in this section:
 
 - [x] 6.1 Make sure every blocked entry names an existing change, creating the expected changes of the design that
   models in section 5 needed, and verify the inventory check passes
-- [ ] 6.2 Update the proposals, specs, designs, and tasks of the nine pending changes to the core paths and the new
+- [x] 6.2 Update the proposals, specs, designs, and tasks of the nine pending changes to the core paths and the new
   subfields, record their models in the inventory, and verify the pending scenario of the inventory check
 
 ## 7. Documentation and gate

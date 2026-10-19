@@ -38,7 +38,7 @@ None.
 
 ## Impact
 
-- `skcomplex.model` gains `Hamiltonian`, `Lagrangian`, and `Symmetry`, `skcomplex.analysis` gains `poisson_bracket`,
-  `is_conserved`, and `noether_charge`, and `skcomplex.solvers` gains `Yoshida4`.
+- `skcomplex.core.model` gains `Hamiltonian`, `Lagrangian`, and `Symmetry`, `skcomplex.core.analysis` gains `poisson_bracket`,
+  `is_conserved`, and `noether_charge`, and `skcomplex.core.solvers` gains `Yoshida4`.
 - Depends on `add-general-model-interface` for angle domains and observables, on `add-higher-order-equations` for
   coordinates of order 2 and equation laws, and on `add-analysis-toolkit` for the divergence check.

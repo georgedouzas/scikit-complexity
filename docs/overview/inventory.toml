@@ -226,6 +226,7 @@ delayed_sirs = { title = "Discrete-time SIRS with a recovery delay", sources = [
 quenched_mean_field_sis = { title = "Quenched mean-field SIS", sources = ["1408.2701 §IV.1"], status = "pending add-adaptive-networks" }
 adaptive_sis = { title = "Adaptive SIS with rewiring", sources = ["1408.2701 §VII.2.7", "Th 4.8.7"], status = "pending add-adaptive-networks" }
 activity_driven_epidemics = { title = "Activity-driven temporal networks", sources = ["1408.2701 §VIII"], status = "pending add-adaptive-networks" }
+sir_vaccination = { title = "SIR with optimal vaccination", sources = ["Lenhart and Workman 2007"], status = "pending add-optimal-control" }
 
 [biology.evolution]
 replicator_dynamics = { title = "Replicator dynamics and hawks and doves", sources = ["Gr 8.7", "Th 5.3.1", "cond-mat/0607344 §3.3"], status = "pending organize-model-library" }
@@ -312,6 +313,7 @@ capital_stock = { title = "Capital stock and bank account", sources = ["TS 2"], 
 optimal_consumption = { title = "Pontryagin capital and consumption", sources = ["Di 9.1"], status = "pending add-optimal-control" }
 credit_networks = { title = "Firm and bank credit networks", sources = ["Ca 2.2"], status = "pending add-agent-economies" }
 fractional_reserve_banking = { title = "Fractional-reserve banking", sources = ["Ha 9"], status = "pending add-agent-economies" }
+stock_flow_consistent_economy = { title = "Stock-flow consistent monetary economy", sources = ["Godley and Lavoie 2007", "Caiani et al. 2016"], status = "pending add-stocks-and-flows" }
 
 [economics.markets]
 cobweb = { title = "Cobweb", sources = ["Ezekiel 1938"], status = "implemented" }
@@ -329,6 +331,8 @@ labour_market = { title = "Labour market", sources = ["Ha 7"], status = "pending
 fair_food = { title = "Ajani's choice and fair food", sources = ["Cy 3", "Cy 7"], status = "pending add-agent-economies" }
 sugarscape = { title = "Sugarscape", sources = ["Ar 16.2", "TC 9"], status = "pending add-agent-economies" }
 oligopoly_equilibria = { title = "Static oligopoly equilibria", sources = ["Fo 16", "Fo 20", "Fo 21"], status = "out of scope", reason = "Static Nash equilibria, not dynamics", library = "`nashpy`" }
+beer_game = { title = "Beer distribution game", sources = ["Sterman 1989"], status = "pending add-stocks-and-flows" }
+brock_hommes = { title = "Brock-Hommes heuristic switching", sources = ["Brock and Hommes 1998"], status = "pending add-agent-economies" }
 
 [economics.finance]
 geometric_brownian_motion = { title = "Geometric Brownian motion", sources = ["Black and Scholes 1973"], status = "implemented" }
@@ -346,6 +350,7 @@ kinetic_wealth_exchange = { title = "Exchange with debt limit and with saving pr
 minority_game = { title = "Minority game and its evolutionary version", sources = ["0909.1974 §IX", "Cm 9"], status = "pending add-agent-economies" }
 el_farol = { title = "El Farol", sources = ["0909.1974 §IX", "Cm 9"], status = "pending add-agent-economies" }
 kolkata_restaurant = { title = "Kolkata Paise Restaurant", sources = ["0909.1974 §IX", "Cm 9"], status = "pending add-agent-economies" }
+kinetic_wealth_welfare = { title = "Kinetic wealth and welfare dynamics", sources = ["Bellomo et al. 2017"], status = "pending add-kinetic-models" }
 
 [economics.resources]
 harvesting = { title = "Harvesting farmers", sources = ["Hamill and Gilbert 2016 ch. 10"], status = "implemented" }
@@ -355,12 +360,16 @@ tragedy_of_the_commons = { title = "Tragedy of the meadow commons", sources = ["
 cocoa = { title = "Cocoa", sources = ["Ba 8–10"], status = "pending add-stocks-and-flows" }
 hilsa_fishery = { title = "Hilsa fishery", sources = ["Ba 8–10"], status = "pending add-stocks-and-flows" }
 food_security = { title = "Food security models", sources = ["Ba 8–10"], status = "pending add-stocks-and-flows" }
+optimal_harvesting = { title = "Optimal harvesting", sources = ["Clark 1990"], status = "pending add-optimal-control" }
+renewable_resource = { title = "Renewable resource", sources = ["Meadows 2008"], status = "pending add-stocks-and-flows" }
+nonrenewable_resource = { title = "Nonrenewable resource", sources = ["Meadows 2008"], status = "pending add-stocks-and-flows" }
 
 [economics.innovation]
 nk_technology = { title = "NK technology model", sources = ["Th 5.4.3.5"], status = "pending organize-model-library" }
 arthur_polak = { title = "Arthur-Polak technology evolution", sources = ["Th 5.6.3"], status = "pending organize-model-library" }
 creative_phase_transition = { title = "Combinatorial creative phase transition", sources = ["Th 5.6.4"], status = "pending organize-model-library" }
 phone_adoption = { title = "Fixed-line phone adoption", sources = ["Ha 4.5"], status = "pending organize-model-library" }
+bass_diffusion = { title = "Bass diffusion", sources = ["Bass 1969"], status = "pending add-stocks-and-flows" }
 
 [social.opinion_dynamics]
 voter_model = { title = "Voter model", sources = ["Holley and Liggett 1975"], status = "implemented" }
@@ -378,6 +387,7 @@ hegselmann_krause = { title = "Hegselmann-Krause", sources = ["0710.3256 §III.6
 coevolving_voter = { title = "Coevolving voter", sources = ["0710.3256 §X", "Th 4.8.8.2"], status = "pending add-adaptive-networks" }
 join_a_club = { title = "Join-a-club spins", sources = ["Th 6.4.3.2"], status = "pending add-adaptive-networks" }
 axelrod = { title = "Axelrod culture dissemination", sources = ["0710.3256 §IV"], status = "pending add-agent-economies" }
+kinetic_opinion = { title = "Kinetic opinion formation", sources = ["Bellomo et al. 2017"], status = "pending add-kinetic-models" }
 
 [social.segregation]
 schelling = { title = "Schelling", sources = ["Ar 16.1", "TC 9", "Je 11.2"], status = "implemented" }
@@ -406,6 +416,9 @@ trafficking = { title = "Trafficking and brothel movement models", sources = ["C
 insider_sabotage = { title = "Insider sabotage", sources = ["Cm 4", "Cm 6"], status = "pending organize-model-library" }
 obesity = { title = "Obesity model", sources = ["Cm 4", "Cm 6"], status = "pending organize-model-library" }
 kauai_population = { title = "The Kauai population model on GIS data", sources = ["Cm 3"], status = "blocked extend-agent-spaces", feature = "Three-dimensional continuous agent spaces and geographic spaces" }
+success_to_the_successful = { title = "Success to the successful", sources = ["Meadows 2008"], status = "pending add-stocks-and-flows" }
+shifting_the_burden = { title = "Shifting the burden", sources = ["Meadows 2008"], status = "pending add-stocks-and-flows" }
+escalation = { title = "Escalation", sources = ["Meadows 2008"], status = "pending add-stocks-and-flows" }
 
 [engineering.traffic]
 nagel_schreckenberg = { title = "Nagel-Schreckenberg", sources = ["cond-mat/0012229 §III.B.1"], status = "implemented" }
@@ -434,6 +447,9 @@ thermostat = { title = "Thermostat", sources = ["TS 2"], status = "pending organ
 pid_loop = { title = "PID governance loop", sources = ["Mo 12.3"], status = "pending organize-model-library" }
 pendulum_swing_up = { title = "Pendulum swing-up", sources = ["Di 9.2–9.3"], status = "pending organize-model-library" }
 satellite_transfer = { title = "Satellite transfer", sources = ["Di 9.2–9.3"], status = "pending organize-model-library" }
+heated_room = { title = "Heated room with a thermostat", sources = ["Fritzson 2015"], status = "pending add-acausal-components" }
+pid_inverted_pendulum = { title = "PID-stabilised inverted pendulum", sources = ["Åström and Murray 2008"], status = "pending add-optimal-control" }
+lqr_oscillator = { title = "Linear-quadratic regulated oscillator", sources = ["Åström and Murray 2008"], status = "pending add-optimal-control" }
 
 [engineering.power_systems]
 power_grid = { title = "Swing-equation power grid with Braess paradox", sources = ["DP 10.2.3"], status = "pending organize-model-library" }
@@ -452,6 +468,10 @@ rice_milling = { title = "Rice milling system", sources = ["Ba 11–12"], status
 solid_waste = { title = "Solid waste system", sources = ["Ba 11–12"], status = "pending add-stocks-and-flows" }
 food_relief = { title = "Food relief system", sources = ["Ba 4.11"], status = "pending add-stocks-and-flows" }
 irrigation = { title = "Irrigation system", sources = ["Ba 4.11"], status = "pending add-stocks-and-flows" }
+
+[engineering.mechatronics]
+quarter_car = { title = "Quarter-car suspension", sources = ["Fritzson 2015"], status = "pending add-acausal-components" }
+dc_motor = { title = "DC motor with an inertia", sources = ["Fritzson 2015"], status = "pending add-acausal-components" }
 
 [mathematics.dynamical_systems]
 lorenz = { title = "Lorenz", sources = ["Gr 3.1.2", "Tr 2.6"], status = "implemented" }
@@ -501,6 +521,12 @@ julia = { title = "Julia sets", sources = ["Di 5.5"], status = "blocked add-comp
 koch_curve = { title = "Koch", sources = ["Th 3.5.2", "Tr 3.5"], status = "out of scope", reason = "Geometric substitution, not dynamics", library = "Shapely" }
 cantor_set = { title = "Cantor", sources = ["Th 3.5.2", "Tr 3.5"], status = "out of scope", reason = "Geometric substitution, not dynamics", library = "Shapely" }
 sierpinski_substitution = { title = "Sierpiński substitutions", sources = ["Th 3.5.2", "Tr 3.5"], status = "out of scope", reason = "Geometric substitution, not dynamics", library = "Shapely" }
+
+[mathematics.fractional_dynamics]
+fractional_relaxation = { title = "Fractional relaxation", sources = ["Podlubny 1999"], status = "pending add-fractional-dynamics" }
+fractional_oscillator = { title = "Fractional damped oscillator", sources = ["Podlubny 1999"], status = "pending add-fractional-dynamics" }
+fractional_van_der_pol = { title = "Fractional Van der Pol", sources = ["Podlubny 1999"], status = "pending add-fractional-dynamics" }
+fractional_lorenz = { title = "Fractional Lorenz", sources = ["Grigorenko and Grigorenko 2003"], status = "pending add-fractional-dynamics" }
 
 [computer_science.automata]
 elementary_automaton = { title = "Elementary automata", sources = ["Ar 4.1", "Ch 2.1", "TC 5", "Li 4"], status = "implemented" }
