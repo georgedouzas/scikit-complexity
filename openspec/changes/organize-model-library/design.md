@@ -211,6 +211,23 @@ making as a follow-up change:
 The audit compares accuracy, speed, and fit with the symbolic laws, and keeps the in-house code only where it wins on
 the comparison or no library fits the interface.
 
+#### Audit results
+
+The audit ran on macOS with Apple silicon and Python 3.13, against py-pde 0.60.0, Dedalus 3.0.5, clawpack 5.14.0,
+SciPy 1.18.1, diffrax 0.7.2, and gillespy2 1.8.3, timing steady calls apart from the first call's compilation.
+
+| Area | Measurement | Verdict |
+|---|---|---|
+| Finite-difference and spectral fields | Heat on 128²: ours 0.024 s, py-pde 2.2 s at equal error, py-pde's implicit steppers did not converge. Gray-Scott on 128²: ours 0.45 s, py-pde 6.6 s. Kuramoto-Sivashinsky with 512 modes: ETDRK4 0.072 s at 5e-6, Dedalus 0.41 s at the same error | Keep in house. py-pde lacks networks, meshes, spectral fields, agent coupling, and the stiff split; Dedalus is GPL-3 with no wheels |
+| Finite volumes | Burgers with 3200 cells: ours 23 s at L1 1.7e-3, PyClaw 0.18 s at 6.7e-4. Dam break with 1600 cells: ours 30.5 s, PyClaw 0.05 s at half the error. 78% of our time is in `np.linalg.eigvals` of the flux Jacobian | Add PyClaw as an optional backend in `adopt-pyclaw-finite-volumes`; it has wheels only for Python 3.13 on macOS 15 arm64, so the in-house scheme stays as the fallback and its hot path is fixed |
+| Stiff and exponential steppers | Kuramoto-Sivashinsky: ETDRK4 0.072 s, SciPy BDF 0.44 s, diffrax Kvaerno5 4.3 s. Fisher-KPP with 4000 points: SciPy BDF with a Jacobian sparsity 0.20 s at 5e-7, without it 27 s, Crank-Nicolson 0.35 s at 9e-6 | Keep ETDRK4, the IMEX steppers, and Crank-Nicolson; give `ScipyODE` the Jacobian sparsity or an exact sparse Jacobian in `adopt-scipy-sparse-jacobians`; diffrax only for gradients or GPUs later |
+| Gillespie | Stochastic SIR: ours 0.21 ms per run with a serial Numba kernel, gillespy2's C++ solver 0.27 ms batched and 4 ms per call, statistically equal final sizes | Keep in house; gillespy2 is GPL-3, compiles at run time, and has no members, lattices, or agents |
+
+The audit also found defects that need fixes whatever the verdicts: the Numba backend's `parallel=True` default makes
+every Gillespie event launch a thread pool and the loop about 1000 times slower, `IMEX2` reuses a stale previous
+remainder when a stepper advances again after its states were reset, and the finite-volume wave speed computes
+eigenvalues numerically where closed forms exist.
+
 ## Risks / Trade-offs
 
 - [Breaking every import path, framework and models] → The library is pre-1.0. The changelog and user guide list the
