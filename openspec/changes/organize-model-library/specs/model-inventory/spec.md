@@ -9,8 +9,8 @@ the library's coverage and the interface's missing features are visible and trac
 
 ### Requirement: The inventory records surveyed models
 The project SHALL keep an inventory of surveyed models. Each entry SHALL give the model's name, its field path, its
-sources by book section or arXiv identifier, and its status: implemented, pending a planned change, or blocked by a
-missing feature.
+sources by book section or arXiv identifier, and its status: implemented, pending a planned change, blocked by a
+missing feature, or out of scope.
 
 #### Scenario: Entry of a book model
 - **WHEN** a contributor reads the inventory entry of the Bak-Sneppen model
@@ -36,6 +36,10 @@ change that specifies it, and the library SHALL NOT ship a version of the model 
 #### Scenario: Blocked model
 - **WHEN** an inventory entry is marked blocked
 - **THEN** it names the missing feature and an OpenSpec change that exists, active or archived, which specifies it
+
+#### Scenario: Out-of-scope model
+- **WHEN** an inventory entry is marked out of scope, because it falls outside a dynamical-systems framework
+- **THEN** it names the reason and a library that a future change could wrap
 
 #### Scenario: Pending model
 - **WHEN** an inventory entry is marked pending

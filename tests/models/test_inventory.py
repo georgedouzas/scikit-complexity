@@ -1,0 +1,181 @@
+"""Test the inventory of surveyed models against the catalog and the OpenSpec changes."""
+
+import re
+import tomllib
+from pathlib import Path
+
+import pytest
+
+from skcomplex.models import catalog
+
+ROOT = Path(__file__).parents[2]
+INVENTORY = ROOT / 'docs' / 'overview' / 'inventory.toml'
+CHANGES = ROOT / 'openspec' / 'changes'
+ARXIV = re.compile(r'(\d{4}\.\d{4,5}|[a-z-]+/\d{7})( |$)')
+CITATION = re.compile(r'.+ \d{4}( |$)')
+STATUSES = re.compile(r'implemented|out of scope|(pending|blocked) [a-z0-9-]+')
+
+
+def _load():
+    """Return the source keys and the entries of the inventory, each with its name and field path."""
+    data = tomllib.loads(INVENTORY.read_text())
+    keys = data.pop('sources')
+    entries = [
+        (name, f'{field}/{subfield}', entry)
+        for field, subfields in data.items()
+        for subfield, models in subfields.items()
+        for name, entry in models.items()
+    ]
+    return keys, entries
+
+
+def _registered():
+    """Return the field path of every registered model of the library, by name."""
+    return {entry.name: entry.field for entry in catalog() if not entry.field.startswith(('examples', 'test'))}
+
+
+def _changes():
+    """Return the names of the active and of the archived OpenSpec changes."""
+    active = {path.name for path in CHANGES.iterdir() if path.is_dir() and path.name != 'archive'}
+    archived = {re.sub(r'^\d{4}-\d{2}-\d{2}-', '', path.name) for path in (CHANGES / 'archive').iterdir()}
+    return active, archived
+
+
+def _catalog_problems(entries, registered):
+    """Return the disagreements between the inventory entries and the registered models."""
+    problems = []
+    recorded = {name for name, _, _ in entries}
+    for name, path, entry in entries:
+        if entry['status'] != 'implemented':
+            continue
+        if name not in registered:
+            problems.append(f'{name} is marked implemented and no model of that name is registered')
+        elif registered[name] != path:
+            problems.append(f'{name} is recorded under {path} and registered under {registered[name]}')
+    problems += [f'{name} is registered without an inventory entry' for name in sorted(set(registered) - recorded)]
+    return problems
+
+
+def _change_problems(entries, active, archived):
+    """Return the entries whose status does not name an existing change or lacks its details."""
+    problems = []
+    for name, _, entry in entries:
+        status, _, change = entry['status'].partition(' ')
+        if status == 'blocked' and change not in active | archived:
+            problems.append(f'{name} is blocked on {change}, which is not an OpenSpec change')
+        if status == 'blocked' and not entry.get('feature'):
+            problems.append(f'{name} is blocked without naming the missing feature')
+        if status == 'pending' and change not in active:
+            problems.append(f'{name} is pending {change}, which is not an active OpenSpec change')
+        if entry['status'] == 'out of scope' and not (entry.get('reason') and entry.get('library')):
+            problems.append(f'{name} is out of scope without a reason and a library')
+    return problems
+
+
+def test_inventory_entries_are_well_formed():
+    """Test that every entry has a unique name, a title, a known status, and sources that resolve."""
+    keys, entries = _load()
+    names = [name for name, _, _ in entries]
+    assert len(names) == len(set(names))
+    for name, _, entry in entries:
+        assert entry['title'], name
+        assert STATUSES.fullmatch(entry['status']), name
+        assert entry['sources'], name
+        for source in entry['sources']:
+            assert source.split(' ')[0] in keys or ARXIV.match(source) or CITATION.match(source), (name, source)
+
+
+def test_inventory_agrees_with_catalog():
+    """Test that every implemented entry is registered under its field path, and every model has an entry."""
+    _, entries = _load()
+    assert _catalog_problems(entries, _registered()) == []
+
+
+def test_inventory_names_existing_changes():
+    """Test that blocked and pending entries name OpenSpec changes and out-of-scope entries name a library."""
+    _, entries = _load()
+    assert _change_problems(entries, *_changes()) == []
+
+
+@pytest.mark.parametrize(
+    ('entries', 'registered', 'message'),
+    [
+        (
+            [('ghost', 'physics/mechanics', {'status': 'implemented'})],
+            {},
+            'ghost is marked implemented and no model of that name is registered',
+        ),
+        ([], {'stray': 'physics/mechanics'}, 'stray is registered without an inventory entry'),
+        (
+            [('moved', 'physics/mechanics', {'status': 'implemented'})],
+            {'moved': 'physics/fluids'},
+            'moved is recorded under physics/mechanics and registered under physics/fluids',
+        ),
+    ],
+)
+def test_inventory_check_names_catalog_disagreements(entries, registered, message):
+    """Test that the inventory check names a missing registration, an unrecorded model, and a moved model."""
+    assert _catalog_problems(entries, registered) == [message]
+
+
+@pytest.mark.parametrize(
+    ('entry', 'message'),
+    [
+        ({'status': 'blocked add-nothing', 'feature': 'Nothing'}, 'is blocked on add-nothing, which is not'),
+        ({'status': 'blocked add-something'}, 'is blocked without naming the missing feature'),
+        ({'status': 'pending add-archived'}, 'is pending add-archived, which is not an active'),
+        ({'status': 'out of scope', 'reason': 'Static'}, 'is out of scope without a reason and a library'),
+    ],
+)
+def test_inventory_check_names_change_problems(entry, message):
+    """Test that the inventory check names a blocked or pending entry without an existing change or its details."""
+    problems = _change_problems([('model', 'physics/mechanics', entry)], {'add-something'}, {'add-archived'})
+    assert [problem for problem in problems if message in problem]
+
+
+def test_inventory_entry_of_a_book_model():
+    """Test that the Bak-Sneppen entry names its book sections, its field, and its status."""
+    keys, entries = _load()
+    path, entry = next((path, entry) for name, path, entry in entries if name == 'bak_sneppen')
+    assert path == 'biology/evolution'
+    assert entry['sources'] == ['Gr 6.6', 'Th 5.4.4', 'Je 4.2']
+    assert [keys[source.split(' ')[0]] for source in entry['sources']] == [
+        'Gros 2015',
+        'Thurner et al. 2018',
+        'Jensen 2023',
+    ]
+    assert entry['status'].startswith('blocked ')
+
+
+def _generator():
+    """Return the namespace of the documentation generator of the model pages, without writing the pages."""
+    path = ROOT / 'docs' / 'generate_models.py'
+    namespace = {'__name__': 'generate_models', '__file__': str(path)}
+    source = path.read_text().removesuffix('\nmain()\n')
+    exec(compile(source, str(path), 'exec'), namespace)  # noqa: S102  # nosec B102: runs the repository's own script
+    return namespace
+
+
+def test_coverage_page_lists_every_entry():
+    """Test that the coverage page lists every surveyed model of a subfield and links the implemented ones."""
+    page = _generator()['coverage_page']()
+    _, entries = _load()
+    assert '### earth/climate' in page
+    for name, path, entry in entries:
+        assert entry['title'] in page, name
+        if entry['status'] == 'implemented':
+            assert f'({path.split("/")[0]}.md#{name})' in page, name
+
+
+def test_field_page_shows_the_pattern_of_every_model():
+    """Test that the biology page shows the equations of the equation forms and the laws of the others."""
+    generator = _generator()
+    page = generator['field_page']('biology')
+    for entry in catalog(field='biology'):
+        section = page[page.index(f'## {entry.name}\n') :].split('\n## ')[0]
+        assert '### Factory' in section, entry.name
+        if entry.formalism in generator['EQUATION_FORMS']:
+            assert '### Equations' in section, entry.name
+            assert ' == ' in section, entry.name
+        else:
+            assert 'def laws' in section or 'laws=' in section, entry.name

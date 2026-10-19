@@ -28,9 +28,9 @@
 
 ## 4. Inventory
 
-- [ ] 4.1 Add the inventory data file with every entry of the design's inventory, and the check that compares it with
+- [x] 4.1 Add the inventory data file with every entry of the design's inventory, and the check that compares it with
   the catalog and the OpenSpec changes, and verify the check's scenarios
-- [ ] 4.2 Render the inventory as the coverage page and generate the per-field pages with each model's laws and
+- [x] 4.2 Render the inventory as the coverage page and generate the per-field pages with each model's laws and
   equations, and verify the docs build and the pattern scenario
 
 ## 5. Model collections
@@ -54,7 +54,7 @@ For every task in this section:
 
 ## 6. Missing features and pending changes
 
-- [ ] 6.1 Make sure every blocked entry names an existing change, creating the expected changes of the design that
+- [x] 6.1 Make sure every blocked entry names an existing change, creating the expected changes of the design that
   models in section 5 needed, and verify the inventory check passes
 - [ ] 6.2 Update the proposals, specs, designs, and tasks of the nine pending changes to the core paths and the new
   subfields, record their models in the inventory, and verify the pending scenario of the inventory check

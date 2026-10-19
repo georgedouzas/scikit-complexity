@@ -243,7 +243,7 @@ Source keys:
 
 - **mechanics:**
   - `✓`: pendulum (Ar 1, Ry 1.1.2, Tr 2.2.2), harmonic and driven damped oscillators (Ar 1, Ry 1.1.1),
-    projectile (Ry 1.2.1), Newton's cradle (Ry 1.2.4), bouncing ball;
+    projectile (Ry 1.2.1), Newton's cradle (Ry 1.2.4), bouncing ball, circular billiard (DP 8.1);
   - `+`: double pendulum (Ar 1.7, Ry 1.2.8), coupled pendulums (Ry 1.2.7), pendulum on a sliding cart (Ry 1.2.6),
     rotating swing (Ry 1.2.9), rotating balls on rods (Ry 1.2.5), ballistic pendulum (Ry 1.2.3), gyroscope in a
     gimbal (Ry 1.2.10), magnetic pendulum (DP 5.3.3), parametric pendulum (Di 6.1), Huygens clocks and pendulums on
