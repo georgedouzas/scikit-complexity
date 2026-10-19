@@ -26,3 +26,14 @@ The library SHALL provide, as registered factories built only on the public core
 - **WHEN** a group of 100000 points iterates the three maps of the Sierpiński triangle with equal weights for 30 steps
 - **THEN** the box-counting dimension of the final points, rasterised on a 128 by 128 grid with box sizes from 1 to 32
   cells, is `log 3 / log 2` within 0.05
+
+### Requirement: Probabilistic Boolean networks
+The library SHALL provide `probabilistic_boolean_network` in `biology/systems_biology`, a Boolean network that draws
+each node's transfer function from its candidates with given probabilities at every step, as Raman 2021 section 7.3.1
+poses it.
+
+#### Scenario: Selection probabilities
+- **WHEN** `probabilistic_boolean_network` runs for many steps with one node choosing between two functions with
+  probabilities 0.7 and 0.3
+- **THEN** the share of steps that used the first function is 0.7 within three standard errors
+

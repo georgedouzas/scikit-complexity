@@ -34,6 +34,9 @@ TC = "Downey, Think Complexity"
 TS = "Meadows, Thinking in Systems"
 Th = "Thurner et al. 2018"
 Tr = "Trzaska 2023"
+Pa = "Padmanabhan et al. 2021"
+Ko = "Konieczny et al. 2023"
+Rm = "Raman 2021"
 
 [physics.mechanics]
 pendulum = { title = "Pendulum", sources = ["Ar 1", "Ry 1.1.2", "Tr 2.2.2"], status = "implemented" }
@@ -179,11 +182,12 @@ hodgepodge = { title = "Hodgepodge machine", sources = ["Ch 11"], status = "impl
 brusselator_ode = { title = "Brusselator ODE", sources = ["DP 2.2", "Tr 4.2"], status = "implemented" }
 oregonator = { title = "Oregonator", sources = ["Tr 4.5–4.6"], status = "implemented" }
 cubic_autocatalysis = { title = "Cubic autocatalysis", sources = ["Tr 4.3"], status = "implemented" }
-michaelis_menten = { title = "Michaelis-Menten as ODEs and as a jump process", sources = ["Tr 4.4", "1608.06582 §5.1"], status = "implemented" }
+michaelis_menten = { title = "Michaelis-Menten as ODEs and as a jump process", sources = ["Tr 4.4", "1608.06582 §5.1", "Ko 1.1.4", "Rm 5.3.1"], status = "implemented" }
 chemical_langevin_equation = { title = "Chemical Langevin equation of the Schlögl reaction", sources = ["1608.06582 §4.1"], status = "implemented" }
 catalyst_pellet = { title = "Bistability on a catalyst pellet", sources = ["Tr 4.7"], status = "implemented" }
 pulsed_electrochemical_reactor = { title = "Pulsed electrochemical reactor", sources = ["Tr 4.8"], status = "implemented" }
 cyclic_cellular_automaton = { title = "Cyclic cellular automaton", sources = ["Di 5.17"], status = "implemented" }
+nanoparticle_corona = { title = "Protein corona binding on a nanoparticle", sources = ["Pa 8.3.1"], status = "pending add-systems-biology-models" }
 
 [chemistry.pattern_formation]
 gray_scott = { title = "Gray-Scott", sources = ["Gr 4.2", "TC 7", "Li 7"], status = "implemented" }
@@ -191,10 +195,10 @@ brusselator = { title = "Brusselator fields", sources = ["DP 11.1.3"], status = 
 schnakenberg = { title = "Schnakenberg", sources = ["Schnakenberg 1979", "Turing 1952", "Murray 2003"], status = "implemented" }
 
 [biology.ecology]
-exponential_growth = { title = "Exponential growth", sources = ["Malthus 1798"], status = "implemented" }
-logistic_growth = { title = "Logistic growth", sources = ["Verhulst 1838"], status = "implemented" }
+exponential_growth = { title = "Exponential growth", sources = ["Malthus 1798", "Pa 2.3.3.1"], status = "implemented" }
+logistic_growth = { title = "Logistic growth", sources = ["Verhulst 1838", "Pa 2.3.3.4"], status = "implemented" }
 hutchinson = { title = "Hutchinson", sources = ["Tr 3.2"], status = "implemented" }
-lotka_volterra = { title = "Lotka-Volterra", sources = ["Ar 14.1", "Gr 3.1.4", "Th 5.4.2"], status = "implemented" }
+lotka_volterra = { title = "Lotka-Volterra", sources = ["Ar 14.1", "Gr 3.1.4", "Th 5.4.2", "Rm 1.5.1"], status = "implemented" }
 fibonacci_rabbits = { title = "Fibonacci rabbits", sources = ["Fibonacci 1202"], status = "implemented" }
 wolf_sheep = { title = "Wolf and sheep", sources = ["Wilensky 1997"], status = "implemented" }
 fisher_kpp = { title = "Fisher-KPP", sources = ["Gr 4.1"], status = "implemented" }
@@ -213,14 +217,19 @@ neutral_macroecology = { title = "Neutral macroecology", sources = ["Gr 8.6"], s
 intrinsic_instability = { title = "Intrinsic-instability populations", sources = ["Je 13.2"], status = "blocked add-stochastic-maps", feature = "Random draws from the simulation's stream inside update laws" }
 stochastic_predator_prey = { title = "Generalized stochastic predator-prey", sources = ["Cm 1"], status = "implemented" }
 sequentially_linear_ecosystem = { title = "Sequentially linear ecosystem", sources = ["Th 5.5.2"], status = "pending add-adaptive-networks" }
+droop_cell_quota = { title = "Droop cell-quota growth", sources = ["Pa 7.3"], status = "pending add-systems-biology-models" }
+generalized_lotka_volterra = { title = "Generalized Lotka-Volterra microbial community", sources = ["Rm 11.1.2.1"], status = "pending add-systems-biology-models" }
+dynamic_multispecies_fba = { title = "Dynamic multi-species metabolic model", sources = ["Rm 11.1.3.4"], status = "blocked add-constraint-based-models", feature = "Constraint-based models: stoichiometric constraints with bounds and an objective solved as an LP, statically or coupled to dynamics" }
+comets = { title = "COMETS: dynamic flux balance on a lattice with diffusion", sources = ["Rm 11.1.3.4"], status = "blocked add-constraint-based-models", feature = "Constraint-based models: stoichiometric constraints with bounds and an objective solved as an LP, statically or coupled to dynamics" }
+community_fba = { title = "Joint, community, and SteadyCom flux balance", sources = ["Rm 11.1.3.1", "Rm 11.1.3.6"], status = "blocked add-constraint-based-models", feature = "Constraint-based models: stoichiometric constraints with bounds and an objective solved as an LP, statically or coupled to dynamics" }
 
 [biology.epidemiology]
-sir = { title = "SIR", sources = ["Kermack and McKendrick 1927"], status = "implemented" }
+sir = { title = "SIR", sources = ["Kermack and McKendrick 1927", "Rm 1.5.2"], status = "implemented" }
 sis = { title = "SIS", sources = ["Ar 11"], status = "implemented" }
 sirs = { title = "SIRS", sources = ["Ar 11"], status = "implemented" }
 agent_based_sir = { title = "Agent-based SIR with mortality, waning immunity, incubation, and lockdown", sources = ["Ar 11"], status = "implemented" }
 random_walker_epidemics = { title = "Random-walker epidemics on a grid and on a small world", sources = ["Ch 9"], status = "implemented" }
-network_sir = { title = "SIR on a network as an agent model", sources = ["DP 10.3", "Th 4.8.6"], status = "implemented" }
+network_sir = { title = "SIR on a network as an agent model", sources = ["DP 10.3", "Th 4.8.6", "Rm 4.4.1"], status = "implemented" }
 heterogeneous_mean_field_sis = { title = "Heterogeneous mean-field SIS", sources = ["1408.2701 §V.1"], status = "implemented" }
 metapopulation = { title = "Metapopulation reaction-diffusion", sources = ["1408.2701 §IX"], status = "implemented" }
 delayed_sirs = { title = "Discrete-time SIRS with a recovery delay", sources = ["Gr 9.6"], status = "implemented" }
@@ -241,6 +250,7 @@ rock_paper_scissors = { title = "Rock-paper-scissors", sources = ["cond-mat/0607
 bak_sneppen = { title = "Bak-Sneppen", sources = ["Gr 6.6", "Th 5.4.4", "Je 4.2"], status = "blocked add-lattice-geometries", feature = "Hexagonal and triangular lattices, local rules and Monte Carlo on arbitrary graphs, and extremal updates" }
 jain_krishna = { title = "Jain-Krishna autocatalytic networks", sources = ["Th 5.5.1.4"], status = "pending add-adaptive-networks" }
 sole_manrubia = { title = "Solé-Manrubia extinctions", sources = ["Th 5.5.3.1"], status = "pending add-adaptive-networks" }
+rna_neutral_networks = { title = "Genotype spaces and neutral networks of RNA folds", sources = ["Rm 13.2", "Rm 13.3"], status = "out of scope", reason = "Static genotype-phenotype map, not dynamics", library = "ViennaRNA" }
 
 [biology.neuroscience]
 integrate_and_fire = { title = "Integrate-and-fire", sources = ["Lapicque 1907", "Gerstner et al. 2014"], status = "implemented" }
@@ -257,18 +267,35 @@ adaptrode = { title = "Adaptrode synapse", sources = ["Mo 6.9"], status = "imple
 amari_neural_field = { title = "Amari neural field", sources = ["2112.12147 §1.3.1"], status = "blocked add-nonlocal-operators", feature = "Convolution kernels, reads at shifted positions, and modified-Helmholtz inversion on fields" }
 
 [biology.systems_biology]
-toggle_switch = { title = "Genetic toggle switch", sources = ["2111.04508"], status = "implemented" }
-repressilator = { title = "Repressilator", sources = ["2111.04508"], status = "implemented" }
+toggle_switch = { title = "Genetic toggle switch", sources = ["2111.04508", "Rm 12.2.2"], status = "implemented" }
+repressilator = { title = "Repressilator", sources = ["2111.04508", "Rm 12.2.1"], status = "implemented" }
 negative_autoregulation = { title = "Negative autoregulation and bursty gene expression", sources = ["1608.06582 §3"], status = "implemented" }
 circadian_clock = { title = "Drosophila circadian clock", sources = ["Tr 5.2"], status = "implemented" }
 random_boolean_network = { title = "Kauffman random Boolean networks", sources = ["Gr 7"], status = "implemented" }
 yeast_cell_cycle = { title = "Yeast cell-cycle network", sources = ["Gr 7"], status = "implemented" }
+phosphorylation_oscillator = { title = "Three-node phosphorylation oscillator", sources = ["Rm 5.3.3"], status = "pending add-systems-biology-models" }
+biochemical_systems_theory = { title = "Generalized mass action and S-system power-law models", sources = ["Rm 5.4.1"], status = "pending add-systems-biology-models" }
+three_gene_boolean_network = { title = "Three-gene Boolean network", sources = ["Rm 7.2", "Rm 7.2.1"], status = "pending add-systems-biology-models" }
+mammalian_cell_cycle = { title = "Boolean model of the mammalian cell cycle", sources = ["Rm 7.2", "Rm Ex 7.6"], status = "pending add-systems-biology-models" }
+boolean_repressilator = { title = "Boolean repressilator", sources = ["Rm Ex 7.3"], status = "pending add-systems-biology-models" }
+goodwin_oscillator = { title = "Goodwin oscillator", sources = ["Rm Ex 13.3", "Rm 12.3.1"], status = "pending add-systems-biology-models" }
+probabilistic_boolean_network = { title = "Probabilistic Boolean network", sources = ["Rm 7.3.1"], status = "pending add-stochastic-maps" }
+flux_balance = { title = "Flux balance, flux variability, and parsimonious FBA", sources = ["Rm 8.2", "Rm 8.6", "Rm 8.7", "Rm 8.8", "Rm Ex 8.4"], status = "blocked add-constraint-based-models", feature = "Constraint-based models: stoichiometric constraints with bounds and an objective solved as an LP, statically or coupled to dynamics" }
+metabolic_perturbations = { title = "Knock-outs, MoMA, ROOM, OptKnock, and synthetic lethals", sources = ["Rm 9.1", "Rm 9.2", "Rm 9.3", "Rm 10.1", "Rm 10.2", "Rm 10.3"], status = "blocked add-constraint-based-models", feature = "Constraint-based models: stoichiometric constraints with bounds and an objective solved as an LP, statically or coupled to dynamics" }
+regulatory_fba = { title = "Regulatory flux balance analysis", sources = ["Rm 9.4.1"], status = "blocked add-constraint-based-models", feature = "Constraint-based models: stoichiometric constraints with bounds and an objective solved as an LP, statically or coupled to dynamics" }
+dynamic_fba = { title = "Dynamic flux balance analysis of a batch culture", sources = ["Rm 9.6"], status = "blocked add-constraint-based-models", feature = "Constraint-based models: stoichiometric constraints with bounds and an objective solved as an LP, statically or coupled to dynamics" }
+fuzzy_oil_drop = { title = "Fuzzy oil drop model of protein structure", sources = ["Ko 1.3.1"], status = "out of scope", reason = "Static scoring of a protein structure, not dynamics", library = "Biopython" }
+early_stage_folding_intermediate = { title = "Early-stage protein folding intermediate", sources = ["Ko 3.7.1"], status = "out of scope", reason = "Static geometric model of dihedral angles, not dynamics", library = "MDTraj" }
+elementary_flux_modes = { title = "Elementary flux modes and extreme pathways", sources = ["Rm 9.8"], status = "out of scope", reason = "Static enumeration of a convex cone, not dynamics", library = "efmtool" }
+carbon_13_mfa = { title = "Carbon-13 metabolic flux analysis", sources = ["Rm 9.7"], status = "out of scope", reason = "Statistical flux estimation from labelling data, not dynamics", library = "FreeFlux" }
 
 [biology.physiology]
 mackey_glass = { title = "Mackey-Glass", sources = ["Di 6.3"], status = "implemented" }
 fitzhugh_nagumo = { title = "FitzHugh-Nagumo spirals", sources = ["DP 11.2.1"], status = "implemented" }
 aliev_panfilov = { title = "Aliev-Panfilov cardiac tissue", sources = ["DP 11.3.3"], status = "implemented" }
 cardiovascular = { title = "Lumped cardiovascular model", sources = ["Tr 5.5.2"], status = "implemented" }
+drug_toxicity = { title = "Cumulative drug toxicity", sources = ["Pa 2.3.5"], status = "pending add-systems-biology-models" }
+two_compartment_pharmacokinetics = { title = "Two-compartment pharmacokinetics", sources = ["Pa 8.3.1", "Pa 9.4"], status = "pending add-systems-biology-models" }
 
 [biology.collective_behaviour]
 pheromone_foraging = { title = "Pheromone foraging", sources = ["Argun et al. 2021", "Carmichael and Hadžikadić 2019"], status = "implemented" }
@@ -282,6 +309,52 @@ boids_3d = { title = "Boids in three dimensions", sources = ["TC 10"], status = 
 [biology.oncology]
 tumour_angiogenesis = { title = "Multiscale tumour angiogenesis", sources = ["Cm 8"], status = "implemented" }
 immune_competition = { title = "Immune competition", sources = ["Be 5.5"], status = "pending add-kinetic-models" }
+exponential_linear_growth = { title = "Exponential-linear tumour growth", sources = ["Pa 2.3.3.1"], status = "pending add-systems-biology-models" }
+power_law_growth = { title = "Power-law tumour growth", sources = ["Pa 2.3.3.2"], status = "pending add-systems-biology-models" }
+von_bertalanffy = { title = "Von Bertalanffy growth", sources = ["Pa 2.3.3.3"], status = "pending add-systems-biology-models" }
+generalized_logistic = { title = "Generalized logistic (Richards) growth", sources = ["Pa 2.3.3.4"], status = "pending add-systems-biology-models" }
+gompertz = { title = "Gompertz growth", sources = ["Pa 2.3.3.5"], status = "pending add-systems-biology-models" }
+dynamic_carrying_capacity = { title = "Gompertz growth with a vascular carrying capacity", sources = ["Pa 2.3.3.6"], status = "pending add-systems-biology-models" }
+skipper_log_kill = { title = "Skipper-Schabel-Wilcox log-kill", sources = ["Pa 2.3.4.1"], status = "pending add-systems-biology-models" }
+norton_simon = { title = "Norton-Simon Gompertzian cell kill", sources = ["Pa 2.3.4.1"], status = "pending add-systems-biology-models" }
+de_pillis_radunskaya = { title = "Normal, tumour, and immune cells under chemotherapy", sources = ["Pa 3.1", "Pa 2.5"], status = "pending add-systems-biology-models" }
+multidrug_resistance = { title = "Resistance subpopulations under three drugs", sources = ["Pa 3.2"], status = "pending add-systems-biology-models" }
+drug_resistance_switching = { title = "Acquired and induced resistance with phenotype switching", sources = ["Pa 3.2"], status = "pending add-systems-biology-models" }
+delayed_resting_hunting_chemotherapy = { title = "Resting and hunting immune cells with a conversion delay under chemotherapy", sources = ["Pa 3.3"], status = "pending add-systems-biology-models" }
+delayed_metastasis = { title = "Primary and secondary sites with a migration delay under chemotherapy", sources = ["Pa 3.4"], status = "pending add-systems-biology-models" }
+cell_cycle_chemotherapy = { title = "Cell-cycle compartments with killing, blocking, and recruiting agents", sources = ["Pa 3.5"], status = "pending add-systems-biology-models" }
+erythropoiesis_mercaptopurine = { title = "Red-cell production under 6-mercaptopurine", sources = ["Pa 3.6"], status = "pending add-systems-biology-models" }
+kirschner_panetta = { title = "Effector cells, tumour, and IL-2 under adoptive therapy", sources = ["Pa 4.1"], status = "pending add-systems-biology-models" }
+dendritic_cell_vaccine = { title = "T cells, tumour, dendritic cells, and IL-2 under dendritic-cell vaccination", sources = ["Pa 4.2"], status = "pending add-systems-biology-models" }
+anti_pd1_checkpoint = { title = "T cells, tumour, and anti-PD-1 checkpoint inhibitor", sources = ["Pa 4.3"], status = "pending add-systems-biology-models" }
+delayed_dc_vaccine = { title = "Tumour-immune populations with division delays under dendritic-cell vaccination", sources = ["Pa 4.4"], status = "pending add-systems-biology-models" }
+tumour_immune_suppression = { title = "Tumour-immune model with dendritic licensing, IL-2, IL-10, and TGF-beta", sources = ["Pa 4.5"], status = "pending add-systems-biology-models" }
+hahnfeldt = { title = "Tumour and vascular volume under an angiogenesis inhibitor", sources = ["Pa 5.1"], status = "pending add-systems-biology-models" }
+vascular_core_periphery = { title = "Core and periphery vasculature under anti-angiogenic therapy", sources = ["Pa 5.2"], status = "pending add-systems-biology-models" }
+radiotherapy_competition = { title = "Normal and tumour competition under radiation", sources = ["Pa 6.1"], status = "pending add-systems-biology-models" }
+lq_radiosensitizer = { title = "Linear-quadratic impulsive irradiation with a radiosensitizer", sources = ["Pa 6.2"], status = "pending add-systems-biology-models" }
+continuous_androgen_suppression = { title = "Prostate cancer under continuous androgen suppression", sources = ["Pa 7.1"], status = "pending add-systems-biology-models" }
+ideta_intermittent_androgen = { title = "Intermittent androgen suppression switched by PSA thresholds", sources = ["Pa 7.2"], status = "pending add-systems-biology-models" }
+prostate_cell_quota = { title = "Prostate cancer with an androgen cell quota and PSA", sources = ["Pa 7.3"], status = "pending add-systems-biology-models" }
+prostate_androgen_receptor = { title = "Prostate cancer driven by activated androgen receptors", sources = ["Pa 7.4"], status = "pending add-systems-biology-models" }
+piecewise_linear_ias = { title = "Piecewise-linear intermittent androgen suppression", sources = ["Pa 7.5"], status = "pending add-systems-biology-models" }
+tamoxifen_cell_cycle = { title = "Gompertzian cell-cycle phases under tamoxifen", sources = ["Pa 7.6"], status = "pending add-systems-biology-models" }
+tcr_gene_therapy = { title = "Predator-prey tumour-immune model of TCR gene therapy", sources = ["Pa 8.1.1"], status = "pending add-systems-biology-models" }
+sirna_tgf_beta = { title = "Kirschner-Panetta model with TGF-beta and siRNA", sources = ["Pa 8.1.2"], status = "pending add-systems-biology-models" }
+oncolytic_virus = { title = "Uninfected and infected tumour cells under an oncolytic virus", sources = ["Pa 8.2.1"], status = "pending add-systems-biology-models" }
+oncolytic_virus_dendritic = { title = "Oncolytic adenovirus with T cells and dendritic-cell injection", sources = ["Pa 8.2.2"], status = "pending add-systems-biology-models" }
+stem_cell_differentiation = { title = "Normal and malignant stem-cell compartments with feedback and therapy", sources = ["Pa 8.4.1"], status = "pending add-systems-biology-models" }
+bone_marrow_blood_leukaemia = { title = "Bone-marrow and blood cells with blasts and cancer stem cells", sources = ["Pa 8.4.2"], status = "pending add-systems-biology-models" }
+leukaemia_stem_cells = { title = "Normal and leukaemic stem cells with feedback regulation", sources = ["Pa 8.4.3"], status = "pending add-systems-biology-models" }
+chemoimmunotherapy = { title = "Tumour, NK cells, CD8 T cells, and lymphocytes under chemoimmunotherapy", sources = ["Pa 9.1.1"], status = "pending add-systems-biology-models" }
+clonal_chemoimmunotherapy = { title = "Two tumour clones under chemotherapy and dendritic-cell vaccine", sources = ["Pa 9.1.2"], status = "pending add-systems-biology-models" }
+chemovirotherapy = { title = "Uninfected and infected cells, virus, and chemotherapy", sources = ["Pa 9.2.1"], status = "pending add-systems-biology-models" }
+glioma_chemovirotherapy = { title = "Glioma, glia, and neurons under temozolomide and virus", sources = ["Pa 9.2.2"], status = "pending add-systems-biology-models" }
+her2_targeted_therapy = { title = "Paclitaxel and trastuzumab with antibody binding", sources = ["Pa 9.3"], status = "pending add-systems-biology-models" }
+angiogenesis_immunotherapy = { title = "Hahnfeldt model with effector cells, pharmacokinetics, resistance, and toxicity", sources = ["Pa 9.4"], status = "pending add-systems-biology-models" }
+optimal_chemotherapy = { title = "Optimal chemotherapy dosing", sources = ["Pa 10.1"], status = "pending add-optimal-control" }
+optimal_immunotherapy = { title = "Optimal adoptive therapy and IL-2 dosing", sources = ["Pa 10.2"], status = "pending add-optimal-control" }
+lq_cell_survival = { title = "Linear-quadratic cell survival and biologically effective dose", sources = ["Pa 6.2"], status = "out of scope", reason = "Closed-form dose-response, not dynamics", library = "SciPy" }
 
 [earth.climate]
 energy_balance = { title = "Zero-dimensional energy balance with ice albedo", sources = ["DP 2.1", "1910.00583 §III.1"], status = "implemented" }
@@ -513,8 +586,11 @@ hidden_markov_source = { title = "Hidden Markov source", sources = ["Li 3.2"], s
 network_random_walk = { title = "Random walks", sources = ["Th 4.8", "Je 8.5.2"], status = "implemented" }
 network_diffusion = { title = "Diffusion", sources = ["Th 4.8", "Je 8.5.2"], status = "implemented" }
 pagerank = { title = "PageRank iterations on networks", sources = ["Th 4.8", "Je 8.5.2"], status = "implemented" }
-barabasi_albert = { title = "Barabási-Albert growth", sources = ["Ar 12.5", "Gr 1.5", "TC 4", "Th 4.5.4"], status = "pending add-adaptive-networks" }
+barabasi_albert = { title = "Barabási-Albert growth", sources = ["Ar 12.5", "Gr 1.5", "TC 4", "Th 4.5.4", "Rm 3.2.3.2"], status = "pending add-adaptive-networks" }
 holme_kim = { title = "Holme-Kim growth", sources = ["Ar 12.5", "Gr 1.5", "TC 4", "Th 4.5.4"], status = "pending add-adaptive-networks" }
+vertex_copying = { title = "Vertex-copying network growth", sources = ["Rm 3.2.4.1"], status = "pending add-adaptive-networks" }
+network_attack = { title = "Random failures and targeted attacks on networks", sources = ["Rm 3.5.2"], status = "pending add-adaptive-networks" }
+network_structure_analysis = { title = "Centralities, assortativity, communities, and motifs", sources = ["Rm 3.1", "Rm 3.3", "Rm 3.4"], status = "out of scope", reason = "Static network measures, not dynamics", library = "NetworkX" }
 
 [mathematics.fractals]
 chaos_game = { title = "Iterated function systems by the chaos game", sources = ["Di 5.4"], status = "blocked add-stochastic-maps", feature = "Random draws from the simulation's stream inside update laws, and discrete-time Markov chains" }
@@ -532,7 +608,7 @@ fractional_lorenz = { title = "Fractional Lorenz", sources = ["Grigorenko and Gr
 
 [computer_science.automata]
 elementary_automaton = { title = "Elementary automata", sources = ["Ar 4.1", "Ch 2.1", "TC 5", "Li 4"], status = "implemented" }
-game_of_life = { title = "Game of Life", sources = ["Ar 4.2", "TC 6"], status = "implemented" }
+game_of_life = { title = "Game of Life", sources = ["Ar 4.2", "TC 6", "Rm 7.2.2", "Rm Ex 7.4"], status = "implemented" }
 langtons_ant = { title = "Langton's ant", sources = ["Ch 2.4"], status = "implemented" }
 highlife = { title = "Highlife and the planar automaton zoo", sources = ["Ch 2.2", "TC 6"], status = "implemented" }
 noisy_automata = { title = "Noisy automata", sources = ["Li 4.3.3"], status = "implemented" }
@@ -549,6 +625,7 @@ grigorchuk_automaton = { title = "Automata on the Grigorchuk group", sources = [
 [computer_science.evolutionary_computation]
 robby_ga = { title = "RobbyGA can collector", sources = ["Go 6"], status = "implemented" }
 bit_string_evolution = { title = "Bit-string evolution on a fitness landscape", sources = ["TC 11"], status = "implemented" }
+evolutionary_optimisers = { title = "Simulated annealing, genetic algorithms, and differential evolution", sources = ["Rm 6.3.3.3", "Rm 6.3.4"], status = "out of scope", reason = "Optimisers for parameter estimation, not models of a system", library = "SciPy optimize" }
 
 [computer_science.neural_networks]
 hopfield = { title = "Hopfield network", sources = ["Tr 7.3", "2112.12147 §3.1.2"], status = "implemented" }

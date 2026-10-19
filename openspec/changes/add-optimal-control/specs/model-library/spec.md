@@ -24,6 +24,8 @@ twice.
   - `optimal_harvesting` in `economics/resources`
   - `pid_inverted_pendulum` in `engineering/control`
   - `lqr_oscillator` in `engineering/control`
+  - `optimal_chemotherapy` in `biology/oncology`
+  - `optimal_immunotherapy` in `biology/oncology`
 
 #### Scenario: New model recorded
 - **WHEN** the change registers a model with no inventory entry
