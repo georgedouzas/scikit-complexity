@@ -8,9 +8,21 @@ from collections.abc import Sequence
 import numpy as np
 from sage.all__sagemath_symbolics import cos
 
-from ...core import Domain, parameter, state
-from ...model import Element, Energy, LatticeSpace, Law, Move, Neighborhood, Sampler, Symbols, System, neighbors, where
-from ...runtime import register_model
+from ...core.base import Domain, parameter, state
+from ...core.model import (
+    Element,
+    Energy,
+    LatticeSpace,
+    Law,
+    Move,
+    Neighborhood,
+    Sampler,
+    Symbols,
+    System,
+    neighbors,
+    where,
+)
+from ...core.runtime import register_model
 
 NEAREST = Neighborhood.von_neumann()
 

@@ -3,12 +3,12 @@
 import numpy as np
 import pytest
 
-from skcomplex.backends import LammpsBackend
-from skcomplex.compile import compile_system
-from skcomplex.model import EuclideanSpace, System
+from skcomplex.core.backends import LammpsBackend
+from skcomplex.core.compile import compile_system
+from skcomplex.core.model import EuclideanSpace, System
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.solvers import EulerMaruyama, VelocityVerlet
 from skcomplex.models.physics import LangevinThermostat, LennardJones, Particle, SoftSphere, ideal_gas
-from skcomplex.runtime import Simulation
-from skcomplex.solvers import EulerMaruyama, VelocityVerlet
 
 
 def _pair(interaction, distance):

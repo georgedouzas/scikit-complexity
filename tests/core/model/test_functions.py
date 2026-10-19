@@ -3,11 +3,11 @@
 import numpy as np
 import pytest
 
-from skcomplex.compile import NUMPY_DIALECT, SCALAR_DIALECT, numpy_function, print_expressions
-from skcomplex.core import symbol
-from skcomplex.model import EuclideanSpace, System, both, either, mod, where
+from skcomplex.core.base import symbol
+from skcomplex.core.compile import NUMPY_DIALECT, SCALAR_DIALECT, numpy_function, print_expressions
+from skcomplex.core.model import EuclideanSpace, System, both, either, mod, where
+from skcomplex.core.runtime import Simulation
 from skcomplex.models.physics import Particle, PeriodicBox, ReflectingBox
-from skcomplex.runtime import Simulation
 
 
 def test_functions_stay_unevaluated_on_symbols():

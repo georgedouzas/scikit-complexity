@@ -131,7 +131,7 @@ def lyapunov_spectrum(
             The system is not an ODE or a discrete map, has callable laws, or has groups.
 
     Examples:
-        >>> from skcomplex.analysis import lyapunov_spectrum
+        >>> from skcomplex.core.analysis import lyapunov_spectrum
         >>> from skcomplex.models.nonlinear import logistic_map
         >>> float(lyapunov_spectrum(logistic_map(r=4.0), until=20000)[0].round(2))
         0.69

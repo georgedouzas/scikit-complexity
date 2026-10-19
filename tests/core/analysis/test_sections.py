@@ -5,8 +5,8 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.analysis import poincare_section, stroboscopic
-from skcomplex.core import AnalysisError
+from skcomplex.core.analysis import poincare_section, stroboscopic
+from skcomplex.core.base import AnalysisError
 from skcomplex.models.ecology import logistic_growth
 from skcomplex.models.nonlinear import duffing, logistic_map
 from skcomplex.models.physics import harmonic_oscillator

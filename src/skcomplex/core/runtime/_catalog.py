@@ -9,8 +9,8 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from ..base import Registry, ValidationError
 from ..compile import compile_system
-from ..core import Registry, ValidationError
 from ..model import System
 from ._simulations import Simulation
 
@@ -114,9 +114,9 @@ def register_model(
             A default run setting is unknown, or a factory argument has no default.
 
     Examples:
-        >>> from skcomplex.model import System
+        >>> from skcomplex.core.model import System
         >>> from skcomplex.models.ecology import Population
-        >>> from skcomplex.runtime import create, register_model
+        >>> from skcomplex.core.runtime import create, register_model
         >>> @register_model(field='examples', references=('This docstring',), defaults={'until': 5})
         ... def constant_population(n: float = 3.0) -> System:
         ...     '''Return one population that does not change.'''

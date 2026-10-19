@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ..core import Expression, ValidationError, components_of, symbol, symbols_of
+from ..base import Expression, ValidationError, components_of, symbol, symbols_of
 from ..model import Observable, Symbols, System, reduce_values
 from ._printing import numpy_function
 from ._problem import Problem, Vector
@@ -85,8 +85,8 @@ class ObservableEvaluator:
             The compiled problem.
 
     Examples:
-        >>> from skcomplex.compile import ObservableEvaluator, compile_system
-        >>> from skcomplex.model import Observable, System
+        >>> from skcomplex.core.compile import ObservableEvaluator, compile_system
+        >>> from skcomplex.core.model import Observable, System
         >>> from skcomplex.models.ecology import Population
         >>> system = System(
         ...     elements=[Population('a', n=2.0), Population('b', n=6.0)],

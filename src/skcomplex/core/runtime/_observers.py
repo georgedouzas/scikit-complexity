@@ -5,8 +5,8 @@
 
 import numpy as np
 
+from ..base import SimulationError
 from ..compile import Problem, Vector
-from ..core import SimulationError
 from ._frames import Frame
 from ._trajectories import Trajectory
 
@@ -41,9 +41,9 @@ class Recorder(Observer):
     """Observer that keeps every frame it receives.
 
     Examples:
-        >>> from skcomplex.model import System
+        >>> from skcomplex.core.model import System
         >>> from skcomplex.models.ecology import Population
-        >>> from skcomplex.runtime import Recorder, Simulation
+        >>> from skcomplex.core.runtime import Recorder, Simulation
         >>> recorder = Recorder()
         >>> _ = Simulation(System(elements=[Population('a')]), dt=1, observers=[recorder]).run(until=2)
         >>> len(recorder.trajectory)

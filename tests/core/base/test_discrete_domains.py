@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
-from skcomplex.core import Domain, ValidationError, parameter, state
-from skcomplex.model import Element, Interaction, Rate, System, Update
-from skcomplex.runtime import Simulation
+from skcomplex.core.base import Domain, ValidationError, parameter, state
+from skcomplex.core.model import Element, Interaction, Rate, System, Update
+from skcomplex.core.runtime import Simulation
 
 HEALTH = Domain.categorical('susceptible', 'infected', 'recovered')
 

@@ -3,8 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.compile import compile_system
-from skcomplex.core import (
+from skcomplex.core.base import (
     Form,
     IncompatibleLawsError,
     LabelError,
@@ -15,7 +14,8 @@ from skcomplex.core import (
     role,
     symbol,
 )
-from skcomplex.model import EuclideanSpace, Interaction, Rate, System, Update
+from skcomplex.core.compile import compile_system
+from skcomplex.core.model import EuclideanSpace, Interaction, Rate, System, Update
 from skcomplex.models.ecology import ExponentialGrowth, LogisticGrowth, Population, Predation
 from skcomplex.models.economics import Cobweb, Market
 from skcomplex.models.epidemiology import Compartment, Infection, Recovery

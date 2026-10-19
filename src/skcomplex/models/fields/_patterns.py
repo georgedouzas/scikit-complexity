@@ -10,10 +10,10 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ...core import Domain, parameter, state
-from ...model import Element, Field, LatticeSpace, Mesh, Rate, System, divergence, laplacian
-from ...runtime import register_model
-from ...solvers import ETDRK4, RK4, IMEXEuler
+from ...core.base import Domain, parameter, state
+from ...core.model import Element, Field, LatticeSpace, Mesh, Rate, System, divergence, laplacian
+from ...core.runtime import register_model
+from ...core.solvers import ETDRK4, RK4, IMEXEuler
 
 type Array = npt.NDArray[np.float64]
 

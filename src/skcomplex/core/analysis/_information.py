@@ -9,7 +9,7 @@ from collections.abc import Hashable, Sequence
 import numpy as np
 import numpy.typing as npt
 
-from ..core import AnalysisError
+from ..base import AnalysisError
 
 type Array = npt.NDArray[np.float64]
 METHODS = ('bins', 'quantiles', 'ordinal')
@@ -41,7 +41,7 @@ def symbolize(values: npt.ArrayLike, method: str = 'quantiles', n: int = 2, *, o
             The method is unknown.
 
     Examples:
-        >>> from skcomplex.analysis import symbolize
+        >>> from skcomplex.core.analysis import symbolize
         >>> symbolize([0.1, 0.9, 0.4, 0.6], 'quantiles', 2).tolist()
         [0, 1, 0, 1]
     """
@@ -84,7 +84,7 @@ def shannon_entropy(values: npt.ArrayLike, *, base: float = 2.0, probabilities: 
             The entropy.
 
     Examples:
-        >>> from skcomplex.analysis import shannon_entropy
+        >>> from skcomplex.core.analysis import shannon_entropy
         >>> shannon_entropy([0, 1, 0, 1]), shannon_entropy([0.25] * 4, probabilities=True)
         (1.0, 2.0)
     """
@@ -111,7 +111,7 @@ def kl_divergence(p: npt.ArrayLike, q: npt.ArrayLike, *, base: float = 2.0) -> f
             The divergence, infinite when `q` is 0 where `p` is not.
 
     Examples:
-        >>> from skcomplex.analysis import kl_divergence
+        >>> from skcomplex.core.analysis import kl_divergence
         >>> kl_divergence([0.5, 0.5], [0.5, 0.5])
         0.0
     """
@@ -140,7 +140,7 @@ def block_entropy(symbols: npt.ArrayLike, m: int, *, base: float = 2.0) -> float
             The block entropy `S_m`.
 
     Examples:
-        >>> from skcomplex.analysis import block_entropy
+        >>> from skcomplex.core.analysis import block_entropy
         >>> round(block_entropy([0, 0, 1, 1] * 50, 2), 3)
         2.0
     """
@@ -190,7 +190,7 @@ def entropy_rate(symbols: npt.ArrayLike, max_m: int = 8, *, base: float = 2.0) -
             The entropy rate per symbol.
 
     Examples:
-        >>> from skcomplex.analysis import entropy_rate
+        >>> from skcomplex.core.analysis import entropy_rate
         >>> round(entropy_rate([0, 0, 1, 1] * 100, 4), 3)
         0.0
     """
@@ -237,7 +237,7 @@ def excess_entropy(symbols: npt.ArrayLike, max_m: int = 8, *, base: float = 2.0)
             The information that the past holds about the future.
 
     Examples:
-        >>> from skcomplex.analysis import excess_entropy
+        >>> from skcomplex.core.analysis import excess_entropy
         >>> round(excess_entropy([0, 0, 1, 1] * 100, 4), 3)
         2.0
     """
@@ -264,7 +264,7 @@ def mutual_information(first: npt.ArrayLike, second: npt.ArrayLike, *, base: flo
             `H(X) + H(Y) - H(X, Y)`.
 
     Examples:
-        >>> from skcomplex.analysis import mutual_information
+        >>> from skcomplex.core.analysis import mutual_information
         >>> mutual_information([0, 1, 0, 1], [0, 1, 0, 1])
         1.0
     """
@@ -318,7 +318,7 @@ def transfer_entropy(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.analysis import transfer_entropy
+        >>> from skcomplex.core.analysis import transfer_entropy
         >>> x = np.random.default_rng(0).integers(0, 2, 10000)
         >>> y = np.roll(x, 1)
         >>> round(transfer_entropy(x, y), 1), round(transfer_entropy(y, x), 1)
@@ -356,7 +356,7 @@ def permutation_entropy(values: npt.ArrayLike, order: int = 3, *, normalize: boo
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.analysis import permutation_entropy
+        >>> from skcomplex.core.analysis import permutation_entropy
         >>> permutation_entropy(np.arange(100.0))
         0.0
     """
@@ -380,7 +380,7 @@ def lempel_ziv_complexity(symbols: npt.ArrayLike, *, normalize: bool = True) -> 
             The complexity.
 
     Examples:
-        >>> from skcomplex.analysis import lempel_ziv_complexity
+        >>> from skcomplex.core.analysis import lempel_ziv_complexity
         >>> lempel_ziv_complexity([0] * 64, normalize=False)
         2.0
     """

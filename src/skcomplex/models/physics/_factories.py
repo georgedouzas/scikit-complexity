@@ -6,9 +6,9 @@
 import numpy as np
 from sage.all__sagemath_symbolics import cos, sin
 
-from ...core import Domain, parameter, state
-from ...model import Element, Equation, EuclideanSpace, Interaction, Rate, System, derivative
-from ...runtime import register_model
+from ...core.base import Domain, parameter, state
+from ...core.model import Element, Equation, EuclideanSpace, Interaction, Rate, System, derivative
+from ...core.runtime import register_model
 from ._boxes import PeriodicBox
 from ._mechanics import ConstantForce, Gravity, HarmonicPotential, LinearDrag, Particle
 from ._potentials import LangevinThermostat, LennardJones

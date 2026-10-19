@@ -14,7 +14,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ..core import Expression, SolverError, ValidationError, symbol
+from ..base import Expression, SolverError, ValidationError, symbol
 from ..model import (
     Drive,
     Energy,

@@ -9,7 +9,7 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ..core import AnalysisError
+from ..base import AnalysisError
 from ..model import NetworkSpace
 
 CENTRALITIES = ('degree', 'betweenness', 'closeness', 'eigenvector', 'pagerank')
@@ -87,7 +87,7 @@ def degrees(network: object) -> npt.NDArray[np.int64]:
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.analysis import degrees
+        >>> from skcomplex.core.analysis import degrees
         >>> degrees(nx.star_graph(3)).tolist()
         [3, 1, 1, 1]
     """
@@ -107,7 +107,7 @@ def summarize_network(network: object) -> NetworkSummary:
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.analysis import summarize_network
+        >>> from skcomplex.core.analysis import summarize_network
         >>> summary = summarize_network(nx.cycle_graph(10))
         >>> summary.mean_degree, summary.clustering, summary.diameter
         (2.0, 0.0, 5)
@@ -147,7 +147,7 @@ def centrality(network: object, kind: str = 'degree') -> dict[object, float]:
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.analysis import centrality
+        >>> from skcomplex.core.analysis import centrality
         >>> centrality(nx.star_graph(3), 'betweenness')[0]
         1.0
     """

@@ -10,8 +10,8 @@ from typing import Any
 import numpy as np
 from scipy.optimize import brentq
 
+from ..base import SolverError
 from ..compile import CompiledEvent, EventRecord, Problem, RelaxationRecord, Vector
-from ..core import SolverError
 
 type Interpolant = Callable[[float], Vector]
 SEPARATION = 1e-10

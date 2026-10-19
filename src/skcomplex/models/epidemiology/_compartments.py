@@ -3,8 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ...core import Domain, Expression, parameter, role, state
-from ...model import Element, Interaction, Jump, Law, Rate, Symbols
+from ...core.base import Domain, Expression, parameter, role, state
+from ...core.model import Element, Interaction, Jump, Law, Rate, Symbols
 
 
 def _transfer(source: Expression, destination: Expression, rate: Expression, *, stochastic: bool) -> list[Law]:

@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.spatial import cKDTree
 
-from ..core import Expression, ValidationError, symbols_of
+from ..base import Expression, ValidationError, symbols_of
 from ..model import NumericFunction
 from ._layout import Entry, Layout
 from ._printing import numpy_function

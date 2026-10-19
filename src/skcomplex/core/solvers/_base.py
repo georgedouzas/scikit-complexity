@@ -10,8 +10,8 @@ from typing import Any, ClassVar
 import numpy as np
 from sklearn.base import BaseEstimator
 
+from ..base import Form, Registry, SolverError
 from ..compile import EventRecord, Problem, RelaxationRecord, Vector
-from ..core import Form, Registry, SolverError
 from ._hybrid import EventLocator, History
 
 
@@ -19,10 +19,12 @@ class Stepper(BaseEstimator):
     """Base class of solvers that advance a problem of one form through time.
 
     Subclasses set the class variable `form` and implement `advance`. Every call to `advance` receives the current
-    parameters, so parameter changes apply at the next call.
+    parameters, so parameter changes apply at the next call. Steppers that treat diffusion implicitly set `implicit`,
+    so they do not warn about the stability limit of explicit steps.
     """
 
     form: ClassVar[Form]
+    implicit: ClassVar[bool] = False
 
     def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
         """Prepare the stepper for a problem.
@@ -50,7 +52,7 @@ class Stepper(BaseEstimator):
         self.history_: History | None = None
         step = getattr(self, 'dt', None)
         limit = getattr(problem, 'stable_step', None)
-        if limit is not None and step is not None and step > limit:
+        if limit is not None and step is not None and step > limit and not self.implicit:
             warning_msg = (
                 f'{type(self).__name__} takes steps of {step}, above the stability limit {limit:.6g} of the diffusion '
                 f'of the fields. Use dt <= {limit:.6g}, or an adaptive or implicit solver.'

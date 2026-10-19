@@ -3,8 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ...model import Element, System, Update
-from ...runtime import register_model
+from ...core.model import Element, System, Update
+from ...core.runtime import register_model
 
 LogisticMap = Element.define(
     'LogisticMap',

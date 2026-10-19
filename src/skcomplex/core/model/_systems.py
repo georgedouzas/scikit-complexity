@@ -47,7 +47,7 @@ class System(BaseEstimator):
             drift correction of the convention, so every solver integrates the Itô form.
 
     Examples:
-        >>> from skcomplex.model import System
+        >>> from skcomplex.core.model import System
         >>> from skcomplex.models.ecology import LogisticGrowth, Population
         >>> system = System(
         ...     elements=[Population('rabbits', n=10)],
@@ -114,7 +114,7 @@ class MesaSystem(System):
 
     Examples:
         >>> import mesa
-        >>> from skcomplex.model import MesaSystem
+        >>> from skcomplex.core.model import MesaSystem
         >>> MesaSystem('market', model=mesa.Model).agents
         'agents'
     """

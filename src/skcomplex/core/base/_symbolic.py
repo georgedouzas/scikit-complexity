@@ -37,7 +37,7 @@ def symbol(name: str, domain: AnyDomain = Domain.REAL) -> Expression:
             The Sage symbol.
 
     Examples:
-        >>> from skcomplex.core import Domain, domain_of, symbol
+        >>> from skcomplex.core.base import Domain, domain_of, symbol
         >>> n = symbol('n', Domain.POSITIVE)
         >>> n.is_real(), domain_of(n)
         (True, <Domain.POSITIVE: 'positive'>)
@@ -60,7 +60,7 @@ def vector(components: Iterable[Any]) -> SymbolicVector:
             The vector over the symbolic ring.
 
     Examples:
-        >>> from skcomplex.core import symbol, vector
+        >>> from skcomplex.core.base import symbol, vector
         >>> x, y = symbol('x'), symbol('y')
         >>> vector([x, y]).dot_product(vector([x, y]))
         x^2 + y^2

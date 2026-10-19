@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.analysis import equations_of
+from skcomplex.core.analysis import equations_of
 from skcomplex.models import create, run
 
 

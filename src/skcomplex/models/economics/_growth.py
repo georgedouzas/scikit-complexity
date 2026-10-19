@@ -3,8 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ...core import Domain, parameter, role, state
-from ...model import Element, Interaction, Law, Rate, Symbols, Update
+from ...core.base import Domain, parameter, role, state
+from ...core.model import Element, Interaction, Law, Rate, Symbols, Update
 
 
 class Economy(Element):

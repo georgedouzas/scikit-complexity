@@ -30,7 +30,7 @@ class Mesh(Space):
             The node indices of every triangle or tetrahedron, one column per cell.
 
     Examples:
-        >>> from skcomplex.model import Mesh
+        >>> from skcomplex.core.model import Mesh
         >>> mesh = Mesh.rectangle(4, 3)
         >>> mesh.size, mesh.n_dim
         (20, 2)

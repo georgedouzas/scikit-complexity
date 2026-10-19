@@ -8,8 +8,8 @@ from dataclasses import dataclass
 
 from sage.all__sagemath_symbolics import SR, desolve, desolve_laplace, desolve_system, diff, function
 
+from ..base import AnalysisError, Expression, Form, components_of, declare_domains
 from ..compile import Problem, compile_system
-from ..core import AnalysisError, Expression, Form, components_of, declare_domains
 from ..model import System
 
 UNEVALUATED = frozenset({'ilt', 'laplace', 'integrate', 'integral'})
@@ -174,8 +174,8 @@ def equations_of(system: System) -> dict[str, Expression]:
             The system is a jump process.
 
     Examples:
-        >>> from skcomplex.analysis import equations_of
-        >>> from skcomplex.model import System
+        >>> from skcomplex.core.analysis import equations_of
+        >>> from skcomplex.core.model import System
         >>> from skcomplex.models.ecology import LogisticGrowth, Population
         >>> system = System(
         ...     elements=[Population('rabbits', n=10)],
@@ -215,8 +215,8 @@ def solve_symbolically(system: System, *, use_initial_state: bool = False) -> di
             sign of a parameter.
 
     Examples:
-        >>> from skcomplex.analysis import solve_symbolically
-        >>> from skcomplex.model import System
+        >>> from skcomplex.core.analysis import solve_symbolically
+        >>> from skcomplex.core.model import System
         >>> from skcomplex.models.ecology import ExponentialGrowth, Population
         >>> system = System(
         ...     elements=[Population('a', n=2)],

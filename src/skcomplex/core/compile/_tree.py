@@ -11,7 +11,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..core import AnyDomain, Domain, LabelError, SpaceError, ValidationError, Variable
+from ..base import AnyDomain, Domain, LabelError, SpaceError, ValidationError, Variable
 from ..model import AgentType, Element, Group, Interaction, LatticeSpace, MesaSystem, Space, System
 
 LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')

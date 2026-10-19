@@ -3,11 +3,11 @@
 import numpy as np
 import pytest
 
-from skcomplex.core import Domain, parameter
-from skcomplex.model import EuclideanSpace, System
+from skcomplex.core.base import Domain, parameter
+from skcomplex.core.model import EuclideanSpace, System
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.solvers import ScipyODE
 from skcomplex.models.physics import PairPotential, Particle, PeriodicBox, ideal_gas
-from skcomplex.runtime import Simulation
-from skcomplex.solvers import ScipyODE
 
 N_DIM = 2
 

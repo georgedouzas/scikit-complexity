@@ -5,9 +5,9 @@ import time
 import numpy as np
 import pytest
 
-from skcomplex.compile import compile_system
-from skcomplex.core import Domain, ValidationError, parameter, role
-from skcomplex.model import EuclideanSpace, Interaction, Jump, Noise, Rate, System, Update
+from skcomplex.core.base import Domain, ValidationError, parameter, role
+from skcomplex.core.compile import compile_system
+from skcomplex.core.model import EuclideanSpace, Interaction, Jump, Noise, Rate, System, Update
 from skcomplex.models.ecology import Population
 from skcomplex.models.physics import PairPotential, Particle, PeriodicBox, ReflectingBox
 

@@ -43,9 +43,9 @@ class Trajectory:
             reset, and the relaxations of lattices with their sizes, durations, and areas.
 
     Examples:
-        >>> from skcomplex.model import System
+        >>> from skcomplex.core.model import System
         >>> from skcomplex.models.ecology import ExponentialGrowth, Population
-        >>> from skcomplex.runtime import Simulation
+        >>> from skcomplex.core.runtime import Simulation
         >>> system = System(elements=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1)])
         >>> trajectory = Simulation(system, dt=0.5).run(until=1).trajectory_
         >>> trajectory.times.tolist()

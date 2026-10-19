@@ -8,10 +8,10 @@ from typing import ClassVar
 import networkx as nx
 import numpy as np
 
-from ...core import Domain, VisualSpec, parameter, state
-from ...model import AgentType, GridSpace, Law, NetworkSpace, Rule, Symbols, System
-from ...runtime import register_model
-from ...solvers import AgentView, ModelView
+from ...core.base import Domain, VisualSpec, parameter, state
+from ...core.model import AgentType, GridSpace, Law, NetworkSpace, Rule, Symbols, System
+from ...core.runtime import register_model
+from ...core.solvers import AgentView, ModelView
 
 
 class Resident(AgentType):

@@ -14,7 +14,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 from scipy.sparse import diags
 
-from ..core import Expression, ValidationError, domain_of, symbol
+from ..base import Expression, ValidationError, domain_of, symbol
 from ..model import Field, LatticeSpace, Mesh, Neighborhood, NetworkSpace, where
 from ._kernels import Reference, Source
 from ._printing import numpy_function

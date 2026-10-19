@@ -6,8 +6,8 @@
 import math
 from typing import ClassVar
 
+from ..base import Form
 from ..compile import CompiledRelaxation, Vector
-from ..core import Form
 from ._base import Stepper, register_solver
 
 
@@ -18,9 +18,9 @@ class LatticeStepper(Stepper):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.compile import compile_system
+        >>> from skcomplex.core.compile import compile_system
         >>> from skcomplex.models.lattices import elementary_automaton
-        >>> from skcomplex.solvers import LatticeStepper
+        >>> from skcomplex.core.solvers import LatticeStepper
         >>> problem = compile_system(elementary_automaton(30, size=11))
         >>> stepper = LatticeStepper()
         >>> stepper.initialize(problem, np.random.default_rng(0))
@@ -67,9 +67,9 @@ class MonteCarlo(LatticeStepper):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.compile import compile_system
+        >>> from skcomplex.core.compile import compile_system
         >>> from skcomplex.models.lattices import ising
-        >>> from skcomplex.solvers import MonteCarlo
+        >>> from skcomplex.core.solvers import MonteCarlo
         >>> problem = compile_system(ising(size=8, temperature=1.0))
         >>> stepper = MonteCarlo()
         >>> stepper.initialize(problem, np.random.default_rng(0))

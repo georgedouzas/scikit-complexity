@@ -17,7 +17,7 @@ from typing import Any, ClassVar
 import numpy as np
 from numba.core.dispatcher import Dispatcher
 
-from ..core import Expression, Form, symbols_of
+from ..base import Expression, Form, symbols_of
 from ..model import Boundary, Jump, Noise, Rate, Update
 from ._backends import (
     Backend,
@@ -45,8 +45,8 @@ HEADER = """import math
 import numpy as np
 from numba import njit, prange
 
-from skcomplex.compile._numba_cells import build_cells
-from skcomplex.compile._numba_stencils import neighbor_value
+from skcomplex.core.compile._numba_cells import build_cells
+from skcomplex.core.compile._numba_stencils import neighbor_value
 """
 LOOPS = {
     'rk4': """
@@ -540,8 +540,8 @@ class NumbaBackend(Backend):
             Whether member and pair loops run in parallel threads.
 
     Examples:
-        >>> from skcomplex.compile import compile_system
-        >>> from skcomplex.model import System
+        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.core.model import System
         >>> from skcomplex.models.ecology import ExponentialGrowth, Population
         >>> system = System(
         ...     elements=[Population.group('herds', 2, n=[1.0, 2.0])],

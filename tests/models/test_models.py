@@ -3,16 +3,16 @@
 import numpy as np
 import pytest
 
-from skcomplex.compile import compile_system
-from skcomplex.core import Form
-from skcomplex.model import EuclideanSpace, System
+from skcomplex.core.base import Form
+from skcomplex.core.compile import compile_system
+from skcomplex.core.model import EuclideanSpace, System
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.solvers import ScipyODE
 from skcomplex.models.ecology import LogisticGrowth, Mortality, Population, Predation
 from skcomplex.models.economics import Cobweb, Economy, Market, SolowGrowth
 from skcomplex.models.epidemiology import Compartment, Infection, Recovery
 from skcomplex.models.finance import Asset, GeometricBrownianMotion
 from skcomplex.models.physics import ConstantForce, Gravity, LinearDrag, Particle, Spring
-from skcomplex.runtime import Simulation
-from skcomplex.solvers import ScipyODE
 
 
 def test_particle_constant_acceleration():

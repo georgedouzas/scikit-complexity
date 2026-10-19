@@ -3,7 +3,7 @@
 import pytest
 from sklearn.base import clone
 
-from skcomplex.model import EuclideanSpace, Symbols, System
+from skcomplex.core.model import EuclideanSpace, Symbols, System
 from skcomplex.models.ecology import Population, Predation
 
 

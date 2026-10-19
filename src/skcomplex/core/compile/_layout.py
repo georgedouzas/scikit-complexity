@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ..core import AnyDomain
+from ..base import AnyDomain
 
 
 @dataclass(frozen=True)
@@ -107,8 +107,8 @@ class Layout:
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.compile import Entry, Layout
-        >>> from skcomplex.core import Domain
+        >>> from skcomplex.core.compile import Entry, Layout
+        >>> from skcomplex.core.base import Domain
         >>> layout = Layout([Entry('a.n', 0, (), Domain.REAL), Entry('b.x', 1, (2,), Domain.REAL)])
         >>> layout.read(np.array([1.0, 2.0, 3.0]), 'b.x')
         array([2., 3.])

@@ -11,7 +11,7 @@ from typing import Any, ClassVar, dataclass_transform
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from ..core import Domain, VisualSpec, companions_of, declaration_of, parameter, role, state
+from ..base import Domain, VisualSpec, companions_of, declaration_of, parameter, role, state
 from ._lattices import LatticeSpace
 from ._laws import Law
 from ._spaces import Space
@@ -117,8 +117,8 @@ class Element(Component):
             The label of the element, unique among the children of its system.
 
     Examples:
-        >>> from skcomplex.core import Domain, state
-        >>> from skcomplex.model import Element
+        >>> from skcomplex.core.base import Domain, state
+        >>> from skcomplex.core.model import Element
         >>> class Population(Element):
         ...     n: float = state(1.0, domain=Domain.NONNEGATIVE)
         >>> Population('rabbits', n=40)
@@ -163,8 +163,8 @@ class Element(Component):
                 The new element type, a subclass of the type `define` is called on.
 
         Examples:
-            >>> from skcomplex.core import Domain, state
-            >>> from skcomplex.model import Element, Rate
+            >>> from skcomplex.core.base import Domain, state
+            >>> from skcomplex.core.model import Element, Rate
             >>> Decaying = Element.define(
             ...     'Decaying',
             ...     states={'n': state(1.0, domain=Domain.NONNEGATIVE)},
@@ -249,8 +249,8 @@ class Element(Component):
 
         Examples:
             >>> import numpy as np
-            >>> from skcomplex.core import Domain, state
-            >>> from skcomplex.model import Element, LatticeSpace
+            >>> from skcomplex.core.base import Domain, state
+            >>> from skcomplex.core.model import Element, LatticeSpace
             >>> Cell = Element.define('Cell', states={'alive': state(0, domain=Domain.BOOLEAN)})
             >>> cells = Cell.lattice('cells', LatticeSpace((3, 4)), alive=np.eye(3, 4))
             >>> cells.size, cells.values['alive'].shape
@@ -278,8 +278,8 @@ class AgentType(Element):
             group, or `None` for random places.
 
     Examples:
-        >>> from skcomplex.core import state
-        >>> from skcomplex.model import AgentType, Rule
+        >>> from skcomplex.core.base import state
+        >>> from skcomplex.core.model import AgentType, Rule
         >>> class Walker(AgentType):
         ...     steps: float = state(0.0)
         ...
@@ -319,7 +319,7 @@ class Aggregate(Element):
             The initial value, before the first synchronisation point.
 
     Examples:
-        >>> from skcomplex.model import Aggregate
+        >>> from skcomplex.core.model import Aggregate
         >>> Aggregate('size', group='farmers').reduce
         'count'
     """
@@ -357,7 +357,7 @@ class Group(BaseEstimator):
             space of the enclosing system.
 
     Examples:
-        >>> from skcomplex.model import Group
+        >>> from skcomplex.core.model import Group
         >>> from skcomplex.models.ecology import Population
         >>> Group('herds', element=Population, size=3).size
         3
@@ -396,8 +396,8 @@ class Interaction(Component):
             The label of the interaction, unique among the children of its system.
 
     Examples:
-        >>> from skcomplex.core import Domain, parameter, role
-        >>> from skcomplex.model import Interaction, Rate
+        >>> from skcomplex.core.base import Domain, parameter, role
+        >>> from skcomplex.core.model import Interaction, Rate
         >>> class Growth(Interaction):
         ...     target: str = role()
         ...     r: float = parameter(1.0, domain=Domain.POSITIVE)
@@ -440,7 +440,7 @@ class Interaction(Component):
                 The new interaction type, a subclass of the type `define` is called on.
 
         Examples:
-            >>> from skcomplex.model import Interaction, Rate
+            >>> from skcomplex.core.model import Interaction, Rate
             >>> Growth = Interaction.define(
             ...     'Growth',
             ...     roles=['target'],
@@ -481,7 +481,7 @@ class PairInteraction(Interaction):
             The side of a periodic box, for minimum image distances, or `None` for an open space.
 
     Examples:
-        >>> from skcomplex.model import PairInteraction, Rate
+        >>> from skcomplex.core.model import PairInteraction, Rate
         >>> class Repulsion(PairInteraction):
         ...     def laws(self, s):
         ...         return [Rate(s.first.v, s.first.x - s.second.x)]

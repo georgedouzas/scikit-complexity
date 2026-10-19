@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy import optimize, special, stats
 
-from ..core import AnalysisError
+from ..base import AnalysisError
 
 type Array = npt.NDArray[np.float64]
 MIN_TAIL = 10
@@ -33,7 +33,7 @@ def histogram(values: npt.ArrayLike, bins: int = 30, *, log: bool = False) -> tu
             The bin edges and the density in every bin.
 
     Examples:
-        >>> from skcomplex.analysis import histogram
+        >>> from skcomplex.core.analysis import histogram
         >>> edges, density = histogram([1, 2, 4, 8], bins=3, log=True)
         >>> edges.round(2).tolist()
         [1.0, 2.0, 4.0, 8.0]
@@ -62,7 +62,7 @@ def ccdf(values: npt.ArrayLike) -> tuple[Array, Array]:
             The sorted distinct values and `P(X >= x)` at each of them.
 
     Examples:
-        >>> from skcomplex.analysis import ccdf
+        >>> from skcomplex.core.analysis import ccdf
         >>> ccdf([1, 1, 2, 4])[1].tolist()
         [1.0, 0.5, 0.25]
     """
@@ -212,7 +212,7 @@ def fit_power_law(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.analysis import fit_power_law
+        >>> from skcomplex.core.analysis import fit_power_law
         >>> samples = (1 - np.random.default_rng(0).random(5000)) ** (-1 / 1.5)
         >>> round(float(fit_power_law(samples, xmin=1.0, bootstrap=0).alpha), 1)
         2.5
@@ -303,7 +303,7 @@ def hill(values: npt.ArrayLike, k: int) -> float:
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.analysis import hill
+        >>> from skcomplex.core.analysis import hill
         >>> samples = (1 - np.random.default_rng(0).random(20000)) ** (-1 / 1.5)
         >>> round(hill(samples, 2000), 1)
         1.5
@@ -327,7 +327,7 @@ def gini(values: npt.ArrayLike) -> float:
             The Gini coefficient.
 
     Examples:
-        >>> from skcomplex.analysis import gini
+        >>> from skcomplex.core.analysis import gini
         >>> gini([1, 1, 1, 1]), gini([0, 0, 0, 4])
         (0.0, 0.75)
     """

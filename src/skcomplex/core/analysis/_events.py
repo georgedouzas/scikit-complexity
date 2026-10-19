@@ -60,7 +60,7 @@ def detect_events(values: npt.ArrayLike, threshold: float = 0.0, times: npt.Arra
             The starts, sizes, durations, peaks, and waiting times.
 
     Examples:
-        >>> from skcomplex.analysis import detect_events
+        >>> from skcomplex.core.analysis import detect_events
         >>> events = detect_events([0, 3, 1, 0, 0, 2, 0])
         >>> events.sizes.tolist(), events.durations.tolist(), events.waiting_times.tolist()
         ([4.0, 2.0], [2.0, 1.0], [2.0])

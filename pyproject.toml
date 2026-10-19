@@ -140,17 +140,17 @@ select = ["C", "E", "F", "W", "B", "I", "D", "N", "UP", "YTT", "ANN", "S",
 "PTH", "PD", "PGH", "PL", "TRY", "RUF", "PLE", "PLR", "PLW", "TRY", "RUF", "TID251"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
-"sympy".msg = "Sage is the symbolic layer. Write expressions with Sage, through `skcomplex.core` or `sage.all__sagemath_symbolics`."
+"sympy".msg = "Sage is the symbolic layer. Write expressions with Sage, through `skcomplex.core.base` or `sage.all__sagemath_symbolics`."
 
 [tool.ruff.lint.per-file-ignores]
 "docs/examples/*" = ["ANN", "D", "B018"]
 "docs/generated/*" = ["ANN", "D"]
 "test_*" = ["ANN", "PLR2004"]
-"src/skcomplex/core/_variables.py" = ["ANN401"]
+"src/skcomplex/core/base/_variables.py" = ["ANN401"]
 # Numba-compiled helpers take positional arrays because generated kernels call them positionally.
-"src/skcomplex/compile/_numba_cells.py" = ["PLR0917"]
+"src/skcomplex/core/compile/_numba_cells.py" = ["PLR0917"]
 # Numba-compiled loops take positional arrays and compiled functions, whose Numba types have no Python annotation.
-"src/skcomplex/analysis/_lyapunov.py" = ["PLR0917", "ANN401"]
+"src/skcomplex/core/analysis/_lyapunov.py" = ["PLR0917", "ANN401"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

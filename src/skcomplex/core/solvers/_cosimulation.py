@@ -9,8 +9,8 @@ from typing import Any, ClassVar, cast
 import numpy as np
 from sklearn.base import clone
 
+from ..base import Domain, Form, SolverError, ValidationError
 from ..compile import Partition, Problem, Vector, partition_system
-from ..core import Domain, Form, SolverError, ValidationError
 from ..model import Aggregate, reduce_values
 from ._agents import AgentState, MesaStepper
 from ._base import Stepper, register_solver, resolve_solver
@@ -47,10 +47,10 @@ class CoSimulation(Stepper):
             The stepper of every partition by partition name.
 
     Examples:
-        >>> from skcomplex.model import System
+        >>> from skcomplex.core.model import System
         >>> from skcomplex.models.ecology import ExponentialGrowth, Population
-        >>> from skcomplex.runtime import Simulation
-        >>> from skcomplex.solvers import CoSimulation
+        >>> from skcomplex.core.runtime import Simulation
+        >>> from skcomplex.core.solvers import CoSimulation
         >>> system = System(
         ...     systems=[
         ...         System('a', elements=[Population('x', n=1)], interactions=[ExponentialGrowth('g', target='x')]),

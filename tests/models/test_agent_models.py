@@ -3,9 +3,9 @@
 import networkx as nx
 import numpy as np
 
+from skcomplex.core.runtime import Simulation
 from skcomplex.models.ecology import wolf_sheep
 from skcomplex.models.social import boltzmann_wealth, schelling, voter_model
-from skcomplex.runtime import Simulation
 
 
 def _similar_share(snapshot):

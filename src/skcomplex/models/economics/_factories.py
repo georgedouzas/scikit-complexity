@@ -3,9 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ...core import state
-from ...model import Element, System, Update, lag
-from ...runtime import register_model
+from ...core.base import state
+from ...core.model import Element, System, Update, lag
+from ...core.runtime import register_model
 from ._growth import Cobweb, Economy, Market, SolowGrowth
 
 

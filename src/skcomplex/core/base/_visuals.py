@@ -19,7 +19,7 @@ class VisualSpec:
             The keyword arguments of the visual.
 
     Examples:
-        >>> from skcomplex.core import VisualSpec
+        >>> from skcomplex.core.base import VisualSpec
         >>> VisualSpec('points', {'position': 'x'}).kind
         'points'
     """

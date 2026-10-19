@@ -9,9 +9,9 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ...core import Domain, parameter, state
-from ...model import Drive, Element, LatticeSpace, Law, LocalRule, Neighborhood, Relaxation, Symbols, System
-from ...runtime import register_model
+from ...core.base import Domain, parameter, state
+from ...core.model import Drive, Element, LatticeSpace, Law, LocalRule, Neighborhood, Relaxation, Symbols, System
+from ...core.runtime import register_model
 
 type Array = npt.NDArray[np.float64]
 

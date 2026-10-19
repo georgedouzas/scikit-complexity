@@ -15,7 +15,7 @@ class Domain(Enum):
     """Set of values a variable can take.
 
     Examples:
-        >>> from skcomplex.core import Domain
+        >>> from skcomplex.core.base import Domain
         >>> Domain.POSITIVE.contains(2.0)
         True
         >>> Domain.NONNEGATIVE_INTEGER.contains(1.5)
@@ -43,7 +43,7 @@ class Domain(Enum):
                 The categorical domain.
 
         Examples:
-            >>> from skcomplex.core import Domain
+            >>> from skcomplex.core.base import Domain
             >>> health = Domain.categorical('susceptible', 'infected', 'recovered')
             >>> health.encode(['infected', 'recovered']).tolist()
             [1.0, 2.0]
@@ -129,7 +129,7 @@ class Categorical:
             The distinct labels of the alphabet, in order.
 
     Examples:
-        >>> from skcomplex.core import Domain
+        >>> from skcomplex.core.base import Domain
         >>> Domain.categorical('low', 'high').contains(['high', 1])
         True
     """

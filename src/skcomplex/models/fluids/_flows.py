@@ -10,8 +10,8 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ...core import Domain, parameter, state
-from ...model import (
+from ...core.base import Domain, parameter, state
+from ...core.model import (
     Element,
     Field,
     Flux,
@@ -25,8 +25,8 @@ from ...model import (
     inverse_laplacian,
     laplacian,
 )
-from ...runtime import register_model
-from ...solvers import ETDRK4, SSPRK
+from ...core.runtime import register_model
+from ...core.solvers import ETDRK4, SSPRK
 
 type Array = npt.NDArray[np.float64]
 

@@ -7,9 +7,9 @@ import math
 
 from sage.all__sagemath_symbolics import cos, sin, sqrt
 
-from ...core import Domain, parameter, state
-from ...model import Element, Interaction, Noise, Rate, System, delayed
-from ...runtime import register_model
+from ...core.base import Domain, parameter, state
+from ...core.model import Element, Interaction, Noise, Rate, System, delayed
+from ...core.runtime import register_model
 
 MackeyGlass = Element.define(
     'MackeyGlass',

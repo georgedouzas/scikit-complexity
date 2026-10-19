@@ -7,9 +7,9 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.compile import compile_system
-from skcomplex.core import Form, IncompatibleLawsError, ValidationError, parameter, role, state
-from skcomplex.model import (
+from skcomplex.core.base import Form, IncompatibleLawsError, ValidationError, parameter, role, state
+from skcomplex.core.compile import compile_system
+from skcomplex.core.model import (
     AgentType,
     ContinuousSpace,
     GridSpace,
@@ -19,8 +19,8 @@ from skcomplex.model import (
     Rule,
     System,
 )
+from skcomplex.core.runtime import RealTime, Simulation
 from skcomplex.models.ecology import ExponentialGrowth, Population
-from skcomplex.runtime import RealTime, Simulation
 
 
 class Breeder(AgentType):

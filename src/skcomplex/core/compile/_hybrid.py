@@ -13,7 +13,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ..core import Expression, ValidationError, symbols_of
+from ..base import Expression, ValidationError, symbols_of
 from ._printing import numpy_function
 
 if TYPE_CHECKING:

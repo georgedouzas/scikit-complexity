@@ -3,9 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ...core import Domain, parameter
-from ...model import Element, Event, Rate, System
-from ...runtime import register_model
+from ...core.base import Domain, parameter
+from ...core.model import Element, Event, Rate, System
+from ...core.runtime import register_model
 
 LeakyIntegrateAndFire = Element.define(
     'LeakyIntegrateAndFire',
@@ -85,7 +85,7 @@ def integrate_and_fire(
 
     Examples:
         >>> from skcomplex.models.neuroscience import integrate_and_fire
-        >>> from skcomplex.runtime import Simulation
+        >>> from skcomplex.core.runtime import Simulation
         >>> trajectory = Simulation(integrate_and_fire(), dt=0.1).run(until=50.0).trajectory_
         >>> round(trajectory.events[0].time, 4)
         13.8629

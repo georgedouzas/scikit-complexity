@@ -2,8 +2,8 @@
 
 import pytest
 
-from skcomplex.core import Domain, Registry, VariableKind, declarations_of, parameter, role, state
-from skcomplex.model import Element, Interaction
+from skcomplex.core.base import Domain, Registry, VariableKind, declarations_of, parameter, role, state
+from skcomplex.core.model import Element, Interaction
 
 
 class Body(Element):

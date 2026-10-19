@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, solve
 
-from ..core import Expression, ValidationError, symbol
+from ..base import Expression, ValidationError, symbol
 from ..model import Field, Flux, LatticeSpace
 from ._kernels import Reference, Source
 from ._printing import numpy_function

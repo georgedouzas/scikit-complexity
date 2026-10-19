@@ -9,7 +9,7 @@ from typing import ClassVar
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, sqrt
 
-from ...core import (
+from ...core.base import (
     Domain,
     Expression,
     SymbolicVector,
@@ -21,7 +21,7 @@ from ...core import (
     state,
     vector,
 )
-from ...model import Element, Interaction, Law, Rate, Symbols
+from ...core.model import Element, Interaction, Law, Rate, Symbols
 
 
 def _distance(first: SymbolicVector, second: SymbolicVector) -> Expression:

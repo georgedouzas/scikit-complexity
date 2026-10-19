@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.optimize import least_squares, minimize
 
-from ..core import ValidationError
+from ..base import ValidationError
 from ..runtime import Simulation
 from ._runner import Source, _problem, resolve_source, with_values
 
@@ -113,7 +113,7 @@ def calibrate(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.experiments import calibrate
+        >>> from skcomplex.core.experiments import calibrate
         >>> from skcomplex.models.ecology import logistic_growth
         >>> times = np.arange(0, 21.0)
         >>> values = 100 / (1 + 9 * np.exp(-0.5 * times))

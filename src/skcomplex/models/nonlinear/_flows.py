@@ -5,9 +5,9 @@
 
 from sage.all__sagemath_symbolics import cos
 
-from ...core import Domain, parameter, state
-from ...model import Element, Rate, System, derivative
-from ...runtime import register_model
+from ...core.base import Domain, parameter, state
+from ...core.model import Element, Rate, System, derivative
+from ...core.runtime import register_model
 
 Lorenz = Element.define(
     'Lorenz',

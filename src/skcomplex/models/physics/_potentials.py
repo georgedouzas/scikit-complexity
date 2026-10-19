@@ -5,8 +5,8 @@
 
 from sage.all__sagemath_symbolics import sqrt
 
-from ...core import Domain, Expression, parameter, role
-from ...model import Interaction, Law, Noise, Rate, Symbols
+from ...core.base import Domain, Expression, parameter, role
+from ...core.model import Interaction, Law, Noise, Rate, Symbols
 from ._boxes import PairPotential
 
 

@@ -3,6 +3,9 @@
 import numpy as np
 import pytest
 
+from skcomplex.core.runtime import Frame, Simulation
+from skcomplex.core.solvers import RK4
+from skcomplex.core.viz import RerunObserver, resolve_visual
 from skcomplex.models.fields import (
     brusselator,
     fisher_kpp,
@@ -12,9 +15,6 @@ from skcomplex.models.fields import (
     pheromone_foraging,
     schnakenberg,
 )
-from skcomplex.runtime import Frame, Simulation
-from skcomplex.solvers import RK4
-from skcomplex.viz import RerunObserver, resolve_visual
 
 
 class Images:

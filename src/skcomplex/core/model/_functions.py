@@ -10,7 +10,7 @@ from typing import Any
 from sage.all__sagemath_symbolics import SR, floor
 from sage.symbolic.function import BuiltinFunction
 
-from ..core import Expression
+from ..base import Expression
 
 
 def _is_decided(*arguments: Any) -> bool:  # noqa: ANN401
@@ -144,8 +144,8 @@ Returns:
         The symbolic choice.
 
 Examples:
-    >>> from skcomplex.core import symbol
-    >>> from skcomplex.model import where
+    >>> from skcomplex.core.base import symbol
+    >>> from skcomplex.core.model import where
     >>> x = symbol('x')
     >>> where(x < 0, -x, x)
     where(x < 0, -x, x)
@@ -165,8 +165,8 @@ Returns:
         The disjunction.
 
 Examples:
-    >>> from skcomplex.core import symbol
-    >>> from skcomplex.model import either, where
+    >>> from skcomplex.core.base import symbol
+    >>> from skcomplex.core.model import either, where
     >>> x = symbol('x')
     >>> where(either(x < 0, x > 1), 1, 0).subs(x=2)
     1
@@ -184,8 +184,8 @@ Returns:
         The conjunction.
 
 Examples:
-    >>> from skcomplex.core import symbol
-    >>> from skcomplex.model import both, where
+    >>> from skcomplex.core.base import symbol
+    >>> from skcomplex.core.model import both, where
     >>> x = symbol('x')
     >>> where(both(x > 0, x < 1), 1, 0).subs(x=0.5)
     1
@@ -206,8 +206,8 @@ Returns:
         The symbolic remainder.
 
 Examples:
-    >>> from skcomplex.core import symbol
-    >>> from skcomplex.model import mod
+    >>> from skcomplex.core.base import symbol
+    >>> from skcomplex.core.model import mod
     >>> x = symbol('x')
     >>> mod(x, 1).subs(x=-0.25)
     0.75
@@ -231,8 +231,8 @@ Returns:
         The symbolic derivative.
 
 Examples:
-    >>> from skcomplex.core import symbol
-    >>> from skcomplex.model import derivative
+    >>> from skcomplex.core.base import symbol
+    >>> from skcomplex.core.model import derivative
     >>> x = symbol('x')
     >>> derivative(x, 2) + derivative(x, 0)
     x + derivative(x, 2)
@@ -255,8 +255,8 @@ Returns:
         The symbolic lagged value.
 
 Examples:
-    >>> from skcomplex.core import symbol
-    >>> from skcomplex.model import lag
+    >>> from skcomplex.core.base import symbol
+    >>> from skcomplex.core.model import lag
     >>> y = symbol('y')
     >>> lag(y, 1) - lag(y, 0)
     -y + lag(y, 1)
@@ -284,8 +284,8 @@ Returns:
         The symbolic delayed value.
 
 Examples:
-    >>> from skcomplex.core import symbol
-    >>> from skcomplex.model import delayed
+    >>> from skcomplex.core.base import symbol
+    >>> from skcomplex.core.model import delayed
     >>> x, tau = symbol('x'), symbol('tau')
     >>> delayed(x, tau)
     delayed(x, tau)
@@ -310,8 +310,8 @@ def step(t: Expression, at: float, height: float = 1.0) -> Expression:
             The symbolic input.
 
     Examples:
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import step
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import step
         >>> t = symbol('t')
         >>> [float(step(t, 5, 2).subs({t: time})) for time in (4, 5)]
         [0.0, 2.0]
@@ -340,8 +340,8 @@ def ramp(t: Expression, start: float, end: float, height: float = 1.0) -> Expres
             The symbolic input.
 
     Examples:
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import ramp
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import ramp
         >>> t = symbol('t')
         >>> [float(ramp(t, 0, 10, 5).subs({t: time})) for time in (-1, 4, 20)]
         [0.0, 2.0, 5.0]
@@ -370,8 +370,8 @@ def pulse(t: Expression, start: float, width: float, height: float = 1.0) -> Exp
             The symbolic input.
 
     Examples:
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import pulse
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import pulse
         >>> t = symbol('t')
         >>> [float(pulse(t, 2, 1, 3).subs({t: time})) for time in (1.5, 2.5, 3.5)]
         [0.0, 3.0, 0.0]
@@ -403,8 +403,8 @@ def pulse_train(t: Expression, period: float, width: float, height: float = 1.0,
             The symbolic input.
 
     Examples:
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import pulse_train
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import pulse_train
         >>> t = symbol('t')
         >>> [float(pulse_train(t, 10, 1).subs({t: time})) for time in (0.5, 5, 20.5)]
         [1.0, 0.0, 1.0]
@@ -439,8 +439,8 @@ def series(t: Expression, times: Sequence[float], values: Sequence[float], kind:
             The times do not increase, the lengths differ, or the kind is unknown.
 
     Examples:
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import series
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import series
         >>> t = symbol('t')
         >>> data = series(t, [0, 10, 20], [0.0, 5.0, 1.0])
         >>> [float(data.subs({t: time})) for time in (-5, 5, 15, 30)]

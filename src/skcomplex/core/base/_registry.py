@@ -17,7 +17,7 @@ class Registry[Entry]:
             The name of what the registry holds, used in error messages.
 
     Examples:
-        >>> from skcomplex.core import Registry
+        >>> from skcomplex.core.base import Registry
         >>> registry = Registry[type]('visuals')
         >>> registry.register('number', float)
         >>> registry.resolve('number')

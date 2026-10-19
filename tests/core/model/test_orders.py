@@ -4,10 +4,10 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import abs_symbolic, sin
 
-from skcomplex.core import Domain, ValidationError, parameter, state
-from skcomplex.model import Element, Interaction, Rate, System, derivative
-from skcomplex.runtime import Simulation
-from skcomplex.solvers import ScipyODE, VelocityVerlet
+from skcomplex.core.base import Domain, ValidationError, parameter, state
+from skcomplex.core.model import Element, Interaction, Rate, System, derivative
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.solvers import ScipyODE, VelocityVerlet
 
 PRECISE = ScipyODE(rtol=1e-10, atol=1e-12)
 

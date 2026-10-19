@@ -15,7 +15,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, matrix
 
-from ..core import (
+from ..base import (
     Domain,
     Expression,
     Form,
@@ -1684,8 +1684,8 @@ def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
             The backend is not registered.
 
     Examples:
-        >>> from skcomplex.compile import compile_system
-        >>> from skcomplex.model import System
+        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.core.model import System
         >>> from skcomplex.models.ecology import ExponentialGrowth, Population
         >>> problem = compile_system(
         ...     System(
@@ -1733,8 +1733,8 @@ def partition_system(system: System, backend: str | Backend = 'auto') -> Problem
             A partition mixes law kinds that no form supports.
 
     Examples:
-        >>> from skcomplex.compile import partition_system
-        >>> from skcomplex.model import System
+        >>> from skcomplex.core.compile import partition_system
+        >>> from skcomplex.core.model import System
         >>> from skcomplex.models.ecology import ExponentialGrowth, Population
         >>> system = System(
         ...     systems=[

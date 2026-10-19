@@ -3,11 +3,11 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ...core import Domain, parameter, role, state
-from ...model import AgentType, Aggregate, Interaction, Law, Rate, Rule, Symbols, System
-from ...models.ecology import LogisticGrowth, Population
-from ...runtime import register_model
-from ...solvers import AgentView, ModelView
+from ...core.base import Domain, parameter, role, state
+from ...core.model import AgentType, Aggregate, Interaction, Law, Rate, Rule, Symbols, System
+from ...core.runtime import register_model
+from ...core.solvers import AgentView, ModelView
+from ..ecology import LogisticGrowth, Population
 
 
 class Farmer(AgentType):

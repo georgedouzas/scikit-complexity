@@ -96,7 +96,7 @@ def orbit_diagram(
             The kept values for every value of the parameter.
 
     Examples:
-        >>> from skcomplex.analysis import orbit_diagram
+        >>> from skcomplex.core.analysis import orbit_diagram
         >>> from skcomplex.models.nonlinear import logistic_map
         >>> diagram = orbit_diagram('logistic_map', 'map.r', [2.9, 3.2], 'map.x', transient=1000, keep=20, dt=1)
         >>> diagram.periods().tolist()
@@ -180,7 +180,7 @@ def basin_stability(
             The fraction and standard error of each attractor.
 
     Examples:
-        >>> from skcomplex.analysis import basin_stability
+        >>> from skcomplex.core.analysis import basin_stability
         >>> from skcomplex.models.ecology import logistic_growth
         >>> result = basin_stability('logistic_growth', {'population.n': (0.1, 10)},
         ...                          lambda trajectory: 'capacity', n=5, until=5)

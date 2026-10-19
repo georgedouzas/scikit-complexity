@@ -14,7 +14,7 @@ from SALib.analyze import sobol as sobol_analysis
 from SALib.sample import morris as morris_sample
 from SALib.sample import sobol as sobol_sample
 
-from ..core import ValidationError
+from ..base import ValidationError
 from ._designs import Rows
 from ._runner import Experiment, Output, Source
 
@@ -115,7 +115,7 @@ def sensitivity(
             The method is unknown.
 
     Examples:
-        >>> from skcomplex.experiments import sensitivity
+        >>> from skcomplex.core.experiments import sensitivity
         >>> from skcomplex.models.ecology import logistic_growth
         >>> result = sensitivity('logistic_growth', {'growth.r': (0.1, 1.0), 'growth.K': (50, 150)},
         ...                      'population.n', method='oat', until=20)

@@ -3,9 +3,9 @@
 import pytest
 import sympy  # noqa: TID251  # the test passes a SymPy expression to check that laws reject it
 
-from skcomplex.compile import compile_system
-from skcomplex.core import Domain, Expression, SymbolicVector, ValidationError, domain_of, role
-from skcomplex.model import EuclideanSpace, Interaction, Rate, System
+from skcomplex.core.base import Domain, Expression, SymbolicVector, ValidationError, domain_of, role
+from skcomplex.core.compile import compile_system
+from skcomplex.core.model import EuclideanSpace, Interaction, Rate, System
 from skcomplex.models.ecology import Population
 from skcomplex.models.physics import Particle
 

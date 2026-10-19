@@ -8,8 +8,8 @@ from abc import abstractmethod
 import numpy as np
 from sage.all__sagemath_symbolics import SR, sqrt
 
-from ...core import Domain, Expression, VisualSpec, parameter, role, symbol
-from ...model import (
+from ...core.base import Domain, Expression, VisualSpec, parameter, role, symbol
+from ...core.model import (
     Boundary,
     EuclideanSpace,
     Interaction,
@@ -22,7 +22,7 @@ from ...model import (
     mod,
     where,
 )
-from ...runtime import register_model
+from ...core.runtime import register_model
 from ._mechanics import Particle
 
 

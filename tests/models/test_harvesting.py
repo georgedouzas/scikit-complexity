@@ -2,8 +2,8 @@
 
 import pytest
 
+from skcomplex.core.runtime import Simulation
 from skcomplex.models.social import harvesting
-from skcomplex.runtime import Simulation
 
 
 def test_high_effort_collapses_the_stock():

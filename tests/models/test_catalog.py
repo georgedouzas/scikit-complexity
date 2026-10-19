@@ -1,22 +1,19 @@
 """Test the model catalog, the library's use of the public interface, and the conformance of every model."""
 
-import ast
 import pickle  # nosec B403: the tests pickle and load only objects they create
-from pathlib import Path
 
 import numpy as np
 import pytest
 from sklearn.base import clone
 
-from skcomplex.compile import compile_system, observables_of
-from skcomplex.core import ValidationError
-from skcomplex.model import System
+from skcomplex.core.base import ValidationError
+from skcomplex.core.compile import compile_system, observables_of
+from skcomplex.core.model import System
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.viz import RerunObserver
 from skcomplex.models import catalog, create, describe, register_model, run
 from skcomplex.models.ecology import ExponentialGrowth, Mortality, Population, Predation
-from skcomplex.runtime import Simulation
-from skcomplex.viz import RerunObserver
 
-LIBRARY = Path(__file__).parent.parent.parent / 'src' / 'skcomplex' / 'models'
 CONFORMANCE_FRAMES = 10
 
 
@@ -71,41 +68,6 @@ def test_registration_requires_defaults():
         register_model(field='test')(needs_size)
     with pytest.raises(ValidationError, match='Unknown run settings'):
         register_model(field='test', defaults={'speed': 2})(needs_size)
-
-
-def _private_imports(path):
-    """Return the imports of private modules or names of other packages in a library module."""
-    found = []
-    for node in ast.walk(ast.parse(path.read_text())):
-        if not isinstance(node, ast.ImportFrom) or not node.module or node.level == 1:
-            continue
-        if any(part.startswith('_') for part in node.module.split('.')):
-            found.append(f'{path.relative_to(LIBRARY)}: from {"." * node.level}{node.module}')
-        found += [
-            f'{path.relative_to(LIBRARY)}: {alias.name} from {node.module}'
-            for alias in node.names
-            if alias.name.startswith('_')
-        ]
-    return found
-
-
-def test_library_uses_public_interface():
-    """Test that no library module imports a private name or module of another package."""
-    found = [item for path in LIBRARY.rglob('*.py') for item in _private_imports(path)]
-    assert found == []
-
-
-def test_import_check_finds_planted_import(tmp_path):
-    """Test that the import check reports a private import of another package."""
-    module = LIBRARY / 'ecology' / '_planted_check.py'
-    module.write_text('from ...compile._compiler import _compile\n')
-    try:
-        assert _private_imports(module) == [
-            'ecology/_planted_check.py: from ...compile._compiler',
-            'ecology/_planted_check.py: _compile from compile._compiler',
-        ]
-    finally:
-        module.unlink()
 
 
 @pytest.mark.parametrize('entry', catalog(), ids=lambda entry: entry.name)

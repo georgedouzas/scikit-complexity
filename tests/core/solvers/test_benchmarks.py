@@ -5,14 +5,14 @@ import time
 import numpy as np
 import pytest
 
-from skcomplex.compile import compile_system
-from skcomplex.core import Domain, parameter
-from skcomplex.model import EuclideanSpace, System
+from skcomplex.core.base import Domain, parameter
+from skcomplex.core.compile import compile_system
+from skcomplex.core.model import EuclideanSpace, System
+from skcomplex.core.runtime import RealTime, Simulation
+from skcomplex.core.solvers import VelocityVerlet
+from skcomplex.core.viz import RerunObserver
 from skcomplex.models.lattices import game_of_life
 from skcomplex.models.physics import PairPotential, Particle, ReflectingBox, ideal_gas
-from skcomplex.runtime import RealTime, Simulation
-from skcomplex.solvers import VelocityVerlet
-from skcomplex.viz import RerunObserver
 
 
 class SoftSphere(PairPotential):

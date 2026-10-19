@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from ..core import ValidationError
+from ..base import ValidationError
 
 REDUCTIONS: dict[str, Callable[[Any], Any]] = {
     'sum': lambda array: array.sum(axis=0),
@@ -40,7 +40,7 @@ def reduce_values(values: Any, reduce: str | Callable[[Any], Any]) -> Any:  # no
             The reduction is unknown.
 
     Examples:
-        >>> from skcomplex.model import reduce_values
+        >>> from skcomplex.core.model import reduce_values
         >>> reduce_values([1.0, 2.0, 6.0], 'mean')
         3.0
     """
@@ -86,7 +86,7 @@ class Observable(BaseEstimator):
             The name of the member variable to reduce, instead of an expression.
 
     Examples:
-        >>> from skcomplex.model import Observable
+        >>> from skcomplex.core.model import Observable
         >>> Observable('mean_wealth', group='traders', variable='wealth').reduce
         'mean'
     """

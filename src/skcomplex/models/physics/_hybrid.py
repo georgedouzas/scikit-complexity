@@ -5,9 +5,9 @@
 
 from sage.all__sagemath_symbolics import sqrt
 
-from ...core import Domain, parameter, state
-from ...model import Boundary, Element, Event, Interaction, Noise, Rate, System, derivative
-from ...runtime import register_model
+from ...core.base import Domain, parameter, state
+from ...core.model import Boundary, Element, Event, Interaction, Noise, Rate, System, derivative
+from ...core.runtime import register_model
 
 BouncingBall = Element.define(
     'BouncingBall',
@@ -108,7 +108,7 @@ def bouncing_ball(h: float = 1.0, v: float = 0.0, *, g: float = 9.81, e: float =
 
     Examples:
         >>> from skcomplex.models.physics import bouncing_ball
-        >>> from skcomplex.runtime import Simulation
+        >>> from skcomplex.core.runtime import Simulation
         >>> trajectory = Simulation(bouncing_ball(), dt=0.01).run(until=1.0).trajectory_
         >>> round(trajectory.events[0].time, 6)
         0.451524

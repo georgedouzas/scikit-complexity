@@ -7,10 +7,22 @@ from typing import ClassVar, cast
 
 import numpy as np
 
-from ...core import Domain, VisualSpec, parameter, state
-from ...model import AgentType, Element, Field, GridSpace, LatticeSpace, Law, Rate, Rule, Symbols, System, laplacian
-from ...runtime import register_model
-from ...solvers import AgentView, ModelView
+from ...core.base import Domain, VisualSpec, parameter, state
+from ...core.model import (
+    AgentType,
+    Element,
+    Field,
+    GridSpace,
+    LatticeSpace,
+    Law,
+    Rate,
+    Rule,
+    Symbols,
+    System,
+    laplacian,
+)
+from ...core.runtime import register_model
+from ...core.solvers import AgentView, ModelView
 
 PHEROMONE = 'ground/pheromone.level'
 

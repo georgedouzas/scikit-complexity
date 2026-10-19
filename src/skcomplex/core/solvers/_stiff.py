@@ -13,8 +13,8 @@ import numpy.typing as npt
 from scipy.sparse import csr_matrix, diags, identity
 from scipy.sparse.linalg import splu
 
+from ..base import Form, SolverError, symbol
 from ..compile import Problem, Vector, mesh_laplacian, numpy_function, spectral_multiplier
-from ..core import Form, SolverError, symbol
 from ..model import LatticeSpace, Mesh, Neighborhood, NetworkSpace
 from ._base import Stepper, register_solver
 
@@ -259,6 +259,7 @@ class _SplitStepper(Stepper):
     """Base of steppers that treat the linear part of the rates of fields apart from the nonlinear remainder."""
 
     form: ClassVar[Form] = Form.ODE
+    implicit: ClassVar[bool] = True
 
     def __init__(self, dt: float = 0.01) -> None:
         self.dt = dt
@@ -350,9 +351,9 @@ class IMEXEuler(_SplitStepper):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.compile import compile_system
+        >>> from skcomplex.core.compile import compile_system
         >>> from skcomplex.models.fields import heat_diffusion
-        >>> from skcomplex.solvers import IMEXEuler
+        >>> from skcomplex.core.solvers import IMEXEuler
         >>> problem = compile_system(heat_diffusion((16, 16)))
         >>> stepper = IMEXEuler(dt=1.0)
         >>> stepper.initialize(problem, np.random.default_rng(0))
@@ -377,7 +378,7 @@ class IMEX2(_SplitStepper):
             The fixed internal step.
 
     Examples:
-        >>> from skcomplex.solvers import IMEX2
+        >>> from skcomplex.core.solvers import IMEX2
         >>> IMEX2(dt=0.1).dt
         0.1
     """
@@ -405,7 +406,7 @@ class CrankNicolson(_SplitStepper):
             The fixed internal step.
 
     Examples:
-        >>> from skcomplex.solvers import CrankNicolson
+        >>> from skcomplex.core.solvers import CrankNicolson
         >>> CrankNicolson(dt=0.5).dt
         0.5
     """
@@ -447,7 +448,7 @@ class ETDRK4(_SplitStepper):
             The fixed internal step.
 
     Examples:
-        >>> from skcomplex.solvers import ETDRK4
+        >>> from skcomplex.core.solvers import ETDRK4
         >>> ETDRK4(dt=0.25).dt
         0.25
     """
@@ -512,9 +513,9 @@ class SSPRK(Stepper):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.compile import compile_system
+        >>> from skcomplex.core.compile import compile_system
         >>> from skcomplex.models.fluids import burgers
-        >>> from skcomplex.solvers import SSPRK
+        >>> from skcomplex.core.solvers import SSPRK
         >>> problem = compile_system(burgers(64))
         >>> stepper = SSPRK()
         >>> stepper.initialize(problem, np.random.default_rng(0))

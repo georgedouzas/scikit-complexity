@@ -4,9 +4,9 @@ import numpy as np
 import pytest
 from sklearn.base import clone
 
-from skcomplex.compile import compile_system
-from skcomplex.core import RoleError, ValidationError
-from skcomplex.model import Boundary, EuclideanSpace, Group, PairInteraction, Rate, System
+from skcomplex.core.base import RoleError, ValidationError
+from skcomplex.core.compile import compile_system
+from skcomplex.core.model import Boundary, EuclideanSpace, Group, PairInteraction, Rate, System
 from skcomplex.models.ecology import ExponentialGrowth, Population, Predation
 from skcomplex.models.physics import Particle
 

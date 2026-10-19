@@ -32,7 +32,7 @@ class Scenario(BaseEstimator):
             A system that replaces the model's system, for structural changes, or `None`.
 
     Examples:
-        >>> from skcomplex.experiments import Scenario
+        >>> from skcomplex.core.experiments import Scenario
         >>> Scenario('quota', schedule=[(50.0, 'harvest.effort', 0.025)]).schedule
         [(50.0, 'harvest.effort', 0.025)]
     """

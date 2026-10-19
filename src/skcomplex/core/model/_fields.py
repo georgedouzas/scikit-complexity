@@ -10,7 +10,7 @@ from typing import Any
 from sage.all__sagemath_symbolics import SR
 from sage.symbolic.function import BuiltinFunction
 
-from ..core import Expression, SymbolicVector, VisualSpec, components_of, vector
+from ..base import Expression, SymbolicVector, VisualSpec, components_of, vector
 from ._components import Element, Group
 from ._lattices import LatticeSpace
 from ._meshes import Mesh
@@ -57,8 +57,8 @@ inverse_laplacian = _InverseLaplacian()
 inverse_laplacian.__doc__ = """Return the solution `psi` of `laplacian(psi) = u` with zero mean on a spectral field.
 
 Examples:
-    >>> from skcomplex.core import symbol
-    >>> from skcomplex.model import inverse_laplacian
+    >>> from skcomplex.core.base import symbol
+    >>> from skcomplex.core.model import inverse_laplacian
     >>> inverse_laplacian(-symbol('omega'))
     inverse_laplacian(-omega)
 """
@@ -84,8 +84,8 @@ def gradient(expression: object, n_dim: int = 2) -> SymbolicVector:
             One derivative per dimension.
 
     Examples:
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import gradient
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import gradient
         >>> gradient(symbol('u'))
         (partial(u, 0), partial(u, 1))
     """
@@ -104,8 +104,8 @@ def divergence(components: Sequence[Any] | SymbolicVector) -> Expression:
             The divergence.
 
     Examples:
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import divergence
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import divergence
         >>> u = symbol('u')
         >>> sorted(str(term) for term in divergence([u, 2 * u]).operands())
         ['partial(2*u, 1)', 'partial(u, 0)']
@@ -128,8 +128,8 @@ def advection(expression: object, velocity: Sequence[Any] | SymbolicVector) -> E
             The advection term, to subtract from the rate of the field.
 
     Examples:
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import advection
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import advection
         >>> sorted(str(term) for term in advection(symbol('u'), [1.0, 2.0]).operands())
         ['upwind(u, 0, 1.0)', 'upwind(u, 1, 2.0)']
     """
@@ -180,7 +180,7 @@ class Field(Group):
             or even about its middle, represents walls there, such as the free-slip walls of convection.
 
     Examples:
-        >>> from skcomplex.model import Element, Field, LatticeSpace, Rate, laplacian
+        >>> from skcomplex.core.model import Element, Field, LatticeSpace, Rate, laplacian
         >>> Heat = Element.define(
         ...     'Heat',
         ...     states={'u': 0.0},
@@ -272,8 +272,8 @@ class Flux:
             The numerical flux, `'rusanov'` or `'godunov'`, the exact solver for one state.
 
     Examples:
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import Flux
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import Flux
         >>> u = symbol('u')
         >>> Flux(u, u**2 / 2, riemann='godunov').limiter
         'minmod'

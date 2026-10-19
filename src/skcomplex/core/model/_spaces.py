@@ -36,7 +36,7 @@ class GridSpace(Space):
             The largest number of agents in a cell, or `None` for no limit.
 
     Examples:
-        >>> from skcomplex.model import GridSpace
+        >>> from skcomplex.core.model import GridSpace
         >>> GridSpace(20, 20, capacity=1).n_dim
         2
     """
@@ -71,7 +71,7 @@ class NetworkSpace(Space):
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.model import NetworkSpace
+        >>> from skcomplex.core.model import NetworkSpace
         >>> NetworkSpace(nx.cycle_graph(5)).graph.number_of_nodes()
         5
     """
@@ -97,7 +97,7 @@ class ContinuousSpace(Space):
             Whether opposite edges are joined.
 
     Examples:
-        >>> from skcomplex.model import ContinuousSpace
+        >>> from skcomplex.core.model import ContinuousSpace
         >>> ContinuousSpace(10.0, 5.0).height
         5.0
     """
@@ -118,7 +118,7 @@ class EuclideanSpace(Space):
             The number of dimensions.
 
     Examples:
-        >>> from skcomplex.model import EuclideanSpace
+        >>> from skcomplex.core.model import EuclideanSpace
         >>> EuclideanSpace(n_dim=2).n_dim
         2
     """

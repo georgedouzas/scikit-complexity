@@ -1,1 +1,1 @@
-"""Tests of `skcomplex.model`."""
+"""Tests of `skcomplex.core.model`."""

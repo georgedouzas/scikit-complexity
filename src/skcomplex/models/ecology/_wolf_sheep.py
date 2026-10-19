@@ -7,10 +7,10 @@ from typing import ClassVar
 
 import numpy as np
 
-from ...core import Domain, VisualSpec, parameter, state
-from ...model import AgentType, GridSpace, Law, Rule, Symbols, System
-from ...runtime import register_model
-from ...solvers import AgentView, ModelView
+from ...core.base import Domain, VisualSpec, parameter, state
+from ...core.model import AgentType, GridSpace, Law, Rule, Symbols, System
+from ...core.runtime import register_model
+from ...core.solvers import AgentView, ModelView
 
 GROWN_SHARE = 0.5
 

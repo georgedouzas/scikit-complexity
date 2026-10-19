@@ -9,7 +9,7 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import SR
 
-from ..core import Expression
+from ..base import Expression
 from ..model import Field
 from ._kernels import Reference, Source
 

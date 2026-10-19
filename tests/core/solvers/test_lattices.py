@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
-from skcomplex.compile import compile_system
-from skcomplex.core import Domain, SolverError, ValidationError, state
-from skcomplex.model import (
+from skcomplex.core.base import Domain, SolverError, ValidationError, state
+from skcomplex.core.compile import compile_system
+from skcomplex.core.model import (
     Drive,
     Element,
     Energy,
@@ -22,8 +22,8 @@ from skcomplex.model import (
     Totalistic,
     neighbors,
 )
+from skcomplex.core.runtime import Simulation
 from skcomplex.models.lattices import elementary_automaton, forest_fire, game_of_life, ising
-from skcomplex.runtime import Simulation
 
 Shift = Element.define(
     'Shift',

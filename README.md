@@ -79,7 +79,7 @@ pdm install
 A predator and prey model assembles from ready-made interactions:
 
 ```python
-from skcomplex.model import System
+from skcomplex.core.model import System
 from skcomplex.models.ecology import LogisticGrowth, Mortality, Population, Predation
 
 system = System(
@@ -96,8 +96,8 @@ A simulation runs it and records the trajectory. Adding a `RerunObserver` stream
 `RealTime` clock paces it against wall time:
 
 ```python
-from skcomplex.runtime import RealTime, Simulation
-from skcomplex.viz import RerunObserver
+from skcomplex.core.runtime import RealTime, Simulation
+from skcomplex.core.viz import RerunObserver
 
 simulation = Simulation(
     system,
@@ -121,9 +121,9 @@ A new law takes a few lines. The namespace `s` holds the symbols of the interact
 bound to its roles:
 
 ```python
-from skcomplex.analysis import equations_of
-from skcomplex.core import Domain, parameter, role
-from skcomplex.model import Interaction, Rate
+from skcomplex.core.analysis import equations_of
+from skcomplex.core.base import Domain, parameter, role
+from skcomplex.core.model import Interaction, Rate
 
 
 class Harvest(Interaction):

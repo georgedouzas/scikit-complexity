@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy import signal, stats
 
-from ..core import AnalysisError
+from ..base import AnalysisError
 
 type Array = npt.NDArray[np.float64]
 
@@ -29,7 +29,7 @@ def autocorrelation(values: npt.ArrayLike, max_lag: int | None = None) -> Array:
             The autocorrelation per lag, 1 at lag 0.
 
     Examples:
-        >>> from skcomplex.analysis import autocorrelation
+        >>> from skcomplex.core.analysis import autocorrelation
         >>> autocorrelation([1.0, -1.0, 1.0, -1.0], max_lag=1).round(2).tolist()
         [1.0, -0.75]
     """
@@ -58,7 +58,7 @@ def power_spectrum(values: npt.ArrayLike, dt: float = 1.0) -> tuple[Array, Array
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.analysis import power_spectrum
+        >>> from skcomplex.core.analysis import power_spectrum
         >>> times = np.arange(4096) * 0.01
         >>> frequencies, density = power_spectrum(np.sin(2 * np.pi * 5 * times), dt=0.01)
         >>> round(float(frequencies[density.argmax()]))
@@ -112,7 +112,7 @@ def mean_squared_displacement(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.analysis import mean_squared_displacement
+        >>> from skcomplex.core.analysis import mean_squared_displacement
         >>> walks = np.cumsum(np.random.default_rng(0).standard_normal((2000, 500)), axis=0)
         >>> round(mean_squared_displacement(walks).exponent, 1)
         1.0
@@ -157,7 +157,7 @@ def hurst_exponent(values: npt.ArrayLike, scales: npt.ArrayLike | None = None, o
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.analysis import hurst_exponent
+        >>> from skcomplex.core.analysis import hurst_exponent
         >>> round(hurst_exponent(np.random.default_rng(0).standard_normal(20000)), 1)
         0.5
     """
@@ -229,7 +229,7 @@ def early_warning(values: npt.ArrayLike, window: int, *, detrend: bool = True) -
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.analysis import early_warning
+        >>> from skcomplex.core.analysis import early_warning
         >>> rng = np.random.default_rng(0)
         >>> x = np.zeros(2000)
         >>> for t in range(1, 2000):

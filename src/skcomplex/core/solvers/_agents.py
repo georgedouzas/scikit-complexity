@@ -17,8 +17,8 @@ from mesa.discrete_space import CellAgent, Network, OrthogonalMooreGrid, Orthogo
 from mesa.experimental.continuous_space import ContinuousSpace as MesaContinuousSpace
 from mesa.experimental.continuous_space import ContinuousSpaceAgent
 
+from ..base import Form, SimulationError
 from ..compile import CompiledAgents, Problem, Vector
-from ..core import Form, SimulationError
 from ..model import ContinuousSpace, GridSpace, Group, MesaSystem, NetworkSpace, Space
 from ._base import Stepper, register_solver
 
@@ -416,9 +416,9 @@ class MesaStepper(Stepper):
             The Mesa model.
 
     Examples:
-        >>> from skcomplex.core import state
-        >>> from skcomplex.model import AgentType, Rule, System
-        >>> from skcomplex.runtime import Simulation
+        >>> from skcomplex.core.base import state
+        >>> from skcomplex.core.model import AgentType, Rule, System
+        >>> from skcomplex.core.runtime import Simulation
         >>> class Counter(AgentType):
         ...     count: float = state(0.0)
         ...

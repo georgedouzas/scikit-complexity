@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..core import Expression, Form, SymbolicVector, VisualSpec, components_of
+from ..base import Expression, Form, SymbolicVector, VisualSpec, components_of
 from ..model import Element, Group, Interaction, Rule, Space, System
 from ._hybrid import Breakpoints, CompiledEvent, Delay
 from ._lattices import LatticeStep, lattice_shape

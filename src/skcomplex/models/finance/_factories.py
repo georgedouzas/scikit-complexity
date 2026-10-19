@@ -3,8 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ...model import System
-from ...runtime import register_model
+from ...core.model import System
+from ...core.runtime import register_model
 from ._assets import Asset, GeometricBrownianMotion
 
 

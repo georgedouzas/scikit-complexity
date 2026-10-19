@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
-from skcomplex.core import ValidationError, state
-from skcomplex.model import Element, System, Update, lag
-from skcomplex.runtime import Simulation
+from skcomplex.core.base import ValidationError, state
+from skcomplex.core.model import Element, System, Update, lag
+from skcomplex.core.runtime import Simulation
 
 Fibonacci = Element.define(
     'Fibonacci',

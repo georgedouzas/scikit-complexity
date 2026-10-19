@@ -4,17 +4,17 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import SR, cos, function, sqrt
 
-from skcomplex.analysis import equations_of, solve_symbolically
-from skcomplex.compile import compile_system
-from skcomplex.core import AnalysisError, role
-from skcomplex.model import EuclideanSpace, Interaction, Rate, System
+from skcomplex.core.analysis import equations_of, solve_symbolically
+from skcomplex.core.base import AnalysisError, role
+from skcomplex.core.compile import compile_system
+from skcomplex.core.model import EuclideanSpace, Interaction, Rate, System
+from skcomplex.core.runtime import Simulation
 from skcomplex.models.ecology import LogisticGrowth, Population
 from skcomplex.models.economics import Cobweb, Market
 from skcomplex.models.epidemiology import Compartment, Recovery
 from skcomplex.models.finance import Asset, GeometricBrownianMotion
 from skcomplex.models.physics import ConstantForce, HarmonicPotential, Particle
-from skcomplex.runtime import Simulation
-from tests.compile.test_compiler import CallableGrowth
+from tests.core.compile.test_compiler import CallableGrowth
 
 
 def test_equations_of_logistic_growth():

@@ -53,10 +53,10 @@ class RerunObserver(Observer):
     Examples:
         >>> import tempfile
         >>> from pathlib import Path
-        >>> from skcomplex.model import System
+        >>> from skcomplex.core.model import System
         >>> from skcomplex.models.ecology import ExponentialGrowth, Population
-        >>> from skcomplex.runtime import Simulation
-        >>> from skcomplex.viz import RerunObserver
+        >>> from skcomplex.core.runtime import Simulation
+        >>> from skcomplex.core.viz import RerunObserver
         >>> system = System(elements=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1)])
         >>> path = Path(tempfile.mkdtemp()) / 'growth.rrd'
         >>> _ = Simulation(system, dt=0.1, observers=[RerunObserver('growth', save_path=path)]).run(until=1)

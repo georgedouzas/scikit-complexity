@@ -8,7 +8,7 @@ import numbers
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ..core import Expression, SymbolicVector, ValidationError
+from ..base import Expression, SymbolicVector, ValidationError
 
 
 def _is_sympy(value: object) -> bool:

@@ -5,9 +5,9 @@ import pickle  # nosec B403: the tests pickle and load only objects they create
 import numpy as np
 from sklearn.base import clone
 
-from skcomplex.core import Domain, VariableKind, declarations_of, parameter, role, state
-from skcomplex.model import Element, Interaction, Rate, System
-from skcomplex.runtime import Simulation
+from skcomplex.core.base import Domain, VariableKind, declarations_of, parameter, role, state
+from skcomplex.core.model import Element, Interaction, Rate, System
+from skcomplex.core.runtime import Simulation
 
 Stock = Element.define('Stock', states={'n': state(1.0, domain=Domain.NONNEGATIVE)}, parameters={'k': 0.0})
 Growth = Interaction.define(

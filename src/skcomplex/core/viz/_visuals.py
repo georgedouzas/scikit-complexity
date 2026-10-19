@@ -10,8 +10,8 @@ import numpy as np
 import numpy.typing as npt
 import rerun as rr
 
+from ..base import Registry, VisualSpec
 from ..compile import CompiledElement
-from ..core import Registry, VisualSpec
 from ..model import GridSpace, NetworkSpace, Space
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
@@ -82,7 +82,7 @@ class ScalarsVisual(Visual):
     """Visual that logs each state component of an element as a time series.
 
     Examples:
-        >>> from skcomplex.viz import ScalarsVisual
+        >>> from skcomplex.core.viz import ScalarsVisual
         >>> ScalarsVisual()
         ScalarsVisual()
     """
@@ -130,7 +130,7 @@ class PointsVisual(Visual):
             The names of the other states to log as time series, or `None` for all of them.
 
     Examples:
-        >>> from skcomplex.viz import PointsVisual
+        >>> from skcomplex.core.viz import PointsVisual
         >>> PointsVisual(position='x', color_by='v').color_by
         'v'
     """
@@ -205,7 +205,7 @@ class AgentsVisual(Visual):
             The radius of the points.
 
     Examples:
-        >>> from skcomplex.viz import AgentsVisual
+        >>> from skcomplex.core.viz import AgentsVisual
         >>> AgentsVisual(color_by='opinion').color_by
         'opinion'
     """
@@ -300,7 +300,7 @@ class ImageVisual(Visual):
             The value of the brightest color, or `None` for the largest value of every frame.
 
     Examples:
-        >>> from skcomplex.viz import ImageVisual
+        >>> from skcomplex.core.viz import ImageVisual
         >>> ImageVisual(low=0, high=1)
         ImageVisual(states=None, low=0, high=1)
     """
@@ -362,7 +362,7 @@ class MeshVisual(Visual):
             The value of the brightest color, or `None` for the largest value of every frame.
 
     Examples:
-        >>> from skcomplex.viz import MeshVisual
+        >>> from skcomplex.core.viz import MeshVisual
         >>> MeshVisual(low=0.0)
         MeshVisual(states=None, low=0.0, high=None)
     """

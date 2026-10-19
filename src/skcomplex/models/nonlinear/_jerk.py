@@ -5,9 +5,9 @@
 
 from sage.all__sagemath_symbolics import abs_symbolic
 
-from ...core import state
-from ...model import Element, Rate, System, derivative
-from ...runtime import register_model
+from ...core.base import state
+from ...core.model import Element, Rate, System, derivative
+from ...core.runtime import register_model
 
 Jerk = Element.define(
     'Jerk',

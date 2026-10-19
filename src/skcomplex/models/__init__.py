@@ -1,6 +1,6 @@
 """Ready-made models as registered factories, built from the general interface, with the catalog that lists them."""
 
-from ..runtime import MODELS, ModelEntry, catalog, create, describe, register_model, run
+from ..core.runtime import MODELS, ModelEntry, catalog, create, describe, register_model, run
 from . import (
     ecology,
     economics,

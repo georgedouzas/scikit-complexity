@@ -11,7 +11,7 @@ from typing import ClassVar
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from ..core import BackendError, Form, Registry
+from ..base import BackendError, Form, Registry
 from ..model import Boundary, Jump, Noise, Rate, Update
 from ._kernels import Indices, Kernel, Reference, add_into, assign_into, jump_channels, noise_rows
 from ._problem import Accelerated, JumpChannels, Vector, VectorFunction
@@ -176,8 +176,8 @@ class NumpyBackend(Backend):
     """Reference backend that evaluates every kernel with NumPy array operations.
 
     Examples:
-        >>> from skcomplex.compile import NumpyBackend, compile_system
-        >>> from skcomplex.model import System
+        >>> from skcomplex.core.compile import NumpyBackend, compile_system
+        >>> from skcomplex.core.model import System
         >>> from skcomplex.models.ecology import Population
         >>> compile_system(System(elements=[Population('a')]), backend=NumpyBackend()).backend
         'numpy'

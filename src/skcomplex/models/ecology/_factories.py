@@ -3,9 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ...core import Domain, state
-from ...model import Element, Interaction, System, Update, lag
-from ...runtime import register_model
+from ...core.base import Domain, state
+from ...core.model import Element, Interaction, System, Update, lag
+from ...core.runtime import register_model
 from ._populations import DelayedLogisticGrowth, ExponentialGrowth, LogisticGrowth, Mortality, Population, Predation
 
 

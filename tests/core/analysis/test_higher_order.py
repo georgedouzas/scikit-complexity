@@ -3,9 +3,9 @@
 import pytest
 from sage.all__sagemath_symbolics import SR, cos, diff, function, sin, sqrt
 
-from skcomplex.analysis import equations_of, solve_symbolically
-from skcomplex.core import AnalysisError, state
-from skcomplex.model import Element, Rate, System, Update, derivative, lag
+from skcomplex.core.analysis import equations_of, solve_symbolically
+from skcomplex.core.base import AnalysisError, state
+from skcomplex.core.model import Element, Rate, System, Update, derivative, lag
 
 Pendulum = Element.define(
     'Pendulum',

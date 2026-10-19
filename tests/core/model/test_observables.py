@@ -4,11 +4,11 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import I, exp
 
-from skcomplex.core import Domain, ValidationError, parameter, state
-from skcomplex.model import AgentType, Element, Interaction, Observable, Rate, Rule, System
+from skcomplex.core.base import Domain, ValidationError, parameter, state
+from skcomplex.core.model import AgentType, Element, Interaction, Observable, Rate, Rule, System
+from skcomplex.core.runtime import Frame, Simulation
+from skcomplex.core.viz import RerunObserver
 from skcomplex.models.ecology import ExponentialGrowth, Population
-from skcomplex.runtime import Frame, Simulation
-from skcomplex.viz import RerunObserver
 
 Oscillator = Element.define(
     'Oscillator',

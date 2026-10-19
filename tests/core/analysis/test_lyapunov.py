@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.analysis import lyapunov_spectrum
+from skcomplex.core.analysis import lyapunov_spectrum
 from skcomplex.models.nonlinear import henon_map, logistic_map, lorenz, van_der_pol
 
 

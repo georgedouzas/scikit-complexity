@@ -11,8 +11,8 @@ import numpy as np
 import numpy.typing as npt
 from scipy.integrate import BDF, DOP853, LSODA, RK23, RK45, OdeSolver, Radau, solve_ivp
 
+from ..base import Expression, Form, SolverError, components_of
 from ..compile import Problem, Vector
-from ..core import Expression, Form, SolverError, components_of
 from ._base import Stepper, register_solver
 from ._hybrid import History, hermite, with_delays
 
@@ -65,10 +65,10 @@ class ScipyODE(Stepper):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.compile import compile_system
-        >>> from skcomplex.model import System
+        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.core.model import System
         >>> from skcomplex.models.ecology import ExponentialGrowth, Population
-        >>> from skcomplex.solvers import ScipyODE
+        >>> from skcomplex.core.solvers import ScipyODE
         >>> problem = compile_system(
         ...     System(elements=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1)]),
         ... )
@@ -192,10 +192,10 @@ class RK4(Stepper):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.compile import compile_system
-        >>> from skcomplex.model import System
+        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.core.model import System
         >>> from skcomplex.models.ecology import ExponentialGrowth, Population
-        >>> from skcomplex.solvers import RK4
+        >>> from skcomplex.core.solvers import RK4
         >>> problem = compile_system(
         ...     System(elements=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1)]),
         ... )
@@ -417,10 +417,10 @@ class VelocityVerlet(Stepper):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.compile import compile_system
-        >>> from skcomplex.model import EuclideanSpace, System
+        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.core.model import EuclideanSpace, System
         >>> from skcomplex.models.physics import ConstantForce, Particle
-        >>> from skcomplex.solvers import VelocityVerlet
+        >>> from skcomplex.core.solvers import VelocityVerlet
         >>> problem = compile_system(
         ...     System(
         ...         elements=[Particle('ball')],
@@ -511,10 +511,10 @@ class EulerMaruyama(Stepper):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.compile import compile_system
-        >>> from skcomplex.model import System
+        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.core.model import System
         >>> from skcomplex.models.finance import Asset, GeometricBrownianMotion
-        >>> from skcomplex.solvers import EulerMaruyama
+        >>> from skcomplex.core.solvers import EulerMaruyama
         >>> problem = compile_system(
         ...     System(
         ...         elements=[Asset('stock', price=100)],
@@ -608,9 +608,9 @@ class Milstein(Stepper):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.compile import compile_system
+        >>> from skcomplex.core.compile import compile_system
         >>> from skcomplex.models.finance import geometric_brownian_motion
-        >>> from skcomplex.solvers import Milstein
+        >>> from skcomplex.core.solvers import Milstein
         >>> problem = compile_system(geometric_brownian_motion())
         >>> stepper = Milstein(dt=0.01)
         >>> stepper.initialize(problem, np.random.default_rng(0))
@@ -682,9 +682,9 @@ class Heun(Stepper):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.compile import compile_system
+        >>> from skcomplex.core.compile import compile_system
         >>> from skcomplex.models.finance import geometric_brownian_motion
-        >>> from skcomplex.solvers import Heun
+        >>> from skcomplex.core.solvers import Heun
         >>> problem = compile_system(geometric_brownian_motion())
         >>> stepper = Heun(dt=0.01)
         >>> stepper.initialize(problem, np.random.default_rng(0))
@@ -738,10 +738,10 @@ class Gillespie(Stepper):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.compile import compile_system
-        >>> from skcomplex.model import System
+        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.core.model import System
         >>> from skcomplex.models.epidemiology import Compartment, Recovery
-        >>> from skcomplex.solvers import Gillespie
+        >>> from skcomplex.core.solvers import Gillespie
         >>> problem = compile_system(
         ...     System(
         ...         elements=[Compartment('I', n=10), Compartment('R', n=0)],
@@ -833,10 +833,10 @@ class Iteration(Stepper):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.compile import compile_system
-        >>> from skcomplex.model import System
+        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.core.model import System
         >>> from skcomplex.models.economics import Cobweb, Market
-        >>> from skcomplex.solvers import Iteration
+        >>> from skcomplex.core.solvers import Iteration
         >>> problem = compile_system(
         ...     System(elements=[Market('m', price=1)], interactions=[Cobweb('c', target='m', a=10, b=2, c=1, d=1)]),
         ... )

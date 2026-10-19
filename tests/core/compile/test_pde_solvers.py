@@ -5,15 +5,15 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.compile import compile_system
-from skcomplex.core import SolverError, ValidationError
-from skcomplex.model import Element, Field, Flux, LatticeSpace, Mesh, Rate, System, inverse_laplacian, laplacian
+from skcomplex.core.base import SolverError, ValidationError
+from skcomplex.core.compile import compile_system
+from skcomplex.core.model import Element, Field, Flux, LatticeSpace, Mesh, Rate, System, inverse_laplacian, laplacian
+from skcomplex.core.runtime import Frame, Simulation
+from skcomplex.core.solvers import ETDRK4, IMEX2, SSPRK, CrankNicolson, IMEXEuler, SplitOperator
+from skcomplex.core.viz import RerunObserver, resolve_visual
 from skcomplex.models.ecology import logistic_growth
 from skcomplex.models.fields import harmonic, heat_l_shape, kuramoto_sivashinsky, swift_hohenberg
 from skcomplex.models.fluids import burgers, decaying_turbulence, rayleigh_benard, shallow_water
-from skcomplex.runtime import Frame, Simulation
-from skcomplex.solvers import ETDRK4, IMEX2, SSPRK, CrankNicolson, IMEXEuler, SplitOperator
-from skcomplex.viz import RerunObserver, resolve_visual
 
 Heat = Element.define('Heat', states={'u': 0.0}, laws=lambda s: [Rate(s.u, laplacian(s.u))])
 

@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.analysis import (
+from skcomplex.core.analysis import (
     box_counting_dimension,
     centrality,
     correlation_function,
@@ -13,8 +13,8 @@ from skcomplex.analysis import (
     label_clusters,
     summarize_network,
 )
-from skcomplex.core import AnalysisError
-from skcomplex.model import NetworkSpace
+from skcomplex.core.base import AnalysisError
+from skcomplex.core.model import NetworkSpace
 
 PERCOLATION_THRESHOLD = 0.5927
 

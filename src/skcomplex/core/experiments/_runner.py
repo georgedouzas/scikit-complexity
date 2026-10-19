@@ -12,8 +12,8 @@ from typing import Any
 import numpy as np
 from sklearn.base import BaseEstimator
 
+from ..base import ValidationError
 from ..compile import Problem, compile_system, observables_of
-from ..core import ValidationError
 from ..model import System
 from ..runtime import MODELS, Frame, Observer, Simulation, Trajectory
 from ._designs import Design, Row
@@ -292,7 +292,7 @@ class Experiment(BaseEstimator):
             `'serial'`, `'thread'`, `'process'`, or a `concurrent.futures` executor.
 
     Examples:
-        >>> from skcomplex.experiments import Experiment, Grid
+        >>> from skcomplex.core.experiments import Experiment, Grid
         >>> from skcomplex.models.ecology import logistic_growth
         >>> result = Experiment('logistic_growth', Grid(r=[0.5, 1.0]), until=5, outputs=['population.n']).run()
         >>> len(result.rows)

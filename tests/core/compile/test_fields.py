@@ -6,9 +6,9 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.compile import compile_system
-from skcomplex.core import ValidationError, state
-from skcomplex.model import (
+from skcomplex.core.base import ValidationError, state
+from skcomplex.core.compile import compile_system
+from skcomplex.core.model import (
     AgentType,
     Element,
     Field,
@@ -24,8 +24,8 @@ from skcomplex.model import (
     gradient,
     laplacian,
 )
-from skcomplex.runtime import Simulation
-from skcomplex.solvers import RK4
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.solvers import RK4
 
 Heat = Element.define(
     'Heat',

@@ -8,10 +8,12 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import arcsinh, exp
 
-from skcomplex.backends import LammpsBackend
-from skcomplex.compile import compile_system
-from skcomplex.core import BackendError, Domain, parameter
-from skcomplex.model import EuclideanSpace, System, where
+from skcomplex.core.backends import LammpsBackend
+from skcomplex.core.base import BackendError, Domain, parameter
+from skcomplex.core.compile import compile_system
+from skcomplex.core.model import EuclideanSpace, System, where
+from skcomplex.core.runtime import RealTime, Simulation
+from skcomplex.core.solvers import VelocityVerlet
 from skcomplex.models.ecology import LogisticGrowth, Mortality, Population, Predation
 from skcomplex.models.physics import (
     ConstantForce,
@@ -25,8 +27,6 @@ from skcomplex.models.physics import (
     ReflectingBox,
     ideal_gas,
 )
-from skcomplex.runtime import RealTime, Simulation
-from skcomplex.solvers import VelocityVerlet
 
 CUTOFF = 2.5
 

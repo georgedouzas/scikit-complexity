@@ -13,8 +13,8 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, matrix, solve
 from scipy.optimize import root
 
+from ..base import AnalysisError, Expression, Form, components_of, declare_domains
 from ..compile import Problem, compile_system
-from ..core import AnalysisError, Expression, Form, components_of, declare_domains
 from ..model import System
 
 ZERO = 1e-9
@@ -131,7 +131,7 @@ def jacobian(system: System | Problem) -> Expression:
             The system is not an ODE or a discrete map, has callable laws, or has groups.
 
     Examples:
-        >>> from skcomplex.analysis import jacobian
+        >>> from skcomplex.core.analysis import jacobian
         >>> from skcomplex.models.ecology import logistic_growth
         >>> jacobian(logistic_growth()).dimensions()
         (1, 1)
@@ -163,7 +163,7 @@ def fixed_points(system: System | Problem, parameters: Mapping[str, float] | Non
             The system is not an ODE or a discrete map, has callable laws, or has groups.
 
     Examples:
-        >>> from skcomplex.analysis import fixed_points
+        >>> from skcomplex.core.analysis import fixed_points
         >>> from skcomplex.models.ecology import logistic_growth
         >>> sorted(str(point['population.n']) for point in fixed_points(logistic_growth()))
         ['0', 'K_growth']
@@ -255,7 +255,7 @@ def stability(
             The system is not an ODE or a discrete map, has callable laws, or has groups.
 
     Examples:
-        >>> from skcomplex.analysis import stability
+        >>> from skcomplex.core.analysis import stability
         >>> from skcomplex.models.ecology import logistic_growth
         >>> stability(logistic_growth(), {'population.n': 100.0}).classification
         'stable node'
@@ -311,7 +311,7 @@ def nullclines(system: System | Problem) -> dict[str, Expression]:
             The system is not an ODE or a discrete map, has callable laws, or has groups.
 
     Examples:
-        >>> from skcomplex.analysis import nullclines
+        >>> from skcomplex.core.analysis import nullclines
         >>> from skcomplex.models.ecology import exponential_growth
         >>> nullclines(exponential_growth())
         {'population.n': n_population*r_growth == 0}
@@ -339,7 +339,7 @@ def divergence(system: System | Problem) -> Expression:
             The system is not an ODE or a discrete map, has callable laws, or has groups.
 
     Examples:
-        >>> from skcomplex.analysis import divergence
+        >>> from skcomplex.core.analysis import divergence
         >>> from skcomplex.models.physics import harmonic_oscillator
         >>> divergence(harmonic_oscillator())
         0

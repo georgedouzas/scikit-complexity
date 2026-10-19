@@ -121,8 +121,8 @@ def state(
             companions.
 
     Examples:
-        >>> from skcomplex.core import Domain, state
-        >>> from skcomplex.model import Element
+        >>> from skcomplex.core.base import Domain, state
+        >>> from skcomplex.core.model import Element
         >>> class Population(Element):
         ...     n: float = state(1.0, domain=Domain.NONNEGATIVE)
         >>> Population('rabbits', n=40).n
@@ -209,8 +209,8 @@ def parameter(
             A dataclass field that carries the declaration.
 
     Examples:
-        >>> from skcomplex.core import Domain, parameter
-        >>> from skcomplex.model import Interaction
+        >>> from skcomplex.core.base import Domain, parameter
+        >>> from skcomplex.core.model import Interaction
         >>> class Growth(Interaction):
         ...     r: float = parameter(1.0, domain=Domain.POSITIVE)
         >>> Growth('growth', r=0.5).r
@@ -227,8 +227,8 @@ def role() -> Any:
             A required dataclass field that carries the declaration.
 
     Examples:
-        >>> from skcomplex.core import role
-        >>> from skcomplex.model import Interaction
+        >>> from skcomplex.core.base import role
+        >>> from skcomplex.core.model import Interaction
         >>> class Mortality(Interaction):
         ...     target: str = role()
         >>> Mortality('death', target='foxes').target

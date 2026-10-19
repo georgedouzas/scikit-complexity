@@ -7,7 +7,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from ..core import Expression, SymbolicVector
+from ..base import Expression, SymbolicVector
 from ._lattices import Drive, Energy, LocalRule, Move, Relaxation, Sampler
 
 if TYPE_CHECKING:
@@ -33,8 +33,8 @@ class Call:
             The symbolic expressions whose values are passed to the function.
 
     Examples:
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import Call, Rate
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import Call, Rate
         >>> n = symbol('n')
         >>> law = Rate(n, Call(lambda t, n: 2 * n, n))
         >>> law.value.arguments
@@ -68,8 +68,8 @@ class Rate:
             The order of the derivative the rate gives, checked against the state's order, or `None` to use it.
 
     Examples:
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import Rate
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import Rate
         >>> n = symbol('n')
         >>> Rate(n, 2 * n).value
         2*n
@@ -95,8 +95,8 @@ class Noise:
             The order of the derivative the noise drives, checked against the state's order, or `None` to use it.
 
     Examples:
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import Noise
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import Noise
         >>> price = symbol('price')
         >>> Noise(price, 0.2 * price).value
         0.2*price
@@ -119,8 +119,8 @@ class Jump:
             A mapping from the symbol of a scalar state to its increment when the event fires.
 
     Examples:
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import Jump
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import Jump
         >>> s, i = symbol('s'), symbol('i')
         >>> Jump(0.1 * s * i, {s: -1, i: 1}).changes[i]
         1
@@ -142,8 +142,8 @@ class Update:
             A symbolic expression or a callable `f(t, values)` that gives the next value.
 
     Examples:
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import Update
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import Update
         >>> x = symbol('x')
         >>> Update(x, 3.7 * x * (1 - x)).target
         x
@@ -167,8 +167,8 @@ class Boundary:
             A symbolic expression or a callable `f(t, values)` that gives the new value.
 
     Examples:
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import Boundary, mod
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import Boundary, mod
         >>> x = symbol('x')
         >>> Boundary(x, mod(x, 1)).value
         mod(x, 1)
@@ -202,8 +202,8 @@ class Event:
             The name of the event in the trajectory, or `None` for the component's path.
 
     Examples:
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import Event
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import Event
         >>> height, velocity = symbol('height'), symbol('velocity')
         >>> Event(height, {velocity: -0.8 * velocity}, direction=-1).direction
         -1
@@ -228,7 +228,7 @@ class Rule:
             The function that runs the rule.
 
     Examples:
-        >>> from skcomplex.model import Rule
+        >>> from skcomplex.core.model import Rule
         >>> rule = Rule(lambda agent, model: None)
         >>> callable(rule.function)
         True
@@ -253,8 +253,8 @@ class Equation:
 
     Examples:
         >>> from sage.all__sagemath_symbolics import sin
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import Equation, derivative
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import Equation, derivative
         >>> theta, g, l = symbol('theta'), symbol('g'), symbol('l')
         >>> Equation(l * derivative(theta, 2) == -g * sin(theta)).rhs
         -g*sin(theta)

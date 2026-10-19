@@ -6,8 +6,8 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sin
 
-from skcomplex.core import ValidationError, state
-from skcomplex.experiments import (
+from skcomplex.core.base import ValidationError, state
+from skcomplex.core.experiments import (
     Experiment,
     Grid,
     LatinHypercube,
@@ -18,7 +18,7 @@ from skcomplex.experiments import (
     calibrate,
     sensitivity,
 )
-from skcomplex.model import Element, Observable, System, Update
+from skcomplex.core.model import Element, Observable, System, Update
 from skcomplex.models.ecology import logistic_growth
 from skcomplex.models.epidemiology import sir
 from skcomplex.models.social import harvesting

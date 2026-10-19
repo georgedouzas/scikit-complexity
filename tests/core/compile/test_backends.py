@@ -8,14 +8,14 @@ import numba
 import numpy as np
 import pytest
 
-from skcomplex.compile import NumbaBackend, NumpyBackend, compile_system
-from skcomplex.core import BackendError, Domain, SolverError, parameter, role
-from skcomplex.model import Call, EuclideanSpace, Interaction, Jump, Noise, Rate, System, Update
+from skcomplex.core.base import BackendError, Domain, SolverError, parameter, role
+from skcomplex.core.compile import NumbaBackend, NumpyBackend, compile_system
+from skcomplex.core.model import Call, EuclideanSpace, Interaction, Jump, Noise, Rate, System, Update
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.solvers import RK4, EulerMaruyama, Gillespie, Iteration, VelocityVerlet
 from skcomplex.models.ecology import Population
 from skcomplex.models.epidemiology import Compartment, Infection, Recovery
 from skcomplex.models.physics import HarmonicPotential, PairPotential, Particle, ReflectingBox
-from skcomplex.runtime import Simulation
-from skcomplex.solvers import RK4, EulerMaruyama, Gillespie, Iteration, VelocityVerlet
 
 CUTOFF = 2.5
 
@@ -225,7 +225,7 @@ def test_numba_kernels_are_cached_on_disk(tmp_path):
     script = textwrap.dedent(
         f"""
         import time
-        from skcomplex.compile import NumbaBackend, compile_system
+        from skcomplex.core.compile import NumbaBackend, compile_system
         from skcomplex.models.physics import ideal_gas
         start = time.perf_counter()
         problem = compile_system(ideal_gas(2000, random_state=0), backend=NumbaBackend(cache_dir={str(tmp_path)!r}))
@@ -244,7 +244,7 @@ def test_second_process_loads_kernels_from_cache(tmp_path):
     script = textwrap.dedent(
         f"""
         import sys
-        from skcomplex.compile import NumbaBackend, compile_system
+        from skcomplex.core.compile import NumbaBackend, compile_system
         from skcomplex.models.physics import ideal_gas
         problem = compile_system(ideal_gas(2000, random_state=0), backend=NumbaBackend(cache_dir={str(tmp_path)!r}))
         problem.drift(0.0, problem.initial_state, problem.initial_parameters)

@@ -13,7 +13,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 from sage.symbolic.function import BuiltinFunction
 
-from ..core import Expression, SymbolicVector, vector
+from ..base import Expression, SymbolicVector, vector
 from ._spaces import Space
 
 BOUNDARIES = ('periodic', 'fixed', 'reflecting')
@@ -45,7 +45,7 @@ class LatticeSpace(Space):
             The distance between neighbouring sites, or one distance per dimension.
 
     Examples:
-        >>> from skcomplex.model import LatticeSpace
+        >>> from skcomplex.core.model import LatticeSpace
         >>> space = LatticeSpace((10, 20))
         >>> space.size, space.n_dim
         (200, 2)
@@ -145,7 +145,7 @@ class LatticeSpace(Space):
                 The coordinates of every neighbouring site, or `None` outside a lattice with fixed edges.
 
         Examples:
-            >>> from skcomplex.model import LatticeSpace, Neighborhood
+            >>> from skcomplex.core.model import LatticeSpace, Neighborhood
             >>> LatticeSpace((10, 10)).neighbors((0, 0), Neighborhood.moore())
             [(9, 9), (9, 0), (9, 1), (0, 9), (0, 1), (1, 9), (1, 0), (1, 1)]
         """
@@ -197,7 +197,7 @@ class Neighborhood:
             The offsets, one tuple of integers per neighbour, in the order rules receive their values.
 
     Examples:
-        >>> from skcomplex.model import Neighborhood
+        >>> from skcomplex.core.model import Neighborhood
         >>> Neighborhood.von_neumann().offsets
         ((-1, 0), (0, -1), (0, 1), (1, 0))
         >>> len(Neighborhood.moore(center=True))
@@ -285,7 +285,7 @@ class Neighborhood:
                 The neighbourhood.
 
         Examples:
-            >>> from skcomplex.model import Neighborhood
+            >>> from skcomplex.core.model import Neighborhood
             >>> Neighborhood.radius().offsets
             ((-1,), (0,), (1,))
         """
@@ -307,7 +307,7 @@ class Table:
             The number of state values, or `None` for one more than the largest value in the patterns.
 
     Examples:
-        >>> from skcomplex.model import Table
+        >>> from skcomplex.core.model import Table
         >>> Table({(1, 1): 1}).states
         2
     """
@@ -331,7 +331,7 @@ class Wolfram:
             The rule number from 0 to 255.
 
     Examples:
-        >>> from skcomplex.model import Wolfram
+        >>> from skcomplex.core.model import Wolfram
         >>> Wolfram(30).table().mapping[(1, 0, 0)]
         1
     """
@@ -369,7 +369,7 @@ class Totalistic:
             The number of state values `0` to `states - 1`, which bounds the sums.
 
     Examples:
-        >>> from skcomplex.model import Totalistic
+        >>> from skcomplex.core.model import Totalistic
         >>> Totalistic(lambda total: total > 4).states
         2
     """
@@ -394,7 +394,7 @@ class OuterTotalistic:
             The number of state values `0` to `states - 1`, which bounds the sums.
 
     Examples:
-        >>> from skcomplex.model import OuterTotalistic
+        >>> from skcomplex.core.model import OuterTotalistic
         >>> life = OuterTotalistic.life()
         >>> life.rule[(0, 3)], life.rule[(1, 2)], (1, 4) in life.rule
         (1, 1, False)
@@ -461,8 +461,8 @@ class LocalRule:
             Whether a function rule receives the uniform random array `random`.
 
     Examples:
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import LocalRule, Neighborhood, Wolfram
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import LocalRule, Neighborhood, Wolfram
         >>> LocalRule(symbol('cell'), Neighborhood.radius(), Wolfram(30)).schedule
         'synchronous'
     """
@@ -500,8 +500,8 @@ class Drive:
             The function `f(values, *, random, **parameters)`.
 
     Examples:
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import Drive
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import Drive
         >>> Drive(symbol('height'), lambda values, *, random: values + 1).target
         height
     """
@@ -545,8 +545,8 @@ class Relaxation:
             `None` to count the sites that change.
 
     Examples:
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import LocalRule, Neighborhood, Relaxation
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import LocalRule, Neighborhood, Relaxation
         >>> height = symbol('height')
         >>> topple = LocalRule(height, Neighborhood.von_neumann(center=True), lambda z, *n: z - 4 * (z >= 4))
         >>> Relaxation([], [topple], lambda z: bool((z < 4).all())).max_iterations
@@ -591,8 +591,8 @@ def neighbors(state: Expression, neighborhood: Neighborhood) -> SymbolicVector:
             One symbolic value per offset, in neighbourhood order.
 
     Examples:
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import Neighborhood, neighbors
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import Neighborhood, neighbors
         >>> spin = symbol('spin')
         >>> values = neighbors(spin, Neighborhood.von_neumann())
         >>> len(values), values[0]
@@ -616,8 +616,8 @@ class Energy:
             The neighbourhood that `neighbors` reads in the expression.
 
     Examples:
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import Energy, Neighborhood, neighbors
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import Energy, Neighborhood, neighbors
         >>> spin, J = symbol('spin'), symbol('J')
         >>> nearest = Neighborhood.von_neumann()
         >>> len(Energy(-J * spin * sum(neighbors(spin, nearest)), nearest).neighborhood)
@@ -647,8 +647,8 @@ class Move:
             The largest change of a rotation.
 
     Examples:
-        >>> from skcomplex.core import symbol
-        >>> from skcomplex.model import Move
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import Move
         >>> Move.random_value(symbol('color'), range(3)).values
         (0.0, 1.0, 2.0)
     """
@@ -729,7 +729,7 @@ class Sampler:
             `'random-sequential'` to visit the sites one at a time in a random order.
 
     Examples:
-        >>> from skcomplex.model import Sampler
+        >>> from skcomplex.core.model import Sampler
         >>> Sampler('glauber', 2.0).schedule
         'checkerboard'
     """

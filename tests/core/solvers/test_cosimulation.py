@@ -5,14 +5,14 @@ import time
 import numpy as np
 import pytest
 
-from skcomplex.compile import compile_system
-from skcomplex.core import Form, IncompatibleLawsError, SolverError, ValidationError, parameter, role, state
-from skcomplex.model import AgentType, Aggregate, Interaction, Rate, Rule, System
+from skcomplex.core.base import Form, IncompatibleLawsError, SolverError, ValidationError, parameter, role, state
+from skcomplex.core.compile import compile_system
+from skcomplex.core.model import AgentType, Aggregate, Interaction, Rate, Rule, System
+from skcomplex.core.runtime import RealTime, Simulation
+from skcomplex.core.solvers import CoSimulation, ScipyODE
 from skcomplex.models.ecology import ExponentialGrowth, LogisticGrowth, Mortality, Population, Predation
 from skcomplex.models.economics import Cobweb, Market
 from skcomplex.models.social import harvesting
-from skcomplex.runtime import RealTime, Simulation
-from skcomplex.solvers import CoSimulation, ScipyODE
 
 
 class Breeder(AgentType):

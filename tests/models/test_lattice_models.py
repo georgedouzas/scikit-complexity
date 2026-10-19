@@ -3,8 +3,10 @@
 import numpy as np
 import pytest
 
-from skcomplex.analysis import histogram
-from skcomplex.experiments import Experiment, Grid
+from skcomplex.core.analysis import histogram
+from skcomplex.core.experiments import Experiment, Grid
+from skcomplex.core.runtime import Frame, Observer, Simulation
+from skcomplex.core.viz import ImageVisual, RerunObserver
 from skcomplex.models.lattices import (
     earthquakes,
     hodgepodge,
@@ -16,8 +18,6 @@ from skcomplex.models.lattices import (
     sandpile,
     xy,
 )
-from skcomplex.runtime import Frame, Observer, Simulation
-from skcomplex.viz import ImageVisual, RerunObserver
 
 CRITICAL_TEMPERATURE = 2 / np.log(1 + np.sqrt(2))
 

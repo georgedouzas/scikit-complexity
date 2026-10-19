@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.analysis import basin_stability, orbit_diagram
+from skcomplex.core.analysis import basin_stability, orbit_diagram
 from skcomplex.models.nonlinear import duffing, logistic_map
 
 

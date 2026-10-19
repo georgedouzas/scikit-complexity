@@ -3,8 +3,8 @@
 import pytest
 from sage.all__sagemath_symbolics import SR
 
-from skcomplex.analysis import divergence, fixed_points, jacobian, nullclines, stability
-from skcomplex.core import AnalysisError
+from skcomplex.core.analysis import divergence, fixed_points, jacobian, nullclines, stability
+from skcomplex.core.base import AnalysisError
 from skcomplex.models.ecology import lotka_volterra
 from skcomplex.models.epidemiology import sir
 from skcomplex.models.nonlinear import logistic_map, lorenz

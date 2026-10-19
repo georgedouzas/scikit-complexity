@@ -5,13 +5,13 @@ import time
 import numpy as np
 import pytest
 
-from skcomplex.core import ParameterError, SimulationError, SolverError, ValidationError
-from skcomplex.model import System
+from skcomplex.core.base import ParameterError, SimulationError, SolverError, ValidationError
+from skcomplex.core.model import System
+from skcomplex.core.runtime import Observer, RealTime, Simulation
+from skcomplex.core.solvers import Gillespie
 from skcomplex.models.ecology import ExponentialGrowth, Population
 from skcomplex.models.economics import Cobweb, Market
 from skcomplex.models.epidemiology import Compartment, Infection, Recovery
-from skcomplex.runtime import Observer, RealTime, Simulation
-from skcomplex.solvers import Gillespie
 
 
 class FrameCounter(Observer):

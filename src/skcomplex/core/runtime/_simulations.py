@@ -12,8 +12,8 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.base import BaseEstimator
 
+from ..base import Domain, Form, ParameterError, SimulationError, ValidationError
 from ..compile import Backend, Entry, ObservableEvaluator, Problem, Vector, compile_system
-from ..core import Domain, Form, ParameterError, SimulationError, ValidationError
 from ..model import System
 from ..solvers import AgentState, Stepper, resolve_solver
 from ._clocks import AsFastAsPossible, Clock
@@ -83,9 +83,9 @@ class Simulation(BaseEstimator):
             The current parameter vector.
 
     Examples:
-        >>> from skcomplex.model import System
+        >>> from skcomplex.core.model import System
         >>> from skcomplex.models.ecology import LogisticGrowth, Population
-        >>> from skcomplex.runtime import Simulation
+        >>> from skcomplex.core.runtime import Simulation
         >>> system = System(
         ...     elements=[Population('rabbits', n=10)],
         ...     interactions=[LogisticGrowth('growth', target='rabbits', r=1.0, K=100)],
