@@ -42,3 +42,6 @@ docs/generated/
 
 # OS
 .DS_Store
+
+# References
+references/
