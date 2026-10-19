@@ -2,6 +2,7 @@
 
 from ._backends import BACKENDS, Backend, Lowering, NumpyBackend, register_backend, resolve_backend
 from ._compiler import compile_system, partition_system
+from ._fields import mesh_laplacian, spectral_multiplier
 from ._hybrid import Breakpoints, CompiledEvent, Delay, EventRecord
 from ._lattices import (
     CompiledDrive,
@@ -61,10 +62,12 @@ __all__: list[str] = [
     'Vector',
     'VectorFunction',
     'compile_system',
+    'mesh_laplacian',
     'numpy_function',
     'observables_of',
     'partition_system',
     'print_expressions',
     'register_backend',
     'resolve_backend',
+    'spectral_multiplier',
 ]

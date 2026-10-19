@@ -42,7 +42,7 @@ class LatticeSpace(Space):
             The value read outside a lattice with fixed edges.
 
         spacing:
-            The distance between neighbouring sites.
+            The distance between neighbouring sites, or one distance per dimension.
 
     Examples:
         >>> from skcomplex.model import LatticeSpace
@@ -57,7 +57,7 @@ class LatticeSpace(Space):
         *,
         boundary: str = 'periodic',
         fill: float = 0.0,
-        spacing: float = 1.0,
+        spacing: float | Sequence[float] = 1.0,
     ) -> None:
         self.shape = shape
         self.boundary = boundary
@@ -68,6 +68,13 @@ class LatticeSpace(Space):
     def dimensions(self) -> tuple[int, ...]:
         """Number of sites along every dimension."""
         return (int(self.shape),) if np.ndim(self.shape) == 0 else tuple(int(size) for size in self.shape)  # type: ignore[arg-type, union-attr]
+
+    @property
+    def spacings(self) -> tuple[float, ...]:
+        """Distance between neighbouring sites along every dimension."""
+        if np.ndim(self.spacing) == 0:
+            return (float(self.spacing),) * self.n_dim  # type: ignore[arg-type]
+        return tuple(float(item) for item in self.spacing)  # type: ignore[union-attr]
 
     @property
     def n_dim(self) -> int:  # type: ignore[override]

@@ -5,7 +5,7 @@
 groups = ["default", "changelog", "checks", "docs", "formatting", "maintenance", "release", "tests"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.1"
-content_hash = "sha256:c579911a4ed633335953396336f78342537f85c653ac1b9bf75e2e1b5841f42f"
+content_hash = "sha256:c360bde474666141699d2e09249bcb180c80cc87100844d188d11b9fe05e767b"
 
 [[metadata.targets]]
 requires_python = ">=3.12,<3.14"
@@ -2878,6 +2878,21 @@ dependencies = [
 files = [
     {file = "salib-1.6.0-py3-none-any.whl", hash = "sha256:4bb4f03651543fd883c849e73595bca1e8b5e5e0b6562f6902262ef9bde615df"},
     {file = "salib-1.6.0.tar.gz", hash = "sha256:122d25816137a50b5e972a206de7118961e202a6fb0922d9ec874fd49fdbbf5f"},
+]
+
+[[package]]
+name = "scikit-fem"
+version = "12.0.2"
+requires_python = ">=3.10"
+summary = "Simple finite element assemblers"
+groups = ["default"]
+dependencies = [
+    "numpy",
+    "scipy",
+]
+files = [
+    {file = "scikit_fem-12.0.2-py3-none-any.whl", hash = "sha256:34cd891f80072c0c1eb759a2371e82f0eeec91ff7c08acab96d27b6edbbe1b05"},
+    {file = "scikit_fem-12.0.2.tar.gz", hash = "sha256:0a38764cdb93411c5a994451c22c1da07808ebabf920f462c6253f78f5703f8a"},
 ]
 
 [[package]]

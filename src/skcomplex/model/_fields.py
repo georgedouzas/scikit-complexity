@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any
 
 from sage.all__sagemath_symbolics import SR
@@ -12,9 +13,13 @@ from sage.symbolic.function import BuiltinFunction
 from ..core import Expression, SymbolicVector, VisualSpec, components_of, vector
 from ._components import Element, Group
 from ._lattices import LatticeSpace
+from ._meshes import Mesh
 from ._spaces import NetworkSpace
 
 FIELD_BOUNDARIES = ('periodic', 'zero-flux', 'fixed')
+DISCRETIZATIONS = ('finite-difference', 'spectral', 'finite-volume', 'finite-element')
+LIMITERS = ('minmod', 'van-leer', None)
+RIEMANN_SOLVERS = ('rusanov', 'godunov')
 
 
 class _Laplacian(BuiltinFunction):
@@ -38,9 +43,25 @@ class _Upwind(BuiltinFunction):
         super().__init__('upwind', nargs=3)
 
 
+class _InverseLaplacian(BuiltinFunction):
+    """Solution of the Poisson equation for a field expression with zero mean, `inverse_laplacian(u)`."""
+
+    def __init__(self) -> None:
+        super().__init__('inverse_laplacian', nargs=1)
+
+
 laplacian = _Laplacian()
 partial = _Partial()
 upwind = _Upwind()
+inverse_laplacian = _InverseLaplacian()
+inverse_laplacian.__doc__ = """Return the solution `psi` of `laplacian(psi) = u` with zero mean on a spectral field.
+
+Examples:
+    >>> from skcomplex.core import symbol
+    >>> from skcomplex.model import inverse_laplacian
+    >>> inverse_laplacian(-symbol('omega'))
+    inverse_laplacian(-omega)
+"""
 
 
 def _items(values: Sequence[Any] | SymbolicVector) -> list[Any]:
@@ -123,7 +144,13 @@ class Field(Group):
 
     The states of the members are fields, with one value per site, and the laws of the element type are written for
     one site, with `laplacian`, `gradient`, `divergence`, and `advection` reading the neighbouring sites. Every state
-    takes a boundary condition at the edges of a lattice: `'periodic'`, `'zero-flux'`, or `('fixed', value)`.
+    takes a boundary condition at the edges of a lattice: `'periodic'`, `'zero-flux'`, or `('fixed', value)`, where
+    the value can be a function of the node coordinates on a mesh.
+
+    The discretization turns the operators into numbers. `'finite-difference'` uses stencils on lattices and the graph
+    Laplacian on networks. `'spectral'` multiplies Fourier modes on periodic lattices, with the two-thirds rule
+    removing aliasing. `'finite-volume'` updates cell averages by the differences of the `Flux` laws of the states.
+    `'finite-element'` assembles stiffness and mass matrices on a `Mesh`.
 
     Args:
         label:
@@ -133,7 +160,7 @@ class Field(Group):
             The element type of the members.
 
         space:
-            The lattice or the network.
+            The lattice, the network, or the mesh.
 
         boundary:
             A mapping from state name to its boundary condition, which overrides the edges of the lattice.
@@ -142,7 +169,15 @@ class Field(Group):
             Arrays of the lattice shape, or with one value per network node in node order, or shared values.
 
         visual:
-            The visual of the field, or `None` for an image of every state on a lattice.
+            The visual of the field, or `None` for an image of every state on a lattice and a colored mesh on a mesh.
+
+        discretization:
+            `'finite-difference'`, `'spectral'`, `'finite-volume'`, or `'finite-element'`.
+
+        symmetry:
+            A mapping from state name to its parity along every axis of a periodic lattice, `'odd'`, `'even'`, or
+            `None`, which the rates keep exactly. A lattice twice as long as a domain along an axis, with states odd
+            or even about its middle, represents walls there, such as the free-slip walls of convection.
 
     Examples:
         >>> from skcomplex.model import Element, Field, LatticeSpace, Rate, laplacian
@@ -160,11 +195,13 @@ class Field(Group):
         self,
         label: str,
         element: type[Element],
-        space: LatticeSpace | NetworkSpace,
+        space: LatticeSpace | NetworkSpace | Mesh,
         *,
         boundary: Mapping[str, Any] | None = None,
         values: Mapping[str, Any] | None = None,
         visual: VisualSpec | None = None,
+        discretization: str = 'finite-difference',
+        symmetry: Mapping[str, Sequence[str | None]] | None = None,
     ) -> None:
         self.label = label
         self.element = element
@@ -172,13 +209,15 @@ class Field(Group):
         self.boundary = boundary
         self.values = values
         self.visual = visual
-        self.size = space.size if isinstance(space, LatticeSpace) else space.graph.number_of_nodes()
+        self.discretization = discretization
+        self.symmetry = symmetry
+        self.size = space.graph.number_of_nodes() if isinstance(space, NetworkSpace) else space.size
 
     def __repr__(self, N_CHAR_MAX: int = 700) -> str:
         """Return the label, element type, and size."""
         return f'Field({self.label!r}, element={self.element.__name__}, size={self.size})'
 
-    def boundary_of(self, state: str) -> tuple[str, float]:
+    def boundary_of(self, state: str) -> tuple[str, Any]:
         """Return the boundary condition of a state and its fixed value.
 
         Args:
@@ -187,7 +226,8 @@ class Field(Group):
 
         Returns:
             boundary:
-                `'periodic'`, `'zero-flux'`, or `'fixed'`, and the value read outside fixed edges.
+                `'periodic'`, `'zero-flux'`, or `'fixed'`, and the value read outside fixed edges, a number or a
+                function of the node coordinates.
 
         Raises:
             ValueError:
@@ -195,8 +235,12 @@ class Field(Group):
         """
         space = self.space
         default = {'periodic': 'periodic', 'reflecting': 'zero-flux', 'fixed': ('fixed', getattr(space, 'fill', 0.0))}
-        condition = (self.boundary or {}).get(state, default.get(getattr(space, 'boundary', 'periodic'), 'periodic'))
-        kind, value = (condition[0], float(condition[1])) if isinstance(condition, tuple | list) else (condition, 0.0)
+        edges = 'reflecting' if isinstance(space, Mesh) else getattr(space, 'boundary', 'periodic')
+        condition = (self.boundary or {}).get(state, default.get(edges, 'periodic'))
+        if isinstance(condition, tuple | list):
+            kind, value = condition[0], condition[1] if callable(condition[1]) else float(condition[1])
+        else:
+            kind, value = condition, 0.0
         if kind not in FIELD_BOUNDARIES:
             error_msg = (
                 f"Unknown boundary {condition!r} of {self.label}.{state}. Use 'periodic', 'zero-flux', or "
@@ -204,3 +248,51 @@ class Field(Group):
             )
             raise ValueError(error_msg)
         return kind, value
+
+
+@dataclass(frozen=True)
+class Flux:
+    """Physical flux of a conserved state of a finite-volume field, `du/dt + divergence(flux) = 0`.
+
+    The flux is a symbolic expression of the field's states for one dimension, or one expression per dimension. The
+    states of a field with fluxes form a system of conservation laws, whose wave speeds come from the eigenvalues of
+    the flux Jacobians. Rate laws on the same states add sources.
+
+    Args:
+        target:
+            The symbol of the conserved state.
+
+        flux:
+            The flux, an expression or one expression per dimension.
+
+        limiter:
+            The slope limiter of the MUSCL reconstruction, `'minmod'`, `'van-leer'`, or `None` for first order.
+
+        riemann:
+            The numerical flux, `'rusanov'` or `'godunov'`, the exact solver for one state.
+
+    Examples:
+        >>> from skcomplex.core import symbol
+        >>> from skcomplex.model import Flux
+        >>> u = symbol('u')
+        >>> Flux(u, u**2 / 2, riemann='godunov').limiter
+        'minmod'
+    """
+
+    target: Expression
+    flux: object
+    limiter: str | None = 'minmod'
+    riemann: str = 'rusanov'
+
+    def __post_init__(self) -> None:
+        if self.limiter not in LIMITERS:
+            error_msg = f"Unknown limiter {self.limiter!r}. Use 'minmod', 'van-leer', or None."
+            raise ValueError(error_msg)
+        if self.riemann not in RIEMANN_SOLVERS:
+            error_msg = f"Unknown numerical flux {self.riemann!r}. Use 'rusanov' or 'godunov'."
+            raise ValueError(error_msg)
+
+    @property
+    def fluxes(self) -> list[object]:
+        """Flux of every dimension."""
+        return list(self.flux) if isinstance(self.flux, list | tuple) else components_of(self.flux)

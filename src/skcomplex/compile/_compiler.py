@@ -43,12 +43,14 @@ from ..model import (
     Equation,
     Event,
     Field,
+    Flux,
     Group,
     Jump,
     LatticeSpace,
     Law,
     LocalRule,
     MesaSystem,
+    Mesh,
     Move,
     Noise,
     PairInteraction,
@@ -77,7 +79,9 @@ from ._lattices import (
 from ._layout import Entry, Layout
 from ._lowering import symbolic_components
 from ._problem import CompiledAgents, CompiledElement, CompiledInteraction, Partition, Problem, Vector, VectorFunction
+from ._splitting import LinearTerm, linear_terms
 from ._tree import Node, coerce_value, flatten_system, shape_of
+from ._volumes import FiniteVolume, compile_volumes
 
 FORMS: dict[frozenset[type], Form] = {
     frozenset(): Form.ODE,
@@ -97,6 +101,7 @@ FORMS: dict[frozenset[type], Form] = {
 }
 ASSIGNED_KINDS = (Update, Boundary)
 LATTICE_LAWS = (LocalRule, Drive, Relaxation, Energy, Move, Sampler)
+KERNEL_FREE = (*LATTICE_LAWS, Flux)
 
 
 @dataclass
@@ -297,11 +302,11 @@ def _pair_spec(block: _Block, elements: dict[str, _Block], time: Expression) -> 
 def _collect_laws(spec: _KernelSpec, component: object) -> list[Law]:
     """Return the laws a component returns for its namespace after checking their kinds."""
     laws = component.laws(spec.namespace)  # type: ignore[attr-defined]
-    kinds = (Rate, Noise, Jump, Update, Boundary, Rule, Equation, Event, *LATTICE_LAWS)
+    kinds = (Rate, Noise, Jump, Update, Boundary, Rule, Equation, Event, *KERNEL_FREE)
     if not isinstance(laws, list | tuple) or not all(isinstance(law, kinds) for law in laws):
         error_msg = (
             f'`laws` of {spec.owner} must return a list of Rate, Noise, Jump, Update, Boundary, Rule, Equation, Event, '
-            'LocalRule, Drive, Relaxation, Energy, Move, or Sampler laws.'
+            'LocalRule, Drive, Relaxation, Energy, Move, Sampler, or Flux laws.'
         )
         raise ValidationError(error_msg)
     if spec.pairs is not None and not all(isinstance(law, Rate) for law in laws):
@@ -478,7 +483,7 @@ def _with_orders(spec: _KernelSpec, laws: list[Law], block: _Block, orders: _Ord
         return laws
     result: list[Any] = []
     for law in laws:
-        if isinstance(law, (Rule, *LATTICE_LAWS)):
+        if isinstance(law, (Rule, *KERNEL_FREE)):
             result.append(law)
             continue
         if isinstance(law, Equation):
@@ -685,6 +690,7 @@ class _Fields:
         default_factory=lambda: defaultdict(list),
     )
     limits: list[float] = field(default_factory=list)
+    linear: list[LinearTerm] = field(default_factory=list)
 
 
 def _initial_values(spec: _KernelSpec, declarations: _Declarations) -> dict[Expression, float]:
@@ -698,16 +704,29 @@ def _initial_values(spec: _KernelSpec, declarations: _Declarations) -> dict[Expr
     }
 
 
+def _linear_terms_of(spec: _KernelSpec, laws: list[Law], places: dict[str, Field]) -> list[LinearTerm]:
+    """Return the linear terms with constant coefficients of the rates of field states."""
+    terms = []
+    for law in laws:
+        if not isinstance(law, Rate) or not isinstance(law.value, Expression):
+            continue
+        for reference in _target_references(law.target, spec):
+            if reference.entry.name in places and reference.source is Source.MEMBER:
+                terms += linear_terms(law.value, reference, spec.references, places)
+    return terms
+
+
 def _with_fields(spec: _KernelSpec, laws: list[Law], declarations: _Declarations, fields: _Fields) -> list[Law]:
-    """Return laws whose differential operators are lowered to stencils, noting their stable steps."""
-    if not any(has_operators(getattr(law, 'value', None)) for law in laws):
-        return laws
+    """Return laws whose differential operators are lowered, noting stable steps and the linear terms of rates."""
     places = {
         entry.name: block.node.component
         for block in declarations.blocks.values()
         if isinstance(block.node.component, Field)
         for entry in block.entries.values()
     }
+    fields.linear += _linear_terms_of(spec, laws, places)
+    if not any(has_operators(getattr(law, 'value', None)) for law in laws):
+        return laws
     lowering = FieldLowering(spec.owner, spec.references, places, _initial_values(spec, declarations))
     result: list[Law] = []
     for law in laws:
@@ -955,7 +974,7 @@ def _lower_laws(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Decla
     for spec, laws in specs:
         outputs: dict[type, list[Output]] = defaultdict(list)
         for law in laws:
-            if isinstance(law, (Rule, Event, *LATTICE_LAWS)):
+            if isinstance(law, (Rule, Event, *KERNEL_FREE)):
                 continue
             if isinstance(law, Jump):
                 output = _outputs_of(law.rate, [None], f'Jump law of {spec.owner}')[0]
@@ -990,7 +1009,7 @@ def _lower_laws(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Decla
 
 def _infer_form(laws: list[Law]) -> Form:
     """Return the form that the law kinds of a system determine."""
-    kinds = frozenset(type(law) for law in laws if not isinstance(law, Boundary | Event))
+    kinds = frozenset(type(law) for law in laws if not isinstance(law, Boundary | Event | Flux))
     if kinds not in FORMS:
         found = ', '.join(sorted(kind.__name__ for kind in kinds))
         supported = '; '.join(
@@ -1131,6 +1150,8 @@ def _visual_of(node: Node) -> VisualSpec:
         return node.component.visual
     if isinstance(node.component, Field) and isinstance(node.component.space, LatticeSpace):
         return VisualSpec('image')
+    if isinstance(node.component, Field) and isinstance(node.component.space, Mesh):
+        return VisualSpec('mesh')
     return node.component_type.visual
 
 
@@ -1149,18 +1170,20 @@ def _law_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
         return spec.owner if target is None else _target_references(target, spec)[0].entry.name.rpartition('.')[0]
     if isinstance(law, LocalRule):
         return _target_references(law.targets[0], spec)[0].entry.name.rpartition('.')[0]
+    if isinstance(law, Flux):
+        return _target_references(law.target, spec)[0].entry.name.rpartition('.')[0]
     target = next(iter(law.changes)) if isinstance(law, Jump) else law.target
     return _target_references(target, spec)[0].entry.name.rpartition('.')[0]
 
 
 def _fits(kinds: set[type]) -> bool:
     """Check whether a set of law kinds fits one form."""
-    return frozenset(kind for kind in kinds if kind not in {Boundary, Event}) in FORMS
+    return frozenset(kind for kind in kinds if kind not in {Boundary, Event, Flux}) in FORMS
 
 
 def _mixed_error(name: str, kinds: set[type]) -> IncompatibleLawsError:
     """Return the error of a subsystem whose own laws fit no form."""
-    found = ', '.join(sorted(kind.__name__ for kind in kinds if kind not in {Boundary, Event}))
+    found = ', '.join(sorted(kind.__name__ for kind in kinds if kind not in {Boundary, Event, Flux}))
     supported = '; '.join(
         ', '.join(sorted(kind.__name__ for kind in combination)) for combination in FORMS if combination
     )
@@ -1280,6 +1303,9 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
     states, parameters = Layout(declarations.states), Layout(declarations.parameters)
     functions['boundary'] = _wrapping_angles(cast('VectorFunction | None', functions.get('boundary')), states)
     functions['equations'] = _written_equations(cast('dict[str, Expression]', functions['equations']), states, fields)
+    volumes, constrained = _with_discretizations(functions, specs, declarations, blocks)
+    initial_state = np.concatenate([np.zeros(0), *declarations.initial_states])
+    initial_state[constrained[0]] = constrained[1]
     compiled_elements = tuple(
         CompiledElement(
             path=block.node.path,
@@ -1315,7 +1341,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         form=form,
         states=states,
         parameters=parameters,
-        initial_state=np.concatenate([np.zeros(0), *declarations.initial_states]),
+        initial_state=initial_state,
         initial_parameters=np.concatenate([np.zeros(0), *declarations.initial_parameters]),
         time=declarations.time,
         symbols=symbols,
@@ -1337,6 +1363,9 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         history=_history(system, states),
         lattice=_compile_lattice(specs, declarations, fused),
         stable_step=min(fields.limits, default=None),
+        linear=tuple(fields.linear),
+        volumes=volumes,
+        constrained=constrained[0],
         **functions,  # type: ignore[arg-type]
     )
 
@@ -1397,6 +1426,148 @@ def _compile_lattice(
         if sampling is not None:
             steps.append(sampling)
     return tuple(steps)
+
+
+def _compile_fluxes(
+    specs: list[tuple[_KernelSpec, list[Law]]],
+    declarations: _Declarations,
+) -> tuple[FiniteVolume, ...]:
+    """Return the conservation laws of every finite-volume field from the flux laws of its component."""
+    volumes = []
+    for spec, laws in specs:
+        fluxes = [law for law in laws if isinstance(law, Flux)]
+        if not fluxes:
+            continue
+        targets = [(law, _target_references(law.target, spec)[0]) for law in fluxes]
+        owners = {reference.entry.name.rpartition('.')[0] for _, reference in targets}
+        for owner in sorted(owners):
+            block = declarations.blocks[owner]
+            place = block.node.component
+            if not isinstance(place, Field):
+                error_msg = f'{spec.owner} declares fluxes of {owner}, which is not a field.'
+                raise ValidationError(error_msg)
+            mine = [(law, reference) for law, reference in targets if reference.entry.name.startswith(f'{owner}.')]
+            volumes.append(compile_volumes(mine, spec.references, place, owner))
+    return tuple(volumes)
+
+
+def _mesh_constraints(blocks: list[_Block]) -> tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]]:
+    """Return the state indices and values of the boundary nodes of finite element fields with fixed boundaries."""
+    indices: list[npt.NDArray[np.intp]] = []
+    values: list[npt.NDArray[np.float64]] = []
+    for block in blocks:
+        place = block.node.component
+        if not isinstance(place, Field) or not isinstance(place.space, Mesh):
+            continue
+        if place.discretization != 'finite-element':
+            error_msg = f'Field {block.node.path} lives on a mesh, which needs the finite-element discretization.'
+            raise ValidationError(error_msg)
+        nodes = place.space.boundary_nodes()
+        coordinates = place.space.nodes[nodes]
+        for variable, entry in block.entries.items():
+            if variable not in declarations_of(place.element, VariableKind.STATE):
+                continue
+            kind, value = place.boundary_of(variable)
+            if kind != 'fixed':
+                continue
+            fixed = value(*coordinates.T) if callable(value) else value
+            indices.append(entry.start + nodes * entry.columns)
+            values.append(np.broadcast_to(np.asarray(fixed, dtype=float), nodes.shape).copy())
+    if not indices:
+        return np.zeros(0, dtype=np.intp), np.zeros(0)
+    return np.concatenate(indices).astype(np.intp), np.concatenate(values)
+
+
+def _symmetries(blocks: list[_Block]) -> list[tuple[npt.NDArray[np.intp], tuple[int, ...], list[tuple[int, int]]]]:
+    """Return the state indices, the lattice shape, and the axes with their signs of every symmetric field state."""
+    found = []
+    for block in blocks:
+        place = block.node.component
+        if not isinstance(place, Field) or not place.symmetry:
+            continue
+        space = place.space
+        if not isinstance(space, LatticeSpace) or space.boundary != 'periodic':
+            error_msg = f'Field {block.node.path} declares symmetries, which need a periodic lattice.'
+            raise ValidationError(error_msg)
+        for variable, parities in place.symmetry.items():
+            entry = block.entries.get(variable)
+            if entry is None or len(parities) != space.n_dim:
+                error_msg = f'The symmetry of {block.node.path}.{variable} needs a state and one parity per axis.'
+                raise ValidationError(error_msg)
+            signs = []
+            for axis, parity in enumerate(parities):
+                if parity not in {'odd', 'even', None}:
+                    error_msg = f"The parity {parity!r} of {block.node.path}.{variable} is not 'odd', 'even', or None."
+                    raise ValidationError(error_msg)
+                if parity is not None:
+                    signs.append((axis, -1 if parity == 'odd' else 1))
+            indices = entry.start + np.arange(place.size) * entry.columns
+            found.append((indices, space.dimensions, signs))
+    return found
+
+
+def _with_symmetries(drift: Any, symmetries: list[Any]) -> Any:  # noqa: ANN401
+    """Return the drift with the rates of symmetric states projected onto their odd or even parts."""
+    if not symmetries or drift is None:
+        return drift
+
+    def symmetric(t: float, x: Vector, p: Vector) -> Vector:
+        rates = np.array(drift(t, x, p), dtype=float)
+        for indices, dimensions, signs in symmetries:
+            values = np.reshape(rates[indices], dimensions)
+            for axis, sign in signs:
+                mirrored = np.roll(np.flip(values, axis=axis), 1, axis=axis)
+                values = (values + sign * mirrored) / 2
+            rates[indices] = values.ravel()
+        return rates
+
+    return symmetric
+
+
+def _with_constraints(drift: Any, indices: npt.NDArray[np.intp]) -> Any:  # noqa: ANN401
+    """Return the drift with the rates of fixed boundary nodes held at zero."""
+    if not indices.size or drift is None:
+        return drift
+
+    def constrained(t: float, x: Vector, p: Vector) -> Vector:
+        rates = np.array(drift(t, x, p), dtype=float)
+        rates[indices] = 0.0
+        return rates
+
+    return constrained
+
+
+def _with_discretizations(
+    functions: dict[str, Any],
+    specs: list[tuple[_KernelSpec, list[Law]]],
+    declarations: _Declarations,
+    blocks: list[_Block],
+) -> tuple[tuple[FiniteVolume, ...], tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]]]:
+    """Add flux differences, symmetries, and fixed boundary nodes to the drift, returning the laws and fixed nodes."""
+    volumes = _compile_fluxes(specs, declarations)
+    symmetries = _symmetries(blocks)
+    constrained, fixed = _mesh_constraints(blocks)
+    drift = _with_volumes(functions.get('drift'), volumes)
+    drift = _with_symmetries(drift, symmetries)
+    drift = _with_constraints(drift, constrained)
+    if volumes or symmetries or constrained.size:
+        functions['drift'] = drift
+        functions['accelerated'] = None
+    return volumes, (constrained, fixed)
+
+
+def _with_volumes(drift: Any, volumes: tuple[FiniteVolume, ...]) -> Any:  # noqa: ANN401
+    """Return the drift with the flux differences of finite-volume fields added."""
+    if not volumes or drift is None:
+        return drift
+
+    def conserved(t: float, x: Vector, p: Vector) -> Vector:
+        rates = drift(t, x, p)
+        for volume in volumes:
+            rates = rates + volume.rates(x, p)
+        return rates
+
+    return conserved
 
 
 def _history(system: System, states: Layout) -> dict[str, Any]:

@@ -254,6 +254,16 @@ class Problem:
             The local rules, drives, relaxations, and Monte Carlo sampling of a lattice problem, in the order they
             apply within a step.
 
+        linear:
+            The linear terms with constant coefficients of the rates of fields, which implicit and exponential solvers
+            treat exactly while the rest of the rates is the nonlinear remainder.
+
+        volumes:
+            The conservation laws of finite-volume fields, whose flux differences the drift includes.
+
+        constrained:
+            The state indices held at their initial values, the fixed boundary nodes of finite element fields.
+
         stable_step:
             The largest step of explicit fixed-step solvers for which the diffusion of fields is stable,
             `h^2 / (degree * D)`, or `None` when the system has no diffusion with numeric coefficients.
@@ -311,6 +321,9 @@ class Problem:
     history: Mapping[str, Any] = field(default_factory=dict)
     lattice: tuple[LatticeStep, ...] = field(default=(), repr=False)
     stable_step: float | None = None
+    linear: tuple[Any, ...] = field(default=(), repr=False)
+    volumes: tuple[Any, ...] = field(default=(), repr=False)
+    constrained: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
     drift: VectorFunction | None = field(default=None, repr=False)
     diffusion: VectorFunction | None = field(default=None, repr=False)
     noise_rows: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
@@ -334,6 +347,24 @@ class Problem:
     def parameter_symbols(self) -> list[Expression]:
         """Symbols of the parameter components of interactions, single elements, and one member of every group."""
         return self._flatten_symbols(self.parameters)
+
+    def max_speed(self, x: Vector, p: Vector) -> float | None:
+        """Return the largest wave speed of the conservation laws, or `None` without them.
+
+        Args:
+            x:
+                The state vector.
+
+            p:
+                The parameter vector.
+
+        Returns:
+            speed:
+                The largest wave speed over the cells, the dimensions, and the finite-volume fields.
+        """
+        if not self.volumes:
+            return None
+        return max(volume.max_speed(x, p) for volume in self.volumes)
 
     def lattice_shape(self, name: str) -> tuple[int, ...] | None:
         """Return the lattice shape of a state that lattice laws read or change, or `None` for other states.

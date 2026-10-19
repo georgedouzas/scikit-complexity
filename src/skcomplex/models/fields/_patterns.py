@@ -3,15 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+import math
+from collections.abc import Callable, Sequence
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 
 from ...core import Domain, parameter, state
-from ...model import Element, Field, LatticeSpace, Rate, System, laplacian
+from ...model import Element, Field, LatticeSpace, Mesh, Rate, System, divergence, laplacian
 from ...runtime import register_model
-from ...solvers import RK4
+from ...solvers import ETDRK4, RK4, IMEXEuler
 
 type Array = npt.NDArray[np.float64]
 
@@ -395,3 +397,230 @@ def schnakenberg(
         'Dv': Dv,
     }
     return System(elements=[Field('cells', Schnakenberg, LatticeSpace(shape, spacing=spacing), values=values)])
+
+
+KuramotoSivashinsky = Element.define(
+    'KuramotoSivashinsky',
+    states={'u': 0.0},
+    laws=lambda s: [Rate(s.u, -divergence([s.u**2 / 2]) - laplacian(s.u) - laplacian(laplacian(s.u)))],
+)
+
+GinzburgLandau = Element.define(
+    'GinzburgLandau',
+    states={'u': 0.0, 'v': 0.0},
+    parameters={'b': 1.0, 'c': -1.5},
+    laws=lambda s: [
+        Rate(s.u, s.u + laplacian(s.u) - s.b * laplacian(s.v) - (s.u**2 + s.v**2) * (s.u - s.c * s.v)),
+        Rate(s.v, s.v + s.b * laplacian(s.u) + laplacian(s.v) - (s.u**2 + s.v**2) * (s.c * s.u + s.v)),
+    ],
+)
+
+SwiftHohenberg = Element.define(
+    'SwiftHohenberg',
+    states={'u': 0.0},
+    parameters={'r': 0.3},
+    laws=lambda s: [Rate(s.u, (s.r - 1) * s.u - 2 * laplacian(s.u) - laplacian(laplacian(s.u)) - s.u**3)],
+)
+
+
+def harmonic(x: Array, y: Array) -> Array:
+    """Return the harmonic function `exp(x) sin(y)`, a steady temperature known in closed form.
+
+    Args:
+        x:
+            The first coordinates.
+
+        y:
+            The second coordinates.
+
+    Returns:
+        values:
+            The temperatures.
+
+    Examples:
+        >>> from skcomplex.models.fields import harmonic
+        >>> float(harmonic(0.0, 0.0))
+        0.0
+    """
+    return np.exp(x) * np.sin(y)
+
+
+@register_model(
+    field='pattern formation',
+    tags=('field', 'chaos', 'spectral', 'stiff', 'pde'),
+    references=('Kuramoto 1978', 'Sivashinsky 1977', 'Kassam and Trefethen 2005'),
+    defaults={'until': 150.0, 'dt': 1.0, 'solver': ETDRK4(dt=0.25)},
+)
+def kuramoto_sivashinsky(modes: int = 128, *, length: float = 32 * math.pi) -> System:
+    """Return the Kuramoto-Sivashinsky equation `u_t = -u u_x - u_xx - u_xxxx`, spatiotemporally chaotic.
+
+    The field is spectral on a periodic line, started from `cos(x / 16) (1 + sin(x / 16))` as in Kassam and Trefethen,
+    and the stiff fourth derivative suits exponential time differencing.
+
+    Args:
+        modes:
+            The number of sites, and of Fourier modes.
+
+        length:
+            The length of the line.
+
+    Returns:
+        system:
+            The model, with the field `line.u`.
+
+    Examples:
+        >>> from skcomplex.models.fields import kuramoto_sivashinsky
+        >>> kuramoto_sivashinsky(32).elements[0].discretization
+        'spectral'
+    """
+    spacing = length / modes
+    positions = np.arange(1, modes + 1) * spacing
+    values = {'u': np.cos(positions / 16) * (1 + np.sin(positions / 16))}
+    space = LatticeSpace(modes, spacing=spacing)
+    return System(elements=[Field('line', KuramotoSivashinsky, space, values=values, discretization='spectral')])
+
+
+@register_model(
+    field='pattern formation',
+    tags=('field', 'chaos', 'spirals', 'spectral', 'pde'),
+    references=('Aranson and Kramer 2002', 'Gros 2015'),
+    defaults={'until': 50.0, 'dt': 1.0, 'solver': ETDRK4(dt=0.1)},
+)
+def complex_ginzburg_landau(
+    shape: Sequence[int] = (64, 64),
+    *,
+    length: float = 64.0,
+    b: float = 1.0,
+    c: float = -1.5,
+    random_state: int | np.random.Generator | None = 0,
+) -> System:
+    """Return the complex Ginzburg-Landau equation `A_t = A + (1 + i b) laplacian(A) - (1 + i c) |A|^2 A`.
+
+    The amplitude `A = u + i v` is held as its real and imaginary parts, and the linear part couples them per Fourier
+    mode. With `1 + b c < 0` the uniform oscillation is unstable and spiral defects turn into turbulence.
+
+    Args:
+        shape:
+            The number of sites along both axes of the periodic lattice.
+
+        length:
+            The side of the square.
+
+        b:
+            The linear dispersion.
+
+        c:
+            The nonlinear dispersion.
+
+        random_state:
+            The seed or generator of the small random initial amplitude.
+
+    Returns:
+        system:
+            The model, with the real part `medium.u` and the imaginary part `medium.v`.
+
+    Examples:
+        >>> from skcomplex.models.fields import complex_ginzburg_landau
+        >>> complex_ginzburg_landau((8, 8)).elements[0].values['c']
+        -1.5
+    """
+    shape = tuple(shape)
+    values = {'u': _noise(shape, 0.01, random_state), 'v': _noise(shape, 0.01, None), 'b': b, 'c': c}
+    space = LatticeSpace(shape, spacing=length / shape[0])
+    return System(elements=[Field('medium', GinzburgLandau, space, values=values, discretization='spectral')])
+
+
+@register_model(
+    field='pattern formation',
+    tags=('field', 'rolls', 'convection', 'spectral', 'pde'),
+    references=('Swift and Hohenberg 1977', 'Cross and Hohenberg 1993', 'Datseris and Parlitz 2022'),
+    defaults={'until': 200.0, 'dt': 5.0, 'solver': ETDRK4(dt=0.5)},
+)
+def swift_hohenberg(
+    shape: Sequence[int] = (64, 64),
+    *,
+    length: float = 16 * math.pi,
+    r: float = 0.3,
+    random_state: int | np.random.Generator | None = 0,
+) -> System:
+    """Return the Swift-Hohenberg equation `u_t = r u - (1 + laplacian)^2 u - u^3`, which forms rolls of length 2 pi.
+
+    Above onset, `r > 0`, small noise grows into rolls whose wavenumber is near 1, the fastest growing one.
+
+    Args:
+        shape:
+            The number of sites along every axis of the periodic lattice.
+
+        length:
+            The side of the domain.
+
+        r:
+            The distance above onset.
+
+        random_state:
+            The seed or generator of the noise.
+
+    Returns:
+        system:
+            The model, with the field `cells.u`.
+
+    Examples:
+        >>> from skcomplex.models.fields import swift_hohenberg
+        >>> swift_hohenberg((8, 8), r=0.1).elements[0].values['r']
+        0.1
+    """
+    shape = tuple(shape)
+    values = {'u': _noise(shape, 0.01, random_state), 'r': r}
+    space = LatticeSpace(shape, spacing=length / shape[0])
+    return System(elements=[Field('cells', SwiftHohenberg, space, values=values, discretization='spectral')])
+
+
+@register_model(
+    field='pattern formation',
+    tags=('field', 'diffusion', 'finite element', 'mesh', 'pde'),
+    references=('Strang and Fix 1973', 'Gustafsson and McBain 2020'),
+    defaults={'until': 2.0, 'dt': 0.1, 'solver': IMEXEuler(dt=0.05)},
+)
+def heat_l_shape(
+    refine: int = 3,
+    *,
+    D: float = 1.0,
+    temperature: Callable[..., Any] | float = harmonic,
+) -> System:
+    """Return heat on the L-shaped domain with fixed boundary temperatures, discretised by linear finite elements.
+
+    The plate starts cold inside, and its temperature relaxes to the solution of Laplace's equation with the
+    boundary temperatures. The default boundary temperature is harmonic, so the steady state is known.
+
+    Args:
+        refine:
+            The number of uniform refinements of the mesh.
+
+        D:
+            The diffusion coefficient.
+
+        temperature:
+            The boundary temperature, a number or a function of the coordinates.
+
+    Returns:
+        system:
+            The model, with the temperature `plate.u` at the nodes of the mesh.
+
+    Examples:
+        >>> from skcomplex.models.fields import heat_l_shape
+        >>> heat_l_shape(1).elements[0].size
+        21
+    """
+    mesh = Mesh.l_shape(refine)
+    return System(
+        elements=[
+            Field(
+                'plate',
+                Heat,
+                mesh,
+                boundary={'u': ('fixed', temperature)},
+                values={'D': D},
+                discretization='finite-element',
+            ),
+        ],
+    )

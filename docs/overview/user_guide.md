@@ -516,6 +516,53 @@ deposits reach the field at the next synchronisation point. Lattice fields strea
 `heat_diffusion`, `fisher_kpp`, `gray_scott`, `brusselator`, `fitzhugh_nagumo`, `schnakenberg`, and
 `pheromone_foraging` in `skcomplex.models.fields`.
 
+### Discretizations and stiff solvers
+
+The same laws of a field run with another discretization by changing `Field(..., discretization=...)`.
+
+- `'spectral'` fields on periodic lattices multiply Fourier modes, with the two-thirds rule removing aliasing from
+  every operator, so `laplacian(u)` is exact for smooth fields. `inverse_laplacian(u)` solves Poisson equations, and
+  `symmetry={'u': (None, 'odd')}` keeps a state odd or even along an axis, which represents walls on a doubled
+  lattice. `LatticeSpace(spacing=(dx, dy))` sets a spacing per axis.
+- `'finite-volume'` fields take `Flux(state, flux)` laws, `du/dt + divergence(flux) = 0`, updated with MUSCL
+  reconstruction, minmod or van Leer limiters, and Rusanov or exact Godunov fluxes. `SSPRK` steps them by the CFL
+  condition and conserves their totals.
+- `'finite-element'` fields live on a `Mesh`, such as `Mesh.l_shape`, `Mesh.rectangle`, `Mesh.disk`, or
+  `Mesh.load(path)`, with stiffness and mass matrices from scikit-fem and boundary values that can be functions of
+  the coordinates. They stream to Rerun as colored meshes.
+
+The compiler splits the rate of every field into a linear part with constant coefficients, such as
+`D * laplacian(u)` or `-laplacian(laplacian(u))`, and a nonlinear remainder. `IMEXEuler`, `IMEX2`, and
+`CrankNicolson` treat the linear part implicitly, with sparse solves for finite differences and finite elements and
+solves per Fourier mode for spectral fields. `ETDRK4` integrates it exactly per mode, coupled states included, so stiff
+equations take steps far beyond the explicit limit.
+
+```python
+from skcomplex.model import divergence
+from skcomplex.solvers import ETDRK4
+
+Chaos = Element.define(
+    'Chaos',
+    states={'u': 0.0},
+    laws=lambda s: [Rate(s.u, -divergence([s.u**2 / 2]) - laplacian(s.u) - laplacian(laplacian(s.u)))],
+)
+positions = np.arange(1, 129) * 32 * np.pi / 128
+line = Field(
+    'line',
+    Chaos,
+    LatticeSpace(128, spacing=32 * np.pi / 128),
+    values={'u': np.cos(positions / 16) * (1 + np.sin(positions / 16))},
+    discretization='spectral',
+)
+print(np.abs(Simulation(System(elements=[line]), dt=10, solver=ETDRK4(dt=0.25)).run(until=100).state_).max())
+```
+
+`skcomplex.models.fluids.incompressible_flow(shape, size, nu=..., forcing=..., buoyancy=...)` builds two-dimensional
+incompressible flow in vorticity-streamfunction form, with Boussinesq convection when `buoyancy` gives `Ra` and `Pr`.
+The library has `kuramoto_sivashinsky`, `complex_ginzburg_landau`, `swift_hohenberg`, and `heat_l_shape` in
+`skcomplex.models.fields`, and `burgers`, `shallow_water`, `decaying_turbulence`, and `rayleigh_benard` in
+`skcomplex.models.fluids`.
+
 ## Backends and speed
 
 Compiling a system produces numeric functions with a backend. `'numpy'` evaluates every law with NumPy arrays, and

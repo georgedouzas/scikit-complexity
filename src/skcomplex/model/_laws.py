@@ -5,10 +5,13 @@
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ..core import Expression, SymbolicVector
 from ._lattices import Drive, Energy, LocalRule, Move, Relaxation, Sampler
+
+if TYPE_CHECKING:
+    from ._fields import Flux
 
 type Target = Expression | SymbolicVector
 type NumericFunction = Callable[[float, Mapping[str, Any]], Any]
@@ -286,4 +289,5 @@ type Law = (
     | Energy
     | Move
     | Sampler
+    | Flux
 )

@@ -140,7 +140,8 @@ def iterate(t, x, p, L, until):
 def _is_compilable(kernel: Kernel) -> bool:
     """Check whether every output of a kernel can be compiled, so it has no Python callable."""
     lattice = all(
-        reference.source is not Source.NEIGHBOR or reference.neighbor.sizes is not None
+        (reference.source is not Source.NEIGHBOR or reference.neighbor.sizes is not None)
+        and reference.source is not Source.DERIVED
         for reference in kernel.references.values()
     )
     return lattice and all(

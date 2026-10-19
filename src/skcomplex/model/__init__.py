@@ -1,7 +1,7 @@
 """Describe models as elements, interactions, laws, spaces, and systems."""
 
 from ._components import AgentType, Aggregate, Element, Group, Interaction, PairInteraction
-from ._fields import Field, advection, divergence, gradient, laplacian
+from ._fields import Field, Flux, advection, divergence, gradient, inverse_laplacian, laplacian
 from ._functions import (
     both,
     delayed,
@@ -32,6 +32,7 @@ from ._lattices import (
     neighbors,
 )
 from ._laws import Boundary, Call, Equation, Event, Jump, Law, Noise, NumericFunction, Rate, Rule, Target, Update
+from ._meshes import Mesh
 from ._observables import Observable, reduce_values
 from ._spaces import ContinuousSpace, EuclideanSpace, GridSpace, NetworkSpace, Space
 from ._symbols import Symbols
@@ -50,6 +51,7 @@ __all__: list[str] = [
     'EuclideanSpace',
     'Event',
     'Field',
+    'Flux',
     'GridSpace',
     'Group',
     'Interaction',
@@ -58,6 +60,7 @@ __all__: list[str] = [
     'Law',
     'LocalRule',
     'MesaSystem',
+    'Mesh',
     'Move',
     'Neighborhood',
     'NetworkSpace',
@@ -85,6 +88,7 @@ __all__: list[str] = [
     'divergence',
     'either',
     'gradient',
+    'inverse_laplacian',
     'lag',
     'laplacian',
     'mod',

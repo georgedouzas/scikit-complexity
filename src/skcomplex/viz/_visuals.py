@@ -346,6 +346,74 @@ class ImageVisual(Visual):
             recording.log(path, rr.Image(_palette_colors(values, low, high)))
 
 
+class MeshVisual(Visual):
+    """Visual that logs every state of a finite element field as a triangle mesh colored by value.
+
+    Triangle meshes are drawn flat with the value as their height, and tetrahedral meshes as points.
+
+    Args:
+        states:
+            The states to log, or `None` for every state.
+
+        low:
+            The value of the darkest color, or `None` for the smallest value of every frame.
+
+        high:
+            The value of the brightest color, or `None` for the largest value of every frame.
+
+    Examples:
+        >>> from skcomplex.viz import MeshVisual
+        >>> MeshVisual(low=0.0)
+        MeshVisual(states=None, low=0.0, high=None)
+    """
+
+    def __init__(
+        self,
+        states: Sequence[str] | None = None,
+        low: float | None = None,
+        high: float | None = None,
+    ) -> None:
+        self.states = states
+        self.low = low
+        self.high = high
+
+    def __repr__(self) -> str:
+        """Return the options."""
+        return f'MeshVisual(states={self.states!r}, low={self.low!r}, high={self.high!r})'
+
+    def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+        """Log every chosen state of a finite element field under `<path>/<state>`.
+
+        Args:
+            recording:
+                The Rerun recording.
+
+            element:
+                The compiled element, with its path and the dotted names of its variables.
+
+            frame:
+                The frame.
+        """
+        mesh: Any = getattr(element.element, 'space', None)
+        nodes, cells = mesh.nodes, np.asarray(mesh.cells)
+        for state, name in element.states.items():
+            if self.states is not None and state not in self.states:
+                continue
+            values = np.ravel(frame.value(name))
+            low = float(values.min()) if self.low is None else float(self.low)
+            high = float(values.max()) if self.high is None else float(self.high)
+            colors = _palette_colors(values, low, high)
+            path = f'{element.path}/{state}'
+            if mesh.n_dim == 2:  # noqa: PLR2004
+                positions = np.column_stack([nodes, values])
+                recording.log(
+                    path,
+                    rr.Mesh3D(vertex_positions=positions, triangle_indices=cells.T, vertex_colors=colors),
+                )
+            else:
+                recording.log(path, rr.Points3D(nodes, colors=colors))
+
+
 VISUALS = Registry[type[Visual]]('visual')
 
 
@@ -381,3 +449,4 @@ register_visual('scalars', ScalarsVisual)
 register_visual('points', PointsVisual)
 register_visual('agents', AgentsVisual)
 register_visual('image', ImageVisual)
+register_visual('mesh', MeshVisual)

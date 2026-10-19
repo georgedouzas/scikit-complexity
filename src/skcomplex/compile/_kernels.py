@@ -29,6 +29,7 @@ class Source(Enum):
     FIRST = 'first'
     SECOND = 'second'
     NEIGHBOR = 'neighbor'
+    DERIVED = 'derived'
 
 
 @dataclass(frozen=True)
@@ -253,20 +254,36 @@ class Kernel:
         """Whether an output is computed by a function, either a callable law or a `Call`."""
         return any(output.function is not None for output in self.outputs)
 
+    def _gather_around(
+        self,
+        reference: Reference,
+        x: Vector,
+        p: Vector,
+        pairs: tuple[Indices, Indices] | None,
+        t: float,
+    ) -> Any:  # noqa: ANN401
+        """Return the values of a symbol read at neighbouring sites or derived by a global operator."""
+        read = reference.neighbor
+        if reference.source is Source.NEIGHBOR:
+            return read.read(reference.column_of(x, p))
+        values = [self._gather(item, x, p, pairs, t) for item in read.symbols]
+        return read.evaluate(t, values, reference.entry.rows)
+
     def _gather(
         self,
         symbol: Expression,
         x: Vector,
         p: Vector,
         pairs: tuple[Indices, Indices] | None,
+        t: float = 0.0,
     ) -> Any:  # noqa: ANN401
         """Return the values of a symbol for every evaluation index."""
         reference = self.references[symbol]
+        if reference.source in {Source.DERIVED, Source.NEIGHBOR}:
+            return self._gather_around(reference, x, p, pairs, t)
         column = reference.column_of(x, p)
         if reference.source is Source.SINGLE:
             return column[0]
-        if reference.source is Source.NEIGHBOR:
-            return reference.neighbor.read(column)
         if reference.source is Source.MEMBER or pairs is None:
             return column
         first, second = pairs
@@ -297,7 +314,7 @@ class Kernel:
         size = len(pairs[0]) if pairs is not None else self.rows
         computed: list[Any] = []
         if self._function is not None:
-            computed = list(self._function(t, *(self._gather(symbol, x, p, pairs) for symbol in self._arguments)))
+            computed = list(self._function(t, *(self._gather(symbol, x, p, pairs, t) for symbol in self._arguments)))
         values: list[Vector] = []
         function_results: dict[tuple[int, int], Vector] = {}
         for output, (start, count) in zip(self.outputs, self._slots, strict=True):
