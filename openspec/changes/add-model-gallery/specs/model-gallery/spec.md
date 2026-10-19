@@ -39,6 +39,33 @@ Every example SHALL run its model with gallery settings that record at most 300 
 - **WHEN** an example records more frames or a larger recording than the budget
 - **THEN** the gallery build fails and names the example and the exceeded limit
 
+### Requirement: Screenshots are the gallery thumbnails
+Every example SHALL produce a thumbnail screenshot as the first image its Rerun scraper returns, so that
+`mkdocs-gallery` makes it the example's thumbnail in the gallery grid. The thumbnail SHALL show the model's primary
+view alone, at the aspect ratio of the gallery's `thumbnail_size`, and read at the size the gallery displays it.
+
+#### Scenario: Thumbnail in the gallery grid
+- **WHEN** a user opens the gallery index of `chemistry/pattern_formation`
+- **THEN** the Gray-Scott thumbnail is the Rerun image of its `v` field at the last frame, with spots, filling the
+  thumbnail at the 10:7 ratio of the configured `thumbnail_size` of 400x280
+
+#### Scenario: Primary view of a time series model
+- **WHEN** the `lotka_volterra` thumbnail is captured
+- **THEN** it shows one time series view of the prey and predator populations, with no parameter views and no panels
+
+#### Scenario: No placeholder thumbnails
+- **WHEN** the gallery is built
+- **THEN** no example's thumbnail is the `mkdocs-gallery` placeholder image, and the build fails and names any example
+  whose scraper returned no image
+
+### Requirement: Example pages show the full layout
+After the thumbnail, the scraper SHALL return a second screenshot of the example's full blueprint, all views at the last
+frame, for the example page.
+
+#### Scenario: Full layout on the page
+- **WHEN** a user opens the Gray-Scott example page
+- **THEN** it shows the thumbnail view and, below it, the `u` and `v` views side by side
+
 ### Requirement: Screenshots are captured from Rerun
 The capture SHALL turn an example's recording and blueprint into an image of the Rerun views at the last frame. It SHALL
 wait until the recording has loaded and the views have rendered, and SHALL crop to the viewport, without the side
@@ -46,24 +73,25 @@ panels, the time panel, or notifications.
 
 #### Scenario: Field at its last frame
 - **WHEN** the Gray-Scott example is captured
-- **THEN** the screenshot shows the `u` and `v` images at the last recorded frame, with spots, and no empty view
+- **THEN** both screenshots show the fields at the last recorded frame, with spots, and no empty view
 
 #### Scenario: Overlays excluded
 - **WHEN** the viewer shows a notification during capture
 - **THEN** the notification is not in the screenshot
 
 ### Requirement: Screenshots are checked
-Every screenshot SHALL pass automatic checks before it is kept. It SHALL have the gallery size. No view in it SHALL be
-uniform. It SHALL hold no overlay region of the viewer's notification colours, and it SHALL be at most 300 KB. A failed
-check SHALL retry the capture once with a longer wait, and then fail the build, naming the example and the check.
+Every screenshot SHALL pass automatic checks before it is kept. It SHALL be a PNG of the gallery size. No view in it
+SHALL be uniform. It SHALL hold no viewer notification, and it SHALL be at most 300 KB. A failed check SHALL retry the
+capture once with a longer wait, and then fail the build, naming the example and the check.
 
 #### Scenario: Blank view
 - **WHEN** a capture shows a view with a single colour, such as an image not yet uploaded
 - **THEN** the capture retries once, and if the view is still blank the build fails and names the example and the view
 
-#### Scenario: Size budget
+#### Scenario: Format and size
 - **WHEN** a screenshot is encoded
-- **THEN** it is a WebP image of the gallery size of at most 300 KB
+- **THEN** it is an optimised PNG, a format `mkdocs-gallery` turns into thumbnails, of the gallery size and at most
+  300 KB
 
 ### Requirement: Captures use a chosen backend with a fallback
 The capture SHALL support two backends: the native Rerun viewer with `--screenshot-to`, and the Rerun web viewer in

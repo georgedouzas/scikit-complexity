@@ -11,7 +11,9 @@ A gallery with one runnable example and one Rerun screenshot per model makes the
 behaviour each model is known for, such as the Lotka-Volterra cycles, the Gray-Scott spots, or the flocks of boids. It
 also shows the user the few lines that run a model and stream it to Rerun.
 
-Producing 301 faithful screenshots is hard, and a probe with the installed Rerun 0.39 shows why:
+The screenshots are the gallery's thumbnails, so each must show its model's signature view legibly at the size the grid
+displays it: 160x112 pixels by the default CSS, from a 400x280 thumbnail. Producing 301 faithful screenshots is hard,
+and a probe with the installed Rerun 0.39 shows why:
 - `rerun <file>.rrd --screenshot-to <png> --window-size <size>` takes a screenshot of the native viewer and quits, in
   about 2 to 3 seconds per recording.
 - **No layout:** without a blueprint the viewer shows every parameter in its own time series panel, around the side,
@@ -43,12 +45,14 @@ rebuild.
   - **Waiting:** it waits until the recording has loaded and the views have rendered.
   - **Overlays:** it crops to the viewport, so that overlays and panels are excluded.
   - **Checks:** it rejects blank views, notifications, and wrong sizes.
-  - **Output:** it writes a WebP image within a size budget.
+  - **Output:** it writes an optimised PNG within a size budget, because `mkdocs-gallery` builds thumbnails only from
+    PNG, JPG, SVG, and GIF.
 - **Cache:** screenshots are cached by a key of the example source, the model's source, the Rerun version, and the
   capture settings. The documentation build regenerates only stale ones, and they are not committed to the repository.
 - **Examples:** every registered model has one example script under `docs/examples/<field>/<subfield>/`, in the format
   of `mkdocs-gallery`. Each script states its run, its blueprint, and a caption of what the image shows, and uses only
-  the public interface. A Rerun image scraper for `mkdocs-gallery` attaches the screenshot to the example page.
+  the public interface. A Rerun image scraper for `mkdocs-gallery` returns two screenshots. The first is the model's primary view, which
+  becomes the example's thumbnail in the gallery grid. The second is the full layout on the example page.
 - **Coverage:**
   - **Tests:** a test fails when a registered model has no example, when an example names no registered model, or
     when a built gallery lacks a screenshot.

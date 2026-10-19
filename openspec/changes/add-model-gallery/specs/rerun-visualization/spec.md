@@ -13,9 +13,9 @@ a user SHALL be able to declare its views the same way.
   entity path as origin
 
 ### Requirement: Systems get a default blueprint
-`default_blueprint(system)` SHALL return a Rerun blueprint built from the views of the system's visuals. Its scalar
-views SHALL be grouped by element, its parameters left out unless asked for, its side panels collapsed, and its time
-panel following the latest frame, so the views show the end of the run.
+`default_blueprint(system)` SHALL return a Rerun blueprint built from the views of the system's visuals, ordered with
+the primary view first, which `primary_view(system)` returns. Its scalar views SHALL be grouped by element, its
+parameters left out unless asked for, its side panels collapsed, and its time panel following the latest frame.
 
 #### Scenario: Blueprint of an ODE model
 - **WHEN** the default blueprint of `lotka_volterra` is built
@@ -25,6 +25,11 @@ panel following the latest frame, so the views show the end of the run.
 #### Scenario: Blueprint of a field model
 - **WHEN** the default blueprint of `gray_scott` is built
 - **THEN** it holds one 2D spatial view per field state, `u` and `v`, side by side
+
+#### Scenario: Primary view
+- **WHEN** `primary_view` of `gray_scott` and of `lotka_volterra` is asked for
+- **THEN** it is the 2D view of a field state and the time series view of the populations, the first view of each
+  default blueprint
 
 #### Scenario: Parameters on request
 - **WHEN** the default blueprint is built with `parameters=True`

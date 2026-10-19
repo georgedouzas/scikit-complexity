@@ -119,14 +119,35 @@ The design is then updated with the measured table and the choice. Playwright is
 because it is maintained by Microsoft, ships wheels with managed browsers, and has element screenshots and load-state
 waits built in.
 
+### Screenshots are thumbnails first
+
+`mkdocs-gallery` makes an example's thumbnail from the first image its scrapers return, or from the image numbered by
+`mkdocs_gallery_thumbnail_number`. It rescales that image to fit `thumbnail_size`, 400x280 by default, and its CSS
+shows it at 160x112. The gallery grid is therefore the main place a user sees a screenshot.
+
+The Rerun scraper returns two captures. First comes the thumbnail, which is the example's primary view alone: the view
+that shows the model's signature behaviour, such as the `v` field of Gray-Scott, the phase-plane or populations of
+Lotka-Volterra, or the attractor of Lorenz. Second comes the full blueprint for the example page.
+
+`default_blueprint` orders views by importance, spatial first, and exposes `primary_view(system)`. An example may name
+another view as primary, which is the curation step of the field batches. The thumbnail capture uses a blueprint with
+that view alone, with no view title bar or legend, at the 10:7 ratio. Lines are drawn thick enough to read at 160x112.
+`mkdocs_gallery_thumbnail_number` is left at its default of 1.
+
 ### Checks are cheap image statistics
 
 The checks use Pillow and NumPy on the captured image:
-- **Size:** the image is 1600x900 pixels, at a logical size of 800x450 with density 2.
+- **Size:** the thumbnail capture is 1200x840 pixels, at a logical size of 600x420 with density 2. That is the 10:7
+  ratio of the gallery's `thumbnail_size` of 400x280, so rescaling neither crops nor letterboxes it. The full-layout
+  capture is 1600x1120.
 - **Blank views:** every view rectangle has a pixel standard deviation above a threshold. The rectangles come from the
   blueprint's grid, because the viewport is the cropped image and the layout is known.
 - **Notifications:** no region matches the viewer's notification background colours over more than a small area.
-- **Encoding:** WebP at quality 80, with the size at most 300 KB.
+- **Encoding:** a PNG optimised by Pillow, with the size at most 300 KB. WebP was rejected because `mkdocs-gallery`
+  0.10.4 finds and rescales thumbnails only from PNG, JPG, SVG, and GIF, and silently falls back to its placeholder
+  image otherwise.
+- **Placeholder:** the gallery build compares every generated thumbnail with the `mkdocs-gallery` placeholder
+  `no_image.png`, and fails on a match.
 
 A failed capture is retried once with a longer wait before it fails the build. Golden-image comparison is a non-goal,
 because rendering differs across GPUs and backends.
