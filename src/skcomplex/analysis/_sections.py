@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ..compile import CompiledEvent, Problem, Vector, compile_system
+from ..compile import CompiledEvent, EventRecord, Problem, Vector, compile_system
 from ..core import AnalysisError, Form
 from ..model import System
 from ..runtime import Simulation
@@ -132,9 +132,15 @@ def poincare_section(
     event = CompiledEvent(SECTION, guard, None, int(direction), False)
     sectioned = dataclasses.replace(problem, events=(*problem.events, event))
     trajectory = Simulation(sectioned, solver=solver, dt=until / 100, random_state=random_state).run(until).trajectory_
-    crossings = [record for record in trajectory.events if record.label == SECTION and record.time >= transient]
-    states = np.asarray([record.before for record in crossings], dtype=float).reshape(-1, problem.states.size)
-    return Section(np.asarray([record.time for record in crossings], dtype=float), states, problem)
+    crossings = [
+        record
+        for record in trajectory.events
+        if isinstance(record, EventRecord) and record.label == SECTION and record.time >= transient
+    ]
+    states = np.zeros((len(crossings), problem.states.size))
+    for row, record in enumerate(crossings):
+        states[row] = record.before
+    return Section(np.asarray([record.time for record in crossings], dtype=np.float64), states, problem)
 
 
 def stroboscopic(

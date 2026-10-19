@@ -8,9 +8,11 @@ import pytest
 from skcomplex.compile import compile_system
 from skcomplex.core import Domain, parameter
 from skcomplex.model import EuclideanSpace, System
+from skcomplex.models.lattices import game_of_life
 from skcomplex.models.physics import PairPotential, Particle, ReflectingBox, ideal_gas
 from skcomplex.runtime import RealTime, Simulation
 from skcomplex.solvers import VelocityVerlet
+from skcomplex.viz import RerunObserver
 
 
 class SoftSphere(PairPotential):
@@ -61,3 +63,18 @@ def test_interacting_gas_of_100000_runs_in_real_time():
     simulation = Simulation(system, solver=VelocityVerlet(dt=0.01), dt=0.01, clock=RealTime(speed=1.0), record=False)
     simulation.run(until=2)
     assert simulation.clock_.max_lag_ <= 0.2
+
+
+@pytest.mark.benchmark
+def test_large_game_of_life_runs_in_real_time(tmp_path):
+    """Test that a 1000 x 1000 Game of Life on Numba sustains 30 steps per second while streaming images."""
+    observer = RerunObserver('life', save_path=tmp_path / 'life.rrd')
+    simulation = Simulation(game_of_life((1000, 1000)), dt=1, backend='numba', record=False, observers=[observer])
+    simulation.run(until=2)
+    simulation.observers = [RerunObserver('life', save_path=tmp_path / 'paced.rrd')]
+    simulation.clock = RealTime(30.0)
+    start = time.perf_counter()
+    simulation.run(until=90)
+    assert 90 / (time.perf_counter() - start) >= 29.0
+    assert simulation.problem_.lattice[0].fused
+    assert simulation.observers[0].logged_frames_ == 91

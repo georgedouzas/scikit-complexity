@@ -68,3 +68,33 @@ energy. Checkerboard updates make the sweep vectorisable for nearest-neighbour e
   functions run on whole arrays, not per cell.
 - [New forms add combinations] → Lattice and Monte Carlo partitions co-simulate with ODE and agent partitions through
   the existing scheduler, for example agents on a lattice field.
+
+## Implementation Notes
+
+- A lattice group is an ordinary group with a `space`, created by `Element.lattice`, so its states and parameters use
+  the existing layout with one row per site, and parameters per site or shared work unchanged. Element types can keep
+  structural settings, such as a Wolfram number or `vmax`, as plain dataclass fields that their laws read from `self`.
+- Lattice and Monte Carlo laws bypass the symbolic kernels. The compiler turns them into steps on the problem, in
+  declaration order, and two new forms, `LATTICE` and `MONTE_CARLO`, select the lattice stepper and the Monte Carlo
+  stepper. Partitions co-simulate them with other forms as before.
+- Neighbours come from a precomputed table of member indices per site and offset, with the number of sites standing
+  for the fill value outside fixed edges. Periodic, fixed, and reflecting edges are therefore one code path.
+- Tables, Wolfram numbers, and totalistic rules become lookup arrays at compile time. On the Numba backend,
+  synchronous lookup rules run as one compiled loop: a 1000 × 1000 Game of Life reaches about 220 steps per second,
+  and about 55 while streaming images to Rerun. Images use a 256-level palette lookup, since interpolating colors per
+  pixel limited the frame rate.
+- Lattice forms lower their remaining laws with NumPy, like the agent form. The requested backend only decides whether
+  lookup rules are fused.
+- `LocalRule` targets can be a tuple that a function rule updates together from the same configuration, which
+  Langton's ant needs for its colors and its heading. Function rules receive the component's parameters by keyword
+  when they name them.
+- `Relaxation` takes an optional `activity` mask. Avalanche sizes count active sites, such as toppling sites, rather
+  than every site that changes, which matches the literature's definition of size.
+- Monte Carlo energy changes replace `neighbor` calls by placeholders before substituting the proposal, so the
+  neighbours keep their values. They are printed to NumPy once. Checkerboard sweeps check that the neighbourhood
+  connects the two sublattices only, and suggest the random sequential schedule otherwise.
+- The sandpile scenario measures the exponent as the slope of the log-binned density between sizes 1 and 100, giving
+  about 1.1. A maximum-likelihood fit of a sample cut at 100 is biased upward by the cut. The full scenario of 100,000
+  grains takes about 75 seconds with a generic Python toppling rule, the slowest test of the suite.
+- Synchronous majority voting settles into domains that either freeze or blink with period two, so its test accepts
+  both.

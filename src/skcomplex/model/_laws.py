@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..core import Expression, SymbolicVector
+from ._lattices import Drive, Energy, LocalRule, Move, Relaxation, Sampler
 
 type Target = Expression | SymbolicVector
 type NumericFunction = Callable[[float, Mapping[str, Any]], Any]
@@ -270,4 +271,19 @@ class Equation:
         object.__setattr__(self, 'rhs', rhs)
 
 
-type Law = Rate | Noise | Jump | Update | Boundary | Rule | Equation | Event
+type Law = (
+    Rate
+    | Noise
+    | Jump
+    | Update
+    | Boundary
+    | Rule
+    | Equation
+    | Event
+    | LocalRule
+    | Drive
+    | Relaxation
+    | Energy
+    | Move
+    | Sampler
+)

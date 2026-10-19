@@ -37,17 +37,24 @@ from ..model import (
     Aggregate,
     Boundary,
     Call,
+    Drive,
     Element,
+    Energy,
     Equation,
     Event,
     Group,
     Jump,
+    LatticeSpace,
     Law,
+    LocalRule,
     MesaSystem,
+    Move,
     Noise,
     PairInteraction,
     Rate,
+    Relaxation,
     Rule,
+    Sampler,
     Space,
     Symbols,
     System,
@@ -56,6 +63,15 @@ from ..model import (
 from ._backends import Backend, resolve_backend
 from ._hybrid import Breakpoints, CompiledEvent, Delay, Scalars, breakpoints_of, flat_sources, scalar_function
 from ._kernels import Kernel, Output, PairSearch, Reference, Source
+from ._lattices import (
+    LatticeContext,
+    LatticeState,
+    LatticeStep,
+    compile_drive,
+    compile_monte_carlo,
+    compile_relaxation,
+    compile_rule,
+)
 from ._layout import Entry, Layout
 from ._lowering import symbolic_components
 from ._problem import CompiledAgents, CompiledElement, CompiledInteraction, Partition, Problem, Vector, VectorFunction
@@ -69,8 +85,16 @@ FORMS: dict[frozenset[type], Form] = {
     frozenset({Jump}): Form.JUMP,
     frozenset({Update}): Form.DISCRETE,
     frozenset({Rule}): Form.AGENT,
+    **{
+        frozenset(kinds): Form.LATTICE
+        for count in (1, 2, 3)
+        for kinds in itertools.combinations((LocalRule, Drive, Relaxation), count)
+    },
+    frozenset({Energy, Move}): Form.MONTE_CARLO,
+    frozenset({Energy, Move, Sampler}): Form.MONTE_CARLO,
 }
 ASSIGNED_KINDS = (Update, Boundary)
+LATTICE_LAWS = (LocalRule, Drive, Relaxation, Energy, Move, Sampler)
 
 
 @dataclass
@@ -271,11 +295,11 @@ def _pair_spec(block: _Block, elements: dict[str, _Block], time: Expression) -> 
 def _collect_laws(spec: _KernelSpec, component: object) -> list[Law]:
     """Return the laws a component returns for its namespace after checking their kinds."""
     laws = component.laws(spec.namespace)  # type: ignore[attr-defined]
-    kinds = Rate | Noise | Jump | Update | Boundary | Rule | Equation | Event
+    kinds = (Rate, Noise, Jump, Update, Boundary, Rule, Equation, Event, *LATTICE_LAWS)
     if not isinstance(laws, list | tuple) or not all(isinstance(law, kinds) for law in laws):
         error_msg = (
-            f'`laws` of {spec.owner} must return a list of Rate, Noise, Jump, Update, Boundary, Rule, Equation, or '
-            'Event laws.'
+            f'`laws` of {spec.owner} must return a list of Rate, Noise, Jump, Update, Boundary, Rule, Equation, Event, '
+            'LocalRule, Drive, Relaxation, Energy, Move, or Sampler laws.'
         )
         raise ValidationError(error_msg)
     if spec.pairs is not None and not all(isinstance(law, Rate) for law in laws):
@@ -452,7 +476,7 @@ def _with_orders(spec: _KernelSpec, laws: list[Law], block: _Block, orders: _Ord
         return laws
     result: list[Any] = []
     for law in laws:
-        if isinstance(law, Rule):
+        if isinstance(law, (Rule, *LATTICE_LAWS)):
             result.append(law)
             continue
         if isinstance(law, Equation):
@@ -868,7 +892,7 @@ def _lower_laws(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Decla
     for spec, laws in specs:
         outputs: dict[type, list[Output]] = defaultdict(list)
         for law in laws:
-            if isinstance(law, Rule | Event):
+            if isinstance(law, (Rule, Event, *LATTICE_LAWS)):
                 continue
             if isinstance(law, Jump):
                 output = _outputs_of(law.rate, [None], f'Jump law of {spec.owner}')[0]
@@ -1053,8 +1077,13 @@ def _law_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
     if isinstance(law, Rule):
         paths = list(spec.roles.values())
         return next((path for path in paths if path in agents), next(iter(paths), spec.owner))
-    if isinstance(law, Equation | Event):
+    if isinstance(law, Equation | Event | Energy | Sampler):
         return spec.owner
+    if isinstance(law, Relaxation):
+        target = next(iter(law.targets), None)
+        return spec.owner if target is None else _target_references(target, spec)[0].entry.name.rpartition('.')[0]
+    if isinstance(law, LocalRule):
+        return _target_references(law.targets[0], spec)[0].entry.name.rpartition('.')[0]
     target = next(iter(law.changes)) if isinstance(law, Jump) else law.target
     return _target_references(target, spec)[0].entry.name.rpartition('.')[0]
 
@@ -1177,7 +1206,9 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         return _compile_partitions(system, backend, plan)
     lowered = _lower_laws(specs, declarations)
     members = sum(block.node.members or 0 for block in blocks if not block.node.is_agent)
-    chosen = resolve_backend('numpy' if form is Form.AGENT else backend, members)
+    stepwise = form in {Form.AGENT, Form.LATTICE, Form.MONTE_CARLO}
+    chosen = resolve_backend('numpy' if stepwise else backend, members)
+    fused = resolve_backend(backend, members).name == 'numba'
     functions = _lower(form, lowered, declarations, chosen)
     states, parameters = Layout(declarations.states), Layout(declarations.parameters)
     functions['boundary'] = _wrapping_angles(cast('VectorFunction | None', functions.get('boundary')), states)
@@ -1236,8 +1267,67 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         events=_compile_events(hybrid, declarations.time),
         breakpoints=_breakpoints(specs, hybrid, declarations.time),
         history=_history(system, states),
+        lattice=_compile_lattice(specs, declarations, fused),
         **functions,  # type: ignore[arg-type]
     )
+
+
+def _lattice_context(spec: _KernelSpec, declarations: _Declarations, fused: bool) -> LatticeContext:
+    """Return the lattice states and the arguments of the symbols a component's laws read."""
+    states, arguments = {}, {}
+    for item, reference in spec.references.items():
+        entry = reference.entry
+        owner, _, variable = entry.name.rpartition('.')
+        block = declarations.blocks.get(owner)
+        space = block.node.space if block is not None else None
+        is_lattice = isinstance(space, LatticeSpace) and block is not None and block.node.members is not None
+        if reference.is_state and is_lattice and not entry.member_shape:
+            states[item] = LatticeState(entry.name, entry.start, space)  # type: ignore[arg-type]
+        if not entry.member_shape:
+            arguments[item] = (variable, reference.is_state, entry.start, entry.size)
+    return LatticeContext(spec.owner, states, arguments, fused)
+
+
+def _monte_carlo_step(spec: _KernelSpec, laws: list[Law], context: LatticeContext) -> LatticeStep | None:
+    """Return the Monte Carlo sampling of a component's energy, move, and sampler, or `None` without them."""
+    energies = [law for law in laws if isinstance(law, Energy)]
+    moves = [law for law in laws if isinstance(law, Move)]
+    samplers = [law for law in laws if isinstance(law, Sampler)]
+    if not (energies or moves or samplers):
+        return None
+    if len(energies) != 1 or len(moves) != 1 or len(samplers) > 1:
+        error_msg = (
+            f'{spec.owner} declares {len(energies)} energies, {len(moves)} moves, and {len(samplers)} samplers. '
+            'Monte Carlo sampling takes one energy, one move, and at most one sampler.'
+        )
+        raise ValidationError(error_msg)
+    if samplers:
+        sampler = samplers[0]
+    elif hasattr(spec.namespace, 'temperature'):
+        sampler = Sampler(temperature=spec.namespace.temperature)
+    else:
+        error_msg = f'{spec.owner} declares no sampler and no parameter `temperature` for the default sampler.'
+        raise ValidationError(error_msg)
+    return compile_monte_carlo(energies[0], moves[0], sampler, context)
+
+
+def _compile_lattice(
+    specs: list[tuple[_KernelSpec, list[Law]]],
+    declarations: _Declarations,
+    fused: bool,
+) -> tuple[LatticeStep, ...]:
+    """Return the steps of local rules, drives, relaxations, and Monte Carlo sampling in declaration order."""
+    steps: list[LatticeStep] = []
+    compilers = {LocalRule: compile_rule, Drive: compile_drive, Relaxation: compile_relaxation}
+    for spec, laws in specs:
+        if not any(isinstance(law, LATTICE_LAWS) for law in laws):
+            continue
+        context = _lattice_context(spec, declarations, fused)
+        steps += [compilers[type(law)](law, context) for law in laws if type(law) in compilers]  # type: ignore[operator]
+        sampling = _monte_carlo_step(spec, laws, context)
+        if sampling is not None:
+            steps.append(sampling)
+    return tuple(steps)
 
 
 def _history(system: System, states: Layout) -> dict[str, Any]:

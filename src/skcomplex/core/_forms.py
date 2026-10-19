@@ -14,4 +14,6 @@ class Form(Enum):
     JUMP = 'jump process'
     DISCRETE = 'discrete map'
     AGENT = 'agent-based model'
+    LATTICE = 'lattice dynamics'
+    MONTE_CARLO = 'Monte Carlo sampling'
     COUPLED = 'co-simulation'

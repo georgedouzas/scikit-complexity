@@ -404,6 +404,79 @@ A `Boundary` law sets the value of a state after every solver step. Boundaries c
 periodic boxes work for differential equations, stochastic systems, jump processes, and discrete maps.
 `ReflectingBox` mirrors positions and velocities at the walls, and `PeriodicBox` wraps positions around the box.
 
+## Lattice models
+
+Cellular automata, sandpiles, and spin models live on lattices. `LatticeSpace(shape, boundary=...)` is a box of `Z^d`
+with `'periodic'`, `'fixed'`, or `'reflecting'` edges, and `Element.lattice(label, space, **values)` puts one member
+of an element type on every site, with values given as arrays of the lattice shape. Laws are written for one cell.
+
+**Local rules.** `LocalRule(target, neighborhood, rule)` computes a cell's next value from the ordered values of its
+neighbourhood. `Neighborhood.moore`, `.von_neumann`, `.radius`, or `Neighborhood(offsets)` give the offsets. A rule is
+a `Wolfram` number, a `Table` of patterns, a `Totalistic` or `OuterTotalistic` rule, or a function of NumPy arrays,
+one per neighbour, that also receives the parameters it names and, for stochastic rules, uniform random numbers.
+Tables and totalistic rules run as lookups, fused into one compiled loop on the Numba backend.
+
+```python
+from skcomplex.model import LatticeSpace, LocalRule, Neighborhood, OuterTotalistic
+
+Life = Element.define(
+    'Life',
+    states={'alive': state(0, domain=Domain.BOOLEAN)},
+    laws=lambda s: [LocalRule(s.alive, Neighborhood.moore(), OuterTotalistic.life(born=(3,), survive=(2, 3)))],
+)
+glider = np.zeros((20, 20))
+glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
+cells = System(elements=[Life.lattice('cells', LatticeSpace((20, 20)), alive=glider)])
+trajectory = Simulation(cells, dt=1).run(until=4).trajectory_
+print(np.array_equal(trajectory.lattice('cells.alive')[-1], np.roll(glider, (1, 1), axis=(0, 1))))
+```
+
+- Rules update synchronously by default, every cell from the previous configuration. `schedule='random-sequential'`,
+  `'random-site'`, or `'checkerboard'` update cells one at a time or one sublattice at a time.
+- One unit of time is one application of every rule, so `dt` is an integer, and `trajectory.lattice(name)` returns
+  the states in lattice shape.
+- `Drive(target, function)` changes a whole lattice at once, such as dropping a grain on a random site.
+
+**Relaxation.** `Relaxation(drive, relax, stable)` separates a slow drive from a fast relaxation, as in
+self-organised criticality. Every step applies the drive laws once and the relax laws until `stable` holds, and each
+relaxation is recorded among the trajectory's events with its size, duration, and area. `activity` marks the sites
+that count as updates, such as the toppling sites of a sandpile.
+
+```python
+from skcomplex.models.lattices import sandpile
+
+trajectory = Simulation(sandpile((20, 20)), dt=100, random_state=0).run(until=2000).trajectory_
+print(max(event.size for event in trajectory.events))
+```
+
+**Monte Carlo.** `Energy(expression, neighborhood)` is the local energy of a site, every term of the total energy
+that involves it, with neighbour values read through `neighbors`. `Move.flip`, `Move.random_value`, and `Move.rotate`
+propose changes, and `Sampler('metropolis' | 'glauber' | 'heat-bath', temperature)` accepts them. The energy change of
+a move is derived symbolically, sweeps update the two sublattices in turn, and the temperature is a parameter that
+changes live.
+
+```python
+from skcomplex.model import Energy, Move, Sampler, neighbors
+
+nearest = Neighborhood.von_neumann()
+Spin = Element.define(
+    'Spin',
+    states={'spin': state(1.0, domain=Domain.INTEGER)},
+    parameters={'J': 1.0, 'temperature': 1.5},
+    laws=lambda s: [
+        Energy(-s.J * s.spin * sum(neighbors(s.spin, nearest)), nearest),
+        Move.flip(s.spin),
+        Sampler('metropolis', s.temperature),
+    ],
+)
+spins = System(elements=[Spin.lattice('spins', LatticeSpace((32, 32)))])
+print(abs(Simulation(spins, dt=50, random_state=0).run(until=200).state_.mean()) > 0.9)
+```
+
+Lattice groups stream to Rerun as images colored by value. The library has `elementary_automaton`, `game_of_life`,
+`majority_rule`, `langtons_ant`, `nagel_schreckenberg`, `hodgepodge`, `sandpile`, `forest_fire`, `earthquakes`,
+`ising`, `potts`, and `xy` in `skcomplex.models.lattices`.
+
 ## Backends and speed
 
 Compiling a system produces numeric functions with a backend. `'numpy'` evaluates every law with NumPy arrays, and

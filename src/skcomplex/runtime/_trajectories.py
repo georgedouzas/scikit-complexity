@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..compile import EventRecord, Problem
+from ..compile import EventRecord, Problem, RelaxationRecord
 from ..solvers import AgentSnapshot
 
 
@@ -40,7 +40,7 @@ class Trajectory:
 
         events:
             The events that fired during the run, in order, each with its time and the states before and after its
-            reset.
+            reset, and the relaxations of lattices with their sizes, durations, and areas.
 
     Examples:
         >>> from skcomplex.model import System
@@ -64,7 +64,7 @@ class Trajectory:
         agents: Sequence[Mapping[str, AgentSnapshot]] = (),
         reporters: Sequence[Mapping[str, float]] = (),
         observables: Sequence[Mapping[str, Any]] = (),
-        events: Sequence[EventRecord] = (),
+        events: Sequence[EventRecord | RelaxationRecord] = (),
     ) -> None:
         self.problem = problem
         self.times = times
@@ -109,6 +109,27 @@ class Trajectory:
         names = [*self.problem.states.names, *self.problem.parameters.names, *reporter_names, *observable_names]
         error_msg = f'No state or parameter named {name!r}. Available names are: {", ".join(names)}.'
         raise KeyError(error_msg)
+
+    def lattice(self, name: str) -> npt.NDArray[np.float64]:
+        """Return the values of a lattice state over time in lattice shape.
+
+        Args:
+            name:
+                The dotted name of a state of a lattice group, such as `cells.alive`.
+
+        Returns:
+            values:
+                One array of the lattice shape per frame.
+
+        Raises:
+            KeyError:
+                The name is not a state of a lattice group.
+        """
+        shape = self.problem.lattice_shape(name)
+        if shape is None:
+            error_msg = f'{name!r} is not a state of a lattice group.'
+            raise KeyError(error_msg)
+        return self[name].reshape(len(self), *shape)
 
     def agents(self, group: str, frame: int) -> AgentSnapshot:
         """Return the agents of a group alive at a frame, with their ids, states, and locations.

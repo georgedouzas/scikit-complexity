@@ -8,10 +8,13 @@ import inspect
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any, ClassVar, dataclass_transform
 
+import numpy as np
 from sklearn.base import BaseEstimator
 
 from ..core import Domain, VisualSpec, companions_of, declaration_of, parameter, role, state
+from ._lattices import LatticeSpace
 from ._laws import Law
+from ._spaces import Space
 from ._symbols import Symbols
 
 
@@ -213,6 +216,52 @@ class Element(Component):
         """
         return Group(label, element=cls, size=size, values=values, visual=visual)
 
+    @classmethod
+    def lattice(
+        cls,
+        label: str,
+        space: LatticeSpace,
+        *,
+        visual: VisualSpec | None = None,
+        **values: Any,  # noqa: ANN401
+    ) -> 'Group':
+        """Return a group of cells of this element type, one member per site of a lattice.
+
+        Laws of the element type are written for one cell, and local rules read the cells around it. Lattice groups
+        stream to Rerun as images unless a visual is given.
+
+        Args:
+            label:
+                The label of the group.
+
+            space:
+                The lattice.
+
+            visual:
+                The visual of the group, or `None` for an image of every state.
+
+            **values:
+                Arrays of the lattice shape, or values shared by every cell.
+
+        Returns:
+            group:
+                The group.
+
+        Examples:
+            >>> import numpy as np
+            >>> from skcomplex.core import Domain, state
+            >>> from skcomplex.model import Element, LatticeSpace
+            >>> Cell = Element.define('Cell', states={'alive': state(0, domain=Domain.BOOLEAN)})
+            >>> cells = Cell.lattice('cells', LatticeSpace((3, 4)), alive=np.eye(3, 4))
+            >>> cells.size, cells.values['alive'].shape
+            (12, (12,))
+        """
+        flat = {
+            name: np.ravel(value) if np.shape(value) == space.dimensions else value for name, value in values.items()
+        }
+        visual = VisualSpec('image') if visual is None else visual
+        return Group(label, element=cls, size=space.size, values=flat, visual=visual, space=space)
+
 
 class AgentType(Element):
     """Base class of agents, whose behaviour is a list of rules and whose groups change size during a run.
@@ -303,6 +352,10 @@ class Group(BaseEstimator):
         visual:
             The visual of the group, or `None` to use the visual of the element type.
 
+        space:
+            The space whose sites the members occupy, such as a lattice with one member per site, or `None` for the
+            space of the enclosing system.
+
     Examples:
         >>> from skcomplex.model import Group
         >>> from skcomplex.models.ecology import Population
@@ -318,12 +371,14 @@ class Group(BaseEstimator):
         size: int,
         values: Mapping[str, Any] | None = None,
         visual: VisualSpec | None = None,
+        space: Space | None = None,
     ) -> None:
         self.label = label
         self.element = element
         self.size = size
         self.values = values
         self.visual = visual
+        self.space = space
 
     def __repr__(self, N_CHAR_MAX: int = 700) -> str:
         """Return the label, element type, and size."""

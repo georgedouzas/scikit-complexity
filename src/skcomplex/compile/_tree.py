@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ..core import AnyDomain, Domain, LabelError, SpaceError, ValidationError, Variable
-from ..model import AgentType, Element, Group, Interaction, MesaSystem, Space, System
+from ..model import AgentType, Element, Group, Interaction, LatticeSpace, MesaSystem, Space, System
 
 LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
 MAX_SHOWN_COMPONENTS = 10
@@ -98,6 +98,16 @@ def _check_group(group: Group, scope: str) -> None:
     if not (Domain.POSITIVE.contains(group.size) and Domain.INTEGER.contains(group.size)):
         error_msg = f'{where} has size {group.size!r}, which is not a positive integer.'
         raise ValidationError(error_msg)
+    space = getattr(group, 'space', None)
+    if isinstance(space, LatticeSpace):
+        try:
+            space.check()
+        except ValueError as error:
+            error_msg = f'{where} has a lattice that is not valid. {error}'
+            raise ValidationError(error_msg) from error
+        if space.size != group.size:
+            error_msg = f'{where} has size {group.size}, but its lattice has {space.size} sites.'
+            raise ValidationError(error_msg)
     unknown = set(group.values or {}) - {field.name for field in dataclasses.fields(group.element)} - {'label'}
     if unknown:
         error_msg = f'{where} sets {", ".join(sorted(unknown))}, which {group.element.__name__} does not declare.'
@@ -160,7 +170,10 @@ def flatten_system(system: System, scope: str = '', space: Space | None = None) 
         raise ValidationError(error_msg)
     _check_children(system, scope)
     space = system.space if system.space is not None else space
-    nodes = [Node(f'{scope}{element.label}', scope, element, space) for element in system.elements]
+    nodes = [
+        Node(f'{scope}{element.label}', scope, element, getattr(element, 'space', None) or space)
+        for element in system.elements
+    ]
     nodes += [Node(f'{scope}{interaction.label}', scope, interaction, space) for interaction in system.interactions]
     for child in system.systems:
         nodes += flatten_system(child, f'{scope}{child.label}/', space)

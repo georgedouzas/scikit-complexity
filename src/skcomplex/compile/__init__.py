@@ -3,6 +3,15 @@
 from ._backends import BACKENDS, Backend, Lowering, NumpyBackend, register_backend, resolve_backend
 from ._compiler import compile_system, partition_system
 from ._hybrid import Breakpoints, CompiledEvent, Delay, EventRecord
+from ._lattices import (
+    CompiledDrive,
+    CompiledMonteCarlo,
+    CompiledRelaxation,
+    CompiledRule,
+    LatticeState,
+    LatticeStep,
+    RelaxationRecord,
+)
 from ._layout import Entry, Layout
 from ._numba_backend import NumbaBackend
 from ._observables import ObservableEvaluator, observables_of
@@ -27,14 +36,20 @@ __all__: list[str] = [
     'Backend',
     'Breakpoints',
     'CompiledAgents',
+    'CompiledDrive',
     'CompiledElement',
     'CompiledEvent',
     'CompiledInteraction',
+    'CompiledMonteCarlo',
+    'CompiledRelaxation',
+    'CompiledRule',
     'Delay',
     'Dialect',
     'Entry',
     'EventRecord',
     'JumpChannels',
+    'LatticeState',
+    'LatticeStep',
     'Layout',
     'Lowering',
     'NumbaBackend',
@@ -42,6 +57,7 @@ __all__: list[str] = [
     'ObservableEvaluator',
     'Partition',
     'Problem',
+    'RelaxationRecord',
     'Vector',
     'VectorFunction',
     'compile_system',

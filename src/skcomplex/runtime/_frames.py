@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..compile import EventRecord, Problem, Vector
+from ..compile import EventRecord, Problem, RelaxationRecord, Vector
 from ..solvers import AgentSnapshot
 
 
@@ -44,7 +44,7 @@ class Frame:
             A mapping from observable path to its value at this frame.
 
         events:
-            The events that fired since the previous frame, in order.
+            The events and relaxations since the previous frame, in order.
     """
 
     step: int
@@ -55,7 +55,7 @@ class Frame:
     agents: Mapping[str, AgentSnapshot] = field(default_factory=dict)
     reporters: Mapping[str, float] = field(default_factory=dict)
     observables: Mapping[str, Any] = field(default_factory=dict)
-    events: tuple[EventRecord, ...] = ()
+    events: tuple[EventRecord | RelaxationRecord, ...] = ()
 
     def value(self, name: str) -> npt.NDArray[np.float64] | float:
         """Return the value of a state or a parameter by dotted name.
@@ -75,3 +75,24 @@ class Frame:
         if name in self.observables:
             return self.observables[name]
         return self.problem.parameters.read(self.parameters, name)
+
+    def lattice(self, name: str) -> npt.NDArray[np.float64]:
+        """Return the values of a lattice state in lattice shape.
+
+        Args:
+            name:
+                The dotted name of a state of a lattice group, such as `cells.alive`.
+
+        Returns:
+            values:
+                The array of the lattice shape.
+
+        Raises:
+            KeyError:
+                The name is not a state of a lattice group.
+        """
+        shape = self.problem.lattice_shape(name)
+        if shape is None:
+            error_msg = f'{name!r} is not a state of a lattice group.'
+            raise KeyError(error_msg)
+        return np.reshape(self.value(name), shape)

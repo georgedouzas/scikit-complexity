@@ -3,6 +3,7 @@
 from ._agents import AgentSnapshot, AgentState, AgentView, MesaStepper, ModelView
 from ._base import SOLVERS, Stepper, register_solver, resolve_solver
 from ._cosimulation import CoSimulation
+from ._lattices import LatticeStepper, MonteCarlo
 from ._steppers import RK4, EulerMaruyama, Gillespie, Heun, Iteration, Milstein, ScipyODE, VelocityVerlet
 
 __all__: list[str] = [
@@ -16,9 +17,11 @@ __all__: list[str] = [
     'Gillespie',
     'Heun',
     'Iteration',
+    'LatticeStepper',
     'MesaStepper',
     'Milstein',
     'ModelView',
+    'MonteCarlo',
     'ScipyODE',
     'Stepper',
     'VelocityVerlet',

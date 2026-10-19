@@ -13,6 +13,7 @@ import numpy.typing as npt
 from ..core import Expression, Form, SymbolicVector, VisualSpec, components_of
 from ..model import Element, Group, Interaction, Rule, Space, System
 from ._hybrid import Breakpoints, CompiledEvent, Delay
+from ._lattices import LatticeStep, lattice_shape
 from ._layout import Layout
 
 type Vector = npt.NDArray[np.float64]
@@ -249,6 +250,10 @@ class Problem:
         history:
             The values of states before the start, by dotted state path, as numbers or functions of time.
 
+        lattice:
+            The local rules, drives, relaxations, and Monte Carlo sampling of a lattice problem, in the order they
+            apply within a step.
+
         drift:
             The function `f(t, x, p)` that returns the time derivative or the drift.
 
@@ -300,6 +305,7 @@ class Problem:
     events: tuple[CompiledEvent, ...] = ()
     breakpoints: Breakpoints = field(default_factory=Breakpoints)
     history: Mapping[str, Any] = field(default_factory=dict)
+    lattice: tuple[LatticeStep, ...] = field(default=(), repr=False)
     drift: VectorFunction | None = field(default=None, repr=False)
     diffusion: VectorFunction | None = field(default=None, repr=False)
     noise_rows: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
@@ -323,6 +329,27 @@ class Problem:
     def parameter_symbols(self) -> list[Expression]:
         """Symbols of the parameter components of interactions, single elements, and one member of every group."""
         return self._flatten_symbols(self.parameters)
+
+    def lattice_shape(self, name: str) -> tuple[int, ...] | None:
+        """Return the lattice shape of a state that lattice laws read or change, or `None` for other states.
+
+        Args:
+            name:
+                The dotted name of the state.
+
+        Returns:
+            shape:
+                The number of sites along every dimension.
+        """
+        found = lattice_shape(name, self.lattice)
+        if found is not None:
+            return found
+        owner = name.rpartition('.')[0]
+        for element in self.elements:
+            space = getattr(element.element, 'space', None)
+            if element.path == owner and hasattr(space, 'dimensions'):
+                return space.dimensions  # type: ignore[union-attr]
+        return None
 
     @property
     def stoichiometry(self) -> Vector:

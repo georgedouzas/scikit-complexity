@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 from scipy.optimize import brentq
 
-from ..compile import CompiledEvent, EventRecord, Problem, Vector
+from ..compile import CompiledEvent, EventRecord, Problem, RelaxationRecord, Vector
 from ..core import SolverError
 
 type Interpolant = Callable[[float], Vector]
@@ -201,7 +201,7 @@ class EventLocator:
 
     def __init__(self, problem: Problem) -> None:
         self.problem = problem
-        self.records: list[EventRecord] = []
+        self.records: list[EventRecord | RelaxationRecord] = []
         self.stopped_at: float | None = None
         self._last: dict[str, float] = {}
 

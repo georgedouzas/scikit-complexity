@@ -31,6 +31,27 @@ def _colors_of(values: npt.NDArray[np.float64], low: float, high: float) -> npt.
     return np.stack(channels, axis=-1).round().astype(np.uint8)
 
 
+PALETTE = (
+    np.stack(
+        [
+            np.interp(np.linspace(0.0, 1.0, 256), np.linspace(0.0, 1.0, len(COLOR_SCALE)), COLOR_SCALE[:, channel])
+            for channel in range(3)
+        ],
+        axis=-1,
+    )
+    .round()
+    .astype(np.uint8)
+)
+
+
+def _palette_colors(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
+    """Return the colors of an array of values from a palette of 256 levels, fast enough for large images."""
+    if high <= low:
+        return np.broadcast_to(PALETTE[0], (*values.shape, 3))
+    levels = np.clip((values - low) * (255.0 / (high - low)), 0.0, 255.0).astype(np.uint8)
+    return PALETTE[levels]
+
+
 class Visual:
     """Base class of visuals, which log the state of one element to a Rerun recording.
 
@@ -265,6 +286,66 @@ class AgentsVisual(Visual):
         recording.log(path, rr.Points2D(positions, colors=colors, radii=self.radius, labels=labels, show_labels=False))
 
 
+class ImageVisual(Visual):
+    """Visual that logs every state of a lattice group as an image colored by value, or a tensor in 3D and more.
+
+    Args:
+        states:
+            The states to log, or `None` for every state.
+
+        low:
+            The value of the darkest color, or `None` for the smallest value of every frame.
+
+        high:
+            The value of the brightest color, or `None` for the largest value of every frame.
+
+    Examples:
+        >>> from skcomplex.viz import ImageVisual
+        >>> ImageVisual(low=0, high=1)
+        ImageVisual(states=None, low=0, high=1)
+    """
+
+    def __init__(
+        self,
+        states: Sequence[str] | None = None,
+        low: float | None = None,
+        high: float | None = None,
+    ) -> None:
+        self.states = states
+        self.low = low
+        self.high = high
+
+    def __repr__(self) -> str:
+        """Return the options."""
+        return f'ImageVisual(states={self.states!r}, low={self.low!r}, high={self.high!r})'
+
+    def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+        """Log every chosen state of a lattice group under `<path>/<state>`.
+
+        Args:
+            recording:
+                The Rerun recording.
+
+            element:
+                The compiled element, with its path and the dotted names of its variables.
+
+            frame:
+                The frame.
+        """
+        for state, name in element.states.items():
+            if self.states is not None and state not in self.states:
+                continue
+            values = np.asarray(frame.lattice(name), dtype=float)
+            path = f'{element.path}/{state}'
+            if values.ndim > 2:  # noqa: PLR2004
+                recording.log(path, rr.Tensor(values))
+                continue
+            values = np.atleast_2d(values)
+            low = float(values.min()) if self.low is None else float(self.low)
+            high = float(values.max()) if self.high is None else float(self.high)
+            recording.log(path, rr.Image(_palette_colors(values, low, high)))
+
+
 VISUALS = Registry[type[Visual]]('visual')
 
 
@@ -299,3 +380,4 @@ def resolve_visual(spec: VisualSpec) -> Visual:
 register_visual('scalars', ScalarsVisual)
 register_visual('points', PointsVisual)
 register_visual('agents', AgentsVisual)
+register_visual('image', ImageVisual)

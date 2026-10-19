@@ -123,7 +123,7 @@ class Simulation(BaseEstimator):
     def _check_dt(self, problem: Problem) -> float:
         """Return the time between frames after validating it for the problem's form."""
         forms = {problem.form, *(partition.problem.form for partition in problem.partitions)}
-        stepwise = bool(forms & {Form.DISCRETE, Form.AGENT})
+        stepwise = bool(forms & {Form.DISCRETE, Form.AGENT, Form.LATTICE, Form.MONTE_CARLO})
         default = 1.0 if stepwise else DEFAULT_DT
         dt = default if self.dt is None else self.dt
         if not Domain.POSITIVE.contains(dt):

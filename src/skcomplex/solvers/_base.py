@@ -9,7 +9,7 @@ from typing import Any, ClassVar
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from ..compile import EventRecord, Problem, Vector
+from ..compile import EventRecord, Problem, RelaxationRecord, Vector
 from ..core import Form, Registry, SolverError
 from ._hybrid import EventLocator, History
 
@@ -88,7 +88,7 @@ class Stepper(BaseEstimator):
         """
         return x
 
-    def drain_events(self) -> list[EventRecord]:
+    def drain_events(self) -> list[EventRecord | RelaxationRecord]:
         """Return the events recorded since the last call, and forget them.
 
         Returns:
