@@ -51,8 +51,12 @@ rebuild.
   capture settings. The documentation build regenerates only stale ones, and they are not committed to the repository.
 - **Examples:** every registered model has one example script under `docs/examples/<field>/<subfield>/`, in the format
   of `mkdocs-gallery`. Each script states its run, its blueprint, and a caption of what the image shows, and uses only
-  the public interface. A Rerun image scraper for `mkdocs-gallery` returns two screenshots. The first is the model's primary view, which
-  becomes the example's thumbnail in the gallery grid. The second is the full layout on the example page.
+  the public interface. A Rerun image scraper for `mkdocs-gallery` returns one screenshot of the model's primary view,
+  which becomes the example's thumbnail in the gallery grid.
+- **Analysis plots:** the body of each example shows Matplotlib figures computed from the simulation's own results,
+  the science the model is known for, such as the simulated speeds of the ideal gas against the Maxwell-Boltzmann
+  distribution, or the phase portrait and conserved quantity of Lotka-Volterra. The built-in Matplotlib scraper of
+  `mkdocs-gallery` renders them after the Rerun screenshot.
 - **Coverage:**
   - **Tests:** a test fails when a registered model has no example, when an example names no registered model, or
     when a built gallery lacks a screenshot.

@@ -1,5 +1,6 @@
 """Development tasks."""
 
+import argparse
 import os
 import shutil
 import tomllib
@@ -85,6 +86,32 @@ def docs(session: nox.Session) -> None:
     arg = check_cli(session, ['serve', 'build'], default='serve')
     session.run('pdm', 'install', '-dG', 'docs', external=True)
     session.run('properdocs', arg)
+
+
+@nox.session
+def gallery(session: nox.Session) -> None:
+    """Run the gallery examples, capture their screenshots into the cache, and build the documentation with them.
+
+    Arguments:
+        session: The nox session.
+    """
+    parser = argparse.ArgumentParser(prog='nox -s gallery --')
+    parser.add_argument('--backend', choices=['native', 'web'], default='native')
+    parser.add_argument('--jobs', type=int, default=max(1, (os.cpu_count() or 2) // 2))
+    parser.add_argument('--curated', action='store_true', help='run the curated examples only')
+    arguments = parser.parse_args(session.posargs)
+    session.run('pdm', 'install', '-dG', 'docs', '-dG', 'gallery', external=True)
+    if arguments.backend == 'web':
+        session.run('pdm', 'run', 'python', '-m', 'playwright', 'install', 'chromium', external=True)
+    selection = [] if arguments.curated else ['--all']
+    env = {
+        'PYTHONPATH': 'docs',
+        'SKCOMPLEX_GALLERY': '' if arguments.curated else 'all',
+        'SKCOMPLEX_GALLERY_BACKEND': arguments.backend,
+    }
+    run = ['pdm', 'run', 'python', '-m', 'gallery_tools', 'run', '--backend', arguments.backend]
+    session.run(*run, '--jobs', str(arguments.jobs), *selection, env=env, external=True)
+    session.run('pdm', 'run', 'properdocs', 'build', '--strict', env=env, external=True)
 
 
 @nox.session

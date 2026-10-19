@@ -5,13 +5,17 @@
 
 import sys
 from pathlib import Path
+from typing import Literal
 
 import numpy as np
 import rerun as rr
+import rerun.blueprint as rrb
 
+from ..base import ValidationError
 from ..compile import CompiledElement, Problem
 from ..model import NetworkSpace
 from ..runtime import Frame, Observer
+from ._blueprints import default_blueprint, save_blueprint
 from ._visuals import AgentsVisual, Visual, resolve_visual
 
 
@@ -46,9 +50,21 @@ class RerunObserver(Observer):
         interval:
             The number of frames between logged frames.
 
+        blueprint:
+            The layout of the viewer: `None` to let the viewer choose it, `'default'` for `default_blueprint` of the
+            simulated system, or a Rerun blueprint. It is sent with the recording, and written next to a saved
+            recording as a `.rbl` file with the same stem.
+
     Attributes:
         recording_:
             The Rerun recording stream.
+
+        blueprint_:
+            The blueprint sent with the recording, or `None`.
+
+    Raises:
+        ValidationError:
+            The blueprint is a string other than `'default'`.
 
     Examples:
         >>> import tempfile
@@ -62,6 +78,10 @@ class RerunObserver(Observer):
         >>> _ = Simulation(system, dt=0.1, observers=[RerunObserver('growth', save_path=path)]).run(until=1)
         >>> path.exists()
         True
+        >>> observer = RerunObserver('growth', save_path=path, blueprint='default')
+        >>> _ = Simulation(system, dt=0.1, observers=[observer]).run(until=1)
+        >>> path.with_suffix('.rbl').exists()
+        True
     """
 
     def __init__(
@@ -72,12 +92,23 @@ class RerunObserver(Observer):
         connect: bool = False,
         save_path: str | Path | None = None,
         interval: int = 1,
+        blueprint: Literal['default'] | rrb.Blueprint | None = None,
     ) -> None:
         self.application_id = application_id
         self.spawn = spawn
         self.connect = connect
         self.save_path = save_path
         self.interval = interval
+        self.blueprint = blueprint
+
+    def _resolve_blueprint(self, problem: Problem) -> rrb.Blueprint | None:
+        """Return the blueprint the observer sends, building the default one when it is asked for."""
+        if self.blueprint is None or isinstance(self.blueprint, rrb.Blueprint):
+            return self.blueprint
+        if self.blueprint == 'default':
+            return default_blueprint(problem)
+        error_msg = f'blueprint = {self.blueprint!r} is not supported. Use None, \'default\', or a Rerun blueprint.'
+        raise ValidationError(error_msg)
 
     def on_start(self, problem: Problem) -> None:
         """Create the recording and send it to its sinks.
@@ -86,13 +117,17 @@ class RerunObserver(Observer):
             problem:
                 The compiled problem.
         """
+        self.blueprint_ = self._resolve_blueprint(problem)
         self.recording_ = rr.RecordingStream(self.application_id)
         if self.save_path is not None:
-            self.recording_.save(self.save_path)
+            self.recording_.save(self.save_path, default_blueprint=self.blueprint_)
+            if self.blueprint_ is not None:
+                path = Path(self.save_path).with_suffix('.rbl')
+                save_blueprint(self.blueprint_, path, application_id=self.application_id)
         if self.spawn:
-            rr.spawn(executable_path=_viewer_executable(), recording=self.recording_)
+            rr.spawn(executable_path=_viewer_executable(), recording=self.recording_, default_blueprint=self.blueprint_)
         elif self.connect:
-            self.recording_.connect_grpc()
+            self.recording_.connect_grpc(default_blueprint=self.blueprint_)
         self._visuals: list[tuple[CompiledElement, Visual]] = [
             (element, resolve_visual(element.visual)) for element in problem.elements
         ]

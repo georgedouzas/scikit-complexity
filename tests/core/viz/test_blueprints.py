@@ -1,0 +1,174 @@
+"""Test the views of the visuals and the blueprints built from them."""
+
+import pytest
+import rerun.blueprint as rrb
+
+from skcomplex.core.base import ValidationError
+from skcomplex.core.compile import compile_system
+from skcomplex.core.model import System
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.viz import (
+    AgentsVisual,
+    ImageVisual,
+    PointsVisual,
+    RerunObserver,
+    ScalarsVisual,
+    Visual,
+    default_blueprint,
+    primary_view,
+    save_blueprint,
+)
+from skcomplex.models import create
+from skcomplex.models.biology.ecology import Population
+
+
+def _views(blueprint):
+    """Return the views of a blueprint in layout order."""
+    found = []
+    stack = [blueprint.root_container]
+    while stack:
+        part = stack.pop(0)
+        if isinstance(part, rrb.View):
+            found.append(part)
+        else:
+            stack = list(part.contents) + stack
+    return found
+
+
+def test_views_of_builtin_visuals():
+    """Test that the scalars, 3D points, image, and network agents visuals declare their views."""
+    lotka = compile_system(create('lotka_volterra'))
+    gas = compile_system(create('ideal_gas', n_molecules=10, n_dim=3))
+    gray = compile_system(create('gray_scott', shape=(16, 16)))
+    voters = compile_system(create('voter_model'))
+    views = [
+        ScalarsVisual().views(lotka.elements[0], lotka)[0],
+        PointsVisual(position='x', states=()).views(gas.elements[0], gas)[0],
+        ImageVisual().views(gray.elements[0], gray)[0],
+        AgentsVisual().views(voters.agents[0], voters)[0],
+    ]
+    assert [type(view).__name__ for view in views] == ['TimeSeriesView', 'Spatial3DView', 'Spatial2DView', 'GraphView']
+    assert [str(view.origin) for view in views] == ['prey', 'gas', 'cells/u', 'voters']
+
+
+def test_views_of_user_visual_are_empty_by_default():
+    """Test that a visual that declares no views is left out of the layout."""
+    problem = compile_system(create('lotka_volterra'))
+    assert Visual().views(problem.elements[0], problem) == []
+
+
+def test_views_of_points_log_other_states_as_series():
+    """Test that the states other than the position get a time series view."""
+    problem = compile_system(create('ideal_gas', n_molecules=10))
+    views = PointsVisual(position='x').views(problem.elements[0], problem)
+    assert [type(view).__name__ for view in views] == ['Spatial2DView', 'TimeSeriesView']
+
+
+def test_default_blueprint_of_ode_model():
+    """Test that the populations share one time series view, without parameters, collapsed, and following."""
+    blueprint = default_blueprint(create('lotka_volterra'))
+    views = _views(blueprint)
+    assert len(views) == 1
+    assert isinstance(views[0], rrb.TimeSeriesView)
+    assert views[0].contents == ['/prey/**', '/predators/**']
+    assert blueprint.collapse_panels
+    assert blueprint.time_panel.play_state == 'following'
+    assert blueprint.top_panel.state == 'hidden'
+
+
+def test_default_blueprint_of_field_model():
+    """Test that each field state gets a 2D view side by side."""
+    blueprint = default_blueprint(create('gray_scott', shape=(16, 16)))
+    assert isinstance(blueprint.root_container, rrb.Horizontal)
+    assert [str(view.origin) for view in _views(blueprint)] == ['cells/u', 'cells/v']
+
+
+def test_default_blueprint_puts_spatial_views_above_series():
+    """Test that agents share one spatial view above the time series of their counts."""
+    blueprint = default_blueprint(create('wolf_sheep'))
+    assert isinstance(blueprint.root_container, rrb.Vertical)
+    spatial, series = _views(blueprint)
+    assert spatial.contents == ['/grass/**', '/sheep/**', '/wolves/**']
+    assert isinstance(series, rrb.TimeSeriesView)
+
+
+def test_default_blueprint_splits_series_by_six():
+    """Test that a type with more than six series is split over several views."""
+    system = System(elements=[Population(f'p{index}') for index in range(8)])
+    names = [str(view.name) for view in _views(default_blueprint(system))]
+    assert names == ['Population 1', 'Population 2']
+
+
+def test_default_blueprint_with_parameters():
+    """Test that parameters get a time series view on request."""
+    views = _views(default_blueprint(create('lotka_volterra'), parameters=True))
+    assert [str(view.origin) for view in views][-1] == '/'
+    assert views[-1].contents == ['/parameters/**']
+
+
+@pytest.mark.parametrize(
+    ('name', 'kind', 'origin'),
+    [('gray_scott', 'Spatial2DView', 'cells/u'), ('sir', 'TimeSeriesView', '/')],
+)
+def test_primary_view_is_first_view(name, kind, origin):
+    """Test that the primary view is the first view of the default blueprint."""
+    system = create(name)
+    view = primary_view(system)
+    assert (type(view).__name__, str(view.origin)) == (kind, origin)
+    assert str(_views(default_blueprint(system))[0].origin) == origin
+
+
+def test_primary_view_raises_without_views():
+    """Test that a system with no declared views has no primary view."""
+    with pytest.raises(ValidationError, match='declares a view'):
+        primary_view(System())
+
+
+def test_save_blueprint_writes_file(tmp_path):
+    """Test that a blueprint is written to a `.rbl` file."""
+    path = save_blueprint(default_blueprint(create('lorenz')), tmp_path / 'lorenz.rbl')
+    assert path.stat().st_size > 0
+
+
+def test_rerun_observer_saves_blueprint_next_to_recording(tmp_path):
+    """Test that a saved recording gets its blueprint with the same stem."""
+    observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', blueprint='default')
+    Simulation(create('lotka_volterra'), dt=0.1, observers=[observer]).run(until=1)
+    assert (tmp_path / 'run.rrd').exists()
+    assert (tmp_path / 'run.rbl').exists()
+    assert isinstance(observer.blueprint_, rrb.Blueprint)
+
+
+def test_rerun_observer_without_blueprint_writes_recording_only(tmp_path):
+    """Test that no blueprint is sent or saved when none is given."""
+    observer = RerunObserver('test', save_path=tmp_path / 'run.rrd')
+    Simulation(create('lotka_volterra'), dt=0.1, observers=[observer]).run(until=1)
+    assert observer.blueprint_ is None
+    assert not (tmp_path / 'run.rbl').exists()
+
+
+def test_rerun_observer_accepts_given_blueprint(tmp_path):
+    """Test that a given blueprint is sent unchanged."""
+    blueprint = rrb.Blueprint(rrb.TimeSeriesView(origin='/prey'))
+    observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', blueprint=blueprint)
+    Simulation(create('lotka_volterra'), dt=0.1, observers=[observer]).run(until=1)
+    assert observer.blueprint_ is blueprint
+
+
+def test_rerun_observer_rejects_unknown_blueprint(tmp_path):
+    """Test that an unknown blueprint name is rejected."""
+    observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', blueprint='grid')
+    with pytest.raises(ValidationError, match='default'):
+        Simulation(create('lotka_volterra'), dt=0.1, observers=[observer]).run(until=1)
+
+
+def test_default_blueprint_puts_named_primary_view_first():
+    """Test that a view named as primary comes first, with its row above the others."""
+    views = _views(default_blueprint(create('boids'), primary='reporters'))
+    assert [str(view.name) for view in views] == ['reporters', 'flock']
+
+
+def test_default_blueprint_rejects_unknown_primary_view():
+    """Test that a primary view that matches no view is rejected with the names of the views."""
+    with pytest.raises(ValidationError, match='The views are: u, v'):
+        default_blueprint(create('gray_scott', shape=(16, 16)), primary='cells/w')

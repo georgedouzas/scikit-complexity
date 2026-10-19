@@ -6,43 +6,45 @@
   `ideal_gas`, `voter_model`, `heat_l_shape`, `boids`, `sir`) with the native viewer and with the web viewer in headless
   Chromium through Playwright, on macOS and on Linux with software rendering. Record each backend's share of captures
   passing the checks, time per capture, and headless support in the design, choose the default, and verify the backend
-  comparison scenario.
+  comparison scenario. Done on macOS and recorded in the design, with the native default. Open: the Linux leg, which
+  the `gallery` CI job runs with lavapipe and SwiftShader, has not been measured yet.
 
 ## 2. Layouts
 
-- [ ] 2.1 Add `views` to `Visual` and to the five built-in visuals, and verify the views of the built-in visuals
+- [x] 2.1 Add `views` to `Visual` and to the five built-in visuals, and verify the views of the built-in visuals
   scenario
-- [ ] 2.2 Add `default_blueprint(system, parameters=False)` with views ordered by importance, `primary_view`, and
+- [x] 2.2 Add `default_blueprint(system, parameters=False)` with views ordered by importance, `primary_view`, and
   `save_blueprint`, re-export them from `skcomplex.core.viz`, and verify the ODE, field, primary view, and parameters
   scenarios
-- [ ] 2.3 Add the `blueprint` argument of `RerunObserver`, which sends the blueprint and saves it next to a saved
+- [x] 2.3 Add the `blueprint` argument of `RerunObserver`, which sends the blueprint and saves it next to a saved
   recording, and verify the saved recording and no blueprint scenarios
-- [ ] 2.4 Document layouts and blueprints in the user guide with a runnable example, and verify the documentation test
+- [x] 2.4 Document layouts and blueprints in the user guide with a runnable example, and verify the documentation test
 
 ## 3. Capture, checks, and cache
 
-- [ ] 3.1 Add the `gallery` dependency group with Pillow and Playwright, and the capture module with both backends, the
+- [x] 3.1 Add the `gallery` dependency group with Pillow and Playwright, and the capture module with both backends, the
   wait for loading and rendering, and cropping to the viewport, and verify the field at its last frame and overlays
   excluded scenarios
-- [ ] 3.2 Add the checks for size, blank views, notifications, and encoding as an optimised PNG within 300 KB, with
+- [x] 3.2 Add the checks for size, blank views, notifications, and encoding as an optimised PNG within 300 KB, with
   one retry, and the placeholder check, and verify the blank view, format and size, and no placeholder thumbnails
   scenarios
-- [ ] 3.3 Add the content-based cache and its key, and verify the warm build and changed model scenarios
-- [ ] 3.4 Verify the repeated capture scenario on both backends
+- [x] 3.3 Add the content-based cache and its key, and verify the warm build and changed model scenarios
+- [x] 3.4 Verify the repeated capture scenario on both backends
 
 ## 4. Examples and documentation
 
-- [ ] 4.1 Add the generator that scaffolds an example per registered model, the budget check for frames, recording
+- [x] 4.1 Add the generator that scaffolds an example per registered model, the budget check for frames, recording
   size, and run time, and the coverage check in warning mode, and verify the recording budget, over budget, missing
   example, and orphan example scenarios
-- [ ] 4.2 Add the Rerun image scraper to the `mkdocs-gallery` configuration, returning the primary-view thumbnail first
-  and the full layout second, and the gallery navigation by field and subfield, and verify the thumbnail in the gallery
-  grid, primary view of a time series model, and full layout on the page scenarios
-- [ ] 4.3 Show the screenshots on the field pages and link the examples from the coverage page, and verify the field
+- [x] 4.2 Add the Rerun image scraper to the `mkdocs-gallery` configuration, returning exactly one screenshot of the
+  primary view before the Matplotlib scraper, the analysis plots of the reference examples, and the gallery navigation
+  by field and subfield, and verify the thumbnail in the gallery grid, primary view of a time series model, ideal gas
+  speeds, and thumbnail stays the Rerun screenshot scenarios
+- [x] 4.3 Show the screenshots on the field pages and link the examples from the coverage page, and verify the field
   page scenario
-- [ ] 4.4 Add the lazy embedded Rerun web viewer with the published recording, and verify the open the recording
+- [x] 4.4 Add the lazy embedded Rerun web viewer with the published recording, and verify the open the recording
   scenario
-- [ ] 4.5 Add `nox -s gallery` with `--backend` and parallel captures, and a CI job with software rendering and the
+- [x] 4.5 Add `nox -s gallery` with `--backend` and parallel captures, and a CI job with software rendering and the
   screenshot cache, and verify the selecting a backend scenario
 
 ## 5. Field batches
@@ -50,6 +52,8 @@
 For every task in this section:
 - curate the scaffolded example of each model of the field, by its parameters, gallery settings, primary view,
   blueprint, and caption;
+- add its analysis plot, computed from its own run, that shows the behaviour the model is known for, with labelled
+  axes, a title, and a sentence on the agreement to see;
 - check that its thumbnail reads at the grid's display size of 160x112;
 - capture its screenshot;
 - review it against the caption and record the review in the batch's list;

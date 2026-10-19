@@ -35,6 +35,8 @@ htmlcov/
 # Documentation
 site/
 docs/generated/
+docs/examples/**/*.rrd
+docs/examples/**/*.rbl
 
 # IDE and editors
 .idea/

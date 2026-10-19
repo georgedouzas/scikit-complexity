@@ -34,11 +34,31 @@ nav:
     - Mathematics: models/mathematics.md
     - Computer science: models/computer_science.md
   - API: api/
-  - Examples: generated/gallery
+  - Examples:
+    - Physics: generated/gallery/physics
+    - Chemistry: generated/gallery/chemistry
+    - Biology: generated/gallery/biology
+    - Earth: generated/gallery/earth
+    - Economics: generated/gallery/economics
+    - Social: generated/gallery/social
+    - Engineering: generated/gallery/engineering
+    - Mathematics: generated/gallery/mathematics
+    - Computer science: generated/gallery/computer_science
   - Development:
     - development/index.md
     - Contributing: development/contributing.md
     - Code of Conduct: development/code_of_conduct.md
+
+exclude_docs: |
+  gallery_tools/
+  gallery_hooks.py
+  generated/gallery/_cache/
+
+hooks:
+  - docs/gallery_hooks.py
+
+extra_javascript:
+  - js/rerun_embed.js
 
 extra_css:
   - css/style.css
@@ -47,6 +67,8 @@ extra_css:
 
 markdown_extensions:
   - admonition
+  - attr_list
+  - md_in_html
   - callouts
   - pymdownx.details
   - pymdownx.emoji
@@ -62,10 +84,27 @@ plugins:
   - search
   - autorefs
   - gallery:
+      conf_script: docs/gallery_conf.py
       examples_dirs:
-        - docs/examples
+        - docs/examples/physics
+        - docs/examples/chemistry
+        - docs/examples/biology
+        - docs/examples/earth
+        - docs/examples/economics
+        - docs/examples/social
+        - docs/examples/engineering
+        - docs/examples/mathematics
+        - docs/examples/computer_science
       gallery_dirs:
-        - docs/generated/gallery
+        - docs/generated/gallery/physics
+        - docs/generated/gallery/chemistry
+        - docs/generated/gallery/biology
+        - docs/generated/gallery/earth
+        - docs/generated/gallery/economics
+        - docs/generated/gallery/social
+        - docs/generated/gallery/engineering
+        - docs/generated/gallery/mathematics
+        - docs/generated/gallery/computer_science
   - markdown-exec
   - gen-files:
       scripts:

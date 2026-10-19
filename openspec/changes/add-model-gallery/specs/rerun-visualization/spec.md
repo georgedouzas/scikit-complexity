@@ -4,7 +4,8 @@
 
 ### Requirement: Visuals declare their views
 Every visual SHALL declare the Rerun views that show its entities: scalars in time series views, points, agents,
-lattices, and fields in 2D or 3D spatial views by their dimension, and networks in graph views. A visual registered by
+lattices, and fields in 2D or 3D spatial views by their dimension, meshes drawn with their value as height in 3D
+spatial views, and networks in graph views. A visual registered by
 a user SHALL be able to declare its views the same way.
 
 #### Scenario: Views of the built-in visuals
@@ -14,7 +15,7 @@ a user SHALL be able to declare its views the same way.
 
 ### Requirement: Systems get a default blueprint
 `default_blueprint(system)` SHALL return a Rerun blueprint built from the views of the system's visuals, ordered with
-the primary view first, which `primary_view(system)` returns. Its scalar views SHALL be grouped by element, its
+the primary view first, which `primary_view(system)` returns, unless `primary` names another view. Its scalar views SHALL be grouped by element, its
 parameters left out unless asked for, its side panels collapsed, and its time panel following the latest frame.
 
 #### Scenario: Blueprint of an ODE model
@@ -30,6 +31,10 @@ parameters left out unless asked for, its side panels collapsed, and its time pa
 - **WHEN** `primary_view` of `gray_scott` and of `lotka_volterra` is asked for
 - **THEN** it is the 2D view of a field state and the time series view of the populations, the first view of each
   default blueprint
+
+#### Scenario: Primary view by name
+- **WHEN** the default blueprint of `gray_scott` is built with `primary='cells/v'`
+- **THEN** its first view is the 2D view of the `v` field
 
 #### Scenario: Parameters on request
 - **WHEN** the default blueprint is built with `parameters=True`

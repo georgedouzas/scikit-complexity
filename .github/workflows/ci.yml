@@ -115,3 +115,48 @@ jobs:
 
     - name: Build documentation with Python ${{ matrix.python-version }}
       run: pdm docs build
+
+  gallery:
+
+    if: ${{ github.ref != 'refs/heads/main' }}
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: ['native', 'web']
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up PDM
+      uses: pdm-project/setup-pdm@v4
+      with:
+        python-version: '3.13'
+        cache: true
+        cache-dependency-path: pyproject.toml
+
+    - name: Install software rendering
+      run: sudo apt-get update && sudo apt-get install -y mesa-vulkan-drivers libvulkan1 xvfb
+
+    - name: Install dependencies
+      run: pdm install -dG maintenance -dG docs -dG gallery
+
+    - name: Install Chromium
+      if: ${{ matrix.backend == 'web' }}
+      run: pdm run python -m playwright install --with-deps chromium
+
+    - name: Restore the screenshot cache
+      uses: actions/cache@v4
+      with:
+        path: docs/generated/gallery
+        key: gallery-${{ matrix.backend }}-${{ hashFiles('docs/examples/**', 'src/skcomplex/models/**', 'pdm.lock') }}
+        restore-keys: gallery-${{ matrix.backend }}-
+
+    - name: Build the gallery with the ${{ matrix.backend }} backend
+      env:
+        WGPU_BACKEND: vulkan
+        SKCOMPLEX_GALLERY_CAPTURE: '1'
+      run: pdm run nox --error-on-external-run -R -s gallery -- --backend ${{ matrix.backend }} --curated

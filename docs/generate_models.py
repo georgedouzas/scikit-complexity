@@ -11,7 +11,13 @@ from skcomplex.core.analysis import equations_of
 from skcomplex.core.model import System
 from skcomplex.models import catalog, create, describe
 
-INVENTORY = Path(__file__).parent / 'overview' / 'inventory.toml'
+sys.path.insert(0, str(Path(__file__).parent))
+
+from gallery_tools import Example, build_from_environment, find_examples
+
+DOCS = Path(__file__).parent
+INVENTORY = DOCS / 'overview' / 'inventory.toml'
+GALLERY = build_from_environment(DOCS)
 EQUATION_FORMS = {
     'ordinary differential equations',
     'stochastic differential equations',
@@ -49,9 +55,34 @@ def _status(entry: dict[str, Any]) -> str:
     return STATUS_LABELS[status]
 
 
+def _examples() -> dict[str, Example]:
+    """Return the gallery example of every model that has one."""
+    return {example.model: example for example in find_examples(GALLERY.examples)}
+
+
+def _page_of(example: Example) -> str:
+    """Return the path of the gallery page of an example, relative to the documentation folder."""
+    return (GALLERY.generated_dir(example) / f'{example.path.stem}.md').relative_to(DOCS).as_posix()
+
+
+def _gallery_lines(name: str, examples: dict[str, Example]) -> list[str]:
+    """Return the screenshot of a model and the link to its example, for a page one folder below the documentation."""
+    example = examples.get(name)
+    if example is None:
+        return []
+    page = f'../{_page_of(example)}'
+    screenshot = GALLERY.screenshot(example)
+    lines = [f'[Example]({page})', '']
+    if screenshot.exists():
+        image = f'../{screenshot.relative_to(DOCS).as_posix()}'
+        lines = [f'[![The {name} example]({image}){{ width="480" }}]({page})', '', *lines]
+    return lines
+
+
 def coverage_page() -> str:
     """Return the coverage page: the inventory grouped by field and subfield, with sources and status."""
     keys, inventory = _load()
+    examples = _examples()
     lines = [
         '# Model coverage',
         '',
@@ -68,13 +99,15 @@ def coverage_page() -> str:
     for field, subfields in inventory.items():
         lines += ['', f'## {_title(field)} {{#{field.replace("_", "-")}}}']
         for subfield, models in subfields.items():
-            lines += ['', f'### {field}/{subfield}', '', '| Model | Sources | Status |', '|---|---|---|']
+            lines += ['', f'### {field}/{subfield}', '', '| Model | Sources | Status | Example |', '|---|---|---|---|']
             for name, entry in models.items():
-                model = entry['title']
+                model, example = entry['title'], ''
                 if entry['status'] == 'implemented':
                     model = f'[{model}]({field}.md#{name})'
+                if name in examples:
+                    example = f'[{examples[name].path.stem}](../{_page_of(examples[name])})'
                 sources = '; '.join(_source(source, keys) for source in entry['sources'])
-                lines.append(f'| {model} | {sources} | {_status(entry)} |')
+                lines.append(f'| {model} | {sources} | {_status(entry)} | {example} |')
     return '\n'.join(lines) + '\n'
 
 
@@ -112,8 +145,8 @@ def _equations(name: str) -> str | None:
     return '\n'.join(f'{target}: {equation}' for target, equation in equations_of(create(name)).items())
 
 
-def model_section(name: str) -> str:
-    """Return the section of one model: its description, references, factory, component types, and equations."""
+def model_section(name: str, examples: dict[str, Example]) -> str:
+    """Return the section of one model: its screenshot, description, references, factory, types, and equations."""
     entry = describe(name)
     system = create(name)
     lines = [
@@ -125,6 +158,7 @@ def model_section(name: str) -> str:
         f'- Formalism: {entry.formalism}',
         f'- References: {"; ".join(entry.references)}',
         '',
+        *_gallery_lines(name, examples),
         '### Factory',
         '',
         '```python',
@@ -143,6 +177,7 @@ def model_section(name: str) -> str:
 def field_page(field: str) -> str:
     """Return the page of a field: the pattern of every registered model of the field."""
     entries = catalog(field=field)
+    examples = _examples()
     lines = [
         f'# {_title(field)}',
         '',
@@ -152,7 +187,7 @@ def field_page(field: str) -> str:
     ]
     for subfield in sorted({entry.field for entry in entries}):
         lines += ['', f'# {subfield}', '']
-        lines += [model_section(entry.name) + '\n' for entry in entries if entry.field == subfield]
+        lines += [model_section(entry.name, examples) + '\n' for entry in entries if entry.field == subfield]
     return '\n'.join(lines)
 
 

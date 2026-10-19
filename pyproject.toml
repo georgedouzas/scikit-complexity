@@ -72,19 +72,6 @@ release = "nox --error-on-external-run -R -s release"
 maintenance = [
     "nox[uv]>=2024.4.15",
 ]
-docs = [
-    "properdocs>=1.6.7",
-    "mkdocs-coverage>=1.1.0",
-    "mkdocs-gen-files>=0.5.0",
-    "mkdocs-literate-nav>=0.6.1",
-    "mkdocs-material>=9.5.27",
-    "mkdocs-gallery>=0.10.1",
-    "mkdocs-section-index>=0.3.9",
-    "mkdocstrings[python]>=0.25.1",
-    "markdown-callouts>=0.4.0",
-    "markdown-exec>=1.9.3",
-    'pandas>=2.2.2',
-]
 formatting = [
     "black>=24.4.2",
     "docformatter>=1.7.5",
@@ -111,6 +98,10 @@ changelog = [
 ]
 release = [
     "twine>=5.1.1",
+]
+gallery = [
+    "pillow>=11.0",
+    "playwright>=1.50",
 ]
 
 [tool.black]
@@ -143,7 +134,7 @@ select = ["C", "E", "F", "W", "B", "I", "D", "N", "UP", "YTT", "ANN", "S",
 "sympy".msg = "Sage is the symbolic layer. Write expressions with Sage, through `skcomplex.core.base` or `sage.all__sagemath_symbolics`."
 
 [tool.ruff.lint.per-file-ignores]
-"docs/examples/*" = ["ANN", "D", "B018"]
+"docs/examples/*" = ["ANN", "D", "B018", "PLR2004"]
 "docs/generated/*" = ["ANN", "D"]
 "test_*" = ["ANN", "PLR2004"]
 "src/skcomplex/core/base/_variables.py" = ["ANN401"]
@@ -183,6 +174,10 @@ skips = ["B101"]
 # won't-fix ReDoS in py, pulled in transitively by interrogate.
 ignore-vulns = ["PYSEC-2022-42969"]
 
+[tool.deptry]
+# The gallery tooling lives in `docs` and is imported by its tests with `docs` on the path.
+known_first_party = ["gallery_tools"]
+
 [tool.deptry.package_module_name_map]
 rerun-sdk = "rerun"
 scikit-learn = "sklearn"
@@ -215,3 +210,19 @@ omit = ["src/*/__init__.py", "tests/__init__.py"]
 
 [tool.coverage.json]
 output = "htmlcov/coverage.json"
+
+[dependency-groups]
+docs = [
+    "properdocs>=1.6.7",
+    "mkdocs-coverage>=1.1.0",
+    "mkdocs-gen-files>=0.5.0",
+    "mkdocs-literate-nav>=0.6.1",
+    "mkdocs-material>=9.5.27",
+    "mkdocs-gallery>=0.10.1",
+    "mkdocs-section-index>=0.3.9",
+    "mkdocstrings[python]>=0.25.1",
+    "markdown-callouts>=0.4.0",
+    "markdown-exec>=1.9.3",
+    'pandas>=2.2.2',
+    "matplotlib>=3.9",
+]

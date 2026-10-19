@@ -40,9 +40,10 @@ Every example SHALL run its model with gallery settings that record at most 300 
 - **THEN** the gallery build fails and names the example and the exceeded limit
 
 ### Requirement: Screenshots are the gallery thumbnails
-Every example SHALL produce a thumbnail screenshot as the first image its Rerun scraper returns, so that
-`mkdocs-gallery` makes it the example's thumbnail in the gallery grid. The thumbnail SHALL show the model's primary
-view alone, at the aspect ratio of the gallery's `thumbnail_size`, and read at the size the gallery displays it.
+Every example SHALL produce exactly one Rerun screenshot, which its Rerun scraper returns as the first image of the
+example, before any analysis figure, so that `mkdocs-gallery` makes it the example's thumbnail in the gallery grid. The
+screenshot SHALL show the model's primary view alone, at the aspect ratio of the gallery's `thumbnail_size`, and read
+at the size the gallery displays it.
 
 #### Scenario: Thumbnail in the gallery grid
 - **WHEN** a user opens the gallery index of `chemistry/pattern_formation`
@@ -58,13 +59,21 @@ view alone, at the aspect ratio of the gallery's `thumbnail_size`, and read at t
 - **THEN** no example's thumbnail is the `mkdocs-gallery` placeholder image, and the build fails and names any example
   whose scraper returned no image
 
-### Requirement: Example pages show the full layout
-After the thumbnail, the scraper SHALL return a second screenshot of the example's full blueprint, all views at the last
-frame, for the example page.
+### Requirement: Examples show analysis plots from the simulation
+Every curated example SHALL show at least one Matplotlib figure computed from its own run, from the trajectory, the
+observables, or the agents of the simulation, that exhibits the behaviour its model is known for. Each figure SHALL
+have labelled axes and a title, and the text before it SHALL state the agreement the reader should see. The analysis
+SHALL use the functions of `skcomplex.core.analysis` where they fit, and NumPy or SciPy otherwise.
 
-#### Scenario: Full layout on the page
-- **WHEN** a user opens the Gray-Scott example page
-- **THEN** it shows the thumbnail view and, below it, the `u` and `v` views side by side
+#### Scenario: Ideal gas speeds
+- **WHEN** a user opens the ideal gas example page
+- **THEN** below the Rerun screenshot it shows the histogram of the simulated molecular speeds at the end of the run
+  against the Maxwell-Boltzmann speed distribution, in the dimension of the model, at the temperature measured from the
+  kinetic energy of the simulated molecules
+
+#### Scenario: Thumbnail stays the Rerun screenshot
+- **WHEN** an example draws analysis figures
+- **THEN** its gallery thumbnail is still its Rerun screenshot, and the figures follow the screenshot on its page
 
 ### Requirement: Screenshots are captured from Rerun
 The capture SHALL turn an example's recording and blueprint into an image of the Rerun views at the last frame. It SHALL
@@ -73,7 +82,7 @@ panels, the time panel, or notifications.
 
 #### Scenario: Field at its last frame
 - **WHEN** the Gray-Scott example is captured
-- **THEN** both screenshots show the fields at the last recorded frame, with spots, and no empty view
+- **THEN** the screenshot shows the `v` field at the last recorded frame, with spots, and no empty view
 
 #### Scenario: Overlays excluded
 - **WHEN** the viewer shows a notification during capture
@@ -94,8 +103,8 @@ capture once with a longer wait, and then fail the build, naming the example and
   300 KB
 
 ### Requirement: Captures use a chosen backend with a fallback
-The capture SHALL support two backends: the native Rerun viewer with `--screenshot-to`, and the Rerun web viewer in
-headless Chromium through Playwright. The design SHALL name the default chosen by a measured comparison, and the other
+The capture SHALL support two backends: the native Rerun viewer in headless mode, driven by Rerun's viewer client, and
+the Rerun web viewer in headless Chromium through Playwright. The design SHALL name the default chosen by a measured comparison, and the other
 SHALL remain selectable. Both SHALL produce images that pass the same checks.
 
 #### Scenario: Backend comparison

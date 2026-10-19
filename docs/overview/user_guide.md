@@ -1125,6 +1125,43 @@ colored by a state, agents on networks as graph nodes, and reporters under `repo
 `Particle.group(..., visual=VisualSpec('points', {...}))`. A new visual subclasses `Visual` and is registered with
 `register_visual`, and an element type selects it with its `visual` class variable.
 
+### Layouts and blueprints
+
+Every visual declares the Rerun views that show what it logs, through its `views` method. Scalars go in time series
+views, points in 2D or 3D spatial views by their dimension, lattices and fields in one 2D view per state, meshes in 3D
+views, and agents in a 2D view or, on a network, a graph view. `default_blueprint` arranges these views into a Rerun
+blueprint:
+- spatial views come first and side by side, with time series views below them;
+- scalar elements of one type share a time series view with at most six series;
+- parameters are left out unless `parameters=True`;
+- the side panels are collapsed, the top panel is hidden, and the time panel follows the latest frame.
+
+`primary_view` returns the first view, the one that shows the system's signature behaviour. `RerunObserver` sends a
+blueprint with `blueprint='default'` or a blueprint of your own, and writes it next to a saved recording as a `.rbl` file.
+`save_blueprint` writes any blueprint to a file.
+
+```python
+import rerun.blueprint as rrb
+
+from skcomplex.core.viz import default_blueprint, primary_view, save_blueprint
+from skcomplex.models import create
+
+predation = create('lotka_volterra')
+print(type(primary_view(predation)).__name__)
+observer = RerunObserver('lotka_volterra', save_path=path.with_name('lotka_volterra.rrd'), blueprint='default')
+Simulation(predation, dt=0.1, observers=[observer]).run(until=20)
+print(sorted(file.name for file in path.parent.glob('lotka_volterra.*')))
+custom = rrb.Blueprint(rrb.TimeSeriesView(origin='/prey', name='prey'), collapse_panels=True)
+save_blueprint(custom, path.with_name('prey.rbl'), application_id='lotka_volterra')
+```
+
+```text
+TimeSeriesView
+['lotka_volterra.rbl', 'lotka_volterra.rrd']
+```
+
+Open both files with `rerun lotka_volterra.rrd lotka_volterra.rbl` to see the layout.
+
 ## Experiments
 
 Complex systems are studied through many runs. `Experiment` runs a model, a registered name, a factory, or a system,
