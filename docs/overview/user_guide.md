@@ -477,6 +477,45 @@ Lattice groups stream to Rerun as images colored by value. The library has `elem
 `majority_rule`, `langtons_ant`, `nagel_schreckenberg`, `hodgepodge`, `sandpile`, `forest_fire`, `earthquakes`,
 `ising`, `potts`, and `xy` in `skcomplex.models.lattices`.
 
+## Fields
+
+A field holds one value per site of a lattice or per node of a network. `Field(label, element, space, boundary=...,
+values=...)` places a member of an element type on every site, and the laws of the type, written for one site, read
+the neighbouring sites through differential operators. The method of lines turns a field into ordinary differential
+equations, so every ODE solver and backend runs it.
+
+```python
+from skcomplex.model import Field, laplacian
+
+Diffusion = Element.define(
+    'Diffusion',
+    states={'u': 0.0},
+    parameters={'D': 1.0},
+    laws=lambda s: [Rate(s.u, s.D * laplacian(s.u))],
+)
+initial = np.zeros(400)
+initial[200] = 20.0
+rod = Field('rod', Diffusion, LatticeSpace(400, spacing=0.05), boundary={'u': 'zero-flux'}, values={'u': initial})
+trajectory = Simulation(System(elements=[rod]), dt=0.1).run(until=0.5).trajectory_
+print(trajectory['rod.u'][-1].max(), trajectory['rod.u'].sum(axis=1)[[0, -1]])
+```
+
+- `laplacian(u)` lowers to the `2d + 1`-point stencil divided by the squared spacing, and to the graph Laplacian on a
+  `NetworkSpace`. `gradient(u, n_dim)` and `divergence(vector)` use central differences, and `advection(u, velocity)`
+  upwind differences. Operators apply to any expression of the field's states and parameters, and nest.
+- `boundary={'u': 'periodic' | 'zero-flux' | ('fixed', value)}` sets each state's edges. Zero flux mirrors the field
+  and conserves its total, and fixed edges read the given value. A lattice's own `boundary` is the default.
+- The equations keep the operators, `diff(u(t), t) == D*laplacian(u(t))`, while the backends evaluate the stencils,
+  fused into one compiled loop on Numba for lattices.
+- `problem.stable_step` is the diffusive limit `h^2 / (2 d D)` of explicit steps, and fixed-step solvers whose `dt`
+  exceeds it warn before the run with the limit.
+
+Agents on a grid of the same shape couple to a field in co-simulation. A rule reads the field at a cell with
+`model.field('ground/pheromone.level', cell)` and adds to it with `model.deposit(name, cell, amount)`, and the
+deposits reach the field at the next synchronisation point. Lattice fields stream to Rerun as images. The library has
+`heat_diffusion`, `fisher_kpp`, `gray_scott`, `brusselator`, `fitzhugh_nagumo`, `schnakenberg`, and
+`pheromone_foraging` in `skcomplex.models.fields`.
+
 ## Backends and speed
 
 Compiling a system produces numeric functions with a backend. `'numpy'` evaluates every law with NumPy arrays, and

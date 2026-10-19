@@ -71,7 +71,11 @@ class Node:
             return getattr(self.component, variable)
         values = self.component.values or {}
         if variable in values:
-            return values[variable]
+            value = values[variable]
+            space = getattr(self.component, 'space', None)
+            if isinstance(space, LatticeSpace) and np.shape(value) == space.dimensions:
+                return np.ravel(value)
+            return value
         field = next(field for field in dataclasses.fields(self.component.element) if field.name == variable)
         factory = field.default_factory
         return factory() if callable(factory) else field.default

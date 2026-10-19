@@ -46,6 +46,7 @@ import numpy as np
 from numba import njit, prange
 
 from skcomplex.compile._numba_cells import build_cells
+from skcomplex.compile._numba_stencils import neighbor_value
 """
 LOOPS = {
     'rk4': """
@@ -138,7 +139,11 @@ def iterate(t, x, p, L, until):
 
 def _is_compilable(kernel: Kernel) -> bool:
     """Check whether every output of a kernel can be compiled, so it has no Python callable."""
-    return all(
+    lattice = all(
+        reference.source is not Source.NEIGHBOR or reference.neighbor.sizes is not None
+        for reference in kernel.references.values()
+    )
+    return lattice and all(
         output.function is None or (output.arguments is not None and isinstance(output.function, Dispatcher))
         for output in kernel.outputs
     )
@@ -283,6 +288,13 @@ def _member_kernel(source: _Source, kernel: Kernel, name: str, mode: str, parall
         reference = kernel.references[item]
         if reference.source is Source.SINGLE:
             return str(item)
+        if reference.source is Source.NEIGHBOR:
+            read = reference.neighbor
+            return (
+                f'neighbor_value({_vector(reference)}, _L{2 * source.slot(reference.entry)}_, '
+                f'{reference.entry.columns}, {reference.column}, _m_, {tuple(read.sizes)}, {tuple(read.steps)}, '
+                f'{read.mode}, {float(read.ghost or 0.0)})'
+            )
         return f'{_vector(reference)}[{_index(source, reference, '_m_')}]'
 
     sums = [

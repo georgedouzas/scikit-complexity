@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import warnings
 from abc import abstractmethod
 from typing import Any, ClassVar
 
@@ -47,6 +48,14 @@ class Stepper(BaseEstimator):
         self.rng_ = rng
         self.locator_ = EventLocator(problem)
         self.history_: History | None = None
+        step = getattr(self, 'dt', None)
+        limit = getattr(problem, 'stable_step', None)
+        if limit is not None and step is not None and step > limit:
+            warning_msg = (
+                f'{type(self).__name__} takes steps of {step}, above the stability limit {limit:.6g} of the diffusion '
+                f'of the fields. Use dt <= {limit:.6g}, or an adaptive or implicit solver.'
+            )
+            warnings.warn(warning_msg, UserWarning, stacklevel=2)
 
     @abstractmethod
     def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:

@@ -8,7 +8,7 @@ import inspect
 import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 import mesa
 import numpy as np
@@ -145,6 +145,71 @@ class ModelView:
                 The number of agents alive in the group.
         """
         return len(self._stepper.group_agents(group))
+
+    def _site(self, name: str, cell: object) -> int:
+        """Return the member index of a field state's site at a cell or network node."""
+        problem = self._stepper.problem_
+        if name not in problem.states:
+            names = [entry.name for entry in problem.states if entry.members is not None]
+            error_msg = f'No field state named {name!r}. Available group states are: {", ".join(names)}.'
+            raise KeyError(error_msg)
+        shape = problem.lattice_shape(name)
+        if shape is not None:
+            return int(np.ravel_multi_index(tuple(int(item) for item in np.atleast_1d(cast('Any', cell))), shape))
+        owner = name.rpartition('.')[0]
+        element = next(item for item in problem.elements if item.path == owner)
+        space = getattr(element.element, 'space', None)
+        if space is None or not hasattr(space, 'graph'):
+            error_msg = f'{name} is not a state of a field on a lattice or a network.'
+            raise KeyError(error_msg)
+        return list(space.graph.nodes).index(cell)
+
+    def field(self, name: str, cell: object) -> float:
+        """Return the value of a field at a cell, as it was at the last synchronisation point.
+
+        Args:
+            name:
+                The dotted path of the field state, such as `ground/pheromone.level`.
+
+            cell:
+                The lattice coordinates of the cell, which match the coordinates of a grid of the same shape, or a
+                network node.
+
+        Returns:
+            value:
+                The value of the field there.
+
+        Raises:
+            KeyError:
+                The name is not a state of a field.
+        """
+        site = self._site(name, cell)
+        values = self._stepper.inputs_.get(name)
+        if values is None:
+            error_msg = f'The agents read the field {name}, which no other partition provides. Run it in co-simulation.'
+            raise KeyError(error_msg)
+        return float(np.ravel(values)[site])
+
+    def deposit(self, name: str, cell: object, amount: float) -> None:
+        """Add an amount to a field at a cell at the next synchronisation point.
+
+        Args:
+            name:
+                The dotted path of the field state, such as `ground/pheromone.level`.
+
+            cell:
+                The lattice coordinates of the cell or a network node.
+
+            amount:
+                The amount to add.
+
+        Raises:
+            KeyError:
+                The name is not a state of a field.
+        """
+        entry = self._stepper.problem_.states.entry(name) if name in self._stepper.problem_.states else None
+        site = self._site(name, cell)
+        self._stepper.deposits_[entry.start + site * entry.columns] += amount  # type: ignore[union-attr]
 
     def random_empty_cell(self) -> object:
         """Return the coordinates of a random empty cell of the grid or network.
@@ -390,6 +455,7 @@ class MesaStepper(Stepper):
         super().initialize(problem, rng)
         self.parameters_ = problem.initial_parameters.copy()
         self.inputs_: dict[str, Any] = {}
+        self.deposits_ = np.zeros(problem.states.size)
         if isinstance(problem.system, MesaSystem):
             self._build_wrapped(problem.system)
             return

@@ -60,3 +60,32 @@ and agent partitions separate under co-simulation.
 - [Stiffness on fine grids] → The stability warning and the BDF solver cover the library, and `add-pde-solvers` adds
   implicit and exponential steppers.
 - [Field memory in trajectories] → Fields are thinned with the existing logging and recording options.
+
+## Implementation Notes
+
+- `Field(label, element, space, boundary=..., values=...)` is a group with a lattice or network space, so a field's
+  states and parameters use the group layout with one row per site, and its laws are the element type's laws for one
+  site. Lattice-shaped values are flattened when the compiler reads them, so fields clone like any estimator.
+- Operators apply to any expression of a field's states and parameters, not only to states. The compiler lowers each
+  operator by evaluating its expression at neighbouring sites, through symbols with a new neighbour source that reads
+  the value of every member's neighbour. Nested operators compose their offsets, so `divergence(gradient(u))` and
+  `laplacian(laplacian(u))` work on lattices. Networks take one step, the graph Laplacian `sum_j (u_j - u_i)`.
+- Boundary conditions choose the neighbour table: periodic edges wrap, zero-flux edges mirror the lattice so the
+  ghost equals the edge value and the total is conserved to rounding, and fixed edges read a ghost value. Parameters
+  read across edges mirror unless the lattice is periodic.
+- On Numba, neighbour reads compute the neighbour's index from the member index and the lattice shape inside the
+  compiled kernel, and the shape and offset are written into the generated source, so its cache key distinguishes
+  lattices. Network stencils keep the NumPy kernels, which the backend's per-kind fallback already allowed.
+- The equations replace the stencils by the operators as written, for `equations_of` and the analysis toolkit.
+- The stable step is `h^2 / (degree D)` with the degree `2d` on lattices and the largest degree on networks, from
+  Laplacian coefficients that are numbers at the initial values. Every fixed-step stepper whose `dt` exceeds it warns
+  when it is initialized.
+- Agents couple through `model.field` and `model.deposit` on the model view. Deposits collect in the agent stepper and
+  the co-simulation adds them to the state at every synchronisation point. Agent cells are lattice coordinates, so a
+  grid of width `w` and height `h` matches a lattice of shape `(w, h)`.
+- The FitzHugh-Nagumo spiral needs the slow recovery `epsilon = 0.02`. With `0.08`, the broken wave leaves the
+  default domain before it curls.
+- The pheromone foraging ants have a mild outward bias, as a nest scent would give, because an unbiased random walk
+  rarely finds the food in a few hundred steps. The trail is about four times the background after 600 steps.
+- The Turing scenario runs a line of 256 sites, where the dominant wavelength 14.2 is within 5% of the predicted 14.9
+  and fixed from the first frames, with the remaining change still shrinking as the pattern settles.

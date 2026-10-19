@@ -172,6 +172,13 @@ class CoSimulation(Stepper):
             state = partition.problem.boundary(end, state, p)
         return state
 
+    def _add_deposits(self, partition: Partition, state: Vector) -> None:
+        """Add the amounts that the agents of a partition deposited into fields since the last synchronisation."""
+        deposits = getattr(self.steppers_[partition.name], 'deposits_', None)
+        if deposits is not None and deposits.any():
+            state += deposits
+            deposits[:] = 0.0
+
     def initial_state(self, x: Vector) -> Vector:
         """Return the initial state vector with every aggregate computed from its group.
 
@@ -222,6 +229,7 @@ class CoSimulation(Stepper):
                 source = state if self.scheme == 'gauss-seidel' else base
                 advanced = self._advance_partition(partition, source, p, start, end)
                 state[partition.owned] = advanced[partition.owned]
+                self._add_deposits(partition, state)
                 if self.scheme == 'gauss-seidel':
                     self._update_aggregates(state)
             self._update_aggregates(state)

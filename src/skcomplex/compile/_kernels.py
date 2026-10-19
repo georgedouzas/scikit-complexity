@@ -28,6 +28,7 @@ class Source(Enum):
     SINGLE = 'single'
     FIRST = 'first'
     SECOND = 'second'
+    NEIGHBOR = 'neighbor'
 
 
 @dataclass(frozen=True)
@@ -46,12 +47,16 @@ class Reference:
 
         source:
             How the component is read for each evaluation index.
+
+        neighbor:
+            How a neighbour read finds the neighbour of every member, for the neighbour source.
     """
 
     entry: Entry
     is_state: bool
     column: int
     source: Source = Source.SINGLE
+    neighbor: Any = field(default=None, compare=False, repr=False)
 
     def column_of(self, x: Vector, p: Vector) -> Vector:
         """Return the component of every member as a view into the state or parameter vector.
@@ -260,6 +265,8 @@ class Kernel:
         column = reference.column_of(x, p)
         if reference.source is Source.SINGLE:
             return column[0]
+        if reference.source is Source.NEIGHBOR:
+            return reference.neighbor.read(column)
         if reference.source is Source.MEMBER or pairs is None:
             return column
         first, second = pairs

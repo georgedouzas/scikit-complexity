@@ -42,6 +42,7 @@ from ..model import (
     Energy,
     Equation,
     Event,
+    Field,
     Group,
     Jump,
     LatticeSpace,
@@ -61,6 +62,7 @@ from ..model import (
     Update,
 )
 from ._backends import Backend, resolve_backend
+from ._fields import FieldLowering, has_operators
 from ._hybrid import Breakpoints, CompiledEvent, Delay, Scalars, breakpoints_of, flat_sources, scalar_function
 from ._kernels import Kernel, Output, PairSearch, Reference, Source
 from ._lattices import (
@@ -675,6 +677,67 @@ def _with_hybrid(
     return result
 
 
+@dataclass
+class _Fields:
+    """Stencils lowered from the operators of a system, with the laws as written and the stable step."""
+
+    written: dict[tuple[str, int], list[tuple[Expression, Expression]]] = field(
+        default_factory=lambda: defaultdict(list),
+    )
+    limits: list[float] = field(default_factory=list)
+
+
+def _initial_values(spec: _KernelSpec, declarations: _Declarations) -> dict[Expression, float]:
+    """Return the initial value of every symbol of a component, the first member's for groups."""
+    states = np.concatenate([np.zeros(0), *declarations.initial_states])
+    parameters = np.concatenate([np.zeros(0), *declarations.initial_parameters])
+    return {
+        item: float((states if reference.is_state else parameters)[reference.entry.start + reference.column])
+        for item, reference in spec.references.items()
+        if reference.entry.start + reference.column < (states if reference.is_state else parameters).size
+    }
+
+
+def _with_fields(spec: _KernelSpec, laws: list[Law], declarations: _Declarations, fields: _Fields) -> list[Law]:
+    """Return laws whose differential operators are lowered to stencils, noting their stable steps."""
+    if not any(has_operators(getattr(law, 'value', None)) for law in laws):
+        return laws
+    places = {
+        entry.name: block.node.component
+        for block in declarations.blocks.values()
+        if isinstance(block.node.component, Field)
+        for entry in block.entries.values()
+    }
+    lowering = FieldLowering(spec.owner, spec.references, places, _initial_values(spec, declarations))
+    result: list[Law] = []
+    for law in laws:
+        if not isinstance(law, Rate | Noise | Update | Boundary) or not has_operators(law.value):
+            result.append(law)
+            continue
+        if isinstance(law, Rate):
+            lowering.note_limit(law.value)
+        lowered = lowering.lower(law.value)
+        if isinstance(law.value, Expression):
+            for reference in _target_references(law.target, spec):
+                fields.written[(reference.entry.name, reference.column)].append((lowered, law.value))
+        if isinstance(law, Rate | Noise):
+            result.append(type(law)(law.target, lowered, law.order))
+        else:
+            result.append(type(law)(law.target, lowered))
+    fields.limits += lowering.limits
+    return result
+
+
+def _written_equations(equations: dict[str, Expression], states: Layout, fields: _Fields) -> dict[str, Expression]:
+    """Return equations with the stencils of operators replaced by the operators as written."""
+    written = dict(equations)
+    for (name, column), pairs in fields.written.items():
+        key = states.entry(name).generic_names[column]
+        if key in written:
+            written[key] = SR(written[key]) - sum(SR(item) for item, _ in pairs) + sum(SR(item) for _, item in pairs)
+    return written
+
+
 def _compile_events(hybrid: _Hybrid, time: Expression) -> tuple[CompiledEvent, ...]:
     """Return the events of a system compiled into guard and reset functions of the state vector."""
     compiled = []
@@ -1066,6 +1129,8 @@ def _visual_of(node: Node) -> VisualSpec:
     """Return the visual of an element, or a group's own visual when it sets one."""
     if isinstance(node.component, Group) and node.component.visual is not None:
         return node.component.visual
+    if isinstance(node.component, Field) and isinstance(node.component.space, LatticeSpace):
+        return VisualSpec('image')
     return node.component_type.visual
 
 
@@ -1190,6 +1255,8 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         raise ValidationError(error_msg)
     hybrid = _Hybrid()
     specs = [(spec, _with_hybrid(spec, laws, declarations, hybrid, NOISE_CONVENTIONS[noise])) for spec, laws in specs]
+    fields = _Fields()
+    specs = [(spec, _with_fields(spec, laws, declarations, fields)) for spec, laws in specs]
     agents = {block.node.path for block in blocks if block.node.is_agent}
     if owners is not None:
         specs = [(spec, [law for law in laws if _law_owner(spec, law, agents) in owners]) for spec, laws in specs]
@@ -1212,6 +1279,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
     functions = _lower(form, lowered, declarations, chosen)
     states, parameters = Layout(declarations.states), Layout(declarations.parameters)
     functions['boundary'] = _wrapping_angles(cast('VectorFunction | None', functions.get('boundary')), states)
+    functions['equations'] = _written_equations(cast('dict[str, Expression]', functions['equations']), states, fields)
     compiled_elements = tuple(
         CompiledElement(
             path=block.node.path,
@@ -1268,6 +1336,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         breakpoints=_breakpoints(specs, hybrid, declarations.time),
         history=_history(system, states),
         lattice=_compile_lattice(specs, declarations, fused),
+        stable_step=min(fields.limits, default=None),
         **functions,  # type: ignore[arg-type]
     )
 

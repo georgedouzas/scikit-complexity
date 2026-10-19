@@ -1,6 +1,7 @@
 """Describe models as elements, interactions, laws, spaces, and systems."""
 
 from ._components import AgentType, Aggregate, Element, Group, Interaction, PairInteraction
+from ._fields import Field, advection, divergence, gradient, laplacian
 from ._functions import (
     both,
     delayed,
@@ -48,6 +49,7 @@ __all__: list[str] = [
     'Equation',
     'EuclideanSpace',
     'Event',
+    'Field',
     'GridSpace',
     'Group',
     'Interaction',
@@ -76,11 +78,15 @@ __all__: list[str] = [
     'Totalistic',
     'Update',
     'Wolfram',
+    'advection',
     'both',
     'delayed',
     'derivative',
+    'divergence',
     'either',
+    'gradient',
     'lag',
+    'laplacian',
     'mod',
     'neighbors',
     'pulse',

@@ -254,6 +254,10 @@ class Problem:
             The local rules, drives, relaxations, and Monte Carlo sampling of a lattice problem, in the order they
             apply within a step.
 
+        stable_step:
+            The largest step of explicit fixed-step solvers for which the diffusion of fields is stable,
+            `h^2 / (degree * D)`, or `None` when the system has no diffusion with numeric coefficients.
+
         drift:
             The function `f(t, x, p)` that returns the time derivative or the drift.
 
@@ -306,6 +310,7 @@ class Problem:
     breakpoints: Breakpoints = field(default_factory=Breakpoints)
     history: Mapping[str, Any] = field(default_factory=dict)
     lattice: tuple[LatticeStep, ...] = field(default=(), repr=False)
+    stable_step: float | None = None
     drift: VectorFunction | None = field(default=None, repr=False)
     diffusion: VectorFunction | None = field(default=None, repr=False)
     noise_rows: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
