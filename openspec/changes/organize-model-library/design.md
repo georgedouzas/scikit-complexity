@@ -186,15 +186,18 @@ The expected changes and their candidate libraries:
 | `add-tensor-fields` | Tensor-valued fields coupled to flow, such as the active nematic Q-tensor | `py-pde`, Dedalus |
 | `extend-agent-spaces` | Three-dimensional continuous agent spaces and geographic spaces | Mesa continuous spaces, `mesa-geo` |
 
-Some models stay blocked with no change planned, because they fall outside a dynamical-systems framework. The
-inventory names a library a future change could wrap:
-- quantum spin operators, QuTiP;
-- lattice gauge link fields;
-- gradient training of recurrent networks, PyTorch or JAX;
-- static Nash equilibria, `nashpy`;
-- geometric substitution fractals;
-- cellular automata on groups that are not finitely presented;
-- continuum percolation clusters, SciPy `spatial`.
+No surveyed model is out of scope. Models that once seemed to fall outside a dynamical-systems framework are blocked on
+the changes that specify the general capability they need:
+- quantum spin operators, `add-quantum-systems`;
+- lattice gauge link fields, `add-link-fields`;
+- gradient training of recurrent networks, `add-learning-dynamics`;
+- static equilibria, closed forms, random ensembles, satisfiability, optimisers, and continuum percolation,
+  `add-static-models`;
+- geometric substitution fractals, `add-rewriting-systems`;
+- cellular automata on automaton groups, `add-group-cellular-automata`;
+- molecular structures and sequence-to-structure maps, `add-molecular-structures`;
+- elementary flux modes and isotope labelling, `add-constraint-based-models`;
+- static network measures, `extend-analysis-toolkit`.
 
 ### Audit of the framework's own numerics
 
@@ -245,7 +248,6 @@ Status codes:
 - `+`: supported by the interface, to implement in this change;
 - `P:<change>`: pending a planned change;
 - `B:<change>`: blocked until the named change exists;
-- `B:out`: blocked with no change planned.
 
 Source keys:
 - Ar Argun et al. 2021; Ba Bala et al. 2017; Bs Barsky 2020; Be Bellomo et al. 2017; Ca Caiani et al. 2016;

@@ -14,7 +14,7 @@ CHANGES = ROOT / 'openspec' / 'changes'
 ARXIV = re.compile(r'(\d{4}\.\d{4,5}|[a-z-]+/\d{7})( |$)')
 CITATION = re.compile(r'.+ \d{4}( |$)')
 INVENTORY_CHANGE = 'organize-model-library'
-STATUSES = re.compile(r'implemented|out of scope|(pending|blocked) [a-z0-9-]+')
+STATUSES = re.compile(r'implemented|(pending|blocked) [a-z0-9-]+')
 
 
 def _load():
@@ -78,8 +78,6 @@ def _change_problems(entries, active, archived):
             problems.append(f'{name} is pending {change}, which is not an active OpenSpec change')
         elif status == 'pending' and change != INVENTORY_CHANGE and f'`{name}`' not in active[change]:
             problems.append(f'{name} is pending {change}, whose specs do not list it')
-        if entry['status'] == 'out of scope' and not (entry.get('reason') and entry.get('library')):
-            problems.append(f'{name} is out of scope without a reason and a library')
     return problems
 
 
@@ -135,7 +133,6 @@ def test_inventory_check_names_catalog_disagreements(entries, registered, messag
         ({'status': 'blocked add-nothing', 'feature': 'Nothing'}, 'is blocked on add-nothing, which is not'),
         ({'status': 'blocked add-something'}, 'is blocked without naming the missing feature'),
         ({'status': 'pending add-archived'}, 'is pending add-archived, which is not an active'),
-        ({'status': 'out of scope', 'reason': 'Static'}, 'is out of scope without a reason and a library'),
         ({'status': 'pending add-something'}, 'is pending add-something, whose specs do not list it'),
     ],
 )

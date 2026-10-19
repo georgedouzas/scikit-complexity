@@ -24,7 +24,7 @@ EQUATION_FORMS = {
     'delay differential equations',
     'discrete map',
 }
-STATUS_LABELS = {'implemented': 'Implemented', 'pending': 'Pending', 'blocked': 'Blocked', 'out': 'Out of scope'}
+STATUS_LABELS = {'implemented': 'Implemented', 'pending': 'Pending', 'blocked': 'Blocked'}
 
 
 def _load() -> tuple[dict[str, str], dict[str, Any]]:
@@ -50,8 +50,6 @@ def _status(entry: dict[str, Any]) -> str:
     if status in {'pending', 'blocked'}:
         detail = f': {entry["feature"]}' if status == 'blocked' else ''
         return f'{STATUS_LABELS[status]} on `{change}`{detail}'
-    if status == 'out':
-        return f'Out of scope: {entry["reason"]}, a future change could wrap {entry["library"]}'
     return STATUS_LABELS[status]
 
 
@@ -89,8 +87,8 @@ def coverage_page() -> str:
         'Every model surveyed from the reference books and articles, with its sources and status. Implemented models',
         'link to the page of their field, which shows how each is built from the core interface.',
         '',
-        '| Field | Implemented | Pending | Blocked | Out of scope |',
-        '|---|---|---|---|---|',
+        '| Field | Implemented | Pending | Blocked |',
+        '|---|---|---|---|',
     ]
     for field, subfields in inventory.items():
         statuses = [entry['status'].split(' ')[0] for models in subfields.values() for entry in models.values()]
