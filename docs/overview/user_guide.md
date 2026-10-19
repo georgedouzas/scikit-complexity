@@ -323,23 +323,107 @@ print(round(float(order[0]), 3), round(float(order[-1]), 3))
 A law reads a reduction observable of another partition through a role bound to the observable's path, as it reads an
 aggregate, so agents and equations exchange macroscopic quantities in a co-simulation.
 
-## The model catalog
+## The model library
 
-Every ready-made model is a factory registered with its field, description, tags, references, and default run
-settings. `catalog` lists them, filtered by field or tag, `describe` gives a model's parameters and the formalism
-inferred by compiling it, `create` builds it by name, and `run` simulates it with its defaults.
+The package holds two parts. `skcomplex.core` is the domain-agnostic framework: `base` for the shared leaves such as
+domains, registries, and errors, `model` for components, laws, and spaces, `compile`, `solvers`, `runtime`, `viz`,
+`experiments`, `analysis`, and `backends`. `skcomplex.models` is the library of ready-made models, organised by
+scientific field and subfield as `skcomplex.models.<field>.<subfield>`.
+
+| Field | Subfields |
+| --- | --- |
+| `physics` | `mechanics`, `celestial_mechanics`, `nonlinear_oscillators`, `synchronization`, `statistical_mechanics`, `criticality`, `soft_matter`, `active_matter`, `fluids`, `waves`, `pattern_formation`, `heat`, `cosmology` |
+| `chemistry` | `kinetics`, `pattern_formation` |
+| `biology` | `ecology`, `epidemiology`, `evolution`, `neuroscience`, `systems_biology`, `physiology`, `collective_behaviour`, `oncology` |
+| `earth` | `climate`, `oceanography`, `seismology` |
+| `economics` | `macroeconomics`, `markets`, `finance`, `econophysics`, `resources`, `innovation` |
+| `social` | `opinion_dynamics`, `segregation`, `cooperation`, `spreading`, `crowds`, `organizations` |
+| `engineering` | `traffic`, `circuits`, `control`, `power_systems`, `robotics`, `processes` |
+| `mathematics` | `dynamical_systems`, `stochastic_processes`, `networks`, `fractals` |
+| `computer_science` | `automata`, `evolutionary_computation`, `neural_networks` |
+
+A model lives where the science that poses it lives, and tags carry its reach into other fields. The core never
+imports the models, every model is built only from the public names of the core, and every subfield package is
+self-contained, so no model package imports another. A test of the package layout enforces these rules.
+
+### The model catalog
+
+Every ready-made model is a factory registered with its field path, description, tags, references, and default run
+settings. `catalog` lists them, filtered by a field, such as `biology`, by a field path, such as `biology/ecology`, or
+by a tag, `describe` gives a model's parameters and the formalism inferred by compiling it, `create` builds it by name,
+and `run` simulates it with its defaults.
 
 ```python
 from skcomplex.models import catalog, create, describe, run
 
 print([entry.name for entry in catalog(field='biology/ecology')])
+print(sorted({entry.field for entry in catalog(field='chemistry')}))
 print(describe('lotka_volterra').formalism)
 predation = create('lotka_volterra', a=0.2)
 print(run('sir').trajectory_['I.n'].max().round())
 ```
 
-`register_model` adds a factory of your own to the catalog. Every registered factory needs defaults for all of its
-arguments, so the catalog can create, compile, simulate, visualize, and clone every model through the same interface.
+### Models as patterns
+
+The models are examples of the core interface, not a separate one, so each is also the pattern for a model of your
+own. The page of every field, under Models in the documentation, shows each model's factory, its component types with
+their states, parameters, and laws as written, and, for differential equations and maps, its equations as
+`equations_of` returns them. A model of your own follows the same steps: declare the component types, write a factory
+that returns the system, and register it with `register_model`.
+
+```python
+from skcomplex.core.base import Domain, state
+from skcomplex.core.model import Element, Rate, System
+from skcomplex.core.runtime import create, register_model
+
+Tank = Element.define(
+    'Tank',
+    states={'level': state(default=1.0, domain=Domain.NONNEGATIVE)},
+    parameters={'k': 0.5},
+    laws=lambda s: [Rate(s.level, -s.k * s.level)],
+)
+
+
+@register_model(field='examples/processes', references=('Torricelli 1643',), defaults={'until': 5})
+def draining_tank(level: float = 2.0) -> System:
+    """Return a tank that drains at a rate proportional to its level."""
+    return System(elements=[Tank('tank', level=level)])
+
+
+print(create('draining_tank').elements[0].level)
+```
+
+Every registered factory needs defaults for all of its arguments, so the catalog can create, compile, simulate,
+visualize, and clone every model through the same interface.
+
+### Coverage
+
+The model inventory records every model surveyed from the reference books and articles, with its sources and status:
+implemented, pending a planned change, blocked by a missing feature of the core, or out of scope. The coverage page,
+under Models in the documentation, renders it by field and subfield. A model the core cannot express is recorded as
+blocked on the OpenSpec change that specifies the missing general feature, never worked around inside the model
+package, and a test checks the inventory against the catalog and the changes.
+
+### Moved paths
+
+Earlier versions placed the framework at the top level and grouped the models by technique. The framework packages
+`skcomplex.model`, `compile`, `solvers`, `runtime`, `viz`, `experiments`, `analysis`, and `backends` moved under
+`skcomplex.core`, the shared leaves moved from `skcomplex.core` to `skcomplex.core.base`, and the domain-agnostic
+particle components, such as `Particle`, `LennardJones`, `PeriodicBox`, and `LangevinThermostat`, moved from
+`skcomplex.models.physics` to `skcomplex.core.model`. The models moved to their subfields:
+
+| Old package | New subfields |
+| --- | --- |
+| `ecology`, `epidemiology`, `neuroscience` | `biology.ecology`, `biology.epidemiology`, `biology.neuroscience` |
+| `economics`, `finance` | `economics.macroeconomics`, `economics.markets`, `economics.finance` |
+| `social` | `social.segregation`, `social.opinion_dynamics`, `economics.econophysics`, `economics.resources` |
+| `fluids` | `physics.fluids` |
+| `fields` | `physics.heat`, `physics.pattern_formation`, `physics.fluids`, `chemistry.pattern_formation`, `biology.ecology`, `biology.physiology`, `biology.collective_behaviour` |
+| `lattices` | `physics.statistical_mechanics`, `physics.criticality`, `earth.seismology`, `computer_science.automata`, `social.opinion_dynamics`, `chemistry.kinetics`, `engineering.traffic` |
+| `nonlinear` | `mathematics.dynamical_systems`, `physics.nonlinear_oscillators`, `physics.synchronization`, `physics.soft_matter`, `biology.physiology` |
+| `physics` | `physics.mechanics`, `physics.celestial_mechanics`, `physics.statistical_mechanics`, `physics.soft_matter`, `engineering.circuits` |
+
+Every model keeps its name, so `create` and `run` find it wherever it moved.
 
 ## Groups of many elements
 
