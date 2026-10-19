@@ -49,6 +49,7 @@ from ._particles import (
     SoftSphere,
     Spring,
 )
+from ._reductions import Reduction, count, has_reductions, maximum, mean, minimum, reductions_in, total, variance
 from ._spaces import ContinuousSpace, EuclideanSpace, GridSpace, NetworkSpace, Space
 from ._symbols import Symbols
 from ._systems import MesaSystem, System
@@ -95,6 +96,7 @@ __all__: list[str] = [
     'PeriodicBox',
     'Potential',
     'Rate',
+    'Reduction',
     'ReflectingBox',
     'Relaxation',
     'Rule',
@@ -111,21 +113,29 @@ __all__: list[str] = [
     'Wolfram',
     'advection',
     'both',
+    'count',
     'delayed',
     'derivative',
     'divergence',
     'either',
     'gradient',
+    'has_reductions',
     'inverse_laplacian',
     'lag',
     'laplacian',
+    'maximum',
+    'mean',
+    'minimum',
     'mod',
     'neighbors',
     'pulse',
     'pulse_train',
     'ramp',
     'reduce_values',
+    'reductions_in',
     'series',
     'step',
+    'total',
+    'variance',
     'where',
 ]

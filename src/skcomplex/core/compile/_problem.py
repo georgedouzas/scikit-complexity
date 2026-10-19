@@ -5,7 +5,7 @@
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol
 
 import numpy as np
 import numpy.typing as npt
@@ -15,9 +15,20 @@ from ..model import Element, Group, Interaction, Rule, Space, System
 from ._hybrid import Breakpoints, CompiledEvent, Delay
 from ._lattices import LatticeStep, lattice_shape
 from ._layout import Layout
+from ._reductions import CompiledReduction
 
 type Vector = npt.NDArray[np.float64]
 type VectorFunction = Callable[[float, Vector, Vector], Vector]
+
+
+class Jacobian(Protocol):
+    """Exact Jacobian of a drift with its sparsity pattern."""
+
+    def __call__(self, t: float, x: Vector, p: Vector) -> Any:  # noqa: ANN401
+        """Return the Jacobian at a state as a sparse matrix."""
+
+    def pattern(self) -> Any:  # noqa: ANN401
+        """Return the boolean structure of the Jacobian, or `None` when it is too dense to state."""
 
 
 @dataclass(frozen=True)
@@ -104,12 +115,13 @@ class CompiledInteraction:
             The interaction.
 
         roles:
-            A mapping from role name to the path of the element or group bound to it.
+            A mapping from role name to the path of the element, group, or observable bound to it, or to the paths
+            of the elements of an element set.
     """
 
     path: str
     interaction: Interaction
-    roles: Mapping[str, str]
+    roles: Mapping[str, str | tuple[str, ...]]
 
 
 @dataclass(frozen=True)
@@ -264,6 +276,13 @@ class Problem:
         constrained:
             The state indices held at their initial values, the fixed boundary nodes of finite element fields.
 
+        reductions:
+            The reductions that laws read, in the order they are evaluated before the kernels.
+
+        jacobian:
+            The exact Jacobian of the drift of an ODE problem and its sparsity pattern, or `None` for other forms and
+            for drifts with conservation laws, symmetries, or fixed nodes.
+
         stable_step:
             The largest step of explicit fixed-step solvers for which the diffusion of fields is stable,
             `h^2 / (degree * D)`, or `None` when the system has no diffusion with numeric coefficients.
@@ -324,6 +343,8 @@ class Problem:
     linear: tuple[Any, ...] = field(default=(), repr=False)
     volumes: tuple[Any, ...] = field(default=(), repr=False)
     constrained: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
+    reductions: tuple[CompiledReduction, ...] = field(default=(), repr=False)
+    jacobian: Jacobian | None = field(default=None, repr=False)
     drift: VectorFunction | None = field(default=None, repr=False)
     diffusion: VectorFunction | None = field(default=None, repr=False)
     noise_rows: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)

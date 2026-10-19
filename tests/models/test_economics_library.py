@@ -1,8 +1,10 @@
 """Test the economics models of the library: macroeconomics, markets, finance, resources, and innovation."""
 
+import networkx as nx
 import numpy as np
 import pytest
 
+from skcomplex.core.compile import compile_system
 from skcomplex.core.runtime import Simulation
 from skcomplex.models.economics.econophysics import boltzmann_wealth
 from skcomplex.models.economics.finance import (
@@ -180,6 +182,20 @@ def test_bouchaud_mezard_exchange_conserves_and_equalizes_wealth():
     assert np.allclose(final - 1.0, (wealth - 1.0) * np.exp(-20 / 19), atol=2e-3)
     noisy = _run(bouchaud_mezard_wealth(20), 1.0, dt=0.1)['agents.W']
     assert np.all(noisy > 0)
+
+
+def test_bouchaud_mezard_exchanges_with_the_mean():
+    """Test that the agents exchange with the group mean as with the complete-graph Laplacian, conserving wealth."""
+    wealth = np.random.default_rng(0).uniform(0.5, 1.5, 50)
+    mean_field = compile_system(bouchaud_mezard_wealth(50, sigma=0.0, wealth=wealth))
+    complete = compile_system(bouchaud_mezard_wealth(50, graph=nx.complete_graph(50), sigma=0.0, wealth=wealth))
+    exchange = mean_field.drift(0.0, mean_field.initial_state, mean_field.initial_parameters)
+    np.testing.assert_allclose(
+        exchange,
+        complete.drift(0.0, complete.initial_state, complete.initial_parameters),
+        atol=1e-12,
+    )
+    assert abs(exchange.sum()) < 1e-12
 
 
 def test_debtrank_spreads_distress_once_through_the_loans():

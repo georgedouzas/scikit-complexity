@@ -11,11 +11,12 @@ from ._finite_populations import (
     nk_landscape,
     tangled_nature,
 )
-from ._games import CyclicSpecies, HawksAndDoves, Replicators, replicator_dynamics, rock_paper_scissors
+from ._games import CyclicSpecies, Replication, Strategy, replicator_dynamics, rock_paper_scissors
 from ._prebiotic import (
-    CatalyticNetwork,
+    Catalysis,
     GenotypeClass,
     MasterSequence,
+    Molecule,
     Mutation,
     eigen_quasispecies,
     hypercycles,
@@ -23,16 +24,17 @@ from ._prebiotic import (
 
 __all__: list[str] = [
     'AdaptiveClimbing',
-    'CatalyticNetwork',
+    'Catalysis',
     'Climber',
     'CyclicSpecies',
     'GenotypeClass',
-    'HawksAndDoves',
     'Individual',
     'MasterSequence',
+    'Molecule',
     'MoranStep',
     'Mutation',
-    'Replicators',
+    'Replication',
+    'Strategy',
     'TangledNatureStep',
     'adaptive_climbing',
     'eigen_quasispecies',

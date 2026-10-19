@@ -11,7 +11,7 @@ from ._growth_processes import (
     kesten_process,
     multiplicative_process,
 )
-from ._wealth import Saver, bouchaud_mezard_wealth
+from ._wealth import MeanFieldSaver, Saver, bouchaud_mezard_wealth
 
 __all__: list[str] = [
     'ArbitrageDensity',
@@ -21,6 +21,7 @@ __all__: list[str] = [
     'GeometricBrownianMotion',
     'GibratFirm',
     'KestenFirm',
+    'MeanFieldSaver',
     'ReflectingFloor',
     'Saver',
     'arbitrage_traders',

@@ -12,6 +12,7 @@ from sklearn.base import BaseEstimator
 from ..base import ValidationError
 
 REDUCTIONS: dict[str, Callable[[Any], Any]] = {
+    'count': lambda array: np.full(array.shape[1:], float(array.shape[0])),
     'sum': lambda array: array.sum(axis=0),
     'mean': lambda array: array.mean(axis=0),
     'min': lambda array: array.min(axis=0),
@@ -44,15 +45,13 @@ def reduce_values(values: Any, reduce: str | Callable[[Any], Any]) -> Any:  # no
         >>> reduce_values([1.0, 2.0, 6.0], 'mean')
         3.0
     """
-    if reduce == 'count':
-        return float(len(values))
-    array = np.asarray(values)
+    array = np.asarray(values) if reduce != 'count' else np.zeros(len(values))
     if callable(reduce):
         return reduce(array)
     if reduce not in REDUCTIONS:
-        error_msg = f'Unknown reduction {reduce!r}. Use count, {", ".join(REDUCTIONS)}, or a function of the values.'
+        error_msg = f'Unknown reduction {reduce!r}. Use {", ".join(REDUCTIONS)}, or a function of the values.'
         raise ValidationError(error_msg)
-    if not array.size:
+    if not array.size and reduce != 'count':
         return 0.0
     result = np.real_if_close(REDUCTIONS[reduce](array))
     if np.ndim(result):

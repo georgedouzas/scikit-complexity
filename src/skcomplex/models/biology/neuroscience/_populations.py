@@ -10,7 +10,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos, exp, sin
 
 from ....core.base import Domain, Expression, parameter, role, state
-from ....core.model import Element, Interaction, Law, Rate, Symbols, System
+from ....core.model import Element, Interaction, Law, Rate, Symbols, System, mean, total
 from ....core.runtime import register_model
 
 
@@ -175,48 +175,12 @@ class ThetaNeuron(Element):
         return [Rate(s.theta, 1 - cos(s.theta) + (1 + cos(s.theta)) * s.eta)]
 
 
-class Synapse(Element):
-    """Synaptic activation that decays with a time constant, `s' = -s / tau`, between the pulses it receives.
-
-    Args:
-        label:
-            The label of the synapse.
-
-        s:
-            The initial activation.
-
-        tau:
-            The decay time.
-
-    Examples:
-        >>> from skcomplex.models.biology.neuroscience import Synapse
-        >>> Synapse('synapse', tau=0.5).tau
-        0.5
-    """
-
-    s: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    tau: float = parameter(default=1.0, domain=Domain.POSITIVE)
-
-    def laws(self, s: Symbols) -> list[Law]:
-        """Return the decay of the activation.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [Rate(s.s, -s.s / s.tau)]
-
-
 class PulseCoupling(Interaction):
-    """Global coupling of theta neurons through a shared synapse, which every neuron drives with smooth pulses.
+    """Global coupling of theta neurons through the mean of the smooth pulses that every neuron emits.
 
-    Each neuron adds `a_n (1 - cos theta)^n / (N tau)` to the synapse and receives the current `(1 + cos theta) kappa
-    s`. The pulse peaks when the neuron fires, and `a_n` gives it a unit mean over the phase. With `kappa > 0` the
-    coupling is excitatory.
+    Every neuron receives the current `(1 + cos theta) kappa I`, where `I = mean_j a_n (1 - cos theta_j)^n` is the mean
+    pulse of all neurons at the current state. The pulse peaks when a neuron fires, and `a_n` gives it a unit mean over
+    the phase. With `kappa > 0` the coupling is excitatory.
 
     Args:
         label:
@@ -225,32 +189,24 @@ class PulseCoupling(Interaction):
         neurons:
             The path of the group of theta neurons.
 
-        synapse:
-            The path of the shared synapse.
-
         kappa:
             The coupling strength.
 
         n:
             The sharpness of the pulses, a positive integer.
 
-        size:
-            The number of neurons, which normalises the pulses.
-
     Examples:
         >>> from skcomplex.models.biology.neuroscience import PulseCoupling
-        >>> PulseCoupling('coupling', neurons='neurons', synapse='synapse', kappa=2.0).kappa
+        >>> PulseCoupling('coupling', neurons='neurons', kappa=2.0).kappa
         2.0
     """
 
     neurons: str = role()
-    synapse: str = role()
     kappa: float = parameter(default=1.0)
     n: int = 2
-    size: float = parameter(default=1.0, domain=Domain.POSITIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
-        """Return the pulses into the synapse and the synaptic current into every neuron.
+        """Return the current of the mean pulse into every neuron.
 
         Args:
             s:
@@ -262,8 +218,8 @@ class PulseCoupling(Interaction):
         """
         theta = s.neurons.theta
         normalization = 2**self.n * math.factorial(self.n) ** 2 / math.factorial(2 * self.n)
-        pulse = normalization * (1 - cos(theta)) ** self.n / (s.size * s.synapse.tau)
-        return [Rate(theta, (1 + cos(theta)) * s.kappa * s.synapse.s), Rate(s.synapse.s, pulse)]
+        pulses = mean(normalization * (1 - cos(theta)) ** self.n)
+        return [Rate(theta, (1 + cos(theta)) * s.kappa * pulses)]
 
 
 class RateUnit(Element):
@@ -306,34 +262,30 @@ class RateUnit(Element):
         return [Rate(s.x, s.x * (s.I - s.x) / s.tau)]
 
 
-class LateralInhibition(Interaction):
-    """Inhibition of one unit by another, which lowers the target's growth by `beta` times the source's activity.
+class MutualInhibition(Interaction):
+    """Inhibition of every unit by the summed activity of all the other units, `-beta x_i sum_{j != i} x_j / tau_i`.
 
     Args:
         label:
             The label of the interaction.
 
-        source:
-            The path of the inhibiting unit.
-
-        target:
-            The path of the inhibited unit.
+        units:
+            The paths of the units, an element set, or the path of a group of units.
 
         beta:
             The strength of the inhibition.
 
     Examples:
-        >>> from skcomplex.models.biology.neuroscience import LateralInhibition
-        >>> LateralInhibition('inhibition', source='a', target='b', beta=2.0).beta
+        >>> from skcomplex.models.biology.neuroscience import MutualInhibition
+        >>> MutualInhibition('inhibition', units=['a', 'b'], beta=2.0).beta
         2.0
     """
 
-    source: str = role()
-    target: str = role()
+    units: str | Sequence[str] = role()
     beta: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
-        """Return the rate `-beta x_target x_source / tau_target`.
+        """Return the rate `-beta x_i (sum_j x_j - x_i) / tau_i`.
 
         Args:
             s:
@@ -343,7 +295,8 @@ class LateralInhibition(Interaction):
             laws:
                 The laws of the component.
         """
-        return [Rate(s.target.x, -s.beta * s.target.x * s.source.x / s.target.tau)]
+        unit = s.units
+        return [Rate(unit.x, -s.beta * unit.x * (total(unit.x) - unit.x) / unit.tau)]
 
 
 class PolyhomeostaticNeuron(Element):
@@ -497,15 +450,15 @@ def theta_neurons(
     delta: float = 0.1,
     kappa: float = 1.5,
     n: int = 2,
-    tau: float = 0.1,
     random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return a network of theta neurons, equivalently quadratic integrate-and-fire neurons, coupled all to all.
 
-    The excitabilities are evenly spaced quantiles of a Lorentzian distribution of center `eta` and half-width
-    `delta`, the distribution for which Ott and Antonsen's ansatz reduces the network exactly to two equations. Every
-    neuron drives a fast shared synapse with pulses and receives its current, so strong excitatory coupling switches the
-    network from a quiet state to collective firing.
+    Neuron `i` follows `theta_i' = (1 - cos theta_i) + (1 + cos theta_i)(eta_i + kappa I)`, where `I` is the mean pulse
+    `a_n (1 - cos theta_j)^n` of all neurons at the current state. The excitabilities are evenly spaced quantiles of a
+    Lorentzian distribution of center `eta` and half-width `delta`, the distribution for which Ott and Antonsen's
+    ansatz reduces the network exactly to one complex equation. Strong excitatory coupling switches the network from a
+    quiet state to collective firing.
 
     Args:
         n_neurons:
@@ -523,15 +476,12 @@ def theta_neurons(
         n:
             The sharpness of the pulses, a positive integer.
 
-        tau:
-            The decay time of the synapse.
-
         random_state:
             The seed or generator of the initial phases.
 
     Returns:
         system:
-            The model, with the phases `neurons.theta` and the synaptic activation `synapse.s`.
+            The model, with the phases `neurons.theta` as its only state.
 
     Examples:
         >>> from skcomplex.models.biology.neuroscience import theta_neurons
@@ -545,8 +495,7 @@ def theta_neurons(
         theta=phases,
         eta=np.asarray(_lorentzian_quantiles(eta, delta, n_neurons)),
     )
-    coupling = PulseCoupling('coupling', neurons='neurons', synapse='synapse', kappa=kappa, n=n, size=float(n_neurons))
-    return System(elements=[neurons, Synapse('synapse', tau=tau)], interactions=[coupling])
+    return System(elements=[neurons], interactions=[PulseCoupling('coupling', neurons='neurons', kappa=kappa, n=n)])
 
 
 @register_model(
@@ -565,8 +514,9 @@ def winners_take_all(
     """Return a winner-take-all network of units with self-limited growth and mutual inhibition.
 
     Unit `i` follows `tau x_i' = x_i (I_i - x_i - beta sum_{j != i} x_j)`, the competitive network of Fukai and
-    Tanaka. When the inhibition `beta` exceeds 1, only the unit with the largest input stays active, at activity
-    `I_max`. When it is below 1, several winners share the activity.
+    Tanaka. One inhibition interaction binds every unit as an element set and reads the total activity of the set, so
+    the network holds one interaction whatever the number of units. When the inhibition `beta` exceeds 1, only the unit
+    with the largest input stays active, at activity `I_max`. When it is below 1, several winners share the activity.
 
     Args:
         inputs:
@@ -588,16 +538,11 @@ def winners_take_all(
     Examples:
         >>> from skcomplex.models.biology.neuroscience import winners_take_all
         >>> len(winners_take_all((1.0, 2.0, 3.0)).interactions)
-        6
+        1
     """
     units = [RateUnit(f'unit_{index}', x=x, I=value, tau=tau) for index, value in enumerate(inputs)]
-    inhibitions = [
-        LateralInhibition(f'inhibition_{source}_{target}', source=f'unit_{source}', target=f'unit_{target}', beta=beta)
-        for source in range(len(inputs))
-        for target in range(len(inputs))
-        if source != target
-    ]
-    return System(elements=units, interactions=inhibitions)
+    inhibition = MutualInhibition('inhibition', units=[unit.label for unit in units], beta=beta)
+    return System(elements=units, interactions=[inhibition])
 
 
 @register_model(

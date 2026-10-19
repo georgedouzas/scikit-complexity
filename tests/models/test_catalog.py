@@ -8,8 +8,8 @@ import pytest
 from sklearn.base import clone
 
 from skcomplex.core.base import ValidationError
-from skcomplex.core.compile import compile_system, observables_of
-from skcomplex.core.model import System
+from skcomplex.core.compile import ObservableEvaluator, compile_system, observables_of
+from skcomplex.core.model import AgentType, Element, Group, Interaction, Rate, System
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
 from skcomplex.models import catalog, create, describe, register_model, run
@@ -135,3 +135,68 @@ def test_model_conforms(entry, tmp_path):
     assert copy is not system
     assert compile_system(copy).states.names == problem.states.names
     assert pickle.loads(pickle.dumps(system)) is not None  # noqa: S301  # nosec B301: loads data the test just dumped
+
+
+ObservedValue = Element.define('ObservedValue', states={'y': 0.0})
+
+
+def _observed(entry_name):
+    """Return the observables of a model that laws read at the current state, with their paths."""
+    system = create(entry_name)
+    groups = {
+        scope: {item.label: item for item in [*system_of(system, scope).elements]}
+        for scope, _ in observables_of(system)
+    }
+    found, blocked = [], set()
+    for scope, observable in observables_of(system):
+        group = groups[scope].get(observable.group) if observable.group is not None else None
+        agents = isinstance(group, Group) and issubclass(group.element, AgentType)
+        if scope in blocked or (
+            observable.group is not None and (group is None or agents or not isinstance(observable.reduce, str))
+        ):
+            blocked.add(scope)
+            continue
+        found.append(f'{scope}/{observable.label}' if scope else observable.label)
+    return system, found
+
+
+def system_of(system, scope):
+    """Return the subsystem at a path."""
+    for label in filter(None, scope.split('/')):
+        system = next(child for child in system.systems if child.label == label)
+    return system
+
+
+def _readers(paths):
+    """Return one reader of the modulus of every observable, added to a probe element."""
+    readers = []
+    for index, path in enumerate(paths):
+        Read = Interaction.define(
+            f'Read{index}',
+            roles=['probe', 'source'],
+            laws=lambda s: [Rate(s.probe.y, abs(s.source.value))],
+        )
+        readers.append(Read(f'read_{index}', probe=f'probe_{index}', source=f'model/{path}'))
+    return readers
+
+
+@pytest.mark.parametrize(
+    'entry',
+    [entry for entry in catalog() if any(True for _ in observables_of(create(entry.name)))],
+    ids=lambda entry: entry.name,
+)
+def test_reductions_agree_with_observables(entry):
+    """Test that laws reading a model's observables at a state read the values the observable evaluator records."""
+    model, paths = _observed(entry.name)
+    if not paths:
+        pytest.skip('The model has no observable that laws read at the current state.')
+    model.label = 'model'
+    probes = [ObservedValue(f'probe_{index}') for index in range(len(paths))]
+    problem = compile_system(System(systems=[model], elements=probes, interactions=_readers(paths)), backend='numpy')
+    reading = next((item.problem for item in problem.partitions if 'probe_0' in item.owners), problem)
+    x, p = problem.initial_state, problem.initial_parameters
+    rates = reading.drift(0.0, x, p)
+    recorded = ObservableEvaluator(problem).evaluate(0.0, x, p, agents_of=lambda group: [])
+    for index, path in enumerate(paths):
+        value = rates[problem.states.entry(f'probe_{index}.y').start]
+        assert value == pytest.approx(abs(recorded[f'model/{path}']), rel=1e-12, abs=1e-12)

@@ -23,6 +23,7 @@ from ....core.model import (
     System,
     delayed,
     laplacian,
+    maximum,
 )
 from ....core.runtime import register_model
 
@@ -280,10 +281,11 @@ class Inhibitor(Element):
 
 
 class GlobalInhibition(Interaction):
-    """Coupling of a lattice of oscillators to a global inhibitor that every active oscillator drives.
+    """Coupling of a lattice of oscillators to a global inhibitor that the most active oscillator drives.
 
-    Every active stimulated oscillator drives the inhibitor at rate `phi`, and once the inhibitor exceeds `theta_z` it
-    inhibits every oscillator by `W_z`.
+    The inhibitor follows `z' = phi (sigma - z)`, where `sigma` is the largest activity `m H(x - theta_x)` of the
+    oscillators, so it is driven when at least one stimulated oscillator is active. Once the inhibitor exceeds
+    `theta_z` it inhibits every oscillator by `W_z`.
 
     Args:
         label:
@@ -313,7 +315,7 @@ class GlobalInhibition(Interaction):
     theta_z: float = parameter(default=0.1)
 
     def laws(self, s: Symbols) -> list[Law]:
-        """Return the drive of the inhibitor by active oscillators and the inhibition of every oscillator.
+        """Return the drive of the inhibitor by the most active oscillator and the inhibition of every oscillator.
 
         Args:
             s:
@@ -324,10 +326,10 @@ class GlobalInhibition(Interaction):
                 The laws of the component.
         """
         oscillator, inhibitor = s.oscillators, s.inhibitor
-        active = oscillator.m * _step(oscillator.x - oscillator.theta_x, oscillator.kappa)
+        activity = maximum(oscillator.m * _step(oscillator.x - oscillator.theta_x, oscillator.kappa))
         return [
             Rate(oscillator.x, -s.W_z * _step(inhibitor.z - s.theta_z, oscillator.kappa)),
-            Rate(inhibitor.z, inhibitor.phi * active),
+            Rate(inhibitor.z, inhibitor.phi * activity),
         ]
 
 
@@ -408,8 +410,9 @@ def legion(
     """Return a LEGION network, a lattice of relaxation oscillators that segments a stimulus into its objects.
 
     Stimulated oscillators excite their stimulated neighbours, so each connected object synchronizes, and a global
-    inhibitor lets only one object be active at a time, so different objects take turns. The inhibitor is driven by
-    every active oscillator. Unstimulated sites have a negative input and stay silent.
+    inhibitor lets only one object be active at a time, so different objects take turns. The inhibitor is driven by the
+    largest activity of the oscillators, so one active oscillator drives it fully. Unstimulated sites have a negative
+    input and stay silent.
 
     Args:
         stimulus:

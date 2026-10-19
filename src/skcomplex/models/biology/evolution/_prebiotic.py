@@ -7,11 +7,9 @@ import itertools
 from collections.abc import Sequence
 
 import numpy as np
-import numpy.typing as npt
-from sage.all__sagemath_symbolics import matrix
 
-from ....core.base import Domain, Expression, ValidationError, parameter, role, state, vector
-from ....core.model import Element, EuclideanSpace, Interaction, Law, Rate, Symbols, System, Update
+from ....core.base import Domain, Expression, ValidationError, parameter, role, state
+from ....core.model import Element, Interaction, Law, Rate, Symbols, System, Update, total
 from ....core.runtime import register_model
 
 
@@ -133,38 +131,41 @@ class Mutation(Interaction):
         return [Update(s.target.x, gained / _mean_fitness(s.master))]
 
 
-class CatalyticNetwork(Element):
-    """Concentrations of self-replicating molecules that catalyse each other's replication, of Eigen's hypercycles.
+Molecule = Element.define(
+    'Molecule',
+    states={'x': state(default=0.5, domain=Domain.NONNEGATIVE)},
+    parameters={'growth': 0.0},
+)
+
+
+class Catalysis(Interaction):
+    """Catalysed replication of the molecules of a group, with a common outflow that keeps the total at 1.
 
     Molecule `i` replicates at the rate `lambda_i + omega sum_j T_ij x_j`, with the 0 or 1 topology `T` of the
-    catalytic links, and a common outflow `phi` keeps the total concentration at 1:
-    `dx_i/dt = x_i (lambda_i + omega sum_j T_ij x_j - phi)`. The concentrations are one vector component per molecule.
+    catalytic links read as the weights of a total over the molecules, and the outflow `phi` is the total replication:
+    `dx_i/dt = x_i (lambda_i + omega sum_j T_ij x_j - phi)`.
 
     Args:
         label:
-            The label of the network.
+            The label of the interaction.
 
-        x:
-            The initial concentrations.
+        molecules:
+            The path of the group of molecules.
 
         omega:
             The catalytic rate of a link.
-
-        growth:
-            The autocatalytic growth rate of every molecule.
 
         topology:
             The catalytic links, 1 where molecule `j` catalyses molecule `i`.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import CatalyticNetwork
-        >>> CatalyticNetwork('soup', growth=(1, 2), topology=((0, 1), (1, 0))).topology
+        >>> from skcomplex.models.biology.evolution import Catalysis
+        >>> Catalysis('catalysis', molecules='soup', topology=((0, 1), (1, 0))).topology
         ((0, 1), (1, 0))
     """
 
-    x: npt.ArrayLike = state(default=0.5, domain=Domain.NONNEGATIVE, vector=True)
+    molecules: str = role()
     omega: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    growth: Sequence[float] = (0.0, 0.0)
     topology: Sequence[Sequence[float]] = ((0.0, 1.0), (1.0, 0.0))
 
     def laws(self, s: Symbols) -> list[Law]:
@@ -178,9 +179,10 @@ class CatalyticNetwork(Element):
             laws:
                 The laws of the component.
         """
-        rates = vector(list(self.growth)) + s.omega * (matrix(self.topology) * s.x)
-        replication = s.x.pairwise_product(rates)
-        return [Rate(s.x, replication - s.x * sum(replication))]
+        molecule = s.molecules
+        rate = molecule.growth + s.omega * total(molecule.x, weights=np.asarray(self.topology, dtype=float))
+        replication = molecule.x * rate
+        return [Rate(molecule.x, replication - molecule.x * total(replication))]
 
 
 @register_model(
@@ -259,7 +261,7 @@ def hypercycles(
 
     Returns:
         system:
-            The model, with the concentrations `soup.x`.
+            The model, with the concentrations `soup.x` of the molecules, members of the group `soup`.
 
     Raises:
         ValidationError:
@@ -267,7 +269,7 @@ def hypercycles(
 
     Examples:
         >>> from skcomplex.models.biology.evolution import hypercycles
-        >>> hypercycles(3).elements[0].topology
+        >>> hypercycles(3).interactions[0].topology
         ((0.0, 0.0, 1.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0))
     """
     if topology == 'cycle':
@@ -277,11 +279,16 @@ def hypercycles(
     else:
         error_msg = f'Unknown topology {topology!r}. Use cycle or complete.'
         raise ValidationError(error_msg)
-    soup = CatalyticNetwork(
+    soup = Molecule.group(
         'soup',
+        molecules,
         x=[1 / molecules] * molecules,
+        growth=[float(alpha * index) for index in range(1, molecules + 1)],
+    )
+    catalysis = Catalysis(
+        'catalysis',
+        molecules='soup',
         omega=omega,
-        growth=tuple(float(alpha * index) for index in range(1, molecules + 1)),
         topology=tuple(tuple(float(value) for value in row) for row in links),
     )
-    return System(elements=[soup], space=EuclideanSpace(molecules))
+    return System(elements=[soup], interactions=[catalysis])

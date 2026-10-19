@@ -15,9 +15,10 @@ from types import ModuleType
 from typing import Any, ClassVar
 
 import numpy as np
+import scipy.sparse
 from numba.core.dispatcher import Dispatcher
 
-from ..base import Expression, Form, symbols_of
+from ..base import Expression, Form, ValidationError, symbols_of
 from ..model import Boundary, Jump, Noise, Rate, Update
 from ._backends import (
     Backend,
@@ -31,6 +32,7 @@ from ._kernels import Kernel, Output, Reference, Source, jump_channels, noise_ro
 from ._layout import Entry
 from ._printing import SCALAR_DIALECT, print_expressions
 from ._problem import Accelerated, Vector
+from ._reductions import CompiledReduction, Read, ReductionPass
 
 DEFAULT_CACHE_DIR = Path.home() / '.cache' / 'skcomplex' / 'kernels'
 FORM_KINDS: dict[Form, list[type]] = {
@@ -258,6 +260,11 @@ def _emit_values(
     return lines, values
 
 
+def _is_shared(reference: Reference) -> bool:
+    """Check whether a reference holds one value for every evaluation index, a single element or a reduction."""
+    return reference.source is Source.SINGLE or (reference.source is Source.REDUCED and reference.entry.members is None)
+
+
 def _single_reads(source: _Source, kernel: Kernel, outputs: list[Output]) -> list[str]:
     """Return the lines that read every single-element symbol of outputs once, before the member loops."""
     expressions = [output.expression for output in outputs if output.expression is not None]
@@ -266,7 +273,7 @@ def _single_reads(source: _Source, kernel: Kernel, outputs: list[Output]) -> lis
     return [
         f'{INDENT}{item} = {_vector(reference)}[{_index(source, reference, None)}]'
         for item in symbols
-        if (reference := kernel.references.get(item)) is not None and reference.source is Source.SINGLE
+        if (reference := kernel.references.get(item)) is not None and _is_shared(reference)
     ]
 
 
@@ -287,7 +294,7 @@ def _member_kernel(source: _Source, kernel: Kernel, name: str, mode: str, parall
 
     def read_single(item: Expression) -> str:
         reference = kernel.references[item]
-        if reference.source is Source.SINGLE:
+        if _is_shared(reference):
             return str(item)
         if reference.source is Source.NEIGHBOR:
             read = reference.neighbor
@@ -347,7 +354,7 @@ def _pair_block(
 
     def read(item: Expression) -> str:
         reference = kernel.references[item]
-        if reference.source is Source.SINGLE:
+        if _is_shared(reference):
             return str(item)
         if reference.source is Source.SECOND and reference.is_state and reference.entry == pairs.second:
             return f'positions_a[{first}, {reference.column}] - _d{reference.column}_'
@@ -479,6 +486,137 @@ def _pair_kernel(source: _Source, kernel: Kernel, name: str, parallel: bool) -> 
     source.lines += ['', '', text]
 
 
+def _reduction_read(source: _Source, name: str, read: Read, index: int) -> str:
+    """Return the line that reads one symbol of a reduction, for the member `_m_` or once for a shared value."""
+    vector = 'x' if read.is_state else 'p'
+    if read.entry is None:
+        array = f'_set{index}_{name}_'
+        source.functions[array] = np.asarray(read.index, dtype=np.int64)
+        return f'{name} = {vector}[{array}[_m_]]'
+    start = f'_L{2 * source.slot(read.entry)}_'
+    if read.per_member:
+        return f'{name} = {vector}[{start} + _m_ * {read.stride} + {read.column}]'
+    return f'{name} = {vector}[{start} + {read.column}]'
+
+
+def _reduction_rows(source: _Source, reduction: CompiledReduction) -> str:
+    """Return the code of the number of members a reduction reduces over."""
+    if reduction.members is not None:
+        return f'_L{2 * source.slot(reduction.members) + 1}_'
+    return str(reduction.size)
+
+
+def _reduction_loop(
+    source: _Source,
+    reduction: CompiledReduction,
+    index: int,
+    body: list[str],
+    *,
+    parallel: bool,
+) -> list[str]:
+    """Return a loop over the reduced members that reads their symbols and runs a body."""
+    reads = [
+        f'{INDENT * 2}{_reduction_read(source, str(item), read, index)}'
+        for item, read in reduction.reads.items()
+        if read.per_member
+    ]
+    assignments, codes = print_expressions(
+        [reduction.argument, reduction.condition if reduction.condition is not None else 1],
+        SCALAR_DIALECT,
+        prefix=f'_r{index}cse',
+    )
+    loop = 'prange' if parallel else 'range'
+    return [
+        f'{INDENT}for _m_ in {loop}(_n{index}_):',
+        *reads,
+        *(f'{INDENT * 2}{name} = {code}' for name, code in assignments),
+        f'{INDENT * 2}_a_ = {codes[0]}',
+        f'{INDENT * 2}_c_ = {codes[1]}',
+        *(f'{INDENT * 2}{line}' for line in body),
+    ]
+
+
+def _reduction_lines(source: _Source, reduction: CompiledReduction, index: int) -> list[str]:
+    """Return the lines that compute one reduction and store it in the extended parameter vector."""
+    start = f'_L{2 * source.slot(reduction.entry)}_'
+    acc, cnt = f'_acc{index}_', f'_cnt{index}_'
+    lines = [f'{INDENT}_n{index}_ = {_reduction_rows(source, reduction)}']
+    lines += [
+        f'{INDENT}{_reduction_read(source, str(item), read, index)}'
+        for item, read in reduction.reads.items()
+        if not read.per_member
+    ]
+    lines += [f'{INDENT}{acc} = 0.0', f'{INDENT}{cnt} = 0.0']
+    sums = [f'{acc} += _a_ if _c_ else 0.0', f'{cnt} += 1.0 if _c_ else 0.0']
+    mean = f'({acc} / {cnt} if {cnt} > 0.0 else 0.0)'
+    if reduction.weights is not None:
+        weights = scipy.sparse.csr_array(reduction.weights)
+        for part in ('indptr', 'indices', 'data'):
+            source.functions[f'_w{index}_{part}_'] = np.asarray(getattr(weights, part))
+        lines.append(f'{INDENT}_values{index}_ = np.empty(_n{index}_)')
+        body = [f'_values{index}_[_m_] = _a_ if _c_ else 0.0', sums[1]]
+        lines += _reduction_loop(source, reduction, index, body, parallel=True)
+        divisor = f' / {cnt} if {cnt} > 0.0 else 0.0' if reduction.kind == 'mean' else ''
+        lines += [
+            f'{INDENT}for _i_ in prange({weights.shape[0]}):',
+            f'{INDENT * 2}_s_ = 0.0',
+            f'{INDENT * 2}for _k_ in range(_w{index}_indptr_[_i_], _w{index}_indptr_[_i_ + 1]):',
+            f'{INDENT * 3}_s_ += _w{index}_data_[_k_] * _values{index}_[_w{index}_indices_[_k_]]',
+            f'{INDENT * 2}p[{start} + _i_] = _s_{divisor}',
+        ]
+        return lines
+    if reduction.kind in {'max', 'min'}:
+        better = '>' if reduction.kind == 'max' else '<'
+        body = [
+            f'if _c_ and ({cnt} == 0.0 or _a_ {better} {acc}):',
+            f'{INDENT}{acc} = _a_',
+            f'{cnt} += 1.0 if _c_ else 0.0',
+        ]
+        lines += _reduction_loop(source, reduction, index, body, parallel=False)
+        return [*lines, f'{INDENT}p[{start}] = {acc}']
+    lines += _reduction_loop(source, reduction, index, sums, parallel=True)
+    if reduction.kind == 'var':
+        lines.append(f'{INDENT}_mean{index}_ = {mean}')
+        lines.append(f'{INDENT}_sq{index}_ = 0.0')
+        body = [f'_sq{index}_ += (_a_ - _mean{index}_) ** 2 if _c_ else 0.0']
+        lines += _reduction_loop(source, reduction, index, body, parallel=True)
+        return [*lines, f'{INDENT}p[{start}] = _sq{index}_ / {cnt} if {cnt} > 0.0 else 0.0']
+    value = {'sum': acc, 'count': cnt, 'mean': mean}[reduction.kind]
+    return [*lines, f'{INDENT}p[{start}] = {value}']
+
+
+def _reduce_function(source: _Source, reductions: ReductionPass, parallel: bool) -> None:
+    """Add the function that returns the parameter vector extended with every reduction, in dependency order."""
+    extents = [
+        f'_L{2 * source.slot(item.entry)}_ + _L{2 * source.slot(item.entry) + 1}_ * {item.entry.columns}'
+        for item in reductions.reductions
+    ]
+    size = extents[0] if len(extents) == 1 else f'max({", ".join(extents)})'
+    lines = [
+        f'@njit(cache=CACHE, parallel={parallel})',
+        'def _reduce(t, x, p0, L):',
+        f'{INDENT}p = np.empty({size})',
+        f'{INDENT}p[: p0.size] = p0',
+    ]
+    for index, reduction in enumerate(reductions.reductions):
+        lines += _reduction_lines(source, reduction, index)
+    lines.append(f'{INDENT}return p')
+    source.lines += ['', '', *_hoist_layout(lines)]
+
+
+def _reductions_compile(reductions: ReductionPass) -> bool:
+    """Check whether every reduction prints in Numba's dialect."""
+    try:
+        for reduction in reductions.reductions:
+            print_expressions(
+                [reduction.argument, reduction.condition if reduction.condition is not None else 1],
+                SCALAR_DIALECT,
+            )
+    except ValidationError:
+        return False
+    return True
+
+
 def _output_count(source: _Source, kernel: Kernel) -> str:
     """Return the code of the number of values a member kernel writes, its outputs times its rows."""
     entry = next((item.entry for item in kernel.references.values() if item.source is Source.MEMBER), None)
@@ -487,12 +625,21 @@ def _output_count(source: _Source, kernel: Kernel) -> str:
     return f'{len(kernel.outputs)} * L[{2 * source.slot(entry) + 1}]'
 
 
-def _entry_function(source: _Source, name: str, kernels: list[str], mode: str, size_expression: str) -> None:
-    """Add a top-level function that runs kernels into a new output vector."""
+def _entry_function(
+    source: _Source,
+    name: str,
+    kernels: list[str],
+    mode: str,
+    size_expression: str,
+    *,
+    reduced: bool,
+) -> None:
+    """Add a top-level function that evaluates the reductions and runs kernels into a new output vector."""
     start = {'add': 'np.zeros(x.size)', 'assign': 'x.copy()', 'concatenate': f'np.empty({size_expression})'}[mode]
     lines = [
         '@njit(cache=CACHE)',
         f'def {name}(t, x, p, L):',
+        *([f'{INDENT}p = _reduce(t, x, p, L)'] if reduced else []),
         f'{INDENT}out = {start}',
         f'{INDENT}offset = 0',
     ]
@@ -558,7 +705,15 @@ class NumbaBackend(Backend):
         self.cache_dir = cache_dir
         self.parallel = parallel
 
-    def _kind(self, source: _Source, kernels: list[Kernel], label: str, mode: str) -> tuple[str, str]:
+    def _kind(
+        self,
+        source: _Source,
+        kernels: list[Kernel],
+        label: str,
+        mode: str,
+        *,
+        reduced: bool,
+    ) -> tuple[str, str]:
         """Add the kernels of one law kind and return the top-level function name and its output size."""
         names = []
         for index, kernel in enumerate(kernels):
@@ -569,7 +724,7 @@ class NumbaBackend(Backend):
                 _member_kernel(source, kernel, name, mode, self.parallel)
             names.append(name)
         size = ' + '.join(_output_count(source, kernel) for kernel in kernels) or '0'
-        _entry_function(source, label, names, mode, size)
+        _entry_function(source, label, names, mode, size, reduced=reduced)
         return label, size
 
     def lower(
@@ -578,6 +733,8 @@ class NumbaBackend(Backend):
         kernels: Mapping[type, list[Kernel]],
         changes: Mapping[int, list[tuple[Reference, float]]],
         size: int,
+        *,
+        reductions: ReductionPass | None = None,
     ) -> Lowering:
         """Return the numeric functions of a form compiled with Numba.
 
@@ -594,6 +751,10 @@ class NumbaBackend(Backend):
             size:
                 The size of the state vector.
 
+            reductions:
+                The reductions the kernels read, fused into one compiled function that every entry function runs
+                first, or `None`.
+
         Returns:
             lowering:
                 The numeric functions.
@@ -605,8 +766,13 @@ class NumbaBackend(Backend):
             Jump: kernels.get(Jump, []) if form is Form.JUMP else [],
             Update: kernels.get(Update, []) if form is Form.DISCRETE else [],
         }
-        compiled = {kind: all(_is_compilable(kernel) for kernel in items) for kind, items in used.items()}
+        reductions = reductions or ReductionPass()
+        reduced = bool(reductions.reductions)
+        fused = _reductions_compile(reductions)
+        compiled = {kind: fused and all(_is_compilable(kernel) for kernel in items) for kind, items in used.items()}
         source = _Source()
+        if reduced and fused:
+            _reduce_function(source, reductions, self.parallel)
         plan: dict[type, tuple[str, str]] = {
             Rate: ('drift', 'add'),
             Noise: ('diffusion', 'concatenate'),
@@ -619,7 +785,7 @@ class NumbaBackend(Backend):
             needed = [*needed, Boundary]
         for kind in needed:
             if compiled[kind]:
-                self._kind(source, used[kind], *plan[kind])
+                self._kind(source, used[kind], *plan[kind], reduced=reduced)
         accelerated_loop = {
             Form.ODE: 'rk4',
             Form.SDE: 'euler_maruyama',
@@ -637,6 +803,11 @@ class NumbaBackend(Backend):
             for kernel in items
             for reference in kernel.references.values()
         }
+        for item in reductions.reductions:
+            entries[item.entry.name] = item.entry
+            entries.update({read.entry.name: read.entry for read in item.reads.values() if read.entry is not None})
+            if item.members is not None:
+                entries[item.members.name] = item.members
         layout = source.layout(entries)
         loop = accelerated_loop if has_loop else None
         return self._lowering(
@@ -649,6 +820,7 @@ class NumbaBackend(Backend):
             module=module,
             layout=layout,
             loop=loop,
+            reductions=reductions,
         )
 
     def _lowering(
@@ -663,6 +835,7 @@ class NumbaBackend(Backend):
         module: ModuleType,
         layout: np.ndarray,
         loop: str | None,
+        reductions: ReductionPass,
     ) -> Lowering:
         """Return the lowering that binds the compiled functions to the layout, with NumPy fallbacks."""
 
@@ -678,7 +851,9 @@ class NumbaBackend(Backend):
             Boundary: lambda: assigning_function(used[Boundary]),
         }
         names = {Rate: 'drift', Noise: 'diffusion', Jump: 'propensities', Update: 'update', Boundary: 'boundary'}
-        functions: dict[type, Any] = {kind: bind(names[kind]) if compiled[kind] else numpy[kind]() for kind in needed}
+        functions: dict[type, Any] = {
+            kind: bind(names[kind]) if compiled[kind] else reductions.wrap(numpy[kind]()) for kind in needed
+        }
         lowering = Lowering(boundary=functions.get(Boundary))
         if form in (Form.ODE, Form.SDE):
             lowering.drift = functions[Rate]

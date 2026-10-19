@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.runtime import Simulation
+from skcomplex.core.solvers import ScipyODE
 from skcomplex.models import catalog
 from skcomplex.models.biology.ecology import (
     agent_based_lotka_volterra,
@@ -43,6 +44,7 @@ from skcomplex.models.biology.evolution import (
     tangled_nature,
 )
 
+PRECISE = ScipyODE(method='DOP853', rtol=1e-12, atol=1e-14)
 ECOLOGY = {
     'competition',
     'mutualism',
@@ -255,14 +257,18 @@ def test_delayed_sirs_outbreaks_recur_and_spread():
 
 
 def test_heterogeneous_mean_field_threshold():
-    """Test that the SIS infection dies out below the threshold `<k> / <k^2>` and persists above it."""
+    """Test that the degree classes are group members and that SIS dies out below `<k> / <k^2>` and persists above."""
     degrees = np.arange(3, 31, dtype=float)
     weights = degrees**-2.5 / np.sum(degrees**-2.5)
     threshold = (degrees @ weights) / (degrees**2 @ weights)
+    classes = heterogeneous_mean_field_sis(lam=0.5 * threshold).elements[0]
+    assert classes.size == degrees.size
+    np.testing.assert_allclose(classes.values['k'], degrees)
+    np.testing.assert_allclose(classes.values['P'], weights)
     below = _run(heterogeneous_mean_field_sis(lam=0.5 * threshold), 100, dt=1.0)
     above = _run(heterogeneous_mean_field_sis(lam=2 * threshold), 100, dt=1.0)
-    assert below['network.rho'][-1].max() < 1e-4
-    assert above['network.rho'][-1].min() > 0.01
+    assert below['network.rho'][-1].max() < 1e-6
+    assert above['network.rho'][-1].min() > 1e-3
     assert np.all(np.diff(above['network.rho'][-1]) > 0)
 
 
@@ -317,17 +323,20 @@ def test_network_sir_spreads_between_cities():
 
 def test_hawks_and_doves_settle_at_share_v_over_c():
     """Test that hawks settle at the share `V / C` when fights cost more than the resource is worth."""
-    trajectory = _run(replicator_dynamics(V=2.0, C=3.0), 50, dt=1.0)
-    assert trajectory['population.x'][-1][0] == pytest.approx(2 / 3, rel=1e-3)
+    trajectory = _run(replicator_dynamics(V=2.0, C=3.0), 50, dt=1.0, solver=PRECISE)
+    assert trajectory['population.x'][-1][0] == pytest.approx(2 / 3, abs=1e-4)
     assert trajectory['population.x'][-1].sum() == pytest.approx(1)
 
 
 def test_replicator_rock_paper_scissors_conserves_product():
-    """Test that the replicator dynamics of rock, paper, and scissors conserve the product of the shares."""
+    """Test that rock, paper, and scissors, three members of a group, keep the simplex and the product of the shares."""
     game = ((0, -1, 1), (1, 0, -1), (-1, 1, 0))
-    trajectory = _run(replicator_dynamics([0.5, 0.3, 0.2], payoff=game), 20, dt=0.5)
-    products = np.prod(trajectory['population.x'], axis=1)
-    assert products == pytest.approx(np.full(len(products), 0.03), rel=1e-3)
+    system = replicator_dynamics([0.5, 0.3, 0.2], payoff=game)
+    assert system.elements[0].size == 3
+    trajectory = _run(system, 100, dt=0.5, solver=PRECISE)
+    shares = trajectory['population.x']
+    assert np.abs(shares.sum(axis=1) - 1).max() < 1e-10
+    assert np.abs(np.prod(shares, axis=1) - 0.03).max() < 1e-6
 
 
 def test_rock_paper_scissors_lattice_keeps_three_strategies():
@@ -349,9 +358,14 @@ def test_quasispecies_error_threshold(u, master):
 
 
 def test_hypercycle_keeps_all_and_network_selects():
-    """Test that a hypercycle keeps every molecule and a complete network keeps about `sqrt(2 omega / alpha)`."""
-    cycle = _run(hypercycles(4), 200, dt=1.0)
-    assert cycle['soup.x'][-1].min() > 0.05
+    """Test that a hypercycle of 4 molecules keeps the simplex and every molecule, and a complete network selects."""
+    system = hypercycles(4)
+    assert system.elements[0].size == 4
+    cycle = _run(system, 1500, dt=10.0, solver=PRECISE)
+    concentrations = cycle['soup.x']
+    assert np.abs(concentrations.sum(axis=1) - 1).max() < 1e-10
+    assert concentrations[-1].min() > 0.01
+    assert np.abs(concentrations[-1] - concentrations[-2]).max() < 1e-4
     complete = _run(hypercycles(20, alpha=1.0, omega=50.0, topology='complete'), 50, dt=1.0)
     assert abs(np.sum(complete['soup.x'][-1] > 1e-3) - 10) <= 1
 

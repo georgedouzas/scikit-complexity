@@ -12,11 +12,10 @@ from ._networks import (
 )
 from ._neurons import Izhikevich, LeakyIntegrateAndFire, integrate_and_fire, izhikevich
 from ._populations import (
-    LateralInhibition,
+    MutualInhibition,
     PolyhomeostaticNeuron,
     PulseCoupling,
     RateUnit,
-    Synapse,
     ThetaNeuron,
     WilsonCowan,
     polyhomeostatic_neuron,
@@ -34,13 +33,12 @@ __all__: list[str] = [
     'HodgkinHuxley',
     'Inhibitor',
     'Izhikevich',
-    'LateralInhibition',
     'LeakyIntegrateAndFire',
+    'MutualInhibition',
     'PolyhomeostaticNeuron',
     'PulseCoupling',
     'RateUnit',
     'SpikingNeuron',
-    'Synapse',
     'TermanWang',
     'ThetaNeuron',
     'WilsonCowan',

@@ -30,6 +30,7 @@ class Source(Enum):
     SECOND = 'second'
     NEIGHBOR = 'neighbor'
     DERIVED = 'derived'
+    REDUCED = 'reduced'
 
 
 @dataclass(frozen=True)
@@ -250,6 +251,30 @@ class Kernel:
         )
 
     @property
+    def arguments(self) -> list[Expression]:
+        """Symbols the outputs read, in the order the compiled function takes them after time."""
+        return list(self._arguments)
+
+    def gather(self, t: float, x: Vector, p: Vector) -> list[Any]:
+        """Return the values of the symbols the outputs read, for every evaluation index of a member kernel.
+
+        Args:
+            t:
+                The time.
+
+            x:
+                The state vector.
+
+            p:
+                The parameter vector, extended with the reductions when the kernel reads them.
+
+        Returns:
+            values:
+                One value or one array of values per symbol of `arguments`.
+        """
+        return [self._gather(item, x, p, None, t) for item in self._arguments]
+
+    @property
     def has_python_functions(self) -> bool:
         """Whether an output is computed by a function, either a callable law or a `Call`."""
         return any(output.function is not None for output in self.outputs)
@@ -282,7 +307,8 @@ class Kernel:
         if reference.source in {Source.DERIVED, Source.NEIGHBOR}:
             return self._gather_around(reference, x, p, pairs, t)
         column = reference.column_of(x, p)
-        if reference.source is Source.SINGLE:
+        shared = reference.source is Source.REDUCED and reference.entry.members is None
+        if reference.source is Source.SINGLE or shared:
             return column[0]
         if reference.source is Source.MEMBER or pairs is None:
             return column

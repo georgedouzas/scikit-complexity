@@ -1,10 +1,12 @@
 """Test fixed points, Jacobians, stability, nullclines, and divergence."""
 
+import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import SR
 
 from skcomplex.core.analysis import divergence, fixed_points, jacobian, nullclines, stability
 from skcomplex.core.base import AnalysisError
+from skcomplex.core.model import Element, Interaction, Rate, System, total
 from skcomplex.models.biology.ecology import lotka_volterra
 from skcomplex.models.biology.epidemiology import sir
 from skcomplex.models.mathematics.dynamical_systems import logistic_map, lorenz
@@ -59,3 +61,44 @@ def test_jump_process_has_no_vector_field():
     """Test that stochastic jump systems are rejected."""
     with pytest.raises(AnalysisError, match='jump process'):
         jacobian(sir(stochastic=True))
+
+
+def _hawks_and_doves(V=2.0, C=3.0, size=2):
+    """Return replicator dynamics of hawks and doves as the members of a group."""
+    payoff = np.array([[(V - C) / 2, V], [0.0, V / 2]])
+    Strategy = Element.define('Strategy', states={'x': 0.5})
+    Replication = Interaction.define(
+        'Replication',
+        roles=['population'],
+        laws=lambda s: [
+            Rate(
+                s.population.x,
+                s.population.x
+                * (
+                    total(s.population.x, weights=payoff)
+                    - total(s.population.x * total(s.population.x, weights=payoff))
+                ),
+            ),
+        ],
+    )
+    return System(
+        elements=[Strategy.group('population', size, x=[1 / size] * size)],
+        interactions=[Replication('replication', population='population')],
+    )
+
+
+def test_hawks_and_doves_as_group():
+    """Test that hawks and doves, two members of a group, have the stable fixed point with `V / C` hawks."""
+    system = _hawks_and_doves()
+    interior = next(point for point in fixed_points(system) if point['population.x[0]'] not in {0, 1})
+    assert float(interior['population.x[0]']) == pytest.approx(2 / 3)
+    assert float(interior['population.x[1]']) == pytest.approx(1 / 3)
+    assert stability(system, interior).classification == 'stable node'
+
+
+def test_group_above_limit():
+    """Test that the Jacobian of a group of 1000 members that reads reductions states the limit of 64 members."""
+    Member = Element.define('Member', states={'x': 0.0}, laws=lambda s: [Rate(s.x, total(s.x) - s.x)])
+    system = System(elements=[Member.group('group', 1000)])
+    with pytest.raises(AnalysisError, match=r'limit of 64 members.*smaller group'):
+        jacobian(system)

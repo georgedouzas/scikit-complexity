@@ -4,10 +4,11 @@ import math
 
 import numpy as np
 import pytest
+from scipy.integrate import solve_ivp
 
 from skcomplex.core.analysis import autocorrelation
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import RK4
+from skcomplex.core.solvers import RK4, ScipyODE
 from skcomplex.models.biology.collective_behaviour import (
     active_walkers,
     binary_ant_decision,
@@ -164,13 +165,42 @@ def test_theta_neuron_period():
     assert abs(20 / turns - math.pi) < 0.05
 
 
-def test_theta_network_couples_through_the_synapse():
-    """Test that excitatory coupling raises the synaptic activity of the theta network."""
-    activities = []
-    for kappa in (0.0, 1.5):
-        trajectory = Simulation(theta_neurons(kappa=kappa), dt=0.5).run(until=20).trajectory_
-        activities.append(trajectory['synapse.s'][trajectory.times > 10].mean())
-    assert activities[1] > 2 * activities[0]
+def _ott_antonsen(z0, times, *, eta=-0.2, delta=0.1, kappa=1.5, n=2):
+    """Return the order parameter of the Ott-Antonsen reduction of Luke, Barreto, and So for theta neurons."""
+    normalization = 2**n * math.factorial(n) ** 2 / math.factorial(2 * n)
+    grid = np.linspace(0, 2 * math.pi, 64, endpoint=False)
+    coefficients = np.fft.fft((1 - np.cos(grid)) ** n).real / grid.size
+
+    def pulses(z):
+        return normalization * (coefficients[0] + sum(coefficients[k] * 2 * (z**k).real for k in range(1, n + 1)))
+
+    def rates(t, y):
+        z = y[0] + 1j * y[1]
+        rate = -1j * (z - 1) ** 2 / 2 + (z + 1) ** 2 / 2 * (-delta + 1j * eta + 1j * kappa * pulses(z))
+        return [rate.real, rate.imag]
+
+    solution = solve_ivp(rates, (times[0], times[-1]), [z0.real, z0.imag], t_eval=times, rtol=1e-9, atol=1e-11)
+    return solution.y[0] + 1j * solution.y[1]
+
+
+def test_theta_neurons_follow_the_ott_antonsen_reduction():
+    """Test that 2000 theta neurons reading their mean pulse follow the Ott-Antonsen reduction after the transient."""
+    system = theta_neurons(2000)
+    trajectory = Simulation(system, dt=1.0, solver=ScipyODE()).run(until=40).trajectory_
+    assert trajectory.problem.states.names == ['neurons.theta']
+    order = np.exp(1j * trajectory['neurons.theta']).mean(axis=1)
+    reduced = _ott_antonsen(order[0], trajectory.times)
+    assert np.abs(order - reduced)[trajectory.times >= 20].max() < 0.05
+
+
+def test_winners_take_all_with_one_inhibition():
+    """Test that the default network has one inhibition reading the total, and only the unit with input 1.1 wins."""
+    for inputs in ((1.0, 1.1, 0.9), (1.0, 1.1, 0.9, 1.05, 0.95)):
+        assert len(winners_take_all(inputs).interactions) == 1
+    state = Simulation(winners_take_all(beta=2.0), dt=1.0).run(until=200).state_
+    assert np.argmax(state) == 1
+    assert abs(state[1] - 1.1) < 1e-3
+    assert np.sort(state)[-2] < 1e-3
 
 
 def test_winner_takes_all():
@@ -219,7 +249,10 @@ def test_legion_segments_objects():
     assert second.mean() > 0.1
     assert (first[:, 0] == first[:, 1]).mean() > 0.97
     assert (second[:, 0] == second[:, 1]).mean() > 0.97
-    assert (first.any(axis=1) & second.any(axis=1)).mean() < 0.02
+    after = trajectory.times > 20
+    assert not (first.any(axis=1) & second.any(axis=1))[after].any()
+    assert first[after].any()
+    assert second[after].any()
     assert active[:, [2, 3, 5, 6, 7]].mean() < 0.02
 
 

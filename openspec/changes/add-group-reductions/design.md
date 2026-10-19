@@ -64,8 +64,12 @@ Libraries rejected:
 
 ### Reduction functions
 
-`total`, `mean`, `maximum`, `minimum`, `variance`, and `count` are Sage `BuiltinFunction`s in
-`skcomplex.core.model._functions`, next to `where` and `mod`, and their names map to the keys of `REDUCTIONS`.
+`total`, `mean`, `maximum`, `minimum`, `variance`, and `count` are Python functions in
+`skcomplex.core.model._reductions` that build calls of Sage `BuiltinFunction`s with four operands, the argument, the
+condition, a symbol that stands for the weights, and a symbol of the group, and their kinds map to the keys of
+`REDUCTIONS`. Sage functions take no keywords, so the keywords live in the wrappers, and the weights are kept in a
+table keyed by a digest of the matrix. Conditions pass through Maxima as marker functions, so the calls survive
+`simplify`. `reductions_in` returns the calls of an expression as `Reduction` records for the compiler and the analysis.
 `count` adds to that table, which already holds it as a special case. The signature is
 `total(expression, over=None, where=None, weights=None)`, and `count(over=None, where=None)` takes no expression:
 - Inside the call, the symbols of a member stand for the reduced member, and outside it they stand for the reading
@@ -77,7 +81,12 @@ Libraries rejected:
   except `count`, as for observables.
 - `weights` is a constant array or SciPy sparse matrix of shape `(readers, members)`, so the reading member `i` gets
   `sum_j W_ij a_j`. It is fixed when compiling, like a topology, and a change needs a new compile. It is the payoff
-  matrix of replicator dynamics and the catalytic links of hypercycles. It is allowed with `total` and `mean` only.
+  matrix of replicator dynamics and the catalytic links of hypercycles. It is allowed with `total` and `mean` only, and
+  a weighted mean divides the weighted total by the count of selected members.
+- `over` takes the namespace of the group, such as `s.neurons`. Without `over` and without member symbols, a reduction
+  reduces over the group of the law, so `count()` in a member's own law counts its group.
+- A complex argument of `total` or `mean`, such as `exp(I theta)`, is reduced as its real and imaginary parts, and the
+  modulus of a complex value is written with them, so kernels stay real.
 
 Alternatives considered:
 - A lambda over a member namespace, `total(lambda m: m.x, over='population')`. It spells the reduced member
@@ -88,18 +97,27 @@ Alternatives considered:
 ### Element sets
 
 A role binds to a list of paths of single elements of one type, such as `units=['unit_0', 'unit_1']`. The compiler
-gathers the listed elements into a group layout for that interaction, so the role behaves like a role bound to a group,
-and reductions over it reduce over the listed elements. The elements keep their own paths in the state vector, and the
-gather is an index array. Elements of different types in one set are rejected with a named error.
+applies the interaction's laws once per element of the set, each reading its element like a single element, so the
+kernels need no new read and the equations stay per element. Reductions over the role reduce over the listed elements
+through an index array of their states. The elements keep their own paths in the state vector. Elements of different
+types in one set are rejected with a named error. Sets are small by nature, so compiling the laws once per element costs
+little, and a large population belongs in a group.
+
+An interaction acts on one group, the group whose member symbols its laws read outside reductions, and reads other
+groups only through reductions. A law of a group's interaction that sets a single element from reductions alone, such
+as the LEGION inhibitor, runs once instead of once per member. Laws without reductions keep the sum over the members
+into a single element.
 
 ### Observable reads
 
 A role that binds to an observable reads it as `s.<role>.value`, as it does today. When the observable is symbolic, an
-expression of states, parameters, and earlier observables, or a reduction of a group with a variable or a symbolic
-expression, and the reading law is in the observable's partition, the compiler lowers it into the reduction pass and the
-law reads its value at the current state. A Python callable observable cannot be lowered, so reading it in its own
-partition raises a named error that tells the user to write it symbolically or move the reading law to another
-partition. Across partitions, the observable is held at synchronisation points as today.
+expression of states, parameters, and earlier observables, or a reduction of an element group with a string `reduce`,
+the compiler lowers it into the reduction pass and the law reads its value at the current state. A partition holds the
+states of the other partitions fixed while it advances, so a lowered read of another partition's group is the value at
+the last synchronisation point, and one lowering serves both cases. A Python callable observable, a reduction of agents,
+and an expression that follows such an observable in its system cannot be lowered. They are held at synchronisation
+points as aggregates, as today, and reading one in its own partition raises a named error that tells the user to write
+it symbolically or move the reading law to another partition.
 
 `ObservableEvaluator` and the reduction pass compute the same values from the same table. The trajectory records the
 observable from the frame's state, which equals the value a law read at that state.
@@ -120,9 +138,17 @@ Every evaluation of a partition runs in this order:
 A reduction reads states, parameters, time, observables, and other reductions, never a rate, so the order has no cycle.
 A reduction over a group in another partition reads the state held at the last synchronisation point, as an aggregate
 does. Discrete maps evaluate the reductions on the state at step `n`, so every member updates from the same values.
-Jump processes recompute the reductions their propensities read after every event. On Numba, sums, means, and counts
-are updated by the change of the members the event touched, and maxima and minima are recomputed. Boundary and event
-laws evaluate the reductions on the state they receive.
+Jump processes recompute the reductions their propensities read after every event. The Gillespie loop recomputes every
+propensity after an event, a cost linear in the number of channels, so recomputing the reductions with them keeps that
+cost, and incremental updates of sums and counts would not change it. Boundary and event laws evaluate the reductions on
+the state they receive, and an event resets the states of every member of a group at once, which `mirollo_strogatz`
+uses to fire the most charged oscillators of its group.
+
+Placeholders read hidden entries placed after the parameters, in an extended parameter vector. The NumPy backend wraps
+every numeric function so that it extends the parameter vector before its kernels. The Numba backend generates one
+`_reduce` function with `prange` loops for sums, means, counts, and variances, serial loops for maxima and minima, and
+a CSR product for weights, and every entry function calls it first, so the compiled stepper loops evaluate the
+reductions at every stage.
 
 ### Jacobian structure
 
@@ -131,16 +157,21 @@ A reduction makes every reading member depend on every reduced member. The chain
 `mean`, `W_ij ∂a/∂x_j` with weights, the indicator of the first extreme member for `maximum` and `minimum`, the
 derivative of the variance for `variance`, and 0 for `count` and for the condition.
 
-For `adopt-scipy-sparse-jacobians`, `Source.REDUCED` states its pattern: the block of the reading rows against the rows
-of the reduced members for every state the argument reads, or the nonzeros of `W` with weights. For the exact sparse
-Jacobian, the partial derivative by a reduction compiles as one more output of the kernel, and the scatter forms the
-rank-one blocks. When a dense block exceeds the pattern's size limit, the pattern is omitted and `ScipyODE` estimates a
-dense Jacobian, which the user guide states with the advice to use an explicit stepper for large mean-field groups.
+`adopt-scipy-sparse-jacobians` has not landed, so this change adds the part of it that reductions need. An ODE problem
+carries `jacobian`, an `ExactJacobian` of the rate kernels of member and single reads and of reductions. It compiles the
+Sage partial derivatives of every output and of every reduction's argument on first use, evaluates the gradient of
+every reduction in dependency order as a sparse matrix, and adds the blocks `dF_i/dR dR/dx_j` to the direct partials.
+Its `pattern()` states the structure: the block of the reading rows against the rows of the reduced members for every
+state the argument reads, or the nonzeros of `W` with weights, and the diagonal. When the dense blocks exceed
+4 million entries, the pattern is omitted, which the user guide states with the advice to use an explicit stepper for
+large mean-field groups. Pair sums, neighbour and operator reads, and callables raise a named error, and problems with
+conservation laws, symmetries, or fixed nodes carry no Jacobian. `adopt-scipy-sparse-jacobians` extends this to the
+other sources and passes the Jacobian and its pattern to `ScipyODE`.
 
 ### Symbolic analysis of small groups
 
-`dynamics_of` expands a group of at most 64 members whose laws read reductions into one equation per member, with each
-reduction written as the explicit sum, mean, maximum, or minimum of the member symbols. `jacobian`, `fixed_points`, and
+`dynamics_of` expands a group of at most 64 members into one equation per member, with each reduction written as the
+explicit sum, mean, maximum, or minimum of the member symbols and every member parameter as its own symbol. `jacobian`, `fixed_points`, and
 `stability` then work on the expanded system. Larger groups keep the named error, which now states the limit.
 
 ## Risks / Trade-offs
@@ -156,5 +187,6 @@ reduction written as the explicit sum, mean, maximum, or minimum of the member s
 
 ## Migration Plan
 
-The rebuilt models keep their factory names and parameters. Code that reads `synapse.s` of `theta_neurons` or the
+The rebuilt models keep their factory names and parameters, except `theta_neurons`, whose `tau` was the decay time of
+the stand-in synapse and goes with it. Code that reads `synapse.s` of `theta_neurons` or the
 vector components of `population.x` reads the group states instead, which the changelog states.

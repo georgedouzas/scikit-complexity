@@ -6,19 +6,8 @@
 import numpy as np
 from sage.all__sagemath_symbolics import cos, sin
 
-from ....core.base import Domain, Expression, parameter, state
-from ....core.model import (
-    Element,
-    EuclideanSpace,
-    Event,
-    Interaction,
-    Law,
-    PairInteraction,
-    Rate,
-    Symbols,
-    System,
-    where,
-)
+from ....core.base import Domain, Expression, parameter
+from ....core.model import Element, Event, Interaction, Law, Rate, Symbols, System, maximum, mean, where
 from ....core.runtime import register_model
 from ._utils import _order_parameter
 
@@ -34,35 +23,34 @@ def _sensitivity(theta: Expression) -> Expression:
 
 
 def _integrate_and_fire_laws(s: Symbols) -> list[Law]:
-    """Return the charging of every oscillator and its firing, which resets it and kicks the others up by epsilon."""
-    levels = list(s.x)
-    laws: list[Law] = [Rate(level, s.S - s.gamma * level) for level in levels]
-    for index, level in enumerate(levels):
-        reset = {
-            other: 0 if position == index else where(other + s.epsilon >= 1, 0, other + s.epsilon)
-            for position, other in enumerate(levels)
-        }
-        laws.append(Event(level - 1, reset, direction=1, label=f'fire {index}'))
-    return laws
+    """Return the charging of an oscillator and the firing of the most charged ones, which kick the others up."""
+    largest = maximum(s.x)
+    kicked = where(s.x + s.epsilon >= 1, 0, s.x + s.epsilon)
+    return [
+        Rate(s.x, s.S - s.gamma * s.x),
+        Event(largest - 1, {s.x: where(s.x >= largest, 0, kicked)}, direction=1, label='fire'),
+    ]
 
 
 WinfreeOscillator = Element.define(
     'WinfreeOscillator',
-    states={'theta': 0.0, 'x': state(default=0.0, vector=True)},
+    states={'theta': 0.0},
     parameters={'omega': 1.0},
     laws=lambda s: [Rate(s.theta, s.omega)],
 )
 
-WinfreeSelfInfluence = Interaction.define(
-    'WinfreeSelfInfluence',
+WinfreeMeanField = Interaction.define(
+    'WinfreeMeanField',
     roles=['target'],
     parameters={'K': 1.0},
-    laws=lambda s: [Rate(s.target.theta, s.K * _influence(s.target.theta) * _sensitivity(s.target.theta))],
+    laws=lambda s: [
+        Rate(s.target.theta, s.K * mean(_influence(s.target.theta)) * _sensitivity(s.target.theta)),
+    ],
 )
 
-IntegrateAndFireOscillators = Element.define(
-    'IntegrateAndFireOscillators',
-    states={'x': state(default=0.0, vector=True)},
+IntegrateAndFireOscillator = Element.define(
+    'IntegrateAndFireOscillator',
+    states={'x': 0.0},
     parameters={
         'S': parameter(default=2.0, domain=Domain.POSITIVE),
         'gamma': parameter(default=1.0, domain=Domain.POSITIVE),
@@ -70,57 +58,6 @@ IntegrateAndFireOscillators = Element.define(
     },
     laws=_integrate_and_fire_laws,
 )
-
-
-class WinfreeCoupling(PairInteraction):
-    """Winfree coupling, where every oscillator responds to the influence of the others, `K P(theta_j) R(theta_i)`.
-
-    The influence is `P(theta) = 1 + cos(theta)` and the sensitivity `R(theta) = -sin(theta)`. Every pair of members
-    closer than the cutoff couples both ways.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        first:
-            The path of the group of the first members.
-
-        second:
-            The path of the group of the second members.
-
-        cutoff:
-            The distance beyond which pairs do not interact.
-
-        period:
-            The side of a periodic box, for minimum image distances, or `None` for an open space.
-
-        K:
-            The coupling strength of one pair.
-
-    Examples:
-        >>> from skcomplex.models.physics.synchronization import WinfreeCoupling
-        >>> WinfreeCoupling('coupling', first='phases', second='phases', K=0.1).K
-        0.1
-    """
-
-    K: float = parameter(default=1.0)
-
-    def laws(self, s: Symbols) -> list[Law]:
-        """Return the response of both members of a pair to the influence of the other.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        first, second = s.first.theta, s.second.theta
-        return [
-            Rate(first, s.K * _influence(second) * _sensitivity(first)),
-            Rate(second, s.K * _influence(first) * _sensitivity(second)),
-        ]
 
 
 @register_model(
@@ -133,9 +70,9 @@ def winfree(n_oscillators: int = 50, *, K: float = 0.5, spread: float = 0.1, see
     """Return the Winfree model, `theta_i' = omega_i + (K / N) sum_j P(theta_j) R(theta_i)`, with the sum over all `j`.
 
     The influence `P(theta) = 1 + cos(theta)` and the sensitivity `R(theta) = -sin(theta)` make every oscillator respond
-    to the mean influence of the population. The natural frequencies are spread evenly over `[1 - spread, 1 + spread]`.
-    Weak coupling leaves the oscillators incoherent, moderate coupling locks them to one frequency, and strong coupling
-    stops them, which is oscillator death.
+    to the mean influence of the population, which every oscillator reads as a group mean. The natural frequencies are
+    spread evenly over `[1 - spread, 1 + spread]`. Weak coupling leaves the oscillators incoherent, moderate coupling
+    locks them to one frequency, and strong coupling stops them, which is oscillator death.
 
     Args:
         n_oscillators:
@@ -157,24 +94,18 @@ def winfree(n_oscillators: int = 50, *, K: float = 0.5, spread: float = 0.1, see
     Examples:
         >>> from skcomplex.models.physics.synchronization import winfree
         >>> len(winfree(5).interactions)
-        2
+        1
     """
     oscillators = WinfreeOscillator.group(
         'oscillators',
         n_oscillators,
         theta=np.random.default_rng(seed).uniform(0, 2 * np.pi, n_oscillators),
         omega=np.linspace(1 - spread, 1 + spread, n_oscillators),
-        x=np.zeros((n_oscillators, 1)),
     )
-    weight = K / n_oscillators
     return System(
         elements=[oscillators],
-        interactions=[
-            WinfreeCoupling('coupling', first='oscillators', second='oscillators', K=weight),
-            WinfreeSelfInfluence('self_influence', target='oscillators', K=weight),
-        ],
+        interactions=[WinfreeMeanField('coupling', target='oscillators', K=K)],
         observables=_order_parameter('order', 'oscillators'),
-        space=EuclideanSpace(1),
     )
 
 
@@ -194,9 +125,10 @@ def mirollo_strogatz(
 ) -> System:
     """Return integrate-and-fire oscillators coupled by pulses, which end up firing in unison.
 
-    Every oscillator charges as `x' = S - gamma x`, a concave rise, and fires when it reaches 1. Firing is an event
-    that resets it to 0 and lifts every other oscillator by `epsilon`. An oscillator lifted to 1 fires at the same
-    instant and is absorbed into the group that fired, so the groups merge until all oscillators fire together.
+    Every oscillator of the group charges as `x' = S - gamma x`, a concave rise, and fires when it reaches 1. Firing is
+    an event whose guard is the group maximum of the charges, and it resets the most charged oscillators to 0 and lifts
+    every other one by `epsilon`. An oscillator lifted to 1 fires at the same instant and is absorbed into the group
+    that fired, so the groups merge until all oscillators fire together.
 
     Args:
         n_oscillators:
@@ -216,15 +148,20 @@ def mirollo_strogatz(
 
     Returns:
         system:
-            The model, with the charges `oscillators.x`, one component per oscillator.
+            The model, with the charges `oscillators.x` of the group members and the firings as `fire` events.
 
     Examples:
         >>> from skcomplex.models.physics.synchronization import mirollo_strogatz
-        >>> len(mirollo_strogatz(3).elements[0].x)
+        >>> mirollo_strogatz(3).elements[0].size
         3
     """
     charges = np.random.default_rng(seed).uniform(0.0, 1.0, n_oscillators)
-    return System(
-        elements=[IntegrateAndFireOscillators('oscillators', x=list(charges), S=S, gamma=gamma, epsilon=epsilon)],
-        space=EuclideanSpace(n_oscillators),
+    oscillators = IntegrateAndFireOscillator.group(
+        'oscillators',
+        n_oscillators,
+        x=charges,
+        S=S,
+        gamma=gamma,
+        epsilon=epsilon,
     )
+    return System(elements=[oscillators])

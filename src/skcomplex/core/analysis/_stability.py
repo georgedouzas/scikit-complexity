@@ -16,6 +16,7 @@ from scipy.optimize import root
 from ..base import AnalysisError, Expression, Form, components_of, declare_domains
 from ..compile import Problem, compile_system
 from ..model import System
+from ._groups import expand_groups
 
 ZERO = 1e-9
 
@@ -73,7 +74,8 @@ def dynamics_of(system: System | Problem, parameters: Mapping[str, float] | None
 
     Raises:
         AnalysisError:
-            The system is not an ODE or a discrete map, has callable laws, or has groups.
+            The system is not an ODE or a discrete map, has callable laws or sums over members into single elements,
+            or has a group of more than 64 members.
     """
     problem = system if isinstance(system, Problem) else compile_system(system)
     if problem.form not in {Form.ODE, Form.DISCRETE}:
@@ -81,12 +83,11 @@ def dynamics_of(system: System | Problem, parameters: Mapping[str, float] | None
             f'Only ODE systems and maps have a vector field to analyse, but the system is a {problem.form.value}.'
         )
         raise AnalysisError(error_msg)
-    if (
-        problem.has_callables
-        or problem.has_group_sums
-        or any(element.members is not None for element in problem.elements)
-    ):
-        error_msg = 'The system has callable laws or groups, which have no symbolic vector field. Analyse one member.'
+    if problem.has_callables or problem.has_group_sums:
+        error_msg = (
+            'The system has callable laws or sums over group members into single elements, which have no symbolic '
+            'vector field. Write the sums as reductions, or analyse one member.'
+        )
         raise AnalysisError(error_msg)
     if problem.delays:
         error_msg = (
@@ -104,13 +105,13 @@ def dynamics_of(system: System | Problem, parameters: Mapping[str, float] | None
     for entry in problem.parameters:
         for column, item in enumerate(components_of(problem.symbols[entry.name])):
             current[item] = float(values[entry.start + column])
-    names = list(problem.equation_symbols)
+    names, symbols, rates, members = expand_groups(problem, values)
     return Dynamics(
         problem=problem,
         names=names,
-        symbols=[problem.equation_symbols[name] for name in names],
-        rates=[SR(problem.equations[name]) for name in names],
-        parameters=current,
+        symbols=symbols,
+        rates=rates,
+        parameters={**current, **members},
         discrete=problem.form is Form.DISCRETE,
     )
 
@@ -128,7 +129,7 @@ def jacobian(system: System | Problem) -> Expression:
 
     Raises:
         AnalysisError:
-            The system is not an ODE or a discrete map, has callable laws, or has groups.
+            The system is not an ODE or a discrete map, has callable laws, or has a group above the member limit.
 
     Examples:
         >>> from skcomplex.core.analysis import jacobian
@@ -160,7 +161,7 @@ def fixed_points(system: System | Problem, parameters: Mapping[str, float] | Non
 
     Raises:
         AnalysisError:
-            The system is not an ODE or a discrete map, has callable laws, or has groups.
+            The system is not an ODE or a discrete map, has callable laws, or has a group above the member limit.
 
     Examples:
         >>> from skcomplex.core.analysis import fixed_points
@@ -252,7 +253,7 @@ def stability(
 
     Raises:
         AnalysisError:
-            The system is not an ODE or a discrete map, has callable laws, or has groups.
+            The system is not an ODE or a discrete map, has callable laws, or has a group above the member limit.
 
     Examples:
         >>> from skcomplex.core.analysis import stability
@@ -308,7 +309,7 @@ def nullclines(system: System | Problem) -> dict[str, Expression]:
 
     Raises:
         AnalysisError:
-            The system is not an ODE or a discrete map, has callable laws, or has groups.
+            The system is not an ODE or a discrete map, has callable laws, or has a group above the member limit.
 
     Examples:
         >>> from skcomplex.core.analysis import nullclines
@@ -336,7 +337,7 @@ def divergence(system: System | Problem) -> Expression:
 
     Raises:
         AnalysisError:
-            The system is not an ODE or a discrete map, has callable laws, or has groups.
+            The system is not an ODE or a discrete map, has callable laws, or has a group above the member limit.
 
     Examples:
         >>> from skcomplex.core.analysis import divergence

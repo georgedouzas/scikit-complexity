@@ -6,9 +6,9 @@
 import math
 
 import numpy as np
-from sage.all__sagemath_symbolics import sin
+from sage.all__sagemath_symbolics import cos, sin
 
-from ....core.base import Domain, parameter, state
+from ....core.base import Domain, Expression, parameter, state
 from ....core.model import (
     Element,
     EuclideanSpace,
@@ -19,6 +19,7 @@ from ....core.model import (
     Symbols,
     System,
     delayed,
+    mean,
 )
 from ....core.runtime import register_model
 from ._utils import _order_parameter
@@ -49,6 +50,20 @@ PhaseLag = Interaction.define(
     roles=['target'],
     parameters={'K': 1.0, 'alpha': 0.0},
     laws=lambda s: [Rate(s.target.theta, -s.K * sin(s.alpha))],
+)
+
+
+def _mean_field_rate(s: Symbols) -> Expression:
+    """Return `K mean_j sin(theta_j - theta_i - alpha)`, written with the means of `cos theta_j` and `sin theta_j`."""
+    shifted = s.target.theta + s.alpha
+    return s.K * (mean(sin(s.source.theta)) * cos(shifted) - mean(cos(s.source.theta)) * sin(shifted))
+
+
+MeanFieldCoupling = Interaction.define(
+    'MeanFieldCoupling',
+    roles=['target', 'source'],
+    parameters={'K': 1.0, 'alpha': 0.0},
+    laws=lambda s: [Rate(s.target.theta, _mean_field_rate(s))],
 )
 
 MeanFieldAmplitude = Element.define(
@@ -200,9 +215,11 @@ def delayed_kuramoto(
 def kuramoto(n_oscillators: int = 50, *, K: float = 4.0, sigma: float = 1.0, seed: int = 0) -> System:
     """Return Kuramoto oscillators coupled all to all, `theta_i' = omega_i + (K / N) sum_j sin(theta_j - theta_i)`.
 
-    The natural frequencies are drawn from a normal distribution of width `sigma`, and the phases uniformly from the
-    circle. Above the critical coupling `K_c = 2 sigma sqrt(2 / pi)` a synchronized cluster forms, and the order
-    parameter `r`, the modulus of the mean of `exp(i theta)`, grows from about `1 / sqrt(N)` towards 1.
+    Every oscillator reads the group means of `cos theta` and `sin theta`, so the coupling costs time linear in the
+    number of oscillators. The natural frequencies are drawn from a normal distribution of width `sigma`, and the
+    phases uniformly from the circle. Above the critical coupling `K_c = 2 sigma sqrt(2 / pi)` a synchronized cluster
+    forms, and the order parameter `r`, the modulus of the mean of `exp(i theta)`, grows from about `1 / sqrt(N)`
+    towards 1.
 
     Args:
         n_oscillators:
@@ -223,23 +240,22 @@ def kuramoto(n_oscillators: int = 50, *, K: float = 4.0, sigma: float = 1.0, see
 
     Examples:
         >>> from skcomplex.models.physics.synchronization import kuramoto
-        >>> kuramoto(10).elements[0].size
-        10
+        >>> system = kuramoto(10)
+        >>> system.elements[0].size, system.space
+        (10, None)
     """
     rng = np.random.default_rng(seed)
-    oscillators = SitedOscillator.group(
+    oscillators = PhaseOscillator.group(
         'oscillators',
         n_oscillators,
         theta=_spread_phases(n_oscillators, seed),
         omega=rng.normal(0.0, sigma, n_oscillators),
-        x=np.zeros((n_oscillators, 1)),
     )
-    coupling = PhaseCoupling('coupling', first='oscillators', second='oscillators', K=K / n_oscillators)
+    coupling = MeanFieldCoupling('coupling', target='oscillators', source='oscillators', K=K)
     return System(
         elements=[oscillators],
         interactions=[coupling],
         observables=_order_parameter('order', 'oscillators'),
-        space=EuclideanSpace(1),
     )
 
 
@@ -261,10 +277,10 @@ def kuramoto_sakaguchi_chimera(
 
     Oscillator `i` of population `p` follows `theta_i' = sum_q (K_pq / N) sum_j sin(theta_j - theta_i - alpha)`, with
     the stronger coupling `mu = (1 + A) / 2` inside a population, the weaker `nu = (1 - A) / 2` between them, and the
-    lag `alpha = pi / 2 - beta`. The first population starts nearly synchronized and the second spread over the
-    circle. The populations settle in a chimera, where one is fully synchronized and the other keeps drifting with a
-    partial order parameter, which breathes for `A = 0.2`. Which population ends up coherent depends on the initial
-    phases.
+    lag `alpha = pi / 2 - beta`. Every population reads the means of `cos theta` and `sin theta` of both populations.
+    The first population starts nearly synchronized and the second spread over the circle. The populations settle in a
+    chimera, where one is fully synchronized and the other keeps drifting with a partial order parameter, which
+    breathes for `A = 0.2`. Which population ends up coherent depends on the initial phases.
 
     Args:
         n_oscillators:
@@ -290,28 +306,29 @@ def kuramoto_sakaguchi_chimera(
     Examples:
         >>> from skcomplex.models.physics.synchronization import kuramoto_sakaguchi_chimera
         >>> len(kuramoto_sakaguchi_chimera(4).interactions)
-        5
+        4
     """
     rng = np.random.default_rng(seed)
     alpha, mu, nu = math.pi / 2 - beta, (1 + A) / 2, (1 - A) / 2
-    sites = np.zeros((n_oscillators, 1))
     populations = [
-        SitedOscillator.group('first', n_oscillators, theta=rng.normal(0.0, spread, n_oscillators), x=sites),
-        SitedOscillator.group('second', n_oscillators, theta=_spread_phases(n_oscillators, seed + 1), x=sites),
+        PhaseOscillator.group('first', n_oscillators, theta=rng.normal(0.0, spread, n_oscillators), omega=0.0),
+        PhaseOscillator.group('second', n_oscillators, theta=_spread_phases(n_oscillators, seed + 1), omega=0.0),
     ]
-    inside = mu / n_oscillators
     interactions: list[Interaction] = [
-        PhaseCoupling('first_coupling', first='first', second='first', K=inside, alpha=alpha),
-        PhaseCoupling('second_coupling', first='second', second='second', K=inside, alpha=alpha),
-        PhaseCoupling('cross_coupling', first='first', second='second', K=nu / n_oscillators, alpha=alpha),
-        PhaseLag('first_lag', target='first', K=inside, alpha=alpha),
-        PhaseLag('second_lag', target='second', K=inside, alpha=alpha),
+        MeanFieldCoupling(
+            f'{target}_from_{source}',
+            target=target,
+            source=source,
+            K=mu if target == source else nu,
+            alpha=alpha,
+        )
+        for target in ('first', 'second')
+        for source in ('first', 'second')
     ]
     return System(
         elements=populations,
         interactions=interactions,
         observables=[*_order_parameter('first_order', 'first'), *_order_parameter('second_order', 'second')],
-        space=EuclideanSpace(1),
     )
 
 

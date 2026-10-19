@@ -95,3 +95,12 @@ twice.
 #### Scenario: New model recorded
 - **WHEN** the change registers a model with no inventory entry
 - **THEN** the inventory check fails until the entry is added with its sources and field path
+
+### Requirement: Pulse-coupled oscillators are members of a group
+The library SHALL build `mirollo_strogatz` in `physics/synchronization` with the oscillators as members of a group,
+whose firing pulses reach the other members through a reduction, rather than as one vector state in a Euclidean space.
+
+#### Scenario: Mirollo-Strogatz synchronizes as a group
+- **WHEN** `mirollo_strogatz` runs with its default excitatory coupling from random phases
+- **THEN** its oscillators are members of one group, and they fire in synchrony within the run
+

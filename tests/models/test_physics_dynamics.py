@@ -5,6 +5,8 @@ import math
 import numpy as np
 import pytest
 
+from skcomplex.core.compile import compile_system
+from skcomplex.core.model import PairInteraction
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import ScipyODE
 from skcomplex.models.physics.celestial_mechanics import (
@@ -309,13 +311,56 @@ def test_kuramoto_synchronizes_above_the_critical_coupling(K, synchronized):
     assert (order[-10:].mean() < 0.3) == (not synchronized)
 
 
+def _random_drift(system):
+    """Return the phases at a random state and the drift of a phase model there."""
+    problem = compile_system(system)
+    state = problem.initial_state.copy()
+    state[:] = np.random.default_rng(3).uniform(0, 2 * math.pi, state.size)
+    return problem, state, problem.drift(0.0, state, problem.initial_parameters)
+
+
+def test_kuramoto_in_linear_time():
+    """Test that Kuramoto has no space and no pair interaction, and its drift is the all-to-all sum."""
+    system = kuramoto(50)
+    assert system.space is None
+    assert not any(isinstance(interaction, PairInteraction) for interaction in system.interactions)
+    problem, theta, rates = _random_drift(system)
+    omega = problem.parameters.read(problem.initial_parameters, 'oscillators.omega')
+    expected = omega + 4.0 / 50 * np.sin(theta[np.newaxis, :] - theta[:, np.newaxis]).sum(axis=1)
+    np.testing.assert_allclose(rates, expected, atol=1e-12)
+
+
+@pytest.mark.parametrize(('factor', 'synchronized'), [(0.5, False), (2.0, True)])
+def test_kuramoto_transition(factor, synchronized):
+    """Test that 2000 oscillators stay incoherent at half the critical coupling and synchronize at twice it."""
+    critical = 2 * math.sqrt(2 / math.pi)
+    trajectory = Simulation(kuramoto(2000, K=factor * critical), dt=0.5).run(until=100).trajectory_
+    order = _series(trajectory, 'order')[0][trajectory.times >= 50].mean()
+    assert (order > 0.6) == synchronized
+    assert (order < 0.1) == (not synchronized)
+
+
 def test_kuramoto_sakaguchi_populations_form_a_chimera():
-    """Test that one population synchronizes while the other keeps a partial order."""
-    trajectory = _run(kuramoto_sakaguchi_chimera(), 200.0, 5.0, solver=ScipyODE())
+    """Test that every population reads both populations and that one synchronizes while the other drifts."""
+    system = kuramoto_sakaguchi_chimera()
+    assert {(item.target, item.source) for item in system.interactions} == {
+        (target, source) for target in ('first', 'second') for source in ('first', 'second')
+    }
+    trajectory = _run(system, 200.0, 5.0, solver=ScipyODE())
     first, second = _series(trajectory, 'first_order', 'second_order')
     coherent, incoherent = max(first[-1], second[-1]), min(first[-1], second[-1])
     assert coherent > 0.99
     assert 0.3 < incoherent < 0.95
+
+
+def test_winfree_mean_influence():
+    """Test that the Winfree drift is the response to the mean influence, with no pair or self-influence term."""
+    system = winfree(50)
+    assert len(system.interactions) == 1
+    assert not isinstance(system.interactions[0], PairInteraction)
+    problem, theta, rates = _random_drift(system)
+    omega = problem.parameters.read(problem.initial_parameters, 'oscillators.omega')
+    np.testing.assert_allclose(rates, omega - np.sin(theta) * 0.5 / 50 * (1 + np.cos(theta)).sum(), atol=1e-12)
 
 
 def test_nonlocal_ring_rotates_rigidly_when_synchronized():
@@ -347,11 +392,14 @@ def test_winfree_oscillators_die_under_strong_coupling(K, dead):
 
 
 def test_mirollo_strogatz_oscillators_fire_in_unison():
-    """Test that pulse-coupled integrate-and-fire oscillators end up with equal charges."""
-    trajectory = _run(mirollo_strogatz(6), 30.0, 0.1, solver=ScipyODE())
+    """Test that the integrate-and-fire oscillators, members of one group, end up firing in unison."""
+    system = mirollo_strogatz(6)
+    assert system.elements[0].size == 6
+    trajectory = _run(system, 30.0, 0.1, solver=ScipyODE())
     charges = _series(trajectory, 'oscillators.x')[0]
     assert np.ptp(charges[-1]) < 1e-9
     assert np.ptp(charges[0]) > 0.1
+    assert {event.label for event in trajectory.events} == {'fire'}
 
 
 @pytest.mark.parametrize(('k', 'synchronized'), [(0.5, True), (0.0, False)])

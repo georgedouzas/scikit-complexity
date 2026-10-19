@@ -3,12 +3,12 @@
 from ._agents import Person, Traveller, Walker, agent_based_sir, network_sir, random_walker_epidemics
 from ._compartments import Compartment, ImmunityLoss, Infection, Recovery
 from ._factories import sir, sirs, sis
-from ._networks import DegreeClasses, Subpopulation, heterogeneous_mean_field_sis, metapopulation
+from ._networks import DegreeClass, Subpopulation, heterogeneous_mean_field_sis, metapopulation
 from ._recurrent import EpidemicCenter, Visits, delayed_sirs
 
 __all__: list[str] = [
     'Compartment',
-    'DegreeClasses',
+    'DegreeClass',
     'EpidemicCenter',
     'ImmunityLoss',
     'Infection',

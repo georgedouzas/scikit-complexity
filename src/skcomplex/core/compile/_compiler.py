@@ -7,13 +7,14 @@ import copy
 import itertools
 import re
 from collections import Counter, defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, matrix
+import scipy.sparse
+from sage.all__sagemath_symbolics import SR, I, matrix, sqrt
 
 from ..base import (
     Domain,
@@ -31,6 +32,7 @@ from ..base import (
     declarations_of,
     domain_of,
     symbol,
+    symbols_of,
     vector,
 )
 from ..model import (
@@ -53,8 +55,10 @@ from ..model import (
     Mesh,
     Move,
     Noise,
+    Observable,
     PairInteraction,
     Rate,
+    Reduction,
     Relaxation,
     Rule,
     Sampler,
@@ -62,10 +66,19 @@ from ..model import (
     Symbols,
     System,
     Update,
+    count,
+    has_reductions,
+    maximum,
+    mean,
+    minimum,
+    reductions_in,
+    total,
+    variance,
 )
 from ._backends import Backend, resolve_backend
 from ._fields import FieldLowering, has_operators
 from ._hybrid import Breakpoints, CompiledEvent, Delay, Scalars, breakpoints_of, flat_sources, scalar_function
+from ._jacobians import ExactJacobian
 from ._kernels import Kernel, Output, PairSearch, Reference, Source
 from ._lattices import (
     LatticeContext,
@@ -78,7 +91,10 @@ from ._lattices import (
 )
 from ._layout import Entry, Layout
 from ._lowering import symbolic_components
+from ._observables import _join, _tree, observables_of
+from ._printing import numpy_function
 from ._problem import CompiledAgents, CompiledElement, CompiledInteraction, Partition, Problem, Vector, VectorFunction
+from ._reductions import CompiledReduction, Read, ReductionPass
 from ._splitting import LinearTerm, linear_terms
 from ._tree import Node, coerce_value, flatten_system, shape_of
 from ._volumes import FiniteVolume, compile_volumes
@@ -199,6 +215,15 @@ class _Declarations:
         return block
 
 
+@dataclass(frozen=True)
+class _SetSymbol:
+    """Symbol of one element of an element set, with the same symbol of every element of the set."""
+
+    canonical: Expression
+    references: tuple[Reference, ...]
+    label: str
+
+
 @dataclass
 class _KernelSpec:
     """Namespace, references, and evaluation indices that the laws of one component are lowered with."""
@@ -208,7 +233,11 @@ class _KernelSpec:
     references: dict[Expression, Reference]
     rows: int
     pairs: PairSearch | None = None
-    roles: dict[str, str] = field(default_factory=dict)
+    roles: dict[str, str | tuple[str, ...]] = field(default_factory=dict)
+    group: str | None = None
+    groups: dict[str, int] = field(default_factory=dict)
+    sets: dict[Expression, _SetSymbol] = field(default_factory=dict)
+    set_index: int = 0
 
 
 @dataclass
@@ -234,9 +263,8 @@ def _check_symbol_names(blocks: dict[str, _Block]) -> None:
             seen[name] = reference.entry.name
 
 
-def _resolve_role(node: Node, role: str, elements: dict[str, _Block]) -> _Block:
-    """Return the block of the element or group bound to a role of an interaction."""
-    label = getattr(node.component, role)
+def _resolve_path(node: Node, role: str, label: object, elements: dict[str, _Block]) -> _Block:
+    """Return the block of an element or group that a role of an interaction binds to by its label."""
     path = f'{node.scope}{label}' if isinstance(label, str) else None
     if path not in elements:
         where = node.scope.rstrip('/') or 'the root system'
@@ -248,33 +276,275 @@ def _resolve_role(node: Node, role: str, elements: dict[str, _Block]) -> _Block:
     return elements[path]
 
 
+def _resolve_role(node: Node, role: str, elements: dict[str, _Block]) -> _Block:
+    """Return the block of the element or group bound to a role of an interaction."""
+    return _resolve_path(node, role, getattr(node.component, role), elements)
+
+
+def _resolve_set(node: Node, role: str, labels: Sequence[str], elements: dict[str, _Block]) -> list[_Block]:
+    """Return the blocks of the single elements of one type that a role binds to as an element set."""
+    blocks = [_resolve_path(node, role, label, elements) for label in labels]
+    grouped = [block.node.path for block in blocks if block.node.members is not None]
+    if grouped or not blocks:
+        error_msg = (
+            f'Interaction {node.path} binds the role {role!r} to a set that holds the groups {", ".join(grouped)}. '
+            'An element set lists single elements of one type, and a role binds to a group by its path.'
+        )
+        raise RoleError(error_msg)
+    types = list(dict.fromkeys(block.node.component_type.__name__ for block in blocks))
+    if len(types) > 1:
+        error_msg = (
+            f'Interaction {node.path} binds the role {role!r} to elements of the types {" and ".join(types)}. An '
+            'element set holds elements of one type.'
+        )
+        raise RoleError(error_msg)
+    return blocks
+
+
 def _member_spec(block: _Block, time: Expression) -> _KernelSpec:
     """Return the kernel spec of the intrinsic laws of an element or group."""
     namespace, references = block.namespace(Source.MEMBER)
-    return _KernelSpec(block.node.path, Symbols(t=time, **vars(namespace)), references, block.rows)
+    group = block.node.path if block.node.members is not None else None
+    return _KernelSpec(block.node.path, Symbols(t=time, **vars(namespace)), references, block.rows, group=group)
 
 
-def _interaction_spec(block: _Block, elements: dict[str, _Block], time: Expression) -> _KernelSpec:
-    """Return the kernel spec of an interaction that is evaluated once per member of its group."""
+@dataclass(frozen=True)
+class _Observed:
+    """Value of an observable that a role reads at the current state, with the references of its symbols."""
+
+    namespace: Symbols
+    references: dict[Expression, Reference]
+
+
+type Observe = Callable[[Node, object], _Observed | None]
+
+
+def _set_symbols(members: list[_Block], index: int) -> dict[Expression, _SetSymbol]:
+    """Return the symbols of one element of a set with the same symbol of every element."""
+    label = ', '.join(member.node.path for member in members)
+    symbols = {}
+    for variable, value in members[index].symbols.items():
+        for column, item in enumerate(components_of(value)):
+            references = tuple(member.references[components_of(member.symbols[variable])[column]] for member in members)
+            symbols[item] = _SetSymbol(components_of(members[0].symbols[variable])[column], references, label)
+    return symbols
+
+
+REDUCERS: dict[str, Callable[..., Expression]] = {
+    'sum': total,
+    'mean': mean,
+    'max': maximum,
+    'min': minimum,
+    'var': variance,
+}
+
+type Declared = dict[str, tuple[str, Observable]]
+
+
+def _is_lowerable(scope: str, observable: Observable, nodes: dict[str, Node]) -> bool:
+    """Check whether laws can read an observable at the current state, as an expression or a symbolic reduction."""
+    if observable.group is None:
+        return True
+    node = nodes.get(_join(scope, observable.group))
+    return node is not None and not node.is_agent and isinstance(observable.reduce, str)
+
+
+def _source_of(block: _Block) -> Source:
+    """Return how laws read the variables of a block from outside it, per member for a group."""
+    return Source.MEMBER if block.node.members is not None else Source.SINGLE
+
+
+def _reduced_value(path: str, observable: Observable, block: _Block) -> object:
+    """Return an observable that reduces a group as a reduction over the group's member symbols."""
+    namespace, _ = block.namespace(_source_of(block))
+    if observable.reduce == 'count':
+        return count(over=namespace)
+    if observable.variable is not None:
+        if observable.variable not in block.symbols:
+            error_msg = f'Observable {path} reduces {observable.variable}, which {block.node.path} does not declare.'
+            raise ValidationError(error_msg)
+        value: Any = block.symbols[observable.variable]
+    elif observable.expression is None:
+        error_msg = f'Observable {path} reduces {block.node.path} with {observable.reduce!r} but names no variable.'
+        raise ValidationError(error_msg)
+    else:
+        value = observable.expression(namespace) if callable(observable.expression) else observable.expression
+    reducer = REDUCERS[str(observable.reduce)]
+    if isinstance(value, SymbolicVector):
+        return vector(reducer(item, over=namespace) for item in value)
+    return reducer(value, over=namespace)
+
+
+def _lowerable_observables(system: System, nodes: list[Node]) -> Declared:
+    """Return every observable of a system tree that laws can read at the current state, by path.
+
+    An expression of a system's symbols is lowerable when every observable declared before it in its system is.
+    """
+    by_path = {node.path: node for node in nodes}
+    lowerable: Declared = {}
+    blocked: set[str] = set()
+    for scope, observable in observables_of(system):
+        if scope in blocked or not _is_lowerable(scope, observable, by_path):
+            blocked.add(scope)
+            continue
+        lowerable[_join(scope, observable.label)] = (scope, observable)
+    return lowerable
+
+
+@dataclass
+class _Observer:
+    """Values of the observables that laws read at the current state, built from the blocks of a system."""
+
+    declarations: _Declarations
+    live: Declared
+    values: dict[str, tuple[object, dict[Expression, Reference]]] = field(default_factory=dict)
+
+    def _system_value(
+        self,
+        path: str,
+        scope: str,
+        observable: Observable,
+    ) -> tuple[object, dict[Expression, Reference]]:
+        """Return an expression of the symbols of a system's elements, with earlier observables by label."""
+        prefix = f'{scope}/' if scope else ''
+        items: dict[str, Any] = {}
+        references: dict[Expression, Reference] = {}
+        for block in self.declarations.blocks.values():
+            for variable, entry in block.entries.items():
+                if entry.members is None and entry.name.startswith(prefix):
+                    items[entry.name[len(prefix) :]] = block.symbols[variable]
+                    references.update(
+                        {item: block.references[item] for item in components_of(block.symbols[variable])},
+                    )
+        namespace = _tree(items)
+        for other, (other_scope, earlier) in self.live.items():
+            if other == path:
+                break
+            if other_scope == scope:
+                value, other_references = self.value(other, other_scope, earlier)
+                setattr(namespace, earlier.label, value)
+                references.update(other_references)
+        expression = observable.expression(namespace) if callable(observable.expression) else observable.expression
+        return expression, references
+
+    def value(self, path: str, scope: str, observable: Observable) -> tuple[object, dict[Expression, Reference]]:
+        """Return the value of an observable with the references of the symbols it reads."""
+        if path in self.values:
+            return self.values[path]
+        if observable.group is None:
+            self.values[path] = self._system_value(path, scope, observable)
+            return self.values[path]
+        block = self.declarations.blocks[_join(scope, observable.group)]
+        _, references = block.namespace(_source_of(block))
+        self.values[path] = (_reduced_value(path, observable, block), references)
+        return self.values[path]
+
+    def __call__(self, node: Node, label: object) -> _Observed | None:
+        """Return the namespace of the observable a role binds to, or `None` for a role bound to no live observable."""
+        path = f'{node.scope}{label}' if isinstance(label, str) else None
+        if path not in self.live:
+            return None
+        scope, observable = self.live[path]
+        value, references = self.value(path, scope, observable)
+        return _Observed(Symbols(value=value), dict(references))
+
+
+def _interaction_specs(
+    block: _Block,
+    elements: dict[str, _Block],
+    time: Expression,
+    observe: Observe,
+) -> list[_KernelSpec]:
+    """Return the kernel specs of an interaction, one per element of its element sets, or else one."""
     node = block.node
-    roles = {role: _resolve_role(node, role, elements) for role in declarations_of(node.component, VariableKind.ROLE)}
-    groups = {bound.node.path for bound in roles.values() if bound.node.members is not None}
+    labels = {role: getattr(node.component, role) for role in declarations_of(node.component, VariableKind.ROLE)}
+    sets = {
+        role: _resolve_set(node, role, label, elements)
+        for role, label in labels.items()
+        if isinstance(label, list | tuple)
+    }
+    observed = {
+        role: found
+        for role, label in labels.items()
+        if role not in sets and (found := observe(node, label)) is not None
+    }
+    bound = {role: _resolve_role(node, role, elements) for role in labels if role not in sets and role not in observed}
+    sizes = {len(members) for members in sets.values()}
+    if len(sizes) > 1:
+        error_msg = f'Interaction {node.path} binds roles to element sets of different sizes. Give the sets one size.'
+        raise RoleError(error_msg)
+    groups = {item.node.path: item.rows for item in bound.values() if item.node.members is not None}
+    group = next(iter(groups)) if len(groups) == 1 else None
+    paths: dict[str, str | tuple[str, ...]] = {role: item.node.path for role, item in bound.items()}
+    paths.update({role: tuple(member.node.path for member in members) for role, members in sets.items()})
+    paths.update({role: f'{node.scope}{labels[role]}' for role in observed})
+    specs = []
+    for index in range(next(iter(sizes), 1)):
+        parameters, references = block.namespace(Source.SINGLE)
+        namespaces: dict[str, Symbols] = {}
+        set_symbols: dict[Expression, _SetSymbol] = {}
+        for role, members in sets.items():
+            namespaces[role], role_references = members[index].namespace(Source.SINGLE)
+            references.update(role_references)
+            set_symbols.update(_set_symbols(members, index))
+        for role, value in observed.items():
+            namespaces[role] = value.namespace
+            references.update(value.references)
+        for role, item in bound.items():
+            namespaces[role], role_references = item.namespace(
+                Source.MEMBER if item.node.members is not None else Source.SINGLE,
+            )
+            references.update(role_references)
+        specs.append(
+            _KernelSpec(
+                node.path,
+                Symbols(t=time, **vars(parameters), **namespaces),
+                references,
+                groups[group] if group is not None else 1,
+                roles=paths,
+                group=group,
+                groups=groups,
+                sets=set_symbols,
+                set_index=index,
+            ),
+        )
+    return specs
+
+
+def _outside_reductions(value: object) -> set[Expression]:
+    """Return the symbols of a law value that occur outside its reductions."""
+    expressions = [item for item in components_of(value) if isinstance(item, Expression)]
+    kept = [item.subs({found.call: 0 for found in reductions_in(item)}) for item in expressions]
+    return symbols_of(kept)
+
+
+def _settle_rows(spec: _KernelSpec, laws: list[Law]) -> None:
+    """Set the group an interaction is evaluated over from the member symbols its laws read outside reductions.
+
+    Laws without reductions keep the group their one group role binds to, so a single element bound next to it
+    receives the sum over the members.
+    """
+    values = [law.rate if isinstance(law, Jump) else getattr(law, 'value', None) for law in laws]
+    if not spec.groups or (len(spec.groups) == 1 and not any(has_reductions(value) for value in values)):
+        return
+    read: set[Expression] = set()
+    for law, value in zip(laws, values, strict=True):
+        read |= _outside_reductions(value)
+        read |= set(components_of(getattr(law, 'target', None)))
+    owners = {
+        reference.entry.name.rpartition('.')[0]
+        for item in read
+        if (reference := spec.references.get(item)) is not None and reference.source is Source.MEMBER
+    }
+    groups = sorted(owners & set(spec.groups))
     if len(groups) > 1:
         error_msg = (
-            f'Interaction {node.path} binds roles to the groups {", ".join(sorted(groups))}. An interaction acts on '
-            'at most one group, and a PairInteraction couples members of two groups.'
+            f'Interaction {spec.owner} binds roles to the groups {", ".join(groups)}. An interaction acts on at most '
+            'one group and reads the others through reductions, and a PairInteraction couples members of two groups.'
         )
         raise RoleError(error_msg)
-    parameters, references = block.namespace(Source.SINGLE)
-    namespaces = {}
-    for role, bound in roles.items():
-        namespaces[role], role_references = bound.namespace(
-            Source.MEMBER if bound.node.members is not None else Source.SINGLE,
-        )
-        references.update(role_references)
-    rows = next((bound.rows for bound in roles.values() if bound.node.members is not None), 1)
-    paths = {role: bound.node.path for role, bound in roles.items()}
-    return _KernelSpec(node.path, Symbols(t=time, **vars(parameters), **namespaces), references, rows, roles=paths)
+    spec.group = next(iter(groups), None)
+    spec.rows = spec.groups[spec.group] if spec.group is not None else 1
 
 
 def _pair_spec(block: _Block, elements: dict[str, _Block], time: Expression) -> _KernelSpec:
@@ -295,7 +565,7 @@ def _pair_spec(block: _Block, elements: dict[str, _Block], time: Expression) -> 
     references.update(second_references)
     pairs = PairSearch(first.entries[position], second.entries[position], block.entries['cutoff'], interaction.period)
     namespace = Symbols(t=time, **vars(parameters), first=first_namespace, second=second_namespace)
-    paths = {'first': first.node.path, 'second': second.node.path}
+    paths: dict[str, str | tuple[str, ...]] = {'first': first.node.path, 'second': second.node.path}
     return _KernelSpec(node.path, namespace, references, 0, pairs, roles=paths)
 
 
@@ -757,7 +1027,58 @@ def _written_equations(equations: dict[str, Expression], states: Layout, fields:
     return written
 
 
-def _compile_events(hybrid: _Hybrid, time: Expression) -> tuple[CompiledEvent, ...]:
+def _reset_indices(reference: Reference) -> npt.NDArray[np.intp]:
+    """Return the flat indices a reset of a single element's state or of every group member's state writes."""
+    if reference.entry.members is not None and reference.source in {Source.MEMBER, Source.REDUCED}:
+        return reference.flat_indices.astype(np.intp)
+    return np.asarray([reference.entry.start + reference.column], dtype=np.intp)
+
+
+def _reset_function(
+    spec: _KernelSpec,
+    event: Event,
+    time: Expression,
+    reductions: ReductionPass,
+) -> VectorFunction | None:
+    """Return a function that sets the states an event resets, all from the state before the event."""
+    reset = event.reset or {}
+    targets = [item for target in reset for item in components_of(target)]
+    if not targets:
+        return None
+    values = [
+        SR(item)
+        for target, value in reset.items()
+        for item in (
+            components_of(value) if isinstance(value, SymbolicVector) else [value] * len(components_of(target))
+        )
+    ]
+    references = [spec.references.get(item) for item in targets]
+    if any(
+        item is None or not item.is_state or item.source not in {Source.SINGLE, Source.MEMBER} for item in references
+    ):
+        error_msg = f'An event of {spec.owner} resets a symbol that is not a state of an element or a group member.'
+        raise ValidationError(error_msg)
+    arguments = sorted(symbols_of(values) - {time}, key=str)
+    unknown = [item for item in arguments if spec.references.get(item) is None]
+    if unknown:
+        error_msg = f'An event of {spec.owner} uses {", ".join(map(str, unknown))}, which the namespace does not hold.'
+        raise ValidationError(error_msg)
+    reads = [(spec.references[item].is_state, _reset_indices(spec.references[item])) for item in arguments]
+    places = [_reset_indices(reference) for reference in references]  # type: ignore[arg-type]
+    function = numpy_function(time, arguments, values)
+
+    def apply(t: float, x: Vector, p: Vector) -> Vector:
+        q = reductions.extend(t, x, p)
+        results = function(t, *((x if is_state else q)[index] for is_state, index in reads))
+        state = x.copy()
+        for place, value in zip(places, results, strict=True):
+            state[place] = np.broadcast_to(np.asarray(value, dtype=float), place.shape)
+        return state
+
+    return apply
+
+
+def _compile_events(hybrid: _Hybrid, time: Expression, reductions: ReductionPass) -> tuple[CompiledEvent, ...]:
     """Return the events of a system compiled into guard and reset functions of the state vector."""
     compiled = []
     counts = Counter(spec.owner for spec, _ in hybrid.events)
@@ -767,24 +1088,11 @@ def _compile_events(hybrid: _Hybrid, time: Expression) -> tuple[CompiledEvent, .
         positions[spec.owner] += 1
         sources = flat_sources(spec.references, spec.owner)
         guard = scalar_function([event.guard], sources, time, spec.owner)
-        targets = [item for target in (event.reset or {}) for item in components_of(target)]
-        values = [
-            item
-            for target, value in (event.reset or {}).items()
-            for item in (
-                components_of(value) if isinstance(value, SymbolicVector) else [value] * len(components_of(target))
-            )
-        ]
-        if any(item not in sources or not sources[item][0] for item in targets):
-            error_msg = f'An event of {spec.owner} resets a symbol that is not a state of a single element.'
-            raise ValidationError(error_msg)
-        indices = np.asarray([sources[item][1] for item in targets], dtype=np.intp)
-        reset = _reset_function(scalar_function(values, sources, time, spec.owner), indices) if targets else None
         compiled.append(
             CompiledEvent(
                 event.label or (spec.owner if counts[spec.owner] == 1 else f'{spec.owner}:{position}'),
-                _first_value(guard),
-                reset,
+                reductions.wrap(_first_value(guard)),  # type: ignore[arg-type]
+                _reset_function(spec, event, time, reductions),
                 int(event.direction),
                 bool(event.terminal),
             ),
@@ -799,17 +1107,6 @@ def _first_value(function: Scalars) -> Callable[[float, Vector, Vector], float]:
         return function(t, x, p)[0]
 
     return first
-
-
-def _reset_function(evaluate: Scalars, indices: npt.NDArray[np.intp]) -> VectorFunction:
-    """Return a function that sets state components to the values of an event's reset."""
-
-    def reset(t: float, x: Vector, p: Vector) -> Vector:
-        state = x.copy()
-        state[indices] = evaluate(t, x, p)
-        return state
-
-    return reset
 
 
 def _compile_delays(hybrid: _Hybrid, time: Expression) -> tuple[Delay, ...]:
@@ -952,11 +1249,18 @@ def _outputs_of(value: object, targets: list[Reference | None], owner: str) -> l
     return [Output(target, expression) for target, expression in zip(targets, expressions, strict=True)]
 
 
-def _check_assignments(spec: _KernelSpec, law: Law, targets: list[Reference], assigned: set[tuple[str, int]]) -> None:
+def _check_assignments(
+    spec: _KernelSpec,
+    law: Law,
+    targets: list[Reference],
+    assigned: set[tuple[str, int]],
+    *,
+    once: bool,
+) -> None:
     """Raise an error for an update or boundary law that sums over members or assigns a component twice."""
     kind = type(law).__name__
     for target in targets:
-        if target.source is Source.SINGLE and spec.rows > 1:
+        if target.source is Source.SINGLE and spec.rows > 1 and not once:
             error_msg = f'A {kind} law of {spec.owner} targets a single element from a group, which has no meaning.'
             raise ValidationError(error_msg)
         key = (target.entry.name, target.column)
@@ -966,13 +1270,286 @@ def _check_assignments(spec: _KernelSpec, law: Law, targets: list[Reference], as
         assigned.add(key)
 
 
+def _real_form(expression: Expression) -> Expression:
+    """Return an expression with every modulus of a complex value written with its real and imaginary parts."""
+    if expression.operator() is None or not expression.has(I):
+        return expression
+    operands = [_real_form(operand) for operand in expression.operands()]
+    if getattr(expression.operator(), 'name', lambda: '')() == 'abs':
+        return sqrt(operands[0].real_part() ** 2 + operands[0].imag_part() ** 2)
+    return expression.operator()(*operands)
+
+
+@dataclass
+class _Reductions:
+    """Reductions collected from the laws of a system, deduplicated, with their placeholders and hidden entries."""
+
+    declarations: _Declarations
+    found: dict[tuple[Any, ...], CompiledReduction] = field(default_factory=dict)
+    by_symbol: dict[Expression, CompiledReduction] = field(default_factory=dict)
+    readers: dict[Expression, str | None] = field(default_factory=dict)
+
+    @property
+    def parameters(self) -> int:
+        """Size of the parameter vector, where the hidden entries of the reductions start."""
+        return sum(entry.size for entry in self.declarations.parameters)
+
+    @property
+    def extent(self) -> int:
+        """Size of the extended parameter vector."""
+        return max((item.entry.start + item.entry.size for item in self.found.values()), default=self.parameters)
+
+    def lower(self, value: object, spec: _KernelSpec) -> object:
+        """Return a law value with every reduction replaced by the placeholder that kernels read."""
+        if isinstance(value, SymbolicVector):
+            return vector(self.lower(item, spec) for item in value)
+        if not isinstance(value, Expression):
+            return value
+        found = reductions_in(value)
+        if not found:
+            return value
+        placeholders = {item.call: self._placeholder(item, spec) for item in found}
+        lowered: Expression = value
+        for call in sorted(placeholders, key=lambda item: -len(str(item))):
+            lowered = lowered.subs({call: placeholders[call]})
+        return _real_form(lowered)
+
+    def _group_of(self, item: Expression, spec: _KernelSpec) -> str | None:
+        """Return the group, element set, or element whose members a symbol of a reduction stands for."""
+        if item in spec.sets:
+            return spec.sets[item].label
+        if item in self.by_symbol:
+            return self.readers[item]
+        reference = spec.references.get(item)
+        if reference is None or reference.source not in {Source.MEMBER, Source.SINGLE}:
+            return None
+        owner = reference.entry.name.rpartition('.')[0]
+        return owner if reference.source is Source.MEMBER and owner in self.declarations.blocks else None
+
+    def _group(self, reduction: Reduction, spec: _KernelSpec, symbols: set[Expression]) -> str | None:
+        """Return the one group a reduction reduces over, after checking that it reads no second group."""
+        groups = {group for item in symbols if (group := self._group_of(item, spec)) is not None}
+        over = None
+        if reduction.over is not None:
+            over = self._group_of(reduction.over, spec)
+            reference = spec.references.get(reduction.over)
+            if over is None and reference is not None:
+                over = reference.entry.name.rpartition('.')[0]
+            if over is not None:
+                groups.add(over)
+        if len(groups) > 1:
+            names = ' and '.join(sorted(groups))
+            error_msg = (
+                f'The reduction {reduction.call} of {spec.owner} reads the groups {names}. A reduction reduces over '
+                'one group, so write one reduction per group.'
+            )
+            raise RoleError(error_msg)
+        if groups:
+            return next(iter(groups))
+        if spec.group is not None:
+            return spec.group
+        return next((item.label for item in spec.sets.values()), None)
+
+    def _read(self, item: Expression, spec: _KernelSpec, group: str | None, size: int) -> Read:
+        """Return how the reduction pass reads one symbol of a reduction."""
+        if item in spec.sets:
+            references = spec.sets[item].references
+            indices = np.asarray([reference.entry.start + reference.column for reference in references], dtype=np.intp)
+            return Read(references[0].is_state, indices)
+        if item in self.by_symbol:
+            nested = self.by_symbol[item]
+            if nested.weights is None:
+                return Read(False, nested.entry.start, nested.entry)
+            if self.readers[item] != group:
+                error_msg = (
+                    f'A reduction of {spec.owner} over {group} reads the weighted reduction {nested.symbol} of the '
+                    f'members of {self.readers[item]}. Read a weighted reduction inside reductions over its readers.'
+                )
+                raise ValidationError(error_msg)
+            return Read(False, (nested.entry.start + np.arange(nested.entry.size)).astype(np.intp), nested.entry)
+        reference = spec.references.get(item)
+        if reference is None or reference.source not in {Source.MEMBER, Source.SINGLE}:
+            error_msg = (
+                f'A reduction of {spec.owner} reads {item}, which is not a state or parameter of an element, a group '
+                'member, or another reduction. Reductions read the namespace `s` of the law.'
+            )
+            raise ValidationError(error_msg)
+        entry = reference.entry
+        if reference.source is Source.MEMBER and entry.members is not None:
+            indices = entry.start + np.arange(entry.rows) * entry.columns + reference.column
+            return Read(reference.is_state, indices.astype(np.intp), entry, reference.column, entry.columns)
+        return Read(reference.is_state, entry.start + reference.column, entry, reference.column)
+
+    def _members(self, group: str | None, spec: _KernelSpec) -> tuple[int, Entry | None, npt.NDArray[np.intp] | None]:
+        """Return the size of a group, an entry that gives its size, and the state indices of an element set."""
+        if group is None:
+            return 1, None, None
+        block = self.declarations.blocks.get(group)
+        if block is not None:
+            entry = next(iter(block.entries.values()), None)
+            return block.rows, entry, None
+        references = next(item.references for item in spec.sets.values() if item.label == group)
+        indices = np.asarray([reference.entry.start + reference.column for reference in references], dtype=np.intp)
+        return len(references), None, indices
+
+    def _weights(self, reduction: Reduction, spec: _KernelSpec, group: str | None, size: int) -> Any:  # noqa: ANN401
+        """Return the weights of a reduction as a CSR array after checking their shape."""
+        if reduction.weights is None:
+            return None
+        readers = len(next(iter(spec.sets.values())).references) if spec.sets else spec.rows
+        shape = tuple(reduction.weights.shape)
+        if shape != (readers, size):
+            error_msg = (
+                f'The weights of the reduction {reduction.call} of {spec.owner} over {group or "no group"} have the '
+                f'shape {shape}, but the reduction needs the shape {(readers, size)}, one row per reading member and '
+                'one column per reduced member.'
+            )
+            raise ValidationError(error_msg)
+        return scipy.sparse.csr_array(reduction.weights, dtype=float)
+
+    def _placeholder(self, reduction: Reduction, spec: _KernelSpec) -> Expression:
+        """Return the placeholder of a reduction, or the placeholders of its real and imaginary parts."""
+        if not SR(reduction.argument).has(I):
+            return self._compiled(reduction, spec)
+        if reduction.kind not in {'sum', 'mean'}:
+            error_msg = (
+                f'The reduction {reduction.call} of {spec.owner} reduces a complex expression, which only total and '
+                'mean reduce. Reduce its real or imaginary part.'
+            )
+            raise ValidationError(error_msg)
+        argument = SR(reduction.argument)
+        real = self._compiled(replace(reduction, argument=argument.real_part()), spec)
+        imaginary = self._compiled(replace(reduction, argument=argument.imag_part()), spec)
+        return real + I * imaginary
+
+    def _compiled(self, reduction: Reduction, spec: _KernelSpec) -> Expression:
+        """Return the placeholder of a reduction of a real expression, compiling it the first time it is found."""
+        argument = SR(self.lower(reduction.argument, spec))
+        condition = None if reduction.condition is None else SR(self.lower(reduction.condition, spec))
+        symbols = symbols_of([argument, *([condition] if condition is not None else [])]) - {self.declarations.time}
+        group = self._group(reduction, spec, symbols)
+        size, members, set_indices = self._members(group, spec)
+        weights = self._weights(reduction, spec, group, size)
+        canonical = {item: spec.sets[item].canonical for item in symbols if item in spec.sets}
+        argument_key = argument.subs(canonical) if canonical else argument
+        condition_key = condition.subs(canonical) if canonical and condition is not None else condition
+        key = (reduction.kind, str(argument_key), str(condition_key), str(reduction.call.operands()[2]), group)
+        if key not in self.found:
+            index = len(self.found)
+            readers = weights.shape[0] if weights is not None else None
+            shape = (readers,) if readers is not None else ()
+            members_of = readers if readers is not None and not spec.sets else None
+            entry = Entry(f'__reduced_{index}', self.extent, shape, Domain.REAL, members_of)
+            placeholder = symbol(f'_reduced_{index}')
+            reads = {
+                canonical.get(item, item): self._read(item, spec, group, size) for item in sorted(symbols, key=str)
+            }
+            compiled = CompiledReduction(
+                placeholder,
+                reduction.kind,
+                argument_key,
+                condition_key,
+                weights,
+                entry,
+                size,
+                group,
+                reads,
+                self.declarations.time,
+                members,
+                set_indices,
+            )
+            self.found[key] = compiled
+            self.by_symbol[placeholder] = compiled
+            reading = spec.group or next((item.label for item in spec.sets.values()), None)
+            self.readers[placeholder] = reading if weights is not None else None
+        compiled = self.found[key]
+        column = spec.set_index if compiled.weights is not None and spec.sets else 0
+        spec.references[compiled.symbol] = Reference(compiled.entry, False, column, Source.REDUCED)
+        return compiled.symbol
+
+
+def _lower_law(law: Law, spec: _KernelSpec, reductions: _Reductions) -> Law:
+    """Return a law with every reduction in its values replaced by its placeholder."""
+    if isinstance(law, Jump):
+        return Jump(reductions.lower(law.rate, spec), law.changes)
+    if not isinstance(law, Rate | Noise | Update | Boundary):
+        return law
+    value = law.value
+    if isinstance(value, Call):
+        value = Call(value.function, *(reductions.lower(argument, spec) for argument in value.arguments))
+    else:
+        value = reductions.lower(value, spec)
+    if isinstance(law, Rate | Noise):
+        return type(law)(law.target, value, law.order)
+    return type(law)(law.target, value)
+
+
+def _prune_foreign(spec: _KernelSpec, declarations: _Declarations) -> None:
+    """Remove the references of groups that a spec reads only through reductions, so kernels loop over its group."""
+    if spec.pairs is not None:
+        return
+    owners = {
+        reference.entry.name.rpartition('.')[0]
+        for reference in spec.references.values()
+        if reference.source is Source.MEMBER
+    }
+    groups = {path for path, block in declarations.blocks.items() if block.node.members is not None}
+    foreign = (owners & groups) - {spec.group}
+    if not foreign:
+        return
+    spec.references = {
+        item: reference
+        for item, reference in spec.references.items()
+        if reference.source is not Source.MEMBER or reference.entry.name.rpartition('.')[0] not in foreign
+    }
+
+
+def _with_reductions(
+    specs: list[tuple[_KernelSpec, list[Law]]],
+    hybrid: _Hybrid,
+    declarations: _Declarations,
+) -> tuple[list[tuple[_KernelSpec, list[Law]]], ReductionPass]:
+    """Return laws and events whose reductions read placeholders, and the pass that evaluates the reductions."""
+    reductions = _Reductions(declarations)
+    lowered = [(spec, [_lower_law(law, spec, reductions) for law in laws]) for spec, laws in specs]
+    events = []
+    for spec, event in hybrid.events:
+        reset = {target: reductions.lower(SR(value), spec) for target, value in (event.reset or {}).items()}
+        guard = reductions.lower(SR(event.guard), spec)
+        events.append((spec, replace(event, guard=guard, reset=reset if event.reset is not None else None)))
+    hybrid.events = events
+    for spec, _ in lowered:
+        _prune_foreign(spec, declarations)
+    return lowered, ReductionPass(tuple(reductions.found.values()), reductions.parameters)
+
+
+def _is_once(spec: _KernelSpec, law: Law) -> bool:
+    """Check whether a law of a group's interaction sets single elements from reductions alone, so it runs once."""
+    if spec.rows <= 1 or spec.pairs is not None or not isinstance(law, Rate | Noise | Update | Boundary):
+        return False
+    if not all(reference.source is Source.SINGLE for reference in _target_references(law.target, spec)):
+        return False
+    expressions = [item for item in components_of(law.value) if isinstance(item, Expression)]
+    sources = {spec.references[item].source for item in symbols_of(expressions) if item in spec.references}
+    return Source.REDUCED in sources and Source.MEMBER not in sources
+
+
+def _single_references(spec: _KernelSpec) -> dict[Expression, Reference]:
+    """Return the references of a spec without its group members, for laws that run once."""
+    return {
+        item: reference
+        for item, reference in spec.references.items()
+        if reference.source is not Source.MEMBER and reference.entry.members is None
+    }
+
+
 def _lower_laws(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Declarations) -> _Lowered:
     """Return the kernels of every law kind."""
     states, parameters = Layout(declarations.states), Layout(declarations.parameters)
     lowered = _Lowered()
     assigned: dict[type, set[tuple[str, int]]] = defaultdict(set)
     for spec, laws in specs:
-        outputs: dict[type, list[Output]] = defaultdict(list)
+        outputs: dict[tuple[type, bool], list[Output]] = defaultdict(list)
         for law in laws:
             if isinstance(law, (Rule, Event, *KERNEL_FREE)):
                 continue
@@ -982,22 +1559,25 @@ def _lower_laws(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Decla
                     (_target_references(target, spec)[0], float(increment)) for target, increment in law.changes.items()
                 ]
                 lowered.jump_changes[id(output)] = changes
-                outputs[Jump].append(output)
+                outputs[(Jump, False)].append(output)
                 continue
             if isinstance(law, Equation):
                 error_msg = f'An equation of {spec.owner} reached lowering before it was solved.'
                 raise ValidationError(error_msg)
             targets = _target_references(law.target, spec)
+            once = _is_once(spec, law)
             if isinstance(law, ASSIGNED_KINDS):
-                _check_assignments(spec, law, targets, assigned[type(law)])
-            outputs[type(law)].extend(_outputs_of(law.value, targets, f'{type(law).__name__} law of {spec.owner}'))  # type: ignore[arg-type]
-        for kind, kind_outputs in outputs.items():
+                _check_assignments(spec, law, targets, assigned[type(law)], once=once)
+            outputs[(type(law), once)].extend(
+                _outputs_of(law.value, targets, f'{type(law).__name__} law of {spec.owner}'),  # type: ignore[arg-type]
+            )
+        for (kind, once), kind_outputs in outputs.items():
             lowered.kernels[kind].append(
                 Kernel(
                     spec.owner,
                     declarations.time,
-                    spec.references,
-                    spec.rows,
+                    _single_references(spec) if once else spec.references,
+                    1 if once else spec.rows,
                     states,
                     parameters,
                     spec.pairs,
@@ -1060,10 +1640,18 @@ def _equations_of(
     return equations, symbols
 
 
-def _lower(form: Form, lowered: _Lowered, declarations: _Declarations, backend: Backend) -> dict[str, object]:
+def _lower(
+    form: Form,
+    lowered: _Lowered,
+    declarations: _Declarations,
+    backend: Backend,
+    reductions: ReductionPass,
+) -> dict[str, object]:
     """Return the numeric functions and equations of a form."""
     kernels, size = lowered.kernels, sum(entry.size for entry in declarations.states)
-    functions: dict[str, object] = vars(backend.lower(form, kernels, lowered.jump_changes, size)).copy()
+    functions: dict[str, object] = vars(
+        backend.lower(form, kernels, lowered.jump_changes, size, reductions=reductions),
+    ).copy()
     functions['backend'] = backend.name
     main = {Form.ODE: kernels[Rate], Form.SDE: kernels[Rate] + kernels[Noise], Form.JUMP: kernels[Jump]}.get(
         form,
@@ -1161,7 +1749,7 @@ def _law_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
     A rule acts for the first agent group among its roles, or for its first role when none is an agent group.
     """
     if isinstance(law, Rule):
-        paths = list(spec.roles.values())
+        paths = [path for value in spec.roles.values() for path in ([value] if isinstance(value, str) else value)]
         return next((path for path in paths if path in agents), next(iter(paths), spec.owner))
     if isinstance(law, Equation | Event | Energy | Sampler):
         return spec.owner
@@ -1252,6 +1840,15 @@ def _compile_partitions(system: System, backend: str | Backend, plan: list[tuple
     )
 
 
+def _specs_of(block: _Block, elements: dict[str, _Block], time: Expression, observe: Observe) -> list[_KernelSpec]:
+    """Return the kernel specs of a component: its intrinsic laws, its pairs, or its interaction laws."""
+    if not _is_interaction(block.node):
+        return [_member_spec(block, time)]
+    if isinstance(block.node.component, PairInteraction):
+        return [_pair_spec(block, elements, time)]
+    return _interaction_specs(block, elements, time, observe)
+
+
 def _compile(system: System, backend: str | Backend, owners: frozenset[str] | None) -> Problem:
     """Return the problem of a system, keeping only the laws of the elements in `owners` when it is given."""
     nodes = flatten_system(system)
@@ -1259,19 +1856,15 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
     blocks = [declarations.declare_component(node) for node in nodes]
     _check_symbol_names(declarations.blocks)
     elements = {block.node.path: block for block in blocks if not _is_interaction(block.node)}
-    specs: list[tuple[_KernelSpec, list[Law]]] = []
+    observe = _Observer(declarations, _lowerable_observables(system, nodes))
+    collected: list[tuple[_KernelSpec, list[Law], _Block]] = []
     for block in blocks:
-        if not _is_interaction(block.node):
-            spec = _member_spec(block, declarations.time)
-        elif isinstance(block.node.component, PairInteraction):
-            spec = _pair_spec(block, elements, declarations.time)
-        else:
-            spec = _interaction_spec(block, elements, declarations.time)
-        specs.append((spec, _collect_laws(spec, _component_of(block.node))))
+        for spec in _specs_of(block, elements, declarations.time, observe):
+            laws = _collect_laws(spec, _component_of(block.node))
+            _settle_rows(spec, laws)
+            collected.append((spec, laws, block))
     orders = _Orders.of(blocks)
-    specs = _solve_equations(
-        [(spec, _with_orders(spec, laws, block, orders)) for (spec, laws), block in zip(specs, blocks, strict=True)],
-    )
+    specs = _solve_equations([(spec, _with_orders(spec, laws, block, orders)) for spec, laws, block in collected])
     noise = getattr(system, 'noise', 'ito')
     if noise not in NOISE_CONVENTIONS:
         error_msg = f'Unknown noise convention {noise!r}. Use one of {", ".join(NOISE_CONVENTIONS)}.'
@@ -1294,16 +1887,21 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
                 kinds[_law_owner(spec, law, agents)].add(type(law))
         plan = _plan_partitions(system, kinds)
         return _compile_partitions(system, backend, plan)
+    specs, reductions = _with_reductions(specs, hybrid, declarations)
     lowered = _lower_laws(specs, declarations)
     members = sum(block.node.members or 0 for block in blocks if not block.node.is_agent)
     stepwise = form in {Form.AGENT, Form.LATTICE, Form.MONTE_CARLO}
     chosen = resolve_backend('numpy' if stepwise else backend, members)
     fused = resolve_backend(backend, members).name == 'numba'
-    functions = _lower(form, lowered, declarations, chosen)
+    functions = _lower(form, lowered, declarations, chosen, reductions)
     states, parameters = Layout(declarations.states), Layout(declarations.parameters)
     functions['boundary'] = _wrapping_angles(cast('VectorFunction | None', functions.get('boundary')), states)
     functions['equations'] = _written_equations(cast('dict[str, Expression]', functions['equations']), states, fields)
     volumes, constrained = _with_discretizations(functions, specs, declarations, blocks)
+    exact = form is Form.ODE and not volumes and not constrained[0].size and not _symmetries(blocks)
+    jacobian = (
+        ExactJacobian(tuple(lowered.kernels[Rate]), reductions, states.size, declarations.time) if exact else None
+    )
     initial_state = np.concatenate([np.zeros(0), *declarations.initial_states])
     initial_state[constrained[0]] = constrained[1]
     compiled_elements = tuple(
@@ -1329,10 +1927,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         CompiledInteraction(
             path=block.node.path,
             interaction=block.node.component,
-            roles={
-                role: _resolve_role(block.node, role, elements).node.path
-                for role in declarations_of(block.node.component, VariableKind.ROLE)
-            },
+            roles=next(spec.roles for spec, _ in specs if spec.owner == block.node.path),
         )
         for block in blocks
         if _is_interaction(block.node)
@@ -1358,7 +1953,9 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         agent_space=_agent_space(blocks),
         companions=_companions(blocks),
         delays=_compile_delays(hybrid, declarations.time),
-        events=_compile_events(hybrid, declarations.time),
+        events=_compile_events(hybrid, declarations.time, reductions),
+        reductions=reductions.reductions,
+        jacobian=jacobian,
         breakpoints=_breakpoints(specs, hybrid, declarations.time),
         history=_history(system, states),
         lattice=_compile_lattice(specs, declarations, fused),
@@ -1604,19 +2201,19 @@ def _wrapping_angles(boundary: VectorFunction | None, states: Layout) -> VectorF
 
 def _role_paths(system: System, scope: str = '') -> set[str]:
     """Return the paths from the root of everything that roles of a system tree bind to."""
-    paths = {
-        f'{scope}/{value}' if scope else value
-        for interaction in system.interactions
-        for name in declarations_of(interaction, VariableKind.ROLE)
-        if isinstance(value := getattr(interaction, name), str)
-    }
+    paths = set()
+    for interaction in system.interactions:
+        for name in declarations_of(interaction, VariableKind.ROLE):
+            value = getattr(interaction, name)
+            labels = [value] if isinstance(value, str) else list(value) if isinstance(value, list | tuple) else []
+            paths |= {f'{scope}/{label}' if scope else label for label in labels if isinstance(label, str)}
     for child in system.systems:
         paths |= _role_paths(child, f'{scope}/{child.label}' if scope else child.label)
     return paths
 
 
 def _with_held_observables(system: System, read: set[str], scope: str = '') -> tuple[System, list[str]]:
-    """Return a system tree in which every observable that a role binds to is also an aggregate, and their paths."""
+    """Return a system tree in which every observable in `read` is also an aggregate, and their paths."""
     held: list[str] = []
     aggregates = []
     for observable in getattr(system, 'observables', ()):
@@ -1625,8 +2222,9 @@ def _with_held_observables(system: System, read: set[str], scope: str = '') -> t
             continue
         if observable.group is None or observable.expression is not None:
             error_msg = (
-                f'A role binds to the observable {path}, but laws read only observables that reduce a variable or '
-                'count the members of a group. Declare it with `group` and `variable`.'
+                f'A role binds to the observable {path}, which reads agents through an expression or an earlier '
+                'observable. Laws read observables of agents only when they reduce a variable or count the agents. '
+                'Declare it with `group` and `variable`.'
             )
             raise ValidationError(error_msg)
         aggregates.append(
@@ -1644,6 +2242,45 @@ def _with_held_observables(system: System, read: set[str], scope: str = '') -> t
     copied.elements = [*system.elements, *aggregates]
     copied.systems = children
     return copied, held
+
+
+def _held_observables(system: System) -> set[str]:
+    """Return the paths of the observables that roles bind to and laws read only at synchronisation points."""
+    nodes = flatten_system(system)
+    lowerable = _lowerable_observables(system, nodes)
+    declared = {_join(scope, observable.label) for scope, observable in observables_of(system)}
+    return (_role_paths(system) & declared) - set(lowerable)
+
+
+def _readers_of(problem: Problem, path: str) -> set[str]:
+    """Return the paths of the elements and groups that interactions reading an observable bind their other roles to."""
+    readers: set[str] = set()
+    for interaction in problem.interactions:
+        bound = [
+            item for value in interaction.roles.values() for item in ([value] if isinstance(value, str) else value)
+        ]
+        if path in bound:
+            readers |= set(bound) - {path}
+    return readers
+
+
+def _check_held_reads(problem: Problem, held: list[str]) -> None:
+    """Raise an error when a law reads an observable that cannot be lowered from the partition that computes it."""
+    groups = {
+        _join(scope, observable.label): _join(scope, observable.group or '')
+        for scope, observable in observables_of(problem.system)  # type: ignore[arg-type]
+    }
+    for path in held:
+        readers = _readers_of(problem, path)
+        shared = [item.name for item in problem.partitions if groups[path] in item.owners and readers & item.owners]
+        if problem.form is not Form.COUPLED or shared:
+            error_msg = (
+                f'A law reads the observable {path} in the partition that computes it, but the observable is a Python '
+                'function of the values or reduces agents, which laws cannot read at the current state. Write it '
+                'symbolically with a variable or an expression of the members, or move the reading law into another '
+                'subsystem of a different form.'
+            )
+            raise ValidationError(error_msg)
 
 
 def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
@@ -1700,14 +2337,9 @@ def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
     """
     if isinstance(system, MesaSystem):
         return _compile_mesa(system)
-    system, held = _with_held_observables(system, _role_paths(system))
+    system, held = _with_held_observables(system, _held_observables(system))
     problem = _compile(system, backend, None)
-    if held and problem.form is not Form.COUPLED:
-        error_msg = (
-            f'Laws read the observables {", ".join(held)} in a system of one form. Laws read observables only from '
-            'other partitions of a co-simulation, so move the reading laws into another subsystem of a different form.'
-        )
-        raise ValidationError(error_msg)
+    _check_held_reads(problem, held)
     return problem
 
 

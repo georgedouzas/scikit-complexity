@@ -3,53 +3,51 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
 
 import networkx as nx
 import numpy as np
-import numpy.typing as npt
 
-from ....core.base import Domain, parameter, state, vector
-from ....core.model import Element, EuclideanSpace, Field, Law, NetworkSpace, Rate, Symbols, System, laplacian
+from ....core.base import Domain, parameter, state
+from ....core.model import Element, Field, Law, NetworkSpace, Rate, Symbols, System, laplacian, total
 from ....core.runtime import register_model
 
 
-class DegreeClasses(Element):
-    """Infected densities of the classes of nodes of equal degree of a network, in heterogeneous mean field.
+class DegreeClass(Element):
+    """Infected density of the nodes of one degree of a network, in heterogeneous mean field.
 
     A node of degree `k` recovers at rate 1 and is infected at rate `lam k Theta`, where
-    `Theta = sum_k k P(k) rho_k / <k>` is the probability that an edge points to an infected node, so
-    `d rho_k / dt = -rho_k + lam k (1 - rho_k) Theta`. The densities are one vector component per class.
+    `Theta = sum_k k P(k) rho_k / <k>` is the probability that an edge points to an infected node, a total over the
+    degree classes, so `d rho_k / dt = -rho_k + lam k (1 - rho_k) Theta`. The classes are the members of a group.
 
     Args:
         label:
-            The label of the element.
+            The label of the class or the group of classes.
 
         rho:
-            The initial infected density of every class.
+            The initial infected density.
 
         lam:
             The spreading rate, the ratio of the infection and recovery rates.
 
-        degrees:
-            The degree of every class.
+        k:
+            The degree of the class.
 
-        weights:
-            The probability `P(k)` of every class.
+        P:
+            The probability `P(k)` of the degree.
 
     Examples:
-        >>> from skcomplex.models.biology.epidemiology import DegreeClasses
-        >>> DegreeClasses('network', degrees=(1, 2), weights=(0.5, 0.5)).degrees
-        (1, 2)
+        >>> from skcomplex.models.biology.epidemiology import DegreeClass
+        >>> DegreeClass.group('network', 2, k=[1.0, 2.0], P=[0.5, 0.5]).size
+        2
     """
 
-    rho: npt.ArrayLike = state(default=0.01, domain=Domain.NONNEGATIVE, vector=True)
+    rho: float = state(default=0.01, domain=Domain.NONNEGATIVE)
     lam: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    degrees: Sequence[float] = (1.0,)
-    weights: Sequence[float] = (1.0,)
+    k: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    P: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
-        """Return the recovery and the infection along edges of every class.
+        """Return the recovery and the infection along edges of the class.
 
         Args:
             s:
@@ -59,11 +57,8 @@ class DegreeClasses(Element):
             laws:
                 The laws of the component.
         """
-        degrees, weights = np.asarray(self.degrees, dtype=float), np.asarray(self.weights, dtype=float)
-        mean = float(degrees @ weights)
-        theta = sum(degree * weight * density for degree, weight, density in zip(degrees, weights, s.rho, strict=True))
-        infection = vector([s.lam * degree * (1 - density) for degree, density in zip(degrees, s.rho, strict=True)])
-        return [Rate(s.rho, -s.rho + infection * theta / mean)]
+        theta = total(s.k * s.P * s.rho) / total(s.k * s.P)
+        return [Rate(s.rho, -s.rho + s.lam * s.k * (1 - s.rho) * theta)]
 
 
 class Subpopulation(Element):
@@ -164,23 +159,18 @@ def heterogeneous_mean_field_sis(
 
     Returns:
         system:
-            The model, with the densities `network.rho`, one per degree from `k_min` to `k_max`.
+            The model, with the densities `network.rho` of the degree classes from `k_min` to `k_max`, members of the
+            group `network`.
 
     Examples:
         >>> from skcomplex.models.biology.epidemiology import heterogeneous_mean_field_sis
-        >>> len(heterogeneous_mean_field_sis(k_min=2, k_max=5).elements[0].degrees)
+        >>> heterogeneous_mean_field_sis(k_min=2, k_max=5).elements[0].size
         4
     """
     degrees = np.arange(k_min, k_max + 1, dtype=float)
     weights = degrees**-exponent / np.sum(degrees**-exponent)
-    classes = DegreeClasses(
-        'network',
-        rho=[rho] * len(degrees),
-        lam=lam,
-        degrees=tuple(degrees.tolist()),
-        weights=tuple(weights.tolist()),
-    )
-    return System(elements=[classes], space=EuclideanSpace(len(degrees)))
+    classes = DegreeClass.group('network', len(degrees), rho=rho, lam=lam, k=degrees, P=weights)
+    return System(elements=[classes])
 
 
 @register_model(

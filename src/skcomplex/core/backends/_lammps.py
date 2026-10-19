@@ -72,6 +72,15 @@ def _atoms_of(problem: Problem) -> _Atoms:
     return atoms
 
 
+def _role_path(item: CompiledInteraction, role: str) -> str:
+    """Return the path of the group or element a role of an interaction binds to."""
+    path = item.roles[role]
+    if not isinstance(path, str):
+        error_msg = f'Interaction {item.path} binds the role {role!r} to an element set, which LAMMPS does not run.'
+        raise BackendError(error_msg)
+    return path
+
+
 def _parameter(problem: Problem, p: Vector, path: str, name: str) -> Vector:
     """Return the value of a parameter of an element, group, or interaction."""
     return np.atleast_1d(np.asarray(problem.parameters.read(p, f'{path}.{name}'), dtype=float))
@@ -120,7 +129,7 @@ def _check_boxes(problem: Problem) -> list[str]:
     if reflecting:
         unsupported.append('periodic and reflecting boxes in one system')
     sizes = {float(_parameter(problem, problem.initial_parameters, item.path, 'size')[0]) for item in periodic}
-    targets = {item.roles['target'] for item in periodic}
+    targets = {_role_path(item, 'target') for item in periodic}
     if len(sizes) > 1 or targets != {element.path for element in problem.elements}:
         unsupported.append('periodic boxes that do not share one size and hold every particle')
     pairs = [item for item in problem.interactions if isinstance(item.interaction, PairPotential)]
@@ -230,7 +239,7 @@ class LammpsBackend(ExternalBackend):
             name: float(_parameter(problem, p, item.path, name)[0])
             for name in declarations_of(interaction, VariableKind.PARAMETER)
         }
-        roles = {role: Symbols(m=float(_parameter(problem, p, path, 'm')[0])) for role, path in item.roles.items()}
+        roles = {role: Symbols(m=float(_parameter(problem, p, _role_path(item, role), 'm')[0])) for role in item.roles}
         distance = symbol('r', Domain.POSITIVE)
         energy = interaction.pair_energy(Symbols(**values, **roles), distance)
         return lepton_expression(energy, distance)
@@ -275,7 +284,9 @@ class LammpsBackend(ExternalBackend):
         for item in pairs:
             cutoff = float(_parameter(problem, p, item.path, 'cutoff')[0])
             largest = max(largest, cutoff)
-            first, second = sorted((self.atoms_.types[item.roles['first']], self.atoms_.types[item.roles['second']]))
+            first, second = sorted(
+                (self.atoms_.types[_role_path(item, 'first')], self.atoms_.types[_role_path(item, 'second')]),
+            )
             if isinstance(item.interaction, LennardJones):
                 style = 'lj/cut'
                 epsilon, sigma = (float(_parameter(problem, p, item.path, name)[0]) for name in ('epsilon', 'sigma'))
@@ -300,7 +311,7 @@ class LammpsBackend(ExternalBackend):
         if atoms.n_dim == SUPPORTED_DIMENSIONS[0]:
             commands.append('fix plane all enforce2d')
         for index, item in enumerate(problem.interactions):
-            group = f'group{atoms.types[item.roles["target"]]}' if 'target' in item.roles else 'all'
+            group = f'group{atoms.types[_role_path(item, "target")]}' if 'target' in item.roles else 'all'
             interaction = item.interaction
             if isinstance(interaction, ReflectingBox):
                 size = float(_parameter(problem, p, item.path, 'size')[0])
@@ -314,7 +325,7 @@ class LammpsBackend(ExternalBackend):
                     f'fix drag{index} {group} viscous {float(_parameter(problem, p, item.path, "gamma")[0])}',
                 )
             elif isinstance(interaction, LangevinThermostat):
-                element = next(element for element in atoms.elements if element.path == item.roles['target'])
+                element = next(element for element in atoms.elements if element.path == _role_path(item, 'target'))
                 temperature, gamma = (
                     float(_parameter(problem, p, item.path, name)[0]) for name in ('temperature', 'gamma')
                 )

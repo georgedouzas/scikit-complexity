@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import I, exp
 
-from skcomplex.core.base import Domain, ValidationError, parameter, state
+from skcomplex.core.base import Domain, parameter, state
 from skcomplex.core.model import AgentType, Element, Interaction, Observable, Rate, Rule, System
 from skcomplex.core.runtime import Frame, Simulation
 from skcomplex.core.viz import RerunObserver
@@ -117,15 +117,15 @@ def test_agent_reduction_read_by_other_partition():
     assert trajectory['land/soil.n'][-1] == pytest.approx(2.0 + 3.0)
 
 
-def test_observable_read_in_one_form_is_rejected():
-    """Test that laws reading an observable of a system with one form raise an error naming the observable."""
+def test_observable_read_in_one_form_is_lowered():
+    """Test that a law reading a symbolic observable of a system with one form reads it at the current state."""
     system = System(
-        elements=[Population.group('herd', 3), Population('soil')],
+        elements=[Population.group('herd', 3, n=[1.0, 2.0, 6.0]), Population('soil')],
         interactions=[Inflow('inflow', target='soil', source='mean_n')],
         observables=[Observable('mean_n', group='herd', variable='n')],
     )
-    with pytest.raises(ValidationError, match=r'mean_n .*one form'):
-        Simulation(system).run(until=1)
+    trajectory = Simulation(system, dt=1.0).run(until=1).trajectory_
+    assert trajectory['soil.n'][-1] == pytest.approx(trajectory['soil.n'][0] + 3.0)
 
 
 def test_unknown_symbol_is_rejected():

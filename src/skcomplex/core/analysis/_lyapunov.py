@@ -128,7 +128,7 @@ def lyapunov_spectrum(
 
     Raises:
         AnalysisError:
-            The system is not an ODE or a discrete map, has callable laws, or has groups.
+            The system is not an ODE or a discrete map, has callable laws, or has a group above the member limit.
 
     Examples:
         >>> from skcomplex.core.analysis import lyapunov_spectrum

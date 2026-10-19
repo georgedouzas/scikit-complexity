@@ -15,6 +15,7 @@ from ..base import BackendError, Form, Registry
 from ..model import Boundary, Jump, Noise, Rate, Update
 from ._kernels import Indices, Kernel, Reference, add_into, assign_into, jump_channels, noise_rows
 from ._problem import Accelerated, JumpChannels, Vector, VectorFunction
+from ._reductions import ReductionPass
 
 AUTO_MEMBERS = 1000
 
@@ -74,6 +75,8 @@ class Backend(BaseEstimator):
         kernels: Mapping[type, list[Kernel]],
         changes: Mapping[int, list[tuple[Reference, float]]],
         size: int,
+        *,
+        reductions: ReductionPass | None = None,
     ) -> Lowering:
         """Return the numeric functions of a form.
 
@@ -89,6 +92,9 @@ class Backend(BaseEstimator):
 
             size:
                 The size of the state vector.
+
+            reductions:
+                The reductions the kernels read, evaluated before them at every evaluation, or `None`.
 
         Returns:
             lowering:
@@ -172,6 +178,27 @@ def concatenating_function(kernels: list[Kernel]) -> VectorFunction:
     return evaluate
 
 
+def with_reductions(lowering: Lowering, reductions: ReductionPass | None) -> Lowering:
+    """Return a lowering whose functions evaluate the reductions at the state they receive before their kernels.
+
+    Args:
+        lowering:
+            The functions of the extended parameter vector.
+
+        reductions:
+            The reductions, or `None`.
+
+    Returns:
+        lowering:
+            The functions of the parameter vector.
+    """
+    if reductions is None or not reductions.reductions:
+        return lowering
+    for name in ('drift', 'diffusion', 'propensities', 'update', 'boundary'):
+        setattr(lowering, name, reductions.wrap(getattr(lowering, name)))
+    return lowering
+
+
 class NumpyBackend(Backend):
     """Reference backend that evaluates every kernel with NumPy array operations.
 
@@ -191,6 +218,8 @@ class NumpyBackend(Backend):
         kernels: Mapping[type, list[Kernel]],
         changes: Mapping[int, list[tuple[Reference, float]]],
         size: int,
+        *,
+        reductions: ReductionPass | None = None,
     ) -> Lowering:
         """Return the numeric functions of a form evaluated with NumPy.
 
@@ -206,6 +235,9 @@ class NumpyBackend(Backend):
 
             size:
                 The size of the state vector.
+
+            reductions:
+                The reductions the kernels read, evaluated before them at every evaluation, or `None`.
 
         Returns:
             lowering:
@@ -224,7 +256,7 @@ class NumpyBackend(Backend):
             lowering.jumps = jump_channels(kernels.get(Jump, []), changes)
         if form is Form.DISCRETE:
             lowering.update = assigning_function(kernels.get(Update, []))
-        return lowering
+        return with_reductions(lowering, reductions)
 
 
 BACKENDS = Registry[type[Backend]]('backend')

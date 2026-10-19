@@ -320,8 +320,32 @@ order = Simulation(oscillators, dt=1.0).run(until=50).trajectory_['order']
 print(round(float(order[0]), 3), round(float(order[-1]), 3))
 ```
 
-A law reads a reduction observable of another partition through a role bound to the observable's path, as it reads an
-aggregate, so agents and equations exchange macroscopic quantities in a co-simulation.
+A law reads an observable through a role bound to the observable's path, as `s.<role>.value`. A symbolic observable,
+an expression or a reduction with a string `reduce` over an element group, is read at the current state by laws of its
+own partition, and the compiled problem evaluates it before the law, so the value the law reads equals the recorded
+value at every frame. A law of another partition reads the observable as held at the last synchronisation point, so
+agents and equations exchange macroscopic quantities in a co-simulation. An observable with a Python function as
+`reduce`, or one over agents, is read only from another partition, and reading it in its own partition raises an error.
+
+```python
+from sage.all__sagemath_symbolics import cos, sin
+
+MeanField = Interaction.define(
+    'MeanField',
+    roles=['target', 'X', 'Y'],
+    parameters={'K': 1.0},
+    laws=lambda s: [Rate(s.target.theta, s.K * (s.Y.value * cos(s.target.theta) - s.X.value * sin(s.target.theta)))],
+)
+coupled = System(
+    elements=[Oscillator.group('phases', 100, theta=np.linspace(0, 6, 100), omega=np.linspace(0.9, 1.1, 100))],
+    interactions=[MeanField('coupling', target='phases', X='X', Y='Y', K=2.0)],
+    observables=[
+        Observable('X', lambda member: cos(member.theta), group='phases'),
+        Observable('Y', lambda member: sin(member.theta), group='phases'),
+    ],
+)
+print(Simulation(coupled, dt=1.0).run(until=20).trajectory_['X'][-1].round(2))
+```
 
 ## The model library
 
@@ -448,10 +472,97 @@ print(trajectory['gas.x'].shape)
 
 - A value is an array whose first dimension is the size of the group, or one value shared by every member.
 - An interaction whose role binds to a group applies to every member. A single element bound next to the group
-  receives the sum over the members.
+  receives the sum over the members, unless its law reads the group only through reductions.
 - Group variables are named by the group path, such as `gas.x` with shape `(10000, 2)`, and a group parameter takes
   one value for every member or one value per member in `update_parameters`.
 - `ideal_gas(n_molecules, kT=..., size=...)` builds a gas of non-interacting molecules in a reflecting box.
+
+### Reductions over a group
+
+`total`, `mean`, `maximum`, `minimum`, `variance`, and `count` reduce an expression over the members of a group inside
+any law. Inside the reduction, the symbols of a member stand for the reduced member, and outside it for the reading
+member, so `Rate(s.x, -s.x + tanh(total(s.x)))` reads the group total in every member's own law. A reduction is
+evaluated once per evaluation, before the member laws, at a cost linear in the size of the group, on NumPy and Numba.
+
+- `where` selects the members with a condition on the reduced member, such as `count(where=s.x > 0.5)`. The reductions
+  of no selected member are 0.
+- `weights` gives `total` and `mean` a constant matrix, a NumPy array or a SciPy sparse matrix, with one row per
+  reading member and one column per reduced member, so member `i` reads `sum_j W_ij a_j`, such as a payoff matrix.
+- `over` names the group by its namespace, such as `over=s.neurons`, when the expression reads no symbol of it.
+- A reduction reads one group, and an argument that reads two groups raises an error. Reductions nest, so the mean
+  fitness `total(s.x * total(s.x, weights=A))` of replicator dynamics evaluates the inner reduction first.
+- An interaction acts on one group and reads others through reductions. A law that sets a single element from
+  reductions alone runs once, not once per member.
+- Discrete maps read the reductions at step `n`, jump propensities after every event, and events at the state they
+  receive.
+
+```python
+from sage.all__sagemath_symbolics import tanh
+
+from skcomplex.core.model import total
+
+Unit = Element.define('Unit', states={'x': 0.0}, laws=lambda s: [Rate(s.x, -s.x + tanh(total(s.x)))])
+units = System(elements=[Unit.group('units', 50, x=np.linspace(-1, 1, 50))])
+print(Simulation(units, dt=0.5).run(until=2).trajectory_['units.x'][-1, :3].round(3))
+
+payoff = np.array([[-0.5, 2.0], [0.0, 1.0]])
+Strategy = Element.define('Strategy', states={'x': 0.5})
+Replication = Interaction.define(
+    'Replication',
+    roles=['population'],
+    laws=lambda s: [
+        Rate(
+            s.population.x,
+            s.population.x
+            * (total(s.population.x, weights=payoff) - total(s.population.x * total(s.population.x, weights=payoff))),
+        ),
+    ],
+)
+game = System(
+    elements=[Strategy.group('population', 2, x=[0.1, 0.9])],
+    interactions=[Replication('replication', population='population')],
+)
+print(Simulation(game, dt=1.0).run(until=40).trajectory_['population.x'][-1].round(3))
+```
+
+A role also binds to an element set, a list of single elements of one type. The interaction's laws apply to each
+element, the elements keep their own state names, and reductions over the role reduce over the set.
+
+```python
+Inhibition = Interaction.define(
+    'Inhibition',
+    roles=['units'],
+    parameters={'beta': 2.0},
+    laws=lambda s: [Rate(s.units.x, s.units.x * (1 - s.units.x) - s.beta * s.units.x * (total(s.units.x) - s.units.x))],
+)
+Activity = Element.define('Activity', states={'x': 0.1})
+network = System(
+    elements=[Activity(f'unit_{index}', x=0.1 * (index + 1)) for index in range(3)],
+    interactions=[Inhibition('inhibition', units=['unit_0', 'unit_1', 'unit_2'])],
+)
+print(Simulation(network, dt=1.0).run(until=30).state_.round(3))
+```
+
+### Jacobians of reductions
+
+A reduction makes every reading member depend on every reduced member, so the Jacobian of a drift with reductions has
+the rank-one block `dF_i/dR dR/dx_j` of every reduction `R`. `problem.jacobian` of an ODE problem evaluates the exact
+Jacobian by the chain rule through every reduction, as a SciPy sparse matrix, and `problem.jacobian.pattern()` states
+its structure. When the dense blocks of the reductions exceed 4 million entries, `pattern()` returns `None` and an
+implicit solver estimates a dense Jacobian. Mean-field groups are rarely stiff, so explicit steppers such as `RK4` and
+`ScipyODE` with `RK45` suit large groups with reductions.
+
+```python
+from skcomplex.core.compile import compile_system
+
+problem = compile_system(units)
+jacobian = problem.jacobian(0.0, problem.initial_state, problem.initial_parameters)
+print(jacobian.shape, problem.jacobian.pattern().nnz)
+```
+
+`dynamics_of`, `fixed_points`, `stability`, and `jacobian` of `skcomplex.core.analysis` expand a group of at most 64
+members into one equation per member, with every reduction written as an explicit sum, so the fixed points of
+replicator dynamics are derived symbolically. A larger group raises an error that states the limit.
 
 ### Pair interactions
 
