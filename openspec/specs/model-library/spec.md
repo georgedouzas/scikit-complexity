@@ -155,3 +155,11 @@ The library SHALL provide, as registered factories written in their natural orde
 #### Scenario: Circuit and oscillator agree
 - **WHEN** the RLC circuit and the damped oscillator run with matching coefficients `L = m`, `R = c`, and `1 / C = k`
 - **THEN** the charge and the displacement trajectories are identical
+
+### Requirement: Nonlinear dynamics models
+The library SHALL provide the Lorenz, Rössler, Hénon, logistic map, Duffing, Van der Pol, and Hénon-Heiles models as
+registered factories with their standard parameters.
+
+#### Scenario: Strange attractor
+- **WHEN** a user runs the Lorenz model with its defaults for 50 time units
+- **THEN** the trajectory stays bounded and visits both lobes of the attractor
