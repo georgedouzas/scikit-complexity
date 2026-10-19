@@ -230,6 +230,9 @@ to fill in as the project takes shape.
   analysis, `scikit-fem` for finite-element assembly on unstructured meshes, and `scikit-learn` for the
   estimator contract. Rerun is a core dependency,
   and spawning a local viewer happens only on request, so it is not a real-world side effect.
+- Dependency placement: a library that `skcomplex.core` uses MUST be a runtime dependency, whatever its licence,
+  including copyleft licences such as that of `passagemath-symbolics`. An optional extra MUST hold only libraries that a
+  model of `skcomplex.models` alone needs, and a model that needs one MUST raise a named error naming the extra.
 - Symbolic layer: Sage is imported only through `sage.all__sagemath_symbolics` and the modules it loads, and the
   framework prints expressions to NumPy, Numba, and Lepton code itself. SymPy is installed as a dependency of
   passagemath, but importing it is banned by a `ruff` rule, and laws reject SymPy values.
@@ -250,4 +253,4 @@ to fill in as the project takes shape.
 - Extension points: solvers, visuals, and any other registry in `skcomplex.core.base` accept new entries without changes to
   existing modules. Base classes users subclass are `Element`, `AgentType`, `Interaction`, `PairInteraction`, `Potential`,
   `PairPotential`, `Backend`, `Stepper`, `ExternalBackend`, `Clock`, `Observer`, and `Visual`.
-**Version**: 1.4.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-19
+**Version**: 1.5.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-19

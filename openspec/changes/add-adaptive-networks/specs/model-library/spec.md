@@ -38,6 +38,7 @@ twice.
   - `holme_kim` in `mathematics/networks`
   - `vertex_copying` in `mathematics/networks`
   - `network_attack` in `mathematics/networks`
+  - `random_graph_ensembles` in `mathematics/networks`
 
 #### Scenario: New model recorded
 - **WHEN** the change registers a model with no inventory entry

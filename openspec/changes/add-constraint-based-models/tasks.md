@@ -8,6 +8,9 @@
   passes on the new lock
 - [ ] 1.2 Add `MissingExtraError` as a `BackendError` and `InfeasibleError` as a `SolverError` in the errors module,
   and verify the missing extra scenario with the extra hidden from imports
+- [ ] 1.3 Add the `polyhedra` extra with `pplpy>=0.9.0`, raise the SciPy floor to 1.16, add mfapy pinned to a Git
+  commit in the test group, and teach deptry the optional import. Check the macOS version of the CI runners against the
+  macOS 15 wheels, and verify the missing polyhedra extra scenario with `ppl` hidden from imports
 
 ## 2. Networks and the core solve
 
@@ -43,26 +46,51 @@
 - [ ] 4.4 Add `fseof`, `steadycom`, and `join_networks` in `skcomplex.core.analysis`, and `cooperative_tradeoff` in
   the backends. Verify the scan toward a product, identical members, and trade-off scenarios
 
-## 5. Visuals
+## 5. Enumeration and labelling
 
-- [ ] 5.1 Add `FluxVisual` with the bar chart, objective series, and seeded graph layout, and make `ImageVisual` the
+- [ ] 5.1 Add `extreme_rays` in `skcomplex.core.backends._ppl` with the `cysignals` time limit and
+  `EnumerationLimitError`, and verify the domain-agnostic circulation and genome-scale network scenarios
+- [ ] 5.2 Add `elementary_modes` and `extreme_pathways` in `skcomplex.core.analysis`, and verify the toy network modes,
+  optimum as a combination of modes, knock-out removes modes, non-zero balance, and pathways and modes scenarios
+- [ ] 5.3 Add `FluxModes`, `Enumerate`, the enumeration form, `ModeStepper`, and the trajectory `axis`, and verify the
+  modes as frames and enumerated network scenarios
+- [ ] 5.4 Add `AtomMap`, `Tracer`, and `Fragment` with schema validation, and verify the valid map, unbalanced letters,
+  and inconsistent atom count scenarios
+- [ ] 5.5 Add the EMU lowering to `LabellingProblem`, `EmuSolver`, and `simulate_labelling`, and verify the published
+  TCA example, unlabelled tracer, and symmetric pool scenarios, with the mfapy parity test
+- [ ] 5.6 Add `LabellingExperiment`, `Estimate`, `estimate_fluxes` with seeded HiGHS starts, linear and profile
+  intervals, and the chi-square test, and verify the noise-free data, reproducible starts, data that cannot be fitted,
+  noisy data, and unidentifiable exchange scenarios
+- [ ] 5.7 Add the estimation form and `EstimationStepper` on the `least_squares` callback, and verify the iterations as
+  frames, labelling experiment, and estimation beside dynamics scenarios
+
+## 6. Visuals
+
+- [ ] 6.1 Add `FluxVisual` with the bar chart, objective series, and seeded graph layout, and make `ImageVisual` the
   default for lattice networks. Verify the flux bar chart, flux graph, and growth per site scenarios
+- [ ] 6.2 Log runs indexed by mode or iteration on their own sequence timeline with a matching time panel, and add
+  `LabellingVisual`. Verify the modes on a timeline and fit converges in the viewer scenarios
 
-## 6. Library and gallery
+## 7. Library and gallery
 
-- [ ] 6.1 Add `flux_balance` and `metabolic_perturbations` to `biology/systems_biology`, and verify their scenarios
-- [ ] 6.2 Add `dynamic_fba` and `regulatory_fba` to `biology/systems_biology`, and verify their scenarios
-- [ ] 6.3 Add `dynamic_multispecies_fba`, `comets`, and `community_fba` to `biology/ecology`, and verify their
+- [ ] 7.1 Add `flux_balance` and `metabolic_perturbations` to `biology/systems_biology`, and verify their scenarios
+- [ ] 7.2 Add `dynamic_fba` and `regulatory_fba` to `biology/systems_biology`, and verify their scenarios
+- [ ] 7.3 Add `dynamic_multispecies_fba`, `comets`, and `community_fba` to `biology/ecology`, and verify their
   scenarios
-- [ ] 6.4 Move the seven inventory entries from pending to implemented with their sources in Raman 2021. Verify the
-  inventory registered and models that need the extra scenarios
-- [ ] 6.5 Add the seven gallery examples with their thumbnails, analysis plots, and captions. Install the extra in the
-  tests, docs, and gallery sessions, and verify the dynamic FBA example and coverage scenarios within the budget
+- [ ] 7.4 Add `elementary_flux_modes` and `carbon_13_mfa` to `biology/systems_biology`, and verify the toy network
+  modes and the FBA optimum, yield of a knock-out, recovered fluxes, and published labelling pattern scenarios
+- [ ] 7.5 Move the seven inventory entries from pending to implemented, and `elementary_flux_modes` and
+  `carbon_13_mfa` from out of scope to implemented, with their sources in Raman 2021. Verify the inventory registered,
+  models that need the extra, and models outside the inventory's earlier scope scenarios
+- [ ] 7.6 Add the nine gallery examples with their thumbnails, analysis plots, and captions. Install both extras in the
+  tests, docs, and gallery sessions, and verify the dynamic FBA example, carbon-13 flux analysis example, and coverage
+  scenarios within the budget
 
-## 7. Documentation and gate
+## 8. Documentation and gate
 
-- [ ] 7.1 Document networks, switches, bound laws, the coupling forms, the analyses, the extra, and the licence of its
-  environment in the user guide, and verify that the documentation test passes
-- [ ] 7.2 Add a CI job on a default install without the extra, and verify the default install stays importable
+- [ ] 8.1 Document networks, switches, bound laws, the coupling forms, the analyses, elementary modes and extreme
+  pathways, atom maps, labelling simulation, flux estimation, runs indexed by mode or iteration, the extras, and the
+  licences of their environments in the user guide, and verify that the documentation test passes
+- [ ] 8.2 Add a CI job on a default install without the extras, and verify the default install stays importable
   scenario
-- [ ] 7.3 Run formatting, checks, the docs build, and tests through nox, and verify that all of them pass
+- [ ] 8.3 Run formatting, checks, the docs build, and tests through nox, and verify that all of them pass

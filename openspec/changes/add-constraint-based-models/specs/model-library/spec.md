@@ -76,6 +76,35 @@ abundances, SteadyCom, and, with the extra, the cooperative trade-off (Raman Eq.
   joined
 - **THEN** each member alone has zero growth, and the community has positive growth with both members active
 
+### Requirement: Elementary flux modes model
+The library SHALL provide `elementary_flux_modes`, which enumerates the elementary flux modes and extreme pathways of a
+metabolic network (Raman 2021 §9.8), Raman's toy network of Table 8.2 by default, ordered by growth yield on the
+substrate, with one frame per mode. It SHALL need the extra `polyhedra`.
+
+#### Scenario: Toy network modes and the FBA optimum
+- **WHEN** `elementary_flux_modes` runs with its defaults
+- **THEN** it records 2 modes, each with growth yield `1/12` on `A` and `v6 = 20 · vbio`, and the FBA optimum of growth
+  50 is their non-negative combination within 1e-9, so its maximum is set by the bound 1000 on `v6`
+
+#### Scenario: Yield of a knock-out
+- **WHEN** `elementary_flux_modes` runs with `v1` knocked out
+- **THEN** it records 1 mode, through `v2` and `v3`, with the same growth yield `1/12`
+
+### Requirement: Carbon-13 metabolic flux analysis model
+The library SHALL provide `carbon_13_mfa`, which estimates the fluxes of a network with atom transitions from
+labelling data of parallel tracer experiments (Raman 2021 §9.7), with confidence intervals and a goodness-of-fit test.
+By default it SHALL use the TCA example network of Antoniewicz et al. (2007) with data simulated from known fluxes plus
+seeded noise, and it SHALL accept user networks and measurements. It SHALL run without any extra.
+
+#### Scenario: Recovered fluxes
+- **WHEN** `carbon_13_mfa` runs with its defaults, noise of standard deviation 0.002, and seed 0
+- **THEN** the estimated split of α-ketoglutarate, `v3` and `v4`, is within 2 of the true 50 and 50, every net flux's
+  95% interval contains its true value, and the chi-square test accepts the fit at the 5% level
+
+#### Scenario: Published labelling pattern
+- **WHEN** `carbon_13_mfa` simulates glutamate with the true fluxes and the tracer of Antoniewicz et al. (2007)
+- **THEN** the distribution is `[0.3464, 0.2695, 0.2708, 0.0807, 0.0286, 0.0039]` within 5e-5
+
 ### Requirement: Constraint-based models have gallery examples
 Each model of this change SHALL have a gallery example at `docs/examples/biology/<subfield>/plot_<name>.py` that runs
 within the gallery budget. It SHALL show its Rerun primary view as the thumbnail and at least one analysis plot from
@@ -86,9 +115,15 @@ its own run, with a caption stating the behaviour shown.
 - **THEN** its thumbnail is the Rerun series of biomass and glucose. Below it, a plot of the logarithm of biomass
   against time shows a fitted slope of 0.874 h⁻¹ and the plateau after glucose depletion.
 
+#### Scenario: Carbon-13 flux analysis example
+- **WHEN** a user opens the `carbon_13_mfa` example page
+- **THEN** its thumbnail is the Rerun pool-process graph with the estimated fluxes at the last iteration. Below it, a
+  plot shows the estimated net fluxes with their 95% intervals against the true fluxes, and a plot shows the measured
+  and simulated glutamate distributions.
+
 #### Scenario: Coverage of the new models
 - **WHEN** the gallery coverage check runs after this change
-- **THEN** each of the seven models has exactly one example, and the check names any that does not
+- **THEN** each of the nine models has exactly one example, and the check names any that does not
 
 ### Requirement: Models are recorded in the model inventory
 Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
@@ -104,7 +139,15 @@ inventory, and a model the inventory records as pending this change SHALL regist
   - `dynamic_multispecies_fba` in `biology/ecology`
   - `comets` in `biology/ecology`
   - `community_fba` in `biology/ecology`
+  - `elementary_flux_modes` in `biology/systems_biology`
+  - `carbon_13_mfa` in `biology/systems_biology`
 
 #### Scenario: Models that need the extra
 - **WHEN** a user without the extra `metabolism` creates a model that needs it
 - **THEN** a named error names the model and the extra, and `flux_balance` with its default toy network still runs
+
+#### Scenario: Models outside the inventory's earlier scope
+- **WHEN** the inventory check runs after this change
+- **THEN** `elementary_flux_modes` and `carbon_13_mfa`, which the inventory recorded as out of scope, are recorded as
+  implemented with the sources `Rm 9.8` and `Rm 9.7`, and the `polyhedra` extra is named in the docstring of
+  `elementary_flux_modes`

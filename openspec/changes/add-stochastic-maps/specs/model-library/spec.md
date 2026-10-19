@@ -37,3 +37,11 @@ poses it.
   probabilities 0.7 and 0.3
 - **THEN** the share of steps that used the first function is 0.7 within three standard errors
 
+### Requirement: Bertin models on stochastic maps
+The library SHALL provide `random_walk_with_memory` in `mathematics/stochastic_processes` and `diluted_hopfield` in `computer_science/neural_networks`, as Bertin 2021 poses them and the model inventory records them, built on this
+change's capability, each with a gallery example.
+
+#### Scenario: Registered under the inventory names
+- **WHEN** the change is applied and the inventory check runs
+- **THEN** both models are registered under their field paths and marked implemented
+

@@ -5,9 +5,11 @@
 ### Requirement: The form is inferred from the law kinds
 Compiling a system SHALL infer its form from the law kinds it contains: rate laws alone give an ODE, rate and noise
 laws give an SDE, jump laws alone give a jump process, update laws alone give a discrete map, and solve laws alone give
-a constraint form. Solve laws with rate laws give an ODE and with update laws a map, both solving first. Bound and
-switch laws SHALL NOT change the form. Different forms SHALL split into partitions, and only one subsystem that mixes
-law kinds of no one form SHALL be rejected.
+a constraint form. Solve laws with rate laws give an ODE and with update laws a map, both solving first. An enumerate
+law alone SHALL give an enumeration form and an estimate law alone an estimation form, whose frames are indexed by mode
+or by iteration instead of time. Bound and switch laws SHALL NOT change the form. Different forms SHALL split into
+partitions, and only one subsystem that mixes law kinds of no one form SHALL be rejected. An enumerate or estimate law
+SHALL NOT share a system with laws of another kind.
 
 #### Scenario: Deterministic ecology
 - **WHEN** a system contains only rate laws
@@ -37,3 +39,15 @@ law kinds of no one form SHALL be rejected.
 #### Scenario: Network beside an ODE subsystem
 - **WHEN** a constraint network sits in a sibling subsystem of a subsystem with rate laws
 - **THEN** compiling produces a constraint partition and an ODE partition
+
+#### Scenario: Enumerated network
+- **WHEN** a system contains only a network declared for enumeration
+- **THEN** the compiled problem has the enumeration form, and its frames are indexed by mode
+
+#### Scenario: Labelling experiment
+- **WHEN** a system contains only a labelling experiment
+- **THEN** the compiled problem has the estimation form, and its frames are indexed by iteration
+
+#### Scenario: Estimation beside dynamics
+- **WHEN** a system holds a labelling experiment and a subsystem with rate laws
+- **THEN** compiling raises a named error that names both subsystems and says that an estimation runs alone

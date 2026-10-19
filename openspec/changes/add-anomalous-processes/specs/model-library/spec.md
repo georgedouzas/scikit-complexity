@@ -42,3 +42,12 @@ fractional Brownian motion in `physics/soft_matter` as implemented.
 - **WHEN** the inventory is read after this change
 - **THEN** no entry has the status `blocked add-anomalous-processes`, and each of the four models resolves to a
   registered factory under `physics/soft_matter`
+
+### Requirement: Lévy flights and trap models
+The library SHALL provide `levy_flight` in `physics/soft_matter` and `trap_model` in `physics/statistical_mechanics`, as Bertin 2021 poses them and the model inventory records them, built on this
+change's capability, each with a gallery example.
+
+#### Scenario: Registered under the inventory names
+- **WHEN** the change is applied and the inventory check runs
+- **THEN** both models are registered under their field paths and marked implemented
+

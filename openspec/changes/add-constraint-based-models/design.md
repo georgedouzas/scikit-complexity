@@ -15,6 +15,11 @@ Nothing in the core is a decision variable fixed by an optimisation at a point i
 models need. Raman's static optimisation approach (Eqs. 9.8–9.9) solves the LP at `t_k`, holds the fluxes, and
 integrates the exchange ODEs over `Δt`. This is the co-simulation contract with a new kind of partition.
 
+Two more models, elementary flux modes (Raman §9.8) and carbon-13 metabolic flux analysis (§9.7), were recorded as out of
+scope because nothing in them evolves in time. One enumerates the generators of a polyhedral cone, and the other fits
+fluxes to labelling data. Both are built on the same networks, and both run through `create` and `run` with frames
+indexed by what the computation produces: the modes, or the iterations of the fit.
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -27,6 +32,8 @@ integrates the exchange ODEs over `Δt`. This is the co-simulation contract with
   StrainDesign, and MICOM through an optional extra, so the core holds only the adapters.
 - Keep the core domain-agnostic. Pools, processes, and switches mean metabolites, reactions, and genes in metabolism,
   and goods, routes, and facilities in a supply chain.
+- Enumerate the elementary modes and extreme pathways of a network exactly, and estimate fluxes from labelling data with
+  intervals and a goodness-of-fit test, as runs whose frames are modes or fit iterations.
 
 **Non-Goals:**
 
@@ -37,6 +44,13 @@ integrates the exchange ODEs over `Δt`. This is the co-simulation contract with
 - Commercial solvers. COBRApy can still use them when the user installs one, but no test depends on them.
 - Shipping genome-scale model files in the package. The E. coli core model is the `textbook` model that COBRApy
   bundles, and the other BiGG models are downloaded on request.
+- Enumerating the elementary modes of genome-scale networks. Even E. coli core has too many modes for an exact
+  double-description enumeration within minutes, and the time limit says so. Elementary flux vectors of bounded
+  polyhedra and minimal cut sets from modes are left out too, since StrainDesign already computes minimal cut sets.
+- Isotopically non-stationary and dynamic 13C-MFA. They are ODEs of the labelling states and can follow on the same atom
+  maps as a rate-law form.
+- Correction of measured distributions for natural isotope abundance. Measurements are taken as corrected, as IsoCor
+  (GPL-3.0+) does it, and tracer design by optimisation is left to the user.
 
 ## Decisions
 
@@ -85,6 +99,51 @@ StrainDesign with SCIP found an OptKnock design for succinate with up to three k
 growth is 9.665, against 0 for the wild type. MICOM built its four-member test community and ran the cooperative
 trade-off in 0.4 s.
 
+### Library survey: enumerating the flux cone
+
+Checked on 2026-10-19 against PyPI and GitHub, with spike installs in a fresh Python 3.13 environment on macOS arm64:
+
+| Library | Version (date) | Licence | Wheels for Linux and macOS, 3.12–3.13 | Maintenance | Decision |
+|---|---|---|---|---|---|
+| `pplpy` (Parma Polyhedra Library) | 0.9.0 (2026-03-24) | GPL-3.0+, with `gmpy2` 2.3.2 and `cysignals` 1.13.1 under LGPL-3.0+ | cp312, cp313, and cp314 for manylinux and musllinux x86_64 and aarch64, and macOS 15 x86_64 and arm64; installed from wheels in the spike | maintained by the SageMath developers, last push 2026-03 | adopt, behind the new extra `polyhedra` |
+| `pycddlib` (cddlib) | 3.0.2 (2025-01-13) | GPL-2.0+ | Windows wheels only. The spike's build failed for want of `cddlib/setoper.h` | active, last push 2026-08 | reject, no Linux or macOS wheels |
+| `efmtool` | 0.2.1 (2023-03-23) | BSD | pure Python, but drives the Java efmtool through `JPype1`, so it needs a JVM. The spike installed it and failed to start without one | no release since 2023 | reject, a JVM cannot be a pip dependency |
+| `efmtool_link` | 0.0.9 (2025-03-12) | Apache-2.0 | sdist only, needs Java and `cobra` | CNApy's link | reject, as `efmtool` |
+| efmlrs | 2.3.6 (2021-06-25) | GPL-3.0 | pure Python, pins `cobra==0.17.1`, `numpy==1.18.1`, and `pandas==1.0.1`, and needs the external `mplrs` | inactive | reject, uninstallable on 3.12 |
+| ecmtool | 0.1.12 (2021-06-05) | MIT | sdist only, on `pycddlib` or `mplrs` | last push 2024-06 | reject, computes conversion modes, not modes, and inherits `pycddlib`'s builds |
+| `polytope` | 0.2.5 (2024-03-07) | BSD | sdist | low activity | reject, no exact ray enumeration |
+
+The spike, run on `pplpy` 0.9.0:
+- Raman's toy network of Table 8.2, split into 13 irreversible columns, gave 2 extreme rays in 0.2 ms, which are the 2
+  elementary modes after the map back. Normalised to `b1 = 1`, both have `vbio = 1/12` and `v6 = 5/3`. With every bound
+  at 1000, the FBA optimum of growth 50 takes `v6 = 1000`, so it is 1000/20, and the FVA ranges of Eq. 8.12 are the
+  mixtures of the 2 modes.
+- The circulation cone of the complete directed graph on 4 nodes gave 20 extreme rays, the 20 simple cycles of
+  `networkx.simple_cycles`.
+- E. coli core (95 processes, 46 reversible) with a glucose-only aerobic medium, and an anaerobic variant of 91 processes,
+  did not finish within 4 minutes. Genome-scale enumeration is a non-goal, and the time limit turns it into an error.
+
+### Library survey: labelling simulation and flux estimation
+
+| Library | Version (date) | Licence | Install on 3.12–3.13 | Maintenance | Decision |
+|---|---|---|---|---|---|
+| FreeFlux | 0.3.8 (2026-03-18) | GPL-3.0 | pins `numpy<1.23`, `scipy<1.9`, `pandas~=1.0`, and `pyomo<=6.5`, which have no 3.12 wheels | last push 2026-05 | reject, uninstallable |
+| 13CFLUX v3 (`x3cflux`) | 3.1.2 (2026-10-15) | AGPL-3.0 | cp312 and cp313 wheels for Linux x86_64 and macOS arm64 only. It requires `cyipopt` 1.7.0, which is sdist only, and the spike's install failed building it | very active, the fastest engine | reject for now, no aarch64 Linux or Intel macOS wheels and a dependency that needs a system Ipopt |
+| mfapy | 0.6.3 (2025-07-07) | MIT | not on PyPI. Installs from GitHub as pure Python with `nlopt` 2.11.0 wheels, and imports on 3.13 | low activity | reference in the test group, not a dependency, since a published extra cannot name a Git URL |
+| influx_si | 7.4.3 (2026-02-09) | GPL-2.0+ | sdist, needs R ≥ 3.4 with `nnls`, `rmumps`, and other R packages | active | reject, needs an R runtime |
+| INCA, Metran, OpenFLUX | n/a | proprietary or MATLAB | MATLAB | n/a | reject |
+| IsoCor | 2.2.4 (2026-06-16) | GPL-3.0+ | pure Python | active | out of scope, natural abundance correction |
+
+The spike ran mfapy's TCA example of Antoniewicz et al. (2007), after renaming its stale `set_constrain` call:
+- the simulated glutamate distribution was `[0.3464, 0.2695, 0.2708, 0.0807, 0.0286, 0.0039]`, the published one;
+- a fit to noise-free data from two parallel tracers, 50% [1-13C] and 50% [1,2-13C] acetyl-CoA, with 20 starts took
+  1.1 s. It recovered every net flux exactly with a residual sum of squares of 8e-32, but put the fumarase exchange at
+  72.4 for a true 75, so the data do not identify that exchange.
+
+So no maintained library can be a dependency, and the elementary metabolite unit (EMU) algorithm and the fit are built
+in house. Both are thin over SciPy: a sparse LU per unit size and `least_squares`. mfapy is the parity reference in the
+tests, and an adapter to `x3cflux` can follow once its wheels cover the supported platforms.
+
 ### Licensing: highspy in the core, COBRApy behind an extra
 
 The project is MIT. COBRApy is dual LGPL-2.0+ or GPL-2.0+, and it always installs `swiglpk`, which is GPL-3.0.
@@ -100,6 +159,10 @@ The project is MIT. COBRApy is dual LGPL-2.0+ or GPL-2.0+, and it always install
   installing the extra brings GPL-3.0 code (GLPK) into the environment. A redistributed environment with the extra is
   then governed by that licence, but the MIT source is not.
 - deptry learns that the three packages are optional imports.
+- `pplpy` is GPL-3.0+ and goes into its own extra, `polyhedra = ["pplpy>=0.9.0"]`, because enumeration is a general
+  polyhedral capability that does not need COBRApy. Only `skcomplex.core.backends._ppl` imports it, lazily, and a
+  missing extra raises `MissingExtraError` naming `polyhedra`. The user guide states that the extra brings GPL-3.0 PPL
+  and LGPL-3.0 `gmpy2` and `cysignals`.
 
 Can optlang or HiGHS alone replace COBRApy for the static LP path?
 - optlang alone does not help. It is only a modelling layer, it depends on `swiglpk` (GPL-3.0) and `sympy`, it holds no
@@ -283,6 +346,105 @@ drift from the reference.
   abundance-weighted sum of member growth. This gives joint and community FBA (Raman Eq. 11.3) as a plain network, so
   every analysis applies to it.
 
+### Enumerating the flux cone
+
+`skcomplex.core.backends._ppl` holds one general function, `extreme_rays(equalities, nonnegative)`. It takes an integer
+matrix of equalities and the indices of the non-negative columns, builds a `ppl.C_Polyhedron`, and returns the rays and
+lines of its minimised generators as integer arrays. It knows nothing of networks, so a cone of any field uses it.
+
+`skcomplex.core.analysis` builds on it:
+- `elementary_modes(network, normalise=None, timeout=60.0)` reads the directions from the bounds: a lower bound below 0
+  makes a process reversible, an upper bound of at most 0 reverses its column, and a process whose rule is false or
+  whose bounds are both 0 is removed. Finite bounds are ignored, since modes belong to the cone. Each reversible column
+  is split in two, the extreme rays of the split cone are taken, the two-cycles of split pairs are dropped, and the rest
+  are mapped back. These are exactly the elementary modes (Gagneur and Klamt 2004). The result is a `pandas` table
+  indexed by mode and process, scaled to `normalise` or to the smallest integer vector.
+- `extreme_pathways(network, exchanges=None, timeout=60.0)` splits only the reversible internal processes and keeps
+  each exchange as one column in its declared direction, following Schilling et al. (2000). A process that touches one
+  pool is an exchange unless `exchanges` names them. It returns the pathways and, for a cone that is not pointed, the
+  lines.
+- Coefficients are converted to fractions with a denominator of at most 10⁶, and each row is scaled to integers. A
+  coefficient that the conversion moves by more than 1e-9 raises a `ValidationError` that names the process and pool.
+- A pool with a non-zero `balance` raises a `ValidationError`, since modes are defined at steady state.
+- `pplpy` runs under `cysignals`, so the time limit is a `cysignals` alarm. When it fires, `EnumerationLimitError`, a
+  `SolverError`, names the network, its number of processes, and the limit, and suggests closing exchanges or
+  enumerating a subnetwork.
+
+`FluxModes(network, kind='modes' | 'pathways', normalise=None, order=None)` is an element that contributes an
+`Enumerate` law. `order` is a ratio, such as `('vbio', 'b1')` for the growth yield, that sorts the modes in decreasing
+order.
+
+### Atom maps and labelling simulation
+
+A process declares its atom transitions with `AtomMap`:
+
+```python
+Process('v1', {AcCoA: -1, OAC: -1, Cit: 1}, atoms=AtomMap([(AcCoA, 'ab'), (OAC, 'cdef')], [(Cit, 'fedbac')]))
+```
+
+- Each occurrence pairs a pool with letters, so a pool that appears twice, as in a condensation, has two occurrences.
+  The letters of the products are a permutation of the letters of the reactants, except for atoms that leave to a pool
+  that is not traced.
+- A pool's atom count is the length of its letters, and it must be the same in every map. `symmetric=(Suc, Fum)` on the
+  experiment marks pools whose atoms are read in either order with equal weight.
+- `Tracer(pool, {'10': 0.5, '00': 0.5})` gives the isotopomer fractions of a substrate pool as bit strings, and
+  `Fragment(pool, atoms=(1, 2, 3, 4, 5), name='Glu')` names a measured fragment.
+
+`skcomplex.core.compile` lowers an experiment to a `LabellingProblem`:
+- From the measured fragments, it walks the atom maps backward and collects the elementary metabolite units (Antoniewicz
+  et al. 2007) that they need, grouped by size.
+- For each size `n`, it builds sparse matrices with the flux-dependent entries `A_n(v) X_n = B_n(v) Y_n`, where `Y_n`
+  holds the convolutions of smaller units and the tracer inputs. The matrix entries are compiled as functions of the
+  forward and backward fluxes, on NumPy, like the other compiled laws.
+- `EmuSolver` in `skcomplex.core.solvers` solves the sizes in increasing order with `scipy.sparse.linalg.splu`, and
+  returns each fragment's mass isotopomer distribution. A singular `A_n` means a pool without flux, and raises a named
+  error that names the pool.
+
+`simulate_labelling(experiment, fluxes)` in `skcomplex.core.analysis` returns the distributions for given fluxes. It is
+the forward model of the fit and the tool for choosing tracers by hand.
+
+### Flux estimation
+
+`LabellingExperiment(network, tracers, measurements, fluxes=None, symmetric=(), starts=5, intervals='linear')` is an
+element that contributes an `Estimate` law. Several experiments with different tracers share one network and one flux
+vector, and are passed as a sequence.
+- Measurements map each fragment to a measured distribution and its standard deviations. `fluxes` maps measured or
+  fixed fluxes to a value and a standard deviation, or to a value alone for a fixed flux.
+- The fluxes are parametrised by a basis of the null space of the network, taken from SciPy's `null_space` and
+  reduced to free net fluxes, plus one exchange flux per reversible process. So every balance holds exactly, and the
+  forward and backward fluxes are `net⁺ + exchange` and `net⁻ + exchange`.
+- `estimate_fluxes(experiment, random_state=None)` minimises the weighted residuals with `scipy.optimize.least_squares`
+  (`trf`, bounds from the processes). The starts are feasible points drawn by solving the network with `HighsLP` for
+  seeded random linear objectives and averaging pairs of the solutions.
+- Linear intervals come from the covariance `(Jᵀ W J)⁻¹` at the optimum. Profile intervals fix one flux on a grid,
+  refit, and keep the values whose residual rises by less than the 95% chi-square quantile of one degree of freedom, as
+  in Antoniewicz et al. (2006). A profile that reaches a bound marks the flux as not identifiable.
+- The goodness-of-fit test compares the minimal residual with the 95% range of the chi-square distribution whose
+  degrees of freedom are the measurements minus the free fluxes.
+- The result, a `FluxEstimate`, holds the estimates, intervals, residual, test, and simulated distributions.
+
+A test compares `simulate_labelling` with mfapy on the TCA example and on mfapy's E. coli example within 1e-10, and the
+published glutamate distribution within 5e-5.
+
+`calibrate` in `skcomplex.core.experiments` fits parameters to time series by running a model. The estimation is a
+different problem, a steady-state forward model with a flux parametrisation, so it does not reuse `calibrate`, but it
+uses the same `least_squares` settings.
+
+### Runs that are not integrated in time
+
+An enumeration or an estimation is computed, not integrated, and both fit the `System`, `Simulation`, and `Trajectory`
+contract by indexing frames by what the computation produces:
+- `Enumerate` gives the enumeration form. `ModeStepper` enumerates at the first step and then emits one mode per step,
+  in the declared order. The trajectory's `times` are the mode indices 0, 1, …, its axis is `mode`, and the run ends
+  after the last mode, whatever `until` asks.
+- `Estimate` gives the estimation form. `EstimationStepper` runs `estimate_fluxes` at the first step with the
+  `least_squares` callback, which SciPy 1.16 added, and buffers each accepted iterate with its start. It then emits one
+  frame per iterate, and a last frame with the best estimate, its intervals, and its test. The axis is `iteration`.
+- Neither form can share a system with laws of another kind, because a frame of modes or iterations has no time to
+  synchronise with. Compiling such a system raises a named error.
+- `Trajectory` gains an `axis` attribute, `'time'` by default. Observers read it, and the analysis functions return the
+  same values as the frames, since the steppers call them.
+
 ### Results, observables, and trajectories
 
 Fluxes, objective values, and switch values are recorded per frame under dotted names:
@@ -291,6 +453,10 @@ Fluxes, objective values, and switch values are recorded per frame under dotted 
 
 Pool duals are recorded on request with `record_duals=True`, so dense duals do not bloat long recordings. Observables
 reduce over fluxes like over states.
+
+An enumeration records `cell.flux.<process>` per mode and `cell.mode.ratio` for the ordering ratio. An estimation
+records `tca.flux.<process>`, `tca.exchange.<process>`, `tca.rss`, `tca.start`, and `tca.mdv.<fragment>` per iteration,
+and at the last frame `tca.lower.<process>`, `tca.upper.<process>`, `tca.chi2`, and `tca.accepted`.
 
 ### Visuals
 
@@ -304,6 +470,12 @@ reduce over fluxes like over states.
 
 A network on a lattice defaults to `ImageVisual` of a chosen flux per site, `growth` by default, beside the field
 images. Rerun 0.39 has all three archetypes, which the spike checked.
+
+A run whose axis is not time sets the `step` timeline and a sequence timeline named by its axis, `mode` or
+`iteration`, instead of `sim_time`, and the blueprint's time panel follows that timeline. `FluxModes` uses `FluxVisual`
+unchanged, so each mode is a bar chart and a graph. `LabellingVisual`, registered as `'labelling'`, logs the flux graph
+with the current estimate, the residual sum of squares under `<experiment>/rss`, and, per fragment, the measured and
+simulated distributions as two `rerun.BarChart`s under `<experiment>/mdv/<fragment>/`.
 
 ### Library models and gallery examples
 
@@ -324,6 +496,8 @@ Models that need the extra name it in their docstring, and the docs and tests se
 | `dynamic_multispecies_fba` | two E. coli core strains that differ in uptake `vmax`, one medium | biomass series per strain | strain fractions against time | the faster strain's share rises, and the mass balance closes |
 | `comets` | 25×25 lattice, E. coli core, central inoculum, diffusing glucose | biomass field image | colony radius against time, and glucose consumed against the integral of uptake times biomass | linear front speed, and the glucose balance within 1% |
 | `community_fba` | two E. coli core members with complementary knock-outs, joint FBA, SteadyCom, and cooperative trade-off | member growth bar chart | community growth against the trade-off fraction, and SteadyCom abundances | community growth at fraction 1 equals the joint FBA optimum |
+| `elementary_flux_modes` | Raman's toy network, its 2 modes ordered by growth yield on `A`, one frame per mode | pool-process graph of the mode | the modes as a process-by-mode heat map, and the FBA optimum as stacked contributions of the modes | both yields are 1/12, and the decomposition reproduces growth 50 |
+| `carbon_13_mfa` | the TCA example of Antoniewicz et al. (2007), two parallel tracers, data from known fluxes with noise of standard deviation 0.002 at seed 0, 5 starts | pool-process graph of the estimated fluxes | estimated net fluxes with 95% intervals against the true ones, measured against simulated glutamate distributions, and the residual against iteration | every interval contains its true flux, and the fit passes the chi-square test |
 
 `comets` stays within budget by solving only active sites. At about 100 active sites, 200 frames, and two
 lexicographic solves of 0.07 ms each, the solves take about 3 s.
@@ -349,18 +523,32 @@ lexicographic solves of 0.07 ms each, the solves take about 3 s.
   the budget. Parallel solves across sites are a follow-up if needed.
 - [optlang's `highs` interface does not load with `highspy` 1.15.1] → The adapter uses `hybrid`, which works. A test
   pins the interface name, so an optlang update that changes it fails loudly.
+- [The number of elementary modes grows combinatorially] → A time limit with a named error, a documented non-goal for
+  genome-scale networks, and subnetworks in the examples.
+- [`pplpy` wheels need macOS 15 or later] → The user guide states it, and older macOS builds from source with PPL from
+  Homebrew. The first task checks the macOS version of the CI runners.
+- [The EMU code and the fit are in house] → Parity tests against mfapy and the published distribution, and the core
+  keeps only the EMU lowering and a thin fit over SciPy. The design records the libraries surveyed and why each was
+  rejected, as the constitution asks.
+- [Local minima in the fit] → Several seeded feasible starts, the best kept, and the residual compared with the
+  chi-square range, so a poor local minimum shows as a rejected fit.
+- [mfapy is installed from Git in the test group] → It is pinned to a commit and used only by the parity tests, never
+  by the package.
 
 ## Migration Plan
 
 The change only adds things:
 - `highspy` joins the runtime dependencies, and the Project Profile's dependency list grows by it in the same PR;
-- the `metabolism` extra is added;
+- the `metabolism` and `polyhedra` extras are added, and the SciPy floor rises to 1.16;
 - the nox `tests`, `docs`, and `gallery` sessions install the extra;
 - one CI job runs a default install without the extra and checks the missing-extra errors.
 
-The seven inventory entries move from blocked to pending this change, and to implemented as their models land.
+The seven inventory entries move from blocked to pending this change, and to implemented as their models land. The
+entries `elementary_flux_modes` and `carbon_13_mfa` move from out of scope to pending this change, and to implemented.
 
 ## Open Questions
 
-- None. The toy network's optimum is in Raman section 8.6: with the bounds of the example (internal fluxes in [0, 1000],
+- Whether to add an `x3cflux` adapter for large labelling networks once its wheels cover Linux aarch64 and Intel macOS
+  and `cyipopt` ships wheels. The in-house solver stays the default either way.
+- Resolved: the toy network's optimum is in Raman section 8.6: with the bounds of the example (internal fluxes in [0, 1000],
   reversible ones in [-1000, 1000]), growth is 50 (Eq. 8.9), and FVA gives the ranges of Eq. 8.12.
