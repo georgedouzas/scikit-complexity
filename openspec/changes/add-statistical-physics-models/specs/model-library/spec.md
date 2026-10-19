@@ -49,7 +49,7 @@ the model inventory lists them with their sources, each with a gallery example.
 
 #### Scenario: Epidemic threshold on networks
 - **WHEN** `heterogeneous_mean_field_sir` runs on a degree distribution with transmission rates below and above the
-  threshold `<k>/<k^2>` of the recovery rate
+  threshold `<k>/(<k^2> - <k>)` of the recovery rate, close to `<k>/<k^2>`
 - **THEN** the final epidemic size is below 1% below the threshold and above 5% above it
 
 ### Requirement: Maps and coupled oscillators

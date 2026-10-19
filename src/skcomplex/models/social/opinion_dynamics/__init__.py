@@ -14,6 +14,7 @@ from ._persuasion import (
     social_impact,
     sznajd,
 )
+from ._standardization import ComplexAgent, Standardization, standardized_agents
 from ._voters import MajorityVoter, VariantVoter, Voter, majority_rule, voter_model, voter_variants
 
 __all__: list[str] = [
@@ -21,6 +22,7 @@ __all__: list[str] = [
     'Adoption',
     'Believer',
     'Citizen',
+    'ComplexAgent',
     'Conversations',
     'Discussant',
     'Discussions',
@@ -31,6 +33,7 @@ __all__: list[str] = [
     'NamingGames',
     'Persuader',
     'SocialImpact',
+    'Standardization',
     'Thinker',
     'VariantVoter',
     'Voter',
@@ -42,6 +45,7 @@ __all__: list[str] = [
     'naming_game',
     'settle',
     'social_impact',
+    'standardized_agents',
     'sznajd',
     'threshold_adoption',
     'voter_model',

@@ -1,6 +1,6 @@
 """Test observables: expressions and reductions computed at every frame, recorded, logged, and read by laws."""
 
-import pickle
+import pickle  # nosec B403: the tests pickle and load only objects they create
 
 import numpy as np
 import pytest
@@ -189,7 +189,7 @@ def test_observable_module_function_pickles():
         interactions=[ExponentialGrowth('g', target='a', r=1.0)],
         observables=[Observable('total', _total)],
     )
-    restored = pickle.loads(pickle.dumps(system))  # noqa: S301
+    restored = pickle.loads(pickle.dumps(system))  # noqa: S301  # nosec B301: loads only what it dumped
     expected = Simulation(system, dt=0.5).run(until=1).trajectory_['total']
     assert np.allclose(Simulation(restored, dt=0.5).run(until=1).trajectory_['total'], expected)
 

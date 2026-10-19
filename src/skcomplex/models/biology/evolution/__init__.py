@@ -21,6 +21,7 @@ from ._prebiotic import (
     eigen_quasispecies,
     hypercycles,
 )
+from ._substitutions import Locus, Substitution, origin_fixation_walk
 
 __all__: list[str] = [
     'AdaptiveClimbing',
@@ -29,18 +30,21 @@ __all__: list[str] = [
     'CyclicSpecies',
     'GenotypeClass',
     'Individual',
+    'Locus',
     'MasterSequence',
     'Molecule',
     'MoranStep',
     'Mutation',
     'Replication',
     'Strategy',
+    'Substitution',
     'TangledNatureStep',
     'adaptive_climbing',
     'eigen_quasispecies',
     'hypercycles',
     'moran_process',
     'nk_landscape',
+    'origin_fixation_walk',
     'replicator_dynamics',
     'rock_paper_scissors',
     'tangled_nature',

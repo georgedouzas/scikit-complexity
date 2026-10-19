@@ -28,9 +28,9 @@ The library SHALL provide `de_pillis_radunskaya`, `multidrug_resistance`, `drug_
 their sources, each with a gallery example.
 
 #### Scenario: Chemotherapy clears a tumour
-- **WHEN** `de_pillis_radunskaya` runs untreated and then with the book's constant chemotherapy infusion
+- **WHEN** `de_pillis_radunskaya` runs untreated and then with a constant chemotherapy infusion of 1
 - **THEN** the untreated tumour settles at its high equilibrium, and the treated tumour falls below 1% of its initial
-  size while the normal cells stay above their lower bound
+  size while the normal cells stay above 0.7 of their carrying capacity
 
 ### Requirement: Immunotherapy
 The library SHALL provide `kirschner_panetta`, `dendritic_cell_vaccine`, `anti_pd1_checkpoint`, `delayed_dc_vaccine`,
@@ -39,7 +39,7 @@ their sources, each with a gallery example.
 
 #### Scenario: Tumour-immune oscillations and clearance
 - **WHEN** `kirschner_panetta` runs with an antigenicity in the oscillatory range and then with adoptive therapy and
-  IL-2 above the book's threshold
+  IL-2 above the book's treatment factors `a1 = 500` and `a2 = 7e7`
 - **THEN** the untreated tumour and effector cells oscillate, and the treated tumour is cleared
 
 ### Requirement: Anti-angiogenic therapy
@@ -66,8 +66,8 @@ with a gallery example.
 
 #### Scenario: Intermittent suppression
 - **WHEN** `ideta_intermittent_androgen` runs with its PSA thresholds
-- **THEN** the therapy switches on above the upper threshold and off below the lower one, and PSA cycles between them
-  while treatment is effective
+- **THEN** the therapy switches on as PSA rises through the upper threshold and off as it falls through the lower one,
+  and PSA cycles around the thresholds, overshooting them by the androgen delay, while treatment is effective
 
 ### Requirement: Gene, viral, nanoparticle, and stem-cell therapies
 The library SHALL provide `tcr_gene_therapy`, `sirna_tgf_beta`, `oncolytic_virus`, `oncolytic_virus_dendritic`,
@@ -87,7 +87,8 @@ The library SHALL provide `chemoimmunotherapy`, `clonal_chemoimmunotherapy`, `ch
 
 #### Scenario: Combination beats each therapy alone
 - **WHEN** `chemovirotherapy` runs with the book's chemotherapy alone, the virus alone, and both
-- **THEN** the tumour at the end of the run is smallest under the combination
+- **THEN** the tumour at the end of the default run of 64 days, before the virus bursts through the tumour, is
+  smallest under the combination
 
 ### Requirement: Cellular network models
 The library SHALL provide `phosphorylation_oscillator`, `biochemical_systems_theory`, `three_gene_boolean_network`,

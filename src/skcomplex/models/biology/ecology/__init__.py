@@ -1,6 +1,8 @@
 """Ecology: population growth, predation, competition, food webs, succession, grazing, and neutral communities."""
 
 from ._agent_predation import Predator, Prey, agent_based_lotka_volterra
+from ._cell_quota import QuotaPhytoplankton, droop_cell_quota
+from ._clustering import Hopping, Patch, neutral_clustering
 from ._communities import Competition, Mutualism, competition, food_webs, mutualism
 from ._factories import (
     Rabbits,
@@ -13,6 +15,7 @@ from ._factories import (
 )
 from ._fronts import FisherKPP, fisher_kpp
 from ._meadow import Cow, Grazing, Herding, Pasture, meadow_capacity
+from ._microbial_communities import GeneralizedLotkaVolterra, Microbe, generalized_lotka_volterra
 from ._neutral import NeutralSpecies, neutral_macroecology
 from ._populations import (
     DelayedLogisticGrowth,
@@ -32,6 +35,7 @@ from ._predation import (
     rosenzweig_macarthur,
     stochastic_predator_prey,
 )
+from ._speciation import NeutralReplacement, Organism, neutral_biodiversity
 from ._stigmergy import (
     EmotionMarks,
     Forager,
@@ -51,15 +55,21 @@ __all__: list[str] = [
     'ExponentialGrowth',
     'FisherKPP',
     'Forager',
+    'GeneralizedLotkaVolterra',
     'Grass',
     'Grazing',
     'Herding',
+    'Hopping',
     'LogisticGrowth',
+    'Microbe',
     'Mortality',
     'Mutualism',
+    'NeutralReplacement',
     'NeutralSpecies',
+    'Organism',
     'Parasitism',
     'Pasture',
+    'Patch',
     'PioneerGrowth',
     'Plant',
     'Population',
@@ -67,6 +77,7 @@ __all__: list[str] = [
     'Predator',
     'PredatorPreyEvents',
     'Prey',
+    'QuotaPhytoplankton',
     'Rabbits',
     'RosenzweigMacArthur',
     'SeasonalLogisticGrowth',
@@ -78,10 +89,12 @@ __all__: list[str] = [
     'Wolf',
     'agent_based_lotka_volterra',
     'competition',
+    'droop_cell_quota',
     'exponential_growth',
     'fibonacci_rabbits',
     'fisher_kpp',
     'food_webs',
+    'generalized_lotka_volterra',
     'hutchinson',
     'logistic_growth',
     'lotka_volterra',
@@ -89,6 +102,8 @@ __all__: list[str] = [
     'mangrove_succession',
     'meadow_capacity',
     'mutualism',
+    'neutral_biodiversity',
+    'neutral_clustering',
     'neutral_macroecology',
     'nicholson_bailey',
     'rosenzweig_macarthur',

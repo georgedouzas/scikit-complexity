@@ -1,5 +1,6 @@
 """Dynamical systems: chaotic flows, maps, and normal forms of bifurcations."""
 
+from ._chaotic_ensembles import CubicWalk, DoublingMap, SkewTentMap, cubic_chaotic_map, doubling_map, skew_tent_map
 from ._flows import BlowUp, Jerk, Lorenz, Rossler, finite_time_blow_up, lorenz, rossler, sprott_jerk
 from ._maps import (
     BakerMap,
@@ -33,13 +34,16 @@ from ._normal_forms import (
     saddle_node_form,
     takens_bogdanov_form,
 )
+from ._subcritical_forms import SubcriticalHopf, subcritical_hopf_form
 
 __all__: list[str] = [
     'BakerMap',
     'BlowUp',
     'CatMap',
     'CircleMap',
+    'CubicWalk',
     'Cusp',
+    'DoublingMap',
     'HenonMap',
     'Hopf',
     'IntermittencyMap',
@@ -49,14 +53,18 @@ __all__: list[str] = [
     'NewtonMap',
     'Rossler',
     'SaddleNode',
+    'SkewTentMap',
     'StandardMap',
+    'SubcriticalHopf',
     'TakensBogdanov',
     'TentMap',
     'TowelMap',
     'baker_map',
     'cat_map',
     'circle_map',
+    'cubic_chaotic_map',
     'cusp_form',
+    'doubling_map',
     'finite_time_blow_up',
     'henon_map',
     'hopf_form',
@@ -66,8 +74,10 @@ __all__: list[str] = [
     'newton_raphson_map',
     'rossler',
     'saddle_node_form',
+    'skew_tent_map',
     'sprott_jerk',
     'standard_map',
+    'subcritical_hopf_form',
     'takens_bogdanov_form',
     'tent_map',
     'towel_map',

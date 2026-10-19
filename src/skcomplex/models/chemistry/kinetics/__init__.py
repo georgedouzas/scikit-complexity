@@ -2,6 +2,7 @@
 
 from ._cyclic import CyclicCell, cyclic_cellular_automaton
 from ._hodgepodge import HodgepodgeCell, hodgepodge
+from ._nanoparticles import nanoparticle_corona
 from ._oscillators import (
     BrusselatorReaction,
     CubicAutocatalysis,
@@ -32,6 +33,7 @@ __all__: list[str] = [
     'cyclic_cellular_automaton',
     'hodgepodge',
     'michaelis_menten',
+    'nanoparticle_corona',
     'oregonator',
     'pulsed_electrochemical_reactor',
 ]

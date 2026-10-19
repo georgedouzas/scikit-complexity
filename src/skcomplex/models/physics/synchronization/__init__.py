@@ -1,5 +1,6 @@
 """Synchronization: coupled phase oscillators, pulse-coupled oscillators, and synchronized chaos."""
 
+from ._amplitude_death import GlobalCoupling, StuartLandau, heterogeneous_global_coupling, oscillator_death
 from ._chaos import (
     AggregateAveraging,
     DiffusiveCoupling,
@@ -28,6 +29,7 @@ __all__: list[str] = [
     'AggregateAveraging',
     'DelayedCoupling',
     'DiffusiveCoupling',
+    'GlobalCoupling',
     'IntegrateAndFireOscillator',
     'LogisticUnit',
     'MeanFieldAmplitude',
@@ -37,15 +39,18 @@ __all__: list[str] = [
     'PhaseOscillator',
     'RosslerOscillator',
     'SitedOscillator',
+    'StuartLandau',
     'WinfreeMeanField',
     'WinfreeOscillator',
     'aggregate_averaging_synchronization',
     'coupled_rossler',
     'delayed_kuramoto',
+    'heterogeneous_global_coupling',
     'kuramoto',
     'kuramoto_sakaguchi_chimera',
     'mirollo_strogatz',
     'nonlocal_ring_chimera',
+    'oscillator_death',
     'ott_antonsen',
     'winfree',
 ]

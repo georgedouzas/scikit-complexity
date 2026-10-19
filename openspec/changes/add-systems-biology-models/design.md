@@ -60,3 +60,56 @@ Lotka-Volterra community reads its interaction matrix through the weighted reduc
 - **Many similar ODE models.** The groups share components, and the gallery examples show what distinguishes each.
 - **Scenario thresholds taken from the book's figures may depend on parameters given only in the cited papers.** Where
   the book omits a parameter, the cited paper's value is used and named in the docstring.
+
+## Decisions as built
+
+The models follow the book, and where its equations or parameters are incomplete or garbled the implementation takes
+the decision below, stated in the model's docstring.
+
+- **Growth and kill:**
+  - Exponential-linear growth is `dn/dt = min(r0 n, r)`, equivalent to the book's switch at `tau`.
+  - Gompertz uses the GGo2 parameters, `r = 0.0719` and `K = 1964`.
+  - Doses are rectangular exposure pulses.
+  - `drug_toxicity` adds a plasma compartment and implements equation 2.26, which reduces to 2.25 at `eta = 0`.
+- **Shared components:** shared components carry the single-compartment models. Each multi-compartment model is one
+  element holding all its states.
+- **Chemotherapy:**
+  - `de_pillis_radunskaya` starts from the paper's initial state (BioModels BIOMD0000000909), because the book's lies
+    in the basin of the tumour-free equilibrium.
+  - Resistance switching rates default to 0, because the book gives no values.
+  - The cell-cycle agents act multiplicatively, after Świerniak.
+  - Erythropoiesis uses Mackey's form of equation 3.36.
+- **Immunotherapy:**
+  - The CD8 maturation term of `delayed_dc_vaccine` saturates in the dendritic cells, like every other dendritic term,
+    because the literal term diverges within a day.
+  - `anti_pd1_checkpoint` holds free PD-1 at zero once it would go negative.
+- **Radiotherapy:**
+  - The periodic radiation kill is per capita.
+  - The linear-quadratic damaged-cell chain follows the Simeoni structure of the cited paper, because the printed
+    equations make an untreated tumour shrink.
+- **Gene, viral, and stem-cell therapies:**
+  - `oncolytic_virus` implements the dimensionless mass-action form of equations 8.9–8.10. The ratio-dependent form of
+    equations 8.11–8.12 is garbled in the book and is not implemented.
+  - The arrival term of equation 8.39 takes a plus sign.
+  - The stem-cell mutation factor is drawn once per run from the seed.
+- **Combinations:** dose schedules are finite sums of pulses. With the book's parameters the combination of
+  chemovirotherapy beats each therapy alone up to about day 64, after which the virus alone clears the tumour slightly
+  faster, so its scenario uses the default run of 64 days.
+- **Parameter names:** names follow ruff's naming rule, for example `du` for the book's `dU`. Each docstring gives the
+  book's symbol.
+
+## Open Questions
+
+- **`chemoimmunotherapy` decay rates:** the model swaps the decay rates of book Table 9.4 to the values of de Pillis,
+  Gu, and Radunskaya 2006 as recalled, which needs checking against the paper.
+- **Parameters the cited papers may settle:**
+  - `delayed_dc_vaccine`: regulatory T cells suppress the response, so the tumour grows with or without the vaccine.
+  - `tumour_immune_suppression`: the memory pools are assumed constants of 1e4.
+  - `vascular_core_periphery`: not yet checked against Csercsik et al. 2017.
+  - `prostate_androgen_receptor`: the book's PSA clearance keeps serum PSA near 0.05 ng/mL.
+  - `drug_resistance_switching`: the switching rates are missing from the book.
+- **Core findings:** these do not block any model.
+  - `Simulation` built directly ignores a model's registered default solver.
+  - System observables cannot read time.
+  - `delayed(x, 2 * s.tau)` needs its minimum delay passed explicitly.
+
