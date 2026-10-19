@@ -6,7 +6,15 @@
 from ....core.base import Domain, state
 from ....core.model import Element, Interaction, System, Update, lag
 from ....core.runtime import register_model
-from ._populations import DelayedLogisticGrowth, ExponentialGrowth, LogisticGrowth, Mortality, Population, Predation
+from ._populations import (
+    DelayedLogisticGrowth,
+    ExponentialGrowth,
+    LogisticGrowth,
+    Mortality,
+    Population,
+    Predation,
+    SeasonalLogisticGrowth,
+)
 
 
 @register_model(
@@ -71,6 +79,58 @@ def logistic_growth(n: float = 10.0, r: float = 1.0, K: float = 100.0) -> System
     return System(
         elements=[Population('population', n=n)],
         interactions=[LogisticGrowth('growth', target='population', r=r, K=K)],
+    )
+
+
+@register_model(
+    field='biology/ecology',
+    tags=('population', 'ode', 'forcing', 'periodic'),
+    references=('Coleman 1979', 'Trzaska 2023'),
+    defaults={'until': 20.0, 'dt': 0.05},
+)
+def varying_capacity_logistic(
+    n: float = 10.0,
+    *,
+    r: float = 2.0,
+    K: float = 100.0,
+    amplitude: float = 0.5,
+    period: float = 1.0,
+) -> System:
+    """Return logistic growth under a seasonal carrying capacity, which settles on a cycle of the season's period.
+
+    Whatever its initial size, the population tends to a unique periodic solution, which lags behind the capacity and
+    varies less than it.
+
+    Args:
+        n:
+            The initial size.
+
+        r:
+            The intrinsic growth rate.
+
+        K:
+            The mean carrying capacity.
+
+        amplitude:
+            The relative amplitude of the seasonal variation of the capacity, below 1.
+
+        period:
+            The period of the seasons.
+
+    Returns:
+        system:
+            The model, with the population `population`.
+
+    Examples:
+        >>> from skcomplex.models.biology.ecology import varying_capacity_logistic
+        >>> varying_capacity_logistic(amplitude=0.2).interactions[0].amplitude
+        0.2
+    """
+    return System(
+        elements=[Population('population', n=n)],
+        interactions=[
+            SeasonalLogisticGrowth('growth', target='population', r=r, K=K, amplitude=amplitude, period=period),
+        ],
     )
 
 

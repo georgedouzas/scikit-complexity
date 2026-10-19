@@ -1,15 +1,27 @@
-"""Synchronization models: coupled phase oscillators."""
+"""Kuramoto models: phase oscillators coupled all to all, in populations, on rings, with delays, and as a mean field."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 import math
 
+import numpy as np
 from sage.all__sagemath_symbolics import sin
 
-from ....core.base import Domain, parameter
-from ....core.model import Element, Interaction, Rate, System, delayed
+from ....core.base import Domain, parameter, state
+from ....core.model import (
+    Element,
+    EuclideanSpace,
+    Interaction,
+    Law,
+    PairInteraction,
+    Rate,
+    Symbols,
+    System,
+    delayed,
+)
 from ....core.runtime import register_model
+from ._utils import _order_parameter
 
 PhaseOscillator = Element.define(
     'PhaseOscillator',
@@ -24,6 +36,94 @@ DelayedCoupling = Interaction.define(
     parameters={'K': 1.0, 'tau': parameter(default=1.0, domain=Domain.POSITIVE)},
     laws=lambda s: [Rate(s.target.theta, s.K * sin(delayed(s.source.theta, s.tau) - s.target.theta))],
 )
+
+SitedOscillator = Element.define(
+    'SitedOscillator',
+    states={'theta': 0.0, 'x': state(default=0.0, vector=True)},
+    parameters={'omega': 0.0},
+    laws=lambda s: [Rate(s.theta, s.omega)],
+)
+
+PhaseLag = Interaction.define(
+    'PhaseLag',
+    roles=['target'],
+    parameters={'K': 1.0, 'alpha': 0.0},
+    laws=lambda s: [Rate(s.target.theta, -s.K * sin(s.alpha))],
+)
+
+MeanFieldAmplitude = Element.define(
+    'MeanFieldAmplitude',
+    states={'x': 0.1, 'y': 0.0},
+    parameters={
+        'K': parameter(default=2.0, domain=Domain.NONNEGATIVE),
+        'Delta': parameter(default=0.5, domain=Domain.NONNEGATIVE),
+        'omega': 0.0,
+    },
+    laws=lambda s: [
+        Rate(s.x, (-s.Delta + s.K / 2 * (1 - s.x**2 - s.y**2)) * s.x - s.omega * s.y),
+        Rate(s.y, (-s.Delta + s.K / 2 * (1 - s.x**2 - s.y**2)) * s.y + s.omega * s.x),
+    ],
+)
+
+
+def _spread_phases(size: int, seed: int) -> list[float]:
+    """Return phases drawn uniformly from the circle with a seed."""
+    return [float(phase) for phase in np.random.default_rng(seed).uniform(0, 2 * math.pi, size)]
+
+
+class PhaseCoupling(PairInteraction):
+    """Sine coupling with a phase lag between two phase oscillators, `theta_i' += K sin(theta_j - theta_i - alpha)`.
+
+    Every pair of members closer than the cutoff couples both ways. The members carry the vector state `x`, their
+    place, which decides the pairs.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        first:
+            The path of the group of the first members.
+
+        second:
+            The path of the group of the second members.
+
+        cutoff:
+            The distance beyond which pairs do not interact.
+
+        period:
+            The side of a periodic box, for minimum image distances, or `None` for an open space.
+
+        K:
+            The coupling strength of one pair.
+
+        alpha:
+            The phase lag.
+
+    Examples:
+        >>> from skcomplex.models.physics.synchronization import PhaseCoupling
+        >>> PhaseCoupling('coupling', first='phases', second='phases', K=0.1).alpha
+        0.0
+    """
+
+    K: float = parameter(default=1.0)
+    alpha: float = parameter(default=0.0)
+
+    def laws(self, s: Symbols) -> list[Law]:
+        """Return the sine coupling of both members of a pair.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        first, second = s.first.theta, s.second.theta
+        return [
+            Rate(first, s.K * sin(second - first - s.alpha)),
+            Rate(second, s.K * sin(first - second - s.alpha)),
+        ]
 
 
 @register_model(
@@ -89,3 +189,243 @@ def delayed_kuramoto(
         if source != target
     ]
     return System(elements=elements, interactions=interactions)
+
+
+@register_model(
+    field='physics/synchronization',
+    tags=('synchronization', 'oscillators', 'phase', 'mean field'),
+    references=('Kuramoto 1984', 'Datseris and Parlitz 2022', 'Gros 2015', 'Jensen 2023'),
+    defaults={'until': 50.0, 'dt': 0.5},
+)
+def kuramoto(n_oscillators: int = 50, *, K: float = 4.0, sigma: float = 1.0, seed: int = 0) -> System:
+    """Return Kuramoto oscillators coupled all to all, `theta_i' = omega_i + (K / N) sum_j sin(theta_j - theta_i)`.
+
+    The natural frequencies are drawn from a normal distribution of width `sigma`, and the phases uniformly from the
+    circle. Above the critical coupling `K_c = 2 sigma sqrt(2 / pi)` a synchronized cluster forms, and the order
+    parameter `r`, the modulus of the mean of `exp(i theta)`, grows from about `1 / sqrt(N)` towards 1.
+
+    Args:
+        n_oscillators:
+            The number of oscillators.
+
+        K:
+            The coupling strength.
+
+        sigma:
+            The standard deviation of the natural frequencies.
+
+        seed:
+            The seed of the natural frequencies and the initial phases.
+
+    Returns:
+        system:
+            The model, with the phases `oscillators.theta` and the order parameter `order`.
+
+    Examples:
+        >>> from skcomplex.models.physics.synchronization import kuramoto
+        >>> kuramoto(10).elements[0].size
+        10
+    """
+    rng = np.random.default_rng(seed)
+    oscillators = SitedOscillator.group(
+        'oscillators',
+        n_oscillators,
+        theta=_spread_phases(n_oscillators, seed),
+        omega=rng.normal(0.0, sigma, n_oscillators),
+        x=np.zeros((n_oscillators, 1)),
+    )
+    coupling = PhaseCoupling('coupling', first='oscillators', second='oscillators', K=K / n_oscillators)
+    return System(
+        elements=[oscillators],
+        interactions=[coupling],
+        observables=_order_parameter('order', 'oscillators'),
+        space=EuclideanSpace(1),
+    )
+
+
+@register_model(
+    field='physics/synchronization',
+    tags=('synchronization', 'oscillators', 'phase', 'chimera'),
+    references=('Abrams et al. 2008', 'Jensen 2023'),
+    defaults={'until': 100.0, 'dt': 1.0},
+)
+def kuramoto_sakaguchi_chimera(
+    n_oscillators: int = 32,
+    *,
+    A: float = 0.2,
+    beta: float = 0.1,
+    spread: float = 0.1,
+    seed: int = 0,
+) -> System:
+    """Return two populations of identical phase oscillators with phase lag, where one synchronizes and one drifts.
+
+    Oscillator `i` of population `p` follows `theta_i' = sum_q (K_pq / N) sum_j sin(theta_j - theta_i - alpha)`, with
+    the stronger coupling `mu = (1 + A) / 2` inside a population, the weaker `nu = (1 - A) / 2` between them, and the
+    lag `alpha = pi / 2 - beta`. The first population starts nearly synchronized and the second spread over the
+    circle. The populations settle in a chimera, where one is fully synchronized and the other keeps drifting with a
+    partial order parameter, which breathes for `A = 0.2`. Which population ends up coherent depends on the initial
+    phases.
+
+    Args:
+        n_oscillators:
+            The number of oscillators of every population.
+
+        A:
+            The disparity of the couplings inside and between the populations.
+
+        beta:
+            The distance of the phase lag from `pi / 2`.
+
+        spread:
+            The width of the initial phases of the first population.
+
+        seed:
+            The seed of the initial phases.
+
+    Returns:
+        system:
+            The model, with the phases `first.theta` and `second.theta` and the order parameters `first_order` and
+            `second_order`.
+
+    Examples:
+        >>> from skcomplex.models.physics.synchronization import kuramoto_sakaguchi_chimera
+        >>> len(kuramoto_sakaguchi_chimera(4).interactions)
+        5
+    """
+    rng = np.random.default_rng(seed)
+    alpha, mu, nu = math.pi / 2 - beta, (1 + A) / 2, (1 - A) / 2
+    sites = np.zeros((n_oscillators, 1))
+    populations = [
+        SitedOscillator.group('first', n_oscillators, theta=rng.normal(0.0, spread, n_oscillators), x=sites),
+        SitedOscillator.group('second', n_oscillators, theta=_spread_phases(n_oscillators, seed + 1), x=sites),
+    ]
+    inside = mu / n_oscillators
+    interactions: list[Interaction] = [
+        PhaseCoupling('first_coupling', first='first', second='first', K=inside, alpha=alpha),
+        PhaseCoupling('second_coupling', first='second', second='second', K=inside, alpha=alpha),
+        PhaseCoupling('cross_coupling', first='first', second='second', K=nu / n_oscillators, alpha=alpha),
+        PhaseLag('first_lag', target='first', K=inside, alpha=alpha),
+        PhaseLag('second_lag', target='second', K=inside, alpha=alpha),
+    ]
+    return System(
+        elements=populations,
+        interactions=interactions,
+        observables=[*_order_parameter('first_order', 'first'), *_order_parameter('second_order', 'second')],
+        space=EuclideanSpace(1),
+    )
+
+
+@register_model(
+    field='physics/synchronization',
+    tags=('synchronization', 'oscillators', 'phase', 'chimera', 'nonlocal coupling'),
+    references=('Kuramoto and Battogtokh 2002', 'Datseris and Parlitz 2022'),
+    defaults={'until': 100.0, 'dt': 1.0},
+)
+def nonlocal_ring_chimera(
+    n_oscillators: int = 100,
+    *,
+    R: int = 14,
+    alpha: float = 1.46,
+    omega: float = 0.0,
+    seed: int = 0,
+) -> System:
+    """Return identical phase oscillators on a ring, each coupled to its `R` nearest neighbours on both sides.
+
+    Oscillator `i` follows `phi_i' = omega - (1 / 2R) sum_{j = i - R}^{i + R} sin(phi_i - phi_j + alpha)`, where the sum
+    includes the oscillator itself. Near `alpha = pi / 2`, coherent and incoherent domains coexist on the ring as a
+    chimera state, which is a long transient on small rings.
+
+    Args:
+        n_oscillators:
+            The number of oscillators on the ring.
+
+        R:
+            The range of the coupling.
+
+        alpha:
+            The phase lag.
+
+        omega:
+            The natural frequency.
+
+        seed:
+            The seed of the initial phases.
+
+    Returns:
+        system:
+            The model, with the phases `ring.theta` and the places of the oscillators `ring.x`.
+
+    Examples:
+        >>> from skcomplex.models.physics.synchronization import nonlocal_ring_chimera
+        >>> nonlocal_ring_chimera(20, R=3).interactions[0].cutoff
+        3.5
+    """
+    weight = 1 / (2 * R)
+    ring = SitedOscillator.group(
+        'ring',
+        n_oscillators,
+        theta=_spread_phases(n_oscillators, seed),
+        omega=omega,
+        x=np.arange(n_oscillators, dtype=float).reshape(-1, 1),
+    )
+    return System(
+        elements=[ring],
+        interactions=[
+            PhaseCoupling(
+                'coupling',
+                first='ring',
+                second='ring',
+                cutoff=R + 0.5,
+                period=float(n_oscillators),
+                K=weight,
+                alpha=alpha,
+            ),
+            PhaseLag('lag', target='ring', K=weight, alpha=alpha),
+        ],
+        observables=_order_parameter('order', 'ring'),
+        space=EuclideanSpace(1),
+    )
+
+
+@register_model(
+    field='physics/synchronization',
+    tags=('synchronization', 'ode', 'mean field', 'dimension reduction'),
+    references=('Ott and Antonsen 2008', 'Bick et al. 2020'),
+    defaults={'until': 30.0, 'dt': 0.1},
+)
+def ott_antonsen(
+    r: float = 0.1,
+    *,
+    K: float = 2.0,
+    Delta: float = 0.5,
+    omega: float = 0.0,
+) -> System:
+    """Return the Ott-Antonsen equation for the order parameter of infinitely many Kuramoto oscillators.
+
+    For natural frequencies with a Lorentzian distribution of center `omega` and half width `Delta`, the complex order
+    parameter `z = x + i y` follows exactly `z' = (i omega - Delta) z + (K / 2)(1 - |z|²) z`. Its modulus settles at
+    `sqrt(1 - 2 Delta / K)` above the critical coupling `K_c = 2 Delta`, and at 0 below it.
+
+    Args:
+        r:
+            The initial modulus of the order parameter.
+
+        K:
+            The coupling strength.
+
+        Delta:
+            The half width of the distribution of natural frequencies.
+
+        omega:
+            The center of the distribution of natural frequencies.
+
+    Returns:
+        system:
+            The model, with the real part `field.x` and the imaginary part `field.y` of the order parameter.
+
+    Examples:
+        >>> from skcomplex.models.physics.synchronization import ott_antonsen
+        >>> ott_antonsen(K=3.0).elements[0].K
+        3.0
+    """
+    return System(elements=[MeanFieldAmplitude('field', x=r, y=0.0, K=K, Delta=Delta, omega=omega)])

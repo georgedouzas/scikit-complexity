@@ -42,15 +42,15 @@ For every task in this section:
   survey of the libraries that implement it, and mark the model blocked on that change instead of working around the
   interface.
 
-- [ ] 5.1 Physics, and verify the Kepler and active Brownian particle scenarios
-- [ ] 5.2 Chemistry, and verify the Oregonator scenario
-- [ ] 5.3 Biology, and verify the repressilator and Hodgkin-Huxley scenarios
-- [ ] 5.4 Earth science, and verify the ice-albedo scenario
-- [ ] 5.5 Economics, and verify the kinetic wealth exchange scenario
-- [ ] 5.6 Social science, and verify the bounded confidence scenario
-- [ ] 5.7 Engineering, and verify the optimal velocity scenario
-- [ ] 5.8 Mathematics, and verify the standard map scenario
-- [ ] 5.9 Computer science, and verify the random Boolean network scenario
+- [x] 5.1 Physics, and verify the Kepler and active Brownian particle scenarios
+- [x] 5.2 Chemistry, and verify the Oregonator scenario
+- [x] 5.3 Biology, and verify the repressilator and Hodgkin-Huxley scenarios
+- [x] 5.4 Earth science, and verify the ice-albedo scenario
+- [x] 5.5 Economics, and verify the kinetic wealth exchange scenario
+- [x] 5.6 Social science, and verify the bounded confidence scenario
+- [x] 5.7 Engineering, and verify the optimal velocity scenario
+- [x] 5.8 Mathematics, and verify the standard map scenario
+- [x] 5.9 Computer science, and verify the random Boolean network scenario
 
 ## 6. Missing features and pending changes
 

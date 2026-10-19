@@ -1,4 +1,4 @@
-"""Fluid dynamics: incompressible flow, convection, turbulence, shocks, and shallow water."""
+"""Fluid dynamics: flows, convection, turbulence, shocks, shallow water, wave trains, and kinetic gases."""
 
 from ._flows import (
     Boussinesq,
@@ -13,17 +13,22 @@ from ._flows import (
     rayleigh_benard,
     shallow_water,
 )
+from ._kinetics import CarlemanGas, WaveNumber, discrete_velocity_boltzmann, wave_breaking
 
 __all__: list[str] = [
     'Boussinesq',
     'Burgers',
+    'CarlemanGas',
     'KuramotoSivashinsky',
     'ShallowWater',
     'Vorticity',
+    'WaveNumber',
     'burgers',
     'decaying_turbulence',
+    'discrete_velocity_boltzmann',
     'incompressible_flow',
     'kuramoto_sivashinsky',
     'rayleigh_benard',
     'shallow_water',
+    'wave_breaking',
 ]

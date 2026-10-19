@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from sage.all__sagemath_symbolics import pi, sin
+
 from ....core.base import Domain, parameter, role, state
 from ....core.model import Element, Interaction, Law, Rate, Symbols, delayed
 
@@ -100,6 +102,55 @@ class LogisticGrowth(Interaction):
                 The laws of the component.
         """
         return [Rate(s.target.n, s.r * s.target.n * (1 - s.target.n / s.K))]
+
+
+class SeasonalLogisticGrowth(Interaction):
+    """Logistic growth under a carrying capacity that varies periodically, `K(t) = K (1 + amplitude sin(2 pi t / T))`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the population.
+
+        r:
+            The per capita growth rate at low density.
+
+        K:
+            The mean carrying capacity.
+
+        amplitude:
+            The relative amplitude of the variation of the capacity, below 1.
+
+        period:
+            The period `T` of the variation.
+
+    Examples:
+        >>> from skcomplex.models.biology.ecology import SeasonalLogisticGrowth
+        >>> SeasonalLogisticGrowth('growth', target='rabbits', period=12.0).period
+        12.0
+    """
+
+    target: str = role()
+    r: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    K: float = parameter(default=100.0, domain=Domain.POSITIVE)
+    amplitude: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
+    period: float = parameter(default=1.0, domain=Domain.POSITIVE)
+
+    def laws(self, s: Symbols) -> list[Law]:
+        """Return the rate `r * n * (1 - n / K(t))`.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        capacity = s.K * (1 + s.amplitude * sin(2 * pi * s.t / s.period))
+        return [Rate(s.target.n, s.r * s.target.n * (1 - s.target.n / capacity))]
 
 
 class DelayedLogisticGrowth(Interaction):

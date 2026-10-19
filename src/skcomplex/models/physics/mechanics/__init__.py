@@ -1,4 +1,4 @@
-"""Mechanics: pendulums, oscillators, projectiles, and collisions."""
+"""Mechanics: pendulums, oscillators, projectiles, collisions, rotating bodies, and potential wells."""
 
 from ._mechanics import (
     BouncingBall,
@@ -15,19 +15,71 @@ from ._mechanics import (
     pendulum,
     projectile,
 )
+from ._pendulums import (
+    BallisticPendulum,
+    CartPendulum,
+    ClockPendulum,
+    DoublePendulum,
+    Magnet,
+    ParametricPendulum,
+    PendulumSpring,
+    SupportSpring,
+    ballistic_pendulum,
+    cart_pendulum,
+    coupled_pendulums,
+    double_pendulum,
+    huygens_clocks,
+    magnetic_pendulum,
+    parametric_pendulum,
+)
+from ._rotations import (
+    Gyroscope,
+    RotatingBall,
+    RotatingSwing,
+    gimballed_gyroscope,
+    rotating_balls_on_rods,
+    rotating_swing,
+)
+from ._springs import HarmonicForce, two_mass_spring_damper
+from ._wells import ExponentialWell, particle_in_a_well
 
 __all__: list[str] = [
+    'BallisticPendulum',
     'BouncingBall',
+    'CartPendulum',
+    'ClockPendulum',
     'DiscBilliard',
+    'DoublePendulum',
     'ElasticCollision',
+    'ExponentialWell',
+    'Gyroscope',
     'HangingBall',
+    'HarmonicForce',
+    'Magnet',
     'Oscillator',
+    'ParametricPendulum',
     'Pendulum',
+    'PendulumSpring',
+    'RotatingBall',
+    'RotatingSwing',
+    'SupportSpring',
+    'ballistic_pendulum',
     'bouncing_ball',
+    'cart_pendulum',
     'circular_billiard',
+    'coupled_pendulums',
+    'double_pendulum',
     'driven_damped_oscillator',
+    'gimballed_gyroscope',
     'harmonic_oscillator',
+    'huygens_clocks',
+    'magnetic_pendulum',
     'newtons_cradle',
+    'parametric_pendulum',
+    'particle_in_a_well',
     'pendulum',
     'projectile',
+    'rotating_balls_on_rods',
+    'rotating_swing',
+    'two_mass_spring_damper',
 ]

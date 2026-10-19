@@ -124,3 +124,49 @@ class Recovery(Interaction):
                 The laws of the component.
         """
         return _transfer(s.infected.n, s.recovered.n, s.gamma * s.infected.n, stochastic=self.stochastic)
+
+
+class ImmunityLoss(Interaction):
+    """Loss of immunity, which moves `xi * R` individuals per unit time from recovered back to susceptible.
+
+    In stochastic mode each loss is a random event that moves one individual.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        recovered:
+            The path of the recovered compartment.
+
+        susceptible:
+            The path of the susceptible compartment.
+
+        xi:
+            The rate at which immunity wanes.
+
+        stochastic:
+            Whether losses of immunity are random events.
+
+    Examples:
+        >>> from skcomplex.models.biology.epidemiology import ImmunityLoss
+        >>> ImmunityLoss('waning', recovered='R', susceptible='S', xi=0.05).xi
+        0.05
+    """
+
+    recovered: str = role()
+    susceptible: str = role()
+    xi: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
+    stochastic: bool = False
+
+    def laws(self, s: Symbols) -> list[Law]:
+        """Return the transfer of `xi * R` from recovered to susceptible.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return _transfer(s.recovered.n, s.susceptible.n, s.xi * s.recovered.n, stochastic=self.stochastic)

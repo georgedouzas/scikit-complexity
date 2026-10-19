@@ -43,44 +43,45 @@ projectile = { title = "Projectile", sources = ["Ry 1.2.1"], status = "implement
 newtons_cradle = { title = "Newton's cradle", sources = ["Ry 1.2.4"], status = "implemented" }
 bouncing_ball = { title = "Bouncing ball", sources = ["Strogatz 2015", "Hairer, Nørsett, and Wanner 1993"], status = "implemented" }
 circular_billiard = { title = "Circular billiard", sources = ["DP 8.1"], status = "implemented" }
-double_pendulum = { title = "Double pendulum", sources = ["Ar 1.7", "Ry 1.2.8"], status = "pending organize-model-library" }
-coupled_pendulums = { title = "Coupled pendulums", sources = ["Ry 1.2.7"], status = "pending organize-model-library" }
-cart_pendulum = { title = "Pendulum on a sliding cart", sources = ["Ry 1.2.6"], status = "pending organize-model-library" }
-rotating_swing = { title = "Rotating swing", sources = ["Ry 1.2.9"], status = "pending organize-model-library" }
-rotating_balls_on_rods = { title = "Rotating balls on rods", sources = ["Ry 1.2.5"], status = "pending organize-model-library" }
-ballistic_pendulum = { title = "Ballistic pendulum", sources = ["Ry 1.2.3"], status = "pending organize-model-library" }
-gimballed_gyroscope = { title = "Gyroscope in a gimbal", sources = ["Ry 1.2.10"], status = "pending organize-model-library" }
-magnetic_pendulum = { title = "Magnetic pendulum", sources = ["DP 5.3.3"], status = "pending organize-model-library" }
-parametric_pendulum = { title = "Parametric pendulum", sources = ["Di 6.1"], status = "pending organize-model-library" }
-huygens_clocks = { title = "Huygens clocks and pendulums on coupled supports", sources = ["Di 7.1–7.2"], status = "pending organize-model-library" }
-two_mass_spring_damper = { title = "Two-mass spring-damper between walls", sources = ["Ry 1.2.2"], status = "pending organize-model-library" }
-particle_in_a_well = { title = "Particle in the well `k x^2 e^-x`", sources = ["Sm 7.13"], status = "pending organize-model-library" }
+double_pendulum = { title = "Double pendulum", sources = ["Ar 1.7", "Ry 1.2.8"], status = "implemented" }
+coupled_pendulums = { title = "Coupled pendulums", sources = ["Ry 1.2.7"], status = "implemented" }
+cart_pendulum = { title = "Pendulum on a sliding cart", sources = ["Ry 1.2.6"], status = "implemented" }
+rotating_swing = { title = "Rotating swing", sources = ["Ry 1.2.9"], status = "implemented" }
+rotating_balls_on_rods = { title = "Rotating balls on rods", sources = ["Ry 1.2.5"], status = "implemented" }
+ballistic_pendulum = { title = "Ballistic pendulum", sources = ["Ry 1.2.3"], status = "implemented" }
+gimballed_gyroscope = { title = "Gyroscope in a gimbal", sources = ["Ry 1.2.10"], status = "implemented" }
+magnetic_pendulum = { title = "Magnetic pendulum", sources = ["DP 5.3.3"], status = "implemented" }
+parametric_pendulum = { title = "Parametric pendulum", sources = ["Di 6.1"], status = "implemented" }
+huygens_clocks = { title = "Huygens clocks and pendulums on coupled supports", sources = ["Di 7.1–7.2"], status = "implemented" }
+two_mass_spring_damper = { title = "Two-mass spring-damper between walls", sources = ["Ry 1.2.2"], status = "implemented" }
+particle_in_a_well = { title = "Particle in the well `k x^2 e^-x`", sources = ["Sm 7.13"], status = "implemented" }
 
 [physics.celestial_mechanics]
 two_body_orbit = { title = "Two-body orbit", sources = ["Kepler 1609", "Newton 1687"], status = "implemented" }
-n_body = { title = "N-body and solar system", sources = ["Ar 1.1", "Di 8"], status = "pending organize-model-library" }
-restricted_three_body = { title = "Restricted three-body and Sitnikov problems", sources = ["Di 8"], status = "pending organize-model-library" }
-stormer_problem = { title = "Störmer charge in a dipole field", sources = ["Di 6.4"], status = "pending organize-model-library" }
+n_body = { title = "N-body and solar system", sources = ["Ar 1.1", "Di 8"], status = "implemented" }
+restricted_three_body = { title = "Restricted three-body problem", sources = ["Di 8"], status = "implemented" }
+sitnikov = { title = "Sitnikov problem", sources = ["Di 8"], status = "implemented" }
+stormer_problem = { title = "Störmer charge in a dipole field", sources = ["Di 6.4"], status = "implemented" }
 
 [physics.nonlinear_oscillators]
 duffing = { title = "Duffing", sources = ["DP 9.1", "Tr 3.9"], status = "implemented" }
 van_der_pol = { title = "Van der Pol", sources = ["DP 9.2", "Tr 3.6"], status = "implemented" }
 henon_heiles = { title = "Hénon-Heiles", sources = ["DP 8.2"], status = "implemented" }
-stuart_landau = { title = "Stuart-Landau", sources = ["Di 4.14", "Gr 2.2"], status = "pending organize-model-library" }
-forced_van_der_pol = { title = "Forced Van der Pol", sources = ["Tr 3.6"], status = "pending organize-model-library" }
-adler_equation = { title = "Adler equation", sources = ["DP 9.2.2"], status = "pending organize-model-library" }
-billiards = { title = "Dynamical billiards of Sinai and mushroom shapes", sources = ["DP 8.1"], status = "pending organize-model-library" }
+stuart_landau = { title = "Stuart-Landau", sources = ["Di 4.14", "Gr 2.2"], status = "implemented" }
+forced_van_der_pol = { title = "Forced Van der Pol", sources = ["Tr 3.6"], status = "implemented" }
+adler_equation = { title = "Adler equation", sources = ["DP 9.2.2"], status = "implemented" }
+billiards = { title = "Dynamical billiards of Sinai and mushroom shapes", sources = ["DP 8.1"], status = "implemented" }
 
 [physics.synchronization]
 delayed_kuramoto = { title = "Delayed Kuramoto", sources = ["Yeung and Strogatz 1999", "Kuramoto 1984"], status = "implemented" }
-kuramoto = { title = "Kuramoto", sources = ["DP 9.2.3", "Gr 9.2", "Je 3.3"], status = "pending organize-model-library" }
-kuramoto_sakaguchi_chimera = { title = "Kuramoto-Sakaguchi chimera", sources = ["1902.05307 §4.1", "Je 7.2"], status = "pending organize-model-library" }
-nonlocal_ring_chimera = { title = "Nonlocal ring chimera", sources = ["DP 10.2.2"], status = "pending organize-model-library" }
-ott_antonsen = { title = "Ott-Antonsen reduction", sources = ["1902.05307 §3.1"], status = "pending organize-model-library" }
-winfree = { title = "Winfree model", sources = ["1902.05307 §2"], status = "pending organize-model-library" }
-mirollo_strogatz = { title = "Mirollo-Strogatz pulse-coupled oscillators", sources = ["0805.2976 §3.2"], status = "pending organize-model-library" }
-coupled_rossler = { title = "Coupled Rössler and the master stability function", sources = ["DP 9.3", "DP 10.2.1", "0805.2976 §4.1"], status = "pending organize-model-library" }
-aggregate_averaging_synchronization = { title = "Aggregate-averaging synchronization", sources = ["Gr 9.4"], status = "pending organize-model-library" }
+kuramoto = { title = "Kuramoto", sources = ["DP 9.2.3", "Gr 9.2", "Je 3.3"], status = "implemented" }
+kuramoto_sakaguchi_chimera = { title = "Kuramoto-Sakaguchi chimera", sources = ["1902.05307 §4.1", "Je 7.2"], status = "implemented" }
+nonlocal_ring_chimera = { title = "Nonlocal ring chimera", sources = ["DP 10.2.2"], status = "implemented" }
+ott_antonsen = { title = "Ott-Antonsen reduction", sources = ["1902.05307 §3.1"], status = "implemented" }
+winfree = { title = "Winfree model", sources = ["1902.05307 §2"], status = "implemented" }
+mirollo_strogatz = { title = "Mirollo-Strogatz pulse-coupled oscillators", sources = ["0805.2976 §3.2"], status = "implemented" }
+coupled_rossler = { title = "Coupled Rössler and the master stability function", sources = ["DP 9.3", "DP 10.2.1", "0805.2976 §4.1"], status = "implemented" }
+aggregate_averaging_synchronization = { title = "Aggregate-averaging synchronization", sources = ["Gr 9.4"], status = "implemented" }
 kuramoto_on_networks = { title = "Kuramoto on networks", sources = ["0805.2976 §3.1", "Je 8.5.3"], status = "pending add-adaptive-networks" }
 coupled_map_lattices_on_networks = { title = "Coupled map lattices on networks", sources = ["0805.2976 §3.3"], status = "pending add-adaptive-networks" }
 
@@ -90,14 +91,14 @@ potts = { title = "Potts", sources = ["Potts 1952", "Wu 1982"], status = "implem
 xy = { title = "XY", sources = ["Je 6.7"], status = "implemented" }
 ideal_gas = { title = "Ideal gas", sources = ["Maxwell 1860"], status = "implemented" }
 lennard_jones_fluid = { title = "Lennard-Jones fluid", sources = ["Ar 1.3"], status = "implemented" }
-q2r = { title = "Q2R reversible Ising automaton", sources = ["Li 5.6"], status = "pending organize-model-library" }
-site_percolation = { title = "Site percolation", sources = ["Ch 4", "TC 7", "Th 3.3.1"], status = "pending organize-model-library" }
-diffusion_limited_aggregation = { title = "Diffusion-limited aggregation", sources = ["Ch 3"], status = "pending organize-model-library" }
-landau_relaxation = { title = "Landau mean-field relaxation", sources = ["Gr 6.1"], status = "pending organize-model-library" }
-contact_process = { title = "Contact process", sources = ["1408.2701 §II.3"], status = "pending organize-model-library" }
-tasep = { title = "TASEP", sources = ["cond-mat/0012229 §I.E.1"], status = "pending organize-model-library" }
-two_phase_zone_exchange = { title = "Two-phase zone exchange", sources = ["Bs 3.14"], status = "pending organize-model-library" }
-discrete_master_equation = { title = "Discrete master equation", sources = ["Je 10.7"], status = "pending organize-model-library" }
+q2r = { title = "Q2R reversible Ising automaton", sources = ["Li 5.6"], status = "implemented" }
+site_percolation = { title = "Site percolation", sources = ["Ch 4", "TC 7", "Th 3.3.1"], status = "implemented" }
+diffusion_limited_aggregation = { title = "Diffusion-limited aggregation", sources = ["Ch 3"], status = "implemented" }
+landau_relaxation = { title = "Landau mean-field relaxation", sources = ["Gr 6.1"], status = "implemented" }
+contact_process = { title = "Contact process", sources = ["1408.2701 §II.3"], status = "implemented" }
+tasep = { title = "TASEP", sources = ["cond-mat/0012229 §I.E.1"], status = "implemented" }
+two_phase_zone_exchange = { title = "Two-phase zone exchange", sources = ["Bs 3.14"], status = "implemented" }
+discrete_master_equation = { title = "Discrete master equation", sources = ["Je 10.7"], status = "implemented" }
 graph_ising = { title = "Ising on a graph", sources = ["Ar 2.1"], status = "blocked add-lattice-geometries", feature = "Hexagonal and triangular lattices, local rules and Monte Carlo on arbitrary graphs, and extremal updates" }
 quantum_heisenberg = { title = "Quantum Heisenberg model", sources = ["Mi 7.3"], status = "out of scope", reason = "Quantum spin operators", library = "QuTiP" }
 continuum_percolation = { title = "Continuum percolation", sources = ["Sa 3"], status = "out of scope", reason = "Continuum percolation clusters", library = "SciPy `spatial`" }
@@ -105,35 +106,35 @@ continuum_percolation = { title = "Continuum percolation", sources = ["Sa 3"], s
 [physics.criticality]
 sandpile = { title = "Bak-Tang-Wiesenfeld sandpile", sources = ["Ch 5", "Gr 6.4", "TC 8", "Je 12.1"], status = "implemented" }
 forest_fire = { title = "Drossel-Schwabl forest fire", sources = ["Ar 3", "Ch 6", "Je 12.1.4"], status = "implemented" }
-manna_sandpile = { title = "Manna sandpile", sources = ["Je 12.5"], status = "pending organize-model-library" }
+manna_sandpile = { title = "Manna sandpile", sources = ["Je 12.5"], status = "implemented" }
 hexagonal_forest_fire = { title = "Forest fire on hexagonal lattices and graphs", sources = ["Ar 3"], status = "blocked add-lattice-geometries", feature = "Hexagonal and triangular lattices, local rules and Monte Carlo on arbitrary graphs, and extremal updates" }
 
 [physics.soft_matter]
 brownian_near_wall = { title = "Brownian particle near a wall", sources = ["Ar 7.6"], status = "implemented" }
 stochastic_resonance = { title = "Stochastic resonance", sources = ["Ar 5", "Gr 3.3"], status = "implemented" }
-brownian_motion = { title = "Inertial and overdamped Brownian motion", sources = ["Ar 5.3"], status = "pending organize-model-library" }
-optical_trap = { title = "Optical trap including oscillating and blinking traps", sources = ["Ar 5.4"], status = "pending organize-model-library" }
-kramers_escape = { title = "Kramers escape", sources = ["Ar 2.1", "Gr 3.3"], status = "pending organize-model-library" }
-multiplicative_noise = { title = "Multiplicative noise conventions", sources = ["Ar 7.1–7.5"], status = "pending organize-model-library" }
-scaled_brownian_motion = { title = "Scaled Brownian motion", sources = ["Ar 6.3"], status = "pending organize-model-library" }
-diffusion_in_a_speckle_field = { title = "Diffusion in a speckle field", sources = ["Ar 6.6"], status = "pending organize-model-library" }
+brownian_motion = { title = "Inertial and overdamped Brownian motion", sources = ["Ar 5.3"], status = "implemented" }
+optical_trap = { title = "Optical trap including oscillating and blinking traps", sources = ["Ar 5.4"], status = "implemented" }
+kramers_escape = { title = "Kramers escape", sources = ["Gr 3.3"], status = "implemented" }
+multiplicative_noise = { title = "Multiplicative noise conventions", sources = ["Ar 7.1–7.5"], status = "implemented" }
+scaled_brownian_motion = { title = "Scaled Brownian motion", sources = ["Ar 6.3"], status = "implemented" }
+diffusion_in_a_speckle_field = { title = "Diffusion in a speckle field", sources = ["Ar 6.6"], status = "implemented" }
 continuous_time_random_walk = { title = "Continuous-time random walk", sources = ["Ar 6.3"], status = "blocked add-anomalous-processes", feature = "Renewal processes with power-law waiting times, and fractional Gaussian noise" }
 levy_walk = { title = "Lévy walk", sources = ["Ar 6.3"], status = "blocked add-anomalous-processes", feature = "Renewal processes with power-law waiting times, and fractional Gaussian noise" }
 annealed_transient_time_motion = { title = "Annealed transient time motion", sources = ["Ar 6.3"], status = "blocked add-anomalous-processes", feature = "Renewal processes with power-law waiting times, and fractional Gaussian noise" }
 fractional_brownian_motion = { title = "Fractional Brownian motion", sources = ["Ar 6.1"], status = "blocked add-anomalous-processes", feature = "Renewal processes with power-law waiting times, and fractional Gaussian noise" }
 
 [physics.active_matter]
-active_brownian_particles = { title = "Active Brownian particles", sources = ["Ar 9.1", "1602.00081 §II.1"], status = "pending organize-model-library" }
-chiral_active_particles = { title = "Chiral active particles", sources = ["1602.00081 §II.2.1"], status = "pending organize-model-library" }
-run_and_tumble = { title = "Run-and-tumble", sources = ["1602.00081 §II.2.2"], status = "pending organize-model-library" }
-active_ornstein_uhlenbeck_particles = { title = "Active Ornstein-Uhlenbeck particles", sources = ["1602.00081 §II.2.2"], status = "pending organize-model-library" }
-motility_induced_phase_separation = { title = "Motility-induced phase separation", sources = ["1602.00081 §IV"], status = "pending organize-model-library" }
-living_crystals = { title = "Living crystals", sources = ["Ar 9.3"], status = "pending organize-model-library" }
-cucker_smale_flocking = { title = "Cucker-Smale flocking", sources = ["1010.5017 §4.4.1", "Be 6.7.2"], status = "pending organize-model-library" }
-depot_brownian_particles = { title = "Depot-pumped Brownian particles", sources = ["cond-mat/0012229 §I.F.1"], status = "pending organize-model-library" }
-szabo_cells = { title = "Szabó cell model", sources = ["1010.5017 §5.1.2"], status = "pending organize-model-library" }
-toner_tu = { title = "Toner-Tu hydrodynamics", sources = ["1207.2929 §II.1"], status = "pending organize-model-library" }
-active_passive_flocking = { title = "Flocking with active and passive agents", sources = ["Ch 10"], status = "pending organize-model-library" }
+active_brownian_particles = { title = "Active Brownian particles", sources = ["Ar 9.1", "1602.00081 §II.1"], status = "implemented" }
+chiral_active_particles = { title = "Chiral active particles", sources = ["1602.00081 §II.2.1"], status = "implemented" }
+run_and_tumble = { title = "Run-and-tumble", sources = ["1602.00081 §II.2.2"], status = "implemented" }
+active_ornstein_uhlenbeck_particles = { title = "Active Ornstein-Uhlenbeck particles", sources = ["1602.00081 §II.2.2"], status = "implemented" }
+motility_induced_phase_separation = { title = "Motility-induced phase separation", sources = ["1602.00081 §IV"], status = "implemented" }
+living_crystals = { title = "Living crystals", sources = ["Ar 9.3"], status = "implemented" }
+cucker_smale_flocking = { title = "Cucker-Smale flocking", sources = ["1010.5017 §4.4.1", "Be 6.7.2"], status = "implemented" }
+depot_brownian_particles = { title = "Depot-pumped Brownian particles", sources = ["cond-mat/0012229 §I.F.1"], status = "implemented" }
+szabo_cells = { title = "Szabó cell model", sources = ["1010.5017 §5.1.2"], status = "blocked add-adaptive-networks", feature = "Neighbourhood reductions inside nonlinear laws, such as the velocity including the sum of pair forces" }
+toner_tu = { title = "Toner-Tu hydrodynamics", sources = ["1207.2929 §II.1"], status = "implemented" }
+active_passive_flocking = { title = "Flocking with active and passive agents", sources = ["Ch 10"], status = "blocked add-adaptive-networks", feature = "Neighbourhood reductions inside nonlinear laws, such as the normalized sum of neighbour velocities" }
 vicsek = { title = "Vicsek model", sources = ["Ar 8", "1010.5017 §4.1", "Je 11.1"], status = "pending add-adaptive-networks" }
 gregoire_chate = { title = "Grégoire-Chaté cohesive flocks", sources = ["1010.5017 §4.2"], status = "pending add-adaptive-networks" }
 ginelli_nematics = { title = "Ginelli nematic particles", sources = ["1010.5017 §4.2"], status = "pending add-adaptive-networks" }
@@ -147,8 +148,8 @@ shallow_water = { title = "Shallow-water dam break", sources = ["Stoker 1957", "
 decaying_turbulence = { title = "Decaying turbulence", sources = ["Kraichnan 1967", "Satz 2022"], status = "implemented" }
 rayleigh_benard = { title = "Rayleigh-Bénard", sources = ["Rayleigh 1916", "Chandrasekhar 1961", "Mihailović et al. 2023"], status = "implemented" }
 kuramoto_sivashinsky = { title = "Kuramoto-Sivashinsky", sources = ["DP 11.3"], status = "implemented" }
-wave_breaking = { title = "Nonlinear advection and wave breaking", sources = ["Fo 14.3.3"], status = "pending organize-model-library" }
-discrete_velocity_boltzmann = { title = "Discrete-velocity Boltzmann", sources = ["Be 2.3.2"], status = "pending organize-model-library" }
+wave_breaking = { title = "Wave-number conservation and wave breaking", sources = ["Fo 14.3.3"], status = "implemented" }
+discrete_velocity_boltzmann = { title = "Discrete-velocity Boltzmann gas of Carleman", sources = ["Be 2.3.2"], status = "implemented" }
 fhp_lattice_gas = { title = "FHP lattice gas", sources = ["Di 5.16"], status = "blocked add-lattice-geometries", feature = "Hexagonal and triangular lattices, local rules and Monte Carlo on arbitrary graphs, and extremal updates" }
 boltzmann_equation = { title = "Boltzmann", sources = ["Be 2.2–2.3"], status = "blocked add-phase-space-fields", feature = "Fields over position and velocity or orientation, for kinetic equations" }
 bgk_equation = { title = "BGK", sources = ["Be 2.2–2.3"], status = "blocked add-phase-space-fields", feature = "Fields over position and velocity or orientation, for kinetic equations" }
@@ -156,9 +157,9 @@ vlasov_equation = { title = "Vlasov", sources = ["Be 2.2–2.3"], status = "bloc
 enskog = { title = "Enskog equations", sources = ["Be 2.2–2.3"], status = "blocked add-phase-space-fields", feature = "Fields over position and velocity or orientation, for kinetic equations" }
 
 [physics.waves]
-spring_chain = { title = "Spring chains and guitar string", sources = ["Ar 1.5–1.6"], status = "pending organize-model-library" }
-standing_waves = { title = "Standing waves on a string", sources = ["Sm 4.3"], status = "pending organize-model-library" }
-schrodinger = { title = "Schrödinger equation as real and imaginary fields", sources = ["Sc 4"], status = "pending organize-model-library" }
+spring_chain = { title = "Spring chains and guitar string", sources = ["Ar 1.5–1.6"], status = "implemented" }
+standing_waves = { title = "Standing waves on a string", sources = ["Sm 4.3"], status = "implemented" }
+schrodinger = { title = "Schrödinger equation as real and imaginary fields", sources = ["Sc 4"], status = "implemented" }
 lattice_gauge_fields = { title = "Lattice Maxwell and gauge link fields", sources = ["Sc 2.1", "Sc 4.4"], status = "out of scope", reason = "Lattice gauge link fields", library = "Grid" }
 
 [physics.pattern_formation]
@@ -168,21 +169,21 @@ swift_hohenberg = { title = "Swift-Hohenberg", sources = ["Swift and Hohenberg 1
 [physics.heat]
 heat_diffusion = { title = "Heat diffusion", sources = ["Fourier 1822", "Datseris and Parlitz 2022"], status = "implemented" }
 heat_l_shape = { title = "Heat on an L-shaped domain", sources = ["Strang and Fix 1973", "Gustafsson and McBain 2020"], status = "implemented" }
-cooling_coffee = { title = "Cooling coffee", sources = ["TS 1"], status = "pending organize-model-library" }
+cooling_coffee = { title = "Cooling coffee", sources = ["TS 1"], status = "implemented" }
 
 [physics.cosmology]
-friedmann_expansion = { title = "Friedmann expansion", sources = ["Sa 6"], status = "pending organize-model-library" }
+friedmann_expansion = { title = "Friedmann expansion", sources = ["Sa 6"], status = "implemented" }
 
 [chemistry.kinetics]
 hodgepodge = { title = "Hodgepodge machine", sources = ["Ch 11"], status = "implemented" }
-brusselator_ode = { title = "Brusselator ODE", sources = ["DP 2.2", "Tr 4.2"], status = "pending organize-model-library" }
-oregonator = { title = "Oregonator and the FKN mechanism of the BZ reaction", sources = ["Tr 4.5–4.6"], status = "pending organize-model-library" }
-cubic_autocatalysis = { title = "Cubic autocatalysis", sources = ["Tr 4.3"], status = "pending organize-model-library" }
-michaelis_menten = { title = "Michaelis-Menten as ODEs and as a jump process", sources = ["Tr 4.4", "1608.06582 §5.1"], status = "pending organize-model-library" }
-chemical_langevin_equation = { title = "Chemical Langevin equation", sources = ["1608.06582 §4.1"], status = "pending organize-model-library" }
-catalyst_pellet = { title = "Bistability on a catalyst pellet", sources = ["Tr 4.7"], status = "pending organize-model-library" }
-pulsed_electrochemical_reactor = { title = "Pulsed electrochemical reactor", sources = ["Tr 4.8"], status = "pending organize-model-library" }
-cyclic_cellular_automaton = { title = "Cyclic cellular automaton", sources = ["Di 5.17"], status = "pending organize-model-library" }
+brusselator_ode = { title = "Brusselator ODE", sources = ["DP 2.2", "Tr 4.2"], status = "implemented" }
+oregonator = { title = "Oregonator", sources = ["Tr 4.5–4.6"], status = "implemented" }
+cubic_autocatalysis = { title = "Cubic autocatalysis", sources = ["Tr 4.3"], status = "implemented" }
+michaelis_menten = { title = "Michaelis-Menten as ODEs and as a jump process", sources = ["Tr 4.4", "1608.06582 §5.1"], status = "implemented" }
+chemical_langevin_equation = { title = "Chemical Langevin equation of the Schlögl reaction", sources = ["1608.06582 §4.1"], status = "implemented" }
+catalyst_pellet = { title = "Bistability on a catalyst pellet", sources = ["Tr 4.7"], status = "implemented" }
+pulsed_electrochemical_reactor = { title = "Pulsed electrochemical reactor", sources = ["Tr 4.8"], status = "implemented" }
+cyclic_cellular_automaton = { title = "Cyclic cellular automaton", sources = ["Di 5.17"], status = "implemented" }
 
 [chemistry.pattern_formation]
 gray_scott = { title = "Gray-Scott", sources = ["Gr 4.2", "TC 7", "Li 7"], status = "implemented" }
@@ -197,46 +198,46 @@ lotka_volterra = { title = "Lotka-Volterra", sources = ["Ar 14.1", "Gr 3.1.4", "
 fibonacci_rabbits = { title = "Fibonacci rabbits", sources = ["Fibonacci 1202"], status = "implemented" }
 wolf_sheep = { title = "Wolf and sheep", sources = ["Wilensky 1997"], status = "implemented" }
 fisher_kpp = { title = "Fisher-KPP", sources = ["Gr 4.1"], status = "implemented" }
-competition = { title = "Competition", sources = ["Ar 14.2–14.4"], status = "pending organize-model-library" }
-mutualism = { title = "Mutualism", sources = ["Ar 14.2–14.4"], status = "pending organize-model-library" }
-food_webs = { title = "Food webs", sources = ["Ar 14.2–14.4"], status = "pending organize-model-library" }
-rosenzweig_macarthur = { title = "Rosenzweig-MacArthur and rate tipping", sources = ["DP 12"], status = "pending organize-model-library" }
-nicholson_bailey = { title = "Nicholson-Bailey", sources = ["Ar 14.7"], status = "pending organize-model-library" }
-lotka_volterra_with_harvesting = { title = "Lotka-Volterra with harvesting", sources = ["Tr 3.3"], status = "pending organize-model-library" }
-varying_capacity_logistic = { title = "Logistic growth with a varying capacity", sources = ["Tr 3.2"], status = "pending organize-model-library" }
-mangrove_succession = { title = "Mangrove succession", sources = ["Ba 2.5.2"], status = "pending organize-model-library" }
-agent_based_lotka_volterra = { title = "Agent-based Lotka-Volterra", sources = ["Ar 14.1"], status = "pending organize-model-library" }
-stigmergic_predator_prey = { title = "Stigmergic predator-prey automaton", sources = ["Cm 8"], status = "pending organize-model-library" }
-meadow_capacity = { title = "Carrying capacity of a meadow", sources = ["Ha 10.2"], status = "pending organize-model-library" }
-neutral_macroecology = { title = "Neutral macroecology", sources = ["Gr 8.6"], status = "pending organize-model-library" }
-intrinsic_instability = { title = "Intrinsic-instability populations", sources = ["Je 13.2"], status = "pending organize-model-library" }
-stochastic_predator_prey = { title = "Generalized stochastic predator-prey", sources = ["Cm 1"], status = "pending organize-model-library" }
+competition = { title = "Competition", sources = ["Ar 14.2–14.4"], status = "implemented" }
+mutualism = { title = "Mutualism", sources = ["Ar 14.2–14.4"], status = "implemented" }
+food_webs = { title = "Food webs", sources = ["Ar 14.2–14.4"], status = "implemented" }
+rosenzweig_macarthur = { title = "Rosenzweig-MacArthur and rate tipping", sources = ["DP 12"], status = "implemented" }
+nicholson_bailey = { title = "Nicholson-Bailey", sources = ["Ar 14.7"], status = "implemented" }
+lotka_volterra_with_harvesting = { title = "Lotka-Volterra with harvesting", sources = ["Tr 3.3"], status = "implemented" }
+varying_capacity_logistic = { title = "Logistic growth with a varying capacity", sources = ["Tr 3.2"], status = "implemented" }
+mangrove_succession = { title = "Mangrove succession", sources = ["Ba 2.5.2"], status = "implemented" }
+agent_based_lotka_volterra = { title = "Agent-based Lotka-Volterra", sources = ["Ar 14.1"], status = "implemented" }
+stigmergic_predator_prey = { title = "Stigmergic predator-prey automaton", sources = ["Cm 8"], status = "implemented" }
+meadow_capacity = { title = "Carrying capacity of a meadow", sources = ["Ha 10.2"], status = "implemented" }
+neutral_macroecology = { title = "Neutral macroecology", sources = ["Gr 8.6"], status = "implemented" }
+intrinsic_instability = { title = "Intrinsic-instability populations", sources = ["Je 13.2"], status = "blocked add-stochastic-maps", feature = "Random draws from the simulation's stream inside update laws" }
+stochastic_predator_prey = { title = "Generalized stochastic predator-prey", sources = ["Cm 1"], status = "implemented" }
 sequentially_linear_ecosystem = { title = "Sequentially linear ecosystem", sources = ["Th 5.5.2"], status = "pending add-adaptive-networks" }
 
 [biology.epidemiology]
 sir = { title = "SIR", sources = ["Kermack and McKendrick 1927"], status = "implemented" }
-sis = { title = "SIS", sources = ["Ar 11"], status = "pending organize-model-library" }
-sirs = { title = "SIRS", sources = ["Ar 11"], status = "pending organize-model-library" }
-agent_based_sir = { title = "Agent-based SIR with mortality, waning immunity, incubation, and lockdown", sources = ["Ar 11"], status = "pending organize-model-library" }
-random_walker_epidemics = { title = "Random-walker epidemics on a grid and on a small world", sources = ["Ch 9"], status = "pending organize-model-library" }
-network_sir = { title = "SIR on a network as an agent model", sources = ["DP 10.3", "Th 4.8.6"], status = "pending organize-model-library" }
-heterogeneous_mean_field_sis = { title = "Heterogeneous mean-field SIS", sources = ["1408.2701 §V.1"], status = "pending organize-model-library" }
-metapopulation = { title = "Metapopulation reaction-diffusion", sources = ["1408.2701 §IX"], status = "pending organize-model-library" }
-delayed_sirs = { title = "Discrete-time SIRS with a recovery delay", sources = ["Gr 9.6"], status = "pending organize-model-library" }
+sis = { title = "SIS", sources = ["Ar 11"], status = "implemented" }
+sirs = { title = "SIRS", sources = ["Ar 11"], status = "implemented" }
+agent_based_sir = { title = "Agent-based SIR with mortality, waning immunity, incubation, and lockdown", sources = ["Ar 11"], status = "implemented" }
+random_walker_epidemics = { title = "Random-walker epidemics on a grid and on a small world", sources = ["Ch 9"], status = "implemented" }
+network_sir = { title = "SIR on a network as an agent model", sources = ["DP 10.3", "Th 4.8.6"], status = "implemented" }
+heterogeneous_mean_field_sis = { title = "Heterogeneous mean-field SIS", sources = ["1408.2701 §V.1"], status = "implemented" }
+metapopulation = { title = "Metapopulation reaction-diffusion", sources = ["1408.2701 §IX"], status = "implemented" }
+delayed_sirs = { title = "Discrete-time SIRS with a recovery delay", sources = ["Gr 9.6"], status = "implemented" }
 quenched_mean_field_sis = { title = "Quenched mean-field SIS", sources = ["1408.2701 §IV.1"], status = "pending add-adaptive-networks" }
 adaptive_sis = { title = "Adaptive SIS with rewiring", sources = ["1408.2701 §VII.2.7", "Th 4.8.7"], status = "pending add-adaptive-networks" }
 activity_driven_epidemics = { title = "Activity-driven temporal networks", sources = ["1408.2701 §VIII"], status = "pending add-adaptive-networks" }
 sir_vaccination = { title = "SIR with optimal vaccination", sources = ["Lenhart and Workman 2007"], status = "pending add-optimal-control" }
 
 [biology.evolution]
-replicator_dynamics = { title = "Replicator dynamics and hawks and doves", sources = ["Gr 8.7", "Th 5.3.1", "cond-mat/0607344 §3.3"], status = "pending organize-model-library" }
-moran_process = { title = "Moran process", sources = ["cond-mat/0607344 §4.3", "Je 10.6"], status = "pending organize-model-library" }
-eigen_quasispecies = { title = "Eigen quasispecies", sources = ["Gr 8.3"], status = "pending organize-model-library" }
-hypercycles = { title = "Hypercycles", sources = ["Gr 8.5.2"], status = "pending organize-model-library" }
-nk_landscape = { title = "NK fitness landscapes", sources = ["Th 5.4.3", "TC 11"], status = "pending organize-model-library" }
-tangled_nature = { title = "Tangled Nature", sources = ["Je 11.3"], status = "pending organize-model-library" }
-adaptive_climbing = { title = "Adaptive climbing in finite populations", sources = ["Gr 8.4"], status = "pending organize-model-library" }
-rock_paper_scissors = { title = "Rock-paper-scissors", sources = ["cond-mat/0607344 §7"], status = "pending organize-model-library" }
+replicator_dynamics = { title = "Replicator dynamics and hawks and doves", sources = ["Gr 8.7", "Th 5.3.1", "cond-mat/0607344 §3.3"], status = "implemented" }
+moran_process = { title = "Moran process", sources = ["cond-mat/0607344 §4.3", "Je 10.6"], status = "implemented" }
+eigen_quasispecies = { title = "Eigen quasispecies", sources = ["Gr 8.3", "Gr 8.3.3", "Gr 8.5.1"], status = "implemented" }
+hypercycles = { title = "Hypercycles", sources = ["Gr 8.5.2"], status = "implemented" }
+nk_landscape = { title = "NK fitness landscapes", sources = ["Th 5.4.3", "TC 11"], status = "implemented" }
+tangled_nature = { title = "Tangled Nature", sources = ["Je 11.3"], status = "implemented" }
+adaptive_climbing = { title = "Adaptive climbing in finite populations", sources = ["Gr 8.4"], status = "implemented" }
+rock_paper_scissors = { title = "Rock-paper-scissors", sources = ["cond-mat/0607344 §7"], status = "implemented" }
 bak_sneppen = { title = "Bak-Sneppen", sources = ["Gr 6.6", "Th 5.4.4", "Je 4.2"], status = "blocked add-lattice-geometries", feature = "Hexagonal and triangular lattices, local rules and Monte Carlo on arbitrary graphs, and extremal updates" }
 jain_krishna = { title = "Jain-Krishna autocatalytic networks", sources = ["Th 5.5.1.4"], status = "pending add-adaptive-networks" }
 sole_manrubia = { title = "Solé-Manrubia extinctions", sources = ["Th 5.5.3.1"], status = "pending add-adaptive-networks" }
@@ -244,72 +245,73 @@ sole_manrubia = { title = "Solé-Manrubia extinctions", sources = ["Th 5.5.3.1"]
 [biology.neuroscience]
 integrate_and_fire = { title = "Integrate-and-fire", sources = ["Lapicque 1907", "Gerstner et al. 2014"], status = "implemented" }
 izhikevich = { title = "Izhikevich", sources = ["Izhikevich 2003"], status = "implemented" }
-hodgkin_huxley = { title = "Hodgkin-Huxley", sources = ["Tr 5.3", "2112.12147 §1.2"], status = "pending organize-model-library" }
-fitzhugh_nagumo_ode = { title = "FitzHugh-Nagumo ODE", sources = ["Tr 5.4", "DP 2.2.4"], status = "pending organize-model-library" }
-wilson_cowan = { title = "Wilson-Cowan", sources = ["2112.12147 §1.3.2"], status = "pending organize-model-library" }
-theta_neurons = { title = "Theta neurons and QIF networks", sources = ["1902.05307 §2.3"], status = "pending organize-model-library" }
-delayed_lif_network = { title = "Networks of leaky integrate-and-fire neurons with delays", sources = ["2112.12147 §1.3.4"], status = "pending organize-model-library" }
-polyhomeostatic_neuron = { title = "Polyhomeostatic neuron", sources = ["Gr 10.3.1"], status = "pending organize-model-library" }
-winners_take_all = { title = "Winners-take-all network", sources = ["Gr 10.4.2"], status = "pending organize-model-library" }
-legion = { title = "LEGION oscillators", sources = ["Gr 9.5"], status = "pending organize-model-library" }
-adaptrode = { title = "Adaptrode synapse", sources = ["Mo 6.9"], status = "pending organize-model-library" }
+hodgkin_huxley = { title = "Hodgkin-Huxley", sources = ["Tr 5.3", "2112.12147 §1.2"], status = "implemented" }
+fitzhugh_nagumo_ode = { title = "FitzHugh-Nagumo ODE", sources = ["Tr 5.4", "DP 2.2.4"], status = "implemented" }
+wilson_cowan = { title = "Wilson-Cowan", sources = ["2112.12147 §1.3.2"], status = "implemented" }
+theta_neurons = { title = "Theta neurons and QIF networks", sources = ["1902.05307 §2.3"], status = "implemented" }
+delayed_lif_network = { title = "Networks of leaky integrate-and-fire neurons with delays", sources = ["2112.12147 §1.3.4"], status = "implemented" }
+polyhomeostatic_neuron = { title = "Polyhomeostatic neuron", sources = ["Gr 10.3.1"], status = "implemented" }
+winners_take_all = { title = "Winners-take-all network", sources = ["Gr 10.4.2", "Fukai and Tanaka 1997"], status = "implemented" }
+legion = { title = "LEGION oscillators", sources = ["Gr 9.5"], status = "implemented" }
+adaptrode = { title = "Adaptrode synapse", sources = ["Mo 6.9"], status = "implemented" }
 amari_neural_field = { title = "Amari neural field", sources = ["2112.12147 §1.3.1"], status = "blocked add-nonlocal-operators", feature = "Convolution kernels, reads at shifted positions, and modified-Helmholtz inversion on fields" }
 
 [biology.systems_biology]
-toggle_switch = { title = "Genetic toggle switch", sources = ["2111.04508"], status = "pending organize-model-library" }
-repressilator = { title = "Repressilator", sources = ["2111.04508"], status = "pending organize-model-library" }
-negative_autoregulation = { title = "Negative autoregulation and bursty gene expression", sources = ["1608.06582 §3"], status = "pending organize-model-library" }
-circadian_clock = { title = "Drosophila circadian clock", sources = ["Tr 5.2"], status = "pending organize-model-library" }
-random_boolean_network = { title = "Kauffman random Boolean networks", sources = ["Gr 7"], status = "pending organize-model-library" }
-yeast_cell_cycle = { title = "Yeast cell-cycle network", sources = ["Gr 7"], status = "pending organize-model-library" }
+toggle_switch = { title = "Genetic toggle switch", sources = ["2111.04508"], status = "implemented" }
+repressilator = { title = "Repressilator", sources = ["2111.04508"], status = "implemented" }
+negative_autoregulation = { title = "Negative autoregulation and bursty gene expression", sources = ["1608.06582 §3"], status = "implemented" }
+circadian_clock = { title = "Drosophila circadian clock", sources = ["Tr 5.2"], status = "implemented" }
+random_boolean_network = { title = "Kauffman random Boolean networks", sources = ["Gr 7"], status = "implemented" }
+yeast_cell_cycle = { title = "Yeast cell-cycle network", sources = ["Gr 7"], status = "implemented" }
 
 [biology.physiology]
 mackey_glass = { title = "Mackey-Glass", sources = ["Di 6.3"], status = "implemented" }
 fitzhugh_nagumo = { title = "FitzHugh-Nagumo spirals", sources = ["DP 11.2.1"], status = "implemented" }
-aliev_panfilov = { title = "Aliev-Panfilov cardiac tissue", sources = ["DP 11.3.3"], status = "pending organize-model-library" }
-cardiovascular = { title = "Lumped cardiovascular model", sources = ["Tr 5.5.2"], status = "pending organize-model-library" }
+aliev_panfilov = { title = "Aliev-Panfilov cardiac tissue", sources = ["DP 11.3.3"], status = "implemented" }
+cardiovascular = { title = "Lumped cardiovascular model", sources = ["Tr 5.5.2"], status = "implemented" }
 
 [biology.collective_behaviour]
 pheromone_foraging = { title = "Pheromone foraging", sources = ["Argun et al. 2021", "Carmichael and Hadžikadić 2019"], status = "implemented" }
-boids = { title = "Boids in two dimensions", sources = ["TC 10"], status = "pending organize-model-library" }
-bird_swarm = { title = "Bird swarm with pair potentials", sources = ["Gr 4.3.3"], status = "pending organize-model-library" }
-binary_ant_decision = { title = "Binary ant decision", sources = ["Gr 4.3.2"], status = "pending organize-model-library" }
-active_walkers = { title = "Active walkers and trail formation", sources = ["cond-mat/0012229 §I.F"], status = "pending organize-model-library" }
-rats = { title = "Calm and nervous rats", sources = ["Gr 4.3.1"], status = "pending organize-model-library" }
+boids = { title = "Boids in two dimensions", sources = ["TC 10"], status = "implemented" }
+bird_swarm = { title = "Bird swarm with pair potentials", sources = ["Gr 4.3.3"], status = "implemented" }
+binary_ant_decision = { title = "Binary ant decision", sources = ["Gr 4.3.2"], status = "implemented" }
+active_walkers = { title = "Active walkers and trail formation", sources = ["cond-mat/0012229 §I.F"], status = "implemented" }
+rats = { title = "Calm and nervous rats", sources = ["Gr 4.3.1"], status = "implemented" }
 boids_3d = { title = "Boids in three dimensions", sources = ["TC 10"], status = "blocked extend-agent-spaces", feature = "Three-dimensional continuous agent spaces and geographic spaces" }
 
 [biology.oncology]
-tumour_angiogenesis = { title = "Multiscale tumour angiogenesis", sources = ["Cm 8"], status = "pending organize-model-library" }
+tumour_angiogenesis = { title = "Multiscale tumour angiogenesis", sources = ["Cm 8"], status = "implemented" }
 immune_competition = { title = "Immune competition", sources = ["Be 5.5"], status = "pending add-kinetic-models" }
 
 [earth.climate]
-energy_balance = { title = "Zero-dimensional energy balance with ice albedo", sources = ["DP 2.1", "1910.00583 §III.1"], status = "pending organize-model-library" }
-budyko_sellers = { title = "Budyko-Sellers latitude model", sources = ["1910.00583 §III.1"], status = "pending organize-model-library" }
-daisyworld = { title = "Daisyworld", sources = ["Je 3"], status = "pending organize-model-library" }
-hasselmann = { title = "Hasselmann stochastic climate", sources = ["1910.00583 §III.7.3"], status = "pending organize-model-library" }
-enso = { title = "ENSO delay oscillator", sources = ["1910.00583 §V.5"], status = "pending organize-model-library" }
-saltzman_glaciation = { title = "Saltzman glaciation and Van der Pol ice ages", sources = ["DP 12.3.3"], status = "pending organize-model-library" }
-carbon_cycle = { title = "Rothman excitable carbon cycle", sources = ["DP 12.3.1"], status = "pending organize-model-library" }
-lorenz_84 = { title = "Lorenz-84", sources = ["DP 4", "DP 12"], status = "pending organize-model-library" }
-lorenz_96 = { title = "Lorenz-96", sources = ["DP 4", "DP 12"], status = "pending organize-model-library" }
-geodynamo = { title = "Gissinger geodynamo", sources = ["DP 4"], status = "pending organize-model-library" }
-soil_temperature = { title = "Coupled soil and deep temperature maps", sources = ["Mi 4.5"], status = "pending organize-model-library" }
+energy_balance = { title = "Zero-dimensional energy balance with ice albedo", sources = ["DP 2.1", "1910.00583 §III.1"], status = "implemented" }
+budyko_sellers = { title = "Budyko-Sellers latitude model", sources = ["1910.00583 §III.1"], status = "implemented" }
+daisyworld = { title = "Daisyworld", sources = ["Je 3"], status = "implemented" }
+hasselmann = { title = "Hasselmann stochastic climate", sources = ["1910.00583 §III.7.3"], status = "implemented" }
+enso = { title = "ENSO delay oscillator", sources = ["1910.00583 §V.5"], status = "implemented" }
+saltzman_glaciation = { title = "Saltzman-Maasch glaciation", sources = ["DP 12.3.3"], status = "implemented" }
+van_der_pol_ice_ages = { title = "Van der Pol ice ages", sources = ["DP 12.3.3", "De Saedeleer et al. 2013"], status = "implemented" }
+carbon_cycle = { title = "Rothman excitable carbon cycle", sources = ["DP 12.3.1"], status = "implemented" }
+lorenz_84 = { title = "Lorenz-84", sources = ["DP 4", "DP 12"], status = "implemented" }
+lorenz_96 = { title = "Lorenz-96", sources = ["DP 4", "DP 12"], status = "implemented" }
+geodynamo = { title = "Gissinger geodynamo", sources = ["DP 4"], status = "implemented" }
+soil_temperature = { title = "Coupled soil and deep temperature maps", sources = ["Mi 4.5"], status = "implemented" }
 energy_return = { title = "Declining energy return on investment", sources = ["Mo 9.6"], status = "pending add-stocks-and-flows" }
 
 [earth.oceanography]
-stommel = { title = "Stommel thermohaline boxes", sources = ["DP 12", "1910.00583 §III.3.1"], status = "pending organize-model-library" }
+stommel = { title = "Stommel thermohaline boxes", sources = ["DP 12", "1910.00583 §III.3.1"], status = "implemented" }
 double_gyre = { title = "Quasi-geostrophic double gyre", sources = ["1910.00583 §III.6.1"], status = "blocked add-nonlocal-operators", feature = "Convolution kernels, reads at shifted positions, and modified-Helmholtz inversion on fields" }
 
 [earth.seismology]
 earthquakes = { title = "Olami-Feder-Christensen", sources = ["Ch 8"], status = "implemented" }
-burridge_knopoff = { title = "Burridge-Knopoff spring-block fault", sources = ["Ch 8.1"], status = "pending organize-model-library" }
+burridge_knopoff = { title = "Burridge-Knopoff spring-block fault", sources = ["Ch 8.1"], status = "implemented" }
 
 [economics.macroeconomics]
 solow = { title = "Solow", sources = ["Solow 1956"], status = "implemented" }
 multiplier_accelerator = { title = "Multiplier-accelerator", sources = ["Samuelson 1939"], status = "implemented" }
-toy_firm_investment = { title = "Toy firm investment", sources = ["Ca 2.1"], status = "pending organize-model-library" }
-exchange_rates = { title = "Exchange rates in international trade", sources = ["Ha 8"], status = "pending organize-model-library" }
-capital_stock = { title = "Capital stock and bank account", sources = ["TS 2"], status = "pending organize-model-library" }
+toy_firm_investment = { title = "Toy firm investment", sources = ["Ca 2.1"], status = "implemented" }
+exchange_rates = { title = "Exchange rates in international trade", sources = ["Ha 8"], status = "implemented" }
+capital_stock = { title = "Capital stock", sources = ["TS 2"], status = "implemented" }
 optimal_consumption = { title = "Pontryagin capital and consumption", sources = ["Di 9.1"], status = "pending add-optimal-control" }
 credit_networks = { title = "Firm and bank credit networks", sources = ["Ca 2.2"], status = "pending add-agent-economies" }
 fractional_reserve_banking = { title = "Fractional-reserve banking", sources = ["Ha 9"], status = "pending add-agent-economies" }
@@ -317,11 +319,11 @@ stock_flow_consistent_economy = { title = "Stock-flow consistent monetary econom
 
 [economics.markets]
 cobweb = { title = "Cobweb", sources = ["Ezekiel 1938"], status = "implemented" }
-cournot_duopoly = { title = "Cournot duopoly with beliefs", sources = ["Ha 6.2"], status = "pending organize-model-library" }
-riccati_prices = { title = "Riccati price adjustment", sources = ["Fo 16.1"], status = "pending organize-model-library" }
-produce_market = { title = "Produce market and household demand", sources = ["Ha 2–3"], status = "pending organize-model-library" }
-car_dealer = { title = "Car-dealer inventory with delays", sources = ["TS 2"], status = "pending organize-model-library" }
-car_wash = { title = "Car wash queue", sources = ["Cy 6.4"], status = "pending organize-model-library" }
+cournot_duopoly = { title = "Cournot duopoly with beliefs", sources = ["Ha 6.2"], status = "implemented" }
+riccati_prices = { title = "Riccati price adjustment", sources = ["Fo 16.1"], status = "implemented" }
+produce_market = { title = "Produce market", sources = ["Ha 2–3"], status = "implemented" }
+car_dealer = { title = "Car-dealer inventory with delays", sources = ["TS 2"], status = "implemented" }
+car_wash = { title = "Car wash queue", sources = ["Cy 6.4"], status = "implemented" }
 commodity_cycle = { title = "Commodity cycle with capacity delay", sources = ["Ba 4.11.4"], status = "pending add-stocks-and-flows" }
 double_auction = { title = "Double auction", sources = ["Go 8–12"], status = "pending add-agent-economies" }
 goods_traders = { title = "Toy and three-goods traders", sources = ["Go 8–12"], status = "pending add-agent-economies" }
@@ -336,12 +338,12 @@ brock_hommes = { title = "Brock-Hommes heuristic switching", sources = ["Brock a
 
 [economics.finance]
 geometric_brownian_motion = { title = "Geometric Brownian motion", sources = ["Black and Scholes 1973"], status = "implemented" }
-multiplicative_process = { title = "Multiplicative", sources = ["Ca 4.3.5", "Th 3.3.3"], status = "pending organize-model-library" }
-gibrat_process = { title = "Gibrat", sources = ["Ca 4.3.5", "Th 3.3.3"], status = "pending organize-model-library" }
-kesten_process = { title = "Kesten processes", sources = ["Ca 4.3.5", "Th 3.3.3"], status = "pending organize-model-library" }
-bouchaud_mezard_wealth = { title = "Bouchaud-Mézard wealth", sources = ["0905.1518 §III.2"], status = "pending organize-model-library" }
-debtrank = { title = "DebtRank cascades", sources = ["Th 4.10.1"], status = "pending organize-model-library" }
-arbitrage_traders = { title = "Random-walk traders with arbitrage", sources = ["Sc 2.2"], status = "pending organize-model-library" }
+multiplicative_process = { title = "Multiplicative", sources = ["Ca 4.3.5", "Th 3.3.3"], status = "implemented" }
+gibrat_process = { title = "Gibrat", sources = ["Ca 4.3.5", "Th 3.3.3"], status = "implemented" }
+kesten_process = { title = "Kesten processes", sources = ["Ca 4.3.5", "Th 3.3.3"], status = "implemented" }
+bouchaud_mezard_wealth = { title = "Bouchaud-Mézard wealth", sources = ["0905.1518 §III.2"], status = "implemented" }
+debtrank = { title = "DebtRank cascades", sources = ["Th 4.10.1"], status = "implemented" }
+arbitrage_traders = { title = "Random-walk traders with arbitrage", sources = ["Sc 2.2"], status = "implemented" }
 order_book = { title = "Order book with imitation", sources = ["Ca 3"], status = "pending add-agent-economies" }
 
 [economics.econophysics]
@@ -354,8 +356,8 @@ kinetic_wealth_welfare = { title = "Kinetic wealth and welfare dynamics", source
 
 [economics.resources]
 harvesting = { title = "Harvesting farmers", sources = ["Hamill and Gilbert 2016 ch. 10"], status = "implemented" }
-oil_economy = { title = "Oil economy", sources = ["TS 2"], status = "pending organize-model-library" }
-fishery_capital = { title = "Renewable fishery with capital", sources = ["TS 2"], status = "pending organize-model-library" }
+oil_economy = { title = "Oil economy", sources = ["TS 2"], status = "implemented" }
+fishery_capital = { title = "Renewable fishery with capital", sources = ["TS 2"], status = "implemented" }
 tragedy_of_the_commons = { title = "Tragedy of the meadow commons", sources = ["Ha 10.2"], status = "pending add-agent-economies" }
 cocoa = { title = "Cocoa", sources = ["Ba 8–10"], status = "pending add-stocks-and-flows" }
 hilsa_fishery = { title = "Hilsa fishery", sources = ["Ba 8–10"], status = "pending add-stocks-and-flows" }
@@ -365,24 +367,24 @@ renewable_resource = { title = "Renewable resource", sources = ["Meadows 2008"],
 nonrenewable_resource = { title = "Nonrenewable resource", sources = ["Meadows 2008"], status = "pending add-stocks-and-flows" }
 
 [economics.innovation]
-nk_technology = { title = "NK technology model", sources = ["Th 5.4.3.5"], status = "pending organize-model-library" }
-arthur_polak = { title = "Arthur-Polak technology evolution", sources = ["Th 5.6.3"], status = "pending organize-model-library" }
-creative_phase_transition = { title = "Combinatorial creative phase transition", sources = ["Th 5.6.4"], status = "pending organize-model-library" }
-phone_adoption = { title = "Fixed-line phone adoption", sources = ["Ha 4.5"], status = "pending organize-model-library" }
+nk_technology = { title = "NK technology model", sources = ["Th 5.4.3.5"], status = "implemented" }
+arthur_polak = { title = "Arthur-Polak technology evolution", sources = ["Th 5.6.3"], status = "implemented" }
+creative_phase_transition = { title = "Combinatorial creative phase transition", sources = ["Th 5.6.4"], status = "implemented" }
+phone_adoption = { title = "Fixed-line phone adoption", sources = ["Ha 4.5"], status = "implemented" }
 bass_diffusion = { title = "Bass diffusion", sources = ["Bass 1969"], status = "pending add-stocks-and-flows" }
 
 [social.opinion_dynamics]
 voter_model = { title = "Voter model", sources = ["Holley and Liggett 1975"], status = "implemented" }
 majority_rule = { title = "Majority rule automaton", sources = ["Charbonneau 2017"], status = "implemented" }
-sznajd = { title = "Sznajd", sources = ["0710.3256 §III"], status = "pending organize-model-library" }
-galam_majority = { title = "Galam majority", sources = ["0710.3256 §III"], status = "pending organize-model-library" }
-social_impact = { title = "Social impact theory", sources = ["0710.3256 §III"], status = "pending organize-model-library" }
-deffuant = { title = "Deffuant bounded confidence", sources = ["0710.3256 §III.6", "Gr 4.3.4"], status = "pending organize-model-library" }
-naming_game = { title = "Naming game", sources = ["0710.3256 §V"], status = "pending organize-model-library" }
-influentials = { title = "Belief diffusion with influentials", sources = ["Cy 4"], status = "pending organize-model-library" }
-cognitive_consistency = { title = "Cognitive consistency agents", sources = ["Cm 2"], status = "pending organize-model-library" }
-threshold_adoption = { title = "Threshold adoption", sources = ["Ha 4.3"], status = "pending organize-model-library" }
-voter_variants = { title = "Voter variants", sources = ["Th 4.8.8.1"], status = "pending organize-model-library" }
+sznajd = { title = "Sznajd", sources = ["0710.3256 §III"], status = "implemented" }
+galam_majority = { title = "Galam majority", sources = ["0710.3256 §III"], status = "implemented" }
+social_impact = { title = "Social impact theory", sources = ["0710.3256 §III"], status = "implemented" }
+deffuant = { title = "Deffuant bounded confidence", sources = ["0710.3256 §III.6", "Gr 4.3.4"], status = "implemented" }
+naming_game = { title = "Naming game", sources = ["0710.3256 §V"], status = "implemented" }
+influentials = { title = "Belief diffusion with influentials", sources = ["Cy 4"], status = "implemented" }
+cognitive_consistency = { title = "Cognitive consistency agents", sources = ["Cm 2"], status = "implemented" }
+threshold_adoption = { title = "Threshold adoption", sources = ["Ha 4.3"], status = "implemented" }
+voter_variants = { title = "Voter variants", sources = ["Th 4.8.8.1"], status = "implemented" }
 hegselmann_krause = { title = "Hegselmann-Krause", sources = ["0710.3256 §III.6"], status = "pending add-adaptive-networks" }
 coevolving_voter = { title = "Coevolving voter", sources = ["0710.3256 §X", "Th 4.8.8.2"], status = "pending add-adaptive-networks" }
 join_a_club = { title = "Join-a-club spins", sources = ["Th 6.4.3.2"], status = "pending add-adaptive-networks" }
@@ -391,30 +393,30 @@ kinetic_opinion = { title = "Kinetic opinion formation", sources = ["Bellomo et 
 
 [social.segregation]
 schelling = { title = "Schelling", sources = ["Ar 16.1", "TC 9", "Je 11.2"], status = "implemented" }
-stochastic_schelling = { title = "Stochastic Schelling", sources = ["Je 11.2"], status = "pending organize-model-library" }
+stochastic_schelling = { title = "Stochastic Schelling", sources = ["Je 11.2"], status = "implemented" }
 
 [social.cooperation]
-spatial_prisoners_dilemma = { title = "Spatial prisoner's dilemma with best-neighbour and Fermi imitation", sources = ["Ar 13", "Gr 8.7", "cond-mat/0607344 §6"], status = "pending organize-model-library" }
-public_goods_game = { title = "Public goods game", sources = ["cond-mat/0607344 App. A.8"], status = "pending organize-model-library" }
-prisoners_dilemma_tournament = { title = "Iterated prisoner's dilemma tournament", sources = ["TC 12"], status = "pending organize-model-library" }
+spatial_prisoners_dilemma = { title = "Spatial prisoner's dilemma with best-neighbour and Fermi imitation", sources = ["Ar 13", "Gr 8.7", "cond-mat/0607344 §6"], status = "implemented" }
+public_goods_game = { title = "Public goods game", sources = ["cond-mat/0607344 App. A.8"], status = "implemented" }
+prisoners_dilemma_tournament = { title = "Iterated prisoner's dilemma tournament", sources = ["TC 12"], status = "implemented" }
 
 [social.spreading]
-maki_thompson = { title = "Maki-Thompson rumours", sources = ["1408.2701 §X"], status = "pending organize-model-library" }
-watts_cascades = { title = "Watts threshold cascades", sources = ["1408.2701 §X"], status = "pending organize-model-library" }
-simon_yule = { title = "Simon-Yule growth", sources = ["Th 3.3.4"], status = "pending organize-model-library" }
+maki_thompson = { title = "Maki-Thompson rumours", sources = ["1408.2701 §X"], status = "implemented" }
+watts_cascades = { title = "Watts threshold cascades", sources = ["1408.2701 §X"], status = "implemented" }
+simon_yule = { title = "Simon-Yule growth", sources = ["Th 3.3.4"], status = "implemented" }
 
 [social.crowds]
-social_force = { title = "Social force pedestrians", sources = ["cond-mat/0012229 §V.B"], status = "pending organize-model-library" }
+social_force = { title = "Social force pedestrians", sources = ["cond-mat/0012229 §V.B"], status = "implemented" }
 evacuation = { title = "Crowd dynamics and evacuation", sources = ["Be 6.3–6.5"], status = "pending add-kinetic-models" }
 criminality = { title = "Criminality and security", sources = ["Be 5.4"], status = "pending add-kinetic-models" }
 
 [social.organizations]
-bonabeau_hierarchies = { title = "Bonabeau hierarchies", sources = ["0710.3256 §VII–VIII"], status = "pending organize-model-library" }
-priority_queues = { title = "Barabási priority queues", sources = ["0710.3256 §VII–VIII"], status = "pending organize-model-library" }
-employment_takeover = { title = "Employment takeover", sources = ["Cy 1.4"], status = "pending organize-model-library" }
-trafficking = { title = "Trafficking and brothel movement models", sources = ["Cy 5"], status = "pending organize-model-library" }
-insider_sabotage = { title = "Insider sabotage", sources = ["Cm 4", "Cm 6"], status = "pending organize-model-library" }
-obesity = { title = "Obesity model", sources = ["Cm 4", "Cm 6"], status = "pending organize-model-library" }
+bonabeau_hierarchies = { title = "Bonabeau hierarchies", sources = ["0710.3256 §VII–VIII"], status = "implemented" }
+priority_queues = { title = "Barabási priority queues", sources = ["0710.3256 §VII–VIII"], status = "implemented" }
+employment_takeover = { title = "Employment takeover", sources = ["Cy 1.4"], status = "implemented" }
+trafficking = { title = "Brothel movement model", sources = ["Cy 5"], status = "implemented" }
+insider_sabotage = { title = "Insider sabotage", sources = ["Cm 4", "Cm 6"], status = "implemented" }
+obesity = { title = "Obesity model", sources = ["Cm 4", "Cm 6"], status = "implemented" }
 kauai_population = { title = "The Kauai population model on GIS data", sources = ["Cm 3"], status = "blocked extend-agent-spaces", feature = "Three-dimensional continuous agent spaces and geographic spaces" }
 success_to_the_successful = { title = "Success to the successful", sources = ["Meadows 2008"], status = "pending add-stocks-and-flows" }
 shifting_the_burden = { title = "Shifting the burden", sources = ["Meadows 2008"], status = "pending add-stocks-and-flows" }
@@ -422,48 +424,48 @@ escalation = { title = "Escalation", sources = ["Meadows 2008"], status = "pendi
 
 [engineering.traffic]
 nagel_schreckenberg = { title = "Nagel-Schreckenberg", sources = ["cond-mat/0012229 §III.B.1"], status = "implemented" }
-charbonneau_traffic = { title = "Charbonneau traffic", sources = ["Ch 7"], status = "pending organize-model-library" }
-optimal_velocity = { title = "Optimal velocity", sources = ["cond-mat/0012229 §III.A.2"], status = "pending organize-model-library" }
-intelligent_driver_model = { title = "Intelligent driver model", sources = ["cond-mat/0012229 §III.A.3"], status = "pending organize-model-library" }
-lighthill_whitham_richards = { title = "Lighthill-Whitham-Richards", sources = ["cond-mat/0012229 §III.D.1"], status = "pending organize-model-library" }
-payne = { title = "Payne model", sources = ["cond-mat/0012229 §III.D"], status = "pending organize-model-library" }
-kerner_konhauser = { title = "Kerner-Konhäuser model", sources = ["cond-mat/0012229 §III.D"], status = "pending organize-model-library" }
-delayed_car_following = { title = "Car following with delay", sources = ["Gr 4.4"], status = "pending organize-model-library" }
-ring_road_drivers = { title = "Ring-road driver agents", sources = ["TC 10"], status = "pending organize-model-library" }
+charbonneau_traffic = { title = "Charbonneau traffic", sources = ["Ch 7"], status = "implemented" }
+optimal_velocity = { title = "Optimal velocity", sources = ["cond-mat/0012229 §III.A.2"], status = "implemented" }
+intelligent_driver_model = { title = "Intelligent driver model", sources = ["cond-mat/0012229 §III.A.3"], status = "implemented" }
+lighthill_whitham_richards = { title = "Lighthill-Whitham-Richards", sources = ["cond-mat/0012229 §III.D.1"], status = "implemented" }
+payne = { title = "Payne model", sources = ["cond-mat/0012229 §III.D"], status = "implemented" }
+kerner_konhauser = { title = "Kerner-Konhäuser model", sources = ["cond-mat/0012229 §III.D"], status = "implemented" }
+delayed_car_following = { title = "Car following with delay", sources = ["Gr 4.4"], status = "implemented" }
+ring_road_drivers = { title = "Ring-road driver agents", sources = ["TC 10"], status = "implemented" }
 gkt_traffic = { title = "GKT non-local traffic", sources = ["cond-mat/0012229 §III.E.4"], status = "blocked add-nonlocal-operators", feature = "Convolution kernels, reads at shifted positions, and modified-Helmholtz inversion on fields" }
 ridesharing = { title = "Ridesharing", sources = ["Cm 7"], status = "pending add-agent-economies" }
 
 [engineering.circuits]
 rlc_circuit = { title = "RLC circuit", sources = ["Kirchhoff 1845"], status = "implemented" }
-chua = { title = "Chua double and multiple scrolls", sources = ["Tr 3.4"], status = "pending organize-model-library" }
-mixed_mode_chua = { title = "Modified Chua with mixed-mode oscillations", sources = ["Tr 2.4"], status = "pending organize-model-library" }
-memristor_oscillator = { title = "Memristor oscillator", sources = ["Tr 2.2.2"], status = "pending organize-model-library" }
-tunnel_diode_oscillator = { title = "Tunnel-diode oscillator", sources = ["Tr 2.2.2"], status = "pending organize-model-library" }
-impulsive_circuits = { title = "Circuits under periodic impulses", sources = ["Tr 2.3"], status = "pending organize-model-library" }
-vibration_energy_harvester = { title = "Vibration energy harvester", sources = ["Tr 3.8"], status = "pending organize-model-library" }
+chua = { title = "Chua double and multiple scrolls", sources = ["Tr 3.4"], status = "implemented" }
+mixed_mode_chua = { title = "Modified Chua with mixed-mode oscillations", sources = ["Tr 2.4"], status = "implemented" }
+memristor_oscillator = { title = "Memristor oscillator", sources = ["Tr 2.2.2", "Muthuswamy and Chua 2010"], status = "implemented" }
+tunnel_diode_oscillator = { title = "Tunnel-diode oscillator", sources = ["Tr 2.2.2"], status = "implemented" }
+impulsive_circuits = { title = "Circuits under periodic impulses", sources = ["Tr 2.3"], status = "implemented" }
+vibration_energy_harvester = { title = "Vibration energy harvester", sources = ["Tr 3.8"], status = "implemented" }
 
 [engineering.control]
-thermostat = { title = "Thermostat", sources = ["TS 2"], status = "pending organize-model-library" }
-pid_loop = { title = "PID governance loop", sources = ["Mo 12.3"], status = "pending organize-model-library" }
-pendulum_swing_up = { title = "Pendulum swing-up", sources = ["Di 9.2–9.3"], status = "pending organize-model-library" }
-satellite_transfer = { title = "Satellite transfer", sources = ["Di 9.2–9.3"], status = "pending organize-model-library" }
+thermostat = { title = "Thermostat", sources = ["TS 2"], status = "implemented" }
+pid_loop = { title = "PID governance loop", sources = ["Mo 12.3"], status = "implemented" }
+pendulum_swing_up = { title = "Pendulum swing-up", sources = ["Di 9.2–9.3"], status = "implemented" }
+satellite_transfer = { title = "Satellite transfer", sources = ["Di 9.2–9.3"], status = "implemented" }
 heated_room = { title = "Heated room with a thermostat", sources = ["Fritzson 2015"], status = "pending add-acausal-components" }
 pid_inverted_pendulum = { title = "PID-stabilised inverted pendulum", sources = ["Åström and Murray 2008"], status = "pending add-optimal-control" }
 lqr_oscillator = { title = "Linear-quadratic regulated oscillator", sources = ["Åström and Murray 2008"], status = "pending add-optimal-control" }
 
 [engineering.power_systems]
-power_grid = { title = "Swing-equation power grid with Braess paradox", sources = ["DP 10.2.3"], status = "pending organize-model-library" }
-regenerative_braking = { title = "Regenerative braking", sources = ["Tr 6.4"], status = "pending organize-model-library" }
-faraday_disk = { title = "Faraday-disk charger", sources = ["Tr 6.5"], status = "pending organize-model-library" }
-wheel_rail_contact = { title = "Wheel and rail contact", sources = ["Tr 6.6"], status = "pending organize-model-library" }
+power_grid = { title = "Swing-equation power grid with Braess paradox", sources = ["DP 10.2.3"], status = "implemented" }
+regenerative_braking = { title = "Regenerative braking", sources = ["Tr 6.4"], status = "implemented" }
+faraday_disk = { title = "Faraday-disk charger", sources = ["Tr 6.5"], status = "implemented" }
+wheel_rail_contact = { title = "Wheel and rail contact", sources = ["Tr 6.6"], status = "implemented" }
 
 [engineering.robotics]
-light_seeking_robots = { title = "Light-sensitive robots with sensory delay", sources = ["Ar 10"], status = "pending organize-model-library" }
-swarmtaxis = { title = "Swarmtaxis", sources = ["Cm 10"], status = "pending organize-model-library" }
+light_seeking_robots = { title = "Light-sensitive robots with sensory delay", sources = ["Ar 10"], status = "implemented" }
+swarmtaxis = { title = "Swarmtaxis", sources = ["Cm 10"], status = "implemented" }
 
 [engineering.processes]
-bathtub = { title = "Bathtub", sources = ["TS 1"], status = "pending organize-model-library" }
-cascade_classifier = { title = "Cascade classifier", sources = ["Bs 4"], status = "pending organize-model-library" }
+bathtub = { title = "Bathtub", sources = ["TS 1"], status = "implemented" }
+cascade_classifier = { title = "Cascade classifier", sources = ["Bs 4"], status = "implemented" }
 rice_milling = { title = "Rice milling system", sources = ["Ba 11–12"], status = "pending add-stocks-and-flows" }
 solid_waste = { title = "Solid waste system", sources = ["Ba 11–12"], status = "pending add-stocks-and-flows" }
 food_relief = { title = "Food relief system", sources = ["Ba 4.11"], status = "pending add-stocks-and-flows" }
@@ -479,38 +481,38 @@ rossler = { title = "Rössler", sources = ["DP 3", "Tr 3.7"], status = "implemen
 sprott_jerk = { title = "Sprott jerk", sources = ["Sprott 1997", "Datseris and Parlitz 2022"], status = "implemented" }
 logistic_map = { title = "Logistic map", sources = ["Ch 1.3", "DP 1.1", "Sa 10"], status = "implemented" }
 henon_map = { title = "Hénon map", sources = ["Hénon 1976", "Datseris and Parlitz 2022"], status = "implemented" }
-standard_map = { title = "Standard", sources = ["DP 8–9", "Di 2.2", "Li 8"], status = "pending organize-model-library" }
-circle_map = { title = "Circle", sources = ["DP 8–9", "Di 2.2", "Li 8"], status = "pending organize-model-library" }
-tent_map = { title = "Tent", sources = ["DP 8–9", "Di 2.2", "Li 8"], status = "pending organize-model-library" }
-baker_map = { title = "Baker", sources = ["DP 8–9", "Di 2.2", "Li 8"], status = "pending organize-model-library" }
-towel_map = { title = "Towel maps", sources = ["DP 8–9", "Di 2.2", "Li 8"], status = "pending organize-model-library" }
-intermittency_map = { title = "Intermittency maps", sources = ["Di 1.19", "Je 12.3"], status = "pending organize-model-library" }
-newton_raphson_map = { title = "Newton-Raphson map", sources = ["Di 3.16", "Di 5.7"], status = "pending organize-model-library" }
-cat_map = { title = "Cat map", sources = ["Di 3.16", "Di 5.7"], status = "pending organize-model-library" }
-saddle_node_form = { title = "Saddle-node", sources = ["Gr 2.2–2.3", "Di 4.14"], status = "pending organize-model-library" }
-hopf_form = { title = "Hopf", sources = ["Gr 2.2–2.3", "Di 4.14"], status = "pending organize-model-library" }
-takens_bogdanov_form = { title = "Takens-Bogdanov", sources = ["Gr 2.2–2.3", "Di 4.14"], status = "pending organize-model-library" }
-cusp_form = { title = "Cusp normal forms", sources = ["Gr 2.2–2.3", "Di 4.14"], status = "pending organize-model-library" }
-finite_time_blow_up = { title = "Finite-time blow-up", sources = ["Fo 14.2"], status = "pending organize-model-library" }
+standard_map = { title = "Standard", sources = ["DP 8–9", "Di 2.2", "Li 8"], status = "implemented" }
+circle_map = { title = "Circle", sources = ["DP 8–9", "Di 2.2", "Li 8"], status = "implemented" }
+tent_map = { title = "Tent", sources = ["DP 8–9", "Di 2.2", "Li 8"], status = "implemented" }
+baker_map = { title = "Baker", sources = ["DP 8–9", "Di 2.2", "Li 8"], status = "implemented" }
+towel_map = { title = "Towel maps", sources = ["DP 8–9", "Di 2.2", "Li 8"], status = "implemented" }
+intermittency_map = { title = "Intermittency maps", sources = ["Di 1.19", "Je 12.3"], status = "implemented" }
+newton_raphson_map = { title = "Newton-Raphson map", sources = ["Di 3.16", "Di 5.7"], status = "implemented" }
+cat_map = { title = "Cat map", sources = ["Di 3.16", "Di 5.7"], status = "implemented" }
+saddle_node_form = { title = "Saddle-node", sources = ["Gr 2.2–2.3", "Di 4.14"], status = "implemented" }
+hopf_form = { title = "Hopf", sources = ["Gr 2.2–2.3", "Di 4.14"], status = "implemented" }
+takens_bogdanov_form = { title = "Takens-Bogdanov", sources = ["Gr 2.2–2.3", "Di 4.14"], status = "implemented" }
+cusp_form = { title = "Cusp normal forms", sources = ["Gr 2.2–2.3", "Di 4.14"], status = "implemented" }
+finite_time_blow_up = { title = "Finite-time blow-up", sources = ["Fo 14.2"], status = "implemented" }
 
 [mathematics.stochastic_processes]
-random_walk = { title = "Random walks", sources = ["Ar 5.1", "Ch C", "Je 10.1"], status = "pending organize-model-library" }
-weakening_ornstein_uhlenbeck = { title = "Ornstein-Uhlenbeck with weakening restoring force", sources = ["Je 10.5"], status = "pending organize-model-library" }
-polya_urn = { title = "Pólya urn", sources = ["Th 2.5.3"], status = "pending organize-model-library" }
-galton_watson = { title = "Galton-Watson branching", sources = ["Gr 6.5", "Je 5"], status = "pending organize-model-library" }
-sample_space_reducing = { title = "Sample-space-reducing process", sources = ["Th 2.5.4", "Th 3.3.5"], status = "pending organize-model-library" }
-fragmentation = { title = "Fragmentation", sources = ["Th 2.5.4", "Th 3.3.5"], status = "pending organize-model-library" }
-ageing_random_walk = { title = "Ageing random walk", sources = ["Th 6.4.3.1"], status = "pending organize-model-library" }
-bernoulli_process = { title = "Bernoulli process", sources = ["Th 2.5.1"], status = "pending organize-model-library" }
-poisson_process = { title = "Poisson process", sources = ["Th 2.5.1"], status = "pending organize-model-library" }
+random_walk = { title = "Random walks", sources = ["Ar 5.1", "Ch C", "Je 10.1"], status = "implemented" }
+weakening_ornstein_uhlenbeck = { title = "Ornstein-Uhlenbeck with weakening restoring force", sources = ["Je 10.5"], status = "implemented" }
+polya_urn = { title = "Pólya urn", sources = ["Th 2.5.3"], status = "implemented" }
+galton_watson = { title = "Galton-Watson branching", sources = ["Gr 6.5", "Je 5"], status = "implemented" }
+sample_space_reducing = { title = "Sample-space-reducing process", sources = ["Th 2.5.4", "Th 3.3.5"], status = "implemented" }
+fragmentation = { title = "Fragmentation", sources = ["Th 2.5.4", "Th 3.3.5"], status = "implemented" }
+ageing_random_walk = { title = "Ageing random walk", sources = ["Th 6.4.3.1"], status = "implemented" }
+bernoulli_process = { title = "Bernoulli process", sources = ["Th 2.5.1"], status = "implemented" }
+poisson_process = { title = "Poisson process", sources = ["Th 2.5.1"], status = "implemented" }
 persistent_random_walk = { title = "Persistent random walk", sources = ["Je 10.4"], status = "blocked add-stochastic-maps", feature = "Random draws from the simulation's stream inside update laws, and discrete-time Markov chains" }
 markov_source = { title = "Markov source", sources = ["Li 3.2"], status = "blocked add-stochastic-maps", feature = "Random draws from the simulation's stream inside update laws, and discrete-time Markov chains" }
 hidden_markov_source = { title = "Hidden Markov source", sources = ["Li 3.2"], status = "blocked add-stochastic-maps", feature = "Random draws from the simulation's stream inside update laws, and discrete-time Markov chains" }
 
 [mathematics.networks]
-network_random_walk = { title = "Random walks", sources = ["Th 4.8", "Je 8.5.2"], status = "pending organize-model-library" }
-network_diffusion = { title = "Diffusion", sources = ["Th 4.8", "Je 8.5.2"], status = "pending organize-model-library" }
-pagerank = { title = "PageRank iterations on networks", sources = ["Th 4.8", "Je 8.5.2"], status = "pending organize-model-library" }
+network_random_walk = { title = "Random walks", sources = ["Th 4.8", "Je 8.5.2"], status = "implemented" }
+network_diffusion = { title = "Diffusion", sources = ["Th 4.8", "Je 8.5.2"], status = "implemented" }
+pagerank = { title = "PageRank iterations on networks", sources = ["Th 4.8", "Je 8.5.2"], status = "implemented" }
 barabasi_albert = { title = "Barabási-Albert growth", sources = ["Ar 12.5", "Gr 1.5", "TC 4", "Th 4.5.4"], status = "pending add-adaptive-networks" }
 holme_kim = { title = "Holme-Kim growth", sources = ["Ar 12.5", "Gr 1.5", "TC 4", "Th 4.5.4"], status = "pending add-adaptive-networks" }
 
@@ -532,10 +534,10 @@ fractional_lorenz = { title = "Fractional Lorenz", sources = ["Grigorenko and Gr
 elementary_automaton = { title = "Elementary automata", sources = ["Ar 4.1", "Ch 2.1", "TC 5", "Li 4"], status = "implemented" }
 game_of_life = { title = "Game of Life", sources = ["Ar 4.2", "TC 6"], status = "implemented" }
 langtons_ant = { title = "Langton's ant", sources = ["Ch 2.4"], status = "implemented" }
-highlife = { title = "Highlife and the planar automaton zoo", sources = ["Ch 2.2", "TC 6"], status = "pending organize-model-library" }
-noisy_automata = { title = "Noisy automata", sources = ["Li 4.3.3"], status = "pending organize-model-library" }
-diffusion_automaton = { title = "Diffusion automaton", sources = ["TC 7"], status = "pending organize-model-library" }
-unbounded_alphabet_automaton = { title = "Unbounded-alphabet automaton", sources = ["CC 3.3.3"], status = "pending organize-model-library" }
+highlife = { title = "Highlife and the planar automaton zoo", sources = ["Ch 2.2", "TC 6"], status = "implemented" }
+noisy_automata = { title = "Noisy automata", sources = ["Li 4.3.3"], status = "implemented" }
+diffusion_automaton = { title = "Diffusion automaton", sources = ["TC 7"], status = "implemented" }
+unbounded_alphabet_automaton = { title = "Unbounded-alphabet automaton", sources = ["CC 3.3.3"], status = "implemented" }
 free_group_automaton = { title = "Automata on the free group", sources = ["CC 4–8"], status = "pending add-group-cellular-automata" }
 lamplighter_automaton = { title = "Lamplighter", sources = ["CC 4–8"], status = "pending add-group-cellular-automata" }
 heisenberg_automaton = { title = "Heisenberg", sources = ["CC 4–8"], status = "pending add-group-cellular-automata" }
@@ -545,9 +547,9 @@ subshifts = { title = "Subshifts", sources = ["CC 4–8"], status = "pending add
 grigorchuk_automaton = { title = "Automata on the Grigorchuk group", sources = ["CC 6.9"], status = "out of scope", reason = "Groups that are not finitely presented", library = "GAP through `passagemath-gap`" }
 
 [computer_science.evolutionary_computation]
-robby_ga = { title = "RobbyGA can collector", sources = ["Go 6"], status = "pending organize-model-library" }
-bit_string_evolution = { title = "Bit-string evolution on a fitness landscape", sources = ["TC 11"], status = "pending organize-model-library" }
+robby_ga = { title = "RobbyGA can collector", sources = ["Go 6"], status = "implemented" }
+bit_string_evolution = { title = "Bit-string evolution on a fitness landscape", sources = ["TC 11"], status = "implemented" }
 
 [computer_science.neural_networks]
-hopfield = { title = "Hopfield network", sources = ["Tr 7.3", "2112.12147 §3.1.2"], status = "pending organize-model-library" }
+hopfield = { title = "Hopfield network", sources = ["Tr 7.3", "2112.12147 §3.1.2"], status = "implemented" }
 elman_network = { title = "Elman recurrent network trained by backpropagation", sources = ["Gr 10.5.1"], status = "out of scope", reason = "Gradient training of recurrent networks", library = "PyTorch or JAX" }

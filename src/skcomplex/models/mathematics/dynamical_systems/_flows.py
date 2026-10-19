@@ -1,4 +1,4 @@
-"""Dynamical systems models: chaotic flows and maps."""
+"""Dynamical systems models: chaotic flows and singular growth."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -174,3 +174,42 @@ def sprott_jerk(
         0.5
     """
     return System(elements=[Jerk('jerk', x=x, x_d1=velocity, x_d2=acceleration, A=A)])
+
+
+BlowUp = Element.define(
+    'BlowUp',
+    states={'x': 1.0},
+    parameters={'a': 1.0, 'p': 2.0},
+    laws=lambda s: [Rate(s.x, s.a * s.x**s.p)],
+)
+
+
+@register_model(
+    field='mathematics/dynamical_systems',
+    tags=('ode', 'singularity', 'hyperbolic growth'),
+    references=('Forrest 2018',),
+    defaults={'until': 0.9, 'dt': 0.01},
+)
+def finite_time_blow_up(x: float = 1.0, *, a: float = 1.0, p: float = 2.0) -> System:
+    """Return hyperbolic growth `x' = a x^p`, which diverges at the finite time `x0^(1 - p) / (a (p - 1))` for p > 1.
+
+    Args:
+        x:
+            The initial value, positive.
+
+        a:
+            The growth coefficient.
+
+        p:
+            The growth exponent.
+
+    Returns:
+        system:
+            The model, with the state `growth.x`.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import finite_time_blow_up
+        >>> finite_time_blow_up(p=3.0).elements[0].p
+        3.0
+    """
+    return System(elements=[BlowUp('growth', x=x, a=a, p=p)])

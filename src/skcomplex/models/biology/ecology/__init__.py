@@ -1,27 +1,98 @@
-"""Ecology: population growth, predation, and invasion fronts."""
+"""Ecology: population growth, predation, competition, food webs, succession, grazing, and neutral communities."""
 
-from ._factories import Rabbits, exponential_growth, fibonacci_rabbits, hutchinson, logistic_growth, lotka_volterra
+from ._agent_predation import Predator, Prey, agent_based_lotka_volterra
+from ._communities import Competition, Mutualism, competition, food_webs, mutualism
+from ._factories import (
+    Rabbits,
+    exponential_growth,
+    fibonacci_rabbits,
+    hutchinson,
+    logistic_growth,
+    lotka_volterra,
+    varying_capacity_logistic,
+)
 from ._fronts import FisherKPP, fisher_kpp
-from ._populations import DelayedLogisticGrowth, ExponentialGrowth, LogisticGrowth, Mortality, Population, Predation
+from ._meadow import Cow, Herding, Pasture, meadow_capacity
+from ._neutral import NeutralSpecies, neutral_macroecology
+from ._populations import (
+    DelayedLogisticGrowth,
+    ExponentialGrowth,
+    LogisticGrowth,
+    Mortality,
+    Population,
+    Predation,
+    SeasonalLogisticGrowth,
+)
+from ._predation import (
+    Parasitism,
+    PredatorPreyEvents,
+    RosenzweigMacArthur,
+    lotka_volterra_with_harvesting,
+    nicholson_bailey,
+    rosenzweig_macarthur,
+    stochastic_predator_prey,
+)
+from ._stigmergy import (
+    EmotionMarks,
+    Forager,
+    Plant,
+    StigmergicPredator,
+    StigmergicPrey,
+    stigmergic_predator_prey,
+)
+from ._succession import PioneerGrowth, Stand, SuccessionalGrowth, mangrove_succession
 from ._wolf_sheep import Grass, Sheep, Wolf, wolf_sheep
 
 __all__: list[str] = [
+    'Competition',
+    'Cow',
     'DelayedLogisticGrowth',
+    'EmotionMarks',
     'ExponentialGrowth',
     'FisherKPP',
+    'Forager',
     'Grass',
+    'Herding',
     'LogisticGrowth',
     'Mortality',
+    'Mutualism',
+    'NeutralSpecies',
+    'Parasitism',
+    'Pasture',
+    'PioneerGrowth',
+    'Plant',
     'Population',
     'Predation',
+    'Predator',
+    'PredatorPreyEvents',
+    'Prey',
     'Rabbits',
+    'RosenzweigMacArthur',
+    'SeasonalLogisticGrowth',
     'Sheep',
+    'Stand',
+    'StigmergicPredator',
+    'StigmergicPrey',
+    'SuccessionalGrowth',
     'Wolf',
+    'agent_based_lotka_volterra',
+    'competition',
     'exponential_growth',
     'fibonacci_rabbits',
     'fisher_kpp',
+    'food_webs',
     'hutchinson',
     'logistic_growth',
     'lotka_volterra',
+    'lotka_volterra_with_harvesting',
+    'mangrove_succession',
+    'meadow_capacity',
+    'mutualism',
+    'neutral_macroecology',
+    'nicholson_bailey',
+    'rosenzweig_macarthur',
+    'stigmergic_predator_prey',
+    'stochastic_predator_prey',
+    'varying_capacity_logistic',
     'wolf_sheep',
 ]

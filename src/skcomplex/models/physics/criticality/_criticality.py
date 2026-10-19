@@ -16,12 +16,28 @@ from ....core.runtime import register_model
 type Array = npt.NDArray[np.float64]
 
 NEAREST = Neighborhood.von_neumann(center=True)
+NEAREST_STEPS = np.array(Neighborhood.von_neumann().offsets)
+MANNA_THRESHOLD = 2
 
 
 def _drop_grain(heights: Array, *, random: np.random.Generator) -> Array:
     """Return the heights with one grain added on a random site."""
     following = heights.copy()
     following[tuple(random.integers(size) for size in heights.shape)] += 1
+    return following
+
+
+def _topple_at_random(heights: Array, *, random: np.random.Generator) -> Array:
+    """Return the heights after every site with two or more grains sends two grains to random neighbours."""
+    active = np.argwhere(heights >= MANNA_THRESHOLD)
+    following = heights.copy()
+    following[tuple(active.T)] -= MANNA_THRESHOLD
+    targets = (
+        np.repeat(active, MANNA_THRESHOLD, axis=0)
+        + NEAREST_STEPS[random.integers(len(NEAREST_STEPS), size=2 * len(active))]
+    )
+    inside = np.all((targets >= 0) & (targets < heights.shape), axis=1)
+    np.add.at(following, tuple(targets[inside].T), 1)
     return following
 
 
@@ -72,6 +88,49 @@ class SandpileCell(Element):
                 relax=[LocalRule(s.height, NEAREST, topple)],
                 stable=lambda heights: bool((heights < threshold).all()),
                 activity=lambda heights: heights >= threshold,
+                label='avalanche',
+            ),
+        ]
+
+
+class MannaCell(Element):
+    """Site of the Manna sandpile, which topples when it holds two grains and sends each to a random neighbour.
+
+    Every step drops one grain on a random site, then all sites with two or more grains topple at once until the pile
+    is stable. Grains that topple over the edge leave the pile.
+
+    Args:
+        label:
+            The label of the site or the lattice group.
+
+        height:
+            The initial number of grains.
+
+    Examples:
+        >>> from skcomplex.models.physics.criticality import MannaCell
+        >>> MannaCell('site').height
+        0
+    """
+
+    height: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
+
+    def laws(self, s: Symbols) -> list[Law]:
+        """Return the drive by single grains and the stochastic toppling relaxation.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return [
+            Relaxation(
+                drive=[Drive(s.height, _drop_grain)],
+                relax=[Drive(s.height, _topple_at_random)],
+                stable=lambda heights: bool((heights < MANNA_THRESHOLD).all()),
+                activity=lambda heights: heights >= MANNA_THRESHOLD,
                 label='avalanche',
             ),
         ]
@@ -159,6 +218,39 @@ def sandpile(shape: Sequence[int] = (50, 50), *, random_state: int | np.random.G
     heights = np.random.default_rng(random_state).integers(0, 4, size=tuple(shape)).astype(float)
     space = LatticeSpace(tuple(shape), boundary='fixed')
     return System(elements=[SandpileCell.lattice('pile', space, height=heights)])
+
+
+@register_model(
+    field='physics/criticality',
+    tags=('lattice', 'avalanches', 'power law', 'stochastic'),
+    references=('Manna 1991', 'Jensen 2023'),
+    defaults={'until': 10000, 'dt': 50},
+)
+def manna_sandpile(shape: Sequence[int] = (32, 32), *, random_state: int | np.random.Generator | None = 0) -> System:
+    """Return the Manna sandpile, a stochastic sandpile of another universality class than Bak-Tang-Wiesenfeld.
+
+    The pile starts from random stable heights of 0 or 1 grain, and its avalanches are recorded as `avalanche`
+    events with their sizes, durations, and areas.
+
+    Args:
+        shape:
+            The number of rows and columns.
+
+        random_state:
+            The seed or generator of the initial heights.
+
+    Returns:
+        system:
+            The model, with the heights `pile.height`.
+
+    Examples:
+        >>> from skcomplex.models.physics.criticality import manna_sandpile
+        >>> manna_sandpile((10, 10)).elements[0].size
+        100
+    """
+    heights = np.random.default_rng(random_state).integers(0, MANNA_THRESHOLD, size=tuple(shape)).astype(float)
+    space = LatticeSpace(tuple(shape), boundary='fixed')
+    return System(elements=[MannaCell.lattice('pile', space, height=heights)])
 
 
 @register_model(
