@@ -172,3 +172,34 @@ resonance, and a Brownian particle near a wall with multiplicative noise as regi
 #### Scenario: Izhikevich regular spiking
 - **WHEN** the Izhikevich neuron runs with the regular-spiking parameters and a constant input of 10
 - **THEN** it fires periodically with each spike reset recorded as an event
+
+### Requirement: Lattice models
+The library SHALL provide elementary automata, Game of Life, majority rule, Langton's ant, Nagel-Schreckenberg traffic,
+the hodgepodge machine, the Bak-Tang-Wiesenfeld sandpile, the Drossel-Schwabl forest fire, Olami-Feder-Christensen
+earthquakes, and the Ising, Potts, and XY models as registered factories.
+
+#### Scenario: Traffic jams
+- **WHEN** the Nagel-Schreckenberg model runs at densities 0.1 and 0.5 with slowdown probability 0.3
+- **THEN** the mean flow at density 0.5 is lower than at the critical density near 0.15, and jams appear as backward
+  moving clusters of stopped cars
+
+### Requirement: Field models
+The library SHALL provide heat diffusion, Fisher-KPP, Gray-Scott, Brusselator, FitzHugh-Nagumo spirals, Schnakenberg
+Turing patterns, and pheromone foraging as registered factories.
+
+#### Scenario: Fisher front speed
+- **WHEN** the Fisher-KPP model runs with growth rate `r` and diffusion `D` from a step profile
+- **THEN** the front moves at a speed within 5% of `2 * sqrt(r * D)`
+
+#### Scenario: Turing spots
+- **WHEN** the Schnakenberg model runs in its Turing-unstable regime from small noise
+- **THEN** a stationary pattern with a dominant wavelength within 10% of the linear prediction forms
+
+### Requirement: PDE models
+The library SHALL provide Kuramoto-Sivashinsky, complex Ginzburg-Landau, Swift-Hohenberg, Burgers' shock, the
+shallow-water dam break, decaying two-dimensional turbulence, Rayleigh-Bénard convection, and heat on an L-shaped
+domain as registered factories.
+
+#### Scenario: Swift-Hohenberg rolls
+- **WHEN** the Swift-Hohenberg model runs above onset from small noise
+- **THEN** a roll pattern forms with a wavelength within 5% of 2π
