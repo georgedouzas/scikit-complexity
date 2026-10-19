@@ -1,0 +1,70 @@
+# Tasks
+
+## 1. Capture spike
+
+- [ ] 1.1 Capture the reference set (`lotka_volterra`, `lorenz`, `gray_scott`, `game_of_life`, `wolf_sheep`,
+  `ideal_gas`, `voter_model`, `heat_l_shape`, `boids`, `sir`) with the native viewer and with the web viewer in headless
+  Chromium through Playwright, on macOS and on Linux with software rendering. Record each backend's share of captures
+  passing the checks, time per capture, and headless support in the design, choose the default, and verify the backend
+  comparison scenario.
+
+## 2. Layouts
+
+- [ ] 2.1 Add `views` to `Visual` and to the five built-in visuals, and verify the views of the built-in visuals
+  scenario
+- [ ] 2.2 Add `default_blueprint(system, parameters=False)` and `save_blueprint`, re-export them from
+  `skcomplex.core.viz`, and verify the ODE, field, and parameters scenarios
+- [ ] 2.3 Add the `blueprint` argument of `RerunObserver`, which sends the blueprint and saves it next to a saved
+  recording, and verify the saved recording and no blueprint scenarios
+- [ ] 2.4 Document layouts and blueprints in the user guide with a runnable example, and verify the documentation test
+
+## 3. Capture, checks, and cache
+
+- [ ] 3.1 Add the `gallery` dependency group with Pillow and Playwright, and the capture module with both backends, the
+  wait for loading and rendering, and cropping to the viewport, and verify the field at its last frame and overlays
+  excluded scenarios
+- [ ] 3.2 Add the checks for size, blank views, notifications, and encoding as WebP within 300 KB, with one retry, and
+  verify the blank view and size budget scenarios
+- [ ] 3.3 Add the content-based cache and its key, and verify the warm build and changed model scenarios
+- [ ] 3.4 Verify the repeated capture scenario on both backends
+
+## 4. Examples and documentation
+
+- [ ] 4.1 Add the generator that scaffolds an example per registered model, the budget check for frames, recording
+  size, and run time, and the coverage check in warning mode, and verify the recording budget, over budget, missing
+  example, and orphan example scenarios
+- [ ] 4.2 Add the Rerun image scraper to the `mkdocs-gallery` configuration and the gallery navigation by field and
+  subfield, and verify an example page shows its code, caption, and screenshot
+- [ ] 4.3 Show the screenshots on the field pages and link the examples from the coverage page, and verify the field
+  page scenario
+- [ ] 4.4 Add the lazy embedded Rerun web viewer with the published recording, and verify the open the recording
+  scenario
+- [ ] 4.5 Add `nox -s gallery` with `--backend` and parallel captures, and a CI job with software rendering and the
+  screenshot cache, and verify the selecting a backend scenario
+
+## 5. Field batches
+
+For every task in this section:
+- curate the scaffolded example of each model of the field, by its parameters, gallery settings, blueprint, and
+  caption;
+- capture its screenshot;
+- review it against the caption and record the review in the batch's list;
+- verify that the field's examples pass the budget, checks, and coverage.
+
+- [ ] 5.1 Physics
+- [ ] 5.2 Chemistry
+- [ ] 5.3 Biology
+- [ ] 5.4 Earth science
+- [ ] 5.5 Economics
+- [ ] 5.6 Social science
+- [ ] 5.7 Engineering
+- [ ] 5.8 Mathematics
+- [ ] 5.9 Computer science
+
+## 6. Enforcement and gate
+
+- [ ] 6.1 Switch the coverage check and the strict documentation build to failing mode, and verify the strict build
+  without a screenshot and new model without an example scenarios
+- [ ] 6.2 Document the gallery, how to add an example for a new model, and the review rule in the contributing guide,
+  and add the `gallery` group and Playwright to the Project Profile
+- [ ] 6.3 Run formatting, checks, the docs build with the gallery, and tests through nox, and verify all of them pass
