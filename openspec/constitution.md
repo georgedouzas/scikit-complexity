@@ -55,6 +55,10 @@ conventions are the taste it cannot check.
 - A fact, a definition, or a derivation MUST live in exactly one place, and the same thing expressed twice MUST be
   collapsed to one. What can be derived from what is already kept MUST NOT be stored.
 - A capability the codebase already has MUST be reused rather than reimplemented or copied into another module.
+- A capability that a popular, mature, or performant library already provides MUST be taken from that library as a
+  dependency rather than implemented in the codebase, and the codebase MUST hold only the adapter that lowers its own
+  abstractions to the library. A capability MUST NOT be implemented in house unless no such library fits, and the
+  change that adds it MUST record the libraries it surveyed and why each was rejected.
 - A constant that two modules define the same way MUST be treated as one fact and lifted to the shared leaves. Two
   constants that share a value but not a meaning MUST stay apart, and the same holds for behavior, so only the
   fragment that is identical at every call site MUST be collapsed.
@@ -223,7 +227,7 @@ to fill in as the project takes shape.
   symbolic layer every law is written in and lowered from, `passagemath-maxima` for exact solutions, `cysignals` at a
   version the passagemath wheels need, `numba` for the compiled backend, `lammps` for the LAMMPS backend, `mesa` for agent-based models, `networkx`
   for networks, which Mesa 3.5 imports without declaring it, `rerun-sdk` for visualization, `SALib` for sensitivity
-  analysis, and `scikit-learn` for the
+  analysis, `scikit-fem` for finite-element assembly on unstructured meshes, and `scikit-learn` for the
   estimator contract. Rerun is a core dependency,
   and spawning a local viewer happens only on request, so it is not a real-world side effect.
 - Symbolic layer: Sage is imported only through `sage.all__sagemath_symbolics` and the modules it loads, and the
@@ -231,13 +235,19 @@ to fill in as the project takes shape.
   passagemath, but importing it is banned by a `ruff` rule, and laws reject SymPy values.
 - LAMMPS: `lammps` is a runtime dependency, with `mpich`, because the LAMMPS wheel links an MPI library it does not
   bundle.
-- Layout: library. The importable package under `src/skcomplex` is distributed to others. Imports run downward
-  through `core`, `model`, `compile`, `solvers`, `runtime`, `viz`, `experiments`, `analysis`, `models`, and
-  `backends`, which
-  translates models into third-party libraries and so sits above them. Importing `skcomplex.backends` registers its
-  solver names. The top-level package
-  re-exports nothing, so every public name is imported from the subpackage that owns it.
-- Extension points: solvers, visuals, and any other registry in `core` accept new entries without changes to
+- Layout: library. The importable package under `src/skcomplex` is distributed to others and holds exactly two
+  packages, `skcomplex.core` and `skcomplex.models`. The core is the domain-agnostic framework, and imports inside it
+  run downward through `base`, `model`, `compile`, `solvers`, `runtime`, `viz`, `experiments`, `analysis`, and
+  `backends`, which translates models into third-party libraries and so sits above them. Importing
+  `skcomplex.core.backends` registers its solver names. The core never imports `skcomplex.models`.
+- Model library: `skcomplex.models` is organised by scientific field and subfield, as
+  `skcomplex.models.<field>.<subfield>`, and every model registers under the field path `<field>/<subfield>`. Models
+  are examples built only from the public names of the core, and every model package is self-contained, so no model
+  package imports another. A model the core cannot express MUST be recorded as blocked by an OpenSpec change for the
+  missing general capability, never worked around inside the model package. A layout test enforces these rules.
+- Surface: the top-level package and `skcomplex.core` re-export nothing, so every public name is imported from the
+  subpackage that owns it.
+- Extension points: solvers, visuals, and any other registry in `skcomplex.core.base` accept new entries without changes to
   existing modules. Base classes users subclass are `Element`, `AgentType`, `Interaction`, `PairInteraction`, `Potential`,
   `PairPotential`, `Backend`, `Stepper`, `ExternalBackend`, `Clock`, `Observer`, and `Visual`.
-**Version**: 1.3.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-18
+**Version**: 1.4.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-19

@@ -11,7 +11,7 @@
 
 ## 2. Constitution and dependencies
 
-- [ ] 2.1 Amend the constitution with the rule to build on popular, mature, or performant libraries, and update the
+- [x] 2.1 Amend the constitution with the rule to build on popular, mature, or performant libraries, and update the
   Project Profile with `scikit-fem`, the core and models layout, and the layering inside the core
 - [ ] 2.2 Audit the framework's finite-difference, spectral, finite-volume, stiff-stepper, and Gillespie numerics
   against `py-pde`, Dedalus, PyClaw, SciPy, `diffrax`, and `gillespy2`, record the comparison, and create a follow-up
