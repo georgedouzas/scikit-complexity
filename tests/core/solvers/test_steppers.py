@@ -5,11 +5,12 @@ import time
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import sin
 from scipy.integrate import solve_ivp
 
 from skcomplex.core.base import SolverError, role
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import Interaction, Rate, System
+from skcomplex.core.model import Element, Interaction, Rate, System
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import EulerMaruyama, Gillespie, Iteration, ScipyODE, resolve_solver
 from skcomplex.models import create, run
@@ -87,6 +88,19 @@ def test_simulation_default_solver_keeps_accuracy_of_non_stiff_model():
     """Test that a harmonic oscillator run with the default solver matches the analytic solution within 1e-5."""
     simulation = Simulation(harmonic_oscillator()).run(until=10)
     np.testing.assert_allclose(simulation.state_, [np.cos(10), -np.sin(10)], rtol=1e-5)
+
+
+def test_default_solver_starts_from_rest_with_a_vanishing_drift():
+    """Test that an oscillator at rest, forced by `sin(t)`, leaves its zero drift at time 0 and follows the solution."""
+    Forced = Element.define(
+        'Forced',
+        states={'x': 0.0, 'v': 0.0},
+        laws=lambda s: [Rate(s.x, s.v), Rate(s.v, -4 * s.x + sin(s.t))],
+    )
+    simulation = Simulation(System(elements=[Forced('oscillator')]), dt=0.01).run(until=5)
+    times = simulation.trajectory_.times
+    expected = (np.sin(times) - np.sin(2 * times) / 2) / 3
+    np.testing.assert_allclose(simulation.trajectory_['oscillator.x'], expected, atol=1e-6)
 
 
 def test_euler_maruyama_without_noise_matches_ode():

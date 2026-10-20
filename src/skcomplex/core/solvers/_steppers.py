@@ -36,9 +36,44 @@ def _is_hybrid(problem: Problem, t: float, until: float) -> bool:
     return bool(problem.delays or problem.events or problem.breakpoints.between(t, math.nextafter(until, math.inf)))
 
 
+SMALL_NORM = 1e-5
+TINY_NORM = 1e-15
+FALLBACK_STEP = 1e-6
+
+
 def _smallest_delay(problem: Problem) -> float:
     """Return the smallest delay of a problem, or infinity without delays."""
     return min((delay.minimum for delay in problem.delays), default=math.inf)
+
+
+def _lsoda_first_step(
+    field: Callable[[float, Vector], Vector],
+    t: float,
+    x: Vector,
+    *,
+    end: float,
+    max_step: float,
+    rtol: float,
+    atol: float,
+) -> float | None:
+    """Return the first step of LSODA from a trial step, or `None` to let LSODA choose.
+
+    LSODA guesses its first step from the distance to the end when the drift vanishes at the start, and without a
+    largest step it fails before its first step on a far end. The step is selected as SciPy's other solvers do, from
+    the norms of the state, the drift, and the drift's change over a trial step (Hairer, Norsett, and Wanner, II.4).
+    """
+    span = abs(end - t)
+    with np.errstate(all='ignore'):
+        drift = field(t, x)
+        scale = atol + np.abs(x) * rtol
+        state_norm, drift_norm = np.sqrt(np.mean((x / scale) ** 2)), np.sqrt(np.mean((drift / scale) ** 2))
+        small = min(state_norm, drift_norm) < SMALL_NORM
+        trial = min(FALLBACK_STEP if small else 0.01 * state_norm / drift_norm, span)
+        change = np.sqrt(np.mean(((field(t + trial, x + trial * drift) - drift) / scale) ** 2)) / trial
+        largest = max(drift_norm, change)
+        second = max(FALLBACK_STEP, trial * 1e-3) if largest <= TINY_NORM else (0.01 / largest) ** 0.5
+        step = min(100 * trial, second, span, max_step)
+    return float(step) if math.isfinite(step) and step > 0 else None
 
 
 def _bounds(problem: Problem, t: float, until: float) -> list[float]:
@@ -297,15 +332,19 @@ class ScipyODE(Stepper):
             return drift(time, state, with_delays(problem, history, time, state, p))  # type: ignore[misc]
 
         delay = _smallest_delay(problem)
+        end = min(bound, LARGEST_TIME)
+        max_step = max(delay, self._frame / STEPS_PER_FRAME)
         first_step = min(delay / 2, bound - t) if problem.delays else None
+        if first_step is None and self.method == 'LSODA':
+            first_step = _lsoda_first_step(field, t, x, end=end, max_step=max_step, rtol=self.rtol, atol=self.atol)
         self._solver = METHODS[self.method](
             field,
             t,
             x.copy(),
-            min(bound, LARGEST_TIME),
+            end,
             rtol=self.rtol,
             atol=self.atol,
-            max_step=max(delay, self._frame / STEPS_PER_FRAME),
+            max_step=max_step,
             first_step=first_step,
             **self._jacobian_options(history, p),
         )
