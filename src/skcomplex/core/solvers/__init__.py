@@ -3,9 +3,20 @@
 from ._agents import AgentSnapshot, AgentState, AgentView, MesaStepper, ModelView
 from ._base import SOLVERS, Stepper, register_solver, resolve_solver
 from ._cosimulation import CoSimulation
+from ._fractional import FractionalEulerMaruyama, fractional_gaussian_noise
 from ._lattices import LatticeStepper, MonteCarlo
 from ._rewriting import Rewriter, RewritingState
-from ._steppers import RK4, EulerMaruyama, Gillespie, Heun, Iteration, Milstein, ScipyODE, VelocityVerlet
+from ._steppers import (
+    RK4,
+    EulerMaruyama,
+    Gillespie,
+    Heun,
+    Iteration,
+    Milstein,
+    RenewalStepper,
+    ScipyODE,
+    VelocityVerlet,
+)
 from ._stiff import ETDRK4, IMEX2, SSPRK, CrankNicolson, IMEXEuler, SplitOperator
 
 __all__: list[str] = [
@@ -20,6 +31,7 @@ __all__: list[str] = [
     'CoSimulation',
     'CrankNicolson',
     'EulerMaruyama',
+    'FractionalEulerMaruyama',
     'Gillespie',
     'Heun',
     'IMEXEuler',
@@ -29,12 +41,14 @@ __all__: list[str] = [
     'Milstein',
     'ModelView',
     'MonteCarlo',
+    'RenewalStepper',
     'Rewriter',
     'RewritingState',
     'ScipyODE',
     'SplitOperator',
     'Stepper',
     'VelocityVerlet',
+    'fractional_gaussian_noise',
     'register_solver',
     'resolve_solver',
 ]

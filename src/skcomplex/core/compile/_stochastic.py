@@ -1,16 +1,18 @@
-"""Lower random draws and Markov laws of discrete maps to values drawn into an extended parameter vector."""
+"""Lower random draws and Markov laws to values drawn into an extended parameter vector or at renewals."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import difflib
 import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
+from scipy import stats
 
 from ..base import (
     Categorical,
@@ -35,6 +37,7 @@ from ..model import (
     Law,
     Noise,
     Rate,
+    Renewal,
     Transition,
     Update,
     categorical,
@@ -44,10 +47,17 @@ from ..model import (
 from ._kernels import Reference, Source
 from ._layout import Entry
 from ._printing import numpy_function
-from ._problem import Draws, MarkovMatrix, Vector
+from ._problem import Draws, MarkovMatrix, SampledDraw, Vector
 
 ALPHABET_DOMAINS = (Domain.INTEGER, Domain.NONNEGATIVE_INTEGER, Domain.BOOLEAN)
 NORMAL_KINDS = frozenset({'normal'})
+DISTRIBUTIONS = tuple(
+    sorted(
+        name
+        for name in dir(stats)
+        if not name.startswith('_') and isinstance(getattr(stats, name), stats.rv_continuous | stats.rv_discrete)
+    ),
+)
 
 
 def _is_symbolic(value: object) -> bool:
@@ -56,8 +66,8 @@ def _is_symbolic(value: object) -> bool:
 
 
 def _law_values(law: Law) -> list[object]:
-    """Return the symbolic values of a law that is not an update law."""
-    if isinstance(law, Rate | Noise | Boundary):
+    """Return the values of a law that can hold random draws."""
+    if isinstance(law, Rate | Noise | Boundary | Update):
         return [law.value]
     if isinstance(law, Jump):
         return [law.rate, *law.changes.values()]
@@ -65,11 +75,95 @@ def _law_values(law: Law) -> list[object]:
         return [law.lhs, law.rhs]
     if isinstance(law, Event):
         return [law.guard, *(law.reset or {}).values()]
+    if isinstance(law, Renewal):
+        return [law.waiting, *(law.reset or {}).values()]
     return []
 
 
+def distribution_of(owner: str, description: str, draw: Draw) -> Any:  # noqa: ANN401
+    """Return the `scipy.stats` distribution of a draw, after checking its name and its keywords.
+
+    Args:
+        owner:
+            The path of the component the draw belongs to.
+
+        description:
+            The description of the law that holds the draw.
+
+        draw:
+            The draw, of kind `'draw'`.
+
+    Returns:
+        distribution:
+            The distribution of `scipy.stats`.
+
+    Raises:
+        ValidationError:
+            SciPy has no distribution of that name, or the draw gives a keyword the distribution does not accept or
+            leaves out one of its shape parameters.
+    """
+    name = str(draw.distribution)
+    if name not in DISTRIBUTIONS:
+        closest = ', '.join(difflib.get_close_matches(name, DISTRIBUTIONS, n=3)) or 'none'
+        error_msg = (
+            f'The {description} of {owner} draws {draw.name!r} from the distribution {name!r}, which scipy.stats does '
+            f'not provide. The closest available names are: {closest}.'
+        )
+        raise ValidationError(error_msg)
+    distribution = getattr(stats, name)
+    shapes = [item.strip() for item in (distribution.shapes or '').split(',') if item.strip()]
+    unknown = sorted(set(draw.keywords) - {*shapes, 'loc', 'scale'})
+    missing = sorted(set(shapes) - set(draw.keywords))
+    if unknown or missing:
+        accepted = ', '.join([*shapes, 'loc', 'scale'])
+        error_msg = (
+            f'The {description} of {owner} draws {draw.name!r} from {name} with the keywords '
+            f'{", ".join(draw.keywords) or "none"}, but {name} takes {accepted}, and needs its shape parameters '
+            f'{", ".join(shapes) or "none"}.'
+        )
+        raise ValidationError(error_msg)
+    return distribution
+
+
+def sample_draw(draw: Draw, arguments: Sequence[Any], size: int, rng: np.random.Generator) -> Vector:
+    """Return values of a draw for a number of members, with arguments that hold one value or one per member.
+
+    Args:
+        draw:
+            The draw.
+
+        arguments:
+            The values of the draw's arguments, numbers or arrays with one value per member.
+
+        size:
+            The number of values.
+
+        rng:
+            The random number generator.
+
+    Returns:
+        values:
+            One value per member.
+    """
+    values = [np.broadcast_to(np.asarray(item, dtype=float), (size,)) for item in arguments]
+    if draw.kind == 'uniform':
+        return values[0] + (values[1] - values[0]) * rng.random(size)
+    if draw.kind == 'normal':
+        return values[0] + values[1] * rng.standard_normal(size)
+    if draw.kind == 'bernoulli':
+        return (rng.random(size) < values[0]).astype(float)
+    if draw.kind == 'categorical':
+        weights = np.stack(values, axis=-1)
+        cumulative = np.cumsum(weights, axis=-1)
+        chosen = rng.random(size)[:, np.newaxis] * cumulative[:, -1:]
+        return np.sum(chosen >= cumulative[:, :-1], axis=-1).astype(float)
+    distribution = getattr(stats, str(draw.distribution))
+    sampled = distribution.rvs(**dict(zip(draw.keywords, values, strict=True)), size=size, random_state=rng)
+    return np.asarray(sampled, dtype=float)
+
+
 def check_draw_placement(owner: str, laws: list[Law]) -> None:
-    """Raise an error when a law other than an update law holds a random draw.
+    """Raise an error when a law other than an update or a renewal law holds a random draw, or a draw is unknown.
 
     Args:
         owner:
@@ -81,17 +175,23 @@ def check_draw_placement(owner: str, laws: list[Law]) -> None:
     Raises:
         IncompatibleLawsError:
             A rate, noise, jump, boundary, equation, or event law holds a draw.
+
+        ValidationError:
+            A draw names a distribution that `scipy.stats` does not provide, or keywords it does not take.
     """
     for law in laws:
         values = [value for value in _law_values(law) if _is_symbolic(value)]
         found = draws_in(values)
-        if found:
+        if found and not isinstance(law, Update | Renewal):
             error_msg = (
-                f'The {type(law).__name__} law of {owner} holds the random draw {found[0].call}, but only update laws '
-                'take random draws. Model randomness in continuous time with Noise laws for Wiener processes or Jump '
-                'laws for random events.'
+                f'The {type(law).__name__} law of {owner} holds the random draw {found[0].call}, but only update and '
+                'renewal laws take random draws. Model randomness in continuous time with Noise laws for Wiener '
+                'processes, Jump laws for random events, or Renewal laws for events after drawn waiting times.'
             )
             raise IncompatibleLawsError(error_msg)
+        for item in found:
+            if item.kind == 'draw':
+                distribution_of(owner, f'{type(law).__name__} law', item)
 
 
 def _alphabet_size(description: str, reference: Reference | None) -> int | None:
@@ -310,7 +410,9 @@ def compile_matrix(
 
 
 def _replacement(draw: Draw, arguments: list[Expression], slot: Expression) -> Expression:
-    """Return the expression of a draw in terms of a uniform or standard normal value."""
+    """Return the expression of a draw in terms of a uniform or standard normal value, or its sampled value."""
+    if draw.kind == 'draw':
+        return slot
     if draw.kind == 'uniform':
         low, high = arguments
         return low + (high - low) * slot
@@ -347,6 +449,36 @@ class _Request:
     rows: int
     slot: Expression
     references: dict[Expression, Reference]
+    draw: Draw | None = None
+    slots: dict[str, Expression] = field(default_factory=dict)
+
+
+def _sampler(request: _Request, time: Expression) -> Callable[[float, Vector, Vector, np.random.Generator], Vector]:
+    """Return the function that samples a draw from a `scipy.stats` distribution for every row of a request."""
+    draw = cast('Draw', request.draw)
+    if any(item.kind == 'draw' for item in draws_in(list(draw.arguments))):
+        error_msg = (
+            f'The draw {draw.name!r} of {request.owner} takes another draw from a scipy.stats distribution as an '
+            'argument. Give its arguments as states, parameters, and uniform, normal, Bernoulli, or categorical draws.'
+        )
+        raise ValidationError(error_msg)
+    arguments = [_lowered(SR(item), request.slots) for item in draw.arguments]
+    symbols = sorted(symbols_of(arguments) - {time}, key=str)
+    readers = [request.references.get(item) for item in symbols]
+    if any(reader is None or reader.source not in {Source.SINGLE, Source.MEMBER} for reader in readers):
+        error_msg = (
+            f'The draw {draw.name!r} of {request.owner} reads a symbol that is not a state or a parameter of its '
+            'component. Give the arguments of draws as expressions of the states and parameters of the member.'
+        )
+        raise ValidationError(error_msg)
+    function = numpy_function(time, symbols, arguments)
+    rows = request.rows
+
+    def sample(t: float, x: Vector, q: Vector, rng: np.random.Generator) -> Vector:
+        values = function(t, *(cast('Reference', reader).column_of(x, q) for reader in readers)) if arguments else []
+        return sample_draw(draw, values, rows, rng)
+
+    return sample
 
 
 @dataclass
@@ -356,9 +488,13 @@ class DrawLowering:
     Args:
         offset:
             The size of the parameter vector, where the draws start.
+
+        time:
+            The time symbol, which the arguments of draws from `scipy.stats` distributions may read.
     """
 
     offset: int
+    time: Expression
     requests: list[_Request] = field(default_factory=list)
     draws: Draws | None = None
 
@@ -370,18 +506,25 @@ class DrawLowering:
                 continue
             for draw in draws_in(law.value):
                 known = declared.setdefault(draw.name, draw)
-                if (known.kind, known.arguments) != (draw.kind, draw.arguments):
+                if (known.kind, known.distribution, known.parameters, known.arguments) != (
+                    draw.kind,
+                    draw.distribution,
+                    draw.parameters,
+                    draw.arguments,
+                ):
                     error_msg = (
                         f'{owner} uses the draw name {draw.name!r} for {known.call} and for {draw.call}. Use one '
                         'declaration per name, or give the draws different names.'
                     )
                     raise ValidationError(error_msg)
         sanitized = re.sub(r'[^0-9A-Za-z]', '_', owner)
-        slots = {}
+        slots: dict[str, Expression] = {}
         for name, draw in declared.items():
             slot = symbol(f'{draw.kind}_{name}_{sanitized}')
             slots[name] = slot
-            self.requests.append(_Request(owner, name, draw.kind in NORMAL_KINDS, rows, slot, references))
+            sampled = draw if draw.kind == 'draw' else None
+            request = _Request(owner, name, draw.kind in NORMAL_KINDS, rows, slot, references, sampled, slots)
+            self.requests.append(request)
         return slots
 
     def lower(self, owner: str, rows: int, laws: list[Law], references: dict[Expression, Reference]) -> list[Law]:
@@ -429,16 +572,24 @@ class DrawLowering:
         if not self.requests:
             return
         start, flags = self.offset, []
-        for request in sorted(self.requests, key=lambda item: (item.owner, item.name)):
+        ordered = sorted(self.requests, key=lambda item: (item.draw is not None, item.owner, item.name))
+        for request in ordered:
             grouped = request.rows > 1
             shape = (request.rows,) if grouped else ()
             members = request.rows if grouped else None
             entry = Entry(f'{request.owner}.{request.name}~draw', start, shape, Domain.REAL, members)
             source = Source.MEMBER if grouped else Source.SINGLE
             request.references[request.slot] = Reference(entry, False, 0, source)
-            flags.extend([request.normal] * request.rows)
+            if request.draw is None:
+                flags.extend([request.normal] * request.rows)
             start += request.rows
-        self.draws = Draws(self.offset, np.array(flags, dtype=bool))
+        sampled: list[SampledDraw] = []
+        position = self.offset + len(flags)
+        for request in ordered:
+            if request.draw is not None:
+                sampled.append(SampledDraw(position, request.rows, _sampler(request, self.time)))
+                position += request.rows
+        self.draws = Draws(self.offset, np.array(flags, dtype=bool), tuple(sampled))
 
 
 def stochastic_update(update: Callable[..., Vector], draws: Draws) -> Callable[..., Vector]:
@@ -458,7 +609,7 @@ def stochastic_update(update: Callable[..., Vector], draws: Draws) -> Callable[.
 
     def stochastic(t: float, x: Vector, p: Vector, rng: np.random.Generator) -> Vector:
         extended = draws.extend(p)
-        draws.fill(extended, rng)
+        draws.fill(extended, rng, t, x)
         return update(t, x, extended)
 
     return stochastic

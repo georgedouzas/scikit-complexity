@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 
 from ..base import Expression, ValidationError, real_components_of, symbol, symbols_of
 from ..model import Observable, Symbols, System, reduce_values
@@ -32,6 +33,16 @@ def _from_members(read: Callable[[Vector, Vector], Any]) -> Callable[[Vector, Ve
 def _from_vector(is_state: bool, indices: Any) -> Callable[[Vector, Vector], Any]:  # noqa: ANN401
     """Return a reader of components of the state or the parameter vector."""
     return lambda x, p: (x if is_state else p)[indices]
+
+
+def _renewal_counter(counts: npt.NDArray[np.intp]) -> Getter:
+    """Return the getter of the number of renewals of a renewal law over all its members."""
+
+    def count_renewals(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> float:
+        del t, p, done
+        return float(np.sum(x[counts]))
+
+    return count_renewals
 
 
 def _join(scope: str, path: str) -> str:
@@ -116,6 +127,9 @@ class ObservableEvaluator:
                 self.getters_[path] = self._expression_getter(scope, path, observable)
             else:
                 self.getters_[path] = self._reduction_getter(scope, path, observable)
+        problems = (self.problem, *(partition.problem for partition in self.problem.partitions))
+        for renewal in (renewal for problem in problems for renewal in problem.renewals):
+            self.getters_[f'{renewal.label}.renewals'] = _renewal_counter(renewal.counts)
 
     def _scalar_sources(self) -> dict[Expression, tuple[str, int]]:
         """Return the vector and flat index of every symbol of a single element or interaction."""

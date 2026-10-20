@@ -14,7 +14,7 @@ The library SHALL provide, as registered factories under the field path `physics
 - **THEN** the ensemble mean squared displacement grows with a scaling exponent within 0.1 of 0.5
 
 #### Scenario: Superdiffusive Lévy walk
-- **WHEN** the Lévy walk with flight-time exponent `σ = 1.5` runs for 10⁴ walkers to time 10⁴
+- **WHEN** the Lévy walk with flight-time exponent `σ = 1.5` runs for 2000 walkers to time 2000
 - **THEN** the ensemble mean squared displacement grows with a scaling exponent within 0.1 of `3 - σ = 1.5`
 
 ### Requirement: Anomalous diffusion models with memory or heterogeneity
@@ -30,7 +30,7 @@ The library SHALL provide, as registered factories under the field path `physics
 
 #### Scenario: Annealed transient time motion
 - **WHEN** annealed transient time motion with diffusion coefficients of density `P(D) ~ D^(σ-1)` for `σ = 0.5`, and
-  waiting times of mean `D^(-γ)` for `γ = 1`, runs for 10⁴ walkers
+  waiting times of mean `D^(-γ)` for `γ = 1`, runs for 10⁴ walkers to time 2000
 - **THEN** the ensemble mean squared displacement grows with a scaling exponent within 0.1 of `σ / γ = 0.5`, as
   derived by Massignan et al. (2014)
 

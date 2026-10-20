@@ -115,7 +115,7 @@ absorbing_birth_death = { title = "Fully connected branching and annihilation", 
 zero_range_process = { title = "Zero-range process", sources = ["Bt 3.3.1"], status = "implemented" }
 dissipative_zero_range = { title = "Dissipative zero-range process on a tree", sources = ["Bt 3.3.2"], status = "implemented" }
 asep = { title = "Asymmetric exclusion process with open boundaries", sources = ["Bt 3.3.3"], status = "implemented" }
-trap_model = { title = "Bouchaud trap model", sources = ["Bt 2.6.3"], status = "pending add-anomalous-processes" }
+trap_model = { title = "Bouchaud trap model", sources = ["Bt 2.6.3"], status = "implemented" }
 random_energy_model = { title = "Random energy model", sources = ["Bt 1.5.3"], status = "blocked add-static-models", feature = "Models solved, sampled, enumerated, or optimised rather than integrated in time" }
 
 [physics.criticality]
@@ -133,16 +133,16 @@ kramers_escape = { title = "Kramers escape", sources = ["Gr 3.3"], status = "imp
 multiplicative_noise = { title = "Multiplicative noise conventions", sources = ["Ar 7.1–7.5", "Bt 2.2.3", "Bt 2.3.3"], status = "implemented" }
 scaled_brownian_motion = { title = "Scaled Brownian motion", sources = ["Ar 6.3"], status = "implemented" }
 diffusion_in_a_speckle_field = { title = "Diffusion in a speckle field", sources = ["Ar 6.6"], status = "implemented" }
-continuous_time_random_walk = { title = "Continuous-time random walk", sources = ["Ar 6.3", "Bt 2.4.3"], status = "blocked add-anomalous-processes", feature = "Renewal processes with power-law waiting times, and fractional Gaussian noise" }
-levy_walk = { title = "Lévy walk", sources = ["Ar 6.3"], status = "blocked add-anomalous-processes", feature = "Renewal processes with power-law waiting times, and fractional Gaussian noise" }
-annealed_transient_time_motion = { title = "Annealed transient time motion", sources = ["Ar 6.3"], status = "blocked add-anomalous-processes", feature = "Renewal processes with power-law waiting times, and fractional Gaussian noise" }
-fractional_brownian_motion = { title = "Fractional Brownian motion", sources = ["Ar 6.1"], status = "blocked add-anomalous-processes", feature = "Renewal processes with power-law waiting times, and fractional Gaussian noise" }
+continuous_time_random_walk = { title = "Continuous-time random walk", sources = ["Ar 6.3", "Bt 2.4.3"], status = "implemented" }
+levy_walk = { title = "Lévy walk", sources = ["Ar 6.3"], status = "implemented" }
+annealed_transient_time_motion = { title = "Annealed transient time motion", sources = ["Ar 6.3"], status = "implemented" }
+fractional_brownian_motion = { title = "Fractional Brownian motion", sources = ["Ar 6.1"], status = "implemented" }
 colored_noise_langevin = { title = "Langevin equation with colored noise", sources = ["Bt 2.2.3", "Bt 2.7"], status = "implemented" }
 biased_trap_walk = { title = "Fully biased walk among quenched broad traps", sources = ["Bt 2.7"], status = "implemented" }
 tilted_periodic_potential = { title = "Overdamped particle in a tilted periodic potential", sources = ["Bt 3.1.1"], status = "implemented" }
 flashing_ratchet = { title = "On-off flashing ratchet", sources = ["Bt 3.1.2"], status = "implemented" }
 shaken_spring_block = { title = "Shaken frictional spring-block chain", sources = ["Bt 3.4.2", "Bt 3.4.3", "Bt 3.6"], status = "implemented" }
-levy_flight = { title = "Superdiffusive Levy flight", sources = ["Bt 2.4.2"], status = "pending add-anomalous-processes" }
+levy_flight = { title = "Superdiffusive Levy flight", sources = ["Bt 2.4.2"], status = "implemented" }
 
 [physics.active_matter]
 active_brownian_particles = { title = "Active Brownian particles", sources = ["Ar 9.1", "1602.00081 §II.1", "Bt 3.1.3"], status = "implemented" }

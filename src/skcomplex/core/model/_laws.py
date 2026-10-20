@@ -360,6 +360,84 @@ class Event:
     label: str | None = None
 
 
+@dataclass(frozen=True, init=False)
+class FractionalNoise(Noise):
+    """Amplitude of a fractional Brownian motion of a Hurst index that drives the highest time derivative of a state.
+
+    The increments are fractional Gaussian noise, correlated over the whole run. A Hurst index of 1/2 gives the
+    process of a `Noise` law, below 1/2 the increments anticorrelate, and above 1/2 they correlate. For other indices
+    than 1/2 the amplitude must not depend on any state.
+
+    Args:
+        target:
+            The symbol of a scalar state, or the column of symbols of a vector state.
+
+        value:
+            A symbolic expression of parameters and time. A vector target gets one fractional Brownian motion per
+            component.
+
+        hurst:
+            The Hurst index `0 < H < 1`, a number or a parameter.
+
+        order:
+            The order of the derivative the noise drives, checked against the state's order, or `None` to use it.
+
+    Examples:
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import FractionalNoise
+        >>> x, D = symbol('x'), symbol('D')
+        >>> FractionalNoise(x, 2 * D, hurst=0.7).hurst
+        0.7
+    """
+
+    hurst: object = 0.5
+
+    def __init__(self, target: Target, value: object, hurst: object, order: int | None = None) -> None:
+        object.__setattr__(self, 'target', target)
+        object.__setattr__(self, 'value', value)
+        object.__setattr__(self, 'hurst', hurst)
+        object.__setattr__(self, 'order', order)
+        self.__post_init__()
+
+
+@dataclass(frozen=True)
+class Renewal:
+    """Renewal of states after waiting times drawn anew at every renewal, such as the jumps of a random walk.
+
+    Every member of a group renews on its own clock. A renewal applies its reset to the states all at once, then
+    draws the next waiting time from the states after the reset. Draws in the waiting time and the reset take a fresh
+    value at every renewal of every member, and the trajectory records every renewal and counts them in the observable
+    `<label>.renewals`. Renewals combine with rate and noise laws, which evolve the states between renewals.
+
+    Args:
+        waiting:
+            The waiting time until the next renewal, usually a draw from a distribution with nonnegative support,
+            such as `draw('wait', 'pareto', b=alpha)`.
+
+        reset:
+            A mapping from state symbol to its new value, which may hold draws, or `None` to keep the states.
+
+        label:
+            The name of the renewal in the trajectory, or `None` for the component's path.
+
+    Examples:
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import Renewal, draw, normal
+        >>> x = symbol('x')
+        >>> renewal = Renewal(draw('wait', 'expon'), {x: x + normal('jump')})
+        >>> renewal.reset[x]
+        x + normal_jump(0, 1)
+    """
+
+    waiting: object
+    reset: Mapping[Any, object] | None = None
+    label: str | None = None
+
+    def __post_init__(self) -> None:
+        """Check the waiting time of the law."""
+        _check_value(self, 'waiting', 'waiting time of a renewal law')
+
+
 @dataclass(frozen=True)
 class Rule:
     """Behaviour written as code, run once per step for every agent of an agent type, or once per step for a model.
@@ -429,6 +507,7 @@ type Law = (
     | Rule
     | Equation
     | Event
+    | Renewal
     | LocalRule
     | Drive
     | Relaxation

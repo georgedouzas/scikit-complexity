@@ -7,7 +7,7 @@ import copy
 import itertools
 import re
 from collections import Counter, defaultdict
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Any, cast
 
@@ -49,6 +49,7 @@ from ..model import (
     Event,
     Field,
     Flux,
+    FractionalNoise,
     Group,
     Jump,
     LatticeSpace,
@@ -63,6 +64,7 @@ from ..model import (
     Rate,
     Reduction,
     Relaxation,
+    Renewal,
     Rule,
     Sampler,
     Space,
@@ -100,9 +102,11 @@ from ._members import MemberShifts
 from ._observables import _join, _tree, observables_of
 from ._printing import numpy_function
 from ._problem import (
+    Accelerated,
     CompiledAgents,
     CompiledElement,
     CompiledInteraction,
+    FractionalRows,
     MarkovMatrix,
     Partition,
     Problem,
@@ -110,6 +114,7 @@ from ._problem import (
     VectorFunction,
 )
 from ._reductions import CompiledReduction, Read, ReductionPass
+from ._renewals import CompiledRenewal, compile_renewal
 from ._rewriting import compile_rewriting, is_rewriting
 from ._splitting import LinearTerm, linear_terms
 from ._stochastic import DrawLowering, MatrixLaw, check_draw_placement, compile_matrix, markov_laws, stochastic_update
@@ -131,7 +136,10 @@ FORMS: dict[frozenset[type], Form] = {
     },
     frozenset({Energy, Move}): Form.MONTE_CARLO,
     frozenset({Energy, Move, Sampler}): Form.MONTE_CARLO,
+    frozenset({Renewal}): Form.RENEWAL,
 }
+FORMLESS = frozenset({Boundary, Event, Flux})
+CONTINUOUS = frozenset({Rate, Noise})
 ASSIGNED_KINDS = (Update, Boundary)
 MEMBER_REFERENCE = re.compile(r'^(?P<path>.+)\[(?P<index>-?\d+)\]$')
 LATTICE_LAWS = (LocalRule, Drive, Relaxation, Energy, Move, Sampler)
@@ -330,6 +338,7 @@ class _Lowered:
 
     kernels: dict[type, list[Kernel]] = field(default_factory=lambda: defaultdict(list))
     jump_changes: dict[int, list[tuple[Reference, float]]] = field(default_factory=dict)
+    hurst: dict[int, tuple[str, object]] = field(default_factory=dict)
 
 
 def _check_symbol_names(blocks: dict[str, _Block]) -> None:
@@ -739,11 +748,12 @@ def _state_name(spec: _KernelSpec, target: Expression) -> str:
 def _collect_laws(spec: _KernelSpec, component: object) -> list[Law]:
     """Return the laws a component returns for its namespace after checking their kinds."""
     laws = component.laws(spec.namespace)  # type: ignore[attr-defined]
-    kinds = (Rate, Noise, Jump, Update, Transition, Emission, Boundary, Rule, Equation, Event, *KERNEL_FREE)
+    kinds = (Rate, Noise, Jump, Update, Transition, Emission, Boundary, Rule, Equation, Event, Renewal, *KERNEL_FREE)
     if not isinstance(laws, list | tuple) or not all(isinstance(law, kinds) for law in laws):
         error_msg = (
-            f'`laws` of {spec.owner} must return a list of Rate, Noise, Jump, Update, Transition, Emission, Boundary, '
-            'Rule, Equation, Event, LocalRule, Drive, Relaxation, Energy, Move, Sampler, or Flux laws.'
+            f'`laws` of {spec.owner} must return a list of Rate, Noise, FractionalNoise, Jump, Update, Transition, '
+            'Emission, Boundary, Rule, Equation, Event, Renewal, LocalRule, Drive, Relaxation, Energy, Move, Sampler, '
+            'or Flux laws.'
         )
         raise ValidationError(error_msg)
     if spec.pairs is not None and not all(isinstance(law, Rate) for law in laws):
@@ -879,7 +889,7 @@ def _retarget(law: Rate | Noise, spec: _KernelSpec, orders: _Orders) -> Rate | N
         return law
     tops = [_companion_symbol(spec, item, f'_d{order - 1}') for item in items]
     target = vector(tops) if isinstance(law.target, SymbolicVector) else tops[0]
-    return type(law)(target, law.value, law.order)
+    return replace(law, target=target)
 
 
 def _intrinsic_laws(spec: _KernelSpec, block: _Block, orders: _Orders) -> list[Law]:
@@ -930,17 +940,23 @@ def _with_orders(spec: _KernelSpec, laws: list[Law], block: _Block, orders: _Ord
         if isinstance(law, Jump):
             result.append(Jump(_substitute(law.rate, spec, orders, owner), law.changes))
             continue
-        if isinstance(law, Event):
+        if isinstance(law, Event | Renewal):
             reset = {
                 _substitute(SR(target), spec, orders, owner): _substitute(SR(value), spec, orders, owner)
                 for target, value in (law.reset or {}).items()
             }
+            reset_value = reset if law.reset is not None else None
+            if isinstance(law, Renewal):
+                result.append(
+                    replace(law, waiting=_substitute(SR(law.waiting), spec, orders, owner), reset=reset_value),
+                )
+                continue
             guard = _substitute(SR(law.guard), spec, orders, owner)
-            result.append(replace(law, guard=guard, reset=reset if law.reset is not None else None))
+            result.append(replace(law, guard=guard, reset=reset_value))
             continue
         value = _substitute(law.value, spec, orders, owner)
         if isinstance(law, Rate | Noise):
-            result.append(_retarget(type(law)(law.target, value, law.order), spec, orders))
+            result.append(_retarget(replace(law, value=value), spec, orders))
         else:
             result.append(type(law)(law.target, value))
     if not _is_interaction(block.node):
@@ -973,6 +989,42 @@ def _companions(blocks: list[_Block]) -> dict[str, tuple[str, str, int]]:
 NOISE_CONVENTIONS = {'ito': 0.0, 'stratonovich': 0.5, 'anti-ito': 1.0}
 
 
+@dataclass(frozen=True)
+class _Renewal:
+    """Renewal law of a component with its label, the group it renews, and the hidden state that counts it."""
+
+    spec: _KernelSpec
+    law: Renewal
+    label: str
+    group: str
+    entry: Entry
+    symbol: Expression
+
+
+def _renewal_group(spec: _KernelSpec, law: Renewal) -> str:
+    """Return the path of the element or group whose states a renewal law resets, or the law's component."""
+    targets = [item for target in (law.reset or {}) for item in components_of(target)]
+    reference = spec.references.get(targets[0]) if targets else None
+    return spec.owner if reference is None else reference.entry.name.rpartition('.')[0]
+
+
+def _declare_renewal(spec: _KernelSpec, law: Renewal, declarations: _Declarations, label: str) -> _Renewal:
+    """Return a renewal law with the hidden state that counts the renewals of every member, after declaring it."""
+    group = _renewal_group(spec, law)
+    rows = spec.rows
+    sanitized = re.sub(r'[^0-9A-Za-z]', '_', label)
+    entry = Entry(
+        f'{group}.{sanitized}~renewals',
+        sum(item.size for item in declarations.states),
+        (rows,) if rows > 1 else (),
+        Domain.NONNEGATIVE_INTEGER,
+        rows if rows > 1 else None,
+    )
+    declarations.states.append(entry)
+    declarations.initial_states.append(np.zeros(rows))
+    return _Renewal(spec, law, label, group, entry, symbol(f'renewals_{sanitized}', Domain.NONNEGATIVE_INTEGER))
+
+
 @dataclass
 class _Hybrid:
     """Delays, events, and corrected noise collected from the laws of a system."""
@@ -981,6 +1033,7 @@ class _Hybrid:
     placeholders: dict[tuple[int, str, int, str], Expression] = field(default_factory=dict)
     events: list[tuple[_KernelSpec, Event]] = field(default_factory=list)
     noisy: set[tuple[str, int]] = field(default_factory=set)
+    renewals: list[_Renewal] = field(default_factory=list)
 
 
 def _delay_minimum(
@@ -1100,10 +1153,16 @@ def _with_hybrid(
     hybrid: _Hybrid,
     alpha: float,
 ) -> list[Law]:
-    """Return laws with delays substituted and noise corrected, keeping events aside."""
+    """Return laws with delays substituted and noise corrected, keeping events aside and declaring renewal counts."""
     result: list[Law] = []
+    renewals = [law for law in laws if isinstance(law, Renewal)]
     for law in laws:
         if isinstance(law, Rule):
+            result.append(law)
+        elif isinstance(law, Renewal):
+            position = renewals.index(law)
+            label = law.label or (spec.owner if len(renewals) == 1 else f'{spec.owner}:{position}')
+            hybrid.renewals.append(_declare_renewal(spec, law, declarations, label))
             result.append(law)
         elif isinstance(law, Event):
             guard = _substitute_delays(SR(law.guard), spec, declarations, hybrid)
@@ -1115,7 +1174,7 @@ def _with_hybrid(
         elif isinstance(law, Jump):
             result.append(Jump(_substitute_delays(law.rate, spec, declarations, hybrid), law.changes))
         elif isinstance(law, Rate | Noise):
-            rebuilt = type(law)(law.target, _substitute_delays(law.value, spec, declarations, hybrid), law.order)
+            rebuilt = replace(law, value=_substitute_delays(law.value, spec, declarations, hybrid))
             result.append(rebuilt)
             if isinstance(rebuilt, Noise):
                 result += _noise_corrections(spec, rebuilt, alpha, hybrid)
@@ -1185,7 +1244,7 @@ def _with_fields(spec: _KernelSpec, laws: list[Law], declarations: _Declarations
             for reference in _target_references(law.target, spec):
                 fields.written[(reference.entry.name, reference.column)].append((lowered, law.value))
         if isinstance(law, Rate | Noise):
-            result.append(type(law)(law.target, lowered, law.order))
+            result.append(replace(law, value=lowered))
         else:
             result.append(type(law)(law.target, lowered))
     fields.limits += lowering.limits
@@ -1201,7 +1260,7 @@ def _with_member_shifts(spec: _KernelSpec, laws: list[Law], time: Expression) ->
         if isinstance(law, Jump):
             result.append(Jump(shifts.lower(law.rate), law.changes))
         elif isinstance(law, Rate | Noise):
-            result.append(type(law)(law.target, shifts.lower(law.value), law.order))
+            result.append(replace(law, value=shifts.lower(law.value)))
         elif isinstance(law, Update | Boundary):
             result.append(type(law)(law.target, shifts.lower(law.value)))
         else:
@@ -1668,7 +1727,7 @@ def _lower_law(law: Law, spec: _KernelSpec, reductions: _Reductions) -> Law:
     else:
         value = reductions.lower(value, spec)
     if isinstance(law, Rate | Noise):
-        return type(law)(law.target, value, law.order)
+        return replace(law, value=value)
     return type(law)(law.target, value)
 
 
@@ -1740,7 +1799,7 @@ def _lower_laws(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Decla
     for spec, laws in specs:
         outputs: dict[tuple[type, bool], list[Output]] = defaultdict(list)
         for law in laws:
-            if isinstance(law, (Rule, Event, *KERNEL_FREE)):
+            if isinstance(law, (Rule, Event, Renewal, *KERNEL_FREE)):
                 continue
             if isinstance(law, Jump):
                 output = _outputs_of(law.rate, [None], f'Jump law of {spec.owner}')[0]
@@ -1757,9 +1816,11 @@ def _lower_laws(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Decla
             once = _is_once(spec, law)
             if isinstance(law, ASSIGNED_KINDS):
                 _check_assignments(spec, law, targets, assigned[type(law)], once=once)
-            outputs[(type(law), once)].extend(
-                _outputs_of(law.value, targets, f'{type(law).__name__} law of {spec.owner}'),  # type: ignore[arg-type]
-            )
+            law_outputs = _outputs_of(law.value, targets, f'{type(law).__name__} law of {spec.owner}')  # type: ignore[arg-type]
+            if isinstance(law, FractionalNoise):
+                description = _fractional_description(spec, law)
+                lowered.hurst.update({id(item): (description, law.hurst) for item in law_outputs})
+            outputs[(_kind(law), once)].extend(law_outputs)
         for (kind, once), kind_outputs in outputs.items():
             lowered.kernels[kind].append(
                 Kernel(
@@ -1776,9 +1837,30 @@ def _lower_laws(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Decla
     return lowered
 
 
-def _infer_form(laws: list[Law]) -> Form:
-    """Return the form that the law kinds of a system determine."""
-    kinds = frozenset(type(law) for law in laws if not isinstance(law, Boundary | Event | Flux))
+def _kind(law: Law) -> type:
+    """Return the kind of a law that decides its form, with fractional noise counted as noise."""
+    return Noise if isinstance(law, Noise) else type(law)
+
+
+def _form_kinds(owners: Iterable[set[type]]) -> frozenset[type]:
+    """Return the law kinds that decide the form of components with their own kinds.
+
+    Renewal laws combine with the rate and noise laws of the same components, so they drop out of the kinds then. A
+    component with renewal laws alone next to components with other laws keeps them, so the system does not fit one
+    form and runs as partitions.
+    """
+    owned = [set(kinds) - FORMLESS for kinds in owners]
+    kinds: set[type] = set().union(*owned)
+    rest = kinds - {Renewal}
+    if Renewal not in kinds or not rest:
+        return frozenset(kinds)
+    alone = any(item == {Renewal} for item in owned)
+    return frozenset(kinds if alone or not rest <= CONTINUOUS else rest)
+
+
+def _infer_form(owners: Iterable[set[type]]) -> Form:
+    """Return the form that the law kinds of the components of a system determine."""
+    kinds = _form_kinds(owners)
     if kinds not in FORMS:
         found = ', '.join(sorted(kind.__name__ for kind in kinds))
         supported = '; '.join(
@@ -1847,6 +1929,9 @@ def _lower(
     ).copy()
     if draws is not None and functions.get('update') is not None:
         functions['update'] = stochastic_update(cast('Callable[..., Vector]', functions['update']), draws)
+    accelerated = cast('Accelerated | None', functions.get('accelerated'))
+    if draws is not None and draws.sampled and accelerated is not None:
+        functions['accelerated'] = replace(accelerated, iterate=None)
     functions['backend'] = backend.name
     functions['draws'] = draws
     main = {Form.ODE: kernels[Rate], Form.SDE: kernels[Rate] + kernels[Noise], Form.JUMP: kernels[Jump]}.get(
@@ -1975,8 +2060,8 @@ def _law_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
     if isinstance(law, Rule):
         paths = [path for value in spec.roles.values() for path in ([value] if isinstance(value, str) else value)]
         return next((path for path in paths if path in agents), next(iter(paths), spec.owner))
-    if isinstance(law, Equation | Event | Energy | Sampler):
-        return spec.owner
+    if isinstance(law, Equation | Event | Energy | Sampler | Renewal):
+        return _renewal_group(spec, law) if isinstance(law, Renewal) else spec.owner
     if isinstance(law, Relaxation):
         target = next(iter(law.targets), None)
         return spec.owner if target is None else _target_references(target, spec)[0].entry.name.rpartition('.')[0]
@@ -1988,9 +2073,9 @@ def _law_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
     return _target_references(target, spec)[0].entry.name.rpartition('.')[0]
 
 
-def _fits(kinds: set[type]) -> bool:
-    """Check whether a set of law kinds fits one form."""
-    return frozenset(kind for kind in kinds if kind not in {Boundary, Event, Flux}) in FORMS
+def _fits(owners: Iterable[set[type]]) -> bool:
+    """Check whether the law kinds of components fit one form."""
+    return _form_kinds(owners) in FORMS
 
 
 def _mixed_error(name: str, kinds: set[type]) -> IncompatibleLawsError:
@@ -2010,11 +2095,11 @@ def _plan_partitions(system: System, kinds: dict[str, set[type]], scope: str = '
     """Return the partitions of a system tree as names with the element paths whose laws they hold."""
     name = scope.rstrip('/') or system.label
     under = {owner: owner_kinds for owner, owner_kinds in kinds.items() if owner.startswith(scope)}
-    if _fits(set().union(*under.values())):
+    if _fits(under.values()):
         return [(name, set(under))] if under else []
     own = {owner: owner_kinds for owner, owner_kinds in under.items() if '/' not in owner[len(scope) :]}
     own_kinds: set[type] = set().union(*own.values())
-    if not system.systems or not _fits(own_kinds):
+    if not system.systems or not _fits(own.values()):
         raise _mixed_error(name, own_kinds if system.systems else set().union(*under.values()))
     plan = [(name, set(own))] if own else []
     for child in system.systems:
@@ -2078,10 +2163,68 @@ def _with_draws(
     declarations: _Declarations,
 ) -> tuple[list[tuple[_KernelSpec, list[Law]]], DrawLowering]:
     """Return the laws with their draws replaced by values drawn after the parameters, and the lowering of the draws."""
-    drawing = DrawLowering(sum(entry.size for entry in declarations.parameters))
+    drawing = DrawLowering(sum(entry.size for entry in declarations.parameters), declarations.time)
     lowered = [(spec, drawing.lower(spec.owner, spec.rows, laws, spec.references)) for spec, laws in specs]
     drawing.allocate()
     return lowered, drawing
+
+
+def _fractional_description(spec: _KernelSpec, law: FractionalNoise) -> str:
+    """Return the description of a fractional noise law by the states it drives."""
+    states = dict.fromkeys(_state_name(spec, item) for item in components_of(law.target))
+    return f'fractional noise law of {", ".join(states)}'
+
+
+def _checked_hurst(spec: _KernelSpec, law: FractionalNoise, declarations: _Declarations, description: str) -> None:
+    """Raise an error when the Hurst index of a fractional noise law is not a number or a parameter in `(0, 1)`."""
+    hurst = SR(law.hurst)
+    if hurst.is_numeric():
+        values = np.asarray([float(hurst)])
+    else:
+        reference = spec.references.get(hurst)
+        if reference is None or reference.is_state:
+            error_msg = f'The {description} of {spec.owner} has the Hurst index {hurst}. Give a number or a parameter.'
+            raise ValidationError(error_msg)
+        parameters = np.concatenate([np.zeros(0), *declarations.initial_parameters])
+        values = np.asarray(reference.column_of(np.zeros(0), parameters), dtype=float)
+    if not np.all((values > 0) & (values < 1)):
+        error_msg = (
+            f'The {description} of {spec.owner} has the Hurst index {hurst} = {values[0]}, outside the open interval '
+            '(0, 1). Give a Hurst index between 0 and 1.'
+        )
+        raise ValidationError(error_msg)
+
+
+def _checked_fractional(spec: _KernelSpec, laws: list[Law], declarations: _Declarations) -> list[Law]:
+    """Return laws with every fractional noise law of Hurst index 1/2 as a noise law, after validating the others."""
+    result: list[Law] = []
+    for law in laws:
+        if not isinstance(law, FractionalNoise):
+            result.append(law)
+            continue
+        description = _fractional_description(spec, law)
+        _checked_hurst(spec, law, declarations, description)
+        if SR(law.hurst).is_numeric() and float(SR(law.hurst)) == 0.5:  # noqa: PLR2004
+            result.append(Noise(law.target, law.value, law.order))
+            continue
+        values = [item for item in components_of(law.value) if isinstance(item, Expression)]
+        if not isinstance(law.value, Expression | SymbolicVector) and not SR(law.value).is_numeric():
+            error_msg = f'The {description} of {spec.owner} has an amplitude that is not symbolic. Give an expression.'
+            raise ValidationError(error_msg)
+        read = [
+            item
+            for item in sorted(symbols_of(values), key=str)
+            if (reference := spec.references.get(item)) is not None and reference.is_state
+        ]
+        if read:
+            error_msg = (
+                f'The {description} of {spec.owner} has an amplitude that depends on the state '
+                f'{_state_name(spec, read[0])}. Only state-independent amplitudes are supported for a Hurst index '
+                'other than 1/2.'
+            )
+            raise ValidationError(error_msg)
+        result.append(law)
+    return result
 
 
 def _collected_laws(
@@ -2089,6 +2232,7 @@ def _collected_laws(
     elements: dict[str, _Block],
     time: Expression,
     observe: Observe,
+    declarations: _Declarations,
 ) -> tuple[list[tuple[_KernelSpec, list[Law], _Block]], list[tuple[_KernelSpec, MatrixLaw]]]:
     """Return the laws of every kernel spec, with Markov laws rewritten as updates, and the matrices of Markov laws."""
     collected: list[tuple[_KernelSpec, list[Law], _Block]] = []
@@ -2096,6 +2240,7 @@ def _collected_laws(
     for block in blocks:
         for spec in _specs_of(block, elements, time, observe):
             laws, matrices = markov_laws(spec.owner, _collect_laws(spec, _component_of(block.node)), spec.references)
+            laws = _checked_fractional(spec, laws, declarations)
             check_draw_placement(spec.owner, laws)
             _settle_rows(spec, laws)
             collected.append((spec, laws, block))
@@ -2111,7 +2256,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
     _check_symbol_names(declarations.blocks)
     elements = {block.node.path: block for block in blocks if not _is_interaction(block.node)}
     observe = _Observer(declarations, _lowerable_observables(system, nodes))
-    collected, markov = _collected_laws(blocks, elements, declarations.time, observe)
+    collected, markov = _collected_laws(blocks, elements, declarations.time, observe, declarations)
     checked = _checked_matrices(markov, declarations)
     orders = _Orders.of(blocks)
     specs = _solve_equations([(spec, _with_orders(spec, laws, block, orders)) for spec, laws, block in collected])
@@ -2127,21 +2272,21 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
     if owners is not None:
         specs = [(spec, [law for law in laws if _law_owner(spec, law, agents) in owners]) for spec, laws in specs]
     specs, drawing = _with_draws(specs, declarations)
+    kinds: dict[str, set[type]] = defaultdict(set)
+    for spec, laws in specs:
+        for law in laws:
+            kinds[_law_owner(spec, law, agents)].add(_kind(law))
     try:
-        form = _infer_form([law for _, laws in specs for law in laws])
+        form = _infer_form(kinds.values())
     except IncompatibleLawsError:
         if owners is not None:
             raise
-        kinds: dict[str, set[type]] = defaultdict(set)
-        for spec, laws in specs:
-            for law in laws:
-                kinds[_law_owner(spec, law, agents)].add(type(law))
         plan = _plan_partitions(system, kinds)
         return _compile_partitions(system, backend, plan)
     specs, reductions = _with_reductions(specs, hybrid, declarations, drawing.draws.size if drawing.draws else 0)
     lowered = _lower_laws(specs, declarations)
     members = sum(block.node.members or 0 for block in blocks if not block.node.is_agent)
-    stepwise = form in {Form.AGENT, Form.LATTICE, Form.MONTE_CARLO}
+    stepwise = form in {Form.AGENT, Form.LATTICE, Form.MONTE_CARLO, Form.RENEWAL}
     chosen = resolve_backend('numpy' if stepwise else backend, members)
     fused = resolve_backend(backend, members).name == 'numba'
     functions = _lower(form, lowered, declarations, chosen, reductions, drawing=drawing)
@@ -2183,6 +2328,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         if not block.node.is_agent
     )
     symbols = {entry.name: block.symbols[variable] for block in blocks for variable, entry in block.entries.items()}
+    symbols.update({item.entry.name: item.symbol for item in hybrid.renewals})
     compiled_interactions = tuple(
         CompiledInteraction(
             path=block.node.path,
@@ -2225,8 +2371,56 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         volumes=volumes,
         constrained=constrained[0],
         matrices=checked,
+        renewals=_compile_renewals(hybrid, declarations.time, owners),
+        fractional=_fractional_rows(lowered) if form is Form.SDE else (),
         **functions,  # type: ignore[arg-type]
     )
+
+
+def _compile_renewals(
+    hybrid: _Hybrid,
+    time: Expression,
+    owners: frozenset[str] | None,
+) -> tuple[CompiledRenewal, ...]:
+    """Return the renewal laws of the components a problem holds, compiled for their members."""
+    return tuple(
+        compile_renewal(
+            item.spec.owner,
+            item.law,
+            item.spec.references,
+            time=time,
+            rows=item.spec.rows,
+            label=item.label,
+            group=item.group,
+            counts=item.entry.start + np.arange(item.entry.size, dtype=np.intp),
+        )
+        for item in hybrid.renewals
+        if owners is None or item.group in owners
+    )
+
+
+def _hurst_function(kernel: Kernel, hurst: object) -> Callable[[Vector], Vector]:
+    """Return the function of the parameter vector that gives the Hurst index of every row of a noise kernel."""
+    rows = kernel.rows
+    if SR(hurst).is_numeric():
+        value = float(SR(hurst))
+        return lambda p: np.full(rows, value)
+    reference = kernel.references[SR(hurst)]
+    empty = np.zeros(0)
+    return lambda p: np.broadcast_to(np.asarray(reference.column_of(empty, p), dtype=float), (rows,)).copy()
+
+
+def _fractional_rows(lowered: _Lowered) -> tuple[FractionalRows, ...]:
+    """Return the noise rows that fractional noise laws drive, in the order of the noise rows."""
+    rows, position = [], 0
+    for kernel in lowered.kernels[Noise]:
+        for item in kernel.outputs:
+            found = lowered.hurst.get(id(item))
+            if found is not None:
+                positions = position + np.arange(kernel.rows, dtype=np.intp)
+                rows.append(FractionalRows(found[0], positions, _hurst_function(kernel, found[1])))
+            position += kernel.rows
+    return tuple(rows)
 
 
 def _lattice_context(spec: _KernelSpec, declarations: _Declarations, fused: bool) -> LatticeContext:

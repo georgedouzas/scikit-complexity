@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..compile import EventRecord, Problem, RelaxationRecord, Structure
+from ..compile import EventRecord, Problem, RelaxationRecord, RenewalRecord, Structure
 from ..solvers import AgentSnapshot
 
 
@@ -40,7 +40,8 @@ class Trajectory:
 
         events:
             The events that fired during the run, in order, each with its time and the states before and after its
-            reset, and the relaxations of lattices with their sizes, durations, and areas.
+            reset, the relaxations of lattices with their sizes, durations, and areas, and the renewals of renewal laws
+            with their members.
 
         structures:
             One mapping from rewritten element path to its structure per frame, empty for other systems.
@@ -67,7 +68,7 @@ class Trajectory:
         agents: Sequence[Mapping[str, AgentSnapshot]] = (),
         reporters: Sequence[Mapping[str, float]] = (),
         observables: Sequence[Mapping[str, Any]] = (),
-        events: Sequence[EventRecord | RelaxationRecord] = (),
+        events: Sequence[EventRecord | RelaxationRecord | RenewalRecord] = (),
         structures: Sequence[Mapping[str, Structure]] = (),
     ) -> None:
         self.problem = problem

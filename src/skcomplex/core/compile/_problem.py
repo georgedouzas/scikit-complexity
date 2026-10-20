@@ -24,6 +24,96 @@ type Vector = npt.NDArray[np.float64]
 type VectorFunction = Callable[[float, Vector, Vector], Vector]
 
 
+@dataclass(frozen=True)
+class RenewalRecord:
+    """Renewals of one renewal law that fired in one pass, each at the time of its member.
+
+    Args:
+        label:
+            The name of the renewal law.
+
+        times:
+            The time of every renewal.
+
+        members:
+            The member of every renewal.
+
+        before:
+            The states of every renewing member before its reset, one row per renewal and one column per state.
+
+        after:
+            The states of every renewing member after its reset.
+
+        states:
+            The dotted state name, with the component of a vector state, of every column.
+    """
+
+    label: str
+    times: Vector
+    members: npt.NDArray[np.intp]
+    before: Vector
+    after: Vector
+    states: tuple[str, ...]
+
+    @property
+    def time(self) -> float:
+        """Time of the last renewal of the pass."""
+        return float(np.max(self.times))
+
+
+class RenewalProcess(Protocol):
+    """Renewal law compiled for the members of its component, which renew on their own clocks."""
+
+    @property
+    def label(self) -> str:
+        """Name of the renewal law."""
+
+    @property
+    def members(self) -> int:
+        """Number of members that renew on their own clocks."""
+
+    @property
+    def counts(self) -> npt.NDArray[np.intp]:
+        """Flat index of the hidden state that counts the renewals of every member."""
+
+    @property
+    def states(self) -> npt.NDArray[np.intp]:
+        """Flat indices of the states of every member, one row per member."""
+
+    def start(self, t: float, x: Vector, p: Vector, rng: np.random.Generator) -> Vector:
+        """Return the first renewal time of every member from the states at a start time."""
+
+    def fire(
+        self,
+        times: Vector,
+        fired: npt.NDArray[np.intp],
+        x: Vector,
+        p: Vector,
+        rng: np.random.Generator,
+    ) -> tuple[Vector, Vector, RenewalRecord]:
+        """Renew members at their times, and return the state, their next renewal times, and the record."""
+
+
+@dataclass(frozen=True)
+class FractionalRows:
+    """Noise rows of one fractional noise law, driven by fractional Brownian motion of a Hurst index.
+
+    Args:
+        law:
+            The description of the law, such as `fractional noise law of walkers.x`.
+
+        positions:
+            The positions of the law's rows among the noise rows of the problem.
+
+        hurst:
+            The function `H(p)` that returns the Hurst index of every row from the parameter vector.
+    """
+
+    law: str
+    positions: npt.NDArray[np.intp]
+    hurst: Callable[[Vector], Vector]
+
+
 class Jacobian(Protocol):
     """Exact Jacobian of a drift with its sparsity pattern."""
 
@@ -156,6 +246,26 @@ class JumpChannels:
 
 
 @dataclass(frozen=True)
+class SampledDraw:
+    """Draw from a `scipy.stats` distribution that a stochastic map takes for every member at every step.
+
+    Args:
+        start:
+            The index of the first value in the extended parameter vector.
+
+        rows:
+            The number of values, one per member.
+
+        sample:
+            The function `sample(t, x, q, rng)` that returns the values, given the extended parameter vector `q`.
+    """
+
+    start: int
+    rows: int
+    sample: Callable[[float, Vector, Vector, np.random.Generator], Vector]
+
+
+@dataclass(frozen=True)
 class Draws:
     """Random values a stochastic map draws at every step, stored after the parameters of an extended vector.
 
@@ -164,17 +274,22 @@ class Draws:
             The index of the first draw in the extended vector, the size of the parameter vector.
 
         normal:
-            One flag per draw, true for a standard normal value and false for a uniform value in `[0, 1)`, in the
-            order the draws are taken, by component path, draw name, and member index.
+            One flag per uniform or normal draw, true for a standard normal value and false for a uniform value in
+            `[0, 1)`, in the order the draws are taken, by component path, draw name, and member index.
+
+        sampled:
+            The draws from `scipy.stats` distributions, stored after the uniform and normal values and taken after
+            them.
     """
 
     offset: int
     normal: npt.NDArray[np.bool_]
+    sampled: tuple[SampledDraw, ...] = ()
 
     @property
     def size(self) -> int:
         """Number of values drawn at every step."""
-        return int(self.normal.size)
+        return int(self.normal.size) + sum(item.rows for item in self.sampled)
 
     def extend(self, p: Vector) -> Vector:
         """Return a parameter vector extended with room for the draws.
@@ -191,7 +306,7 @@ class Draws:
         extended[: self.offset] = p[: self.offset]
         return extended
 
-    def fill(self, q: Vector, rng: np.random.Generator) -> None:
+    def fill(self, q: Vector, rng: np.random.Generator, t: float = 0.0, x: Vector | None = None) -> None:
         """Draw fresh values into an extended parameter vector, in order, uniform and normal runs as they come.
 
         Args:
@@ -200,14 +315,23 @@ class Draws:
 
             rng:
                 The random number generator.
+
+            t:
+                The time, which the arguments of draws from `scipy.stats` distributions may read.
+
+            x:
+                The state vector, which the arguments of draws from `scipy.stats` distributions may read.
         """
-        cuts = [0, *(np.flatnonzero(np.diff(self.normal)) + 1).tolist(), self.size]
+        cuts = [0, *(np.flatnonzero(np.diff(self.normal)) + 1).tolist(), self.normal.size]
         for start, end in itertools.pairwise(cuts):
             if start == end:
                 continue
             count = end - start
             values = rng.standard_normal(count) if self.normal[start] else rng.random(count)
             q[self.offset + start : self.offset + end] = values
+        state = np.zeros(0) if x is None else x
+        for item in self.sampled:
+            q[item.start : item.start + item.rows] = item.sample(t, state, q, rng)
 
 
 @dataclass(frozen=True)
@@ -422,6 +546,12 @@ class Problem:
         matrices:
             The transition and emission matrices of the Markov laws, checked when their parameters change.
 
+        renewals:
+            The renewal laws, whose members renew on their own clocks.
+
+        fractional:
+            The noise rows that fractional noise laws drive, with their Hurst indices.
+
         backend:
             The name of the backend that produced the numeric functions.
 
@@ -472,6 +602,8 @@ class Problem:
     boundary: VectorFunction | None = field(default=None, repr=False)
     draws: Draws | None = field(default=None, repr=False)
     matrices: tuple[MarkovMatrix, ...] = field(default=(), repr=False)
+    renewals: tuple[RenewalProcess, ...] = field(default=(), repr=False)
+    fractional: tuple[FractionalRows, ...] = field(default=(), repr=False)
     backend: str = 'numpy'
     accelerated: Accelerated | None = field(default=None, repr=False)
     rewriting: tuple[Any, ...] = field(default=(), repr=False)

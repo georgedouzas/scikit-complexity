@@ -144,6 +144,8 @@ def _summary_views(problem: Problem, *, parameters: bool) -> list[rrb.View]:
     paths = (
         [f'{scope}/{item.label}' if scope else item.label for scope, item in observables_of(system)] if system else []
     )
+    problems = (problem, *(partition.problem for partition in problem.partitions))
+    paths += [f'{renewal.label}.renewals' for item in problems for renewal in item.renewals]
     if paths:
         views.append(_series_view([rrb.TimeSeriesView(origin=f'/{path}') for path in paths], 'observables'))
     if problem.agents or isinstance(system, MesaSystem):

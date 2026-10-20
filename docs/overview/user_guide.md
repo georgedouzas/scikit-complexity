@@ -364,7 +364,7 @@ final = Simulation(walkers, dt=1.0, random_state=0).run(until=200).trajectory_['
 print(round(float(final.var() / 200), 1))
 ```
 
-Only update laws take draws. A draw in a rate, noise, jump, boundary, equation, or event law raises
+Only update laws and renewal laws take draws. A draw in a rate, noise, jump, boundary, equation, or event law raises
 `IncompatibleLawsError`, since noise laws and jump laws give randomness in continuous time. Draws are not states, so
 the trajectory does not record them, and a model that wants to keep a draw assigns it to a state.
 
@@ -403,6 +403,92 @@ simulation.update_parameters({'source.stay': 0.5})
 The library has these models ready: `persistent_random_walk`, `markov_source`, `hidden_markov_source`, and
 `random_walk_with_memory` in stochastic processes, `chaos_game` in fractals, `probabilistic_boolean_network` and
 `intrinsic_instability` in biology, and `diluted_hopfield` in neural networks.
+
+## Anomalous processes
+
+Renewal laws and fractional noise laws write processes with memory: events that fire after waiting times from any
+distribution, and noise whose increments are correlated over the whole run.
+
+### Draws from SciPy distributions
+
+`draw(name, distribution, **parameters)` draws from any distribution of `scipy.stats`, such as `'pareto'`, `'lomax'`,
+`'expon'`, `'beta'`, or `'levy_stable'`, with its shape parameters, `loc`, and `scale` as keywords. The keywords can be
+expressions of states and parameters. It follows the rules of the other named draws, and it samples with the
+distribution's `rvs` and the simulation's random generator. Compiling rejects a name `scipy.stats` does not provide,
+listing the closest names, and keywords the distribution does not take. In update laws, a SciPy draw is sampled for
+every member before each step, and the map then steps in Python with the backend's compiled update.
+
+```python
+from skcomplex.core.model import draw
+
+Flier = Element.define(
+    'Flier',
+    states={'x': 0.0},
+    laws=lambda s: [Update(s.x, s.x + draw('jump', 'levy_stable', alpha=1.5, beta=0.0))],
+)
+flight = Simulation(System(elements=[Flier.group('fliers', 100)]), dt=1.0, random_state=0).run(until=20)
+print(flight.trajectory_['fliers.x'].shape)
+```
+
+### Renewal laws
+
+`Renewal(waiting, reset, label)` fires after a waiting time, applies its reset to the states all at once, and draws the
+next waiting time from the states after the reset. Every member of a group renews on its own clock. Draws in the
+waiting time and the reset take a fresh value at every renewal of every member, and every use of one name in a
+renewal reads the same value. A waiting time that is a single draw must come from a distribution with nonnegative
+support, and compiling rejects one that can be negative, such as `normal`.
+
+A system or partition whose only laws are renewal laws compiles to the renewal form, which `RenewalStepper` runs
+exactly, from renewal to renewal with no time grid. A frame holds the states the last renewal at or before its time
+set. Renewal laws also combine with the rate and noise laws of the same component, which evolve the states between
+renewals. `RK4` and `EulerMaruyama` stop every member at its own renewals when the members do not interact, and split
+the step at every renewal time for all members when a law sums over the group. Other steppers reject renewal laws.
+
+```python
+from skcomplex.core.model import Renewal
+
+Walker = Element.define(
+    'Walker',
+    states={'x': 0.0},
+    parameters={'alpha': 0.5},
+    laws=lambda s: [Renewal(draw('wait', 'pareto', b=s.alpha), {s.x: s.x + normal('jump', 0, 1)}, label='jumps')],
+)
+walk = Simulation(System(elements=[Walker.group('walkers', 1000)]), dt=100.0, random_state=0).run(until=1000)
+print(walk.problem_.form.value, walk.trajectory_['jumps.renewals'][-1] > 1000)
+```
+
+The trajectory records every renewal pass as a `RenewalRecord` among its events, with the time and the member of every
+renewal and the member's states before and after it. The observable `<label>.renewals` counts the renewals up to every
+frame, and the Rerun observer streams it as a time series and the renewals as text entries under `renewals/<label>`.
+The compiler keeps the count of every member in a hidden state, `<group>.<label>~renewals`.
+
+### Fractional noise
+
+`FractionalNoise(target, value, hurst)` drives a state with fractional Brownian motion of Hurst index `0 < H < 1`,
+whose increments anticorrelate for `H < 1/2` and correlate for `H > 1/2`. A Hurst index of 1/2 compiles to an ordinary
+noise law. For other indices the amplitude must not depend on any state. `FractionalEulerMaruyama(dt, horizon)` is the
+stepper of systems with fractional noise. It draws the increments of the whole run on its grid when it first advances,
+with the circulant embedding of Davies and Harte over `scipy.fft`, so frames must fall on multiples of `dt`. A
+simulation passes the end of its run as the horizon, advancing beyond it raises `HorizonError`, and other SDE steppers
+reject fractional noise with an error that names `FractionalEulerMaruyama`. `fractional_gaussian_noise` returns the
+noise paths themselves.
+
+```python
+from skcomplex.core.model import FractionalNoise
+from skcomplex.core.solvers import FractionalEulerMaruyama
+
+Rough = Element.define('Rough', states={'x': 0.0}, laws=lambda s: [FractionalNoise(s.x, 1, hurst=0.3)])
+rough = Simulation(
+    System(elements=[Rough.group('walkers', 500)]),
+    solver=FractionalEulerMaruyama(dt=0.01),
+    dt=0.1,
+    random_state=0,
+).run(until=1)
+print(round(float(rough.trajectory_['walkers.x'][-1].var()), 1))
+```
+
+The library has these models ready: `continuous_time_random_walk`, `levy_walk`, `annealed_transient_time_motion`,
+`fractional_brownian_motion`, and `levy_flight` in soft matter, and `trap_model` in statistical mechanics.
 
 ## Observables
 

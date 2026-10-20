@@ -168,6 +168,7 @@ class Simulation(BaseEstimator):
         self.stepper_ = resolve_solver(self.problem_, self.solver)
         self.observables_ = ObservableEvaluator(self.problem_)
         self.stepper_.initialize(self.problem_, np.random.default_rng(self.random_state))
+        self.stepper_.plan(until)
         initial_state = self.stepper_.initial_state(self.problem_.initial_state.copy())
         self.clock_ = self.clock if self.clock is not None else AsFastAsPossible()
         self.recorder_ = Recorder() if self.record else None

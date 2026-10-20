@@ -11,8 +11,9 @@ import numpy as np
 from sklearn.base import BaseEstimator
 
 from ..base import Form, Registry, SolverError
-from ..compile import EventRecord, Problem, RelaxationRecord, Vector
+from ..compile import EventRecord, Problem, RelaxationRecord, RenewalRecord, Vector
 from ._hybrid import EventLocator, History
+from ._renewals import RenewalClock
 
 
 class Stepper(BaseEstimator):
@@ -21,11 +22,31 @@ class Stepper(BaseEstimator):
     Subclasses set the class variable `form` and implement `advance`. Every call to `advance` receives the current
     parameters, so parameter changes apply at the next call, and applies the boundary laws of the problem after every
     internal step. Steppers that treat diffusion implicitly set `implicit`,
-    so they do not warn about the stability limit of explicit steps.
+    so they do not warn about the stability limit of explicit steps. Steppers that fire renewal laws set `renews`, and
+    steppers that integrate fractional noise set `fractional`.
     """
 
     form: ClassVar[Form]
     implicit: ClassVar[bool] = False
+    renews: ClassVar[bool] = False
+    fractional: ClassVar[bool] = False
+
+    def _check_capabilities(self, problem: Problem) -> None:
+        """Raise an error when a problem has renewal laws or fractional noise that the stepper does not integrate."""
+        name = type(self).__name__
+        if problem.renewals and not self.renews:
+            error_msg = (
+                f'{name} does not fire renewal laws. Use RK4 for rate laws, EulerMaruyama for noise laws, or '
+                'RenewalStepper for renewal laws alone.'
+            )
+            raise SolverError(error_msg)
+        if problem.fractional and not self.fractional:
+            laws = ', '.join(dict.fromkeys(rows.law for rows in problem.fractional))
+            error_msg = (
+                f'{name} draws independent Wiener increments, but the {laws} needs correlated increments. Use the '
+                'fractional Euler-Maruyama stepper, FractionalEulerMaruyama.'
+            )
+            raise SolverError(error_msg)
 
     def _bounded(self, t: float, x: Vector, p: Vector) -> Vector:
         """Return a state after the boundary laws of the problem, or the state itself without boundary laws."""
@@ -44,7 +65,8 @@ class Stepper(BaseEstimator):
 
         Raises:
             SolverError:
-                The problem has a form the stepper does not solve.
+                The problem has a form the stepper does not solve, or renewal laws or fractional noise it does not
+                integrate.
         """
         if problem.form is not self.form:
             error_msg = (
@@ -52,9 +74,11 @@ class Stepper(BaseEstimator):
                 f'{problem.form.value} form.'
             )
             raise SolverError(error_msg)
+        self._check_capabilities(problem)
         self.problem_ = problem
         self.rng_ = rng
         self.locator_ = EventLocator(problem)
+        self.renewals_ = RenewalClock(problem, rng, self.locator_) if problem.renewals else None
         self.history_: History | None = None
         step = getattr(self, 'dt', None)
         limit = getattr(problem, 'stable_step', None)
@@ -93,6 +117,15 @@ class Stepper(BaseEstimator):
         """
         raise NotImplementedError
 
+    def plan(self, until: float) -> None:
+        """Prepare for a run that ends at a time, which steppers that draw the noise of a whole run need.
+
+        Args:
+            until:
+                The end time of the run, infinite for a run that goes on until it is stopped.
+        """
+        del until
+
     def initial_state(self, x: Vector) -> Vector:
         """Return the state vector of the first frame, which steppers that derive states can fill in.
 
@@ -106,7 +139,7 @@ class Stepper(BaseEstimator):
         """
         return x
 
-    def drain_events(self) -> list[EventRecord | RelaxationRecord]:
+    def drain_events(self) -> list[EventRecord | RelaxationRecord | RenewalRecord]:
         """Return the events recorded since the last call, and forget them.
 
         Returns:

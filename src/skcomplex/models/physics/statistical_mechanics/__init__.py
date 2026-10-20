@@ -35,6 +35,7 @@ from ._processes import (
 )
 from ._spin_glasses import BondSpin, MattisSpin, edwards_anderson, mattis_spin_glass
 from ._spins import IsingSpin, PottsSpin, XYSpin, ising, potts, xy
+from ._traps import TrapWalker, trap_model
 
 __all__: list[str] = [
     'BondSpin',
@@ -52,6 +53,7 @@ __all__: list[str] = [
     'Q2RSpin',
     'ReactingParticles',
     'Reservoir',
+    'TrapWalker',
     'TreeNode',
     'Walker',
     'XYSpin',
@@ -75,6 +77,7 @@ __all__: list[str] = [
     'sherrington_kirkpatrick',
     'site_percolation',
     'tasep',
+    'trap_model',
     'two_phase_zone_exchange',
     'xy',
     'zero_range_process',

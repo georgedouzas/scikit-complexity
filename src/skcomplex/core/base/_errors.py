@@ -36,6 +36,10 @@ class SolverError(SkcomplexError):
     """A solver does not fit the problem or fails to advance it."""
 
 
+class HorizonError(SolverError):
+    """A stepper with a fixed horizon is asked to advance beyond it."""
+
+
 class ParameterError(SkcomplexError):
     """A parameter name is not part of the problem."""
 

@@ -17,4 +17,5 @@ class Form(Enum):
     LATTICE = 'lattice dynamics'
     MONTE_CARLO = 'Monte Carlo sampling'
     REWRITING = 'rewriting system'
+    RENEWAL = 'renewal process'
     COUPLED = 'co-simulation'

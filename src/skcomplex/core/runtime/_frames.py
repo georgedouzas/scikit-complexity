@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..compile import EventRecord, Problem, RelaxationRecord, Structure, Vector
+from ..compile import EventRecord, Problem, RelaxationRecord, RenewalRecord, Structure, Vector
 from ..solvers import AgentSnapshot
 
 
@@ -44,7 +44,7 @@ class Frame:
             A mapping from observable path to its value at this frame.
 
         events:
-            The events and relaxations since the previous frame, in order.
+            The events, relaxations, and renewals since the previous frame, in order.
 
         structures:
             A mapping from the path of a rewritten element to its word, patch, or host graph at this frame.
@@ -58,7 +58,7 @@ class Frame:
     agents: Mapping[str, AgentSnapshot] = field(default_factory=dict)
     reporters: Mapping[str, float] = field(default_factory=dict)
     observables: Mapping[str, Any] = field(default_factory=dict)
-    events: tuple[EventRecord | RelaxationRecord, ...] = ()
+    events: tuple[EventRecord | RelaxationRecord | RenewalRecord, ...] = ()
     structures: Mapping[str, Structure] = field(default_factory=dict)
 
     def value(self, name: str) -> npt.NDArray[Any] | float | complex:

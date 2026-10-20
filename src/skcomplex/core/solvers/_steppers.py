@@ -7,14 +7,14 @@ import math
 import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 import numpy as np
 import numpy.typing as npt
 from scipy.integrate import BDF, DOP853, LSODA, RK23, RK45, OdeSolver, Radau
 
 from ..base import Expression, Form, SolverError, components_of
-from ..compile import Problem, Vector
+from ..compile import Problem, Vector, VectorFunction
 from ._base import Stepper, register_solver
 from ._hybrid import History, hermite, with_delays
 
@@ -57,6 +57,36 @@ def _unsupported(stepper: Stepper, problem: Problem) -> None:
             'EulerMaruyama, Milstein, or Heun for SDEs.'
         )
         raise SolverError(error_msg)
+
+
+def _advance_renewals(
+    stepper: Stepper,
+    t: float,
+    x: Vector,
+    p: Vector,
+    until: float,
+    *,
+    dt: float,
+    step: Callable[[float, Vector, Vector, Vector], Vector],
+) -> Vector:
+    """Integrate with fixed steps that stop at the renewals of every member and at the breakpoints of inputs.
+
+    Members that do not interact take steps on their own clocks, and interacting members split every step at each
+    renewal time inside it.
+    """
+    problem, clock = stepper.problem_, stepper.renewals_
+    if problem.delays or problem.events or clock is None:
+        error_msg = f'{type(stepper).__name__} does not combine renewal laws with delays or events in one system.'
+        raise SolverError(error_msg)
+    clock.begin(t, x, p)
+    advance = clock.advance_split if problem.has_group_sums else clock.advance_members
+    state, time = x.copy(), t
+    for bound in _bounds(problem, t, until):
+        while time < bound - RESTART * max(1.0, abs(bound)):
+            end = min(time + dt, bound)
+            state, time = advance(time, end, state, p, step), end
+        time = bound
+    return state
 
 
 @dataclass(frozen=True)
@@ -405,9 +435,20 @@ class RK4(Stepper):
     """
 
     form: ClassVar[Form] = Form.ODE
+    renews: ClassVar[bool] = True
 
     def __init__(self, dt: float = 1e-3) -> None:
         self.dt = dt
+
+    def _step(self, time: float, state: Vector, p: Vector, lengths: Vector) -> Vector:
+        """Return the state after one Runge-Kutta step with one step length per state component."""
+        drift = cast('VectorFunction', self.problem_.drift)
+        half = float(np.max(lengths)) / 2
+        k1 = drift(time, state, p)
+        k2 = drift(time + half, state + lengths / 2 * k1, p)
+        k3 = drift(time + half, state + lengths / 2 * k2, p)
+        k4 = drift(time + 2 * half, state + lengths * k3, p)
+        return self._bounded(time + 2 * half, state + lengths / 6 * (k1 + 2 * k2 + 2 * k3 + k4), p)
 
     def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Integrate the drift from time `t` to time `until` in equal steps no longer than `dt`.
@@ -439,6 +480,8 @@ class RK4(Stepper):
         drift = self.problem_.drift
         if until <= t or drift is None:
             return x
+        if self.problem_.renewals:
+            return _advance_renewals(self, t, x, p, until, dt=self.dt, step=self._step)
         if _is_hybrid(self.problem_, t, until):
             return self._advance_hybrid(t, x, p, until)
         accelerated = self.problem_.accelerated
@@ -730,9 +773,19 @@ class EulerMaruyama(Stepper):
     """
 
     form: ClassVar[Form] = Form.SDE
+    renews: ClassVar[bool] = True
 
     def __init__(self, dt: float = 1e-3) -> None:
         self.dt = dt
+
+    def _step(self, time: float, state: Vector, p: Vector, lengths: Vector) -> Vector:
+        """Return the state after one Euler-Maruyama step with one step length per state component."""
+        problem = self.problem_
+        rows = problem.noise_rows
+        following = state + cast('VectorFunction', problem.drift)(time, state, p) * lengths
+        noise = self.rng_.standard_normal(rows.size) * np.sqrt(lengths[rows])
+        np.add.at(following, rows, cast('VectorFunction', problem.diffusion)(time, state, p) * noise)
+        return self._bounded(time + float(np.max(lengths)), following, p)
 
     def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Integrate the drift and the noise from time `t` to time `until`.
@@ -764,6 +817,8 @@ class EulerMaruyama(Stepper):
         drift, diffusion = self.problem_.drift, self.problem_.diffusion
         if until <= t or drift is None or diffusion is None:
             return x
+        if self.problem_.renewals:
+            return _advance_renewals(self, t, x, p, until, dt=self.dt, step=self._step)
         if _is_hybrid(self.problem_, t, until):
             return _advance_sde_hybrid(self, t, x, p, until, dt=self.dt, increment=self._increment)
         accelerated = self.problem_.accelerated
@@ -1104,6 +1159,59 @@ class Iteration(Stepper):
         return state
 
 
+class RenewalStepper(Stepper):
+    """Exact stepper of renewal processes, which jumps from renewal to renewal without a time grid.
+
+    Every member renews on its own clock, and a frame holds the states the last renewal at or before its time set.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.core.model import Element, Renewal, System, draw
+        >>> from skcomplex.core.solvers import RenewalStepper
+        >>> Counter = Element.define(
+        ...     'Counter',
+        ...     states={'n': 0.0},
+        ...     laws=lambda s: [Renewal(draw('wait', 'expon'), {s.n: s.n + 1})],
+        ... )
+        >>> problem = compile_system(System(elements=[Counter.group('counters', 3)]))
+        >>> stepper = RenewalStepper()
+        >>> stepper.initialize(problem, np.random.default_rng(0))
+        >>> state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 100.0)
+        >>> bool(np.all(state[:3] > 50))
+        True
+    """
+
+    form: ClassVar[Form] = Form.RENEWAL
+    renews: ClassVar[bool] = True
+
+    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+        """Fire every renewal from time `t` up to time `until`, each member in time order.
+
+        Args:
+            t:
+                The current time.
+
+            x:
+                The current state vector.
+
+            p:
+                The parameter vector.
+
+            until:
+                The time to advance to.
+
+        Returns:
+            state:
+                The state vector at time `until`.
+        """
+        clock = self.renewals_
+        if until <= t or clock is None:
+            return x
+        clock.begin(t, x, p)
+        return self._bounded(until, clock.fire_until(until, x, p), p)
+
+
 register_solver('scipy', ScipyODE, default=True)
 register_solver('rk4', RK4)
 register_solver('velocity-verlet', VelocityVerlet)
@@ -1112,3 +1220,4 @@ register_solver('gillespie', Gillespie, default=True)
 register_solver('milstein', Milstein)
 register_solver('heun', Heun)
 register_solver('iteration', Iteration, default=True)
+register_solver('renewal', RenewalStepper, default=True)

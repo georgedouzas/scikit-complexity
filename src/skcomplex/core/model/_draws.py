@@ -1,4 +1,4 @@
-"""Define the named random draws that update laws take from the simulation's random stream."""
+"""Define the named random draws that update and renewal laws take from the simulation's random stream."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,19 +12,20 @@ from sage.symbolic.function import BuiltinFunction
 
 from ..base import Expression, SymbolicVector, ValidationError
 
-DRAW_KINDS = ('uniform', 'normal', 'bernoulli', 'categorical')
+DRAW_KINDS = ('uniform', 'normal', 'bernoulli', 'categorical', 'draw')
 
 
 class _Draw(BuiltinFunction):
     """Random value of one kind under one name, which stays symbolic until the compiler lowers it."""
 
-    def __init__(self, kind: str, name: str) -> None:
-        self.kind, self.draw = kind, name
-        super().__init__(f'{kind}_{name}', nargs=0)
+    def __init__(self, kind: str, name: str, distribution: str | None = None, keywords: tuple[str, ...] = ()) -> None:
+        self.kind, self.draw, self.distribution, self.keywords = kind, name, distribution, keywords
+        suffix = ''.join(f'_{keyword}' for keyword in keywords)
+        super().__init__(f'{distribution or kind}_{name}{suffix}', nargs=0)
 
-    def __reduce__(self) -> tuple[type['_Draw'], tuple[str, str]]:
-        """Return the kind and the name that rebuild the function."""
-        return _Draw, (self.kind, self.draw)
+    def __reduce__(self) -> tuple[type['_Draw'], tuple[str, str, str | None, tuple[str, ...]]]:
+        """Return the kind, the name, the distribution, and the keywords that rebuild the function."""
+        return _Draw, (self.kind, self.draw, self.distribution, self.keywords)
 
     def _eval_(self, *arguments: Expression) -> None:
         """Return `None`, so the draw stays unevaluated."""
@@ -36,12 +37,18 @@ class _Draw(BuiltinFunction):
         return SR(0)
 
 
-def _call(kind: str, name: str, arguments: Sequence[object]) -> Expression:
+def _call(
+    kind: str,
+    name: str,
+    arguments: Sequence[object],
+    distribution: str | None = None,
+    keywords: tuple[str, ...] = (),
+) -> Expression:
     """Return the symbolic call of a draw of a kind under a name, after checking the name."""
     if not isinstance(name, str) or not name.isidentifier():
         error_msg = f'A {kind} draw takes a name that is a Python identifier, such as `turn`, but got {name!r}.'
         raise ValidationError(error_msg)
-    return _Draw(kind, name)(*(SR(argument) for argument in arguments))
+    return _Draw(kind, name, distribution, keywords)(*(SR(argument) for argument in arguments))
 
 
 def _is_symbolic(item: object) -> bool:
@@ -176,13 +183,55 @@ def categorical(name: str, weights: Sequence[object]) -> Expression:
     return _call('categorical', name, tuple(weights))
 
 
+def draw(name: str, distribution: str, **parameters: object) -> Expression:
+    """Return a value drawn from a distribution of `scipy.stats` at every step or renewal.
+
+    The compiler checks the distribution name against `scipy.stats` and the keywords against the distribution's shape
+    parameters, `loc`, and `scale`, and samples with the distribution's `rvs` and the simulation's random stream.
+
+    Args:
+        name:
+            The name of the draw, a Python identifier.
+
+        distribution:
+            The name of a distribution of `scipy.stats`, such as `'pareto'`, `'lomax'`, or `'levy_stable'`.
+
+        **parameters:
+            The shape parameters, `loc`, and `scale` of the distribution, numbers or expressions of states and
+            parameters.
+
+    Returns:
+        draw:
+            The symbolic draw.
+
+    Raises:
+        ValidationError:
+            The name is not a Python identifier, or the distribution is not given by its name.
+
+    Examples:
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import Draw, draw
+        >>> alpha = symbol('alpha')
+        >>> wait = draw('wait', 'pareto', b=alpha, scale=2)
+        >>> wait
+        pareto_wait_b_scale(alpha, 2)
+        >>> Draw.of(wait).parameters
+        {'b': alpha, 'scale': 2}
+    """
+    if not isinstance(distribution, str):
+        error_msg = f'The draw {name!r} takes the name of a scipy.stats distribution, but got {distribution!r}.'
+        raise ValidationError(error_msg)
+    return _call('draw', name, tuple(parameters.values()), distribution, tuple(parameters))
+
+
 @dataclass(frozen=True)
 class Draw:
     """Random draw found in an expression.
 
     Args:
         kind:
-            The distribution, one of `'uniform'`, `'normal'`, `'bernoulli'`, and `'categorical'`.
+            The kind of the draw, one of `'uniform'`, `'normal'`, `'bernoulli'`, `'categorical'`, and `'draw'` for a
+            distribution of `scipy.stats`.
 
         name:
             The name of the draw.
@@ -192,6 +241,12 @@ class Draw:
 
         call:
             The symbolic call of the draw.
+
+        distribution:
+            The name of the `scipy.stats` distribution of a draw of kind `'draw'`, or `None`.
+
+        keywords:
+            The keyword of every argument of a draw of kind `'draw'`.
 
     Examples:
         >>> from skcomplex.core.model import Draw, bernoulli
@@ -203,6 +258,13 @@ class Draw:
     name: str
     arguments: tuple[Expression, ...]
     call: Expression
+    distribution: str | None = None
+    keywords: tuple[str, ...] = ()
+
+    @property
+    def parameters(self) -> dict[str, Expression]:
+        """Arguments of a draw from a `scipy.stats` distribution by keyword."""
+        return dict(zip(self.keywords, self.arguments, strict=True)) if self.kind == 'draw' else {}
 
     @classmethod
     def of(cls, call: Expression) -> 'Draw':
@@ -210,7 +272,7 @@ class Draw:
 
         Args:
             call:
-                A call returned by `uniform`, `normal`, `bernoulli`, or `categorical`.
+                A call returned by `uniform`, `normal`, `bernoulli`, `categorical`, or `draw`.
 
         Returns:
             draw:
@@ -223,10 +285,12 @@ class Draw:
         operator = SR(call).operator()
         if not isinstance(operator, _Draw):
             error_msg = (
-                f'{call} is not a random draw. Build draws with `uniform`, `normal`, `bernoulli`, or `categorical`.'
+                f'{call} is not a random draw. Build draws with `uniform`, `normal`, `bernoulli`, `categorical`, or '
+                '`draw`.'
             )
             raise ValidationError(error_msg)
-        return cls(operator.kind, operator.draw, tuple(SR(call).operands()), SR(call))
+        arguments = tuple(SR(call).operands())
+        return cls(operator.kind, operator.draw, arguments, SR(call), operator.distribution, operator.keywords)
 
 
 def is_draw(expression: object) -> bool:

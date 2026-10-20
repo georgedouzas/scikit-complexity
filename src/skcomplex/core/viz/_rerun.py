@@ -12,11 +12,13 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ..base import ValidationError
-from ..compile import CompiledElement, Problem
+from ..compile import CompiledElement, Problem, RenewalRecord
 from ..model import NetworkSpace
 from ..runtime import Frame, Observer
 from ._blueprints import default_blueprint, save_blueprint
 from ._visuals import AgentsVisual, Visual, _log_scalars, resolve_visual
+
+RENEWAL_MEMBERS = 20
 
 
 def _viewer_executable() -> str | None:
@@ -28,11 +30,19 @@ def _viewer_executable() -> str | None:
     return None
 
 
+def _renewal_text(record: RenewalRecord) -> str:
+    """Return the text log entry of the renewals of one pass, with the members that renewed."""
+    shown = ', '.join(str(member) for member in record.members[:RENEWAL_MEMBERS].tolist())
+    more = f' and {record.members.size - RENEWAL_MEMBERS} more' if record.members.size > RENEWAL_MEMBERS else ''
+    return f'{record.members.size} renewals up to t = {record.time:.6g} of members {shown}{more}'
+
+
 class RerunObserver(Observer):
     """Observer that logs frames to Rerun, with entity paths that follow the system tree.
 
     Each logged frame sets the `sim_time` and `step` timelines, logs every element with the visual its type
-    declares, and logs every parameter under `parameters/<name>`.
+    declares, logs every parameter under `parameters/<name>`, and logs the renewals of renewal laws since the
+    previous frame as text entries under `renewals/<label>`.
 
     Args:
         application_id:
@@ -164,6 +174,9 @@ class RerunObserver(Observer):
             self.recording_.log(name, rr.Scalars(np.atleast_1d(np.abs(value) if np.iscomplexobj(value) else value)))
         for name in frame.problem.parameters.names:
             _log_scalars(self.recording_, f'parameters/{name}', frame.value(name))
+        for record in frame.events:
+            if isinstance(record, RenewalRecord):
+                self.recording_.log(f'renewals/{record.label}', rr.TextLog(_renewal_text(record)))
         self.logged_frames_ += 1
 
     def on_stop(self) -> None:

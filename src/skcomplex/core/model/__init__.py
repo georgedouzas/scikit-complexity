@@ -1,7 +1,7 @@
 """Describe models as elements, interactions, laws, spaces, and systems."""
 
 from ._components import AgentType, Aggregate, Element, Group, Interaction, PairInteraction
-from ._draws import Draw, bernoulli, categorical, draws_in, is_draw, normal, uniform
+from ._draws import Draw, bernoulli, categorical, draw, draws_in, is_draw, normal, uniform
 from ._fields import Field, Flux, advection, divergence, gradient, inverse_laplacian, laplacian
 from ._functions import (
     both,
@@ -40,11 +40,13 @@ from ._laws import (
     Emission,
     Equation,
     Event,
+    FractionalNoise,
     Jump,
     Law,
     Noise,
     NumericFunction,
     Rate,
+    Renewal,
     Rule,
     Target,
     Transition,
@@ -105,6 +107,7 @@ __all__: list[str] = [
     'Event',
     'Field',
     'Flux',
+    'FractionalNoise',
     'GraphProduction',
     'Gravity',
     'GridSpace',
@@ -141,6 +144,7 @@ __all__: list[str] = [
     'Reduction',
     'ReflectingBox',
     'Relaxation',
+    'Renewal',
     'Rewrite',
     'Rewriting',
     'RewritingLaw',
@@ -168,6 +172,7 @@ __all__: list[str] = [
     'delayed',
     'derivative',
     'divergence',
+    'draw',
     'draws_in',
     'either',
     'gradient',

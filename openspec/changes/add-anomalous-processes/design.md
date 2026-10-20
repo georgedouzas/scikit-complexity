@@ -83,18 +83,26 @@ after the reset, from the reset state.
 A renewal is a scheduled event: the compiled problem holds, per renewal law, an array of next renewal times with one
 entry per group member. In the hybrid layer this array is a breakpoint source, so steppers that already stop at
 breakpoints stop at the earliest pending renewal, apply the reset to the members whose time has come, draw their next
-waiting times, and continue. Each firing becomes an `EventRecord` with the member index.
+waiting times, and continue. Each firing pass of a law becomes one `RenewalRecord` among the trajectory's events, with arrays
+of the times and members of its renewals and of the members' states before and after them, since one record object per
+renewal would not fit runs of 10⁴ walkers. The count of every member lives in a hidden state `<group>.<label>~renewals`,
+so frames carry it at their own time, partitions slice it with their owner, and the observable `<label>.renewals`
+sums it.
 
 Renewals do not change the form of a system that also has rate or noise laws, in the same way `Event` does not. A system
 or partition whose only laws are renewals compiles to the new `Form.RENEWAL`. Its `RenewalStepper` keeps the next
-times in a heap-free vectorised loop: it fires every member whose next time is at most `until`, in time order per
+times in a vectorised loop: it fires every member whose next time is at most `until`, in time order per
 member, until none remains. It needs no time grid, so a continuous-time random walk of 10⁴ walkers with power-law waits
 costs one batch of draws per renewal generation.
 
 Fixed-step steppers on groups whose members interact cannot stop every member at its own time without splitting the
 step for all of them. For such groups the stepper splits the step at every distinct renewal time inside it. Groups whose
 members do not interact, which the compiler detects from the absence of group sums and pair interactions, are advanced
-with a per-member step array instead, so no global split is needed.
+with a per-member step array instead, so no global split is needed. `RK4` and `EulerMaruyama` take both paths; other
+steppers reject renewal laws with an error that names them. Renewal laws read the states and parameters of the renewing
+member, not reductions, and they do not combine with delays or events in one system. A component with renewal laws
+alone beside components with other laws makes the system run as partitions, so renewal laws fold into the form of
+rate and noise laws only within the same component.
 
 Alternatives considered: extending `Jump` with a waiting-time distribution, which would make `Gillespie` non-Markovian
 and break its exactness argument; and writing the renewal loop as a Mesa rule, which would move the models to the agent
@@ -112,8 +120,9 @@ amplitude, which is all the inventory models need.
 initialisation it draws, per fractional row and member, the `ceil(horizon / dt)` increments of fractional Gaussian
 noise with the Davies-Harte adapter, scaled by `dt^H`, and stores them in a buffer. Each step adds the drift, ordinary
 Wiener increments for the ordinary noise rows, and the next stored fractional increment times the amplitude.
-`Simulation.run` passes its end time as the horizon when the stepper has none. Advancing past the horizon raises a
-`SolverError` subclass that names the horizon and the requested time. Other SDE steppers reject fractional rows with a
+`Simulation.run` passes its end time as the horizon when the stepper has none, through the new no-op hook
+`Stepper.plan(until)`. Advancing past the horizon raises
+`HorizonError`, a `SolverError` subclass that names the horizon and the requested time. Other SDE steppers reject fractional rows with a
 `SolverError` that names `FractionalEulerMaruyama`.
 
 Alternatives considered: Hosking's sequential method, which extends a path without a horizon but costs `O(n²)` per
@@ -125,8 +134,11 @@ open-ended interactive runs, where a large horizon serves the same purpose.
 - Sage layer: `draw` is a Sage symbolic function like the other named draws, `Renewal` and `FractionalNoise` are law
   dataclasses next to `Event` and `Noise`, and no SymPy is involved.
 - Lowering: SciPy draws in kernels become buffer reads, renewal resets compile like event resets, and fractional
-  rows add a `hurst` vector to the problem beside `noise_rows`. The Numba Euler-Maruyama kernel gains an increments
-  argument, so the fractional stepper reuses it with precomputed increments instead of drawing Wiener increments.
+  rows add `FractionalRows`, the positions of the rows and their Hurst indices, to the problem beside `noise_rows`. The
+fractional stepper loops in NumPy over the backend's compiled drift and diffusion with the stored increments, instead of
+a Numba loop with an increments
+  argument, which the per-step Python loop does not need. A SciPy draw in an update law is sampled into its buffer
+  before every step in Python, so a map with one runs its compiled update step by step instead of the compiled loop.
 - Runtime: `Simulation` seeds one `Generator` and hands it to the stepper, which owns the buffers, so two runs with the
   same random state draw the same values in the same order. Frame-by-frame runs, live parameter changes, and
   co-simulation work unchanged, except that a parameter change to a fractional amplitude takes effect at the next step,
@@ -155,7 +167,7 @@ The four models live in `skcomplex.models.physics.soft_matter`, a new module `_a
 - [Davies-Harte memory grows with the horizon times the group size] → The buffer holds `float64` increments, 8 MB per
   10⁶ member-steps, and the stepper raises a named error with the expected size when it exceeds a configurable limit.
 - [Negative circulant eigenvalues for some Hurst indices and short paths] → The adapter falls back to the exact
-  Cholesky method and records which method it used in the stepper's derived state.
+  Cholesky method.
 - [Renewal generations that fire many members at once draw in a different order than one member at a time] → The
   stepper always fires members in generations ordered by time, so the stream order depends only on the random state.
 - [Archive order with `add-stochastic-maps`] → This change depends on it. If it is archived first, the widening of
