@@ -56,19 +56,21 @@ def _lsoda_first_step(
     rtol: float,
     atol: float,
 ) -> float | None:
-    """Return the first step of LSODA from a trial step, or `None` to let LSODA choose.
+    """Return the first step of LSODA when the drift vanishes at the start, or `None` to let LSODA choose.
 
     LSODA guesses its first step from the distance to the end when the drift vanishes at the start, and without a
-    largest step it fails before its first step on a far end. The step is selected as SciPy's other solvers do, from
-    the norms of the state, the drift, and the drift's change over a trial step (Hairer, Norsett, and Wanner, II.4).
+    largest step it fails before its first step on a far end. The step then comes from the drift's change over a trial
+    step, as in SciPy's other solvers (Hairer, Norsett, and Wanner, II.4). Elsewhere LSODA's own guess is kept, since
+    a trial step across a discontinuous drift, such as stick-slip friction, gives needlessly small steps.
     """
     span = abs(end - t)
     with np.errstate(all='ignore'):
         drift = field(t, x)
         scale = atol + np.abs(x) * rtol
-        state_norm, drift_norm = np.sqrt(np.mean((x / scale) ** 2)), np.sqrt(np.mean((drift / scale) ** 2))
-        small = min(state_norm, drift_norm) < SMALL_NORM
-        trial = min(FALLBACK_STEP if small else 0.01 * state_norm / drift_norm, span)
+        drift_norm = np.sqrt(np.mean((drift / scale) ** 2))
+        if drift_norm >= SMALL_NORM:
+            return None
+        trial = min(FALLBACK_STEP, span)
         change = np.sqrt(np.mean(((field(t + trial, x + trial * drift) - drift) / scale) ** 2)) / trial
         largest = max(drift_norm, change)
         second = max(FALLBACK_STEP, trial * 1e-3) if largest <= TINY_NORM else (0.01 / largest) ** 0.5

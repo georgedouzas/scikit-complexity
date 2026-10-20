@@ -156,10 +156,11 @@ def test_ring_roads_hold_one_group_of_cars():
     [(optimal_velocity, PerCarVelocity, 200.0), (intelligent_driver_model, PerCarDriver, 100.0)],
 )
 def test_ring_roads_match_one_interaction_per_car(factory, interaction, until):
-    """Test that the ring road of one group runs as the ring of one element and one interaction per car."""
+    """Test that the ring road of one group runs as the ring of one element and one interaction per car under RK45."""
     system = factory(n_cars=20)
-    group = Simulation(system, dt=1.0).run(until=until).trajectory_
-    per_car = Simulation(_per_car(system, interaction), dt=1.0).run(until=until).trajectory_
+    group = Simulation(system, dt=1.0, solver=ScipyODE(method='RK45')).run(until=until).trajectory_
+    per_car = Simulation(_per_car(system, interaction), dt=1.0, solver=ScipyODE(method='RK45')).run(until=until)
+    per_car = per_car.trajectory_
     for variable in ('x', 'v'):
         np.testing.assert_allclose(group[f'cars.{variable}'], _cars(per_car, 20, variable), rtol=1e-8, atol=1e-12)
 
