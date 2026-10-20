@@ -52,6 +52,7 @@ dependencies = [
     "kramersmoyal>=0.4.1",
     "deeptime>=0.4.5",
     "qutip<6,>=5.3",
+    "matching>=1.4.3",
 ]
 
 [project.urls]

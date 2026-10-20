@@ -456,6 +456,10 @@ class Rule:
         function:
             The function that runs the rule.
 
+        phase:
+            The name of the phase of the step the rule runs in, one of the system's `phases`, or `None` for the
+            default phase.
+
     Examples:
         >>> from skcomplex.core.model import Rule
         >>> rule = Rule(lambda agent, model: None)
@@ -464,6 +468,7 @@ class Rule:
     """
 
     function: Callable[..., None]
+    phase: str | None = None
 
 
 @dataclass(frozen=True, init=False)

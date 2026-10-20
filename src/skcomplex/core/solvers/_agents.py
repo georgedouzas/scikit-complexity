@@ -6,7 +6,8 @@
 import dataclasses
 import inspect
 import math
-from collections.abc import Callable, Mapping
+from collections import deque
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, cast
 
@@ -19,11 +20,13 @@ from mesa.experimental.continuous_space import ContinuousSpace as MesaContinuous
 from mesa.experimental.continuous_space import ContinuousSpaceAgent
 
 from ..base import Form, SimulationError, SpaceError
-from ..compile import CompiledAgents, Problem, Vector
-from ..model import ContinuousSpace, GridSpace, Group, MesaSystem, NetworkSpace, Space
+from ..compile import CompiledAgents, ObservableEvaluator, Problem, Vector
+from ..model import ContinuousSpace, GridSpace, Group, MesaSystem, NetworkSpace, Phase, Rule, Space
+from ..model._phases import DEFAULT_PHASE
 from ._base import Stepper, register_solver
 
 MAX_SEED = 2**31 - 1
+HISTORY_LENGTH = 10_000
 
 
 @dataclass(frozen=True)
@@ -323,6 +326,104 @@ class ModelView:
         """
         return AgentView(self._stepper.create_agent(group, location, values), self._stepper)
 
+    @property
+    def round(self) -> int:
+        """Index of the current round of a repeated phase, `0` outside repeated phases."""
+        return self._stepper.round_
+
+    @property
+    def storage(self) -> dict[str, Any]:
+        """Mutable mapping private to the owner that persists across the steps of one run, such as an order book."""
+        return self._stepper.storage_.setdefault(self._owner, {})
+
+    def _report_name(self, name: str) -> str:
+        """Return the reporter name of a name of the owner."""
+        return f'{self._owner}.{name}' if self._owner else name
+
+    def report(self, name: str, value: float) -> None:
+        """Publish a value of the owner as the reporter `<owner>.<name>` and add it to the reporter's history.
+
+        The owner declares the names it reports in its class variable `reports`, so every frame records them, `NaN`
+        before the first report.
+
+        Args:
+            name:
+                The name of the value, such as `price`.
+
+            value:
+                The value.
+
+        Raises:
+            SimulationError:
+                The owner does not declare the name in `reports`.
+        """
+        full = self._report_name(name)
+        if full not in self._stepper.reports_:
+            error_msg = (
+                f'{self._owner or "The model"} reports {name!r}, which it does not declare. List it in the class '
+                'variable `reports` of the interaction or agent type.'
+            )
+            raise SimulationError(error_msg)
+        self._stepper.reports_[full] = float(value)
+        self._stepper.reported_.setdefault(full, deque(maxlen=HISTORY_LENGTH)).append(float(value))
+
+    def history(self, name: str, window: int | None = None) -> npt.NDArray[np.float64]:
+        """Return the past values of a reporter, the last one last.
+
+        Args:
+            name:
+                The name of a value the owner reports, or the full name of any reporter, such as `bar.attendance`.
+
+            window:
+                The number of last values, or `None` for every recorded value.
+
+        Returns:
+            values:
+                The values, at most `window` of them.
+        """
+        history = self._stepper.reported_
+        values = history.get(self._report_name(name), history.get(name, ()))
+        array = np.asarray(values, dtype=float)
+        return array if window is None else array[len(array) - min(window, len(array)) :]
+
+    def observable(self, name: str) -> Any:  # noqa: ANN401
+        """Return the current value of an observable of the system, such as an aggregate of a group.
+
+        Args:
+            name:
+                The path of the observable.
+
+        Returns:
+            value:
+                Its value for the current agents and parameters.
+
+        Raises:
+            SimulationError:
+                The system has no such observable.
+        """
+        return self._stepper.observable(name)
+
+    def set_parameter(self, name: str, value: float) -> None:
+        """Set a parameter of any group or interaction during the run, recorded in the trajectory like any parameter.
+
+        Args:
+            name:
+                The dotted name of the parameter, such as `bank.rate`, or the name of a parameter of the owner.
+
+            value:
+                The new value.
+
+        Raises:
+            SimulationError:
+                No parameter has that name.
+        """
+        layout = self._stepper.problem_.parameters
+        full = name if name in layout else f'{self._owner}.{name}'
+        if full not in layout:
+            error_msg = f'No parameter named {name!r} to set. Available names are: {", ".join(layout.names)}.'
+            raise SimulationError(error_msg)
+        self._stepper.set_parameter(full, value)
+
 
 class AgentView:
     """Agent as rules see it: its states as attributes, its group's parameters, its neighbours, and its location.
@@ -353,10 +454,14 @@ class AgentView:
         raise AttributeError(error_msg)
 
     def __setattr__(self, name: str, value: Any) -> None:  # noqa: ANN401
-        """Set a state of the agent."""
+        """Set a state of the agent, at the end of the phase in a simultaneous phase."""
         if name not in self._stepper.spec_of(self._agent).states:
             error_msg = f'{name!r} is not a state of the agent, so it cannot be set.'
             raise AttributeError(error_msg)
+        buffer = self._stepper.buffer_
+        if buffer is not None:
+            buffer[self._agent, name] = value
+            return
         setattr(self._agent, name, value)
 
     def __eq__(self, other: object) -> bool:
@@ -608,6 +713,14 @@ class MesaStepper(Stepper):
         self.parameters_ = problem.initial_parameters.copy()
         self.inputs_: dict[str, Any] = {}
         self.deposits_ = np.zeros(problem.states.size)
+        self.reports_: dict[str, float] = {}
+        self.reported_: dict[str, deque[float]] = {}
+        self.storage_: dict[str, dict[str, Any]] = {}
+        self.buffer_: dict[tuple[mesa.Agent, str], Any] | None = None
+        self.round_ = 0
+        self._live: Vector | None = None
+        self._state: Vector = problem.initial_state
+        self._evaluator: ObservableEvaluator | None = None
         if isinstance(problem.system, MesaSystem):
             self._build_wrapped(problem.system)
             return
@@ -618,6 +731,14 @@ class MesaStepper(Stepper):
         roles = {item.path: item.roles for item in problem.interactions}
         self._views = {spec.path: ModelView(self, spec.path) for spec in problem.agents}
         self._rules = [(ModelView(self, owner, roles.get(owner)), rule) for owner, rule in problem.model_rules]
+        self._phases = _phase_plan(getattr(problem.system, 'phases', ()), problem)
+        owners = [(item.path, type(item.interaction)) for item in problem.interactions] + [
+            (spec.path, spec.element.element if isinstance(spec.element, Group) else type(spec.element))
+            for spec in problem.agents
+        ]
+        for path, component in owners:
+            for name in getattr(component, 'reports', ()):
+                self.reports_[f'{path}.{name}'] = math.nan
         for spec in problem.agents:
             self._populate(spec)
 
@@ -798,10 +919,109 @@ class MesaStepper(Stepper):
                     setattr(self.model_, name, _typed_like(getattr(self.model_, name, value), value))
 
     def _run_rules(self) -> None:
-        """Activate the agents in random order and run the model rules once."""
-        self.model_.agents.shuffle_do('step')
+        """Run the phases of a step, or activate the agents in random order and run the model rules once."""
+        if self._phases is None:
+            self.model_.agents.shuffle_do('step')
+            for model, rule in self._rules:
+                rule.function(model)
+        else:
+            for phase in self._phases:
+                for index in range(phase.repeat):
+                    self.round_ = index
+                    self._run_phase(phase)
+            self.round_ = 0
+        self._remember()
+
+    def _ordered_agents(self, phase: Phase) -> list[mesa.Agent]:
+        """Return the agents of a phase in the order of its activation policy."""
+        if phase.activation == 'sequential':
+            return sorted(self.model_.agents, key=lambda agent: agent.unique_id)
+        if phase.activation == 'by-type':
+            paths = [
+                self.resolve_group(group) for group in phase.groups or [spec.path for spec in self.problem_.agents]
+            ]
+            ordered: list[mesa.Agent] = []
+            for path in paths:
+                members = sorted(self.group_agents(path), key=lambda agent: agent.unique_id)
+                ordered += [members[index] for index in self.model_.rng.permutation(len(members))]
+            return ordered
+        agents = sorted(self.model_.agents, key=lambda agent: agent.unique_id)
+        return [agents[index] for index in self.model_.rng.permutation(len(agents))]
+
+    def _run_phase(self, phase: Phase) -> None:
+        """Run the agent rules of a phase under its activation policy, then the model rules of the phase."""
+        if phase.activation == 'simultaneous':
+            self.buffer_ = {}
+        try:
+            for agent in self._ordered_agents(phase):
+                spec = self.spec_of(agent)
+                view, model = AgentView(agent, self), self._views[spec.path]
+                for rule in spec.rules:
+                    if getattr(agent, 'removed_', False):
+                        break
+                    if _phase_of(rule) == phase.name:
+                        rule.function(view, model)
+        finally:
+            buffer, self.buffer_ = self.buffer_, None
+        for (agent, name), value in (buffer or {}).items():
+            setattr(agent, name, value)
         for model, rule in self._rules:
-            rule.function(model)
+            if _phase_of(rule) == phase.name:
+                rule.function(model)
+
+    def _remember(self) -> None:
+        """Record the states that agent types remember, at the end of a step."""
+        remembering = {}
+        for spec in self.problem_.agents:
+            agent_type = spec.element.element if isinstance(spec.element, Group) else type(spec.element)
+            remembering[spec.path] = getattr(agent_type, 'remembers', None) or {}
+        if not any(remembering.values()):
+            return
+        for agent in self.model_.agents:
+            remembers = remembering[self.spec_of(agent).path]
+            if not remembers:
+                continue
+            memories = agent.__dict__.setdefault('memories_', {})
+            for name, window in remembers.items():
+                memories.setdefault(name, deque(maxlen=window)).append(getattr(agent, name))
+
+    def set_parameter(self, name: str, value: float) -> None:
+        """Set a parameter during a step, so the rules read it at once and the trajectory records it.
+
+        Args:
+            name:
+                The dotted name of the parameter.
+
+            value:
+                The new value.
+        """
+        _, indices = self.problem_.parameters.locate(name)
+        self.parameters_[indices] = value
+        if self._live is not None:
+            self._live[indices] = value
+
+    def observable(self, name: str) -> Any:  # noqa: ANN401
+        """Return the current value of an observable of the problem.
+
+        Args:
+            name:
+                The path of the observable.
+
+        Returns:
+            value:
+                Its value for the current agents and parameters.
+
+        Raises:
+            SimulationError:
+                The problem has no such observable.
+        """
+        if self._evaluator is None:
+            self._evaluator = ObservableEvaluator(self.problem_)
+        values = self._evaluator.evaluate(float(self.model_.time), self._state, self.parameters_, self.agents_of)
+        if name not in values:
+            error_msg = f'No observable named {name!r}. Available observables are: {", ".join(values) or "none"}.'
+            raise SimulationError(error_msg)
+        return values[name]
 
     def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Run one Mesa step per integer time from `t` up to `until`.
@@ -825,6 +1045,7 @@ class MesaStepper(Stepper):
         """
         if not np.array_equal(p, self.parameters_):
             self._push_parameters(p)
+        self._live, self._state = p, x
         for step in range(math.floor(t + 1e-9), math.floor(until + 1e-9)):
             del step
             self.model_.step()
@@ -845,7 +1066,32 @@ class MesaStepper(Stepper):
             agents = self.group_agents(spec.path)
             groups[spec.path] = _snapshot_of(agents, {name: _attribute(name) for name in spec.states})
         reporters = {f'{path}.count': float(len(snapshot)) for path, snapshot in groups.items()}
-        return AgentState(groups, reporters)
+        return AgentState(groups, {**reporters, **self.reports_})
+
+
+def _phase_of(rule: Rule) -> str:
+    """Return the name of the phase a rule runs in."""
+    return rule.phase or DEFAULT_PHASE
+
+
+def _phase_plan(phases: Sequence[Phase], problem: Problem) -> list[Phase] | None:
+    """Return the phases of a step with the default phase, or `None` when no phase is declared or named."""
+    rules = [rule for spec in problem.agents for rule in spec.rules] + [rule for _, rule in problem.model_rules]
+    if not phases and all(rule.phase is None for rule in rules):
+        return None
+    names = [phase.name for phase in phases]
+    if len(set(names)) != len(names):
+        error_msg = f'Phase names must be unique, and they are: {", ".join(names)}.'
+        raise SimulationError(error_msg)
+    plan = list(phases) if DEFAULT_PHASE in names else [Phase(DEFAULT_PHASE), *phases]
+    unknown = sorted({_phase_of(rule) for rule in rules} - {phase.name for phase in plan})
+    if unknown:
+        error_msg = (
+            f'Rules run in the phases {", ".join(unknown)}, which the system does not declare. Declared phases are: '
+            f'{", ".join(names) or "none"}.'
+        )
+        raise SimulationError(error_msg)
+    return plan
 
 
 def _attribute(name: str) -> Callable[[mesa.Agent], object]:

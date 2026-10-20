@@ -327,7 +327,8 @@ class AgentType(Element):
     States are attributes of every agent and parameters are shared by every agent of a group. `laws` returns `Rule`
     laws whose functions take the agent and the model. Agent groups are created with `group` like any element group.
     States and parameters cannot take the names of the attributes and methods of the agent views rules receive, or
-    the names `position`, `pos`, `cell`, `unique_id`, and `model` that Mesa reads from agents.
+    the names `position`, `pos`, `cell`, `unique_id`, and `model` that Mesa reads from agents. The class variable
+    `remembers` maps state names to the number of past values the stepper keeps of them, which `memory` returns.
 
     Args:
         label:
@@ -352,8 +353,11 @@ class AgentType(Element):
         Group('walkers', element=Walker, size=5)
     """
 
-    reserved_names: ClassVar[frozenset[str]] = frozenset({'label', 'visual', *AGENT_VIEW_NAMES, *MESA_AGENT_NAMES})
+    reserved_names: ClassVar[frozenset[str]] = frozenset(
+        {'label', 'visual', 'remembers', *AGENT_VIEW_NAMES, *MESA_AGENT_NAMES},
+    )
     visual: ClassVar[VisualSpec] = VisualSpec('agents')
+    remembers: ClassVar[Mapping[str, int]] = {}
     location: object = None
 
 

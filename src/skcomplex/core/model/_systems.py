@@ -10,6 +10,7 @@ from sklearn.base import BaseEstimator
 
 from ._components import Element, Group, Interaction
 from ._observables import Observable
+from ._phases import Phase
 from ._spaces import Space
 
 
@@ -46,6 +47,11 @@ class System(BaseEstimator):
             The stochastic convention of noise laws, `'ito'`, `'stratonovich'`, or `'anti-ito'`. The compiler adds the
             drift correction of the convention, so every solver integrates the Itô form.
 
+        phases:
+            The phases every step of the agents runs in order, each with its rules and activation policy. Rules
+            without a phase run in the phase `'default'`, first unless a phase of that name is listed. Without phases
+            a step activates every agent in random order and then runs the model rules.
+
     Examples:
         >>> from skcomplex.core.model import System
         >>> from skcomplex.models.biology.ecology import LogisticGrowth, Population
@@ -68,6 +74,7 @@ class System(BaseEstimator):
         observables: Sequence[Observable] = (),
         history: Mapping[str, Any] | None = None,
         noise: str = 'ito',
+        phases: Sequence[Phase] = (),
     ) -> None:
         self.label = label
         self.elements = elements
@@ -77,6 +84,7 @@ class System(BaseEstimator):
         self.observables = observables
         self.history = history
         self.noise = noise
+        self.phases = phases
 
     def __repr__(self, N_CHAR_MAX: int = 700) -> str:
         """Return the label and the number of children of each kind."""

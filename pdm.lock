@@ -5,7 +5,7 @@
 groups = ["default", "changelog", "checks", "docs", "formatting", "gallery", "maintenance", "release", "tests"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.1"
-content_hash = "sha256:626606682941e943cd59b4f078e0204141298f4783c8dea6f4ffa8c7c438b027"
+content_hash = "sha256:1c464ff8cff91d4fb092d907f6f827fcc4788c25e8f4f59452a87640717a477c"
 
 [[metadata.targets]]
 requires_python = ">=3.12,<3.14"
@@ -1362,6 +1362,20 @@ files = [
     {file = "markupsafe-3.0.4-cp313-cp313-win_amd64.whl", hash = "sha256:1f1f9477e174582b0a1b583d60b66e1f2cf5d3fe12cee985e4aedf44766600e5"},
     {file = "markupsafe-3.0.4-cp313-cp313-win_arm64.whl", hash = "sha256:06de8ef6331f6e822c28d577dc8bf43fe398800477c49498f38fc38b67ff33fc"},
     {file = "markupsafe-3.0.4.tar.gz", hash = "sha256:2e9ad7dd851bf45fab9f75cbff4cb493fee9979e8d8c7c9c3ee119022518edd6"},
+]
+
+[[package]]
+name = "matching"
+version = "1.4.3"
+requires_python = ">=3.5"
+summary = "A package for solving matching games"
+groups = ["default"]
+dependencies = [
+    "numpy>=1.19.2",
+]
+files = [
+    {file = "matching-1.4.3-py3-none-any.whl", hash = "sha256:0ce02354174aff8e0dc6fdc155a0f25e113107b7dbf983e51a8288e1726efdd1"},
+    {file = "matching-1.4.3.tar.gz", hash = "sha256:130d9e88661f623dc39e84675facee2ce2b192420a2f8c4f274a38393837a5de"},
 ]
 
 [[package]]
@@ -3468,7 +3482,7 @@ version = "2026.5"
 requires_python = ">=2"
 summary = "Provider of IANA time zone data"
 groups = ["default", "docs"]
-marker = "sys_platform == \"emscripten\" or sys_platform == \"win32\""
+marker = "sys_platform == \"win32\" or sys_platform == \"emscripten\""
 files = [
     {file = "tzdata-2026.5-py2.py3-none-any.whl", hash = "sha256:b683bd1b6659ddcd810ff02ad09ba821d4bf1065072805063eb35c49617905ac"},
     {file = "tzdata-2026.5.tar.gz", hash = "sha256:8cc73c0a0bfca7dbfa59235d60b2eff82231dee33f53d206db1acd9173cfc0a7"},

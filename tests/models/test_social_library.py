@@ -186,6 +186,17 @@ def test_spatial_prisoners_dilemma_regimes():
     assert _cooperation(fermi)[-1] > 0.9
 
 
+def test_spatial_cooperation_survives_in_clusters():
+    """Test that with imitate-the-best and temptation 1.6 cooperators survive in clusters for 200 steps."""
+    trajectory = _run(spatial_prisoners_dilemma((40, 40), temptation=1.6), 200, dt=1)
+    shares = _cooperation(trajectory)
+    assert shares.min() > 0.2
+    lattice = trajectory['players.strategy'][-1].reshape(40, 40)
+    shifts = [np.roll(lattice, shift, axis) for shift in (-1, 1) for axis in (0, 1)]
+    cooperating_neighbours = np.mean(shifts, axis=0)[lattice == 1]
+    assert cooperating_neighbours.mean() > shares[-1]
+
+
 def test_spatial_prisoners_dilemma_rejects_unknown_imitation():
     """Test that an unknown imitation rule raises a validation error when the model compiles."""
     with pytest.raises(ValidationError, match='Unknown imitation'):

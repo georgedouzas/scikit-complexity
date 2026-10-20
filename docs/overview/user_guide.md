@@ -1351,6 +1351,79 @@ Simulation(road, random_state=0).run(until=5)
 print(counts)
 ```
 
+### Phases, markets, institutions, and learning
+
+Economic and social models order each step into phases, match agents in markets, let institutions set policy, and let
+agents learn from their past.
+
+- `System(phases=[...])` lists the phases of a step. A `Phase(name, activation, repeat)` runs its agents
+  `'random'`ly, `'sequential'`ly in order of creation, `'simultaneous'`ly, or `'by-type'`, for `repeat` rounds such as
+  intraday rounds. In a simultaneous phase every rule reads the states of the start of the phase, and the writes apply
+  at its end. `Rule(function, phase=name)` puts a rule in a phase. Rules without a phase run in the phase `'default'`,
+  which runs first unless the system lists it, so systems without phases keep one random activation per step.
+- `Market(label, buyers=..., sellers=..., protocol=...)` matches two groups. Buyers state their limit `bid` and
+  `demand`, and sellers their `ask` and `supply`. The protocols are `BilateralSearch`, `SampleAndSwitch` (partner
+  choice with switching), `RationedQueue`, `Walrasian` (tâtonnement), `OrderBook` (price-time priority), `CallAuction`
+  (one uniform price), and `DeferredAcceptance` (stable matching by the `matching` library). Every trade moves
+  `money` to the seller and `goods` to the buyer at once, within the buyer's budget. The market reports
+  `<market>.price`, `<market>.volume`, and `<market>.unmatched`.
+- An `Institution` acts once per round of its phase. It reads `model.observable(name)`, reporters through
+  `model.history(name, window)`, and agents, and it sets parameters of any component with
+  `model.set_parameter(name, value)`. Rules see the change at once, and the trajectory records it.
+- Components declare the values they publish in the class variable `reports` and publish them with
+  `model.report(name, value)`. `model.storage` keeps private values of a component across the steps of a run.
+- Learning blocks: `memory(agent, state, window)` returns the past values of the states that an agent type lists in
+  its class variable `remembers`. `heuristics` has adaptive, trend-following, anchoring, and fundamentalist forecasts.
+  `logit_choice` picks a strategy by past performance, `imitate` copies the best neighbour, and `evolve` breeds the
+  next generation of strategies with the model's random stream.
+
+```python
+from skcomplex.core.model import CallAuction, Institution, Market, Phase
+
+
+class Trader(AgentType):
+    value: float = state(0.0)
+    bid: float = state(0.0)
+    ask: float = state(0.0)
+    demand: float = state(0.0)
+    supply: float = state(0.0)
+    money: float = state(0.0)
+    goods: float = state(0.0)
+
+    def laws(self, s):
+        return [Rule(self.quote, phase='quote')]
+
+    def quote(self, agent, model):
+        agent.bid = model.rng.uniform(0, agent.value) if agent.demand else 0.0
+        agent.ask = model.rng.uniform(agent.value, 2.0) if agent.supply else 2.0
+
+
+class Clerk(Institution):
+    reports = ('traded',)
+    fee: float = parameter(0.0)
+
+    def act(self, model):
+        traded = sum(agent.goods for agent in model.agents('buyers'))
+        model.report('traded', traded)
+        model.set_parameter('fee', 0.01 * traded)
+
+
+rng = np.random.default_rng(0)
+auction = System(
+    elements=[
+        Trader.group('buyers', 20, value=rng.uniform(0.5, 2, 20), demand=1.0, money=2.0),
+        Trader.group('sellers', 20, value=rng.uniform(0, 1.5, 20), supply=1.0),
+    ],
+    interactions=[
+        Market('auction', buyers='buyers', sellers='sellers', protocol=CallAuction(), phase='trade'),
+        Clerk('clerk', phase='trade'),
+    ],
+    phases=[Phase('quote'), Phase('trade', repeat=3)],
+)
+trajectory = Simulation(auction, random_state=0).run(until=5).trajectory_
+print(trajectory['auction.price'][1:], trajectory['clerk.traded'][-1], trajectory['clerk.fee'][-1])
+```
+
 ### Existing Mesa models
 
 `MesaSystem` runs any Mesa model with the framework's runtime, Rerun visualization, and live parameters, without

@@ -15,8 +15,8 @@ sequential, simultaneous, or by type), and an optional number of repeated rounds
 - **THEN** every agent reads its neighbours' strategies from the start of the phase
 
 ### Requirement: Markets match and clear between groups
-A market interaction SHALL match two agent groups with a chosen protocol, settle trades through ledger transfers, and
-publish price, volume, and unmatched quantity as observables.
+A market interaction SHALL match two agent groups with a chosen protocol, settle every trade by an atomic transfer of
+money and goods between the two agents, and publish price, volume, and unmatched quantity as reporters.
 
 #### Scenario: Double auction efficiency
 - **WHEN** zero-intelligence traders with budget constraints trade in a call auction

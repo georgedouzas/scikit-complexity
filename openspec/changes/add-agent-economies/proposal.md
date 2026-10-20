@@ -21,8 +21,9 @@ Agent-based economics and social models share structure that the framework leave
   sub-steps, such as intraday rounds within a day.
 - Add market protocols: interactions between two agent groups that match participants and clear trades. Protocols
   include random bilateral search, sampling and switching, a rationed queue, a limit order book with price-time
-  priority, a call auction, a Walrasian auctioneer, and deferred acceptance. They report prices and volumes as
-  observables, and settle trades through the ledger transfers of `add-stocks-and-flows`.
+  priority, a call auction, a Walrasian auctioneer, and deferred acceptance through the `matching` library. They report
+  prices and volumes as reporters, and settle trades by atomic transfers of money and goods between the agents, which
+  can move to the ledger transfers of `add-stocks-and-flows` once that change lands.
 - Add institutions: singleton agents whose rules read observables and set parameters of other groups, live during the
   run.
 - Add learning blocks:
@@ -31,9 +32,12 @@ Agent-based economics and social models share structure that the framework leave
   - logit switching among strategies by past performance;
   - imitation of the best neighbour;
   - selection, crossover, and mutation over agent strategies.
-- Add library models: El Farol bar, Brock-Hommes heuristic switching, a double auction, an order-book market with
-  imitation, fractional-reserve banking, a firm-bank credit network, a job-search labour market, Sugarscape, spatial
-  prisoner's dilemma, and Axelrod culture dissemination.
+- Add library models that probe these blocks in distinct ways: El Farol bar, the minority game, the Kolkata restaurant
+  game, kinetic wealth exchange, Brock-Hommes heuristic switching, a double auction, fractional-reserve banking, a
+  firm-bank credit network, a job-search labour market, fair-food choice, Sugarscape, and Axelrod culture
+  dissemination. The existing spatial prisoner's dilemma covers spatial cooperation. Models that only repeat covered
+  patterns (goods traders, shops, barter, an order-book market with imitation, the meadow commons, and ridesharing)
+  stay pending this change.
 
 ## Capabilities
 
@@ -49,6 +53,9 @@ None.
 ## Impact
 
 - `skcomplex.core.model` gains `Phase`, `Market` with its protocols, `Institution`, `memory`, `heuristics`,
-  `logit_choice`, `imitate`, and `evolve`.
-- The Mesa stepper runs phases instead of one activation per step.
-- Depends on `add-stocks-and-flows` for transfers and on `add-general-model-interface` for observables.
+  `logit_probabilities`, `logit_choice`, `imitate`, and `evolve`. `System` gains `phases`, `Rule` gains `phase`, and
+  `AgentType` gains the class variable `remembers`.
+- The Mesa stepper runs phases when a system declares them, and keeps one activation per step otherwise. Rules gain
+  `model.report`, `model.history`, `model.storage`, `model.round`, `model.observable`, and `model.set_parameter`.
+- Adds the `matching` library as a runtime dependency.
+- Settles trades without ledgers, so it does not wait for `add-stocks-and-flows`.

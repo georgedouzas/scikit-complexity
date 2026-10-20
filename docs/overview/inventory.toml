@@ -410,8 +410,8 @@ toy_firm_investment = { title = "Toy firm investment", sources = ["Ca 2.1"], sta
 exchange_rates = { title = "Exchange rates in international trade", sources = ["Ha 8"], status = "implemented" }
 capital_stock = { title = "Capital stock", sources = ["TS 2"], status = "implemented" }
 optimal_consumption = { title = "Pontryagin capital and consumption", sources = ["Di 9.1"], status = "pending add-optimal-control" }
-credit_networks = { title = "Firm and bank credit networks", sources = ["Ca 2.2"], status = "pending add-agent-economies" }
-fractional_reserve_banking = { title = "Fractional-reserve banking", sources = ["Ha 9"], status = "pending add-agent-economies" }
+credit_networks = { title = "Firm and bank credit networks", sources = ["Ca 2.2"], status = "implemented" }
+fractional_reserve_banking = { title = "Fractional-reserve banking", sources = ["Ha 9"], status = "implemented" }
 stock_flow_consistent_economy = { title = "Stock-flow consistent monetary economy", sources = ["Godley and Lavoie 2007", "Caiani et al. 2016"], status = "pending add-stocks-and-flows" }
 
 [economics.markets]
@@ -422,16 +422,16 @@ produce_market = { title = "Produce market", sources = ["Ha 2–3"], status = "i
 car_dealer = { title = "Car-dealer inventory with delays", sources = ["TS 2"], status = "implemented" }
 car_wash = { title = "Car wash queue", sources = ["Cy 6.4"], status = "implemented" }
 commodity_cycle = { title = "Commodity cycle with capacity delay", sources = ["Ba 4.11.4"], status = "pending add-stocks-and-flows" }
-double_auction = { title = "Double auction", sources = ["Go 8–12"], status = "pending add-agent-economies" }
+double_auction = { title = "Double auction", sources = ["Go 8–12"], status = "implemented" }
 goods_traders = { title = "Toy and three-goods traders", sources = ["Go 8–12"], status = "pending add-agent-economies" }
 shops = { title = "Shops and digital markets", sources = ["Ha 6.3–6.4"], status = "pending add-agent-economies" }
 barter = { title = "Edgeworth and Red Cross barter", sources = ["Ha 5"], status = "pending add-agent-economies" }
-labour_market = { title = "Labour market", sources = ["Ha 7"], status = "pending add-agent-economies" }
-fair_food = { title = "Ajani's choice and fair food", sources = ["Cy 3", "Cy 7"], status = "pending add-agent-economies" }
-sugarscape = { title = "Sugarscape", sources = ["Ar 16.2", "TC 9"], status = "pending add-agent-economies" }
+labour_market = { title = "Labour market", sources = ["Ha 7"], status = "implemented" }
+fair_food = { title = "Ajani's choice and fair food", sources = ["Cy 3", "Cy 7"], status = "implemented" }
+sugarscape = { title = "Sugarscape", sources = ["Ar 16.2", "TC 9"], status = "implemented" }
 oligopoly_equilibria = { title = "Static oligopoly equilibria", sources = ["Fo 16", "Fo 20", "Fo 21"], status = "blocked add-static-models", feature = "Models solved, sampled, enumerated, or optimised rather than integrated in time" }
 beer_game = { title = "Beer distribution game", sources = ["Sterman 1989"], status = "pending add-stocks-and-flows" }
-brock_hommes = { title = "Brock-Hommes heuristic switching", sources = ["Brock and Hommes 1998"], status = "pending add-agent-economies" }
+brock_hommes = { title = "Brock-Hommes heuristic switching", sources = ["Brock and Hommes 1998"], status = "implemented" }
 perishable_goods_duopoly = { title = "Customers choosing between two shops of perishable goods", sources = ["Bt 4.3.1", "Bt 4.3.2", "Bt 4.3.3", "Bt 4.6"], status = "implemented" }
 
 [economics.finance]
@@ -446,10 +446,10 @@ order_book = { title = "Order book with imitation", sources = ["Ca 3"], status =
 
 [economics.econophysics]
 boltzmann_wealth = { title = "Boltzmann wealth exchange", sources = ["Go 8.1"], status = "implemented" }
-kinetic_wealth_exchange = { title = "Exchange with debt limit and with saving propensity", sources = ["0905.1518 §II", "0909.1974 §VIII"], status = "pending add-agent-economies" }
-minority_game = { title = "Minority game and its evolutionary version", sources = ["0909.1974 §IX", "Cm 9"], status = "pending add-agent-economies" }
-el_farol = { title = "El Farol", sources = ["0909.1974 §IX", "Cm 9"], status = "pending add-agent-economies" }
-kolkata_restaurant = { title = "Kolkata Paise Restaurant", sources = ["0909.1974 §IX", "Cm 9"], status = "pending add-agent-economies" }
+kinetic_wealth_exchange = { title = "Exchange with debt limit and with saving propensity", sources = ["0905.1518 §II", "0909.1974 §VIII"], status = "implemented" }
+minority_game = { title = "Minority game and its evolutionary version", sources = ["0909.1974 §IX", "Cm 9"], status = "implemented" }
+el_farol = { title = "El Farol", sources = ["0909.1974 §IX", "Cm 9"], status = "implemented" }
+kolkata_restaurant = { title = "Kolkata Paise Restaurant", sources = ["0909.1974 §IX", "Cm 9"], status = "implemented" }
 kinetic_wealth_welfare = { title = "Kinetic wealth and welfare dynamics", sources = ["Bellomo et al. 2017"], status = "pending add-kinetic-models" }
 
 [economics.resources]
@@ -486,7 +486,7 @@ voter_variants = { title = "Voter variants", sources = ["Th 4.8.8.1"], status = 
 hegselmann_krause = { title = "Hegselmann-Krause", sources = ["0710.3256 §III.6"], status = "pending add-adaptive-networks" }
 coevolving_voter = { title = "Coevolving voter", sources = ["0710.3256 §X", "Th 4.8.8.2"], status = "pending add-adaptive-networks" }
 join_a_club = { title = "Join-a-club spins", sources = ["Th 6.4.3.2"], status = "pending add-adaptive-networks" }
-axelrod = { title = "Axelrod culture dissemination", sources = ["0710.3256 §IV"], status = "pending add-agent-economies" }
+axelrod = { title = "Axelrod culture dissemination", sources = ["0710.3256 §IV"], status = "implemented" }
 kinetic_opinion = { title = "Kinetic opinion formation", sources = ["Bellomo et al. 2017"], status = "pending add-kinetic-models" }
 standardized_agents = { title = "Complex agents with internal states and standardization", sources = ["Bt 4.5.1", "Bt 4.5.2"], status = "implemented" }
 
