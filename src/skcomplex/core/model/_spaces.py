@@ -3,8 +3,14 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from dataclasses import dataclass
+
 import networkx as nx
+import numpy as np
+import numpy.typing as npt
 from sklearn.base import BaseEstimator
+
+from ..base import ValidationError
 
 
 class Space(BaseEstimator):
@@ -59,8 +65,29 @@ class GridSpace(Space):
         self.capacity = capacity
 
 
+@dataclass(frozen=True)
+class Adjacency:
+    """Neighbourhood of a node of a graph: the nodes along its edges, in node order, after the node itself if included.
+
+    Rules receive the values of the neighbours padded to the largest degree of the graph.
+
+    Args:
+        center:
+            Whether the node itself comes first.
+
+    Examples:
+        >>> from skcomplex.core.model import Adjacency
+        >>> Adjacency(center=True).center
+        True
+    """
+
+    center: bool = False
+
+
 class NetworkSpace(Space):
-    """Network whose nodes agents occupy, with the neighbours of a node given by its edges.
+    """Network whose nodes agents occupy or lattice sites sit on, with the neighbours of a node given by its edges.
+
+    Lattice groups on a network hold one member per node, in the order of `graph.nodes`.
 
     Args:
         graph:
@@ -68,6 +95,9 @@ class NetworkSpace(Space):
 
         capacity:
             The largest number of agents on a node, or `None` for no limit.
+
+        fill:
+            The value lattice rules read in the padding slots of nodes with fewer neighbours than the largest degree.
 
     Examples:
         >>> import networkx as nx
@@ -78,9 +108,47 @@ class NetworkSpace(Space):
 
     n_dim = 1
 
-    def __init__(self, graph: nx.Graph, *, capacity: int | None = None) -> None:
+    def __init__(self, graph: nx.Graph, *, capacity: int | None = None, fill: float = 0.0) -> None:
         self.graph = graph
         self.capacity = capacity
+        self.fill = fill
+
+    def index_table(self, neighborhood: Adjacency) -> npt.NDArray[np.intp]:
+        """Return the node index of every neighbour of every node, padded with the number of nodes.
+
+        Args:
+            neighborhood:
+                The graph neighbourhood.
+
+        Returns:
+            table:
+                One row per node and one column per neighbour slot, as wide as the largest degree, plus one column
+                for the node itself when the neighbourhood includes it.
+
+        Raises:
+            ValidationError:
+                The neighbourhood is not a graph neighbourhood.
+
+        Examples:
+            >>> import networkx as nx
+            >>> from skcomplex.core.model import Adjacency, NetworkSpace
+            >>> NetworkSpace(nx.star_graph(2)).index_table(Adjacency()).tolist()
+            [[1, 2], [0, 3], [0, 3]]
+        """
+        if not isinstance(neighborhood, Adjacency):
+            error_msg = f'A network reads the neighbourhood Adjacency(), but it was given {neighborhood!r}.'
+            raise ValidationError(error_msg)
+        size = self.graph.number_of_nodes()
+        matrix = nx.to_scipy_sparse_array(self.graph, nodelist=list(self.graph.nodes), format='csr')
+        matrix.sort_indices()
+        degrees = np.diff(matrix.indptr)
+        width = int(degrees.max(initial=0))
+        table = np.full((size, width), size, dtype=np.intp)
+        slots = np.arange(matrix.indices.size) - np.repeat(matrix.indptr[:-1], degrees)
+        table[np.repeat(np.arange(size), degrees), slots] = matrix.indices
+        if neighborhood.center:
+            return np.column_stack([np.arange(size, dtype=np.intp), table])
+        return table
 
 
 class ContinuousSpace(Space):

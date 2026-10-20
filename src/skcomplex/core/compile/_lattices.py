@@ -9,6 +9,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+import networkx as nx
 import numba
 import numpy as np
 import numpy.typing as npt
@@ -16,12 +17,15 @@ from sage.all__sagemath_symbolics import SR
 
 from ..base import Expression, SolverError, ValidationError, symbol
 from ..model import (
+    Adjacency,
     Drive,
     Energy,
+    Extremal,
     LatticeSpace,
     LocalRule,
     Move,
     Neighborhood,
+    NetworkSpace,
     OuterTotalistic,
     Relaxation,
     Sampler,
@@ -33,8 +37,52 @@ from ._printing import numpy_function
 
 type Vector = npt.NDArray[np.float64]
 type Indices = npt.NDArray[np.intp]
+type Sites = LatticeSpace | NetworkSpace
 
 LOOKUP_KINDS = {'table': 0, 'totalistic': 1, 'outer': 2}
+COLORING_STRATEGY = 'largest_first'
+
+
+def _shape_of(space: Sites) -> tuple[int, ...]:
+    """Return the lattice shape of a lattice, or the number of nodes of a network as a one-dimensional shape."""
+    if isinstance(space, NetworkSpace):
+        return (space.graph.number_of_nodes(),)
+    return space.dimensions
+
+
+def _index_table(space: Sites, neighborhood: Neighborhood | Adjacency, owner: str) -> Indices:
+    """Return the neighbour table of a lattice or a network, or raise an error naming the law that reads it."""
+    try:
+        return space.index_table(neighborhood)  # type: ignore[arg-type]
+    except (ValueError, ValidationError) as error:
+        error_msg = f'{owner}: {error}'
+        raise ValidationError(error_msg) from error
+
+
+def _center_columns(neighborhood: Neighborhood | Adjacency) -> int:
+    """Return the number of columns of a neighbourhood that read the site itself."""
+    if isinstance(neighborhood, Adjacency):
+        return int(neighborhood.center)
+    return sum(not any(offset) for offset in neighborhood.offsets)
+
+
+def _degrees_of(table: Indices, neighborhood: Neighborhood | Adjacency) -> Vector:
+    """Return the number of real neighbours of every site, besides the site itself."""
+    return ((table != table.shape[0]).sum(axis=1) - _center_columns(neighborhood)).astype(float)
+
+
+def _color_classes(table: Indices) -> tuple[Indices, ...]:
+    """Return the classes of a proper coloring of the graph that joins every site to the sites of its table row."""
+    size = table.shape[0]
+    rows = np.repeat(np.arange(size), table.shape[1])
+    columns = table.ravel()
+    real = (columns != size) & (columns != rows)
+    graph = nx.Graph()
+    graph.add_nodes_from(range(size))
+    graph.add_edges_from(zip(rows[real].tolist(), columns[real].tolist(), strict=True))
+    colors = nx.greedy_color(graph, strategy=COLORING_STRATEGY)
+    found = np.asarray([colors[site] for site in range(size)], dtype=np.intp)
+    return tuple(np.flatnonzero(found == color) for color in range(int(found.max(initial=-1)) + 1))
 
 
 @dataclass(frozen=True)
@@ -77,20 +125,21 @@ class LatticeState:
             The index of its first component.
 
         space:
-            The lattice of the group.
+            The lattice of the group, or the network whose nodes are its sites.
     """
 
     name: str
     start: int
-    space: LatticeSpace
+    space: Sites
     shape: tuple[int, ...] = field(init=False, repr=False)
     size: int = field(init=False, repr=False)
     sites: slice = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, 'shape', self.space.dimensions)
-        object.__setattr__(self, 'size', self.space.size)
-        object.__setattr__(self, 'sites', slice(self.start, self.start + self.size))
+        shape = _shape_of(self.space)
+        object.__setattr__(self, 'shape', shape)
+        object.__setattr__(self, 'size', int(np.prod(shape)))
+        object.__setattr__(self, 'sites', slice(self.start, self.start + int(np.prod(shape))))
 
 
 @dataclass(frozen=True)
@@ -164,8 +213,14 @@ def _sublattices(space: LatticeSpace) -> tuple[Indices, Indices]:
     return np.flatnonzero(colors == 0), np.flatnonzero(colors == 1)
 
 
-def _check_checkerboard(space: LatticeSpace, neighborhood: Neighborhood, owner: str) -> None:
-    """Raise an error when a checkerboard update would let neighbours of one sublattice change together."""
+def _check_checkerboard(space: Sites, neighborhood: Neighborhood | Adjacency, owner: str) -> LatticeSpace:
+    """Return the square lattice of a checkerboard update, or raise an error when neighbours could change together."""
+    if not isinstance(space, LatticeSpace) or space.geometry != 'square' or not isinstance(neighborhood, Neighborhood):
+        error_msg = (
+            f"{owner} uses a checkerboard schedule, which needs a square lattice. Use the 'colored' schedule, which "
+            'updates the classes of a proper coloring of the neighbour graph in turn.'
+        )
+        raise ValidationError(error_msg)
     odd = all(sum(offset) % 2 for offset in neighborhood.offsets)
     even = space.boundary != 'periodic' or all(size % 2 == 0 for size in space.dimensions)
     if not (odd and even):
@@ -174,6 +229,7 @@ def _check_checkerboard(space: LatticeSpace, neighborhood: Neighborhood, owner: 
             "periodic lattices. Use the 'random-sequential' schedule instead."
         )
         raise ValidationError(error_msg)
+    return space
 
 
 @numba.njit(cache=True)
@@ -303,6 +359,12 @@ class CompiledRule:
 
         fused:
             Whether a synchronous lookup rule runs as one compiled loop.
+
+        degrees:
+            The number of real neighbours of every site, for a function rule that reads them, or `None`.
+
+        classes:
+            The sites of every class of the colored or checkerboard schedule.
     """
 
     owner: str
@@ -315,10 +377,12 @@ class CompiledRule:
     stochastic: bool
     arguments: Arguments = field(default_factory=Arguments)
     fused: bool = False
+    degrees: Vector | None = None
+    classes: tuple[Indices, ...] = ()
 
     @property
-    def space(self) -> LatticeSpace:
-        """Lattice of the rule."""
+    def space(self) -> Sites:
+        """Lattice or network of the rule."""
         return self.targets[0].space
 
     def _next(self, x: Vector, p: Vector, sites: Indices | None, rng: np.random.Generator) -> list[Vector]:
@@ -353,6 +417,8 @@ class CompiledRule:
             return [lookup.values[(centers if sites is None else centers[sites]) * lookup.columns + totals]]
         columns = [column for state in self.reads for column in np.append(x[state.sites], space.fill)[table].T]
         keywords = self.arguments.values(x, p, sites)
+        if self.degrees is not None:
+            keywords['degree'] = self.degrees if sites is None else self.degrees[sites]
         if self.stochastic:
             keywords['random'] = rng.random(table.shape[0])
         result = self.rule(*columns, **keywords)  # type: ignore[misc]
@@ -389,8 +455,8 @@ class CompiledRule:
         if self.schedule == 'synchronous':
             self._assign(x, self._next(x, p, None, rng), None)
             return
-        if self.schedule == 'checkerboard':
-            for sites in _sublattices(self.space):
+        if self.schedule in {'checkerboard', 'colored'}:
+            for sites in self.classes:
                 self._assign(x, self._next(x, p, sites, rng), sites)
             return
         order = rng.permutation(size) if self.schedule == 'random-sequential' else rng.integers(size, size=size)
@@ -573,6 +639,12 @@ class CompiledMonteCarlo:
 
         sampler:
             The acceptance rule and the schedule.
+
+        classes:
+            The sites of every class of the colored or checkerboard schedule.
+
+        masked:
+            Whether the energy change reads the mask of the real neighbours of a neighbour sum.
     """
 
     owner: str
@@ -583,6 +655,8 @@ class CompiledMonteCarlo:
     temperature: Callable[..., Any]
     move: Move
     sampler: Sampler
+    classes: tuple[Indices, ...] = ()
+    masked: bool = False
 
     def _energy_change(
         self,
@@ -593,8 +667,10 @@ class CompiledMonteCarlo:
         keywords: dict[str, Any],
     ) -> Vector:
         """Return the energy change of moving some sites to proposed values."""
-        neighbours = np.append(x[self.target.sites], self.target.space.fill)[self.table[sites]]
-        change = self.delta(0.0, values, *neighbours.T, proposal, *keywords.values())[0]
+        rows = self.table[sites]
+        neighbours = np.append(x[self.target.sites], self.target.space.fill)[rows]
+        masks = (rows != self.target.size).astype(float).T if self.masked else ()
+        change = self.delta(0.0, values, *neighbours.T, proposal, *masks, *keywords.values())[0]
         return np.broadcast_to(np.asarray(change, dtype=float), values.shape)
 
     def _propose(self, values: Vector, rng: np.random.Generator) -> Vector:
@@ -651,15 +727,221 @@ class CompiledMonteCarlo:
                 The random number generator.
         """
         size = self.target.size
-        if self.sampler.schedule == 'checkerboard':
-            for sites in _sublattices(self.target.space):
+        if self.sampler.schedule in {'checkerboard', 'colored'}:
+            for sites in self.classes:
                 self._update(x, p, sites, rng)
             return
         for site in rng.permutation(size):
             self._update(x, p, np.asarray([site]), rng)
 
 
-type LatticeStep = CompiledRule | CompiledDrive | CompiledRelaxation | CompiledMonteCarlo
+@dataclass(frozen=True, slots=True)
+class ExtremalRecord:
+    """Application of an extremal law, such as the replacement of the least fit species.
+
+    Args:
+        label:
+            The label of the extremal law.
+
+        time:
+            The time of the step.
+
+        site:
+            The member index of the extremal site, in row-major order on a lattice or node order on a network.
+
+        value:
+            The extremal value of the key state before the update.
+    """
+
+    label: str
+    time: float
+    site: int
+    value: float
+
+
+def _extremal_members(table: Indices) -> tuple[Indices, Indices]:
+    """Return every site followed by its real neighbours without duplicates, padded with -1, and their counts."""
+    size, width = table.shape
+    members = np.full((size, width + 1), -1, dtype=np.intp)
+    counts = np.zeros(size, dtype=np.intp)
+    for site in range(size):
+        unique = list(dict.fromkeys([site, *(int(item) for item in table[site] if item != size)]))
+        members[site, : len(unique)] = unique
+        counts[site] = len(unique)
+    return members, counts
+
+
+def _extremal_source(targets: tuple[LatticeState, ...], key: LatticeState, maximum: bool, arguments: Arguments) -> str:
+    """Return the source of the compiled loop of the applications of an extremal law."""
+    values = ', '.join(f'x[{state.start} + sites]' for state in targets)
+    keywords = ''.join(
+        f', {name}=p[{start}]' if size == 1 else f', {name}=p[{start}:{start + size}][sites]'
+        for name, start, size in zip(arguments.names, arguments.starts, arguments.sizes, strict=True)
+    )
+    if len(targets) == 1:
+        assign = f'        x[{targets[0].start} + sites] = result\n'
+    else:
+        assign = ''.join(f'        x[{state.start} + sites] = result[{index}]\n' for index, state in enumerate(targets))
+    return (
+        'def loop(x, p, rng, members, counts, repeat, sites_out, values_out):\n'
+        '    for application in range(repeat):\n'
+        f'        keys = x[{key.start}:{key.start + key.size}]\n'
+        f'        best = keys.{"max" if maximum else "min"}()\n'
+        '        ties = np.flatnonzero(keys == best)\n'
+        '        site = ties[rng.integers(0, ties.size)] if ties.size > 1 else ties[0]\n'
+        '        sites = members[site, : counts[site]]\n'
+        '        random = rng.random(sites.size)\n'
+        f'        result = rule({values}, random=random{keywords})\n'
+        f'{assign}'
+        '        sites_out[application] = site\n'
+        '        values_out[application] = best\n'
+    )
+
+
+def _compiles_in_numba(rule: Callable[..., Any]) -> bool:
+    """Check whether a rule takes its arguments by position or keyword only, the form Numba compiles."""
+    try:
+        parameters = inspect.signature(rule).parameters.values()
+    except (TypeError, ValueError):
+        return False
+    return all(item.kind is inspect.Parameter.POSITIONAL_OR_KEYWORD for item in parameters)
+
+
+def _extremal_loop(
+    rule: Callable[..., Any],
+    targets: tuple[LatticeState, ...],
+    key: LatticeState,
+    maximum: bool,
+    arguments: Arguments,
+) -> Callable[..., None] | None:
+    """Return the compiled loop of the applications of an extremal law, or `None` when Numba cannot compile the rule."""
+    if not _compiles_in_numba(rule):
+        return None
+    namespace: dict[str, Any] = {'np': np, 'rule': numba.njit(error_model='numpy')(rule)}
+    source = _extremal_source(targets, key, maximum, arguments)
+    exec(source, namespace)  # noqa: S102  # nosec B102: runs the loop source generated above
+    loop = numba.njit(namespace['loop'])
+    end = max(state.start + state.size for state in (*targets, key))
+    width = max((start + size for start, size in zip(arguments.starts, arguments.sizes, strict=True)), default=1)
+    try:
+        loop(
+            np.zeros(end),
+            np.zeros(width),
+            np.random.default_rng(0),
+            np.zeros((1, 1), dtype=np.intp),
+            np.zeros(1, dtype=np.intp),
+            0,
+            np.zeros(0, dtype=np.intp),
+            np.zeros(0),
+        )
+    except numba.core.errors.NumbaError:
+        return None
+    return loop  # type: ignore[no-any-return, unused-ignore]
+
+
+@dataclass(frozen=True)
+class CompiledExtremal:
+    """Extremal law compiled for a lattice or a network.
+
+    Args:
+        label:
+            The label of its events.
+
+        owner:
+            The path of the component that declares the law.
+
+        targets:
+            The lattice states the rule updates.
+
+        key:
+            The lattice state whose extremum is searched.
+
+        members:
+            Every site followed by its real neighbours without duplicates, padded with -1.
+
+        counts:
+            The number of sites the rule updates around every site.
+
+        rule:
+            The rule.
+
+        arguments:
+            The parameters the rule receives by keyword.
+
+        maximum:
+            Whether the law searches the largest value rather than the smallest.
+
+        repeat:
+            The number of applications per step.
+
+        loop:
+            The compiled loop of the applications on the Numba backend, or `None` for the NumPy loop.
+    """
+
+    label: str
+    owner: str
+    targets: tuple[LatticeState, ...]
+    key: LatticeState
+    members: Indices
+    counts: Indices
+    rule: Callable[..., Any]
+    arguments: Arguments
+    maximum: bool
+    repeat: int
+    loop: Callable[..., None] | None = None
+
+    def _apply_once(self, x: Vector, p: Vector, rng: np.random.Generator) -> tuple[int, float]:
+        """Update the extremal site and its neighbours once, and return the site and its value."""
+        keys = x[self.key.sites]
+        best = keys.max() if self.maximum else keys.min()
+        ties = np.flatnonzero(keys == best)
+        site = int(ties[rng.integers(0, ties.size)] if ties.size > 1 else ties[0])
+        sites = self.members[site, : self.counts[site]]
+        random = rng.random(sites.size)
+        values = [x[state.start + sites] for state in self.targets]
+        result = self.rule(*values, random=random, **self.arguments.values(x, p, sites))
+        results = list(result) if len(self.targets) > 1 else [result]
+        if len(results) != len(self.targets):
+            error_msg = (
+                f'The extremal law of {self.owner} returned {len(results)} arrays for {len(self.targets)} targets.'
+            )
+            raise SolverError(error_msg)
+        for state, value in zip(self.targets, results, strict=True):
+            x[state.start + sites] = value
+        return site, float(best)
+
+    def apply(self, x: Vector, p: Vector, rng: np.random.Generator, time: float) -> list[ExtremalRecord]:
+        """Apply the law `repeat` times and return the record of every application.
+
+        Args:
+            x:
+                The state vector, updated in place.
+
+            p:
+                The parameter vector.
+
+            rng:
+                The random number generator.
+
+            time:
+                The time of the step.
+
+        Returns:
+            records:
+                The site and the extremal value of every application.
+        """
+        if self.loop is None:
+            found = [self._apply_once(x, p, rng) for _ in range(self.repeat)]
+            return [ExtremalRecord(self.label, time, site, value) for site, value in found]
+        sites, values = np.zeros(self.repeat, dtype=np.intp), np.zeros(self.repeat)
+        self.loop(x, np.ascontiguousarray(p, dtype=float), rng, self.members, self.counts, self.repeat, sites, values)
+        return [
+            ExtremalRecord(self.label, time, int(site), float(value))
+            for site, value in zip(sites.tolist(), values.tolist(), strict=True)
+        ]
+
+
+type LatticeStep = CompiledRule | CompiledDrive | CompiledRelaxation | CompiledMonteCarlo | CompiledExtremal
 
 
 @dataclass
@@ -728,20 +1010,21 @@ def compile_rule(law: LocalRule, context: LatticeContext) -> CompiledRule:
         error_msg = f'{owner} reads and updates states of different lattices.'
         raise ValidationError(error_msg)
     space = targets[0].space
-    try:
-        table = space.index_table(law.neighborhood)
-    except ValueError as error:
-        error_msg = f'{owner}: {error}'
-        raise ValidationError(error_msg) from error
-    if law.schedule == 'checkerboard':
-        _check_checkerboard(space, law.neighborhood, owner)
-    lookup = _lookup_of(law.rule, len(law.neighborhood), owner)
+    table = _index_table(space, law.neighborhood, owner)
+    if isinstance(space, NetworkSpace) and isinstance(law.rule, Table | Wolfram):
+        error_msg = (
+            f'{owner} uses a table of ordered patterns on a network, whose sites have different degrees. Use a '
+            'totalistic or an outer totalistic rule, or a function rule.'
+        )
+        raise ValidationError(error_msg)
+    lookup = _lookup_of(law.rule, table.shape[1], owner)
     if lookup is not None and (len(targets) > 1 or len(reads) > 1):
         error_msg = f'{owner} uses a lookup rule, which updates and reads a single state.'
         raise ValidationError(error_msg)
     if lookup is None and not callable(law.rule):
         error_msg = f'{owner} has the rule {law.rule!r}, which is not a function, Table, Wolfram, or totalistic rule.'
         raise ValidationError(error_msg)
+    reads_degree = lookup is None and 'degree' in _accepted(law.rule, ['degree'])  # type: ignore[arg-type]
     return CompiledRule(
         context.owner,
         targets,
@@ -753,7 +1036,24 @@ def compile_rule(law: LocalRule, context: LatticeContext) -> CompiledRule:
         law.stochastic,
         context.keywords(law.rule) if lookup is None else Arguments(),  # type: ignore[arg-type]
         context.fused and lookup is not None and law.schedule == 'synchronous',
+        _degrees_of(table, law.neighborhood) if reads_degree else None,
+        _schedule_classes(law.schedule, space, law.neighborhood, table, owner),
     )
+
+
+def _schedule_classes(
+    schedule: str,
+    space: Sites,
+    neighborhood: Neighborhood | Adjacency,
+    table: Indices,
+    owner: str,
+) -> tuple[Indices, ...]:
+    """Return the classes of sites a checkerboard or colored schedule updates in turn, and none for other schedules."""
+    if schedule == 'checkerboard':
+        return _sublattices(_check_checkerboard(space, neighborhood, owner))
+    if schedule == 'colored':
+        return _color_classes(table)
+    return ()
 
 
 def compile_drive(law: Drive, context: LatticeContext) -> CompiledDrive:
@@ -816,18 +1116,41 @@ def compile_relaxation(law: Relaxation, context: LatticeContext) -> CompiledRela
     )
 
 
-def _neighbor_calls(expression: Expression) -> list[Expression]:
-    """Return the `neighbor` calls inside an expression."""
+def _calls(expression: Expression, name: str) -> list[Expression]:
+    """Return the calls of a symbolic function by name inside an expression, outermost first."""
     found, stack = [], [SR(expression)]
     while stack:
         item = stack.pop()
         if item.operator() is None:
             continue
-        if getattr(item.operator(), 'name', lambda: '')() == 'neighbor':
+        if getattr(item.operator(), 'name', lambda: '')() == name:
             found.append(item)
             continue
         stack.extend(item.operands())
     return found
+
+
+def _lower_neighbor_sums(
+    expression: Expression,
+    target: Expression,
+    neighbours: Sequence[Expression],
+    masks: Sequence[Expression],
+    owner: str,
+) -> Expression:
+    """Return an expression with every neighbour sum written as the masked sum over the columns of the table."""
+    replacements = {}
+    for call in _calls(expression, 'neighbor_sum'):
+        inner = call.operands()[0]
+        reads = {}
+        for item in _calls(inner, 'adjacent'):
+            state = item.operands()[0]
+            if state != target:
+                error_msg = f'{owner} read the neighbours of {state}, but only the moved state {target} has them.'
+                raise ValidationError(error_msg)
+            reads[item] = state
+        columns = [inner.subs(dict.fromkeys(reads, neighbour)) for neighbour in neighbours]
+        replacements[call] = sum((mask * column for mask, column in zip(masks, columns, strict=True)), SR(0))
+    return SR(expression).subs(replacements) if replacements else SR(expression)
 
 
 def compile_monte_carlo(energy: Energy, move: Move, sampler: Sampler, context: LatticeContext) -> CompiledMonteCarlo:
@@ -856,12 +1179,14 @@ def compile_monte_carlo(energy: Energy, move: Move, sampler: Sampler, context: L
         error_msg = f'{owner} use a heat-bath sampler with a rotation, which has no finite set of values to draw from.'
         raise ValidationError(error_msg)
     space = target.space
-    if sampler.schedule == 'checkerboard':
-        _check_checkerboard(space, energy.neighborhood, owner)
-    expression = SR(energy.expression)
-    neighbours = [symbol(f'_neighbor_{index}') for index in range(len(energy.neighborhood))]
+    table = _index_table(space, energy.neighborhood, owner)
+    classes = _schedule_classes(sampler.schedule, space, energy.neighborhood, table, owner)
+    neighbours = [symbol(f'_neighbor_{index}') for index in range(table.shape[1])]
+    masks = [symbol(f'_mask_{index}') for index in range(table.shape[1])]
+    expression = _lower_neighbor_sums(SR(energy.expression), move.target, neighbours, masks, owner)
+    masked = any(item in masks for item in expression.variables())
     replacements = {}
-    for call in _neighbor_calls(expression):
+    for call in _calls(expression, 'neighbor'):
         state, index = call.operands()
         if state != move.target:
             error_msg = f'{owner} read the neighbours of {state}, but only the moved state {move.target} has them.'
@@ -870,7 +1195,7 @@ def compile_monte_carlo(energy: Energy, move: Move, sampler: Sampler, context: L
     proposal = symbol('_proposal')
     local = expression.subs(replacements)
     change = local.subs({move.target: proposal}) - local
-    known = {move.target, proposal, *neighbours}
+    known = {move.target, proposal, *neighbours, *masks}
     extra = sorted(
         {item for item in (*change.variables(), *SR(sampler.temperature).variables()) if item not in known},
         key=str,
@@ -890,12 +1215,57 @@ def compile_monte_carlo(energy: Energy, move: Move, sampler: Sampler, context: L
     return CompiledMonteCarlo(
         context.owner,
         target,
-        space.index_table(energy.neighborhood),
-        numpy_function(time, [move.target, *neighbours, proposal, *extra], [change]),
+        table,
+        numpy_function(time, [move.target, *neighbours, proposal, *(masks if masked else []), *extra], [change]),
         arguments,
         numpy_function(time, extra, [SR(sampler.temperature)]),
         move,
         sampler,
+        classes,
+        masked,
+    )
+
+
+def compile_extremal(law: Extremal, context: LatticeContext) -> CompiledExtremal:
+    """Return an extremal law compiled for its lattice or network.
+
+    Args:
+        law:
+            The extremal law.
+
+        context:
+            The lattice states and symbols of its component.
+
+    Returns:
+        extremal:
+            The compiled law, with a compiled loop on the Numba backend when Numba compiles the rule.
+
+    Raises:
+        ValidationError:
+            The targets and the key are not states of one lattice, or the neighbourhood does not fit it.
+    """
+    owner = f'The extremal law of {context.owner}'
+    targets = tuple(context.state(item, 'An extremal law') for item in law.targets)
+    key = context.state(law.key_state, 'An extremal law')
+    if len({id(state.space) for state in (*targets, key)}) > 1:
+        error_msg = f'{owner} reads and updates states of different lattices.'
+        raise ValidationError(error_msg)
+    members, counts = _extremal_members(_index_table(key.space, law.neighborhood, owner))
+    arguments = context.keywords(law.rule)
+    maximum = law.extremum == 'max'
+    loop = _extremal_loop(law.rule, targets, key, maximum, arguments) if context.fused else None
+    return CompiledExtremal(
+        law.label or context.owner,
+        context.owner,
+        targets,
+        key,
+        members,
+        counts,
+        law.rule,
+        arguments,
+        maximum,
+        int(law.repeat),
+        loop,
     )
 
 
@@ -917,5 +1287,5 @@ def lattice_shape(name: str, steps: Sequence[LatticeStep]) -> tuple[int, ...] | 
         states = (step.target,) if isinstance(step, CompiledMonteCarlo) else step.targets
         for state in states:
             if state.name == name:
-                return state.space.dimensions
+                return state.shape
     return None

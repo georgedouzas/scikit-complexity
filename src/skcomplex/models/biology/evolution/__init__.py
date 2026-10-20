@@ -1,5 +1,6 @@
-"""Evolution: evolutionary games, quasispecies, hypercycles, finite populations, and fitness landscapes."""
+"""Evolution: evolutionary games, quasispecies, hypercycles, finite populations, landscapes, and coevolution."""
 
+from ._coevolution import Species, bak_sneppen
 from ._finite_populations import (
     AdaptiveClimbing,
     Climber,
@@ -36,10 +37,12 @@ __all__: list[str] = [
     'MoranStep',
     'Mutation',
     'Replication',
+    'Species',
     'Strategy',
     'Substitution',
     'TangledNatureStep',
     'adaptive_climbing',
+    'bak_sneppen',
     'eigen_quasispecies',
     'hypercycles',
     'moran_process',

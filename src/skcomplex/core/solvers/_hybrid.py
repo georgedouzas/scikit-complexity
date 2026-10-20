@@ -11,7 +11,7 @@ import numpy as np
 from scipy.optimize import brentq
 
 from ..base import SolverError
-from ..compile import CompiledEvent, EventRecord, Problem, RelaxationRecord, RenewalRecord, Vector
+from ..compile import CompiledEvent, EventRecord, ExtremalRecord, Problem, RelaxationRecord, RenewalRecord, Vector
 
 type Interpolant = Callable[[float], Vector]
 SEPARATION = 1e-10
@@ -210,7 +210,7 @@ class EventLocator:
 
     def __init__(self, problem: Problem) -> None:
         self.problem = problem
-        self.records: list[EventRecord | RelaxationRecord | RenewalRecord] = []
+        self.records: list[EventRecord | RelaxationRecord | RenewalRecord | ExtremalRecord] = []
         self.stopped_at: float | None = None
         self._last: dict[str, float] = {}
 

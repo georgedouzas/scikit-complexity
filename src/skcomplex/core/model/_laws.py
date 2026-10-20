@@ -11,7 +11,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR
 
 from ..base import Expression, SymbolicVector, ValidationError
-from ._lattices import Drive, Energy, LocalRule, Move, Relaxation, Sampler
+from ._lattices import Drive, Energy, Extremal, LocalRule, Move, Relaxation, Sampler
 
 if TYPE_CHECKING:
     from ._fields import Flux
@@ -510,6 +510,7 @@ type Law = (
     | Renewal
     | LocalRule
     | Drive
+    | Extremal
     | Relaxation
     | Energy
     | Move

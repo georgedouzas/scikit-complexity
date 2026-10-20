@@ -6,9 +6,11 @@ from ._fields import mesh_laplacian, spectral_multiplier
 from ._hybrid import Breakpoints, CompiledEvent, Delay, EventRecord
 from ._lattices import (
     CompiledDrive,
+    CompiledExtremal,
     CompiledMonteCarlo,
     CompiledRelaxation,
     CompiledRule,
+    ExtremalRecord,
     LatticeState,
     LatticeStep,
     RelaxationRecord,
@@ -48,6 +50,7 @@ __all__: list[str] = [
     'CompiledDrive',
     'CompiledElement',
     'CompiledEvent',
+    'CompiledExtremal',
     'CompiledGraph',
     'CompiledInteraction',
     'CompiledMonteCarlo',
@@ -60,6 +63,7 @@ __all__: list[str] = [
     'Draws',
     'Entry',
     'EventRecord',
+    'ExtremalRecord',
     'FractionalRows',
     'GraphStructure',
     'JumpChannels',

@@ -14,25 +14,35 @@ from sage.all__sagemath_symbolics import SR
 from sage.symbolic.function import BuiltinFunction
 
 from ..base import Expression, SymbolicVector, vector
-from ._spaces import Space
+from ._spaces import Adjacency, Space
 
 BOUNDARIES = ('periodic', 'fixed', 'reflecting')
-SCHEDULES = ('synchronous', 'random-sequential', 'random-site', 'checkerboard')
+GEOMETRIES = ('square', 'triangular')
+SCHEDULES = ('synchronous', 'random-sequential', 'random-site', 'checkerboard', 'colored')
+MONTE_CARLO_SCHEDULES = ('checkerboard', 'random-sequential', 'colored')
 SAMPLERS = ('metropolis', 'glauber', 'heat-bath')
 MOVES = ('flip', 'random-value', 'rotate')
+EXTREMA = ('min', 'max')
+TRIANGULAR_OFFSETS = ((0, 1), (1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1))
+TRIANGULAR_ROW_HEIGHT = float(np.sqrt(3.0) / 2)
 
 type Cell = tuple[int, ...]
 type Offset = tuple[int, ...]
 
 
 class LatticeSpace(Space):
-    """Box of the integer lattice `Z^d` whose sites hold the members of lattice groups.
+    """Box of the integer lattice `Z^d`, or of the triangular lattice in 2D, whose sites hold lattice group members.
 
-    Sites are numbered in row-major order, so site `(i, j)` of a lattice of shape `(n, m)` is member `i * m + j`.
+    Sites are numbered in row-major order, so site `(i, j)` of a lattice of shape `(n, m)` is member `i * m + j`. A
+    triangular site `(i, j)` keeps its integer coordinates on a skewed grid and sits at `(j + i / 2, i sqrt(3) / 2)` in
+    the plane, so it has six neighbours at unit distance.
 
     Args:
         shape:
             The number of sites along every dimension.
+
+        geometry:
+            `'square'` for the integer lattice or `'triangular'` for the triangular lattice in two dimensions.
 
         boundary:
             `'periodic'` to join opposite edges, `'fixed'` to read the value `fill` outside the box, or `'reflecting'`
@@ -55,11 +65,13 @@ class LatticeSpace(Space):
         self,
         shape: Sequence[int] | int,
         *,
+        geometry: str = 'square',
         boundary: str = 'periodic',
         fill: float = 0.0,
         spacing: float | Sequence[float] = 1.0,
     ) -> None:
         self.shape = shape
+        self.geometry = geometry
         self.boundary = boundary
         self.fill = fill
         self.spacing = spacing
@@ -86,12 +98,28 @@ class LatticeSpace(Space):
         """Number of sites."""
         return int(np.prod(self.dimensions))
 
+    @property
+    def positions(self) -> npt.NDArray[np.float64]:
+        """Position of every site in space, one row per site in member order, scaled by the spacing.
+
+        Examples:
+            >>> from skcomplex.core.model import LatticeSpace
+            >>> LatticeSpace((2, 2), geometry='triangular').positions.round(3).tolist()
+            [[0.0, 0.0], [1.0, 0.0], [0.5, 0.866], [1.5, 0.866]]
+        """
+        coordinates = np.indices(self.dimensions).reshape(self.n_dim, -1).T.astype(float)
+        if self.geometry == 'triangular':
+            rows, columns = coordinates.T
+            coordinates = np.column_stack([columns + rows / 2, rows * TRIANGULAR_ROW_HEIGHT])
+        return coordinates * np.asarray(self.spacings)
+
     def check(self) -> None:
-        """Raise an error when the shape or the boundary is not valid.
+        """Raise an error when the shape, the geometry, or the boundary is not valid.
 
         Raises:
             ValueError:
-                The shape has a size that is not a positive integer, or the boundary is unknown.
+                The shape has a size that is not a positive integer, the geometry or the boundary is unknown, or a
+                triangular lattice does not have two dimensions.
         """
         if not self.dimensions or any(size < 1 for size in self.dimensions):
             error_msg = (
@@ -100,6 +128,12 @@ class LatticeSpace(Space):
             raise ValueError(error_msg)
         if self.boundary not in BOUNDARIES:
             error_msg = f'Unknown lattice boundary {self.boundary!r}. Use one of {", ".join(BOUNDARIES)}.'
+            raise ValueError(error_msg)
+        if self.geometry not in GEOMETRIES:
+            error_msg = f'Unknown lattice geometry {self.geometry!r}. Use one of {", ".join(GEOMETRIES)}.'
+            raise ValueError(error_msg)
+        if self.geometry == 'triangular' and self.n_dim != 2:  # noqa: PLR2004
+            error_msg = f'A triangular lattice has two dimensions, but its shape is {self.shape}.'
             raise ValueError(error_msg)
 
     def neighbor(self, cell: Cell, offset: Offset) -> Cell | None:
@@ -163,6 +197,9 @@ class LatticeSpace(Space):
                 One row per site and one column per offset.
         """
         self.check()
+        if not isinstance(neighborhood, Neighborhood):
+            error_msg = f'A lattice reads a neighbourhood of offsets, but it was given {neighborhood!r}.'
+            raise ValueError(error_msg)  # noqa: TRY004
         if neighborhood.offsets and len(neighborhood.offsets[0]) != self.n_dim:
             error_msg = (
                 f'The neighbourhood has offsets of dimension {len(neighborhood.offsets[0])}, but the lattice has '
@@ -266,6 +303,27 @@ class Neighborhood:
                 The neighbourhood.
         """
         return cls._of(radius, n_dim, lambda offset: sum(map(abs, offset)) <= radius, center)
+
+    @classmethod
+    def triangular(cls, *, center: bool = False) -> 'Neighborhood':
+        """Return the six neighbours of a triangular lattice, counterclockwise from the direction of the second axis.
+
+        Direction `k` points at `60 k` degrees in the plane, so direction `k + 3` modulo 6 is opposite to direction `k`.
+
+        Args:
+            center:
+                Whether the site itself comes first.
+
+        Returns:
+            neighborhood:
+                The neighbourhood.
+
+        Examples:
+            >>> from skcomplex.core.model import Neighborhood
+            >>> Neighborhood.triangular().offsets
+            ((0, 1), (1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1))
+        """
+        return cls(((0, 0), *TRIANGULAR_OFFSETS) if center else TRIANGULAR_OFFSETS)
 
     @classmethod
     def radius(cls, radius: int = 1, *, n_dim: int = 1) -> 'Neighborhood':
@@ -436,15 +494,17 @@ class LocalRule:
 
     A function rule receives one array per neighbour of every read state, in neighbourhood order, with one value per
     site, and keyword arguments for the parameters of the component that it names, plus `random`, an array of uniform
-    numbers per site, when the rule is stochastic. It returns the next values of the target, or a tuple with one array
-    per target.
+    numbers per site, when the rule is stochastic, and `degree`, the number of neighbours of every site besides the
+    site itself, when it names it. On a graph the values are padded to the largest degree with the fill value. It
+    returns the next values of the target, or a tuple with one array per target.
 
     Args:
         target:
             The symbol of a lattice state, or a tuple of them that the rule updates together.
 
         neighborhood:
-            The neighbourhood whose values the rule reads.
+            The neighbourhood whose values the rule reads, a `Neighborhood` of offsets on a lattice or an `Adjacency`
+            on a network.
 
         rule:
             A function, a `Table`, a `Wolfram` number, a `Totalistic` rule, or an `OuterTotalistic` rule.
@@ -454,8 +514,9 @@ class LocalRule:
 
         schedule:
             `'synchronous'` to update every site from the previous configuration, `'random-sequential'` to update the
-            sites one at a time in a random order, `'random-site'` to update as many randomly chosen sites, or
-            `'checkerboard'` to update the two sublattices of even and odd coordinate sums in turn.
+            sites one at a time in a random order, `'random-site'` to update as many randomly chosen sites,
+            `'checkerboard'` to update the two sublattices of even and odd coordinate sums of a square lattice in
+            turn, or `'colored'` to update the classes of a proper coloring of the neighbour graph in turn.
 
         stochastic:
             Whether a function rule receives the uniform random array `random`.
@@ -468,7 +529,7 @@ class LocalRule:
     """
 
     target: Expression | tuple[Expression, ...]
-    neighborhood: Neighborhood
+    neighborhood: Neighborhood | Adjacency
     rule: RuleSpec
     reads: tuple[Expression, ...] | None = None
     schedule: str = 'synchronous'
@@ -573,7 +634,23 @@ class _Neighbor(BuiltinFunction):
         super().__init__('neighbor', nargs=2)
 
 
+class _Adjacent(BuiltinFunction):
+    """Value of a lattice state at one neighbour inside a neighbour sum, `adjacent(x)`."""
+
+    def __init__(self) -> None:
+        super().__init__('adjacent', nargs=1)
+
+
+class _NeighborSum(BuiltinFunction):
+    """Sum of an expression over the real neighbours of a site, `neighbor_sum(f)`."""
+
+    def __init__(self) -> None:
+        super().__init__('neighbor_sum', nargs=1)
+
+
 neighbor = _Neighbor()
+adjacent = _Adjacent()
+neighbor_sum = _NeighborSum()
 
 
 def neighbors(state: Expression, neighborhood: Neighborhood) -> SymbolicVector:
@@ -606,14 +683,17 @@ class Energy:
     """Local energy of a lattice site: every term of the total energy that involves the site's value.
 
     The energy change of a move is the difference of the local energy at the proposed and the current value, derived
-    symbolically. Neighbour values are read with `neighbors`.
+    symbolically. Neighbour values are read with `neighbors` in neighbourhood order, or summed over the real
+    neighbours of the site with `neighbor_sum`, which reads one neighbour's value with `adjacent`. A neighbour sum
+    leaves out the padding of a graph and the sites outside fixed edges.
 
     Args:
         expression:
             The local energy, a symbolic expression of the site's states, its neighbours' values, and parameters.
 
         neighborhood:
-            The neighbourhood that `neighbors` reads in the expression.
+            The neighbourhood that `neighbors` and `neighbor_sum` read in the expression, an `Adjacency` on a
+            network.
 
     Examples:
         >>> from skcomplex.core.base import symbol
@@ -625,7 +705,7 @@ class Energy:
     """
 
     expression: object
-    neighborhood: Neighborhood
+    neighborhood: Neighborhood | Adjacency
 
 
 @dataclass(frozen=True)
@@ -725,7 +805,8 @@ class Sampler:
             The temperature, usually a parameter symbol so that it changes live.
 
         schedule:
-            `'checkerboard'` to update the two sublattices of a nearest-neighbour energy in turn, vectorised, or
+            `'checkerboard'` to update the two sublattices of a nearest-neighbour energy on a square lattice in turn,
+            vectorised, `'colored'` to update the classes of a proper coloring of the neighbour graph in turn, or
             `'random-sequential'` to visit the sites one at a time in a random order.
 
     Examples:
@@ -742,10 +823,78 @@ class Sampler:
         if self.kind not in SAMPLERS:
             error_msg = f'Unknown sampler {self.kind!r}. Use one of {", ".join(SAMPLERS)}.'
             raise ValueError(error_msg)
-        if self.schedule not in {'checkerboard', 'random-sequential'}:
-            error_msg = f"Unknown Monte Carlo schedule {self.schedule!r}. Use 'checkerboard' or 'random-sequential'."
+        if self.schedule not in MONTE_CARLO_SCHEDULES:
+            error_msg = (
+                f'Unknown Monte Carlo schedule {self.schedule!r}. Use one of {", ".join(MONTE_CARLO_SCHEDULES)}.'
+            )
             raise ValueError(error_msg)
 
 
-LATTICE_LAWS = (LocalRule, Drive, Relaxation)
+@dataclass(frozen=True)
+class Extremal:
+    """Law that applies a rule to the site with the smallest or largest value of a key state and to its neighbours.
+
+    Every application finds the extremal site, with ties broken by the simulation's random stream, gathers the site
+    and its real neighbours without duplicates, the site first, and calls `f(*values, random, **parameters)` with one
+    array per target and a uniform random array of the same length. The rule returns the new values, or a tuple with
+    one array per target. Every application is recorded as an event with its time, its site, and the extremal value.
+
+    Args:
+        target:
+            The symbol of a lattice state, or a tuple of them that the rule updates together.
+
+        neighborhood:
+            The neighbourhood of the extremal site that the rule also updates.
+
+        rule:
+            The function `f(*values, random, **parameters)`.
+
+        key:
+            The lattice state whose extremum is searched, or `None` for the first target.
+
+        extremum:
+            `'min'` for the smallest value or `'max'` for the largest.
+
+        repeat:
+            The number of applications per step.
+
+        label:
+            The name of the events, or `None` for the component's path.
+
+    Examples:
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import Extremal, Neighborhood
+        >>> law = Extremal(symbol('fitness'), Neighborhood.radius(), lambda values, *, random: random)
+        >>> law.extremum, law.repeat
+        ('min', 1)
+    """
+
+    target: Expression | tuple[Expression, ...]
+    neighborhood: Neighborhood | Adjacency
+    rule: Callable[..., Any]
+    key: Expression | None = None
+    extremum: str = 'min'
+    repeat: int = 1
+    label: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.extremum not in EXTREMA:
+            error_msg = f'Unknown extremum {self.extremum!r}. Use one of {", ".join(EXTREMA)}.'
+            raise ValueError(error_msg)
+        if int(self.repeat) < 1:
+            error_msg = f'An extremal law applies at least once per step, but its repeat is {self.repeat}.'
+            raise ValueError(error_msg)
+
+    @property
+    def targets(self) -> tuple[Expression, ...]:
+        """Target symbols."""
+        return _targets(self.target)
+
+    @property
+    def key_state(self) -> Expression:
+        """Symbol of the lattice state whose extremum is searched."""
+        return self.targets[0] if self.key is None else self.key
+
+
+LATTICE_LAWS = (LocalRule, Drive, Relaxation, Extremal)
 MONTE_CARLO_LAWS = (Energy, Move, Sampler)

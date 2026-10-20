@@ -13,6 +13,7 @@ from ._driven_particles import (
 )
 from ._fully_connected_spins import FullyConnectedSpin, curie_weiss, sherrington_kirkpatrick
 from ._gases import ideal_gas, lennard_jones_fluid
+from ._graph_spins import GraphIsingSpin, graph_ising
 from ._master_equations import (
     Microstate,
     OrderParameter,
@@ -43,6 +44,7 @@ __all__: list[str] = [
     'ExclusionHop',
     'ExclusionSite',
     'FullyConnectedSpin',
+    'GraphIsingSpin',
     'IsingSpin',
     'MattisSpin',
     'Microstate',
@@ -67,6 +69,7 @@ __all__: list[str] = [
     'discrete_master_equation',
     'dissipative_zero_range',
     'edwards_anderson',
+    'graph_ising',
     'ideal_gas',
     'ising',
     'landau_relaxation',

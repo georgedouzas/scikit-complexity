@@ -14,7 +14,7 @@ from sklearn.base import BaseEstimator
 from ..base import Domain, LabelError, VisualSpec, companions_of, declaration_of, parameter, role, state
 from ._lattices import LatticeSpace
 from ._laws import Law
-from ._spaces import Space
+from ._spaces import NetworkSpace, Space
 from ._symbols import Symbols
 
 AGENT_VIEW_NAMES = frozenset(
@@ -257,29 +257,32 @@ class Element(Component):
     def lattice(
         cls,
         label: str,
-        space: LatticeSpace,
+        space: LatticeSpace | NetworkSpace,
         /,
         *,
         visual: VisualSpec | None = None,
         **values: Any,  # noqa: ANN401
     ) -> 'Group':
-        """Return a group of cells of this element type, one member per site of a lattice.
+        """Return a group of cells of this element type, one member per site of a lattice or node of a network.
 
-        Laws of the element type are written for one cell, and local rules read the cells around it. Lattice groups
-        stream to Rerun as images unless a visual is given. The label and the lattice are given by position.
+        Laws of the element type are written for one cell, and local rules read the cells around it. Square lattice
+        groups stream to Rerun as images and other lattice groups as sites, unless a visual is given. The label and
+        the lattice are given by position.
 
         Args:
             label:
                 The label of the group.
 
             space:
-                The lattice.
+                The lattice, or the network whose nodes are the sites, in the order of `graph.nodes`.
 
             visual:
-                The visual of the group, or `None` for an image of every state.
+                The visual of the group, or `None` for an image of every state of a square lattice and the sites of
+                other lattices.
 
             **values:
-                Arrays of the lattice shape, or values shared by every cell.
+                Arrays of the lattice shape, arrays in node order or mappings from node to value on a network, or
+                values shared by every cell.
 
         Returns:
             group:
@@ -294,10 +297,19 @@ class Element(Component):
             >>> cells.size, cells.values['alive'].shape
             (12, (12,))
         """
+        if isinstance(space, NetworkSpace):
+            nodes = list(space.graph.nodes)
+            by_node = {
+                name: np.asarray([value[node] for node in nodes]) if isinstance(value, Mapping) else value
+                for name, value in values.items()
+            }
+            visual = VisualSpec('sites') if visual is None else visual
+            return Group(label, element=cls, size=len(nodes), values=by_node, visual=visual, space=space)
         flat = {
             name: np.ravel(value) if np.shape(value) == space.dimensions else value for name, value in values.items()
         }
-        visual = VisualSpec('image') if visual is None else visual
+        default = 'image' if space.geometry == 'square' else 'sites'
+        visual = VisualSpec(default) if visual is None else visual
         return Group(label, element=cls, size=space.size, values=flat, visual=visual, space=space)
 
 

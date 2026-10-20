@@ -6,18 +6,36 @@
 from collections.abc import Sequence
 from typing import Any
 
+import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Drive, Element, LatticeSpace, Law, LocalRule, Neighborhood, Relaxation, Symbols, System
+from ....core.model import (
+    Adjacency,
+    Drive,
+    Element,
+    LatticeSpace,
+    Law,
+    LocalRule,
+    Neighborhood,
+    NetworkSpace,
+    Relaxation,
+    Symbols,
+    System,
+)
 from ....core.runtime import register_model
 
 type Array = npt.NDArray[np.float64]
 
 NEAREST = Neighborhood.von_neumann(center=True)
+SITE_NEIGHBORHOODS: dict[str, Neighborhood | Adjacency] = {
+    'triangular': Neighborhood.triangular(center=True),
+    'graph': Adjacency(center=True),
+}
 NEAREST_STEPS = np.array(Neighborhood.von_neumann().offsets)
 MANNA_THRESHOLD = 2
+BURNING = 2
 
 
 def _drop_grain(heights: Array, *, random: np.random.Generator) -> Array:
@@ -177,14 +195,64 @@ class Forest(Element):
                 The laws of the component.
         """
 
-        def rule(cover: Array, *around: Array, growth: Any, lightning: Any, random: Array) -> Array:  # noqa: ANN401
-            burning = np.any(np.stack(around) == 2, axis=0)  # noqa: PLR2004
-            ignites = burning | (random < lightning)
-            tree = np.where(ignites, 2.0, 1.0)
-            empty = np.where(random < growth, 1.0, 0.0)
-            return np.where(cover == 2, 0.0, np.where(cover == 1, tree, empty))  # noqa: PLR2004
+        return [LocalRule(s.cover, NEAREST, _burn, stochastic=True)]
 
-        return [LocalRule(s.cover, NEAREST, rule, stochastic=True)]
+
+def _burn(cover: Array, *around: Array, growth: Any, lightning: Any, random: Array) -> Array:  # noqa: ANN401
+    """Return the covers after trees catch fire from burning neighbours or lightning, fires burn out, and trees grow."""
+    burning = np.any(np.stack(around) == BURNING, axis=0) if around else np.zeros(np.shape(cover), dtype=bool)
+    ignites = burning | (random < lightning)
+    tree = np.where(ignites, float(BURNING), 1.0)
+    empty = np.where(random < growth, 1.0, 0.0)
+    return np.where(cover == BURNING, 0.0, np.where(cover == 1, tree, empty))
+
+
+class SpreadingForest(Element):
+    """Site of the Drossel-Schwabl forest fire on a triangular lattice or a graph: empty at 0, a tree, or burning at 2.
+
+    Fire spreads to the six neighbours of a site of a triangular lattice, whose cells are the hexagons of a hexagonal
+    tiling, or to the neighbours of a node along its edges. Trees grow on empty sites with probability `growth`, catch
+    fire from a burning neighbour or from lightning with probability `lightning`, and burning sites become empty.
+
+    Args:
+        label:
+            The label of the site or the lattice group.
+
+        cover:
+            The initial cover, 0, 1, or 2.
+
+        growth:
+            The probability that a tree grows on an empty site per step.
+
+        lightning:
+            The probability that lightning strikes a tree per step.
+
+        neighbors:
+            `'triangular'` for the six neighbours of a triangular lattice or `'graph'` for the neighbours of a node.
+
+    Examples:
+        >>> from skcomplex.models.physics.criticality import SpreadingForest
+        >>> SpreadingForest('site').neighbors
+        'triangular'
+    """
+
+    cover: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
+    growth: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
+    lightning: float = parameter(default=1e-4, domain=Domain.NONNEGATIVE)
+    neighbors: str = 'triangular'
+
+    def laws(self, s: Symbols) -> list[Law]:
+        """Return the stochastic rule of growth, fire, and burning out over the neighbours of the site.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return [LocalRule(s.cover, SITE_NEIGHBORHOODS[self.neighbors], _burn, stochastic=True)]
 
 
 @register_model(
@@ -297,3 +365,77 @@ def forest_fire(
     cover = (np.random.default_rng(random_state).random(tuple(shape)) < density).astype(float)
     space = LatticeSpace(tuple(shape))
     return System(elements=[Forest.lattice('forest', space, cover=cover, growth=growth, lightning=lightning)])
+
+
+@register_model(
+    field='physics/criticality',
+    tags=('lattice', 'network', 'fire', 'stochastic', 'power law'),
+    references=('Drossel and Schwabl 1992', 'Argun et al. 2021'),
+    defaults={'until': 400, 'dt': 2},
+)
+def hexagonal_forest_fire(
+    shape: Sequence[int] = (80, 80),
+    *,
+    graph: nx.Graph | None = None,
+    growth: float = 0.02,
+    lightning: float = 1e-5,
+    density: float = 0.5,
+    cover: Sequence[float] | None = None,
+    random_state: int | np.random.Generator | None = 0,
+) -> System:
+    """Return the Drossel-Schwabl forest fire on a triangular lattice of hexagonal cells, or on the nodes of a graph.
+
+    Every site of the periodic triangular lattice has six neighbours, and every node of a graph has the neighbours
+    along its edges. Slow growth and rare lightning give fires of every size.
+
+    Args:
+        shape:
+            The number of rows and columns of the triangular lattice, unused on a graph.
+
+        graph:
+            The graph whose nodes are the sites, or `None` for the triangular lattice.
+
+        growth:
+            The probability that a tree grows on an empty site per step.
+
+        lightning:
+            The probability that lightning strikes a tree per step.
+
+        density:
+            The initial fraction of sites with a tree.
+
+        cover:
+            The initial cover of every site, 0 for empty, 1 for a tree, and 2 for burning, in lattice shape or node
+            order, or `None` for random trees at the given density.
+
+        random_state:
+            The seed or generator of the initial forest.
+
+    Returns:
+        system:
+            The model, with the covers `forest.cover`.
+
+    Examples:
+        >>> import networkx as nx
+        >>> from skcomplex.models.physics.criticality import hexagonal_forest_fire
+        >>> hexagonal_forest_fire((10, 10)).elements[0].size
+        100
+        >>> hexagonal_forest_fire(graph=nx.cycle_graph(12)).elements[0].size
+        12
+    """
+    space = LatticeSpace(tuple(shape), geometry='triangular') if graph is None else NetworkSpace(graph)
+    size = space.size if isinstance(space, LatticeSpace) else space.graph.number_of_nodes()
+    initial = (
+        (np.random.default_rng(random_state).random(size) < density).astype(float)
+        if cover is None
+        else np.ravel(np.asarray(cover, dtype=float))
+    )
+    forest = SpreadingForest.lattice(
+        'forest',
+        space,
+        cover=initial,
+        growth=growth,
+        lightning=lightning,
+        neighbors='triangular' if graph is None else 'graph',
+    )
+    return System(elements=[forest])

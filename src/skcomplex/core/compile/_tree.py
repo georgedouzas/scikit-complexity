@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ..base import AnyDomain, Domain, LabelError, SpaceError, ValidationError, Variable
-from ..model import AgentType, Element, Group, Interaction, LatticeSpace, MesaSystem, Space, System
+from ..model import AgentType, Element, Group, Interaction, LatticeSpace, MesaSystem, NetworkSpace, Space, System
 
 LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
 MAX_SHOWN_COMPONENTS = 10
@@ -93,6 +93,19 @@ def _check_label(label: object, scope: str) -> None:
     raise LabelError(error_msg)
 
 
+def _check_network_lattice(space: NetworkSpace, size: int, where: str) -> None:
+    """Raise an error for a lattice group on a network with a capacity or a size other than its number of nodes."""
+    if space.capacity is not None:
+        error_msg = (
+            f'{where} has its sites on a network with capacity {space.capacity}, but sites hold states, not agents. '
+            'Leave the capacity as None.'
+        )
+        raise ValidationError(error_msg)
+    if space.graph.number_of_nodes() != size:
+        error_msg = f'{where} has size {size}, but its network has {space.graph.number_of_nodes()} nodes.'
+        raise ValidationError(error_msg)
+
+
 def _check_group(group: Group, scope: str) -> None:
     """Raise an error for a group with an element type or size that is not valid."""
     where = f'Group {group.label!r} in {scope or "the root system"}'
@@ -112,6 +125,8 @@ def _check_group(group: Group, scope: str) -> None:
         if space.size != group.size:
             error_msg = f'{where} has size {group.size}, but its lattice has {space.size} sites.'
             raise ValidationError(error_msg)
+    if isinstance(space, NetworkSpace) and not issubclass(group.element, AgentType):
+        _check_network_lattice(space, group.size, where)
     unknown = set(group.values or {}) - {field.name for field in dataclasses.fields(group.element)} - {'label'}
     if unknown:
         error_msg = f'{where} sets {", ".join(sorted(unknown))}, which {group.element.__name__} does not declare.'

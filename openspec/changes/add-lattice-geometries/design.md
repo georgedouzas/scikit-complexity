@@ -113,11 +113,16 @@ computed from these records by the existing event analysis.
 ### Compile pipeline, backends, and runtime
 
 The new laws are declarations in `skcomplex.core.model`, and `skcomplex.core.compile` lowers them:
-- `neighbor_sum` energies are Sage expressions, lowered by `numpy_function` and the Numba printer like every energy;
+- `neighbor_sum` energies are Sage expressions, lowered by `numpy_function` like every energy, with one mask symbol
+  per column of the table;
 - tables, masks, and color classes are NumPy arrays computed once per problem;
-- on the Numba backend, an extremal law with `repeat > 1` runs its applications in one compiled loop that draws from
-  the same `numpy.random.Generator`, which Numba accepts as an argument, so both backends give the same events, and
-  lookup rules use the existing fused kernel, which reads any table.
+- on the Numba backend, an extremal law runs the applications of a step in one compiled loop, generated for its
+  targets and parameters, that draws from the same `numpy.random.Generator`, which Numba accepts as an argument, so
+  both backends give the same events, and lookup rules use the existing fused kernel, which reads any table. Numba
+  0.6x cannot compile functions with keyword-only arguments, so the compiled loop needs a rule that takes its
+  arguments by position or keyword, such as `f(fitness, random)`. The compiler checks the signature and compiles the
+  loop once at compile time, and an extremal law whose rule Numba does not compile runs the NumPy loop on the Numba
+  backend, with the same events.
 
 `LatticeStepper` and `MonteCarlo` run the compiled steps unchanged, and a frame returns the state of a triangular
 lattice in its shape and the state of a graph lattice in node order.

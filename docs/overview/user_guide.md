@@ -962,10 +962,91 @@ spins = System(elements=[Spin.lattice('spins', LatticeSpace((32, 32)))])
 print(abs(Simulation(spins, dt=50, random_state=0).run(until=200).state_.mean()) > 0.9)
 ```
 
-Lattice groups stream to Rerun as images colored by value. The library has `elementary_automaton`, `game_of_life`,
-`majority_rule`, `langtons_ant`, `nagel_schreckenberg`, `hodgepodge`, `sandpile`, `forest_fire`, `earthquakes`,
-`ising`, `potts`, and `xy`, each in the subfield of its science, such as `skcomplex.models.computer_science.automata`
-for `game_of_life` and `skcomplex.models.physics.statistical_mechanics` for `ising`.
+**Triangular lattices.** `LatticeSpace(shape, geometry='triangular')` keeps integer coordinates on a skewed grid, so
+every boundary works as on a square lattice, and places site `(i, j)` at `(j + i / 2, i sqrt(3) / 2)` in the plane,
+given by the `positions` property. `Neighborhood.triangular()` holds its six neighbours counterclockwise from 0
+degrees, so direction `k + 3` modulo 6 is opposite to direction `k`, as lattice gases need. The cells of the sites
+are the hexagons of a hexagonal tiling.
+
+```python
+Burn = Element.define(
+    'Burn',
+    states={'fire': 0.0},
+    laws=lambda s: [LocalRule(s.fire, Neighborhood.triangular(center=True), lambda *values: np.max(values, axis=0))],
+)
+fire = np.zeros((40, 40))
+fire[20, 20] = 1
+forest = System(elements=[Burn.lattice('forest', LatticeSpace((40, 40), geometry='triangular'), fire=fire)])
+burning = Simulation(forest, dt=1).run(until=3).trajectory_.lattice('forest.fire')
+print([int(item.sum()) for item in burning])
+```
+
+**Lattices on graphs.** `Element.lattice` also takes a `NetworkSpace`, with one site per node in the order of
+`graph.nodes`, and initial values as arrays in node order or mappings from node to value. `Adjacency(center=False)` is
+the neighbourhood of a node, its neighbours along its edges, padded to the largest degree with the network's `fill`
+value. Local rules, drives, relaxations, Monte Carlo laws, and extremal laws run on graphs as on lattices. Lookup rules
+on graphs take the totalistic forms, and a function rule that names the keyword `degree` receives the number of real
+neighbours of every site. The padded table grows with the largest degree, so graphs with hubs of very high degree,
+beyond scale-free graphs of about 10^5 nodes, use much memory.
+
+**Neighbour sums and colored schedules.** `neighbor_sum(expression)` sums an expression of a site and one neighbour,
+read with `adjacent(state)`, over the real neighbours of the site, so local energies are exact on sites of any degree
+and outside fixed edges. `schedule='colored'` on local rules and samplers updates the classes of a proper coloring of
+the neighbour graph in turn, which NetworkX computes once per law. The checkerboard schedule stays the two-color case
+of square lattices.
+
+```python
+import networkx as nx
+
+from skcomplex.core.model import Adjacency, NetworkSpace, adjacent, neighbor_sum
+
+GraphSpin = Element.define(
+    'GraphSpin',
+    states={'spin': state(1.0, domain=Domain.INTEGER)},
+    parameters={'J': 1.0, 'temperature': 1.0},
+    laws=lambda s: [
+        Energy(-s.J * s.spin * neighbor_sum(adjacent(s.spin)), Adjacency()),
+        Move.flip(s.spin),
+        Sampler('metropolis', s.temperature, schedule='colored'),
+    ],
+)
+graph = nx.random_regular_graph(4, 200, seed=0)
+spins = System(elements=[GraphSpin.lattice('spins', NetworkSpace(graph))])
+print(abs(Simulation(spins, dt=50, random_state=0).run(until=200).state_.mean()) > 0.9)
+```
+
+**Extremal updates.** `Extremal(target, neighborhood, rule, key=None, extremum='min', repeat=1)` finds the site with
+the smallest or largest value of a key state, breaking ties with the simulation's random stream, and applies
+`rule(*values, random, **parameters)` to the site and its real neighbours, `repeat` times per step. Every application
+is recorded among the trajectory's events as an `ExtremalRecord` with its time, site, and extremal value. On the Numba
+backend the applications of a step run in one compiled loop when Numba compiles the rule, which then takes its
+arguments by position or keyword, with no keyword-only arguments, and both backends give the same events.
+
+```python
+from skcomplex.core.model import Extremal
+
+
+def renew(fitness, random):
+    return random
+
+
+Species = Element.define(
+    'Species',
+    states={'fitness': 0.5},
+    laws=lambda s: [Extremal(s.fitness, Neighborhood(((-1,), (1,))), renew, repeat=100)],
+)
+ring = System(elements=[Species.lattice('ring', LatticeSpace(100), fitness=np.random.default_rng(0).random(100))])
+trajectory = Simulation(ring, dt=10, random_state=0).run(until=100).trajectory_
+print(len(trajectory.events), trajectory.events[0].label)
+```
+
+Square lattice groups stream to Rerun as images colored by value, and triangular lattices and graph lattices stream as
+sites with `SiteVisual`, registered as `'sites'`: hexagonal cells at the site positions, or nodes colored by state with
+their edges logged once. The library has `elementary_automaton`, `game_of_life`, `majority_rule`, `langtons_ant`,
+`nagel_schreckenberg`, `hodgepodge`, `sandpile`, `forest_fire`, `hexagonal_forest_fire`, `earthquakes`, `ising`,
+`graph_ising`, `potts`, `xy`, `fhp_lattice_gas`, and `bak_sneppen`, each in the subfield of its science, such as
+`skcomplex.models.computer_science.automata` for `game_of_life` and `skcomplex.models.physics.statistical_mechanics`
+for `ising`.
 
 ## Fields
 

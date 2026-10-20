@@ -7,14 +7,15 @@ import math
 from typing import ClassVar
 
 from ..base import Form
-from ..compile import CompiledRelaxation, Vector
+from ..compile import CompiledExtremal, CompiledRelaxation, Vector
 from ._base import Stepper, register_solver
 
 
 class LatticeStepper(Stepper):
-    """Stepper of lattice dynamics that applies every local rule, drive, and relaxation once per unit of time.
+    """Stepper of lattice dynamics that applies every local rule, drive, relaxation, and extremal law once per step.
 
-    Steps apply in the order the laws are declared. Relaxations record their size, duration, and area as events.
+    Steps apply in the order the laws are declared. Relaxations record their size, duration, and area as events, and
+    extremal laws record the site and the value of every application.
 
     Examples:
         >>> import numpy as np
@@ -57,6 +58,8 @@ class LatticeStepper(Stepper):
                     record = item.apply(state, p, self.rng_, float(step + 1))
                     if record is not None:
                         self.locator_.records.append(record)
+                elif isinstance(item, CompiledExtremal):
+                    self.locator_.records.extend(item.apply(state, p, self.rng_, float(step + 1)))
                 else:
                     item.apply(state, p, self.rng_)
         return state

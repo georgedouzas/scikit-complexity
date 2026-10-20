@@ -143,7 +143,7 @@ def test_inventory_check_names_change_problems(entry, message):
 
 
 def test_inventory_entry_of_a_book_model():
-    """Test that the Bak-Sneppen entry names its book sections, its field, and its status."""
+    """Test that the Bak-Sneppen entry names its book sections, its field, and its implemented status."""
     keys, entries = _load()
     path, entry = next((path, entry) for name, path, entry in entries if name == 'bak_sneppen')
     assert path == 'biology/evolution'
@@ -153,7 +153,7 @@ def test_inventory_entry_of_a_book_model():
         'Thurner et al. 2018',
         'Jensen 2023',
     ]
-    assert entry['status'].startswith('blocked ')
+    assert entry['status'] == 'implemented'
 
 
 def _generator():

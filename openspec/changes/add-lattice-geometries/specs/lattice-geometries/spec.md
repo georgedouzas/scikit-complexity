@@ -31,7 +31,7 @@ neighbour in direction `k`. Every site SHALL have a position in the plane at uni
 ### Requirement: Lattice laws run on graphs
 Local rules, drives, relaxation, and Monte Carlo laws SHALL run on lattice groups whose sites are the nodes of a graph,
 in the graph's node order. A graph neighbourhood SHALL give the neighbours of a site along its edges, in the graph's
-adjacency order, optionally with the site itself first.
+node order, optionally with the site itself first.
 
 #### Scenario: Grid graph matches the square lattice
 - **WHEN** the Game of Life runs from the same glider on a periodic 20 × 20 square lattice with the Moore neighbourhood

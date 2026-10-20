@@ -11,7 +11,7 @@ import numpy as np
 from sklearn.base import BaseEstimator
 
 from ..base import Form, Registry, SolverError
-from ..compile import EventRecord, Problem, RelaxationRecord, RenewalRecord, Vector
+from ..compile import EventRecord, ExtremalRecord, Problem, RelaxationRecord, RenewalRecord, Vector
 from ._hybrid import EventLocator, History
 from ._renewals import RenewalClock
 
@@ -139,7 +139,7 @@ class Stepper(BaseEstimator):
         """
         return x
 
-    def drain_events(self) -> list[EventRecord | RelaxationRecord | RenewalRecord]:
+    def drain_events(self) -> list[EventRecord | RelaxationRecord | RenewalRecord | ExtremalRecord]:
         """Return the events recorded since the last call, and forget them.
 
         Returns:

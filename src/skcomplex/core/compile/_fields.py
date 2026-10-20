@@ -16,7 +16,7 @@ from sage.all__sagemath_symbolics import SR
 from scipy.sparse import diags
 
 from ..base import Expression, ValidationError, domain_of, symbol
-from ..model import Field, LatticeSpace, Mesh, Neighborhood, NetworkSpace, where
+from ..model import Adjacency, Field, LatticeSpace, Mesh, Neighborhood, NetworkSpace, where
 from ._kernels import Reference, Source
 from ._printing import numpy_function
 
@@ -328,15 +328,9 @@ class FieldLowering:
         if key not in self._tables:
             space = place.space
             if isinstance(space, NetworkSpace):
-                nodes = list(space.graph.nodes)
-                index = {node: position for position, node in enumerate(nodes)}
-                neighbours = [[index[other] for other in space.graph.neighbors(node)] for node in nodes]
-                width = max((len(items) for items in neighbours), default=0)
-                table = np.asarray(
-                    [items + [position] * (width - len(items)) for position, items in enumerate(neighbours)],
-                    dtype=np.intp,
-                ).reshape(len(nodes), width)
-                self._tables[key] = (table[:, offset], None)
+                table = space.index_table(Adjacency())
+                sites = np.arange(table.shape[0])[:, None]
+                self._tables[key] = (np.where(table == table.shape[0], sites, table)[:, offset], None)
             else:
                 dimensions = cast('LatticeSpace', space).dimensions
                 lattice = LatticeSpace(dimensions, boundary=LATTICE_BOUNDARIES[kind], fill=value)
@@ -443,7 +437,7 @@ class FieldLowering:
         """Return the stencil of the Laplacian of an expression."""
         space = self._space(expression)
         if isinstance(space, NetworkSpace):
-            width = max((degree for _, degree in space.graph.degree), default=0)
+            width = space.index_table(Adjacency()).shape[1]
             return sum((self.shift(expression, slot) - expression for slot in range(width)), SR(0))
         total = SR(0)
         for axis in range(space.n_dim):

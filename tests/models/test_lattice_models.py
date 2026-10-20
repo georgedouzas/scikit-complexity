@@ -1,5 +1,6 @@
 """Test the lattice models of the library and their images in Rerun."""
 
+import networkx as nx
 import numpy as np
 import pytest
 
@@ -7,12 +8,14 @@ from skcomplex.core.analysis import histogram
 from skcomplex.core.experiments import Experiment, Grid
 from skcomplex.core.runtime import Frame, Observer, Simulation
 from skcomplex.core.viz import ImageVisual, RerunObserver
+from skcomplex.models.biology.evolution import bak_sneppen
 from skcomplex.models.chemistry.kinetics import hodgepodge
 from skcomplex.models.computer_science.automata import langtons_ant
 from skcomplex.models.earth.seismology import earthquakes
 from skcomplex.models.engineering.traffic import nagel_schreckenberg
-from skcomplex.models.physics.criticality import sandpile
-from skcomplex.models.physics.statistical_mechanics import ising, potts, xy
+from skcomplex.models.physics.criticality import hexagonal_forest_fire, sandpile
+from skcomplex.models.physics.fluids import fhp_lattice_gas
+from skcomplex.models.physics.statistical_mechanics import graph_ising, ising, potts, xy
 from skcomplex.models.social.opinion_dynamics import majority_rule
 
 CRITICAL_TEMPERATURE = 2 / np.log(1 + np.sqrt(2))
@@ -177,3 +180,58 @@ def test_lattice_recording_is_saved(tmp_path):
     Simulation(ising(16), dt=1, observers=[observer]).run(until=5)
     assert observer.logged_frames_ == 6
     assert (tmp_path / 'ising.rrd').stat().st_size > 0
+
+
+def test_fhp_lattice_gas_conserves_mass_and_momentum():
+    """Test that the FHP gas on a periodic 64 x 64 lattice keeps its particle number and momentum for 500 steps."""
+    trajectory = Simulation(fhp_lattice_gas((64, 64)), dt=1, random_state=0).run(until=500).trajectory_
+    occupations = np.stack([trajectory[f'gas.n{direction}'].astype(float).sum(axis=1) for direction in range(6)])
+    angles = np.arange(6) * np.pi / 3
+    momentum = np.stack([np.cos(angles) @ occupations, np.sin(angles) @ occupations])
+    assert len(trajectory) == 501
+    assert np.all(occupations.sum(axis=0) == occupations.sum(axis=0)[0])
+    assert np.allclose(momentum, momentum[:, :1], rtol=0, atol=1e-9)
+    assert np.array_equal(trajectory['gas.density'].sum(axis=1), occupations.sum(axis=0))
+
+
+def test_graph_ising_orders_at_low_temperature():
+    """Test that the Ising model on a random 4-regular graph of 1000 nodes orders at 1.0 and not at 6.0."""
+    graph = nx.random_regular_graph(4, 1000, seed=0)
+    result = Experiment(
+        lambda temperature: graph_ising(graph, temperature=temperature, initial='up'),
+        Grid(temperature=[1.0, 6.0]),
+        replicates=4,
+        until=400,
+        dt=20,
+        warmup=100,
+        outputs=[magnetization],
+        random_state=0,
+    ).run()
+    means = {row['temperature']: row['magnetization.mean'] for row in result.summary()}
+    assert means[1.0] > 0.9
+    assert means[6.0] < 0.1
+
+
+def test_forest_fire_burns_graph_by_distance():
+    """Test that a fire on a forested Watts-Strogatz graph reaches every node at the step of its graph distance."""
+    graph = nx.connected_watts_strogatz_graph(500, 4, 0.1, seed=0)
+    cover = np.ones(500)
+    cover[0] = 2
+    system = hexagonal_forest_fire(graph=graph, growth=0.0, lightning=0.0, cover=cover)
+    covers = Simulation(system, dt=1).run(until=40).trajectory_['forest.cover']
+    distances = nx.single_source_shortest_path_length(graph, 0)
+    assert (covers == 2).any(axis=0).all()
+    assert np.array_equal(np.argmax(covers == 2, axis=0), [distances[node] for node in graph.nodes])
+
+
+@pytest.mark.benchmark
+def test_bak_sneppen_self_organises():
+    """Test that Bak-Sneppen on a ring of 200 gathers its fitnesses above 0.75 with largest minima near 0.667."""
+    observer = Events()
+    system = bak_sneppen(200, updates=10_000)
+    simulation = Simulation(system, dt=100, record=False, backend='numba', random_state=0, observers=[observer])
+    simulation.run(until=200)
+    minima = np.asarray([event.value for event in observer.events if event.time > 100])
+    assert minima.size == 1_000_000
+    assert np.median(simulation.state_) > 0.75
+    assert 0.6 < minima.max() < 0.72

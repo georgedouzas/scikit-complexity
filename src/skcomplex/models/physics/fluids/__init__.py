@@ -1,4 +1,4 @@
-"""Fluid dynamics: flows, convection, turbulence, shocks, shallow water, wave trains, and kinetic gases."""
+"""Fluid dynamics: flows, convection, turbulence, shocks, shallow water, wave trains, kinetic and lattice gases."""
 
 from ._flows import (
     Boussinesq,
@@ -14,11 +14,13 @@ from ._flows import (
     shallow_water,
 )
 from ._kinetics import CarlemanGas, WaveNumber, discrete_velocity_boltzmann, wave_breaking
+from ._lattice_gases import FHPSite, fhp_lattice_gas
 
 __all__: list[str] = [
     'Boussinesq',
     'Burgers',
     'CarlemanGas',
+    'FHPSite',
     'KuramotoSivashinsky',
     'ShallowWater',
     'Vorticity',
@@ -26,6 +28,7 @@ __all__: list[str] = [
     'burgers',
     'decaying_turbulence',
     'discrete_velocity_boltzmann',
+    'fhp_lattice_gas',
     'incompressible_flow',
     'kuramoto_sivashinsky',
     'rayleigh_benard',

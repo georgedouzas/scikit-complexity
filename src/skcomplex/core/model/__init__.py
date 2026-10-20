@@ -22,6 +22,7 @@ from ._functions import (
 from ._lattices import (
     Drive,
     Energy,
+    Extremal,
     LatticeSpace,
     LocalRule,
     Move,
@@ -32,6 +33,8 @@ from ._lattices import (
     Table,
     Totalistic,
     Wolfram,
+    adjacent,
+    neighbor_sum,
     neighbors,
 )
 from ._laws import (
@@ -85,11 +88,12 @@ from ._rewriting import (
     Turtle,
     Word,
 )
-from ._spaces import ContinuousSpace, EuclideanSpace, GridSpace, NetworkSpace, Space
+from ._spaces import Adjacency, ContinuousSpace, EuclideanSpace, GridSpace, NetworkSpace, Space
 from ._symbols import Symbols
 from ._systems import MesaSystem, System
 
 __all__: list[str] = [
+    'Adjacency',
     'Affine',
     'AgentType',
     'Aggregate',
@@ -105,6 +109,7 @@ __all__: list[str] = [
     'Equation',
     'EuclideanSpace',
     'Event',
+    'Extremal',
     'Field',
     'Flux',
     'FractionalNoise',
@@ -164,6 +169,7 @@ __all__: list[str] = [
     'Update',
     'Wolfram',
     'Word',
+    'adjacent',
     'advection',
     'bernoulli',
     'both',
@@ -185,6 +191,7 @@ __all__: list[str] = [
     'mean',
     'minimum',
     'mod',
+    'neighbor_sum',
     'neighbors',
     'normal',
     'pulse',

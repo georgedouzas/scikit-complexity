@@ -47,6 +47,7 @@ from ..model import (
     Energy,
     Equation,
     Event,
+    Extremal,
     Field,
     Flux,
     FractionalNoise,
@@ -58,6 +59,7 @@ from ..model import (
     MesaSystem,
     Mesh,
     Move,
+    NetworkSpace,
     Noise,
     Observable,
     PairInteraction,
@@ -92,6 +94,7 @@ from ._lattices import (
     LatticeState,
     LatticeStep,
     compile_drive,
+    compile_extremal,
     compile_monte_carlo,
     compile_relaxation,
     compile_rule,
@@ -131,8 +134,8 @@ FORMS: dict[frozenset[type], Form] = {
     frozenset({Rule}): Form.AGENT,
     **{
         frozenset(kinds): Form.LATTICE
-        for count in (1, 2, 3)
-        for kinds in itertools.combinations((LocalRule, Drive, Relaxation), count)
+        for count in (1, 2, 3, 4)
+        for kinds in itertools.combinations((LocalRule, Drive, Relaxation, Extremal), count)
     },
     frozenset({Energy, Move}): Form.MONTE_CARLO,
     frozenset({Energy, Move, Sampler}): Form.MONTE_CARLO,
@@ -142,7 +145,7 @@ FORMLESS = frozenset({Boundary, Event, Flux})
 CONTINUOUS = frozenset({Rate, Noise})
 ASSIGNED_KINDS = (Update, Boundary)
 MEMBER_REFERENCE = re.compile(r'^(?P<path>.+)\[(?P<index>-?\d+)\]$')
-LATTICE_LAWS = (LocalRule, Drive, Relaxation, Energy, Move, Sampler)
+LATTICE_LAWS = (LocalRule, Drive, Relaxation, Extremal, Energy, Move, Sampler)
 KERNEL_FREE = (*LATTICE_LAWS, Flux)
 
 
@@ -752,8 +755,8 @@ def _collect_laws(spec: _KernelSpec, component: object) -> list[Law]:
     if not isinstance(laws, list | tuple) or not all(isinstance(law, kinds) for law in laws):
         error_msg = (
             f'`laws` of {spec.owner} must return a list of Rate, Noise, FractionalNoise, Jump, Update, Transition, '
-            'Emission, Boundary, Rule, Equation, Event, Renewal, LocalRule, Drive, Relaxation, Energy, Move, Sampler, '
-            'or Flux laws.'
+            'Emission, Boundary, Rule, Equation, Event, Renewal, LocalRule, Drive, Relaxation, Extremal, Energy, Move, '
+            'Sampler, or Flux laws.'
         )
         raise ValidationError(error_msg)
     if spec.pairs is not None and not all(isinstance(law, Rate) for law in laws):
@@ -2065,7 +2068,7 @@ def _law_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
     if isinstance(law, Relaxation):
         target = next(iter(law.targets), None)
         return spec.owner if target is None else _target_references(target, spec)[0].entry.name.rpartition('.')[0]
-    if isinstance(law, LocalRule):
+    if isinstance(law, LocalRule | Extremal):
         return _target_references(law.targets[0], spec)[0].entry.name.rpartition('.')[0]
     if isinstance(law, Flux):
         return _target_references(law.target, spec)[0].entry.name.rpartition('.')[0]
@@ -2431,7 +2434,12 @@ def _lattice_context(spec: _KernelSpec, declarations: _Declarations, fused: bool
         owner, _, variable = entry.name.rpartition('.')
         block = declarations.blocks.get(owner)
         space = block.node.space if block is not None else None
-        is_lattice = isinstance(space, LatticeSpace) and block is not None and block.node.members is not None
+        is_lattice = (
+            isinstance(space, LatticeSpace | NetworkSpace)
+            and block is not None
+            and block.node.members is not None
+            and not block.node.is_agent
+        )
         if reference.is_state and is_lattice and not entry.member_shape:
             states[item] = LatticeState(entry.name, entry.start, space)  # type: ignore[arg-type]
         if not entry.member_shape:
@@ -2469,7 +2477,12 @@ def _compile_lattice(
 ) -> tuple[LatticeStep, ...]:
     """Return the steps of local rules, drives, relaxations, and Monte Carlo sampling in declaration order."""
     steps: list[LatticeStep] = []
-    compilers = {LocalRule: compile_rule, Drive: compile_drive, Relaxation: compile_relaxation}
+    compilers = {
+        LocalRule: compile_rule,
+        Drive: compile_drive,
+        Relaxation: compile_relaxation,
+        Extremal: compile_extremal,
+    }
     for spec, laws in specs:
         if not any(isinstance(law, LATTICE_LAWS) for law in laws):
             continue

@@ -104,7 +104,7 @@ contact_process = { title = "Contact process", sources = ["1408.2701 §II.3"], s
 tasep = { title = "TASEP", sources = ["cond-mat/0012229 §I.E.1"], status = "implemented" }
 two_phase_zone_exchange = { title = "Two-phase zone exchange", sources = ["Bs 3.14"], status = "implemented" }
 discrete_master_equation = { title = "Discrete master equation", sources = ["Je 10.7", "Bt 2.6.1"], status = "implemented" }
-graph_ising = { title = "Ising on a graph", sources = ["Ar 2.1"], status = "blocked add-lattice-geometries", feature = "Hexagonal and triangular lattices, local rules and Monte Carlo on arbitrary graphs, and extremal updates" }
+graph_ising = { title = "Ising on a graph", sources = ["Ar 2.1"], status = "implemented" }
 quantum_heisenberg = { title = "Quantum Heisenberg model", sources = ["Mi 7.3"], status = "blocked add-quantum-systems", feature = "Quantum states and operators with unitary and Lindblad evolution" }
 continuum_percolation = { title = "Continuum percolation", sources = ["Sa 3"], status = "blocked add-static-models", feature = "Models solved, sampled, enumerated, or optimised rather than integrated in time" }
 curie_weiss = { title = "Fully connected Ising model with Glauber dynamics", sources = ["Bt 1.4.1"], status = "implemented" }
@@ -122,7 +122,7 @@ random_energy_model = { title = "Random energy model", sources = ["Bt 1.5.3"], s
 sandpile = { title = "Bak-Tang-Wiesenfeld sandpile", sources = ["Ch 5", "Gr 6.4", "TC 8", "Je 12.1"], status = "implemented" }
 forest_fire = { title = "Drossel-Schwabl forest fire", sources = ["Ar 3", "Ch 6", "Je 12.1.4"], status = "implemented" }
 manna_sandpile = { title = "Manna sandpile", sources = ["Je 12.5"], status = "implemented" }
-hexagonal_forest_fire = { title = "Forest fire on hexagonal lattices and graphs", sources = ["Ar 3"], status = "blocked add-lattice-geometries", feature = "Hexagonal and triangular lattices, local rules and Monte Carlo on arbitrary graphs, and extremal updates" }
+hexagonal_forest_fire = { title = "Forest fire on hexagonal lattices and graphs", sources = ["Ar 3"], status = "implemented" }
 
 [physics.soft_matter]
 brownian_near_wall = { title = "Brownian particle near a wall", sources = ["Ar 7.6"], status = "implemented" }
@@ -173,7 +173,7 @@ rayleigh_benard = { title = "Rayleigh-Bénard", sources = ["Rayleigh 1916", "Cha
 kuramoto_sivashinsky = { title = "Kuramoto-Sivashinsky", sources = ["DP 11.3"], status = "implemented" }
 wave_breaking = { title = "Wave-number conservation and wave breaking", sources = ["Fo 14.3.3"], status = "implemented" }
 discrete_velocity_boltzmann = { title = "Discrete-velocity Boltzmann gas of Carleman", sources = ["Be 2.3.2"], status = "implemented" }
-fhp_lattice_gas = { title = "FHP lattice gas", sources = ["Di 5.16"], status = "blocked add-lattice-geometries", feature = "Hexagonal and triangular lattices, local rules and Monte Carlo on arbitrary graphs, and extremal updates" }
+fhp_lattice_gas = { title = "FHP lattice gas", sources = ["Di 5.16"], status = "implemented" }
 boltzmann_equation = { title = "Boltzmann", sources = ["Be 2.2–2.3"], status = "blocked add-phase-space-fields", feature = "Fields over position and velocity or orientation, for kinetic equations" }
 bgk_equation = { title = "BGK", sources = ["Be 2.2–2.3"], status = "blocked add-phase-space-fields", feature = "Fields over position and velocity or orientation, for kinetic equations" }
 vlasov_equation = { title = "Vlasov", sources = ["Be 2.2–2.3"], status = "blocked add-phase-space-fields", feature = "Fields over position and velocity or orientation, for kinetic equations" }
@@ -270,7 +270,7 @@ nk_landscape = { title = "NK fitness landscapes", sources = ["Th 5.4.3", "TC 11"
 tangled_nature = { title = "Tangled Nature", sources = ["Je 11.3"], status = "implemented" }
 adaptive_climbing = { title = "Adaptive climbing in finite populations", sources = ["Gr 8.4"], status = "implemented" }
 rock_paper_scissors = { title = "Rock-paper-scissors", sources = ["cond-mat/0607344 §7"], status = "implemented" }
-bak_sneppen = { title = "Bak-Sneppen", sources = ["Gr 6.6", "Th 5.4.4", "Je 4.2"], status = "blocked add-lattice-geometries", feature = "Hexagonal and triangular lattices, local rules and Monte Carlo on arbitrary graphs, and extremal updates" }
+bak_sneppen = { title = "Bak-Sneppen", sources = ["Gr 6.6", "Th 5.4.4", "Je 4.2"], status = "implemented" }
 jain_krishna = { title = "Jain-Krishna autocatalytic networks", sources = ["Th 5.5.1.4"], status = "pending add-adaptive-networks" }
 sole_manrubia = { title = "Solé-Manrubia extinctions", sources = ["Th 5.5.3.1"], status = "pending add-adaptive-networks" }
 rna_neutral_networks = { title = "Genotype spaces and neutral networks of RNA folds", sources = ["Rm 13.2", "Rm 13.3"], status = "blocked add-molecular-structures", feature = "Molecular structures and sequence-to-structure maps" }
