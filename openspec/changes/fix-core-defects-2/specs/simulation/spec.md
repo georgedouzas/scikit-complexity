@@ -1,0 +1,25 @@
+# Spec Delta
+
+## MODIFIED Requirements
+
+### Requirement: A solver is chosen for each form
+A simulation SHALL choose a default solver for the form of its problem, and SHALL accept a solver chosen by name or
+given as an instance. The default ODE solver SHALL detect stiffness and switch methods during the run, so stiff
+systems run with the default solver.
+
+#### Scenario: Automatic solver
+- **WHEN** a simulation of an ODE system runs with the solver left to its default
+- **THEN** it uses the default ODE solver
+
+#### Scenario: Solver for the wrong form
+- **WHEN** a user gives a jump process solver to a simulation of an ODE system
+- **THEN** running it raises a named error that names the form and the solver
+
+#### Scenario: Stiff model built directly
+- **WHEN** `Simulation(create('nanoparticle_corona')).run(until=10800)` runs with the solver left to its default
+- **THEN** it finishes within 5 seconds, and its final state matches the run of its registered solver within a
+  relative tolerance of 1e-4
+
+#### Scenario: Non-stiff model keeps its accuracy
+- **WHEN** a harmonic oscillator runs until 10 with the default solver
+- **THEN** its final state matches the analytic solution within a relative tolerance of 1e-5
