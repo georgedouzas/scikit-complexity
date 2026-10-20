@@ -11,7 +11,8 @@ from skcomplex.models import run
 def _bursty_expression(rng: np.random.Generator, samples: int) -> np.ndarray:
     """Return mRNA copy numbers sampled once per unit time from bursts of geometric size with mean 4 and decay 1."""
     burst_rate, decay, mean_burst = 5.0, 1.0, 4.0
-    copies, time, next_sample, recorded = 0, 0.0, 50.0, []
+    recorded: list[int] = []
+    copies, time, next_sample = 0, 0.0, 50.0
     while len(recorded) < samples:
         total = burst_rate + decay * copies
         step = rng.exponential(1 / total)

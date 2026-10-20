@@ -7,7 +7,6 @@ import math
 from collections import Counter
 from collections.abc import Hashable, Sequence
 
-import antropy
 import ennemi
 import numpy as np
 import numpy.typing as npt
@@ -15,6 +14,7 @@ import ordpy
 
 from ..base import AnalysisError
 from ._kinds import DataKind, analysis
+from ._lazy import module
 from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
@@ -678,4 +678,4 @@ def lempel_ziv_complexity(symbols: npt.ArrayLike, *, normalize: bool = True) -> 
         2.0
     """
     _, codes = np.unique(np.asarray(symbols).ravel(), return_inverse=True)
-    return float(antropy.lziv_complexity(codes.astype(np.int64), normalize=normalize))
+    return float(module('antropy').lziv_complexity(codes.astype(np.int64), normalize=normalize))

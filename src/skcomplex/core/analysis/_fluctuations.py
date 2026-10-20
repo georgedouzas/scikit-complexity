@@ -6,12 +6,12 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-import kramersmoyal
 import numpy as np
 import numpy.typing as npt
 
 from ..base import AnalysisError
 from ._kinds import DataKind, analysis
+from ._lazy import module
 
 type Array = npt.NDArray[np.float64]
 
@@ -183,6 +183,11 @@ def kramers_moyal(
         1.0
     """
     array = np.asarray(values, dtype=float)
-    moments, edges = kramersmoyal.km(array, bins=np.asarray([bins]), powers=np.asarray([0, 1, 2]), bw=bandwidth)
+    moments, edges = module('kramersmoyal').km(
+        array,
+        bins=np.asarray([bins]),
+        powers=np.asarray([0, 1, 2]),
+        bw=bandwidth,
+    )
     centres = np.asarray(edges[0], dtype=float)
     return KramersMoyal(centres, moments[1] / dt, moments[2] / dt)

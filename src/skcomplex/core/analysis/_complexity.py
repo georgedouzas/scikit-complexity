@@ -6,7 +6,6 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-import antropy
 import numpy as np
 import numpy.typing as npt
 import ordpy
@@ -14,6 +13,7 @@ import ordpy
 from ..base import AnalysisError
 from ._information import break_ties, kl_divergence, shannon_entropy
 from ._kinds import DataKind, analysis
+from ._lazy import module
 
 type Array = npt.NDArray[np.float64]
 
@@ -49,7 +49,7 @@ def sample_entropy(values: npt.ArrayLike, dimension: int = 2, tolerance: float =
         0.0
     """
     array = np.ascontiguousarray(values, dtype=float)
-    return float(antropy.sample_entropy(array, order=dimension, tolerance=_tolerance(array, tolerance))) + 0.0
+    return float(module('antropy').sample_entropy(array, order=dimension, tolerance=_tolerance(array, tolerance))) + 0.0
 
 
 @analysis(DataKind.SERIES)
@@ -77,7 +77,7 @@ def approximate_entropy(values: npt.ArrayLike, dimension: int = 2, tolerance: fl
         True
     """
     array = np.ascontiguousarray(values, dtype=float)
-    return float(antropy.app_entropy(array, order=dimension, tolerance=_tolerance(array, tolerance)))
+    return float(module('antropy').app_entropy(array, order=dimension, tolerance=_tolerance(array, tolerance)))
 
 
 @dataclass(frozen=True)
@@ -138,7 +138,9 @@ def multiscale_entropy(
     for scale in scales:
         count = array.size // scale
         coarse = array[: count * scale].reshape(count, scale).mean(axis=1)
-        entropies.append(antropy.sample_entropy(np.ascontiguousarray(coarse), order=dimension, tolerance=radius))
+        entropies.append(
+            module('antropy').sample_entropy(np.ascontiguousarray(coarse), order=dimension, tolerance=radius),
+        )
     return Multiscale(np.asarray(scales, dtype=np.int64), np.asarray(entropies, dtype=float))
 
 
@@ -168,7 +170,7 @@ def spectral_entropy(values: npt.ArrayLike, dt: float = 1.0, *, normalize: bool 
     """
     array = np.ascontiguousarray(values, dtype=float)
     return float(
-        antropy.spectral_entropy(array, sf=1 / dt, method='fft', normalize=normalize),
+        module('antropy').spectral_entropy(array, sf=1 / dt, method='fft', normalize=normalize),
     )
 
 

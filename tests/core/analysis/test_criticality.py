@@ -32,7 +32,7 @@ def _galton_watson(rng: np.random.Generator, trees: int) -> Avalanches:
     """Return the avalanches of critical Galton-Watson trees with Poisson offspring of mean 1, one generation a step."""
     alive, active = np.arange(trees), np.ones(trees, dtype=np.int64)
     sizes, durations = np.zeros(trees), np.zeros(trees)
-    history = []
+    history: list[tuple[np.ndarray, np.ndarray]] = []
     while alive.size and len(history) < MAX_GENERATIONS:
         history.append((alive, active))
         sizes[alive] += active

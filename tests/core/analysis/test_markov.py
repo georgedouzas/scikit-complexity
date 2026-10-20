@@ -50,7 +50,8 @@ def _schlogl(rng: np.random.Generator, volume: float, duration: float) -> tuple[
 
 def _dwell_times(path: np.ndarray, low: float, high: float, dt: float) -> tuple[float, float]:
     """Return the mean times the path stays in each well, from entering its core at or below `low` or above `high`."""
-    side, entered, dwells = -1, 0, {0: [], 1: []}
+    dwells: dict[int, list[float]] = {0: [], 1: []}
+    side, entered = -1, 0
     for index, value in enumerate(path.tolist()):
         new = 0 if value <= low else 1 if value >= high else side
         if new != side:

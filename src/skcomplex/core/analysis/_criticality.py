@@ -6,13 +6,13 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-import mrestimator
 import numpy as np
 import numpy.typing as npt
 
 from ..base import AnalysisError
 from ..compile import RelaxationRecord
 from ._kinds import DataKind, analysis
+from ._lazy import module
 from ._statistics import PowerLawFit, fit_power_law
 
 type Array = npt.NDArray[np.float64]
@@ -260,7 +260,7 @@ def crackling_noise(
 
 @analysis(DataKind.SERIES)
 def branching_ratio(activity: npt.ArrayLike, max_step: int = 40, *, dt: float = 1.0) -> float:
-    """Return the branching ratio of an activity series by the multistep regression estimator of mrestimator.
+    """Return the branching ratio of an activity series by the multistep regression estimator of module('mrestimator').
 
     The estimator fits `r_k ∝ m^k` to the regression slopes `r_k` of the activity `k` steps apart, which stays
     unbiased when only a fraction of the units is observed.
@@ -292,8 +292,15 @@ def branching_ratio(activity: npt.ArrayLike, max_step: int = 40, *, dt: float = 
     """
     data = np.asarray(activity, dtype=float)
     data = data.reshape(1, -1) if data.ndim == 1 else data
-    coefficients = mrestimator.coefficients(data, method='ts', steps=(1, max_step), dt=dt, dtunit='step', numboot=0)
-    result = mrestimator.fit(coefficients, fitfunc=mrestimator.f_exponential_offset, numboot=0)
+    coefficients = module('mrestimator').coefficients(
+        data,
+        method='ts',
+        steps=(1, max_step),
+        dt=dt,
+        dtunit='step',
+        numboot=0,
+    )
+    result = module('mrestimator').fit(coefficients, fitfunc=module('mrestimator').f_exponential_offset, numboot=0)
     return float(result.mre)
 
 
