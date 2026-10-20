@@ -10,6 +10,7 @@ import numpy.typing as npt
 from scipy import ndimage
 
 from ..base import AnalysisError
+from ._kinds import DataKind, analysis
 from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
@@ -63,6 +64,7 @@ def _merge(labels: npt.NDArray[np.int64], axis: int) -> None:
     labels[...] = roots[labels]
 
 
+@analysis(DataKind.FIELD)
 def label_clusters(occupied: npt.ArrayLike, *, periodic: bool = False, diagonal: bool = False) -> Clusters:
     """Return the clusters of occupied cells of a grid, connected through shared faces or also corners.
 
@@ -98,6 +100,7 @@ def label_clusters(occupied: npt.ArrayLike, *, periodic: bool = False, diagonal:
     return Clusters(relabelled, np.bincount(relabelled.ravel())[1:])
 
 
+@analysis(DataKind.FIELD)
 def correlation_function(field: npt.ArrayLike, max_r: int | None = None) -> tuple[Array, Array]:
     """Return the radially averaged spatial correlation of a field on a periodic grid, computed with the FFT.
 
@@ -135,6 +138,7 @@ def correlation_function(field: npt.ArrayLike, max_r: int | None = None) -> tupl
     return np.arange(largest + 1, dtype=float), sums / counts
 
 
+@analysis(DataKind.FIELD)
 def box_counting_dimension(occupied: npt.ArrayLike, sizes: npt.ArrayLike | None = None) -> float:
     """Return the box-counting dimension of a set of cells, the slope of the log box count against the log box size.
 

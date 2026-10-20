@@ -59,8 +59,8 @@ constitution asks for the library in that case.
 
 ### New Capabilities
 
-- `analysis-adapters`: data kinds, trajectory adapters, the discovery of applicable analyses, signature analyses per
-  data kind, and the optional extra for Markov state models.
+- `analysis-adapters`: data kinds, trajectory adapters, the discovery of applicable analyses, and signature analyses per
+  data kind.
 - `complexity-measures`: entropies of distributions and series, multiscale and spectral entropies, the
   complexity-entropy plane, and information storage and transfer.
 - `dynamical-invariants`: delay embedding, fractal dimensions, Lyapunov exponents from data, Kolmogorov-Sinai entropy,
@@ -80,23 +80,22 @@ constitution asks for the library in that case.
 
 - `trajectory-analysis`: power-law fits with more alternatives, detrended fluctuation and Hurst estimates, unwrapped
   displacement, early-warning indicators, and ordinal patterns with a delay.
-- `model-library`: `network_structure_analysis` under `mathematics/networks`, which the inventory moves from out of
-  scope to pending this change.
+- `model-library`: `network_structure_analysis` under `mathematics/networks`, which the inventory marks implemented.
 
 ## Impact
 
-- `skcomplex.core.analysis` gains private modules `_adapters`, `_signatures`, `_complexity`, `_embedding`,
-  `_invariants`, `_recurrence`, `_passage`, `_markov`, `_irreversibility`, `_large_deviations`, `_aging`,
-  `_extremes`, `_fields`, `_scaling`, `_agents`, `_criticality`, and `_motifs`, re-exported from
-  `skcomplex.core.analysis`. `_networks` grows communities, mixing, and evolving networks.
-- `skcomplex.models.mathematics.networks` gains `network_structure_analysis`, and its inventory entry moves to
-  `pending extend-analysis-toolkit`.
-- New runtime dependencies, all permissive, with Linux and macOS wheels for Python 3.12 and 3.13: `antropy`, `ordpy`,
-  `nolds`, `powerlaw`, `ennemi`, `tidynamics`, and `mrestimator`. `powerlaw` and `mrestimator` bring `matplotlib`
-  into the default install.
-- New optional extra `markov` with `deeptime`, which is LGPL-3.0. Markov state model estimation raises
-  `MissingExtraError` without it, and every other analysis works without it.
-- `skcomplex.core.base` gains `MissingExtraError` if `add-constraint-based-models` has not added it first.
+- `skcomplex.core.analysis` gains private modules `_kinds`, `_adapters`, `_signatures`, `_complexity`, `_embedding`,
+  `_invariants`, `_recurrence`, `_passage`, `_transitions`, `_fluctuations`, `_markov`, `_irreversibility`,
+  `_large_deviations`, `_aging`, `_extremes`, `_fields`, `_percolation`, `_scaling`, `_agents`, `_segregation`,
+  `_criticality`, and `_motifs`, re-exported from `skcomplex.core.analysis`. `_networks` grows communities, mixing,
+  and evolving networks.
+- `skcomplex.models.mathematics.networks` gains `network_structure_analysis`, and its inventory entry is implemented.
+- New runtime dependencies with Linux and macOS wheels for Python 3.12 and 3.13: `antropy`, `ordpy`, `nolds`,
+  `powerlaw`, `ennemi`, `tidynamics`, `mrestimator`, `kramersmoyal`, and `deeptime`. `powerlaw` and `mrestimator`
+  bring `matplotlib` into the default install. `deeptime` is LGPL-3.0, and the core uses it, so by the Project Profile
+  rule on dependency placement it is a runtime dependency, not an optional extra.
+- `skcomplex.core.base` keeps its errors. `AnalysisError` now covers every analysis, and no extra is needed, so no
+  `MissingExtraError` is added.
 - The gallery of `add-model-gallery` draws each example's analysis figure from `signature_analysis` unless the example
   names a more specific analysis.
 - Relates to `add-stochastic-maps`, which leaves Markov model inference to a later analysis change, and to

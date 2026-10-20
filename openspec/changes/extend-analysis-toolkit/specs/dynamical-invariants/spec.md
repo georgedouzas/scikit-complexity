@@ -48,8 +48,8 @@ exponents, from a Lyapunov spectrum, and SHALL estimate the largest exponent fro
 - **THEN** the map gives 1.26 within 0.02 and the flow 2.06 within 0.03
 
 #### Scenario: Largest exponent from data
-- **WHEN** a user estimates the largest exponent from 10,000 iterates of the logistic map at r = 4 and from 20,000
-  samples of the Lorenz-63 `x`
+- **WHEN** a user estimates the largest exponent from 10,000 iterates of the logistic map at r = 4 and from 6000
+  samples of the Lorenz-63 `x` every 0.05, leaving the first 0.5 time units of divergence out of the fit
 - **THEN** the map gives ln 2 within 0.1 and the flow 0.906 within 0.15
 
 ### Requirement: Invariant densities are measured and coarse-grained
@@ -67,11 +67,12 @@ and SHALL compute recurrence rate, determinism, laminarity, mean and longest dia
 entropy of diagonal line lengths.
 
 #### Scenario: Order and noise
-- **WHEN** a user quantifies 2000 samples of a sine, of the Lorenz-63 `x` embedded in 3 dimensions, and of white noise,
-  at a recurrence rate of 5 percent
+- **WHEN** a user quantifies 2000 samples of a sine embedded in 2 dimensions, of the Lorenz-63 `x` embedded in 3
+  dimensions, and of white noise, at a recurrence rate of 5 percent
 - **THEN** the sine has determinism above 0.95, the noise below 0.3, and the Lorenz series lies between them
 
 #### Scenario: Intermittency on two domains
 - **WHEN** a user quantifies the logistic map just below the period-3 window at r = 3.8282 and the Lorenz-63 model
-  just below its intermittency threshold at ρ = 166.06
+  just above its intermittency threshold at ρ = 166.2, each sampled once per laminar orbit, every third iterate of the
+  map and every second maximum of `z` of the flow
 - **THEN** each has a laminarity higher than the same model at r = 4 and at ρ = 28

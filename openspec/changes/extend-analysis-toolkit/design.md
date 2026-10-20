@@ -73,7 +73,7 @@ holds one function per kind:
 - `ensemble_of(result, name)` returns an `Ensemble` of runs by times on common times, with the design rows and seeds.
 
 Each analysis function takes the plain arrays. It also carries an `analysis` registration, a decorator that records
-its data kind, its adapter, and its extra in one module-level table. `analyses_for(obj)` reads the problem's partition
+its data kind and, through the kind, its adapter in one registry. `analyses_for(obj)` reads the problem's partition
 forms, lattice groups, agent groups, networks, and observables, or the shape of an array, and returns the matching
 table rows. The decorator keeps the fact of a function's data kind in one place, next to the function.
 
@@ -120,7 +120,8 @@ PyPI metadata and GitHub were checked on 2026-10-19. "Wheels" means wheels for L
 - **mrestimator** (0.2.0, 2025-06, BSD-3, wheels: pure). Used for multistep regression branching ratio. Core, new.
 - **kramersmoyal** (0.4.1, 2023-08, MIT, wheels: pure). Used for kernel Kramers-Moyal coefficients. Core, new.
 - **deeptime** (0.4.5, 2025-04, LGPL-3.0, wheels: yes). Used for markov state models, implied timescales, PCCA+,
-  committors, mean first passage. Extra `markov`.
+  committors, mean first passage. Core, new. The Project Profile makes every library the core uses a runtime
+  dependency whatever its licence.
 - **EntropyHub** (2.0, 2024-04, Apache-2.0, wheels: pure). Used for multiscale entropy. Rejected because it has no
   release since 2024-04, pulls `requests`, `EMD-signal`, Matplotlib. Coarse-graining with antropy gives the same
   estimator.
@@ -235,23 +236,44 @@ These measures are built in house on NumPy and SciPy. Each one records why no li
 Every replaced function keeps its public name, parameters, and result type. Its tests now compare it with the old
 in-house values on fixed seeds within 1e-8, or within the stated tolerance where the library's estimator differs.
 
-### Optional extra and errors
+### Dependencies and errors
 
-`pyproject.toml` declares `markov = ["deeptime>=0.4.5"]`. `_markov` imports `deeptime` inside its functions, the one
-lazy import the constitution allows, with a suppression that names the extra. A failed import raises
-`MissingExtraError`. This change adds it to `skcomplex.core.base` as a `BackendError` if `add-constraint-based-models`
-has not added it first. Transition-matrix analysis of a given matrix needs no extra and uses SciPy.
+Every library this change uses is a runtime dependency, `deeptime` included, because the Project Profile places every
+library of `skcomplex.core` in the default install whatever its licence. `_markov` imports `deeptime` at the top of the
+module like any other dependency, so no extra and no `MissingExtraError` are needed. Transition-matrix analysis of a
+given matrix uses SciPy.
 
 Analysis errors raise `AnalysisError`. Its docstring changes from "a symbolic analysis" to "an analysis", because
 every family now raises it.
 
 ### Module layout
 
-The new modules are `_adapters`, `_signatures`, `_complexity`, `_embedding`, `_invariants`, `_recurrence`, `_passage`,
-`_markov`, `_irreversibility`, `_large_deviations`, `_aging`, `_extremes`, `_fields`, `_scaling`, `_agents`,
-`_criticality`, and `_motifs`. Each holds one concern, and all re-export from `skcomplex.core.analysis`. The model
-`network_structure_analysis` lives in `skcomplex.models.mathematics.networks`, reports through model reporters, and
-uses only the public analysis surface.
+The new modules are `_kinds`, `_adapters`, `_signatures`, `_complexity`, `_embedding`, `_invariants`, `_recurrence`,
+`_passage`, `_transitions`, `_fluctuations`, `_markov`, `_irreversibility`, `_large_deviations`, `_aging`,
+`_extremes`, `_fields`, `_percolation`, `_scaling`, `_agents`, `_segregation`, `_criticality`, and `_motifs`. Each
+holds one concern, and all re-export from `skcomplex.core.analysis`. `_kinds` holds `DataKind`, the registry
+`ANALYSES` built on `skcomplex.core.base.Registry`, and the `analysis` decorator, so every analysis module registers
+its functions without importing the adapters. `_transitions` holds the matrix analyses of stationary laws, gaps, and
+detailed balance that `_invariants`, `_irreversibility`, and `_markov` share, `_fluctuations` the counting statistics
+and Kramers-Moyal coefficients, `_percolation` the clusters and percolation observables, and `_segregation` the
+segregation indices. The model `network_structure_analysis` lives in `skcomplex.models.mathematics.networks`, reports
+through observables, and uses only the public analysis surface.
+
+### Decisions made while implementing
+
+- **Networks of a trajectory:** `add-adaptive-networks` has not landed, so `networks_of` reads graphs recorded as
+  observables, or the network space of the agents or of a field, which serves every frame.
+- **Correlation length:** the second-moment estimate fits the Ornstein-Zernike form `1 / S(q) ∝ 1 + xi² q̂²` over the
+  modes with `q̂² xi² <= 1`, narrowing the window in a few iterations. Several frames are taken about their common mean,
+  so `S(0)` enters the fit. A ratio of `S(0)` and `S(k_1)` alone is too noisy when `xi` is far below the side.
+- **Ties of ordinal patterns:** spins and other discrete states have many equal values, so `permutation_entropy` and
+  `complexity_entropy` take `ties='random'` to rank equal values at random through `break_ties`.
+- **Rosenstein's estimate:** `largest_lyapunov_exponent` takes `skip`, the first steps of the divergence left out of
+  the fit while neighbours align with the unstable direction, which `nolds` calls `fit_offset`.
+- **Stable fits:** `fit_stable` returns McCulloch's quantile estimate, SciPy's starting point of `levy_stable.fit`,
+  because the maximum-likelihood fit of SciPy takes minutes for a few hundred samples.
+- **Power-law cutoffs:** `fit_power_law` scans at most `candidates` lower cutoffs with `powerlaw.Fit` at a fixed cutoff
+  and keeps the smallest Kolmogorov-Smirnov distance, because `powerlaw` scans every distinct value.
 
 ## Risks / Trade-offs
 
@@ -270,4 +292,4 @@ uses only the public analysis surface.
 ## Migration Plan
 
 No public name is removed. Replaced estimators keep their signatures, and new keyword arguments have defaults that
-reproduce the old behaviour. Rolling back means reverting the change and dropping the new dependencies and the extra.
+reproduce the old behaviour. Rolling back means reverting the change and dropping the new dependencies.

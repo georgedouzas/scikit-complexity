@@ -1696,9 +1696,12 @@ section = stroboscopic(duffing(), 2 * math.pi / 1.2, n_points=200)
 print(len(np.unique(np.round(section.states, 4), axis=0)))
 ```
 
-**Distributions and events.** `histogram` with logarithmic bins, `ccdf`, `fit_power_law` with Clauset, Shalizi, and
-Newman's cutoff, bootstrap p-value, and likelihood-ratio comparisons, `hill`, and `gini` describe heavy tails, and
-`detect_events` turns series into avalanches or bursts with sizes, durations, and waiting times.
+**Distributions and events.** `histogram` with logarithmic bins, `ccdf`, `fit_power_law`, `hill`, and `gini` describe
+heavy tails, and `detect_events` turns series into avalanches or bursts with sizes, durations, and waiting times.
+`fit_power_law` adapts the `powerlaw` library: it chooses the lower cutoff by Clauset, Shalizi, and Newman's
+Kolmogorov-Smirnov criterion, accepts an upper cutoff, uses the exact discrete likelihood for integers, gives a
+bootstrap p-value, and compares the power law with exponential, log-normal, stretched exponential, and truncated
+power-law tails.
 
 ```python
 from skcomplex.core.analysis import detect_events, fit_power_law, gini
@@ -1709,11 +1712,16 @@ print(round(fit.alpha, 2), fit.p_value, round(gini(samples), 2))
 print(detect_events([0, 2, 3, 0, 0, 1, 0]).sizes)
 ```
 
-**Time series and information.** `autocorrelation`, `power_spectrum`, `mean_squared_displacement`, `hurst_exponent` by
-detrended fluctuation analysis, and `early_warning` for critical slowing down describe memory and diffusion.
-`symbolize`, `shannon_entropy`, `block_entropy`, `entropy_rate`, `excess_entropy`, `mutual_information`,
+**Time series and information.** `autocorrelation`, `autocorrelation_time`, `power_spectrum`,
+`mean_squared_displacement`, `detrended_fluctuation`, `hurst_exponent`, and `early_warning` describe memory and
+diffusion. The mean squared displacement comes from `tidynamics` over all lags of unwrapped positions, with its exponent
+and diffusion coefficient fitted over a chosen range of lags. The fluctuation analyses come from `nolds`: detrended
+fluctuation of any order, which gives `H + 1` for an integrated series such as a random walk, or the rescaled range.
+The early warnings add rolling skewness and spectral reddening to variance and lag-1 autocorrelation. `symbolize`,
+`ordinal_patterns`, `shannon_entropy`, `block_entropy`, `entropy_rate`, `excess_entropy`, `mutual_information`,
 `transfer_entropy`, `permutation_entropy`, and `lempel_ziv_complexity` measure structure and information flow, as in
-Lindgren's information theory of complex systems.
+Lindgren's information theory of complex systems. Ordinal patterns are coded by the lexicographic rank of their
+permutation with `ordpy`, with a delay and of any length, and the Lempel-Ziv parsing comes from `antropy`.
 
 ```python
 from skcomplex.core.analysis import entropy_rate, excess_entropy, hurst_exponent, transfer_entropy
@@ -1739,4 +1747,200 @@ print(clusters.spans(0), clusters.sizes.max())
 rows, columns = np.indices((512, 512))
 print(round(box_counting_dimension((rows & columns) == columns), 2))
 print(summarize_network(nx.watts_strogatz_graph(200, 6, 0.1, seed=0)).diameter)
+```
+
+### Kinds of data and signatures
+
+Every analysis consumes one kind of data, never a model or a field of science: a series, a jump path, a field, agent
+snapshots, a network, or an ensemble of runs. The same `structure_factor` serves an Ising lattice and a reaction-diffusion
+field, and the same `avalanches` serves a sandpile and an earthquake model. Every analysis takes plain arrays or graphs,
+so it works on measured data as well.
+
+The adapters `series_of`, `path_of`, `fields_of`, `snapshots_of`, `networks_of`, and `ensemble_of` extract each kind from
+a trajectory or an experiment result. `snapshots_of` unwraps positions across periodic sides, so displacements never
+jump across the box, and `path_of` keeps only the frames where a discrete state changed. `data_kinds` names the kinds an
+object holds, and `analyses_for` lists the registered analyses that apply to a trajectory, a system, an experiment
+result, or an array, with the adapter that feeds each and how it reads the object. The `analysis` decorator registers a
+new analysis under its kind.
+
+```python
+from skcomplex.core.analysis import analyses_for, data_kinds, fields_of, series_of, structure_factor
+from skcomplex.models import run
+
+spins = run('ising', size=32, settings={'until': 20}).trajectory_
+print([kind.value for kind in data_kinds(spins)])
+print(structure_factor(fields_of(spins)[-1]).wavenumbers[:3].round(3))
+predation = run('lotka_volterra', settings={'until': 20.0}).trajectory_
+print(series_of(predation).labels)
+print(sorted({item.name for item in analyses_for(np.zeros((16, 16)))})[:4])
+```
+
+`signature_analysis` computes one default analysis per kind of data, with its curves, axis labels, title, and measured
+values: the power spectrum and the autocorrelation time of series, or the return map of a map, the waiting times and
+the Fano factor of jump paths, the structure factor of the last frame of fields with its correlation length or peak
+wavelength, the polar and milling orders of moving agents or their nearest-neighbour distances, the degree distribution
+of networks, and the mean with a 90 percent band of ensembles. The gallery draws it for every example that names no
+analysis of its own.
+
+```python
+from skcomplex.core.analysis import signature_analysis
+
+for signature in signature_analysis(predation):
+    print(signature.kind.value, signature.title, signature.xscale, list(signature.values))
+```
+
+### Complexity and information
+
+`renyi_entropy` and `tsallis_entropy` generalize the Shannon entropy of a distribution, and `ensemble_entropy` follows
+the entropy of an ensemble and its divergence from a reference law frame by frame, as in the H-theorem.
+`sample_entropy`, `approximate_entropy`, `multiscale_entropy`, and `spectral_entropy` come from `antropy` and measure the
+regularity of a series. `permutation_entropy` reads ordinal patterns of series with a delay, or of two-dimensional
+fields in a window, in its Shannon, Rényi, or Tsallis form, and `complexity_entropy` places data on Rosso's
+complexity-entropy plane between its bounding curves with `ordpy`. Discrete states such as spins have many equal values,
+which `break_ties` ranks at random. `active_information_storage` measures the information the past of a series holds
+about its next value, and `transfer_entropy` estimates the flow between series by plug-in counts of symbols or by the
+nearest-neighbour estimator of `ennemi` on continuous values.
+
+```python
+import math
+
+from skcomplex.core.analysis import complexity_entropy, renyi_entropy, sample_entropy, transfer_entropy
+
+rng = np.random.default_rng(0)
+print(round(renyi_entropy(np.full(8, 1 / 8), 2, probabilities=True), 3))
+print(round(sample_entropy(rng.standard_normal(2000)), 1))
+plane = complexity_entropy(rng.standard_normal(20_000), 4)
+print(round(plane.entropy, 2), round(plane.complexity, 2))
+x = rng.standard_normal(5000)
+y = np.concatenate([[0.0], 0.8 * x[:-1]]) + 0.6 * rng.standard_normal(5000)
+print(transfer_entropy(x, y, estimator='knn', base=math.e) > transfer_entropy(y, x, estimator='knn', base=math.e))
+```
+
+### Invariants of dynamics
+
+`embed` builds delay coordinates of a series, with the delay at the first minimum of `auto_mutual_information` and the
+dimension where `false_nearest_neighbors` fall below a threshold. `correlation_dimension` counts close pairs of any point
+set with a k-d tree, so it serves embedded series and agent positions alike. `kaplan_yorke_dimension` and
+`kolmogorov_sinai_entropy` follow from a Lyapunov spectrum, `largest_lyapunov_exponent` estimates the largest exponent
+from one series with Rosenstein's method of `nolds`, and `invariant_density` and `ulam_chain` estimate the invariant
+density of a map. `recurrence_matrix` and `recurrence_quantification` give the recurrence rate, determinism,
+laminarity, line lengths, trapping time, and line entropy of embedded series.
+
+```python
+from skcomplex.core.analysis import (
+    correlation_dimension,
+    delay_embedding,
+    kaplan_yorke_dimension,
+    recurrence_quantification,
+    ulam_chain,
+)
+
+points = np.random.default_rng(1).random((3000, 2))
+print(round(correlation_dimension(points).dimension, 1))
+print(round(kaplan_yorke_dimension([0.906, 0.0, -14.572]), 2))
+chain = ulam_chain(lambda x: 4 * x * (1 - x), np.linspace(0, 1, 21), 200)
+print(chain.density.round(1)[:3])
+sine = delay_embedding(np.sin(np.arange(1000) * 0.1), 2, 15)
+print(round(recurrence_quantification(sine).determinism, 2))
+```
+
+### Stochastic processes
+
+`first_passage_times`, `hitting_probabilities`, `return_times`, and `laminar_durations` measure passages and returns of
+paths. `transition_matrix`, `stationary_distribution`, `spectral_gap`, `relaxation_times`, and `detailed_balance` read
+transition and rate matrices or estimate them from paths. `fano_factor`, `event_counts`, `relative_fluctuations`, and
+`kramers_moyal` describe fluctuations, the last with `kramersmoyal`. `entropy_production`, `jump_entropy_production`,
+`langevin_entropy_production`, `count_entropy_production`, and `fluctuation_theorem` measure irreversibility.
+`tilted_generating_function`, `block_generating_function`, `legendre_transform`, `histogram_rate_function`, and
+`reweight` give large deviations. `markov_state_model`, `implied_timescales`, `committor`, and
+`mean_first_passage_time` estimate Markov state models with `deeptime`. `two_time_correlation`, `aging_collapse`,
+`collapse_distributions`, `response`, and `fluctuation_dissipation_ratio` measure aging, and `fit_extreme_values`,
+`record_counts`, `fit_stable`, and `compare_with_law` describe extremes and limit laws.
+
+```python
+from skcomplex.core.analysis import (
+    entropy_production,
+    legendre_transform,
+    spectral_gap,
+    stationary_distribution,
+    tilted_generating_function,
+)
+
+ring = 2 * np.roll(np.eye(5), 1, axis=1) + np.roll(np.eye(5), -1, axis=1)
+print(stationary_distribution(ring, rates=True).round(2), round(entropy_production(ring), 4))
+print(round(spectral_gap([[0.9, 0.1], [0.2, 0.8]]), 2))
+tilts = np.linspace(-3, 3, 601)
+print(round(float(legendre_transform(tilts, tilted_generating_function([[2.0]], [[1.0]], tilts), 3.0)[0]), 3))
+```
+
+### Fields and lattices
+
+`structure_factor` averages the power of a field radially on a periodic grid of any dimension, and `correlation_length`
+fits its Ornstein-Zernike form or the decay of the correlation function. `domain_size` and `domain_growth` measure
+coarsening, `pattern_wavelength` the wavelength and orientation of patterns, and `number_fluctuations` the giant number
+fluctuations of density fields. `cluster_sizes`, `percolation`, and `spanning_probability` describe clusters of grids
+and components of graphs, and `binder_cumulant`, `binder_crossings`, and `scaling_collapse` locate transitions by
+finite-size scaling.
+
+```python
+from skcomplex.core.analysis import binder_cumulant, pattern_wavelength, percolation
+
+stripes = np.cos(2 * np.pi * np.arange(64) / 8)[:, None] * np.ones(64)
+print(pattern_wavelength(stripes).wavelength)
+print(percolation(np.random.default_rng(2).random((128, 128)) < 0.7).spanning)
+print(round(binder_cumulant(np.random.default_rng(3).standard_normal(10_000)), 1))
+```
+
+### Agents
+
+`polar_order`, `nematic_order`, `milling_order`, and `phase_order` measure collective order. `kinetic_temperature` and
+`maxwell_boltzmann_test` compare velocities with the Maxwell-Boltzmann law of their dimension.
+`nearest_neighbor_distances`, `clark_evans_ratio`, and `radial_distribution` describe point patterns in open or periodic
+boxes, and `coarse_grain` turns agents into density or polarization fields for the field analyses.
+`like_neighbor_share`, `interface_density`, and `dissimilarity_index` measure segregation on grids and networks.
+
+```python
+from skcomplex.core.analysis import clark_evans_ratio, coarse_grain, polar_order, snapshots_of
+
+flock = snapshots_of(run('boids', settings={'until': 5}).trajectory_)
+print(polar_order(flock.velocities, vectors=True).shape)
+positions = np.random.default_rng(4).random((1000, 2))
+print(round(clark_evans_ratio(positions, [1.0, 1.0]), 1), coarse_grain(positions, [1.0, 1.0], [8, 8]).sum())
+```
+
+### Criticality
+
+`avalanches` extracts avalanches from activity series or relaxation records, `fit_avalanches` fits their size and
+duration laws, and `crackling_noise` checks the scaling relation between the exponents and collapses mean shapes.
+`branching_ratio` estimates the branching ratio by the multistep regression of `mrestimator`, which stays unbiased under
+subsampling. `order_parameter_sweep` gives the order parameter, the susceptibility, and the Binder cumulant over a
+sweep with the peak of the susceptibility, `fit_order_exponent` fits the order-parameter exponent, and
+`replica_overlap` compares replicas.
+
+```python
+from skcomplex.core.analysis import avalanches, branching_ratio
+
+found = avalanches([0, 1, 3, 2, 0, 0, 4, 1, 0])
+print(found.sizes, found.durations)
+rng = np.random.default_rng(5)
+activity = np.zeros(5000)
+activity[0] = 50
+for t in range(1, activity.size):
+    activity[t] = rng.poisson(0.8 * activity[t - 1] + 10)
+print(round(branching_ratio(activity), 1))
+```
+
+### Networks
+
+`degree_moments`, `assortativity`, `neighbor_degree`, and `communities` measure degrees, mixing, and communities, the
+last by Louvain modularity maximization or label propagation with its agreement with a reference partition.
+`motif_counts` and `motif_zscores` count motifs of three and four nodes and score them against degree-preserving edge
+switches or the configuration model, and `network_frames` measures every frame of an evolving network. The library
+model `network_structure_analysis` records a network with these measures.
+
+```python
+from skcomplex.core.analysis import communities, motif_counts
+
+club = nx.karate_club_graph()
+print(round(communities(club, random_state=0).modularity, 2), motif_counts(club)['triangle'])
 ```

@@ -26,17 +26,17 @@ paths of discrete states with their jump times, the frames of a lattice or a fie
 of a group with positions, velocities, and states, and the network of every frame, each as plain arrays or graphs.
 
 #### Scenario: Series of an ODE
-- **WHEN** a user extracts the series of `prey.n` and `predator.n` from a Lotka-Volterra trajectory
+- **WHEN** a user extracts the series of `prey.n` and `predators.n` from a Lotka-Volterra trajectory
 - **THEN** the result holds the times and a two-column array equal to `trajectory['prey.n']` and
-  `trajectory['predator.n']`
+  `trajectory['predators.n']`
 
 #### Scenario: Jump path of a Gillespie run
 - **WHEN** a user extracts the jump path of a birth-death trajectory simulated with Gillespie's algorithm
 - **THEN** the result holds the jump times and the state after each jump, with no repeated state between jumps
 
 #### Scenario: Frames of a lattice
-- **WHEN** a user extracts the frames of `spins.s` from a 64 × 64 Ising trajectory of 100 frames
-- **THEN** the result has shape `(100, 64, 64)` and equals `trajectory.lattice('spins.s')`
+- **WHEN** a user extracts the frames of `spins.spin` from a 64 × 64 Ising trajectory of 100 frames
+- **THEN** the result has shape `(100, 64, 64)` and equals `trajectory.lattice('spins.spin')`
 
 #### Scenario: Unwrapped agent positions
 - **WHEN** a user extracts the positions of random walkers in a periodic continuous space of side 10
@@ -56,7 +56,7 @@ times, with the design row of every run, so ensemble analyses read replicates an
 
 ### Requirement: Applicable analyses are discovered
 The analysis layer SHALL list the analyses that apply to a trajectory, a system, an experiment result, or an array,
-each with its data kind, the adapter that feeds it, and whether it needs an optional extra.
+each with its data kind, the adapter that feeds it, and how it reads the object.
 
 #### Scenario: Lattice model
 - **WHEN** a user lists the analyses for an Ising system
@@ -94,14 +94,10 @@ without choosing an analysis.
 - **THEN** the figure shows the signature analysis of its own run, with the labelled axes and the title the signature
   carries
 
-### Requirement: Copyleft analyses need an optional extra
-Analyses backed by a copyleft library SHALL work only when their optional extra is installed, SHALL raise a named error
-that names the extra and how to install it otherwise, and every other analysis SHALL work in the default install.
-
-#### Scenario: Markov state model without the extra
-- **WHEN** a user estimates a Markov state model in an environment without the `markov` extra
-- **THEN** a named error says that the `markov` extra is needed and gives the install command
+### Requirement: Every analysis works in the default install
+Every analysis SHALL work in the default install, those backed by a copyleft library such as `deeptime` included,
+because every library the core uses is a runtime dependency.
 
 #### Scenario: Default install
 - **WHEN** a user lists the analyses of a jump path in the default install
-- **THEN** the Markov state model is listed as needing the `markov` extra, and every other listed analysis runs
+- **THEN** the Markov state model is listed under the path kind and estimates a model from the path

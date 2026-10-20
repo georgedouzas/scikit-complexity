@@ -49,7 +49,7 @@ class SimulationError(SkcomplexError):
 
 
 class AnalysisError(SkcomplexError):
-    """A symbolic analysis cannot be applied to the system."""
+    """An analysis cannot be applied to the system or the data."""
 
 
 class RewritingError(SkcomplexError):

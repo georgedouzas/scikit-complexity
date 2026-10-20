@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
+from ._kinds import DataKind, analysis
 from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
@@ -41,6 +42,7 @@ class Events:
     waiting_times: Array
 
 
+@analysis(DataKind.SERIES)
 def detect_events(values: npt.ArrayLike, threshold: float = 0.0, times: npt.ArrayLike | None = None) -> Events:
     """Return the events of a series, every maximal run of consecutive values above a threshold.
 

@@ -42,6 +42,15 @@ dependencies = [
     "SALib>=1.5",
     "scikit-fem>=10.0",
     "shapely>=2.1",
+    "antropy>=0.2.3",
+    "ordpy>=1.2.3",
+    "nolds>=0.6.3",
+    "powerlaw>=2.0.0",
+    "ennemi>=1.6.0",
+    "tidynamics>=1.1.2",
+    "mrestimator>=0.2.0",
+    "kramersmoyal>=0.4.1",
+    "deeptime>=0.4.5",
 ]
 
 [project.urls]

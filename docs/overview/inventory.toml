@@ -625,7 +625,7 @@ barabasi_albert = { title = "Barabási-Albert growth", sources = ["Ar 12.5", "Gr
 holme_kim = { title = "Holme-Kim growth", sources = ["Ar 12.5", "Gr 1.5", "TC 4", "Th 4.5.4"], status = "pending add-adaptive-networks" }
 vertex_copying = { title = "Vertex-copying network growth", sources = ["Rm 3.2.4.1"], status = "pending add-adaptive-networks" }
 network_attack = { title = "Random failures and targeted attacks on networks", sources = ["Rm 3.5.2"], status = "pending add-adaptive-networks" }
-network_structure_analysis = { title = "Centralities, assortativity, communities, and motifs", sources = ["Rm 3.1", "Rm 3.3", "Rm 3.4", "Bt 6.1.1", "Bt 6.1.2"], status = "pending extend-analysis-toolkit" }
+network_structure_analysis = { title = "Centralities, assortativity, communities, and motifs", sources = ["Rm 3.1", "Rm 3.3", "Rm 3.4", "Bt 6.1.1", "Bt 6.1.2"], status = "implemented" }
 random_graph_ensembles = { title = "Erdos-Renyi and Watts-Strogatz graphs", sources = ["Bt 6.1.1", "Bt 6.1.2"], status = "pending add-adaptive-networks" }
 
 [mathematics.fractals]

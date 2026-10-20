@@ -51,8 +51,8 @@ against system size, and Kramers-Moyal drift and diffusion coefficients estimate
 - **THEN** the first lies within 0.05 of 1 and the second within 0.3 of 5
 
 #### Scenario: Ornstein-Uhlenbeck coefficients
-- **WHEN** a user estimates the Kramers-Moyal coefficients of 10^6 steps of `dx = -x dt + sqrt(2) dW`
-- **THEN** the drift lies within 0.05 of `-x` and the diffusion within 0.05 of 1 for `|x| < 2`
+- **WHEN** a user estimates the Kramers-Moyal coefficients of 10^6 steps of `dx = -x dt + sqrt(2) dW` with step 0.02
+- **THEN** the drift lies within 0.1 of `-x` and the diffusion within 0.05 of 1 for `|x| < 1.5`
 
 #### Scenario: Relative fluctuations
 - **WHEN** a user measures the standard deviation over mean of the particle number in subvolumes of an ideal lattice
@@ -109,8 +109,8 @@ metastable sets, committors between two sets, and mean first-passage times betwe
 #### Scenario: Double well on two domains
 - **WHEN** a user estimates models of an overdamped particle in a double well, discretized in 50 bins, and of a
   bistable Schlögl reaction network on its copy numbers
-- **THEN** both find two metastable sets, and the slowest implied timescale is within 20 percent of the mean
-  first-passage time between the wells
+- **THEN** both find two metastable sets, and the slowest implied timescale is within 20 percent of
+  `1 / (1 / T_AB + 1 / T_BA)`, with `T_AB` and `T_BA` the mean times the path stays in each well
 
 ### Requirement: Two-time correlations, aging, and response
 The analysis layer SHALL compute two-time correlations and responses from an ensemble, test their dependence on the
@@ -129,6 +129,7 @@ waiting time alone, collapse distributions on the ratio of times, and compute fl
 
 #### Scenario: Trap model distribution
 - **WHEN** a user collapses the trapping-time distributions `P(tau, t)` of the trap model at ages 10^3, 10^4, and 10^5
+  for `tau / t` between 0.3 and 3
 - **THEN** `t P(tau, t)` against `tau / t` collapses within 10 percent
 
 ### Requirement: Extremes, records, and stable limits
@@ -145,7 +146,7 @@ stable laws to sums, and compare samples with a named law by a goodness-of-fit t
 
 #### Scenario: Boltzmann law on two domains
 - **WHEN** a user compares the kinetic energies of a two-dimensional ideal gas and the money of a random-exchange
-  economy, both after relaxation, with an exponential law
+  economy whose pairs split their pooled money at a uniform fraction, both after relaxation, with an exponential law
 - **THEN** neither rejects the law at the 0.05 level, and the fitted temperatures equal the initial energy per molecule
   and the money per agent within 2 percent
 

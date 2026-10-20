@@ -229,7 +229,10 @@ to fill in as the project takes shape.
   for networks, which Mesa 3.5 imports without declaring it, `rerun-sdk` for visualization, `SALib` for sensitivity
   analysis, `scikit-fem` for finite-element assembly on unstructured meshes, `shapely` for the geometry of rewriting
   systems, and `scikit-learn` for the
-  estimator contract. Rerun is a core dependency,
+  estimator contract. The analysis layer adds `antropy` for regularity entropies and Lempel-Ziv complexity, `ordpy`
+  for ordinal patterns, `nolds` for fluctuation analyses and Rosenstein's exponent, `powerlaw` for power-law fits,
+  `ennemi` for nearest-neighbour transfer entropy, `tidynamics` for displacements, `mrestimator` for branching
+  ratios, `kramersmoyal` for Kramers-Moyal coefficients, and `deeptime` for Markov state models. Rerun is a core dependency,
   and spawning a local viewer happens only on request, so it is not a real-world side effect.
 - Dependency placement: a library that `skcomplex.core` uses MUST be a runtime dependency, whatever its licence,
   including copyleft licences such as that of `passagemath-symbolics`. An optional extra MUST hold only libraries that a

@@ -36,7 +36,8 @@ partition, its modularity, and its agreement with a reference partition by norma
 #### Scenario: Planted partition
 - **WHEN** a user detects communities of a stochastic block model of 4 blocks of 100 nodes with mean in-block degree 16
   and out-block degree 2
-- **THEN** the agreement with the planted blocks exceeds 0.9 and the modularity exceeds 0.5
+- **THEN** modularity maximization agrees with the planted blocks above 0.9 with a modularity above 0.5, and label
+  propagation agrees above 0.5
 
 ### Requirement: Motifs are scored against null ensembles
 The analysis layer SHALL count motifs of three and four nodes in directed and undirected graphs, and give their

@@ -22,7 +22,7 @@ ensemble with the Kullback-Leibler divergence to a reference law.
 - **THEN** each equals the Shannon entropy of the same probabilities in nats within 1e-6
 
 #### Scenario: H-theorem of a relaxing ensemble
-- **WHEN** a user computes the divergence to the stationary law of the ensemble histogram of an Ehrenfest urn and of a
+- **WHEN** a user computes the divergence to the stationary law of the ensemble histogram of a lazy Ehrenfest urn and of a
   birth-death chain started away from stationarity
 - **THEN** the divergence never increases between frames by more than its sampling error, and ends below 0.01 bits
 
@@ -44,7 +44,7 @@ embedding dimension, the tolerance as a fraction of the standard deviation, and 
   value at scale 1
 
 #### Scenario: Spectral entropy
-- **WHEN** a user computes the normalized spectral entropy of a pure sine and of white noise
+- **WHEN** a user computes the normalized spectral entropy of a pure sine of a whole number of periods and of white noise
 - **THEN** the sine gives less than 0.1 and the noise more than 0.9
 
 ### Requirement: Ordinal patterns span series and fields
@@ -60,7 +60,7 @@ data on the complexity-entropy plane with its bounding curves.
 
 #### Scenario: Fields of two domains
 - **WHEN** a user computes the two-dimensional permutation entropy of an Ising lattice at temperature 10 and of the
-  Gray-Scott spot pattern
+  Gray-Scott spot pattern, ranking equal values at random
 - **THEN** the hot lattice gives above 0.98 and the spot pattern a value lower than the hot lattice by at least 0.1
 
 ### Requirement: Information storage and transfer
@@ -78,6 +78,6 @@ symbols by plug-in counts and from continuous values by nearest-neighbour estima
   below 0.01 nats
 
 #### Scenario: Directed coupling of two domains
-- **WHEN** a user computes transfer entropies of two logistic maps coupled one way, symbolized, and of two Rössler
-  oscillators coupled one way, continuous
+- **WHEN** a user computes transfer entropies of two logistic maps coupled one way, symbolized, and of a Rössler
+  oscillator driving a detuned one, continuous with a target history of 2
 - **THEN** in both the transfer from the driver exceeds the reverse transfer by a factor of at least 5

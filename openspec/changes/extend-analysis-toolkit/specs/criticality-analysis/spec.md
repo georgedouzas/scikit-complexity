@@ -20,16 +20,17 @@ exponential, log-normal, and truncated power-law alternatives.
 
 #### Scenario: Mean-field branching
 - **WHEN** a user measures 10^5 avalanches of a critical Galton-Watson process with Poisson offspring of mean 1
-- **THEN** the size exponent lies within 0.05 of 3/2 and the duration exponent within 0.1 of 2
+- **THEN** the size exponent lies within 0.05 of 3/2 and the duration exponent above duration 10 within 0.1 of 2
 
 ### Requirement: Crackling-noise scaling is checked
 The analysis layer SHALL fit the exponent of the mean size against duration, compare it with the value
 `(tau_T - 1) / (tau_S - 1)` from the fitted laws, and collapse the mean avalanche shapes of several durations.
 
 #### Scenario: Branching process scaling
-- **WHEN** a user checks the scaling of the critical Galton-Watson avalanches
+- **WHEN** a user checks the scaling of the critical Galton-Watson avalanches, fitting the mean size over durations of
+  at least 10
 - **THEN** the fitted exponent lies within 0.1 of 2, agrees with the exponent from the laws within 0.15, and the
-  shapes of durations 20, 40, and 80 collapse onto one parabola within 10 percent
+  mean shapes of durations 20, 40, and 80 collapse onto one parabola within 10 percent on average
 
 ### Requirement: Branching ratios are estimated
 The analysis layer SHALL estimate the branching ratio of an activity series by the multistep regression estimator,

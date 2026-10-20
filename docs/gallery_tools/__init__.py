@@ -39,6 +39,7 @@ from ._runner import RunReport, run_example, run_examples, summarize
 from ._scraper import EMBED_CLASS, RerunScraper, images_markdown
 from ._screenshots import finished_observers, thumbnail_of
 from ._settings import BACKENDS, DEFAULT_BACKEND, Budget, CaptureSettings
+from ._signatures import plot_signature, plot_signatures
 
 __all__: list[str] = [
     'BACKENDS',
@@ -76,6 +77,8 @@ __all__: list[str] = [
     'is_placeholder',
     'library_models',
     'model_sources',
+    'plot_signature',
+    'plot_signatures',
     'run_example',
     'run_examples',
     'scaffold_example',

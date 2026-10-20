@@ -21,7 +21,7 @@ and velocities about their centre, and the complex order parameter of phases, fo
 - **THEN** both moduli exceed 0.6, and each equals the polarization of unit vectors at those angles within 1e-12
 
 #### Scenario: Milling
-- **WHEN** a user computes the milling and polar orders of a D'Orsogna swarm in its mill state
+- **WHEN** a user computes the milling and polar orders of a D'Orsogna swarm started turning one way, in its mill state
 - **THEN** the milling order exceeds 0.8 and the polar order lies below 0.2
 
 ### Requirement: Velocity and energy laws of agents

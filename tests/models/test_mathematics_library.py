@@ -25,7 +25,12 @@ from skcomplex.models.mathematics.dynamical_systems import (
     towel_map,
 )
 from skcomplex.models.mathematics.fractals import julia, mandelbrot
-from skcomplex.models.mathematics.networks import network_diffusion, network_random_walk, pagerank
+from skcomplex.models.mathematics.networks import (
+    network_diffusion,
+    network_random_walk,
+    network_structure_analysis,
+    pagerank,
+)
 from skcomplex.models.mathematics.stochastic_processes import (
     ageing_random_walk,
     bernoulli_process,
@@ -237,3 +242,25 @@ def test_mandelbrot_is_symmetric_about_real_axis():
     escapes = _run(mandelbrot((61, 80), window=(-2.2, 0.8, -1.2, 1.2)), 60).lattice('plane.n')[-1]
     assert np.array_equal(escapes, escapes[::-1])
     assert escapes.min() < escapes.max()
+
+
+def test_network_structure_analysis_of_a_generated_network():
+    """Test that a planted partition of 4 blocks of 100 nodes is recorded with its measures and its blocks found."""
+    trajectory = _run(network_structure_analysis(null_samples=5), 1)
+    assert trajectory.agents('nodes', 0).ids.size == 400
+    for name in ('clustering', 'path_length', 'assortativity', 'modularity', 'triangle_zscore'):
+        assert np.isfinite(trajectory[name][-1])
+    assert trajectory['agreement'][-1] > 0.9
+    assert len(np.unique(trajectory.agents('nodes', 0).values['community'])) == 4
+
+
+def test_network_structure_analysis_of_a_given_graph():
+    """Test that Zachary's karate club gives the NetworkX clustering and path length and at least two communities."""
+    graph = nx.karate_club_graph()
+    trajectory = _run(network_structure_analysis(graph, reference='club', null_samples=0), 1)
+    assert trajectory['clustering'][-1] == pytest.approx(nx.average_clustering(graph), abs=1e-12)
+    assert trajectory['path_length'][-1] == pytest.approx(nx.average_shortest_path_length(graph), abs=1e-12)
+    assert len(np.unique(trajectory.agents('nodes', 0).values['community'])) >= 2
+    assert trajectory['modularity'][-1] > 0.35
+    with pytest.raises(KeyError, match='triangle_zscore'):
+        trajectory['triangle_zscore']
