@@ -564,6 +564,107 @@ coupled = System(
 print(Simulation(coupled, dt=1.0).run(until=20).trajectory_['X'][-1].round(2))
 ```
 
+## Stocks and flows
+
+A state tagged with a quantity, `state(..., quantity='water')`, is a stock that changes only through flows. A
+`Flow(source, sink, amount, label=...)` moves an amount of the quantity from one stock to another, or exchanges it with
+the environment through `Source()` and `Sink()`. In a system of rate laws the amount is a rate, in a system of update
+laws it is moved once per step, and with `rate=...` it is the size of a jump with that propensity. Trajectories record
+every flow under `<component path>.<label>`. An `Auxiliary(label, expression)` names an intermediate expression that
+later laws use through `auxiliary.symbol`, and trajectories record it too. `lookup(x, points)` is a table function,
+piecewise linear between its points and flat outside them.
+
+```python
+from skcomplex.core.model import Auxiliary, Flow, Sink, Source, lookup
+
+
+def population_laws(s):
+    births = Auxiliary('birth_rate', s.b * s.n * lookup(s.n, [(0, 1.0), (100, 1.0), (200, 0.0)]))
+    return [births, Flow(Source(), s.n, births.symbol, label='births'), Flow(s.n, Sink(), s.d * s.n, label='deaths')]
+
+
+People = Element.define(
+    'People',
+    states={'n': state(10.0, quantity='people')},
+    parameters={'b': 0.03, 'd': 0.01},
+    laws=population_laws,
+)
+crowd = System(elements=[People('crowd')])
+trajectory = Simulation(crowd, dt=1.0).run(until=10).trajectory_
+print(round(float(trajectory['crowd.births'][-1]), 3), round(float(trajectory['crowd.deaths'][-1]), 3))
+```
+
+A rate or update law outside flows that changes a tagged state raises `ConservationError` when the system compiles.
+`conservation(system)` returns the net inflow of every quantity from the environment, after checking that the internal
+flows cancel. The compiler accumulates that inflow in the hidden state `__boundary.<quantity>`, and the observer
+`ConservationMonitor` checks at every frame that each total changed only by it. `flow_matrix(trajectory, frame)` is
+the transaction-flow matrix of a frame, one row per flow and one column per holder, whose rows sum to zero.
+
+```python
+from skcomplex.core.analysis import conservation, flow_matrix
+from skcomplex.core.runtime import ConservationMonitor
+
+print(conservation(crowd))
+monitored = Simulation(crowd, dt=1.0, observers=[ConservationMonitor()]).run(until=10).trajectory_
+print(flow_matrix(monitored, -1).values.sum(axis=1))
+```
+
+`delay1(inflow, time)` and `delay3(inflow, time)` are material delays, one or three hidden stocks in series whose
+outflow they return, and `smooth(value, time)` and `smooth3(value, time)` are information smoothings. They add hidden
+stocks `<component path>.<kind>_<index>` to rate laws of single elements and interactions, starting in equilibrium with
+their input.
+
+`loops(system)` derives the signed dependency graph of states, auxiliaries, and flows from the laws, and lists its
+feedback loops with their polarity, and `loop_dominance(trajectory)` ranks the loops by their gains at every frame.
+
+```python
+from skcomplex.core.analysis import loop_dominance, loops
+
+for loop in loops(crowd).loops:
+    print(loop.polarity, ' -> '.join(loop.nodes))
+dominance = loop_dominance(trajectory)
+print(dominance.loops[int(dominance.dominant[-1])].polarity)
+```
+
+Agents keep balance sheets with ledgers. `transfer(source, sink, amount, state)` in a rule moves an amount between two
+agents at once, so debts are negative holdings and total holdings stay constant. An agent type lists its balance-sheet
+identities in the class variable `identities`, each an `Identity(label, residual)` whose residual must stay zero after
+every step, and removing an agent that still holds a tagged state raises `ConservationError` until its holdings are
+settled with transfers.
+
+```python
+from skcomplex.core.model import AgentType, Identity, Rule, transfer
+
+
+def net_worth(agent):
+    return agent.cash + agent.claims - agent.equity
+
+
+class Trader(AgentType):
+    cash: float = state(10.0, quantity='money')
+    claims: float = state(0.0, quantity='claims')
+    equity: float = state(10.0)
+    identities = (Identity('cash + claims == equity', net_worth),)
+
+    def laws(self, s):
+        return [Rule(self.lend)]
+
+    def lend(self, agent, model):
+        borrower = model.agents('traders')[0]
+        if borrower != agent:
+            transfer(agent, borrower, 1.0, 'cash')
+            transfer(borrower, agent, 1.0, 'claims')
+
+
+traders = Simulation(System(elements=[Trader.group('traders', 3)])).run(until=3).trajectory_
+print(traders.agents('traders', 3).values['cash'].sum())
+```
+
+The library models built on flows are `bathtub`, `rice_milling`, `solid_waste`, `food_relief`, and `irrigation` in
+engineering processes, `car_dealer`, `commodity_cycle`, and `beer_game` in markets, `bass_diffusion` in innovation,
+`stock_flow_consistent_economy` in macroeconomics, and `success_to_the_successful`, `shifting_the_burden`, and
+`escalation` in organizations.
+
 ## The model library
 
 The package holds two parts. `skcomplex.core` is the domain-agnostic framework: `base` for the shared leaves such as

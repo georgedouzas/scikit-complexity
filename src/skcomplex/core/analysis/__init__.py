@@ -146,6 +146,7 @@ from ._large_deviations import (
     reweight,
     tilted_generating_function,
 )
+from ._loops import FlowMatrix, Loop, LoopDominance, Loops, conservation, flow_matrix, loop_dominance, loops
 from ._lyapunov import lyapunov_spectrum
 from ._markov import (
     MarkovStateModel,
@@ -229,11 +230,15 @@ __all__: list[str] = [
     'EntropyProduction',
     'Events',
     'ExtremeValueFit',
+    'FlowMatrix',
     'Fluctuation',
     'FluctuationTheorem',
     'GoodnessOfFit',
     'JumpPath',
     'KramersMoyal',
+    'Loop',
+    'LoopDominance',
+    'Loops',
     'MarkovStateModel',
     'MotifScores',
     'Multiscale',
@@ -287,6 +292,7 @@ __all__: list[str] = [
     'communities',
     'compare_with_law',
     'complexity_entropy',
+    'conservation',
     'correlation_dimension',
     'correlation_function',
     'correlation_information',
@@ -325,6 +331,7 @@ __all__: list[str] = [
     'fit_power_law',
     'fit_stable',
     'fixed_points',
+    'flow_matrix',
     'fluctuation_dissipation_ratio',
     'fluctuation_theorem',
     'gini',
@@ -352,6 +359,8 @@ __all__: list[str] = [
     'legendre_transform',
     'lempel_ziv_complexity',
     'like_neighbor_share',
+    'loop_dominance',
+    'loops',
     'lyapunov_spectrum',
     'markov_state_model',
     'maxwell_boltzmann_test',

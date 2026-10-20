@@ -15,9 +15,11 @@ from sage.all__sagemath_symbolics import SR, I
 from ..base import Domain, Expression, RoleError, ValidationError, real_components_of, symbol, symbols_of
 from ..model import Observable, Reduction, Symbols, System, reduce_values, reductions_in
 from ._complex import joined_complex
+from ._kernels import Source
 from ._layout import Entry
 from ._printing import numpy_function
 from ._problem import Problem, Vector
+from ._quantities import Recorded
 from ._quantum import QuantumProblem, quantum_getters
 from ._reductions import CompiledReduction, Read, ReductionPass
 
@@ -247,6 +249,9 @@ class ObservableEvaluator:
         problems = (self.problem, *(partition.problem for partition in self.problem.partitions))
         for renewal in (renewal for problem in problems for renewal in problem.renewals):
             self.getters_[f'{renewal.label}.renewals'] = _renewal_counter(renewal.counts)
+        stock_flow = self.problem.stock_flow
+        for recorded in stock_flow.recorded if stock_flow is not None else ():
+            self.getters_[recorded.path] = self._recorded_getter(recorded)
 
     def _scalar_sources(self) -> dict[Expression, tuple[str, int]]:
         """Return the vector and flat index of every symbol of a single element or interaction."""
@@ -292,6 +297,24 @@ class ObservableEvaluator:
             return float(value) if np.ndim(value) == 0 and np.isrealobj(value) else value
 
         return get
+
+    def _recorded_getter(self, recorded: Recorded) -> Getter:
+        """Return the getter of a flow or an auxiliary, one value for a single component and one per group member."""
+        members: dict[Expression, Callable[[Vector, Vector], Any]] = {}
+        for item in symbols_of([recorded.expression]) - {self.problem.time}:
+            reference = recorded.references.get(item)
+            if reference is None or reference.source not in {Source.SINGLE, Source.MEMBER}:
+                error_msg = (
+                    f'{recorded.path} reads {item}, which is neither a variable of its component nor of a member of '
+                    'its group, so trajectories cannot record it. Record it with an observable instead.'
+                )
+                raise ValidationError(error_msg)
+            entry = reference.entry
+            indices: Any = entry.start + reference.column
+            if reference.entry.members is not None:
+                indices = entry.start + np.arange(entry.members or 1) * entry.columns + reference.column
+            members[item] = _from_vector(reference.is_state, indices)
+        return self._compile(recorded.path, recorded.expression, {}, members)
 
     def _expression_getter(self, scope: str, path: str, observable: Observable) -> Getter:
         """Return the getter of an expression of the system's symbols."""

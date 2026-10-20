@@ -14,6 +14,7 @@ from sklearn.base import BaseEstimator
 from ..base import Domain, LabelError, VisualSpec, companions_of, declaration_of, parameter, role, state
 from ._lattices import LatticeSpace
 from ._laws import Law
+from ._ledgers import Identity
 from ._spaces import NetworkSpace, Space
 from ._symbols import Symbols
 
@@ -325,7 +326,9 @@ class AgentType(Element):
     """Base class of agents, whose behaviour is a list of rules and whose groups change size during a run.
 
     States are attributes of every agent and parameters are shared by every agent of a group. `laws` returns `Rule`
-    laws whose functions take the agent and the model. Agent groups are created with `group` like any element group.
+    laws whose functions take the agent and the model. The class variable `identities` lists the balance-sheet
+    identities every agent satisfies after every step, and states tagged with a quantity must be settled to zero with
+    transfers before an agent is removed. Agent groups are created with `group` like any element group.
     States and parameters cannot take the names of the attributes and methods of the agent views rules receive, or
     the names `position`, `pos`, `cell`, `unique_id`, and `model` that Mesa reads from agents. The class variable
     `remembers` maps state names to the number of past values the stepper keeps of them, which `memory` returns.
@@ -358,6 +361,7 @@ class AgentType(Element):
     )
     visual: ClassVar[VisualSpec] = VisualSpec('agents')
     remembers: ClassVar[Mapping[str, int]] = {}
+    identities: ClassVar[tuple[Identity, ...]] = ()
     location: object = None
 
 

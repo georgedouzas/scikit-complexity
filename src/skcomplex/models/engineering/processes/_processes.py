@@ -4,19 +4,22 @@
 # License: MIT
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Element, Interaction, Rate, System, step, where
+from ....core.model import Element, Flow, Interaction, Rate, Sink, Source, System, step, where
 from ....core.runtime import register_model
 
 INFLOW_START = 5.0
 
 Tub = Element.define(
     'Tub',
-    states={'water': state(default=50.0, domain=Domain.NONNEGATIVE)},
+    states={'water': state(default=50.0, domain=Domain.NONNEGATIVE, quantity='water')},
     parameters={
         'inflow': parameter(default=5.0, domain=Domain.NONNEGATIVE),
         'outflow': parameter(default=5.0, domain=Domain.NONNEGATIVE),
     },
-    laws=lambda s: [Rate(s.water, s.inflow * step(s.t, INFLOW_START) - where(s.water > 0, s.outflow, 0))],
+    laws=lambda s: [
+        Flow(Source(), s.water, s.inflow * step(s.t, INFLOW_START), label='faucet'),
+        Flow(s.water, Sink(), where(s.water > 0, s.outflow, 0), label='drain'),
+    ],
 )
 
 Stage = Element.define(
@@ -58,7 +61,8 @@ def bathtub(water: float = 50.0, *, inflow: float = 5.0, outflow: float = 5.0) -
 
     Returns:
         system:
-            The model, with the water `tub.water` in minutes.
+            The model, with the water `tub.water` in gallons and the flows `tub.faucet` and `tub.drain` in gallons
+            per minute, over minutes.
 
     Examples:
         >>> from skcomplex.models.engineering.processes import bathtub

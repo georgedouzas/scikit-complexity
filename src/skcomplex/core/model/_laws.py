@@ -15,6 +15,7 @@ from ._lattices import Drive, Energy, Extremal, LocalRule, Move, Relaxation, Sam
 
 if TYPE_CHECKING:
     from ._fields import Flux
+    from ._flows import Auxiliary, Flow
 
 type Target = Expression | SymbolicVector
 type NumericFunction = Callable[[float, Mapping[str, Any]], Any]
@@ -528,4 +529,6 @@ type Law = (
     | Move
     | Sampler
     | Flux
+    | Flow
+    | Auxiliary
 )

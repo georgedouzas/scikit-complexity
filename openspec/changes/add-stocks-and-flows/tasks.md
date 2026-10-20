@@ -2,32 +2,34 @@
 
 ## 1. Flows and conservation
 
-- [ ] 1.1 Add quantity tags, `Flow`, `Source`, and `Sink` for rate, jump, and update forms, and verify the bathtub
+- [x] 1.1 Add quantity tags, `Flow`, `Source`, and `Sink` for rate, jump, and update forms, and verify the bathtub
   scenario
-- [ ] 1.2 Add the symbolic conservation check, the run-time monitor, and `flow_matrix`, and verify the undeclared change
+- [x] 1.2 Add the symbolic conservation check, the run-time monitor, and `flow_matrix`, and verify the undeclared change
   scenario
 
 ## 2. System-dynamics blocks
 
-- [ ] 2.1 Add `Auxiliary` and `lookup` on NumPy and Numba, and verify the table function scenario
-- [ ] 2.2 Add `delay1`, `delay3`, `smooth`, and `smooth3`, and verify the third-order delay scenario
+- [x] 2.1 Add `Auxiliary` and `lookup` on NumPy and Numba, and verify the table function scenario
+- [x] 2.2 Add `delay1`, `delay3`, `smooth`, and `smooth3`, and verify the third-order delay scenario
 
 ## 3. Loops
 
-- [ ] 3.1 Add `loops` and `loop_dominance`, and verify the population loops scenario
+- [x] 3.1 Add `loops` and `loop_dominance`, and verify the population loops scenario
 
 ## 4. Ledgers
 
-- [ ] 4.1 Add `Transfer`, `Identity`, and settlement on removal for agents, and verify the identity violation and
+- [x] 4.1 Add `transfer`, `Identity`, and settlement on removal for agents, and verify the identity violation and
   bankruptcy scenarios, and the closed economy scenario
 
 ## 5. Library
 
-- [ ] 5.1 Add the systems zoo, the traps, Bass diffusion, the beer game, and the monetary economy as registered
-  factories, and verify the inventory scenario and the conformance suite
+- [x] 5.1 Add the models that probe the primitives in distinct ways as registered factories with gallery examples,
+  rebuild `bathtub` and `car_dealer` on flows, and verify the inventory scenario and the conformance suite
+- [ ] 5.2 Add `energy_return`, `cocoa`, `hilsa_fishery`, `food_security`, `renewable_resource`, and
+  `nonrenewable_resource`, which repeat patterns the implemented models already probe
 
 ## 6. Documentation and gate
 
-- [ ] 6.1 Document flows, quantities, conservation, system-dynamics blocks, loops, and ledgers in the user guide, and
+- [x] 6.1 Document flows, quantities, conservation, system-dynamics blocks, loops, and ledgers in the user guide, and
   verify the documentation test passes
 - [ ] 6.2 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass

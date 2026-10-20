@@ -2,6 +2,7 @@
 
 from ._catalog import MODELS, ModelEntry, catalog, create, describe, register_model, run
 from ._clocks import AsFastAsPossible, Clock, RealTime
+from ._conservation import ConservationMonitor
 from ._frames import Frame
 from ._observers import Observer, Recorder
 from ._simulations import Simulation
@@ -11,6 +12,7 @@ __all__: list[str] = [
     'MODELS',
     'AsFastAsPossible',
     'Clock',
+    'ConservationMonitor',
     'Frame',
     'ModelEntry',
     'Observer',

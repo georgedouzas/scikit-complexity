@@ -3,6 +3,7 @@
 from ._components import AgentType, Aggregate, Element, Group, Interaction, PairInteraction
 from ._draws import Draw, bernoulli, categorical, draw, draws_in, is_draw, normal, uniform
 from ._fields import Field, Flux, advection, divergence, gradient, inverse_laplacian, laplacian
+from ._flows import Auxiliary, Flow, Sink, Source, delay1, delay3, lookup, smooth, smooth3
 from ._functions import (
     both,
     delayed,
@@ -57,6 +58,7 @@ from ._laws import (
     Update,
 )
 from ._learning import evolve, heuristics, imitate, logit_choice, logit_probabilities, memory
+from ._ledgers import Identity, transfer
 from ._markets import (
     BilateralSearch,
     CallAuction,
@@ -125,6 +127,7 @@ __all__: list[str] = [
     'Affine',
     'AgentType',
     'Aggregate',
+    'Auxiliary',
     'BilateralSearch',
     'Boundary',
     'Call',
@@ -144,6 +147,7 @@ __all__: list[str] = [
     'Exchange',
     'Extremal',
     'Field',
+    'Flow',
     'Flux',
     'FractionalNoise',
     'GraphProduction',
@@ -153,6 +157,7 @@ __all__: list[str] = [
     'Hamiltonian',
     'HarmonicPotential',
     'HostGraph',
+    'Identity',
     'Institution',
     'Interaction',
     'Jump',
@@ -203,8 +208,10 @@ __all__: list[str] = [
     'Rule',
     'SampleAndSwitch',
     'Sampler',
+    'Sink',
     'Site',
     'SoftSphere',
+    'Source',
     'Space',
     'Spin',
     'Spring',
@@ -227,6 +234,8 @@ __all__: list[str] = [
     'both',
     'categorical',
     'count',
+    'delay1',
+    'delay3',
     'delayed',
     'derivative',
     'divergence',
@@ -245,6 +254,7 @@ __all__: list[str] = [
     'laplacian',
     'logit_choice',
     'logit_probabilities',
+    'lookup',
     'maximum',
     'mean',
     'memory',
@@ -261,9 +271,12 @@ __all__: list[str] = [
     'series',
     'shift_arguments',
     'shift_member',
+    'smooth',
+    'smooth3',
     'step',
     'total',
     'total_surplus',
+    'transfer',
     'uniform',
     'variance',
     'where',

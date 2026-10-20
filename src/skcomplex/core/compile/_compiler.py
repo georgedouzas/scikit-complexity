@@ -40,6 +40,7 @@ from ..base import (
 )
 from ..model import (
     Aggregate,
+    Auxiliary,
     Boundary,
     Call,
     Drive,
@@ -50,6 +51,7 @@ from ..model import (
     Event,
     Extremal,
     Field,
+    Flow,
     Flux,
     FractionalNoise,
     Group,
@@ -87,6 +89,7 @@ from ..model import (
 from ._backends import Backend, resolve_backend
 from ._complex import modulus_form, split_law
 from ._fields import DiffusiveLimit, FieldLowering, has_operators
+from ._flows import StockFlowPass, quantities_of
 from ._hybrid import Breakpoints, CompiledEvent, Delay, Scalars, breakpoints_of, flat_sources, scalar_function
 from ._jacobians import ExactJacobian
 from ._kernels import Kernel, Output, PairSearch, Reference, Source
@@ -117,6 +120,7 @@ from ._problem import (
     Vector,
     VectorFunction,
 )
+from ._quantities import StockFlow
 from ._quantum import compile_quantum, contains_quantum
 from ._reductions import CompiledReduction, Read, ReductionPass
 from ._renewals import CompiledRenewal, compile_renewal
@@ -148,7 +152,7 @@ CONTINUOUS = frozenset({Rate, Noise})
 ASSIGNED_KINDS = (Update, Boundary)
 MEMBER_REFERENCE = re.compile(r'^(?P<path>.+)\[(?P<index>-?\d+)\]$')
 LATTICE_LAWS = (LocalRule, Drive, Relaxation, Extremal, Energy, Move, Sampler)
-KERNEL_FREE = (*LATTICE_LAWS, Flux)
+KERNEL_FREE = (*LATTICE_LAWS, Flux, Flow, Auxiliary)
 
 
 def _renamed(value: Expression, mapping: dict[Expression, Expression]) -> Expression:
@@ -794,20 +798,21 @@ def _state_name(spec: _KernelSpec, target: Expression) -> str:
     return reference.entry.name if reference is not None else str(target)
 
 
-def _collect_laws(spec: _KernelSpec, component: object) -> list[Law]:
-    """Return the laws a component returns for its namespace after checking their kinds."""
+def _collect_laws(spec: _KernelSpec, component: object, flows: StockFlowPass) -> list[Law]:
+    """Return the laws a component returns for its namespace after checking their kinds and expanding its flows."""
     laws = component.laws(spec.namespace)  # type: ignore[attr-defined]
     kinds = (Rate, Noise, Jump, Update, Transition, Emission, Boundary, Rule, Equation, Event, Renewal, *KERNEL_FREE)
     if not isinstance(laws, list | tuple) or not all(isinstance(law, kinds) for law in laws):
         error_msg = (
             f'`laws` of {spec.owner} must return a list of Rate, Noise, FractionalNoise, Jump, Update, Transition, '
             'Emission, Boundary, Rule, Equation, Event, Renewal, LocalRule, Drive, Relaxation, Extremal, Energy, Move, '
-            'Sampler, or Flux laws.'
+            'Sampler, Flux, Flow, or Auxiliary laws.'
         )
         raise ValidationError(error_msg)
     if spec.pairs is not None and not all(isinstance(law, Rate) for law in laws):
         error_msg = f'Pair interaction {spec.owner} returns laws other than Rate, which pair interactions do not take.'
         raise ValidationError(error_msg)
+    laws = flows.expand(spec, list(laws))
     return [item for law in laws for item in split_law(law, spec.owner, lambda target: _state_name(spec, target))]
 
 
@@ -2108,7 +2113,7 @@ def _law_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
     if isinstance(law, Rule):
         paths = [path for value in spec.roles.values() for path in ([value] if isinstance(value, str) else value)]
         return next((path for path in paths if path in agents), next(iter(paths), spec.owner))
-    if isinstance(law, Equation | Event | Energy | Sampler | Renewal):
+    if isinstance(law, Equation | Event | Energy | Sampler | Renewal | Flow | Auxiliary):
         return _renewal_group(spec, law) if isinstance(law, Renewal) else spec.owner
     if isinstance(law, Relaxation):
         target = next(iter(law.targets), None)
@@ -2281,19 +2286,25 @@ def _collected_laws(
     time: Expression,
     observe: Observe,
     declarations: _Declarations,
-) -> tuple[list[tuple[_KernelSpec, list[Law], _Block]], list[tuple[_KernelSpec, MatrixLaw]]]:
-    """Return the laws of every kernel spec, with Markov laws rewritten as updates, and the matrices of Markov laws."""
+) -> tuple[list[tuple[_KernelSpec, list[Law], _Block]], list[tuple[_KernelSpec, MatrixLaw]], StockFlow]:
+    """Return the laws of every kernel spec with flows and Markov laws rewritten, the Markov matrices, and the flows."""
+    flows = StockFlowPass(quantities_of(declarations.blocks))
     collected: list[tuple[_KernelSpec, list[Law], _Block]] = []
     markov: list[tuple[_KernelSpec, MatrixLaw]] = []
     for block in blocks:
         for spec in _specs_of(block, elements, time, observe):
-            laws, matrices = markov_laws(spec.owner, _collect_laws(spec, _component_of(block.node)), spec.references)
+            laws, matrices = markov_laws(
+                spec.owner,
+                _collect_laws(spec, _component_of(block.node), flows),
+                spec.references,
+            )
             laws = _checked_fractional(spec, laws, declarations)
             check_draw_placement(spec.owner, laws)
             _settle_rows(spec, laws)
             collected.append((spec, laws, block))
             markov.extend((spec, matrix) for matrix in matrices)
-    return collected, markov
+    stock_flow = flows.lower([(spec, laws) for spec, laws, _ in collected], declarations)
+    return collected, markov, stock_flow
 
 
 def _compile(system: System, backend: str | Backend, owners: frozenset[str] | None) -> Problem:
@@ -2304,7 +2315,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
     _check_symbol_names(declarations.blocks)
     elements = {block.node.path: block for block in blocks if not _is_interaction(block.node)}
     observe = _Observer(declarations, _lowerable_observables(system, nodes))
-    collected, markov = _collected_laws(blocks, elements, declarations.time, observe, declarations)
+    collected, markov, stock_flow = _collected_laws(blocks, elements, declarations.time, observe, declarations)
     checked = _checked_matrices(markov, declarations)
     orders = _Orders.of(blocks)
     specs = _solve_equations([(spec, _with_orders(spec, laws, block, orders)) for spec, laws, block in collected])
@@ -2421,6 +2432,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         matrices=checked,
         renewals=_compile_renewals(hybrid, declarations.time, owners),
         fractional=_fractional_rows(lowered) if form is Form.SDE else (),
+        stock_flow=stock_flow,
         **functions,  # type: ignore[arg-type]
     )
 

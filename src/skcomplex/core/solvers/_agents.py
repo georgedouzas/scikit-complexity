@@ -19,7 +19,7 @@ from mesa.discrete_space import CellAgent, Network, OrthogonalMooreGrid, Orthogo
 from mesa.experimental.continuous_space import ContinuousSpace as MesaContinuousSpace
 from mesa.experimental.continuous_space import ContinuousSpaceAgent
 
-from ..base import Form, SimulationError, SpaceError
+from ..base import ConservationError, Form, SimulationError, SpaceError, VariableKind, declarations_of
 from ..compile import CompiledAgents, ObservableEvaluator, Problem, Vector
 from ..model import ContinuousSpace, GridSpace, Group, MesaSystem, NetworkSpace, Phase, Rule, Space
 from ..model._phases import DEFAULT_PHASE
@@ -86,6 +86,11 @@ def _location_of(agent: mesa.Agent) -> object:
     if position is not None:
         return tuple(np.asarray(position, dtype=float))
     return getattr(agent, 'pos', None)
+
+
+def _agent_type(spec: CompiledAgents) -> Any:  # noqa: ANN401
+    """Return the agent type of a compiled agent group."""
+    return spec.element.element if isinstance(spec.element, Group) else type(spec.element)
 
 
 class ModelView:
@@ -606,7 +611,26 @@ class AgentView:
         self._agent.cell = self._stepper.space_[_cell_key(location)]
 
     def remove(self) -> None:
-        """Remove the agent from the model."""
+        """Remove the agent from the model, after checking that it holds none of a conserved quantity.
+
+        Raises:
+            ConservationError:
+                A state tagged with a quantity is not zero, so removing the agent would destroy it. Settle the
+                holdings with transfers first.
+        """
+        spec = self._stepper.spec_of(self._agent)
+        declared = declarations_of(_agent_type(spec), VariableKind.STATE)
+        held = {
+            name: value
+            for name, declaration in declared.items()
+            if declaration.quantity is not None and (value := float(getattr(self._agent, name))) != 0.0
+        }
+        if self.alive and held:
+            error_msg = (
+                f'Agent {self.id} of {spec.path} is removed while holding {held}. Settle its holdings with transfers '
+                'to other agents before removing it, so conserved quantities are not destroyed.'
+            )
+            raise ConservationError(error_msg)
         if self.alive:
             self._agent.removed_ = True
             self._agent.remove()
@@ -833,7 +857,7 @@ class MesaStepper(Stepper):
             if agent_class.__mro__[1] is ContinuousSpaceAgent
             else agent_class(self.model_)
         )
-        defaults = spec.element.element if isinstance(spec.element, Group) else type(spec.element)
+        defaults = _agent_type(spec)
         for name in spec.states:
             value = values[name] if name in values else _shared_default(defaults, name)
             setattr(agent, name, value)
@@ -931,6 +955,16 @@ class MesaStepper(Stepper):
                     self._run_phase(phase)
             self.round_ = 0
         self._remember()
+        self._check_identities()
+
+    def _check_identities(self) -> None:
+        """Check the accounting identities that agent types declare, after every step."""
+        for spec in self._specs.values():
+            identities = _agent_type(spec).identities
+            for agent in self.group_agents(spec.path) if identities else ():
+                view = AgentView(agent, self)
+                for identity in identities:
+                    identity.check(view, f'agent {view.id} of {spec.path}')
 
     def _ordered_agents(self, phase: Phase) -> list[mesa.Agent]:
         """Return the agents of a phase in the order of its activation policy."""

@@ -35,6 +35,7 @@ from ._problem import (
     Vector,
     VectorFunction,
 )
+from ._quantities import CompiledFlow, LoopTerm, Recorded, StockFlow
 from ._quantum import QuantumProblem, QuantumTerm
 from ._rewriting import CompiledGraph, CompiledPatch, compile_rewriting
 from ._structures import GraphStructure, PatchStructure, Structure, WordStructure
@@ -52,6 +53,7 @@ __all__: list[str] = [
     'CompiledElement',
     'CompiledEvent',
     'CompiledExtremal',
+    'CompiledFlow',
     'CompiledGraph',
     'CompiledInteraction',
     'CompiledMonteCarlo',
@@ -71,6 +73,7 @@ __all__: list[str] = [
     'LatticeState',
     'LatticeStep',
     'Layout',
+    'LoopTerm',
     'Lowering',
     'MarkovMatrix',
     'NumbaBackend',
@@ -81,9 +84,11 @@ __all__: list[str] = [
     'Problem',
     'QuantumProblem',
     'QuantumTerm',
+    'Recorded',
     'RelaxationRecord',
     'RenewalProcess',
     'RenewalRecord',
+    'StockFlow',
     'Structure',
     'Vector',
     'VectorFunction',

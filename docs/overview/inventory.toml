@@ -412,7 +412,7 @@ capital_stock = { title = "Capital stock", sources = ["TS 2"], status = "impleme
 optimal_consumption = { title = "Pontryagin capital and consumption", sources = ["Di 9.1"], status = "pending add-optimal-control" }
 credit_networks = { title = "Firm and bank credit networks", sources = ["Ca 2.2"], status = "implemented" }
 fractional_reserve_banking = { title = "Fractional-reserve banking", sources = ["Ha 9"], status = "implemented" }
-stock_flow_consistent_economy = { title = "Stock-flow consistent monetary economy", sources = ["Godley and Lavoie 2007", "Caiani et al. 2016"], status = "pending add-stocks-and-flows" }
+stock_flow_consistent_economy = { title = "Stock-flow consistent monetary economy", sources = ["Godley and Lavoie 2007", "Caiani et al. 2016"], status = "implemented" }
 
 [economics.markets]
 cobweb = { title = "Cobweb", sources = ["Ezekiel 1938"], status = "implemented" }
@@ -421,7 +421,7 @@ riccati_prices = { title = "Riccati price adjustment", sources = ["Fo 16.1"], st
 produce_market = { title = "Produce market", sources = ["Ha 2–3"], status = "implemented" }
 car_dealer = { title = "Car-dealer inventory with delays", sources = ["TS 2"], status = "implemented" }
 car_wash = { title = "Car wash queue", sources = ["Cy 6.4"], status = "implemented" }
-commodity_cycle = { title = "Commodity cycle with capacity delay", sources = ["Ba 4.11.4"], status = "pending add-stocks-and-flows" }
+commodity_cycle = { title = "Commodity cycle with capacity delay", sources = ["Ba 4.11.4"], status = "implemented" }
 double_auction = { title = "Double auction", sources = ["Go 8–12"], status = "implemented" }
 goods_traders = { title = "Toy and three-goods traders", sources = ["Go 8–12"], status = "pending add-agent-economies" }
 shops = { title = "Shops and digital markets", sources = ["Ha 6.3–6.4"], status = "pending add-agent-economies" }
@@ -430,7 +430,7 @@ labour_market = { title = "Labour market", sources = ["Ha 7"], status = "impleme
 fair_food = { title = "Ajani's choice and fair food", sources = ["Cy 3", "Cy 7"], status = "implemented" }
 sugarscape = { title = "Sugarscape", sources = ["Ar 16.2", "TC 9"], status = "implemented" }
 oligopoly_equilibria = { title = "Static oligopoly equilibria", sources = ["Fo 16", "Fo 20", "Fo 21"], status = "blocked add-static-models", feature = "Models solved, sampled, enumerated, or optimised rather than integrated in time" }
-beer_game = { title = "Beer distribution game", sources = ["Sterman 1989"], status = "pending add-stocks-and-flows" }
+beer_game = { title = "Beer distribution game", sources = ["Sterman 1989"], status = "implemented" }
 brock_hommes = { title = "Brock-Hommes heuristic switching", sources = ["Brock and Hommes 1998"], status = "implemented" }
 perishable_goods_duopoly = { title = "Customers choosing between two shops of perishable goods", sources = ["Bt 4.3.1", "Bt 4.3.2", "Bt 4.3.3", "Bt 4.6"], status = "implemented" }
 
@@ -469,7 +469,7 @@ nk_technology = { title = "NK technology model", sources = ["Th 5.4.3.5"], statu
 arthur_polak = { title = "Arthur-Polak technology evolution", sources = ["Th 5.6.3"], status = "implemented" }
 creative_phase_transition = { title = "Combinatorial creative phase transition", sources = ["Th 5.6.4"], status = "implemented" }
 phone_adoption = { title = "Fixed-line phone adoption", sources = ["Ha 4.5"], status = "implemented" }
-bass_diffusion = { title = "Bass diffusion", sources = ["Bass 1969"], status = "pending add-stocks-and-flows" }
+bass_diffusion = { title = "Bass diffusion", sources = ["Bass 1969"], status = "implemented" }
 
 [social.opinion_dynamics]
 voter_model = { title = "Voter model", sources = ["Holley and Liggett 1975"], status = "implemented" }
@@ -517,9 +517,9 @@ trafficking = { title = "Brothel movement model", sources = ["Cy 5"], status = "
 insider_sabotage = { title = "Insider sabotage", sources = ["Cm 4", "Cm 6"], status = "implemented" }
 obesity = { title = "Obesity model", sources = ["Cm 4", "Cm 6"], status = "implemented" }
 kauai_population = { title = "The Kauai population model on GIS data", sources = ["Cm 3"], status = "blocked extend-agent-spaces", feature = "Three-dimensional continuous agent spaces and geographic spaces" }
-success_to_the_successful = { title = "Success to the successful", sources = ["Meadows 2008"], status = "pending add-stocks-and-flows" }
-shifting_the_burden = { title = "Shifting the burden", sources = ["Meadows 2008"], status = "pending add-stocks-and-flows" }
-escalation = { title = "Escalation", sources = ["Meadows 2008"], status = "pending add-stocks-and-flows" }
+success_to_the_successful = { title = "Success to the successful", sources = ["Meadows 2008"], status = "implemented" }
+shifting_the_burden = { title = "Shifting the burden", sources = ["Meadows 2008"], status = "implemented" }
+escalation = { title = "Escalation", sources = ["Meadows 2008"], status = "implemented" }
 
 [engineering.traffic]
 nagel_schreckenberg = { title = "Nagel-Schreckenberg", sources = ["cond-mat/0012229 §III.B.1"], status = "implemented" }
@@ -567,10 +567,10 @@ swarmtaxis = { title = "Swarmtaxis", sources = ["Cm 10"], status = "implemented"
 [engineering.processes]
 bathtub = { title = "Bathtub", sources = ["TS 1"], status = "implemented" }
 cascade_classifier = { title = "Cascade classifier", sources = ["Bs 4"], status = "implemented" }
-rice_milling = { title = "Rice milling system", sources = ["Ba 11–12"], status = "pending add-stocks-and-flows" }
-solid_waste = { title = "Solid waste system", sources = ["Ba 11–12"], status = "pending add-stocks-and-flows" }
-food_relief = { title = "Food relief system", sources = ["Ba 4.11"], status = "pending add-stocks-and-flows" }
-irrigation = { title = "Irrigation system", sources = ["Ba 4.11"], status = "pending add-stocks-and-flows" }
+rice_milling = { title = "Rice milling system", sources = ["Ba 11–12"], status = "implemented" }
+solid_waste = { title = "Solid waste system", sources = ["Ba 11–12"], status = "implemented" }
+food_relief = { title = "Food relief system", sources = ["Ba 4.11"], status = "implemented" }
+irrigation = { title = "Irrigation system", sources = ["Ba 4.11"], status = "implemented" }
 
 [engineering.mechatronics]
 quarter_car = { title = "Quarter-car suspension", sources = ["Fritzson 2015"], status = "pending add-acausal-components" }

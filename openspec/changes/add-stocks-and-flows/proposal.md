@@ -37,7 +37,7 @@ time.
 - Add library models:
   - Meadows' systems zoo: bathtub, coffee cooling, thermostat, inventory with delays, renewable and nonrenewable
     resources.
-  - Meadows' system traps: tragedy of the commons, success to the successful, shifting the burden, escalation.
+  - Meadows' system traps: success to the successful, shifting the burden, escalation.
   - Bass diffusion and the beer game.
   - A stock-flow consistent monetary economy with households, firms, and a bank.
 
@@ -53,6 +53,9 @@ time.
 
 ## Impact
 
-- `skcomplex.core.model` gains `Flow`, `Source`, `Sink`, `quantity`, `Auxiliary`, `lookup`, `smooth`, `delay1`, `delay3`,
-  `Transfer`, and `Identity`, and `skcomplex.core.analysis` gains `loops` and `flow_matrix`.
-- Depends on `add-general-model-interface` for observables, and on `add-hybrid-dynamics` for drivers in the systems zoo.
+- `skcomplex.core.base` gains the `quantity` argument of `state` and `ConservationError`.
+- `skcomplex.core.model` gains `Flow`, `Source`, `Sink`, `Auxiliary`, `lookup`, `delay1`, `delay3`, `smooth`,
+  `smooth3`, `transfer`, and `Identity`, and agent types gain the class variable `identities`.
+- `skcomplex.core.analysis` gains `loops`, `loop_dominance`, `conservation`, and `flow_matrix`, and
+  `skcomplex.core.runtime` gains `ConservationMonitor`.
+- The compiler gains a flow pass in `compile/_flows.py`, and `Problem` gains `stock_flow`.

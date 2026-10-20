@@ -12,6 +12,10 @@ class ValidationError(SkcomplexError):
     """A value does not belong to the domain of its variable."""
 
 
+class ConservationError(ValidationError):
+    """A conserved quantity changes outside its flows, or a balance-sheet identity does not hold."""
+
+
 class LabelError(SkcomplexError):
     """A label is missing, duplicated, or produces a name collision."""
 

@@ -3,41 +3,31 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, Expression, parameter, state
-from ....core.model import Element, Law, Rate, Symbols, System, delayed, step, where
+from ....core.base import Domain, parameter, state
+from ....core.model import Auxiliary, Element, Flow, Law, Sink, Source, Symbols, System, delay3, smooth, step, where
 from ....core.runtime import register_model
-
-
-def _orders(
-    perceived: Expression,
-    inventory: Expression,
-    coverage: Expression,
-    response_delay: Expression,
-) -> Expression:
-    """Return the orders to the factory, the perceived sales plus a share of the inventory gap, never negative."""
-    orders = perceived + (coverage * perceived - inventory) / response_delay
-    return where(orders > 0, orders, 0)
 
 
 def _dealer_laws(s: Symbols) -> list[Law]:
     """Return the laws of the car dealership."""
     demand = s.demand + step(s.t, s.step_time, s.demand_step)
     sales = where(s.inventory < demand, s.inventory, demand)
-    deliveries = _orders(
-        delayed(s.perceived, s.delivery_delay),
-        delayed(s.inventory, s.delivery_delay),
-        s.coverage,
-        s.response_delay,
-    )
-    return [Rate(s.inventory, deliveries - sales), Rate(s.perceived, (sales - s.perceived) / s.perception_delay)]
+    perceived = Auxiliary('perceived', smooth(sales, s.perception_delay))
+    desired = Auxiliary('desired_inventory', s.coverage * perceived.symbol)
+    gap_orders = perceived.symbol + (desired.symbol - s.inventory) / s.response_delay
+    orders = Auxiliary('orders', where(gap_orders > 0, gap_orders, 0))
+    return [
+        perceived,
+        desired,
+        orders,
+        Flow(Source('factory'), s.inventory, delay3(orders.symbol, s.delivery_delay), label='deliveries'),
+        Flow(s.inventory, Sink('customers'), sales, label='sales'),
+    ]
 
 
 CarDealership = Element.define(
     'CarDealership',
-    states={
-        'inventory': state(default=200.0, domain=Domain.NONNEGATIVE),
-        'perceived': state(default=20.0, domain=Domain.NONNEGATIVE),
-    },
+    states={'inventory': state(default=200.0, domain=Domain.NONNEGATIVE, quantity='cars')},
     parameters={
         'demand': parameter(default=20.0, domain=Domain.NONNEGATIVE),
         'demand_step': parameter(default=2.0, domain=Domain.REAL),
@@ -53,7 +43,7 @@ CarDealership = Element.define(
 
 @register_model(
     field='economics/markets',
-    tags=('inventory', 'system dynamics', 'delay', 'oscillations'),
+    tags=('inventory', 'delay', 'oscillations', 'stocks and flows', 'system dynamics', 'ode'),
     references=('Meadows 2008',),
     defaults={'until': 100.0, 'dt': 1.0},
 )
@@ -70,9 +60,12 @@ def car_dealer(
 ) -> System:
     """Return Meadows' car dealership, whose inventory oscillates after a step in demand because of its delays.
 
-    Sales are the customer demand, limited by the cars on the lot. The dealer smooths sales over the perception delay,
-    wants an inventory of `coverage` days of perceived sales, and orders the perceived sales plus the gap to that
-    inventory divided by the response delay. Orders arrive after the delivery delay.
+    The inventory is a stock of cars that deliveries from the factory fill and sales to customers drain. Sales are the
+    customer demand, limited by the cars on the lot. The dealer smooths sales over the perception delay, wants an
+    inventory of `coverage` days of perceived sales, and orders the perceived sales plus the gap to that inventory
+    divided by the response delay. Orders arrive through a third-order material delay, a continuous stand-in for
+    Meadows' fixed delivery delay. Lengthening the response delay damps the oscillation, while shortening the
+    perception delay makes the dealer react faster to the new demand and slightly enlarges it.
 
     Args:
         inventory:
@@ -97,11 +90,13 @@ def car_dealer(
             The time over which the dealer closes the inventory gap.
 
         delivery_delay:
-            The time between an order and its delivery.
+            The average time between an order and its delivery.
 
     Returns:
         system:
-            The model, with the cars on the lot `dealer.inventory` and the perceived sales `dealer.perceived`.
+            The model, with the cars on the lot `dealer.inventory`, the flows `dealer.deliveries` and `dealer.sales`,
+            and the auxiliaries `dealer.perceived` for the perceived sales, `dealer.desired_inventory`, and
+            `dealer.orders`.
 
     Examples:
         >>> from skcomplex.models.economics.markets import car_dealer
@@ -111,7 +106,6 @@ def car_dealer(
     dealer = CarDealership(
         'dealer',
         inventory=inventory,
-        perceived=demand,
         demand=demand,
         demand_step=demand_step,
         step_time=step_time,

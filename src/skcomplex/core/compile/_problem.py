@@ -16,6 +16,7 @@ from ..model import Element, Group, Interaction, Rule, Space, System
 from ._hybrid import Breakpoints, CompiledEvent, Delay
 from ._lattices import LatticeStep, lattice_shape
 from ._layout import Layout
+from ._quantities import StockFlow
 from ._reductions import CompiledReduction
 
 ROW_TOLERANCE = 1e-9
@@ -553,6 +554,10 @@ class Problem:
         fractional:
             The noise rows that fractional noise laws drive, with their Hurst indices.
 
+        stock_flow:
+            The quantities, flows, auxiliaries, and feedback terms of the system, or `None` for partitioned and Mesa
+            problems.
+
         backend:
             The name of the backend that produced the numeric functions.
 
@@ -605,6 +610,8 @@ class Problem:
     matrices: tuple[MarkovMatrix, ...] = field(default=(), repr=False)
     renewals: tuple[RenewalProcess, ...] = field(default=(), repr=False)
     fractional: tuple[FractionalRows, ...] = field(default=(), repr=False)
+
+    stock_flow: StockFlow | None = field(default=None, repr=False)
     backend: str = 'numpy'
     accelerated: Accelerated | None = field(default=None, repr=False)
     rewriting: tuple[Any, ...] = field(default=(), repr=False)

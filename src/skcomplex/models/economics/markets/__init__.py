@@ -2,6 +2,7 @@
 
 from ._brock_hommes import HeuristicPricing, Speculator, brock_hommes
 from ._cobweb import Cobweb, Market, cobweb
+from ._commodities import CommodityMarket, commodity_cycle
 from ._double_auction import (
     AuctionLedger,
     ZeroIntelligenceBuyer,
@@ -18,18 +19,22 @@ from ._prices import QuadraticSupplyMarket, riccati_prices
 from ._produce import Shopper, Stall, produce_market
 from ._queues import Car, CarWashOperation, Till, Washer, car_wash
 from ._sugarscape import Census, Forager, Patch, sugarscape
+from ._supply_chains import Brewery, Echelon, RetailDemand, SupplyLink, beer_game
 
 __all__: list[str] = [
     'AuctionLedger',
+    'Brewery',
     'Car',
     'CarDealership',
     'CarWashOperation',
     'Census',
     'Cobweb',
+    'CommodityMarket',
     'Consumer',
     'CournotAdjustment',
     'Customer',
     'Duopolist',
+    'Echelon',
     'Employer',
     'Forager',
     'HeuristicPricing',
@@ -39,19 +44,23 @@ __all__: list[str] = [
     'PerishableTrade',
     'Product',
     'QuadraticSupplyMarket',
+    'RetailDemand',
     'SearchCount',
     'Shop',
     'Shopper',
     'Speculator',
     'Stall',
+    'SupplyLink',
     'Till',
     'Washer',
     'ZeroIntelligenceBuyer',
     'ZeroIntelligenceSeller',
+    'beer_game',
     'brock_hommes',
     'car_dealer',
     'car_wash',
     'cobweb',
+    'commodity_cycle',
     'cournot_duopoly',
     'double_auction',
     'fair_food',

@@ -4,6 +4,7 @@ from ._domains import AnyDomain, Categorical, Domain
 from ._errors import (
     AnalysisError,
     BackendError,
+    ConservationError,
     HilbertSpaceError,
     HorizonError,
     IncompatibleLawsError,
@@ -38,6 +39,7 @@ __all__: list[str] = [
     'AnyDomain',
     'BackendError',
     'Categorical',
+    'ConservationError',
     'Domain',
     'Expression',
     'Form',
