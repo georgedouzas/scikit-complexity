@@ -68,8 +68,9 @@ a named error when they cannot be solved.
 
 ### Requirement: Systems declare observables
 A system SHALL declare observables, named symbolic expressions of its states, parameters, and time or reductions over
-its groups, that are evaluated at every frame and readable by laws of other partitions. The namespaces that
-observable expressions receive SHALL hold the time as `t`.
+its groups, that are evaluated at every frame, readable at the current state by laws of their own partition when they
+are symbolic, and readable by laws of other partitions at synchronisation points. The namespaces that observable
+expressions receive SHALL hold the time as `t`.
 
 #### Scenario: Order parameter
 - **WHEN** a system of phase oscillators declares the observable `order` as the modulus of the mean of `exp(i θ)`
@@ -78,6 +79,11 @@ observable expressions receive SHALL hold the time as `t`.
 #### Scenario: Reduction of a group
 - **WHEN** a system declares the mean of the state `wealth` over a group of agents as an observable
 - **THEN** the trajectory returns the mean at every frame, and an ODE in another partition can read it
+
+#### Scenario: Observable read in its own partition
+- **WHEN** a law of an ODE system reads the observable `mean_wealth`, the mean of `W` over the system's group of savers
+- **THEN** the system compiles to one ODE partition, and the value the law reads equals the recorded observable at
+  every frame within 1e-12
 
 #### Scenario: Observable of time
 - **WHEN** a system declares the observable `s.a.n * s.t` and the reduction over a group of `member.n + member.t`

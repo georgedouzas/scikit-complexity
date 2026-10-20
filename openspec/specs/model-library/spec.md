@@ -203,3 +203,458 @@ domain as registered factories.
 #### Scenario: Swift-Hohenberg rolls
 - **WHEN** the Swift-Hohenberg model runs above onset from small noise
 - **THEN** a roll pattern forms with a wavelength within 5% of 2π
+
+### Requirement: Mean-field models read group reductions
+The library SHALL build Kuramoto, Kuramoto-Sakaguchi chimeras, Winfree, theta neurons, LEGION, winners take all,
+replicator dynamics, hypercycles, heterogeneous mean-field SIS, and Bouchaud-Mézard wealth with reductions over groups,
+with no placeholder positions, no stand-in synapse, no vector state used as members, and no pair interaction covering
+every pair.
+
+#### Scenario: Kuramoto in linear time
+- **WHEN** `kuramoto` is built with 50 oscillators
+- **THEN** its system has no space and no pair interaction, and its drift equals
+  `omega_i + (K / N) sum_j sin(theta_j - theta_i)` within 1e-12 at a random state
+
+#### Scenario: Kuramoto transition
+- **WHEN** `kuramoto` runs with 2000 oscillators at `K` equal to half and twice `K_c = 2 sigma sqrt(2 / pi)`
+- **THEN** the time-averaged order parameter after the transient stays below 0.1 at half and exceeds 0.6 at twice
+
+#### Scenario: Chimera populations
+- **WHEN** `kuramoto_sakaguchi_chimera` runs with 32 oscillators per population
+- **THEN** each population reads the means of `cos theta` and `sin theta` of both populations, and after the
+  transient one population's order parameter exceeds 0.99 while the other's stays below 0.95
+
+#### Scenario: Winfree mean influence
+- **WHEN** `winfree` is built with 50 oscillators
+- **THEN** its drift equals `omega_i - sin(theta_i) (K / N) sum_j (1 + cos theta_j)` within 1e-12, with no pair
+  interaction and no self-influence correction
+
+#### Scenario: Theta neurons with an instantaneous mean
+- **WHEN** `theta_neurons` runs with 2000 neurons
+- **THEN** its state holds only the phases, every neuron reads the mean pulse of all neurons at the current state, and
+  the complex order parameter after the transient agrees with the Ott-Antonsen reduction of Luke, Barreto, and So
+  (2013) within 0.05
+
+#### Scenario: LEGION inhibitor reads the maximum
+- **WHEN** `legion` runs on its default stimulus of two objects
+- **THEN** the inhibitor is driven by the maximum oscillator activity, and after the transient no frame has both
+  objects active at once while each object is active in some frame
+
+#### Scenario: Winners take all with a group
+- **WHEN** `winners_take_all` runs with its default inputs and `beta = 2`
+- **THEN** its system has one inhibition interaction that reads the group total, whatever the number of units, and
+  only the unit with input 1.1 stays active, with activity within 1e-3 of 1.1
+
+#### Scenario: Replicator strategies as members
+- **WHEN** `replicator_dynamics` runs rock, paper, scissors with 3 strategies as 3 members of a group
+- **THEN** the shares sum to 1 within 1e-10 over `t` in `[0, 100]`, and the product of the shares stays within 1e-6
+  of its initial value
+
+#### Scenario: Hawks and doves
+- **WHEN** `replicator_dynamics` runs hawks and doves with `V = 2` and `C = 3`
+- **THEN** the hawk share approaches `2 / 3` within 1e-4
+
+#### Scenario: Hypercycle on the simplex
+- **WHEN** `hypercycles` runs with 4 molecules as members of a group on the cycle topology
+- **THEN** the concentrations sum to 1 within 1e-10 and converge to a fixed point where every concentration exceeds
+  0.01
+
+#### Scenario: Degree classes as members
+- **WHEN** `heterogeneous_mean_field_sis` runs with `lam` at half and twice `<k> / <k^2>`
+- **THEN** its degree classes are members of a group with their degree and weight as parameters, and the infected
+  density falls below 1e-6 at half and stays above 1e-3 at twice
+
+#### Scenario: Wealth exchange with the mean
+- **WHEN** `bouchaud_mezard_wealth` is built with no graph and 50 agents
+- **THEN** each agent exchanges with the group mean, the exchange part of the drift equals that of the
+  complete-graph Laplacian form within 1e-12, and the exchange conserves the total wealth within 1e-12
+
+### Requirement: Models are recorded in the model inventory
+Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
+inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
+model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+twice.
+
+#### Scenario: Inventory models registered
+- **WHEN** the change is applied and the inventory check runs
+- **THEN** these entries are rebuilt on group reductions under their names and field paths, and marked implemented:
+  - `kuramoto` in `physics/synchronization`
+  - `kuramoto_sakaguchi_chimera` in `physics/synchronization`
+  - `winfree` in `physics/synchronization`
+  - `theta_neurons` in `biology/neuroscience`
+  - `legion` in `biology/neuroscience`
+  - `winners_take_all` in `biology/neuroscience`
+  - `replicator_dynamics` in `biology/evolution`
+  - `hypercycles` in `biology/evolution`
+  - `heterogeneous_mean_field_sis` in `biology/epidemiology`
+  - `bouchaud_mezard_wealth` in `economics/finance`
+
+#### Scenario: Neighbourhood models stay blocked
+- **WHEN** the change is applied and the inventory check runs
+- **THEN** `szabo_cells` and `active_passive_flocking` in `physics/active_matter` stay blocked on
+  `add-adaptive-networks`, which specifies the neighbourhood reductions they need
+
+#### Scenario: New model recorded
+- **WHEN** the change registers a model with no inventory entry
+- **THEN** the inventory check fails until the entry is added with its sources and field path
+
+### Requirement: Pulse-coupled oscillators are members of a group
+The library SHALL build `mirollo_strogatz` in `physics/synchronization` with the oscillators as members of a group,
+whose firing pulses reach the other members through a reduction, rather than as one vector state in a Euclidean space.
+
+#### Scenario: Mirollo-Strogatz synchronizes as a group
+- **WHEN** `mirollo_strogatz` runs with its default excitatory coupling from random phases
+- **THEN** its oscillators are members of one group, and they fire in synchrony within the run
+
+### Requirement: Boolean networks take any number of inputs
+`random_boolean_network` and `yeast_cell_cycle` SHALL bind the inputs of every node through one variadic role, so a node
+reads any number of inputs up to the number of nodes and no input role is bound to the target as padding.
+
+#### Scenario: Eight inputs per node
+- **WHEN** `random_boolean_network(n_nodes=12, k=8)` is built and simulated for 50 steps
+- **THEN** every node's update reads 8 distinct nodes through a table of 256 entries, and the run completes
+
+#### Scenario: Too many inputs
+- **WHEN** `random_boolean_network(n_nodes=4, k=5)` is called
+- **THEN** a named validation error is raised that names `k` and the number of nodes
+
+#### Scenario: Yeast cycle unchanged
+- **WHEN** `yeast_cell_cycle()` runs from its default start for 15 steps
+- **THEN** its trajectory equals the one recorded from the five-role version before the rebuild, and it ends in the
+  stationary G1 state with only Cdh1 and Sic1 on
+
+### Requirement: Ring roads are one group of cars
+`optimal_velocity` and `intelligent_driver_model` SHALL hold their cars as one group and one interaction that reads the
+car ahead by a periodic member offset, for any number of cars.
+
+#### Scenario: One group whatever the number of cars
+- **WHEN** `optimal_velocity(n_cars=50)` is built
+- **THEN** the system holds one group of 50 cars and one interaction, and its trajectory has the arrays `cars.x` and
+  `cars.v` with 50 columns
+
+#### Scenario: Same dynamics as one interaction per car
+- **WHEN** `optimal_velocity(n_cars=20)` and `intelligent_driver_model(n_cars=20)` run with their default settings
+- **THEN** positions and speeds match those of the per-car versions recorded before the rebuild within a relative
+  tolerance of 1e-8
+
+#### Scenario: Jam on the rebuilt ring
+- **WHEN** the rebuilt optimal velocity model runs above its critical density from near-uniform flow
+- **THEN** the spread of the car speeds grows and a stop-and-go wave forms
+
+### Requirement: Agent models read groups through roles and the space through the model
+`trafficking` and `meadow_capacity` SHALL bind every group their rules read to a role, `trafficking` and
+`ring_road_drivers` SHALL read the space's extent from the model view, no rule of an interaction in the library SHALL
+read a group other than through its roles, and no rule SHALL read its own parameters by its label. Rules of agent
+types, which have no roles, SHALL read the groups of their own system by relative label.
+
+#### Scenario: Trafficking with two roles
+- **WHEN** `trafficking(random_state=0)` is built and run for 90 days
+- **THEN** its daily interaction binds the roles `women` and `premises`, has no `width` or `height` argument, and the
+  bills and trips equal those recorded before the rebuild
+
+#### Scenario: Nested meadow
+- **WHEN** the meadow model built with random state 0 is placed as the subsystem `farm` of another system and run
+- **THEN** it runs, its grazing and herding interactions bind the role `pasture`, and its cow counts equal those of the
+  model run at the root
+
+#### Scenario: Ring road without a length parameter
+- **WHEN** `ring_road_drivers(10, length=500.0)` runs
+- **THEN** the drivers have no `road_length` parameter and every position stays in `[0, 500)`
+
+#### Scenario: No rule reads its own label
+- **WHEN** the library's layout test scans the source of every model
+- **THEN** no rule reads a parameter by its own label, and no interaction names a group in `model.agents`,
+  `model.count`, or `model.create` by a string or an attribute that is not one of its roles
+
+### Requirement: Tumour growth laws
+The library SHALL provide `exponential_linear_growth`, `power_law_growth`, `von_bertalanffy`, `generalized_logistic`,
+`gompertz`, and `dynamic_carrying_capacity` as registered factories under `biology/oncology`, as the model inventory
+lists them with their sources, each with a gallery example.
+
+#### Scenario: Gompertz growth
+- **WHEN** `gompertz` runs from a small tumour
+- **THEN** its volume matches the closed-form Gompertz solution within 1e-6 relative and approaches the carrying
+  capacity
+
+### Requirement: Cell kill and toxicity
+The library SHALL provide `skipper_log_kill`, `norton_simon`, and `drug_toxicity` as registered factories under
+`biology/oncology` and `biology/physiology`, as the model inventory lists them with their sources, each with a gallery
+example.
+
+#### Scenario: Log kill
+- **WHEN** `skipper_log_kill` receives equal impulsive doses on a non-growing tumour
+- **THEN** each dose lowers the logarithm of the tumour size by the same amount within 1e-6
+
+### Requirement: Chemotherapy
+The library SHALL provide `de_pillis_radunskaya`, `multidrug_resistance`, `drug_resistance_switching`,
+`delayed_resting_hunting_chemotherapy`, `delayed_metastasis`, `cell_cycle_chemotherapy`, and
+`erythropoiesis_mercaptopurine` as registered factories under `biology/oncology`, as the model inventory lists them with
+their sources, each with a gallery example.
+
+#### Scenario: Chemotherapy clears a tumour
+- **WHEN** `de_pillis_radunskaya` runs untreated and then with a constant chemotherapy infusion of 1
+- **THEN** the untreated tumour settles at its high equilibrium, and the treated tumour falls below 1% of its initial
+  size while the normal cells stay above 0.7 of their carrying capacity
+
+### Requirement: Immunotherapy
+The library SHALL provide `kirschner_panetta`, `dendritic_cell_vaccine`, `anti_pd1_checkpoint`, `delayed_dc_vaccine`,
+and `tumour_immune_suppression` as registered factories under `biology/oncology`, as the model inventory lists them with
+their sources, each with a gallery example.
+
+#### Scenario: Tumour-immune oscillations and clearance
+- **WHEN** `kirschner_panetta` runs with an antigenicity in the oscillatory range and then with adoptive therapy and
+  IL-2 above the book's treatment factors `a1 = 500` and `a2 = 7e7`
+- **THEN** the untreated tumour and effector cells oscillate, and the treated tumour is cleared
+
+### Requirement: Anti-angiogenic therapy
+The library SHALL provide `hahnfeldt` and `vascular_core_periphery` as registered factories under `biology/oncology`, as
+the model inventory lists them with their sources, each with a gallery example.
+
+#### Scenario: Hahnfeldt equilibrium
+- **WHEN** `hahnfeldt` runs untreated
+- **THEN** the tumour and carrying capacity approach the equilibrium volume `(b/d)^(3/2)` within 1%
+
+### Requirement: Radiotherapy
+The library SHALL provide `radiotherapy_competition` and `lq_radiosensitizer` as registered factories under
+`biology/oncology`, as the model inventory lists them with their sources, each with a gallery example.
+
+#### Scenario: Linear-quadratic fractions
+- **WHEN** `lq_radiosensitizer` delivers a fraction of dose `d` without radiosensitizer
+- **THEN** the surviving tumour fraction of that fraction is `exp(-alpha d - beta d^2)` within 1e-6
+
+### Requirement: Hormone therapy
+The library SHALL provide `continuous_androgen_suppression`, `ideta_intermittent_androgen`, `prostate_cell_quota`,
+`droop_cell_quota`, `prostate_androgen_receptor`, `piecewise_linear_ias`, and `tamoxifen_cell_cycle` as registered
+factories under `biology/ecology` and `biology/oncology`, as the model inventory lists them with their sources, each
+with a gallery example.
+
+#### Scenario: Intermittent suppression
+- **WHEN** `ideta_intermittent_androgen` runs with its PSA thresholds
+- **THEN** the therapy switches on as PSA rises through the upper threshold and off as it falls through the lower one,
+  and PSA cycles around the thresholds, overshooting them by the androgen delay, while treatment is effective
+
+### Requirement: Gene, viral, nanoparticle, and stem-cell therapies
+The library SHALL provide `tcr_gene_therapy`, `sirna_tgf_beta`, `oncolytic_virus`, `oncolytic_virus_dendritic`,
+`nanoparticle_corona`, `two_compartment_pharmacokinetics`, `stem_cell_differentiation`, `bone_marrow_blood_leukaemia`,
+and `leukaemia_stem_cells` as registered factories under `biology/oncology`, `biology/physiology`, and
+`chemistry/kinetics`, as the model inventory lists them with their sources, each with a gallery example.
+
+#### Scenario: Two-compartment pharmacokinetics
+- **WHEN** `two_compartment_pharmacokinetics` receives one bolus dose
+- **THEN** the central concentration matches the closed-form bi-exponential solution within 1e-6 relative, and the total
+  drug decays by elimination only
+
+### Requirement: Combination therapies
+The library SHALL provide `chemoimmunotherapy`, `clonal_chemoimmunotherapy`, `chemovirotherapy`,
+`glioma_chemovirotherapy`, `her2_targeted_therapy`, and `angiogenesis_immunotherapy` as registered factories under
+`biology/oncology`, as the model inventory lists them with their sources, each with a gallery example.
+
+#### Scenario: Combination beats each therapy alone
+- **WHEN** `chemovirotherapy` runs with the book's chemotherapy alone, the virus alone, and both
+- **THEN** the tumour at the end of the default run of 64 days, before the virus bursts through the tumour, is
+  smallest under the combination
+
+### Requirement: Cellular network models
+The library SHALL provide `phosphorylation_oscillator`, `biochemical_systems_theory`, `three_gene_boolean_network`,
+`mammalian_cell_cycle`, `boolean_repressilator`, `goodwin_oscillator`, and `generalized_lotka_volterra` as registered
+factories under `biology/ecology` and `biology/systems_biology`, as the model inventory lists them with their sources,
+each with a gallery example.
+
+#### Scenario: Goodwin oscillations
+- **WHEN** `goodwin_oscillator` runs with three variables and Hill coefficients 6 and 12
+- **THEN** it settles on its stable fixed point at 6 and on a limit cycle at 12, the threshold for three equal
+  degradation rates being 8
+
+### Requirement: Surveyed models are recorded in the inventory
+The inventory SHALL record every model of Padmanabhan et al. 2021, Konieczny et al. 2023, and Raman 2021 under the
+source keys `Pa`, `Ko`, and `Rm`: the models above as pending this change, models pending other changes, models blocked
+on `add-constraint-based-models`, out-of-scope entries, and the new sources of models the library already implements.
+
+#### Scenario: Source of an implemented model
+- **WHEN** a contributor reads the inventory entry of `michaelis_menten`
+- **THEN** its sources include `Ko 1.1.4` and `Rm 5.3.1`
+
+### Requirement: Mean-field and disordered spin systems
+The library SHALL provide `curie_weiss`, `mattis_spin_glass`, `edwards_anderson`, and `sherrington_kirkpatrick` as
+registered factories under `physics/statistical_mechanics`, as the model inventory lists them with their sources, each
+with a gallery example.
+
+#### Scenario: Curie-Weiss magnetization
+- **WHEN** `curie_weiss` with 2000 spins runs to stationarity below and above the critical temperature `T_c = J`
+- **THEN** the mean absolute magnetization at `T = 0.5 J` matches the positive root of `m = tanh(m J / T)` within 0.02,
+  and at `T = 2 J` it is below 0.05
+
+### Requirement: Driven and noisy particles
+The library SHALL provide `colored_noise_langevin`, `on_off_intermittency`, `biased_trap_walk`,
+`tilted_periodic_potential`, `flashing_ratchet`, and `shaken_spring_block` as registered factories under
+`mathematics/stochastic_processes` and `physics/soft_matter`, as the model inventory lists them with their sources, each
+with a gallery example.
+
+#### Scenario: Ratchet current
+- **WHEN** `flashing_ratchet` runs with an asymmetric and with a symmetric sawtooth potential at the same switching rate
+- **THEN** the asymmetric potential gives a mean current whose sign follows the asymmetry and exceeds three standard
+  errors, and the symmetric one gives a current within three standard errors of zero
+
+### Requirement: Birth-death and interacting particle processes
+The library SHALL provide `birth_death_queue`, `absorbing_birth_death`, `zero_range_process`, `dissipative_zero_range`,
+and `asep` as registered factories under `mathematics/stochastic_processes` and `physics/statistical_mechanics`, as the
+model inventory lists them with their sources, each with a gallery example.
+
+#### Scenario: Stationary queue
+- **WHEN** `birth_death_queue` runs as an M/M/1 queue with load `rho = 0.5`
+- **THEN** the time-averaged occupation distribution matches `(1 - rho) rho^n` within 0.01 for `n` up to 5
+
+### Requirement: Active matter and traffic
+The library SHALL provide `aligning_active_brownian_particles`, `binary_collision_flocking`, `langevin_traffic`, and
+`traffic_density_equation` as registered factories under `engineering/traffic` and `physics/active_matter`, as the model
+inventory lists them with their sources, each with a gallery example.
+
+#### Scenario: Alignment transition
+- **WHEN** `aligning_active_brownian_particles` runs at a low and a high alignment strength at fixed density and noise
+- **THEN** the stationary polarization is below 0.2 at the low strength and above 0.6 at the high strength
+
+### Requirement: Agents, evolution, and populations
+The library SHALL provide `perishable_goods_duopoly`, `standardized_agents`, `origin_fixation_walk`,
+`neutral_biodiversity`, `neutral_clustering`, and `heterogeneous_mean_field_sir` as registered factories under
+`biology/ecology`, `biology/epidemiology`, `biology/evolution`, `economics/markets`, and `social/opinion_dynamics`, as
+the model inventory lists them with their sources, each with a gallery example.
+
+#### Scenario: Epidemic threshold on networks
+- **WHEN** `heterogeneous_mean_field_sir` runs on a degree distribution with transmission rates below and above the
+  threshold `<k>/(<k^2> - <k>)` of the recovery rate, close to `<k>/<k^2>`
+- **THEN** the final epidemic size is below 1% below the threshold and above 5% above it
+
+### Requirement: Maps and coupled oscillators
+The library SHALL provide `cubic_chaotic_map`, `skew_tent_map`, `doubling_map`, `subcritical_hopf_form`,
+`oscillator_death`, and `heterogeneous_global_coupling` as registered factories under `mathematics/dynamical_systems`
+and `physics/synchronization`, as the model inventory lists them with their sources, each with a gallery example.
+
+#### Scenario: Invariant density of the tent map
+- **WHEN** `skew_tent_map` iterates an ensemble of 10000 points for 200 steps
+- **THEN** the histogram of the final points is uniform on [0, 1] within the sampling error of each of 20 bins
+
+### Requirement: Bertin models are recorded in the inventory
+The inventory SHALL record every model of Bertin 2021 under the source key `Bt`: the models above as pending this
+change, `levy_flight` and `trap_model` as pending `add-anomalous-processes`, `random_walk_with_memory` and
+`diluted_hopfield` as pending `add-stochastic-maps`, `random_graph_ensembles` as pending `add-adaptive-networks`,
+`random_energy_model` and `perceptron_satisfiability` as blocked on `add-static-models`, and the new sources of models
+the library already has.
+
+#### Scenario: Source of an existing model
+- **WHEN** a contributor reads the inventory entry of `kuramoto`
+- **THEN** its sources include `Bt 7.3.1`
+
+### Requirement: Mandelbrot and Julia sets
+The library SHALL provide the Mandelbrot set and the filled Julia sets of the complex quadratic map `z → z² + c`
+(Dilão 2023 §5.5) as registered factories under the field path `mathematics/fractals`. Each SHALL iterate the map at
+every site of a lattice of complex points and record the step at which the modulus first exceeds an escape radius.
+
+#### Scenario: Mandelbrot escape times
+- **WHEN** the Mandelbrot model runs for 100 steps on a lattice whose sites include `c = 1`, `c = -1`, `c = -2`, and
+  `c = i`
+- **THEN** the site at `c = 1` escapes at step 3, since `0 → 1 → 2 → 5`, and the sites at `c = -1`, `c = -2`, and
+  `c = i` never escape
+
+#### Scenario: Julia set of the squaring map
+- **WHEN** the Julia model with `c = 0` runs for 100 steps on a 201 × 201 lattice over the square `[-2, 2]²`
+- **THEN** every site with `|z₀| < 0.99` never escapes, and every site with `|z₀| > 1.01` has escaped
+
+#### Scenario: Mandelbrot symmetry
+- **WHEN** the Mandelbrot model runs on a window symmetric about the real axis
+- **THEN** the escape-time image equals its mirror image across the real axis
+
+### Requirement: Stochastic map models
+The library SHALL provide, as registered factories built only on the public core, the persistent random walk under
+`mathematics/stochastic_processes` (Jensen 2023 §10.4), Markov and hidden Markov sources under
+`mathematics/stochastic_processes` (Lindgren 2024 §3.2), and iterated function systems drawn by the chaos game under
+`mathematics/fractals` (Dilão 2023 §5.4). The inventory SHALL mark the three entries as implemented.
+
+#### Scenario: Persistent random walk diffuses faster
+- **WHEN** 2000 persistent random walkers that keep their direction with probability 0.8 run for 1000 steps
+- **THEN** the mean squared displacement divided by the time is `(1 + ρ) / (1 - ρ) = 4` within 10%, where
+  `ρ = 2 × 0.8 - 1`
+
+#### Scenario: Markov source entropy rate
+- **WHEN** a Markov source with transition matrix `[[0.9, 0.1], [0.4, 0.6]]` runs for 100000 steps
+- **THEN** the entropy rate of its symbols estimated from block entropies is 0.569 bits within 0.01
+
+#### Scenario: Hidden Markov source frequencies
+- **WHEN** a hidden Markov source with hidden transition matrix `[[0.9, 0.1], [0.4, 0.6]]` and emission matrix
+  `[[0.7, 0.3], [0.2, 0.8]]` runs for 100000 steps
+- **THEN** the frequency of the first observed symbol is 0.6 within 0.01
+
+#### Scenario: Sierpiński triangle by the chaos game
+- **WHEN** a group of 100000 points iterates the three maps of the Sierpiński triangle with equal weights for 30 steps
+- **THEN** the box-counting dimension of the final points, rasterised on a 128 by 128 grid with box sizes from 1 to 32
+  cells, is `log 3 / log 2` within 0.05
+
+### Requirement: Probabilistic Boolean networks
+The library SHALL provide `probabilistic_boolean_network` in `biology/systems_biology`, a Boolean network that draws
+each node's transfer function from its candidates with given probabilities at every step, as Raman 2021 section 7.3.1
+poses it.
+
+#### Scenario: Selection probabilities
+- **WHEN** `probabilistic_boolean_network` runs for many steps with one node choosing between two functions with
+  probabilities 0.7 and 0.3
+- **THEN** the share of steps that used the first function is 0.7 within three standard errors
+
+### Requirement: Bertin models on stochastic maps
+The library SHALL provide `random_walk_with_memory` in `mathematics/stochastic_processes` and `diluted_hopfield` in `computer_science/neural_networks`, as Bertin 2021 poses them and the model inventory records them, built on this
+change's capability, each with a gallery example.
+
+#### Scenario: Registered under the inventory names
+- **WHEN** the change is applied and the inventory check runs
+- **THEN** both models are registered under their field paths and marked implemented
+
+### Requirement: Intrinsic-instability populations
+The library SHALL provide `intrinsic_instability` in `biology/ecology`, the resident and invading populations of
+Jensen 2023 section 13.2, Eqs. (13.3) and (13.4), whose resident population follows an Ornstein-Uhlenbeck step with
+noise scaled by the square root of its size and is suppressed by an invader that a rare mutation seeds and that then
+grows exponentially, built on this change's capability, with a gallery example.
+
+#### Scenario: Leaving the fixed point from within
+- **WHEN** `intrinsic_instability` runs for 4000 steps with its default parameters and random state 0
+- **THEN** the invader is seeded before step 3000, the resident population stays within 0.15 of 1 before the
+  invader appears, and at the end the resident population is below 0.5 and the invader above 1
+
+### Requirement: Substitution fractals
+The library SHALL provide the Koch curve as an L-system with a turtle, the Cantor set as a segment substitution, and
+the Sierpiński triangle and carpet as polygon substitutions, as registered factories whose generations are the
+simulation's steps (Thurner et al. 2018 §3.5.2, Trzaska 2023 §3.5).
+
+#### Scenario: Koch curve
+- **WHEN** `run('koch_curve', until=5)` is called
+- **THEN** the word at the last frame has 1024 symbols `F`, the curve's total length is `(4/3)^5` within 1e-12, and
+  the box-counting dimension of its raster at resolution 2048, over boxes of 16 to 256 cells, is
+  `log 4 / log 3 ≈ 1.262` within 0.05
+
+#### Scenario: Cantor set
+- **WHEN** `run('cantor_set', until=8)` is called
+- **THEN** `trajectory['cantor.size']` is `2^n` at generation `n`, and the total length is `(2/3)^n` within 1e-12 at
+  every frame
+
+#### Scenario: Sierpiński carpet
+- **WHEN** `run('sierpinski_substitution', until=4)` is called with `shape='carpet'`
+- **THEN** the patch holds 4096 squares and their area is `(8/9)^4` of the unit square within 1e-12
+
+#### Scenario: Gallery analysis
+- **WHEN** the gallery example of any of the three models runs
+- **THEN** its analysis figure plots the log measure against the generation with the exact line, and the log box count
+  against the log box size with the slope of the similarity dimension
+
+### Requirement: Rewriting models are recorded in the model inventory
+Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
+inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
+model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+twice.
+
+#### Scenario: Inventory models registered
+- **WHEN** the change is applied and the inventory check runs
+- **THEN** these entries are registered under their field paths and marked implemented:
+  - `koch_curve` in `mathematics/fractals` (Th 3.5.2, Tr 3.5)
+  - `cantor_set` in `mathematics/fractals` (Th 3.5.2, Tr 3.5)
+  - `sierpinski_substitution` in `mathematics/fractals` (Th 3.5.2, Tr 3.5)
+
+#### Scenario: New model recorded
+- **WHEN** the change registers a model with no inventory entry
+- **THEN** the inventory check fails until the entry is added with its sources and field path

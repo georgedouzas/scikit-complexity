@@ -34,7 +34,8 @@ the initial state of the system as initial conditions.
 ### Requirement: Sage expressions are accepted
 Laws, energies, pair potentials, and boundaries SHALL be written as Sage symbolic expressions, without any optional
 installation, and the symbols the framework gives a component SHALL be Sage symbols that carry the domains of their
-variables.
+variables. A NumPy scalar given as a law value SHALL become a Sage number, and a law value that is a NumPy array SHALL
+raise a named validation error that names the law's target.
 
 #### Scenario: Sage force
 - **WHEN** a constant force is given as a Sage expression
@@ -44,6 +45,16 @@ variables.
 - **WHEN** a component's `laws` method receives its symbols
 - **THEN** every scalar symbol is a Sage symbolic expression, and every vector state is a Sage vector with one
   component per dimension of the space
+
+#### Scenario: NumPy scalar times a vector
+- **WHEN** a rate law of a vector state `v` has the value `np.float64(2.0) * v * v`, which NumPy builds as an
+  element-wise array
+- **THEN** compiling raises a named validation error that names the state and asks to convert the NumPy scalar with
+  `float`, instead of running the element-wise product
+
+#### Scenario: NumPy scalar as a value
+- **WHEN** a rate law has the value `np.float64(-0.5) * x` for a scalar state `x`, or the value `np.float64(1.0)`
+- **THEN** the system compiles and its trajectory equals that of the same law written with Python floats
 
 ### Requirement: SymPy expressions are rejected
 A law that receives a SymPy expression SHALL raise a named validation error that names the component and the law and
@@ -91,7 +102,8 @@ A sign question that remains SHALL raise a named error that names the parameters
 
 ### Requirement: Fixed points and their stability are derived
 The analysis layer SHALL find the fixed points of ODE systems and maps, derive their Jacobians, and classify each fixed
-point's stability from its eigenvalues.
+point's stability from its eigenvalues, also for systems whose groups of at most 64 members read reductions, which it
+expands into one equation per member.
 
 #### Scenario: Lotka-Volterra centre
 - **WHEN** a user analyses prey with exponential growth rate `r`, predators with mortality `d`, and predation with
@@ -102,6 +114,14 @@ point's stability from its eigenvalues.
 #### Scenario: Logistic map period one
 - **WHEN** a user analyses the logistic map at r = 2.5
 - **THEN** the fixed point `1 - 1 / r` is classified as stable
+
+#### Scenario: Hawks and doves as a group
+- **WHEN** a user analyses replicator dynamics of hawks and doves, two members of a group, with `V < C`
+- **THEN** a fixed point has the hawk share `V / C` and is classified as stable
+
+#### Scenario: Group above the limit
+- **WHEN** a user derives the Jacobian of a group of 1000 members that reads reductions
+- **THEN** a named error is raised that states the limit of 64 members and suggests analysing a smaller group
 
 ### Requirement: Vector-field divergence is derived
 The analysis layer SHALL derive the divergence of a system's vector field.
