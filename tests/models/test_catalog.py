@@ -137,6 +137,41 @@ def test_model_conforms(entry, tmp_path):
     assert pickle.loads(pickle.dumps(system)) is not None  # noqa: S301  # nosec B301: loads data the test just dumped
 
 
+PROBED_COLUMNS = 40
+
+
+def _probe_pattern(problem, x, p, rng):
+    """Check that the central differences of a drift in sampled columns lie inside the derived Jacobian pattern."""
+    pattern = problem.jacobian.pattern()
+    if pattern is None:
+        return
+    pattern = pattern.tocsc()
+    rates = np.abs(problem.drift(0.0, x, p))
+    size = x.size
+    for column in rng.choice(size, min(size, PROBED_COLUMNS), replace=False):
+        step = 1e-6 * max(1.0, abs(x[column]))
+        shift = np.zeros(size)
+        shift[column] = step
+        with np.errstate(all='ignore'):
+            derivative = (problem.drift(0.0, x + shift, p) - problem.drift(0.0, x - shift, p)) / (2 * step)
+        found = np.flatnonzero(np.isfinite(derivative) & (np.abs(derivative) > 1e-8 + 1e-7 * rates))
+        allowed = pattern[:, [column]].nonzero()[0]
+        assert set(found) <= set(allowed), f'column {column} reaches rows {sorted(set(found) - set(allowed))}'
+
+
+@pytest.mark.parametrize('entry', catalog(), ids=lambda entry: entry.name)
+def test_jacobian_pattern_holds_finite_differences(entry):
+    """Test that the Jacobian pattern of every model with an ODE form holds its finite differences at random states."""
+    problem = compile_system(create(entry.name), backend='numpy')
+    if problem.jacobian is None or problem.delays or problem.drift is None:
+        pytest.skip('The model has no ODE form without delays.')
+    rng = np.random.default_rng(0)
+    for _ in range(3):
+        x = problem.initial_state * (1 + 0.1 * rng.random(problem.initial_state.size))
+        x = x + 0.01 * rng.random(x.size)
+        _probe_pattern(problem, x, problem.initial_parameters, rng)
+
+
 ObservedValue = Element.define('ObservedValue', states={'y': 0.0})
 
 

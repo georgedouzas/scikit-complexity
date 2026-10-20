@@ -4,9 +4,10 @@
 # License: MIT
 
 import math
+import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -18,6 +19,11 @@ from ._base import Stepper, register_solver
 from ._hybrid import History, hermite, with_delays
 
 METHODS = {'RK45': RK45, 'RK23': RK23, 'DOP853': DOP853, 'Radau': Radau, 'BDF': BDF, 'LSODA': LSODA}
+IMPLICIT = frozenset({'Radau', 'BDF', 'LSODA'})
+JACOBIANS = ('auto', 'exact', 'dense')
+DENSITY_LIMIT = 0.5
+BAND_FRACTION = 0.1
+STIFF_SPAN = 1000
 RESTART = 1e-12
 DISCONTINUITY_ORDERS = 3
 STEPS_PER_FRAME = 100
@@ -72,15 +78,37 @@ class ScipyODE(Stepper):
     on parameters. With delays, steps are at most the shortest delay, or a hundredth of the frame when
     the delay is shorter, and a delay shorter than the step reads the extension of the previous step.
 
+    The implicit methods `BDF`, `Radau`, and `LSODA` receive the structure of the Jacobian that the compiler derives
+    from the laws, at every start and restart of the integrator. `BDF` and `Radau` estimate the Jacobian by finite
+    differences over groups of independent columns and factor it with sparse LU, which makes them the stiff path for
+    finite-difference and finite element fields. An explicit method that spans more than 1000 stable steps of the
+    diffusion of a field in one call warns once.
+
     Args:
         method:
-            The integration method, such as `RK45`, `DOP853`, or `LSODA` for stiff systems.
+            The integration method: `RK45`, `RK23`, or `DOP853` for non-stiff systems, and `BDF`, `Radau`, or `LSODA`
+            for stiff ones.
 
         rtol:
             The relative tolerance.
 
         atol:
             The absolute tolerance.
+
+        jacobian:
+            How implicit methods obtain the Jacobian. `'auto'` passes the sparsity pattern to `BDF` and `Radau` and
+            the half bandwidths of a pattern narrower than a tenth of the size to `LSODA`, and passes nothing when the
+            pattern is denser than one half. `'exact'` passes the exact sparse Jacobian of the laws, which needs laws
+            with a symbolic form. `'dense'` passes nothing, so the Jacobian is estimated densely. Explicit methods
+            ignore it.
+
+    Attributes:
+        jacobian_pattern_:
+            The sparsity pattern of the Jacobian that an implicit method uses, or `None`.
+
+        jacobian_options_:
+            The keyword arguments of the pattern or the half bandwidths that the integrator receives. The exact
+            Jacobian is passed as `jac` at every start of the integrator, with the parameters of the call.
 
     Examples:
         >>> import numpy as np
@@ -100,10 +128,11 @@ class ScipyODE(Stepper):
 
     form: ClassVar[Form] = Form.ODE
 
-    def __init__(self, method: str = 'RK45', rtol: float = 1e-6, atol: float = 1e-9) -> None:
+    def __init__(self, method: str = 'RK45', rtol: float = 1e-6, atol: float = 1e-9, jacobian: str = 'auto') -> None:
         self.method = method
         self.rtol = rtol
         self.atol = atol
+        self.jacobian = jacobian
 
     def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
         """Prepare the stepper for a problem, with no integrator yet.
@@ -117,9 +146,24 @@ class ScipyODE(Stepper):
 
         Raises:
             SolverError:
-                The problem is not an ODE.
+                The problem is not an ODE, or the method or the Jacobian option is unknown.
+
+            ValidationError:
+                The exact Jacobian is asked for laws without a symbolic form.
         """
         super().initialize(problem, rng)
+        if self.method not in METHODS:
+            error_msg = f'Unknown method {self.method!r}. Use one of {", ".join(METHODS)}.'
+            raise SolverError(error_msg)
+        if self.jacobian not in JACOBIANS:
+            error_msg = f'Unknown Jacobian option {self.jacobian!r}. Use one of {", ".join(map(repr, JACOBIANS))}.'
+            raise SolverError(error_msg)
+        self.jacobian_pattern_ = None
+        self.jacobian_options_: dict[str, Any] = {}
+        self._exact = False
+        self._warned = False
+        if self.method in IMPLICIT and self.jacobian != 'dense' and problem.jacobian is not None:
+            self._prepare_jacobian(problem)
         self._solver: OdeSolver | None = None
         self._segment: _Segment | None = None
         self._time = math.nan
@@ -127,6 +171,57 @@ class ScipyODE(Stepper):
         self._until = math.inf
         self._state = np.zeros(0)
         self._parameters = np.zeros(0)
+
+    def _prepare_jacobian(self, problem: Problem) -> None:
+        """Derive the Jacobian structure an implicit method receives, or check that the exact Jacobian exists."""
+        jacobian = problem.jacobian
+        assert jacobian is not None
+        if self.jacobian == 'exact':
+            jacobian.validate()
+            self._exact = True
+            self.jacobian_pattern_ = jacobian.pattern()
+            return
+        pattern = jacobian.pattern()
+        size = problem.initial_state.size
+        if pattern is None or pattern.nnz > DENSITY_LIMIT * size * size:
+            return
+        self.jacobian_pattern_ = pattern
+        if self.method != 'LSODA':
+            self.jacobian_options_ = {'jac_sparsity': pattern}
+            return
+        rows, columns = pattern.nonzero()
+        lower = int(np.max(rows - columns, initial=0))
+        upper = int(np.max(columns - rows, initial=0))
+        if max(lower, upper) <= BAND_FRACTION * size:
+            self.jacobian_options_ = {'lband': lower, 'uband': upper}
+
+    def _jacobian_options(self, history: History | None, p: Vector) -> dict[str, Any]:
+        """Return the keyword arguments that pass the Jacobian structure to the integrator."""
+        if not self._exact:
+            return self.jacobian_options_
+        problem = self.problem_
+        jacobian = problem.jacobian
+        assert jacobian is not None
+        dense = self.method == 'LSODA'
+
+        def exact(time: float, state: Vector) -> Any:  # noqa: ANN401
+            matrix = jacobian(time, state, with_delays(problem, history, time, state, p))
+            return matrix.toarray() if dense else matrix
+
+        return {'jac': exact}
+
+    def _warn_stiff(self, t: float, until: float) -> None:
+        """Warn once when an explicit method spans many stable steps of the diffusion of a field in one call."""
+        limit = self.problem_.stable_step
+        if self._warned or self.method in IMPLICIT or limit is None or until - t <= STIFF_SPAN * limit:
+            return
+        self._warned = True
+        warning_msg = (
+            f'{self.method} spans {until - t:.6g} in one call, more than {STIFF_SPAN} times the stability limit '
+            f'{limit:.6g} of the diffusion of the fields, so its steps are limited by stability. Use '
+            "ScipyODE(method='BDF') or ScipyODE(method='Radau'), which receive the sparsity pattern of the Jacobian."
+        )
+        warnings.warn(warning_msg, UserWarning, stacklevel=3)
 
     def _continues(self, t: float, x: Vector, p: Vector) -> bool:
         """Check whether a call continues the state, time, and parameters the integrator returned last."""
@@ -179,6 +274,7 @@ class ScipyODE(Stepper):
             atol=self.atol,
             max_step=max(delay, self._frame / STEPS_PER_FRAME),
             first_step=first_step,
+            **self._jacobian_options(history, p),
         )
         self._segment = None
         self._time, self._state, self._parameters = t, x.copy(), p.copy()
@@ -273,6 +369,7 @@ class ScipyODE(Stepper):
         if problem.delays and self.history_ is None:
             self.history_ = History(problem, t, x, extrapolate=True)
         self._until = until
+        self._warn_stiff(t, until)
         if not self._continues(t, x, p):
             self._frame = until - t
             self._restart(t, x, p)

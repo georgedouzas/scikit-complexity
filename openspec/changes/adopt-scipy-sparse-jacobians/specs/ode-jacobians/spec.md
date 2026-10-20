@@ -14,8 +14,9 @@ finite-volume fields, and dense blocks for couplings known only at run time. The
 true pattern, include the diagonal, and leave fixed rows empty.
 
 #### Scenario: Superset of the true pattern
-- **WHEN** the finite-difference Jacobian is taken at three random states of every library model with an ODE form
-- **THEN** every entry above 1e-8 in absolute value lies inside the derived pattern
+- **WHEN** the central finite differences of the drift are taken in up to 40 sampled columns at three random states of
+  every library model with an ODE form and no delays
+- **THEN** every entry above `1e-8 + 1e-7 |f_i|` in absolute value lies inside the derived pattern
 
 #### Scenario: Stencil pattern
 - **WHEN** Fisher-KPP on 1000 points uses the three-point Laplacian with zero-flux edges, and again with periodic edges
@@ -60,8 +61,8 @@ when the pattern is denser than one half. Explicit methods SHALL ignore the opti
 
 #### Scenario: Radau and exact Jacobians
 - **WHEN** the same problem runs with Radau and the pattern, and with BDF and the exact Jacobian
-- **THEN** each is at least 10 times faster than BDF on the dense path, and the exact run uses at least 5 times fewer
-  drift evaluations than the pattern run
+- **THEN** each is at least 10 times faster than BDF on the dense path, and the exact run spends no drift evaluation on
+  its Jacobian, while the pattern run spends one per column group
 
 #### Scenario: Banded LSODA
 - **WHEN** Fisher-KPP on 4000 points with zero-flux edges runs with LSODA
@@ -76,10 +77,13 @@ The SciPy ODE solver SHALL pass the same Jacobian structure when it integrates s
 and delays, at every restart.
 
 #### Scenario: Event on a stiff field
-- **WHEN** Fisher-KPP on 4000 points runs with BDF and a terminal event when the total population crosses half the
-  domain size
+- **WHEN** Fisher-KPP on 4000 points runs with BDF and a terminal event when the total population grows by half
 - **THEN** the event time agrees with the dense path within 1e-6, and the run is at least 10 times faster
 
 #### Scenario: Delayed stiff field
 - **WHEN** a diffusive Hutchinson equation with delay 1 on 2000 points runs with BDF and the pattern
 - **THEN** the final state agrees with the dense path within 1e-5 relative error
+
+#### Scenario: Unknown option
+- **WHEN** a user gives an unknown Jacobian option or method
+- **THEN** initializing raises a named error that lists the options

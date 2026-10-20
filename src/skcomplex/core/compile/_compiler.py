@@ -2080,9 +2080,18 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
     functions['boundary'] = _wrapping_angles(cast('VectorFunction | None', functions.get('boundary')), states)
     functions['equations'] = _written_equations(cast('dict[str, Expression]', functions['equations']), states, fields)
     volumes, constrained = _with_discretizations(functions, specs, declarations, blocks)
-    exact = form is Form.ODE and not volumes and not constrained[0].size and not _symmetries(blocks)
     jacobian = (
-        ExactJacobian(tuple(lowered.kernels[Rate]), reductions, states.size, declarations.time) if exact else None
+        ExactJacobian(
+            tuple(lowered.kernels[Rate]),
+            reductions,
+            states.size,
+            declarations.time,
+            volumes=volumes,
+            symmetries=tuple(_symmetries(blocks)),
+            constrained=constrained[0],
+        )
+        if form is Form.ODE
+        else None
     )
     initial_state = np.concatenate([np.zeros(0), *declarations.initial_states])
     initial_state[constrained[0]] = constrained[1]

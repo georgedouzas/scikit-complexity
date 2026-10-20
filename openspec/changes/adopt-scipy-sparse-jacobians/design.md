@@ -39,7 +39,10 @@ stencil of two cells per side, and `problem.constrained` lists the fixed rows.
 
 ### Sparsity from the kernel references
 
-`jacobian_pattern(problem)` returns a boolean CSR matrix over the state vector. For every ODE kernel and every output
+`add-group-reductions` already gives every ODE problem without discretizations `problem.jacobian`, an
+`ExactJacobian` of member reads, shared reads, and reductions with a `pattern()` method. This change builds it for every
+ODE problem and extends it to every source rather than adding separate functions: `problem.jacobian.pattern()` returns
+a boolean CSR matrix over the state vector. For every ODE kernel and every output
 with a state target, each state symbol the output's expression uses adds entries from the target's rows by its source:
 - `MEMBER`: member `i` reads member `i`;
 - `SINGLE`: every member reads the one shared component;
@@ -50,7 +53,9 @@ with a state target, each state symbol the output's expression uses adds entries
 - callable laws and `Call` functions: every state the callable can read.
 
 Finite-volume conservation laws add the band of their reconstruction stencil per axis, with wrap-around on periodic
-edges. The diagonal is always included. Rows in `problem.constrained` are emptied. The result is the union with the
+edges, coupling every conserved state of the field. Symmetric states project their rows onto the mirrored rows, as the
+drift does. The diagonal is always included. Rows in `problem.constrained` are emptied. When the dense blocks exceed
+4 million entries, `pattern()` returns `None`, which the solver treats as dense. The result is the union with the
 pattern of `SplitOperator.sparse`, which the tests use as a cross-check.
 
 Delayed reads do not add entries. With delays, the hybrid path evaluates the history as a value fixed during one step,
@@ -65,15 +70,18 @@ A new `Source` must state its pattern. Where it cannot, its block is dense, so t
 
 ### Exact sparse Jacobian from Sage
 
-`jacobian_function(problem)` differentiates every output expression by Sage's `diff` with respect to each state symbol
-it uses, neighbour symbols included, so each partial derivative lands on the entry the pattern assigned to it.
-Derived reads with a sparse operator use the chain rule `∂f/∂D · A · diag(∂u/∂s)`. The partials of a kernel compile to
-one function with the problem's backend. They are evaluated over members and scattered into the data array of the
-pattern's CSR matrix through a precomputed index map that sums duplicate entries. The parameters come from the vector
-passed to `advance`, so parameter changes apply at the next call.
+Calling `problem.jacobian(t, x, p)` differentiates every output expression by Sage's `diff` with respect to each
+symbol it uses, neighbour, derived, and reduction symbols included. Every symbol has a sparse gradient by the state,
+one row per member: a selection for member, shared, and neighbour reads, the chain rule `A · Σ diag(∂u/∂s) · ∇s` for
+derived reads with a sparse operator `A`, and the chain rule through reductions. Each output adds
+`scatter · diag(∂f/∂s) · ∇s`, the symmetric projections and the emptied fixed rows follow, so the result has the
+pattern's structure. The partials compile once to NumPy functions, and the sparse products are SciPy's, which proved
+fast enough that the precomputed index map into the pattern's data was not needed. The parameters come from the vector
+passed to `advance`, delays included, so parameter changes apply at the next call.
 
-The exact Jacobian is unavailable for callable laws, `Call` functions, pair kernels, and spectral derived reads.
-`jacobian='exact'` raises a named error that names the law and suggests `'auto'`.
+The exact Jacobian is unavailable for callable laws, `Call` functions, pair kernels, spectral derived reads, and
+finite-volume conservation laws. `problem.jacobian.validate()`, which `jacobian='exact'` calls in `initialize`, raises
+a `ValidationError` that names the law and suggests `'auto'`.
 
 ### The `jacobian` parameter
 
@@ -83,22 +91,26 @@ The exact Jacobian is unavailable for callable laws, `Call` functions, pair kern
 - `'exact'`: BDF and Radau get the sparse `jac`, and LSODA gets it as a dense array.
 - `'dense'`: nothing is passed, as today.
 
-RK45, RK23, and DOP853 never build the structure, so explicit runs are unchanged and cost nothing more. The pattern and
-the compiled Jacobian are built in `initialize` for implicit methods and kept on the stepper as `jacobian_pattern_`.
+RK45, RK23, and DOP853 never build the structure, so explicit runs are unchanged and cost nothing more. The pattern is
+built in `initialize` for implicit methods and kept on the stepper as `jacobian_pattern_`, and the keyword arguments
+the integrator receives as `jacobian_options_`. The exact Jacobian is wrapped at every start of the integrator with the
+parameters of the call.
 
 Alternative considered: making BDF the default ODE method. Non-stiff models outnumber stiff ones in the library, and
 RK45 is cheaper per step on them, so the default stays.
 
 ### The hybrid path
 
-`_advance_hybrid` passes the same keyword arguments to every `METHODS[method](...)` it builds. Each restart at a
-breakpoint or event re-estimates the Jacobian, which costs one evaluation per column group rather than one per state.
+Since `fix-core-defects`, one integrator runs across frames, and `_restart` builds every `METHODS[method](...)`, at the
+start, at breakpoints, at events, at boundary changes, and when parameters change. It passes the same keyword
+arguments every time. Each restart re-estimates the Jacobian, which costs one evaluation per column group rather than
+one per state.
 
 ### Recommending the stiff path
 
 The stability warning of explicit fixed-step steppers names `ScipyODE(method='BDF')` and `ScipyODE(method='Radau')`
-for finite-difference and finite element fields, and the split steppers for spectral fields. An adaptive explicit
-method warns once on the first `advance` whose span exceeds 1000 times `problem.stable_step`. The user guide gives the
+for finite-difference and finite element fields, and the split steppers for spectral fields. An explicit method of
+`ScipyODE` warns once on the first `advance` whose span exceeds 1000 times `problem.stable_step`. The user guide gives the
 audit's comparison.
 
 ### Libraries surveyed

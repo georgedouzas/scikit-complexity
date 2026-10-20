@@ -678,8 +678,9 @@ print(Simulation(ring, dt=1.0).run(until=50).trajectory_['cars.v'][-1].std() > 0
 A reduction makes every reading member depend on every reduced member, so the Jacobian of a drift with reductions has
 the rank-one block `dF_i/dR dR/dx_j` of every reduction `R`. `problem.jacobian` of an ODE problem evaluates the exact
 Jacobian by the chain rule through every reduction, as a SciPy sparse matrix, and `problem.jacobian.pattern()` states
-its structure. When the dense blocks of the reductions exceed 4 million entries, `pattern()` returns `None` and an
-implicit solver estimates a dense Jacobian. Mean-field groups are rarely stiff, so explicit steppers such as `RK4` and
+its structure, which the implicit methods of `ScipyODE` receive (see
+[Discretizations and stiff solvers](#discretizations-and-stiff-solvers)). When the dense blocks exceed 4 million
+entries, `pattern()` returns `None` and an implicit solver estimates a dense Jacobian. Mean-field groups are rarely stiff, so explicit steppers such as `RK4` and
 `ScipyODE` with `RK45` suit large groups with reductions.
 
 ```python
@@ -885,6 +886,31 @@ line = Field(
 )
 print(np.abs(Simulation(System(elements=[line]), dt=10, solver=ETDRK4(dt=0.25)).run(until=100).state_).max())
 ```
+
+The implicit methods of `ScipyODE` are the stiff path for finite-difference and finite element fields, with adaptive
+error control that the fixed-step split steppers lack. The compiler derives the sparsity pattern of the Jacobian from
+the laws: member and shared reads, the neighbour tables of stencils, the sparse matrices of finite elements, the
+reconstruction stencils of finite volumes, and dense blocks where couplings are known only at run time, such as pairs,
+spectral operators, and callables. `ScipyODE(method='BDF')` and `ScipyODE(method='Radau')` receive the pattern, so
+SciPy estimates the Jacobian with one drift evaluation per group of independent columns and factors it with sparse LU,
+and `LSODA` receives the half bandwidths of a pattern narrower than a tenth of the size. The option `jacobian` selects
+the path: `'auto'` by default, `'exact'` for the sparse Jacobian of the laws differentiated by Sage, which laws without
+a symbolic form cannot give, and `'dense'` for the dense estimate. Explicit methods ignore it, and `RK45` warns when one
+call spans more than 1000 stable steps of the diffusion of a field.
+
+```python
+from skcomplex.core.solvers import ScipyODE
+from skcomplex.models.biology.ecology import fisher_kpp
+
+stiff = fisher_kpp(400, D=1.0, spacing=0.05)
+simulation = Simulation(stiff, dt=1.0, solver=ScipyODE(method='BDF')).run(until=5)
+print(simulation.stepper_.jacobian_pattern_.nnz, simulation.state_.max().round(3))
+```
+
+On Fisher-KPP on 4000 points, whose largest eigenvalue is about 1600, run to `t = 10`, BDF with the dense estimate
+took 35 to 50 s, against about 0.2 s with the pattern, 0.3 s with the exact Jacobian, 0.7 s for Radau with the pattern,
+and 0.8 s for `CrankNicolson(dt=0.01)`. Spectral fields keep `ETDRK4` and the IMEX steppers, which win there because
+their linear part is diagonal in Fourier space while its pattern is dense.
 
 `skcomplex.models.physics.fluids.incompressible_flow(shape, size, nu=..., forcing=..., buoyancy=...)` builds two-dimensional
 incompressible flow in vorticity-streamfunction form, with Boussinesq convection when `buoyancy` gives `Ra` and `Pr`.

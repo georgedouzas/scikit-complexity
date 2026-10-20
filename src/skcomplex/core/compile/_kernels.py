@@ -314,6 +314,28 @@ class Kernel:
         """
         return [read(x, p, None, t) for read in self._argument_readers]
 
+    def read(self, symbol: Expression, t: float, x: Vector, p: Vector) -> Any:  # noqa: ANN401
+        """Return the values of one symbol the kernel knows, for every evaluation index of a member kernel.
+
+        Args:
+            symbol:
+                A symbol of `references`, such as an operand symbol of a derived read.
+
+            t:
+                The time.
+
+            x:
+                The state vector.
+
+            p:
+                The parameter vector, extended with the reductions when the kernel reads them.
+
+        Returns:
+            values:
+                One value or one array of values.
+        """
+        return self._reader(symbol)(x, p, None, t)
+
     @property
     def has_python_functions(self) -> bool:
         """Whether an output is computed by a function, either a callable law or a `Call`."""

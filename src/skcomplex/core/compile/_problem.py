@@ -30,6 +30,9 @@ class Jacobian(Protocol):
     def pattern(self) -> Any:  # noqa: ANN401
         """Return the boolean structure of the Jacobian, or `None` when it is too dense to state."""
 
+    def validate(self) -> None:
+        """Raise an error when a law has no symbolic form whose exact Jacobian can be derived."""
+
 
 @dataclass(frozen=True)
 class CompiledElement:
@@ -280,8 +283,8 @@ class Problem:
             The reductions that laws read, in the order they are evaluated before the kernels.
 
         jacobian:
-            The exact Jacobian of the drift of an ODE problem and its sparsity pattern, or `None` for other forms and
-            for drifts with conservation laws, symmetries, or fixed nodes.
+            The Jacobian of the drift of an ODE problem, derived from its laws: its sparsity pattern and, for laws with
+            a symbolic form, its exact value. `None` for other forms.
 
         stable_step:
             The largest step of explicit fixed-step solvers for which the diffusion of fields is stable,

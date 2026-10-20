@@ -170,6 +170,10 @@ class DerivedRead:
 
         dimensions:
             The lattice shape of a spectral operator, or `None`.
+
+        matrix:
+            The sparse matrix of an operator that acts on the sites as one, such as the finite element Laplacian, or
+            `None` for spectral operators.
     """
 
     operand: Expression
@@ -177,6 +181,7 @@ class DerivedRead:
     apply: Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]
     multiplier: npt.NDArray[np.complex128] | None = None
     dimensions: tuple[int, ...] | None = None
+    matrix: Any = None
     _function: Callable[..., Any] | None = field(default=None, repr=False)
 
     def evaluate(self, t: float, values: list[Any], size: int) -> npt.NDArray[np.float64]:
@@ -547,7 +552,7 @@ class FieldLowering:
             raise ValidationError(error_msg)
         matrix = mesh_laplacian(place.space)  # type: ignore[arg-type]
         symbols = sorted((item for item in operand.variables() if item in self.references), key=str)
-        read = DerivedRead(operand, symbols, lambda values: matrix @ values)
+        read = DerivedRead(operand, symbols, lambda values: matrix @ values, matrix=matrix)
         return self._derived(place, read)
 
     def _note_volume_limit(self, coefficient: Expression, stiffness: float) -> None:

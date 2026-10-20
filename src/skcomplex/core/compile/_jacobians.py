@@ -1,9 +1,9 @@
-"""Derive the exact Jacobian of a drift and its sparsity pattern by the chain rule through every reduction."""
+"""Derive the sparsity pattern of the Jacobian of a drift and its exact value from the compiled symbolic laws."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -12,16 +12,23 @@ import numpy.typing as npt
 import scipy.sparse
 from sage.all__sagemath_symbolics import SR
 
-from ..base import Expression, ValidationError
-from ._kernels import Kernel, Reference, Source, member_indices
+from ..base import Expression, ValidationError, symbols_of
+from ._kernels import Kernel, Output, Reference, Source, member_indices
 from ._printing import numpy_function
 from ._reductions import CompiledReduction, ReductionPass
+from ._volumes import FiniteVolume
 
 type Vector = npt.NDArray[np.float64]
+type Indices = npt.NDArray[np.intp]
 type Sparse = scipy.sparse.csr_array
+type Symmetry = tuple[Indices, tuple[int, ...], list[tuple[int, int]]]
 
 PATTERN_LIMIT = 4_000_000
-SUPPORTED = frozenset({Source.MEMBER, Source.SINGLE, Source.REDUCED})
+STENCIL = 2
+
+
+class _TooDense(Exception):  # noqa: N818
+    """Raised internally when the dense blocks of a pattern exceed the size limit."""
 
 
 def _selection(
@@ -29,11 +36,24 @@ def _selection(
     columns: npt.NDArray[np.intp],
     values: Any,  # noqa: ANN401
     size: int,
+    height: int | None = None,
 ) -> Sparse:
     """Return the sparse matrix with the given values at the given rows and columns, summing duplicates."""
-    shape = (int(rows.max(initial=-1)) + 1, size)
+    shape = (int(rows.max(initial=-1)) + 1 if height is None else height, size)
     data = np.broadcast_to(np.asarray(values, dtype=float), rows.shape)
     return scipy.sparse.csr_array((data, (rows, columns)), shape=shape)
+
+
+def _boolean(matrix: Any) -> Sparse:  # noqa: ANN401
+    """Return the nonzero structure of a sparse matrix as a boolean CSR matrix."""
+    matrix = scipy.sparse.csr_array(matrix)
+    matrix.eliminate_zeros()
+    return scipy.sparse.csr_array((np.ones(matrix.nnz, dtype=bool), matrix.indices, matrix.indptr), shape=matrix.shape)
+
+
+def _product(first: Any, second: Any) -> Sparse:  # noqa: ANN401
+    """Return the structure of the product of two boolean structures."""
+    return _boolean(scipy.sparse.csr_array(first, dtype=float) @ scipy.sparse.csr_array(second, dtype=float))
 
 
 @dataclass
@@ -65,9 +85,77 @@ class _Partials:
         return [(index, item, value) for (index, item), value in zip(self.pairs, results, strict=True)]
 
 
+def _output_symbols(output: Output) -> set[Expression] | None:
+    """Return the symbols an output reads, or `None` for a callable law, which reads every state."""
+    if output.expression is not None:
+        return set(SR(output.expression).variables())
+    if output.arguments is not None:
+        return symbols_of(list(output.arguments))
+    return None
+
+
+def _neighbor_columns(reference: Reference) -> tuple[Indices, Indices]:
+    """Return the members that read a neighbour and the flat index of the neighbour each reads."""
+    read = reference.neighbor
+    table = np.asarray(read.table, dtype=np.intp)
+    entry = reference.entry
+    members = np.arange(table.size, dtype=np.intp)
+    inside = table < entry.rows
+    columns = entry.start + table[inside] * entry.columns + reference.column
+    return members[inside], columns.astype(np.intp)
+
+
+def _mirror_projections(symmetries: Sequence[Symmetry], size: int) -> list[Sparse]:
+    """Return the matrices that project the rates of symmetric states onto their odd or even parts, axis by axis."""
+    projections = []
+    for indices, dimensions, signs in symmetries:
+        grid = np.arange(int(np.prod(dimensions))).reshape(dimensions)
+        free = np.setdiff1d(np.arange(size), indices)
+        for axis, sign in signs:
+            mirror = np.roll(np.flip(grid, axis=axis), 1, axis=axis).ravel()
+            rows = np.concatenate([free, indices, indices])
+            columns = np.concatenate([free, indices, indices[mirror]])
+            values = np.concatenate([np.ones(free.size), np.full(indices.size, 0.5), np.full(indices.size, sign / 2)])
+            projections.append(scipy.sparse.csr_array((values, (rows, columns)), shape=(size, size)))
+    return projections
+
+
+def _volume_pattern(volume: FiniteVolume, size: int) -> Sparse:
+    """Return the band of the reconstruction stencil of a finite-volume field, coupling all its conserved states."""
+    grid = np.arange(volume.size).reshape(volume.dimensions)
+    kinds = {kind for kind, _ in volume.boundaries}
+    rows, columns = [], []
+    for axis, length in enumerate(volume.dimensions):
+        for offset in range(-STENCIL, STENCIL + 1):
+            shifted = np.arange(length) + offset
+            neighbours = []
+            if 'periodic' in kinds:
+                neighbours.append(np.mod(shifted, length))
+            if kinds - {'periodic'}:
+                neighbours.append(np.clip(shifted, 0, length - 1))
+            for items in neighbours:
+                rows.append(grid.ravel())
+                columns.append(np.take(grid, items, axis=axis).ravel())
+    cells, others = np.concatenate(rows), np.concatenate(columns)
+    pairs = [(first + cells, second + others) for first in volume.starts for second in volume.starts]
+    return _selection(
+        np.concatenate([item for item, _ in pairs]),
+        np.concatenate([item for _, item in pairs]),
+        1.0,
+        size,
+        height=size,
+    )
+
+
 @dataclass
 class ExactJacobian:
-    """Jacobian of the drift of an ODE problem, exact through the reductions its laws read.
+    """Jacobian of the drift of an ODE problem, derived from its symbolic laws, with its sparsity pattern.
+
+    `pattern` states every entry the laws can make nonzero: member and shared reads, the neighbour tables of fields,
+    the sparse matrices of finite element operators, the reconstruction stencils of finite volumes, the rank-one blocks
+    of reductions, and dense blocks where couplings are known only at run time, such as pairs, spectral operators, and
+    callables. Calling the Jacobian evaluates it exactly by differentiating the laws, with the chain rule through
+    neighbour reads, finite element operators, and reductions.
 
     Every reading member depends on every member a reduction reads, so the Jacobian has the rank-one block
     `dF_i/dR dR/dx_j` of every reduction `R`, with `dR/dx_j` the derivative of the reduced member's argument, divided by
@@ -86,23 +174,56 @@ class ExactJacobian:
 
         time:
             The time symbol.
+
+        volumes:
+            The conservation laws of finite-volume fields.
+
+        symmetries:
+            The state indices, lattice shape, and axes with their signs of every symmetric field state.
+
+        constrained:
+            The fixed rows, whose rates are zero.
     """
 
     kernels: tuple[Kernel, ...]
     reductions: ReductionPass
     size: int
     time: Expression
+    volumes: tuple[FiniteVolume, ...] = ()
+    symmetries: tuple[Symmetry, ...] = ()
+    constrained: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
     _kernel_partials: list[_Partials] | None = field(default=None, init=False, repr=False)
     _reduction_partials: dict[Expression, _Partials] = field(default_factory=dict, init=False, repr=False)
+    _operand_partials: dict[int, _Partials] = field(default_factory=dict, init=False, repr=False)
+    _pattern: Sparse | None = field(default=None, init=False, repr=False)
+    _patterned: bool = field(default=False, init=False, repr=False)
 
-    def _check(self) -> None:
-        """Raise an error for a law whose exact Jacobian cannot be derived."""
+    def validate(self) -> None:
+        """Raise an error when a law has no symbolic form whose exact Jacobian can be derived.
+
+        Raises:
+            ValidationError:
+                A rate law holds a callable, a pair sum, or a spectral operator, or a field has conservation laws.
+        """
+        for volume in self.volumes:
+            error_msg = (
+                f'The conservation laws of {volume.owner} have no exact Jacobian. Use the automatic option, '
+                "jacobian='auto', which estimates it by finite differences on its sparsity pattern."
+            )
+            raise ValidationError(error_msg)
         for kernel in self.kernels:
-            sources = {reference.source for reference in kernel.references.values()}
-            if kernel.pairs is not None or kernel.has_python_functions or sources - SUPPORTED:
+            references = [kernel.references[item] for item in kernel.arguments]
+            spectral = any(
+                reference.source is Source.DERIVED and reference.neighbor.matrix is None for reference in references
+            )
+            pairs = kernel.pairs is not None or any(
+                reference.source in {Source.FIRST, Source.SECOND} for reference in references
+            )
+            if pairs or kernel.has_python_functions or spectral:
                 error_msg = (
-                    f'The rate laws of {kernel.owner} hold callables, pairs, or neighbour and operator reads, whose '
-                    'exact Jacobian is not derived. Let the solver estimate the Jacobian by finite differences.'
+                    f'The rate laws of {kernel.owner} hold callables, pairs, or spectral operators, whose exact '
+                    "Jacobian is not derived. Use the automatic option, jacobian='auto', which estimates it by finite "
+                    'differences on its sparsity pattern.'
                 )
                 raise ValidationError(error_msg)
 
@@ -110,12 +231,12 @@ class ExactJacobian:
         """Return the partial derivatives of every kernel, compiling them and those of the reductions once."""
         if self._kernel_partials is not None:
             return self._kernel_partials
-        self._check()
-        self._kernel_partials = []
+        self.validate()
+        kernel_partials = []
         for kernel in self.kernels:
             expressions = [output.expression for output in kernel.outputs]
             by = [item for item in kernel.arguments if _is_variable(kernel.references[item])]
-            self._kernel_partials.append(_Partials(self.time, kernel.arguments, expressions, by))
+            kernel_partials.append(_Partials(self.time, kernel.arguments, expressions, by))
         for reduction in self.reductions.reductions:
             by = [item for item in reduction.symbols if reduction.reads[item].is_state or item in self._by_symbol]
             self._reduction_partials[reduction.symbol] = _Partials(
@@ -124,7 +245,8 @@ class ExactJacobian:
                 [reduction.argument],
                 by,
             )
-        return self._kernel_partials
+        self._kernel_partials = kernel_partials
+        return kernel_partials
 
     @property
     def _by_symbol(self) -> dict[Expression, CompiledReduction]:
@@ -154,7 +276,7 @@ class ExactJacobian:
             total = total + _selection(members, columns, derivative, self.size)
         return scipy.sparse.csr_array(total)
 
-    def _gradient(
+    def _reduction_gradient(
         self,
         reduction: CompiledReduction,
         t: float,
@@ -183,6 +305,48 @@ class ExactJacobian:
             factors = mask / selected if reduction.kind == 'mean' else mask
         return scipy.sparse.csr_array(factors[np.newaxis, :] @ members)
 
+    def _reduced_rows(self, kernel: Kernel, reference: Reference, rows: Sparse) -> Sparse:
+        """Return the rows of a reduction's gradient or support read by every evaluation index of a kernel."""
+        if reference.entry.members is None:
+            rows = rows[[min(reference.column, rows.shape[0] - 1)]]
+        return rows if rows.shape[0] == kernel.rows else scipy.sparse.vstack([rows] * kernel.rows, format='csr')
+
+    def _symbol_gradient(
+        self,
+        kernel: Kernel,
+        item: Expression,
+        *,
+        t: float,
+        x: Vector,
+        q: Vector,
+        gradients: dict[Expression, Sparse],
+    ) -> Sparse | None:
+        """Return the gradient of a symbol by the state, one row per evaluation index, or `None` for parameters."""
+        reference = kernel.references[item]
+        rows = np.arange(kernel.rows)
+        if reference.source is Source.REDUCED:
+            return self._reduced_rows(kernel, reference, gradients[item])
+        if reference.source is Source.DERIVED:
+            read = reference.neighbor
+            key = id(read)
+            if key not in self._operand_partials:
+                by = [symbol for symbol in read.symbols if _is_variable(kernel.references[symbol])]
+                self._operand_partials[key] = _Partials(self.time, read.symbols, [read.operand], by)
+            values = [kernel.read(symbol, t, x, q) for symbol in read.symbols]
+            total = scipy.sparse.csr_array((kernel.rows, self.size))
+            for _, symbol, value in self._operand_partials[key].evaluate(t, values):
+                inner = self._symbol_gradient(kernel, symbol, t=t, x=x, q=q, gradients=gradients)
+                if inner is not None:
+                    derivative = np.broadcast_to(np.asarray(value, dtype=float), (kernel.rows,))
+                    total = total + scipy.sparse.diags_array(derivative) @ inner
+            return scipy.sparse.csr_array(read.matrix @ total)
+        if not reference.is_state:
+            return None
+        if reference.source is Source.NEIGHBOR:
+            members, columns = _neighbor_columns(reference)
+            return _selection(members, columns, 1.0, self.size, height=kernel.rows)
+        return _selection(rows, member_indices(reference, kernel.rows), 1.0, self.size, height=kernel.rows)
+
     def __call__(self, t: float, x: Vector, p: Vector) -> Sparse:
         """Return the Jacobian of the drift at a state as a sparse matrix.
 
@@ -202,92 +366,165 @@ class ExactJacobian:
 
         Raises:
             ValidationError:
-                A rate law holds a callable, a pair sum, or a neighbour or operator read.
+                A rate law holds a callable, a pair sum, or a spectral operator, or a field has conservation laws.
         """
         partials = self._compile()
         q = self.reductions.extend(t, x, p)
         gradients: dict[Expression, Sparse] = {}
         for reduction in self.reductions.reductions:
-            gradients[reduction.symbol] = self._gradient(reduction, t, x, q, gradients)
+            gradients[reduction.symbol] = self._reduction_gradient(reduction, t, x, q, gradients)
         jacobian = scipy.sparse.csr_array((self.size, self.size))
         for kernel, kernel_partials in zip(self.kernels, partials, strict=True):
             for index, item, value in kernel_partials.evaluate(t, kernel.gather(t, x, q)):
+                gradient = self._symbol_gradient(kernel, item, t=t, x=x, q=q, gradients=gradients)
+                if gradient is None:
+                    continue
                 target = member_indices(kernel.outputs[index].target, kernel.rows)  # type: ignore[arg-type]
-                jacobian = jacobian + self._block(kernel, target, item, value, gradients)
-        return jacobian
+                scatter = _selection(np.arange(kernel.rows), target, 1.0, self.size).T
+                derivative = np.broadcast_to(np.asarray(value, dtype=float), (kernel.rows,))
+                jacobian = jacobian + scatter @ scipy.sparse.diags_array(derivative) @ gradient
+        for projection in _mirror_projections(self.symmetries, self.size):
+            jacobian = projection @ jacobian
+        return scipy.sparse.csr_array(self._free_rows() @ jacobian)
 
-    def _block(
-        self,
-        kernel: Kernel,
-        target: npt.NDArray[np.intp],
-        item: Expression,
-        value: Any,  # noqa: ANN401
-        gradients: dict[Expression, Sparse],
-    ) -> Sparse:
-        """Return the contribution of one partial derivative of a kernel output to the Jacobian."""
-        reference = kernel.references[item]
-        derivative = np.broadcast_to(np.asarray(value, dtype=float), (kernel.rows,))
-        scatter = _selection(np.arange(kernel.rows), target, 1.0, self.size).T
-        if reference.source is Source.REDUCED:
-            gradient = gradients[item]
-            if reference.entry.members is None:
-                rows = gradient[[min(reference.column, gradient.shape[0] - 1)]]
-                rows = scipy.sparse.vstack([rows] * kernel.rows)
-            else:
-                rows = gradient
-            return scipy.sparse.csr_array(scatter @ scipy.sparse.diags_array(derivative) @ rows)
-        columns = member_indices(reference, kernel.rows)
-        return scipy.sparse.csr_array(scatter @ _selection(np.arange(kernel.rows), columns, derivative, self.size))
+    def _free_rows(self) -> Sparse:
+        """Return the diagonal matrix that empties the fixed rows."""
+        diagonal = np.ones(self.size)
+        diagonal[self.constrained] = 0.0
+        return scipy.sparse.diags_array(diagonal, format='csr')
 
     def pattern(self) -> Sparse | None:
-        """Return the boolean structure of the Jacobian, or `None` when a dense block of reductions is too large.
+        """Return the boolean structure of the Jacobian, or `None` when its dense blocks are too large to state.
 
         Returns:
             pattern:
-                A boolean sparse matrix that holds every entry the Jacobian can make nonzero and the diagonal, or
-                `None` when the dense blocks of the reductions exceed `PATTERN_LIMIT` entries.
-
-        Raises:
-            ValidationError:
-                A rate law holds a callable, a pair sum, or a neighbour or operator read.
+                A boolean sparse matrix that holds every entry the Jacobian can make nonzero and the diagonal of free
+                rows, with fixed rows empty, or `None` when the dense blocks exceed `PATTERN_LIMIT` entries.
         """
-        self._compile()
+        if not self._patterned:
+            try:
+                self._pattern = self._build_pattern()
+            except _TooDense:
+                self._pattern = None
+            self._patterned = True
+        return self._pattern
+
+    def _build_pattern(self) -> Sparse:
+        """Return the boolean structure of the Jacobian, raising `_TooDense` above the size limit."""
+        self._dense = 0
         supports: dict[Expression, Sparse] = {}
         for reduction in self.reductions.reductions:
-            supports[reduction.symbol] = self._support(reduction, supports)
-        dense = 0
-        pattern = scipy.sparse.eye_array(self.size, format='csr', dtype=bool)
+            supports[reduction.symbol] = self._reduction_support(reduction, supports)
+        blocks = [scipy.sparse.eye_array(self.size, format='csr')]
         for kernel in self.kernels:
-            for output in kernel.outputs:
-                target = member_indices(output.target, kernel.rows)  # type: ignore[arg-type]
-                scatter = _selection(np.arange(kernel.rows), target, 1.0, self.size).T
-                for item in SR(output.expression).variables():
-                    reference = kernel.references.get(item)
-                    if reference is None or not _is_variable(reference):
-                        continue
-                    if reference.source is Source.REDUCED:
-                        support = supports[item]
-                        rows = (
-                            support
-                            if reference.entry.members is not None
-                            else support[[min(reference.column, support.shape[0] - 1)]]
-                        )
-                        rows = rows if rows.shape[0] == kernel.rows else scipy.sparse.vstack([rows] * kernel.rows)
-                        dense += rows.nnz
-                        block = scatter @ rows
-                    else:
-                        block = scatter @ _selection(
-                            np.arange(kernel.rows),
-                            member_indices(reference, kernel.rows),
-                            1.0,
-                            self.size,
-                        )
-                    pattern = pattern + (block != 0)
-        if dense > PATTERN_LIMIT:
-            return None
-        return scipy.sparse.csr_array(pattern, dtype=bool)
+            blocks.extend(self._kernel_pattern(kernel, supports))
+        blocks.extend(_volume_pattern(volume, self.size) for volume in self.volumes)
+        total = scipy.sparse.csr_array((self.size, self.size))
+        for block in blocks:
+            total = total + scipy.sparse.csr_array(block, dtype=float)
+        pattern = _boolean(total)
+        for projection in _mirror_projections(self.symmetries, self.size):
+            pattern = _product(_boolean(projection), pattern)
+        return _product(self._free_rows(), pattern)
 
-    def _support(self, reduction: CompiledReduction, supports: dict[Expression, Sparse]) -> Sparse:
+    def _note_dense(self, entries: int) -> None:
+        """Count the entries of a dense block and stop above the size limit."""
+        self._dense += entries
+        if self._dense > PATTERN_LIMIT:
+            raise _TooDense
+
+    def _dense_rows(self, rows: int, columns: Indices) -> Sparse:
+        """Return the block where every evaluation index reads every one of the columns."""
+        columns = np.unique(columns)
+        self._note_dense(rows * columns.size)
+        return _selection(np.repeat(np.arange(rows), columns.size), np.tile(columns, rows), 1.0, self.size, rows)
+
+    def _all_columns(self, kernel: Kernel, item: Expression, supports: dict[Expression, Sparse]) -> Indices:
+        """Return every state index a symbol can read at any evaluation index."""
+        reference = kernel.references[item]
+        if reference.source is Source.REDUCED:
+            return np.unique(supports[item].indices).astype(np.intp)
+        if reference.source is Source.DERIVED:
+            parts = [self._all_columns(kernel, symbol, supports) for symbol in reference.neighbor.symbols]
+            return np.unique(np.concatenate([np.zeros(0, dtype=np.intp), *parts]))
+        if not reference.is_state:
+            return np.zeros(0, dtype=np.intp)
+        if reference.source is Source.SINGLE:
+            return np.array([reference.index], dtype=np.intp)
+        return reference.flat_indices.astype(np.intp)
+
+    def _symbol_support(self, kernel: Kernel, item: Expression, supports: dict[Expression, Sparse]) -> Sparse | None:
+        """Return the states a symbol reads at every evaluation index of a member kernel, or `None` for parameters."""
+        reference = kernel.references.get(item)
+        if reference is None:
+            return None
+        if reference.source is Source.REDUCED:
+            block = self._reduced_rows(kernel, reference, supports[item])
+            self._note_dense(block.nnz)
+            return block
+        if reference.source is Source.DERIVED:
+            return self._derived_support(kernel, item, supports)
+        if not reference.is_state:
+            return None
+        return self._state_support(kernel, reference)
+
+    def _derived_support(self, kernel: Kernel, item: Expression, supports: dict[Expression, Sparse]) -> Sparse:
+        """Return the states a derived read reads, through its sparse operator or as a dense block."""
+        read = kernel.references[item].neighbor
+        if read.matrix is None:
+            return self._dense_rows(kernel.rows, self._all_columns(kernel, item, supports))
+        operand = scipy.sparse.csr_array((kernel.rows, self.size))
+        for symbol in read.symbols:
+            block = self._symbol_support(kernel, symbol, supports)
+            if block is not None:
+                operand = operand + scipy.sparse.csr_array(block, dtype=float)
+        return _product(_boolean(read.matrix), operand)
+
+    def _state_support(self, kernel: Kernel, reference: Reference) -> Sparse:
+        """Return the states a state symbol reads at every evaluation index."""
+        rows = kernel.rows
+        if reference.source is Source.NEIGHBOR:
+            members, columns = _neighbor_columns(reference)
+            return _selection(members, columns, 1.0, self.size, height=rows)
+        if reference.source is Source.SINGLE:
+            return _selection(np.arange(rows), np.full(rows, reference.index, dtype=np.intp), 1.0, self.size, rows)
+        if reference.source is Source.MEMBER and reference.entry.rows == rows:
+            return _selection(np.arange(rows), reference.flat_indices, 1.0, self.size, height=rows)
+        return self._dense_rows(rows, reference.flat_indices)
+
+    def _kernel_pattern(self, kernel: Kernel, supports: dict[Expression, Sparse]) -> list[Sparse]:
+        """Return the blocks of the pattern that the outputs of one kernel add."""
+        blocks = []
+        everything = np.arange(self.size, dtype=np.intp)
+        for output in kernel.outputs:
+            target: Reference = output.target  # type: ignore[assignment]
+            used = _output_symbols(output)
+            if kernel.pairs is not None or target.source in {Source.FIRST, Source.SECOND}:
+                targets = np.unique(target.flat_indices if target.source is not Source.SINGLE else [target.index])
+                columns = (
+                    everything
+                    if used is None
+                    else np.unique(
+                        np.concatenate(
+                            [np.zeros(0, dtype=np.intp)]
+                            + [self._all_columns(kernel, item, supports) for item in used if item in kernel.references],
+                        ),
+                    )
+                )
+                block = self._dense_rows(targets.size, columns)
+                blocks.append(_selection(targets, np.arange(targets.size), 1.0, targets.size, self.size) @ block)
+                continue
+            scatter = _selection(np.arange(kernel.rows), member_indices(target, kernel.rows), 1.0, self.size).T
+            if used is None:
+                blocks.append(scatter @ self._dense_rows(kernel.rows, everything))
+                continue
+            for item in used:
+                support = self._symbol_support(kernel, item, supports)
+                if support is not None:
+                    blocks.append(scatter @ support)
+        return blocks
+
+    def _reduction_support(self, reduction: CompiledReduction, supports: dict[Expression, Sparse]) -> Sparse:
         """Return the states a reduction depends on, one row per reading member for weights."""
         members = np.arange(reduction.size)
         support = scipy.sparse.csr_array((reduction.size, self.size), dtype=bool)
@@ -308,5 +545,5 @@ class ExactJacobian:
 
 
 def _is_variable(reference: Reference) -> bool:
-    """Check whether a reference stands for a state or a reduction, so derivatives by it reach the state."""
-    return reference.source is Source.REDUCED or (reference.is_state and reference.source in SUPPORTED)
+    """Check whether a reference stands for a state, a reduction, or a derived read, so derivatives reach the state."""
+    return reference.source in {Source.REDUCED, Source.DERIVED} or reference.is_state

@@ -16,5 +16,5 @@ warn once when one call spans more than 1000 times the stability limit.
 - **THEN** it names BDF and Radau of the SciPy ODE solver
 
 #### Scenario: Adaptive explicit method on a stiff field
-- **WHEN** Fisher-KPP on 4000 points with a stability limit near 1e-3 runs with RK45 and frames of 2
+- **WHEN** Fisher-KPP with a stability limit near 1e-3 runs with RK45 and frames of 2
 - **THEN** one warning names BDF and Radau on the first frame, and later frames do not repeat it

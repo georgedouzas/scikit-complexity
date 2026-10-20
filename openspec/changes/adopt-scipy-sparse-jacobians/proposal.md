@@ -49,12 +49,15 @@ spectral Kuramoto-Sivashinsky ETDRK4 still wins, 0.072 s against BDF's 0.44 s, s
 
 ## Impact
 
-- `skcomplex.core.compile` gains `jacobian_pattern` and `jacobian_function`, and `DerivedRead` keeps the sparse matrix
-  of its operator when it has one.
+- `Problem.jacobian`, the `ExactJacobian` that `add-group-reductions` added for member reads and reductions, is built
+  for every ODE problem and extended to every source: `pattern()` states the sparsity pattern, calling it evaluates the
+  exact sparse Jacobian, and `validate()` raises the named error for laws without a symbolic form. `DerivedRead` keeps
+  the sparse matrix of its operator when it has one, and `Kernel.read` reads one symbol for the chain rule.
 - `skcomplex.core.solvers.ScipyODE` gains the `jacobian` parameter and passes the structure in `advance` and
   `_advance_hybrid`.
 - `skcomplex.core.solvers.Stepper` changes the stability warning text.
-- The user guide's solver page recommends BDF and Radau for stiff fields and the split steppers for spectral fields.
+- The user guide's solver page recommends BDF and Radau for stiff fields and the split steppers for spectral fields. The
+  changelog entry is left to the coordinator of the merge.
 - Benchmarks gain Fisher-KPP on 4000 points with the dense, sparse, and exact paths.
 - Later option, out of scope: `diffrax` for gradients through the integrator or GPUs, which needs a `jax.numpy`
   printer and was slower on CPU in the audit.

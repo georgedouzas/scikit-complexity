@@ -61,7 +61,8 @@ class Stepper(BaseEstimator):
         if limit is not None and step is not None and step > limit and not self.implicit:
             warning_msg = (
                 f'{type(self).__name__} takes steps of {step}, above the stability limit {limit:.6g} of the diffusion '
-                f'of the fields. Use dt <= {limit:.6g}, or an adaptive or implicit solver.'
+                f"of the fields. Use dt <= {limit:.6g}, ScipyODE(method='BDF') or ScipyODE(method='Radau') for "
+                'finite-difference and finite element fields, or a split stepper such as ETDRK4 for spectral fields.'
             )
             warnings.warn(warning_msg, UserWarning, stacklevel=2)
 
