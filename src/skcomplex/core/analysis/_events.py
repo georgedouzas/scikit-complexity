@@ -8,6 +8,8 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
+from ._utils import real_array
+
 type Array = npt.NDArray[np.float64]
 
 
@@ -65,7 +67,7 @@ def detect_events(values: npt.ArrayLike, threshold: float = 0.0, times: npt.Arra
         >>> events.sizes.tolist(), events.durations.tolist(), events.waiting_times.tolist()
         ([4.0, 2.0], [2.0, 1.0], [2.0])
     """
-    array = np.asarray(values, dtype=float)
+    array = real_array(values, 'values')
     clock = np.arange(array.size, dtype=float) if times is None else np.asarray(times, dtype=float)
     step = float(np.median(np.diff(clock))) if clock.size > 1 else 1.0
     active = np.concatenate([[False], array > threshold, [False]])

@@ -309,7 +309,7 @@ class Simulation(BaseEstimator):
         if not entry.domain.contains(value):
             raise ValidationError(error_msg)
         try:
-            return np.broadcast_to(entry.domain.encode(value), entry.shape).ravel().copy()
+            return entry.encode(value)
         except ValueError as error:
             raise ValidationError(error_msg) from error
 

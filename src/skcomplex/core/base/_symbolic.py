@@ -6,7 +6,7 @@
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from sage.all__sagemath_symbolics import SR
+from sage.all__sagemath_symbolics import SR, I
 from sage.all__sagemath_symbolics import vector as sage_vector
 from sage.modules.free_module_element import FreeModuleElement as SymbolicVector
 from sage.symbolic.assumptions import assume, forget
@@ -20,10 +20,11 @@ _SIGNS: dict[str, Expression] = {}
 
 
 def symbol(name: str, domain: AnyDomain = Domain.REAL) -> Expression:
-    """Return the Sage symbol of a name, real or integer, and record its variable domain.
+    """Return the Sage symbol of a name, real, integer, or complex, and record its variable domain.
 
     The symbol is declared real or integer without Maxima, which Sage would otherwise load to record the domain, so
-    compiling stays fast. `declare_domains` gives Maxima the full domains before an exact solution.
+    compiling stays fast. A symbol of the complex domain is left undeclared, which Sage treats as complex.
+    `declare_domains` gives Maxima the full domains before an exact solution.
 
     Args:
         name:
@@ -41,9 +42,12 @@ def symbol(name: str, domain: AnyDomain = Domain.REAL) -> Expression:
         >>> n = symbol('n', Domain.POSITIVE)
         >>> n.is_real(), domain_of(n)
         (True, <Domain.POSITIVE: 'positive'>)
+        >>> symbol('z', Domain.COMPLEX).is_real()
+        False
     """
     item = SR.symbol(name)
-    item.decl_assume('integer' if domain.sage_domain == 'integer' else 'real')
+    if domain.sage_domain != 'complex':
+        item.decl_assume('integer' if domain.sage_domain == 'integer' else 'real')
     _DOMAINS[name] = domain
     return item
 
@@ -80,6 +84,33 @@ def components_of(value: Any) -> list[Any]:  # noqa: ANN401
             The components.
     """
     return list(value) if isinstance(value, SymbolicVector) else [value]
+
+
+def real_components_of(value: Any) -> list[Any]:  # noqa: ANN401
+    """Return the components of a value with every complex component split into its real and imaginary parts.
+
+    Args:
+        value:
+            A vector, an expression, or a number.
+
+    Returns:
+        components:
+            The components, two in a row for a complex component.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import I
+        >>> from skcomplex.core.base import real_components_of, symbol, vector
+        >>> x, y = symbol('x'), symbol('y')
+        >>> real_components_of(vector([x + I * y, 2 * x]))
+        [x, y, 2*x]
+    """
+    components = []
+    for item in components_of(value):
+        if isinstance(item, Expression) and item.has(I):
+            components += [item.real_part(), item.imag_part()]
+        else:
+            components.append(item)
+    return components
 
 
 def symbols_of(expressions: Iterable[Expression]) -> set[Expression]:

@@ -6,11 +6,15 @@
 import math
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 
-from ..base import AnyDomain
+from ..base import AnyDomain, Domain
+
+PARTS = 2
+PART_NAMES = ('real', 'imag')
 
 
 @dataclass(frozen=True)
@@ -32,6 +36,16 @@ class Entry:
 
         members:
             The size of the group that holds the variable, or `None` for a single element or an interaction.
+
+        is_complex:
+            Whether the variable is complex, with the real and imaginary part of every component stored in a row.
+
+    Examples:
+        >>> from skcomplex.core.base import Domain
+        >>> from skcomplex.core.compile import Entry
+        >>> entry = Entry('a.z', 0, (2,), Domain.COMPLEX, is_complex=True)
+        >>> entry.size, entry.component_names
+        (4, ['a.z[0].real', 'a.z[0].imag', 'a.z[1].real', 'a.z[1].imag'])
     """
 
     name: str
@@ -39,6 +53,7 @@ class Entry:
     shape: tuple[int, ...]
     domain: AnyDomain
     members: int | None = None
+    is_complex: bool = False
     _size: int = field(init=False, repr=False, compare=False)
     _indices: slice = field(init=False, repr=False, compare=False)
     _rows: int = field(init=False, repr=False, compare=False)
@@ -46,11 +61,18 @@ class Entry:
 
     def __post_init__(self) -> None:
         """Compute the size, slice, rows, and columns of the variable once."""
-        size = math.prod(self.shape)
+        parts = PARTS if self.is_complex else 1
+        size = math.prod(self.shape) * parts
         object.__setattr__(self, '_size', size)
         object.__setattr__(self, '_indices', slice(self.start, self.start + size))
         object.__setattr__(self, '_rows', self.members if self.members is not None else 1)
-        object.__setattr__(self, '_columns', math.prod(self.member_shape))
+        object.__setattr__(self, '_columns', math.prod(self.member_shape) * parts)
+
+    def _parts(self, names: list[str]) -> list[str]:
+        """Return names with the suffixes of the real and imaginary parts for a complex variable."""
+        if not self.is_complex:
+            return names
+        return [f'{name}.{part}' for name in names for part in PART_NAMES]
 
     @property
     def size(self) -> int:
@@ -79,14 +101,17 @@ class Entry:
 
     @property
     def component_names(self) -> list[str]:
-        """Names of the components, with an index suffix for vectors and a member index for groups."""
+        """Names of the components, with an index suffix for vectors, a member index for groups, and complex parts."""
+        components = math.prod(self.member_shape)
         if self.members is None:
             if not self.shape:
-                return [self.name]
-            return [f'{self.name}[{index}]' for index in range(self.size)]
+                return self._parts([self.name])
+            return self._parts([f'{self.name}[{index}]' for index in range(components)])
         if not self.member_shape:
-            return [f'{self.name}[{member}]' for member in range(self.rows)]
-        return [f'{self.name}[{member}, {index}]' for member in range(self.rows) for index in range(self.columns)]
+            return self._parts([f'{self.name}[{member}]' for member in range(self.rows)])
+        return self._parts(
+            [f'{self.name}[{member}, {index}]' for member in range(self.rows) for index in range(components)],
+        )
 
     @property
     def generic_names(self) -> list[str]:
@@ -94,8 +119,8 @@ class Entry:
         if self.members is None:
             return self.component_names
         if not self.member_shape:
-            return [f'{self.name}[i]']
-        return [f'{self.name}[i, {index}]' for index in range(self.columns)]
+            return self._parts([f'{self.name}[i]'])
+        return self._parts([f'{self.name}[i, {index}]' for index in range(math.prod(self.member_shape))])
 
     def view(self, vector: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         """Return the variable's components of a flat vector as a view with one row per member.
@@ -109,6 +134,47 @@ class Entry:
                 A `(rows, columns)` view that writes through to the vector.
         """
         return vector[self._indices].reshape(self._rows, self._columns)
+
+    def encode(self, value: object) -> npt.NDArray[np.float64]:
+        """Return a value broadcast to the shape of the variable as flat floats, in pairs for a complex variable.
+
+        Args:
+            value:
+                A value in the domain of the variable, of its shape or of a shape that broadcasts to it.
+
+        Returns:
+            components:
+                The flat components, as stored in a vector.
+
+        Raises:
+            ValueError:
+                The value does not broadcast to the shape of the variable.
+
+        Examples:
+            >>> from skcomplex.core.base import Domain
+            >>> from skcomplex.core.compile import Entry
+            >>> Entry('a.z', 0, (), Domain.COMPLEX, is_complex=True).encode(1 + 2j).tolist()
+            [1.0, 2.0]
+        """
+        values = np.broadcast_to(self.domain.encode(value), self.shape)
+        if self.is_complex:
+            return np.ascontiguousarray(values, dtype=complex).ravel().view(float).copy()
+        return values.ravel().copy()
+
+    def decode(self, values: npt.NDArray[np.float64]) -> npt.NDArray[Any]:
+        """Return the stored components of the variable, the last axis of an array, with complex parts joined.
+
+        Args:
+            values:
+                The stored components on the last axis.
+
+        Returns:
+            values:
+                The values, complex for a complex variable, with the last axis of the shape of the variable.
+        """
+        if not self.is_complex:
+            return values
+        return np.ascontiguousarray(values).view(complex)
 
 
 class Layout:
@@ -197,20 +263,21 @@ class Layout:
             >>> from skcomplex.core.compile import Entry, Layout
             >>> from skcomplex.core.base import Domain
             >>> layout = Layout([Entry('a.n', 0, (), Domain.REAL), Entry('b.w', 1, (3,), Domain.REAL)])
-            >>> layout.locate('b.w[1]')
-            (Entry(name='b.w[1]', start=2, shape=(), domain=<Domain.REAL: 'real'>, members=None), slice(2, 3, None))
+            >>> entry, indices = layout.locate('b.w[1]')
+            >>> entry.name, entry.shape, indices
+            ('b.w[1]', (), slice(2, 3, None))
         """
         if name in self._by_name:
             entry = self._by_name[name]
             return entry, entry.indices
-        found = self._by_name.get(name.partition('[')[0])
+        found = self._by_name.get(name.partition('[')[0].removesuffix('.real').removesuffix('.imag'))
         if found is not None and name in found.component_names:
             start = found.start + found.component_names.index(name)
-            return Entry(name, start, (), found.domain), slice(start, start + 1)
+            return Entry(name, start, (), Domain.REAL if found.is_complex else found.domain), slice(start, start + 1)
         error_msg = f'No variable or component named {name!r}. Available names are: {", ".join(self.names)}.'
         raise KeyError(error_msg)
 
-    def read(self, vector: npt.NDArray[np.float64], name: str) -> npt.NDArray[np.float64] | float:
+    def read(self, vector: npt.NDArray[np.float64], name: str) -> npt.NDArray[Any] | float | complex:
         """Return the value of a variable from a flat vector or from rows of flat vectors.
 
         Args:
@@ -223,13 +290,15 @@ class Layout:
         Returns:
             value:
                 A number for a scalar in a flat vector, or an array whose shape is the leading shape of `vector`
-                followed by the shape of the variable.
+                followed by the shape of the variable, complex for a complex variable.
         """
         entry = self.entry(name)
-        values = vector[..., entry.indices].reshape(vector.shape[:-1] + entry.shape)
-        return float(values) if values.ndim == 0 else values
+        values = entry.decode(vector[..., entry.indices]).reshape(vector.shape[:-1] + entry.shape)
+        if values.ndim:
+            return values
+        return complex(values) if entry.is_complex else float(values)
 
-    def values(self, vector: npt.NDArray[np.float64]) -> dict[str, npt.NDArray[np.float64] | float]:
+    def values(self, vector: npt.NDArray[np.float64]) -> dict[str, npt.NDArray[Any] | float | complex]:
         """Return the value of every variable of a flat vector.
 
         Args:

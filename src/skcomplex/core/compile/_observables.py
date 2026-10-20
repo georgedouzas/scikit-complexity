@@ -8,10 +8,10 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-from sage.all__sagemath_symbolics import SR
 
-from ..base import Expression, ValidationError, components_of, symbol, symbols_of
+from ..base import Expression, ValidationError, real_components_of, symbol, symbols_of
 from ..model import Observable, Symbols, System, reduce_values
+from ._complex import joined_complex
 from ._printing import numpy_function
 from ._problem import Problem, Vector
 
@@ -124,7 +124,7 @@ class ObservableEvaluator:
             for entry in layout:
                 if entry.members is not None or entry.name not in self.problem.symbols:
                     continue
-                for column, item in enumerate(components_of(self.problem.symbols[entry.name])):
+                for column, item in enumerate(real_components_of(self.problem.symbols[entry.name])):
                     sources[item] = (vector, entry.start + column)
         return sources
 
@@ -136,7 +136,7 @@ class ObservableEvaluator:
         members: Mapping[Expression, Callable[[Vector, Vector], Any]],
     ) -> Getter:
         """Return a getter that evaluates an expression from scalars, observables, and member arrays."""
-        expression = SR(expression)
+        expression = joined_complex(expression, f'observable {path}')
         arguments = sorted(symbols_of([expression]) - {self.problem.time}, key=str)
         readers: list[Callable[[Vector, Vector, Mapping[str, Any]], Any]] = []
         for item in arguments:
@@ -219,7 +219,7 @@ class ObservableEvaluator:
         for name in names.values():
             entry = self._entry(name)
             is_state = name in self.problem.states
-            for column, item in enumerate(components_of(self.problem.symbols[name])):
+            for column, item in enumerate(real_components_of(self.problem.symbols[name])):
                 indices = entry.start + np.arange(size) * entry.columns + column
                 members[item] = _from_vector(is_state, indices)
         namespace = Symbols(

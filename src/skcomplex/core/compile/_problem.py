@@ -10,7 +10,7 @@ from typing import Any, Protocol
 import numpy as np
 import numpy.typing as npt
 
-from ..base import Expression, Form, SymbolicVector, VisualSpec, components_of
+from ..base import Expression, Form, SymbolicVector, VisualSpec, real_components_of
 from ..model import Element, Group, Interaction, Rule, Space, System
 from ._hybrid import Breakpoints, CompiledEvent, Delay
 from ._lattices import LatticeStep, lattice_shape
@@ -361,7 +361,7 @@ class Problem:
 
     def _flatten_symbols(self, layout: Layout) -> list[Expression]:
         """Return the symbols of the entries of a layout as a flat list."""
-        return [item for entry in layout for item in components_of(self.symbols[entry.name])]
+        return [item for entry in layout for item in real_components_of(self.symbols[entry.name])]
 
     @property
     def state_symbols(self) -> list[Expression]:

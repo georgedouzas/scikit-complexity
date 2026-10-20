@@ -10,6 +10,7 @@ import numpy.typing as npt
 from scipy import optimize, special, stats
 
 from ..base import AnalysisError
+from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
 MIN_TAIL = 10
@@ -38,7 +39,7 @@ def histogram(values: npt.ArrayLike, bins: int = 30, *, log: bool = False) -> tu
         >>> edges.round(2).tolist()
         [1.0, 2.0, 4.0, 8.0]
     """
-    array = np.asarray(values, dtype=float)
+    array = real_array(values, 'values')
     if log:
         if np.any(array <= 0):
             error_msg = 'Logarithmic bins need positive values. Drop zeros or use linear bins.'
@@ -66,7 +67,7 @@ def ccdf(values: npt.ArrayLike) -> tuple[Array, Array]:
         >>> ccdf([1, 1, 2, 4])[1].tolist()
         [1.0, 0.5, 0.25]
     """
-    array = np.sort(np.asarray(values, dtype=float))
+    array = np.sort(real_array(values, 'values'))
     distinct, first = np.unique(array, return_index=True)
     return distinct, 1 - first / array.size
 
@@ -217,7 +218,7 @@ def fit_power_law(
         >>> round(float(fit_power_law(samples, xmin=1.0, bootstrap=0).alpha), 1)
         2.5
     """
-    array = np.asarray(values, dtype=float)
+    array = real_array(values, 'values')
     array = array[array > 0]
     if xmin is None:
         alpha, cutoff, distance = _fit(array, discrete=discrete, candidates=candidates)
@@ -308,7 +309,7 @@ def hill(values: npt.ArrayLike, k: int) -> float:
         >>> round(hill(samples, 2000), 1)
         1.5
     """
-    array = np.sort(np.asarray(values, dtype=float))[::-1]
+    array = np.sort(real_array(values, 'values'))[::-1]
     if not 0 < k < array.size:
         error_msg = f'k = {k} must lie between 1 and the number of samples minus 1, {array.size - 1}.'
         raise AnalysisError(error_msg)
@@ -331,7 +332,7 @@ def gini(values: npt.ArrayLike) -> float:
         >>> gini([1, 1, 1, 1]), gini([0, 0, 0, 4])
         (0.0, 0.75)
     """
-    array = np.sort(np.asarray(values, dtype=float))
+    array = np.sort(real_array(values, 'values'))
     if array.size == 0 or array.sum() == 0:
         return 0.0
     ranks = np.arange(1, array.size + 1)

@@ -10,6 +10,7 @@ import numpy.typing as npt
 from scipy import ndimage
 
 from ..base import AnalysisError
+from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
 
@@ -118,7 +119,7 @@ def correlation_function(field: npt.ArrayLike, max_r: int | None = None) -> tupl
         >>> float(values[0]), bool(abs(values[1]) < 0.1)
         (1.0, True)
     """
-    grid = np.asarray(field, dtype=float)
+    grid = real_array(field, 'field')
     grid = grid - grid.mean()
     spectrum = np.fft.fftn(grid)
     correlation = np.real(np.fft.ifftn(spectrum * np.conj(spectrum))) / grid.size

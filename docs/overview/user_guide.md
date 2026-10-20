@@ -135,6 +135,35 @@ Person = Element.define('Person', states={'health': state('susceptible', domain=
 Rotor = Element.define('Rotor', states={'theta': state(0.0, domain=Domain.ANGLE)})
 ```
 
+### Complex states
+
+A state or parameter of `Domain.COMPLEX` takes complex values, and its laws use the imaginary unit `I`, arithmetic,
+the elementary functions over the complex plane, and `real_part`, `imag_part`, `conjugate`, `abs`, and `arg`. The
+compiler writes every complex law as the laws of its real and imaginary parts, which every solver, stepper, and backend
+runs as a real system. A real state takes only real values, so `abs(z)` or `real_part(z)` turns a complex value into
+one, and a condition compares the modulus or a part, since complex values have no order. Trajectories and frames return
+complex arrays, whose `.real`, `.imag`, `np.abs`, and `np.angle` are the real views that the analysis functions take.
+
+```python
+import numpy as np
+from sage.all__sagemath_symbolics import I
+
+from skcomplex.core.base import Domain, parameter, state
+from skcomplex.core.model import Element, Rate, System
+from skcomplex.core.runtime import Simulation
+
+Phase = Element.define(
+    'Phase',
+    states={'z': state(1.0, domain=Domain.COMPLEX)},
+    parameters={'omega': parameter(2.0)},
+    laws=lambda s: [Rate(s.z, I * s.omega * s.z)],
+)
+z = Simulation(System(elements=[Phase('osc')]), dt=0.5).run(until=10).trajectory_['osc.z']
+assert z.dtype == np.complex128 and np.allclose(np.abs(z), 1.0, atol=1e-4)
+```
+
+Agent states stay real, and the LAMMPS backend raises an error naming a complex state.
+
 ### Equations of any order
 
 Laws give the highest time derivative of a state, and a state declares how high that is with `order`. Newton's second
@@ -1151,7 +1180,10 @@ colored by a state, agents on networks as graph nodes, and reporters under `repo
 `PointsVisual(position='x', color_by='v')` colors its points by speed. Points and agents in a continuous space without
 a given `radius` take a share of the extent of the view, and a group of at most ten points draws the trail of its recent
 positions, which `trail=0` turns off. A one-dimensional lattice also logs a space-time image, one row per logged frame
-with the oldest at the top, holding at most `ImageVisual(history=...)` rows. A group can set its own visual with
+with the oldest at the top, holding at most `ImageVisual(history=...)` rows. A complex state of a lattice or a mesh
+appears as two images, its modulus under `<path>/<state>/modulus` colored over the range and its phase under
+`<path>/<state>/phase` colored by a cyclic palette over `(-π, π]`, and a complex scalar as the series
+`<path>/<state>/real` and `<path>/<state>/imag`. A group can set its own visual with
 `Particle.group(..., visual=VisualSpec('points', {...}))`. A new visual subclasses `Visual` and is registered with
 `register_visual`, and an element type selects it with its `visual` class variable.
 

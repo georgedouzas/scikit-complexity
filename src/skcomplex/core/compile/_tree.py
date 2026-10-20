@@ -229,10 +229,10 @@ def _describe(value: object) -> str:
 def _coerce_group_value(
     name: str,
     value: object,
-    array: npt.NDArray[np.float64],
+    array: npt.NDArray[Any],
     shape: tuple[int, ...],
     members: int,
-) -> npt.NDArray[np.float64]:
+) -> npt.NDArray[Any]:
     """Return a group value as flat member-major components, broadcasting shared values."""
     if array.shape in ((), shape):
         return np.broadcast_to(array, (members, *shape)).ravel().copy()
@@ -244,6 +244,26 @@ def _coerce_group_value(
         f'of shape {shape}. Give one value per member or one value shared by every member.'
     )
     raise ValidationError(error_msg)
+
+
+def _flat_value(
+    name: str,
+    value: object,
+    array: npt.NDArray[Any],
+    shape: tuple[int, ...],
+    members: int | None,
+) -> npt.NDArray[Any]:
+    """Return an encoded value as flat components of the given shape, member after member for a group."""
+    if members is not None:
+        return _coerce_group_value(name, value, array, shape, members)
+    if not shape and array.ndim == 0:
+        return array.reshape(1)
+    if shape and array.ndim == 0:
+        return np.full(shape, array.item(), dtype=array.dtype).ravel()
+    if array.shape != shape:
+        error_msg = f'{name} = {_describe(value)} has shape {array.shape}, but the variable has shape {shape}.'
+        raise ValidationError(error_msg)
+    return array.ravel()
 
 
 def coerce_value(
@@ -274,7 +294,8 @@ def coerce_value(
 
     Returns:
         array:
-            The flat components of the value, member after member for a group.
+            The flat components of the value, member after member for a group, with the real and imaginary part of
+            every component in a row for the complex domain.
 
     Raises:
         ValidationError:
@@ -282,15 +303,11 @@ def coerce_value(
     """
     if not domain.contains(value):
         error_msg = f'{name} = {_describe(value)} is not in the {domain.value} domain.'
+        if Domain.COMPLEX.contains(value):
+            error_msg = (
+                f'{name} = {_describe(value)} has a nonzero imaginary part, which the {domain.value} domain does not '
+                f'hold. Declare {name.rpartition(".")[2]} with `domain=Domain.COMPLEX` to give it complex values.'
+            )
         raise ValidationError(error_msg)
-    array = domain.encode(value)
-    if members is not None:
-        return _coerce_group_value(name, value, array, shape, members)
-    if not shape and array.ndim == 0:
-        return array.reshape(1)
-    if shape and array.ndim == 0:
-        return np.full(shape, float(array)).ravel()
-    if array.shape != shape:
-        error_msg = f'{name} = {_describe(value)} has shape {array.shape}, but the variable has shape {shape}.'
-        raise ValidationError(error_msg)
-    return array.ravel()
+    flat = _flat_value(name, value, domain.encode(value), shape, members)
+    return np.ascontiguousarray(flat).view(float) if domain is Domain.COMPLEX else flat

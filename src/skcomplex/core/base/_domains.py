@@ -20,6 +20,8 @@ class Domain(Enum):
         True
         >>> Domain.NONNEGATIVE_INTEGER.contains(1.5)
         False
+        >>> Domain.COMPLEX.contains(1 + 2j), Domain.REAL.contains(1 + 2j), Domain.REAL.contains(3 + 0j)
+        (True, False, True)
     """
 
     REAL = 'real'
@@ -29,6 +31,7 @@ class Domain(Enum):
     NONNEGATIVE_INTEGER = 'nonnegative integer'
     BOOLEAN = 'boolean'
     ANGLE = 'angle'
+    COMPLEX = 'complex'
 
     @staticmethod
     def categorical(*labels: Any) -> 'Categorical':  # noqa: ANN401
@@ -61,24 +64,33 @@ class Domain(Enum):
             Domain.NONNEGATIVE_INTEGER: 'integer',
             Domain.BOOLEAN: 'integer',
             Domain.ANGLE: 'real',
+            Domain.COMPLEX: 'complex',
         }[self]
 
-    def encode(self, value: object) -> npt.NDArray[np.float64]:
-        """Return a value as floats, with booleans as 0 and 1 and angles wrapped into one turn.
+    def encode(self, value: object) -> npt.NDArray[Any]:
+        """Return a value as floats, with booleans as 0 and 1 and angles wrapped into one turn, or as complex numbers.
 
         Args:
             value:
-                A number, a boolean, or an array of them.
+                A number, a boolean, or an array of them. A real domain takes the real part of a complex number.
 
         Returns:
             array:
-                The float values.
+                The float values, or the complex values of the complex domain.
+
+        Examples:
+            >>> from skcomplex.core.base import Domain
+            >>> Domain.COMPLEX.encode([1, 2j]).tolist()
+            [(1+0j), 2j]
         """
-        array = np.asarray(value, dtype=float)
+        array = np.asarray(value)
+        if self is Domain.COMPLEX:
+            return np.asarray(array, dtype=complex)
+        array = np.asarray(array.real if np.iscomplexobj(array) else array, dtype=float)
         return np.mod(array, 2 * np.pi) if self is Domain.ANGLE else array
 
     def decode(self, values: npt.NDArray[np.float64]) -> npt.NDArray[Any]:
-        """Return stored values in the domain's own type, booleans for the boolean domain and floats otherwise.
+        """Return stored values in the domain's own type, booleans for the boolean domain and numbers otherwise.
 
         Args:
             values:
@@ -93,6 +105,8 @@ class Domain(Enum):
     def contains(self, value: object) -> bool:
         """Check that every component of a value belongs to the domain.
 
+        A real domain holds a complex number whose imaginary part is zero.
+
         Args:
             value:
                 A number or an array of numbers.
@@ -102,11 +116,16 @@ class Domain(Enum):
                 Whether every component is finite and belongs to the domain.
         """
         try:
-            array = np.asarray(value, dtype=float)
+            numbers = np.asarray(value, dtype=complex)
         except (TypeError, ValueError):
             return False
-        if not np.all(np.isfinite(array)):
+        if not np.all(np.isfinite(numbers)):
             return False
+        if self is Domain.COMPLEX:
+            return True
+        if np.any(numbers.imag != 0):
+            return False
+        array = numbers.real
         integral = bool(np.all(array == np.round(array)))
         checks = {
             Domain.BOOLEAN: bool(np.all((array == 0) | (array == 1))),

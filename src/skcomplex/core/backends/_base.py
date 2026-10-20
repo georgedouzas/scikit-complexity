@@ -71,9 +71,10 @@ class ExternalBackend(Stepper):
 
         Raises:
             BackendError:
-                The problem has a form, an element, an interaction, or a law the library cannot run.
+                The problem has a form, a complex state, an element, an interaction, or a law the library cannot run.
         """
         unsupported = [] if problem.form in self.forms else [f'the {problem.form.value} form']
+        unsupported += [f'the complex state {entry.name}' for entry in problem.states if entry.is_complex]
         unsupported += self.check(problem)
         if unsupported:
             items = '; '.join(unsupported)

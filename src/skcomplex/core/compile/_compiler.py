@@ -14,9 +14,10 @@ from typing import Any, cast
 import numpy as np
 import numpy.typing as npt
 import scipy.sparse
-from sage.all__sagemath_symbolics import SR, I, matrix, sqrt
+from sage.all__sagemath_symbolics import SR, I, matrix
 
 from ..base import (
+    BackendError,
     Domain,
     Expression,
     Form,
@@ -31,6 +32,7 @@ from ..base import (
     components_of,
     declarations_of,
     domain_of,
+    real_components_of,
     symbol,
     symbols_of,
     vector,
@@ -76,6 +78,7 @@ from ..model import (
     variance,
 )
 from ._backends import Backend, resolve_backend
+from ._complex import modulus_form, split_law
 from ._fields import DiffusiveLimit, FieldLowering, has_operators
 from ._hybrid import Breakpoints, CompiledEvent, Delay, Scalars, breakpoints_of, flat_sources, scalar_function
 from ._jacobians import ExactJacobian
@@ -122,6 +125,11 @@ LATTICE_LAWS = (LocalRule, Drive, Relaxation, Energy, Move, Sampler)
 KERNEL_FREE = (*LATTICE_LAWS, Flux)
 
 
+def _renamed(value: Expression, mapping: dict[Expression, Expression]) -> Expression:
+    """Return the renamed symbol of a variable, or a complex value with its real and imaginary symbols renamed."""
+    return mapping[value] if value.operator() is None else value.subs(mapping)
+
+
 @dataclass
 class _Block:
     """Variables of a component with the symbols of one member and the components they stand for."""
@@ -142,11 +150,11 @@ class _Block:
         symbols: dict[str, Any] = {}
         for name, value in self.symbols.items():
             if not isinstance(value, SymbolicVector):
-                symbols[name] = mapping[value]
+                symbols[name] = _renamed(value, mapping)
             elif name in self.per:
-                symbols[name] = tuple(mapping[item] for item in value)
+                symbols[name] = tuple(_renamed(item, mapping) for item in value)
             else:
-                symbols[name] = vector(mapping[item] for item in value)
+                symbols[name] = vector(_renamed(item, mapping) for item in value)
         return Symbols(**symbols)
 
     def namespace(self, source: Source, alias: str = '') -> tuple[Symbols, dict[Expression, Reference]]:
@@ -240,16 +248,18 @@ class _Declarations:
         members = None if node.is_agent else node.members
         shape = member_shape if members is None else (members, *member_shape)
         values.append(coerce_value(name, node.value_of(variable), member_shape, declaration.domain, members))
-        entry = Entry(name, sum(item.size for item in entries), shape, declaration.domain, members)
+        is_complex = declaration.domain is Domain.COMPLEX
+        entry = Entry(name, sum(item.size for item in entries), shape, declaration.domain, members, is_complex)
         entries.append(entry)
         base = f'{variable}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}'
-        domain = declaration.domain
-        components = (
-            [symbol(f'{base}_{index}', domain) for index in range(member_shape[0])]
-            if member_shape
-            else [symbol(base, domain)]
+        names = [f'{base}_{index}' for index in range(member_shape[0])] if member_shape else [base]
+        columns = [f'{item}_{part}' for item in names for part in ('re', 'im')] if is_complex else names
+        domain = Domain.REAL if is_complex else declaration.domain
+        components = [symbol(item, domain) for item in columns]
+        values_of = (
+            [real + I * imaginary for real, imaginary in itertools.batched(components, 2)] if is_complex else components
         )
-        block.symbols[variable] = vector(components) if member_shape else components[0]
+        block.symbols[variable] = vector(values_of) if member_shape else values_of[0]
         block.entries[variable] = entry
         for column, item in enumerate(components):
             block.references[item] = Reference(entry, is_state, column)
@@ -434,9 +444,11 @@ def _set_symbols(members: list[_Block], index: int) -> dict[Expression, _SetSymb
     label = ', '.join(member.node.path for member in members)
     symbols = {}
     for variable, value in members[index].symbols.items():
-        for column, item in enumerate(components_of(value)):
-            references = tuple(member.references[components_of(member.symbols[variable])[column]] for member in members)
-            symbols[item] = _SetSymbol(components_of(members[0].symbols[variable])[column], references, label)
+        for column, item in enumerate(real_components_of(value)):
+            references = tuple(
+                member.references[real_components_of(member.symbols[variable])[column]] for member in members
+            )
+            symbols[item] = _SetSymbol(real_components_of(members[0].symbols[variable])[column], references, label)
     return symbols
 
 
@@ -524,7 +536,7 @@ class _Observer:
                 if entry.members is None and entry.name.startswith(prefix):
                     items[entry.name[len(prefix) :]] = block.symbols[variable]
                     references.update(
-                        {item: block.references[item] for item in components_of(block.symbols[variable])},
+                        {item: block.references[item] for item in real_components_of(block.symbols[variable])},
                     )
         namespace = _tree(items)
         for other, (other_scope, earlier) in self.live.items():
@@ -705,6 +717,12 @@ def _pair_spec(block: _Block, elements: dict[str, _Block], time: Expression) -> 
     return _KernelSpec(node.path, namespace, references, 0, pairs, roles=paths)
 
 
+def _state_name(spec: _KernelSpec, target: Expression) -> str:
+    """Return the dotted name of the state a target symbol of a namespace stands for, or the symbol itself."""
+    reference = spec.references.get(target)
+    return reference.entry.name if reference is not None else str(target)
+
+
 def _collect_laws(spec: _KernelSpec, component: object) -> list[Law]:
     """Return the laws a component returns for its namespace after checking their kinds."""
     laws = component.laws(spec.namespace)  # type: ignore[attr-defined]
@@ -718,7 +736,7 @@ def _collect_laws(spec: _KernelSpec, component: object) -> list[Law]:
     if spec.pairs is not None and not all(isinstance(law, Rate) for law in laws):
         error_msg = f'Pair interaction {spec.owner} returns laws other than Rate, which pair interactions do not take.'
         raise ValidationError(error_msg)
-    return list(laws)
+    return [item for law in laws for item in split_law(law, spec.owner, lambda target: _state_name(spec, target))]
 
 
 @dataclass(frozen=True)
@@ -913,7 +931,11 @@ def _with_orders(spec: _KernelSpec, laws: list[Law], block: _Block, orders: _Ord
         else:
             result.append(type(law)(law.target, value))
     if not _is_interaction(block.node):
-        result += _intrinsic_laws(spec, block, orders)
+        result += [
+            item
+            for law in _intrinsic_laws(spec, block, orders)
+            for item in split_law(law, spec.owner, lambda target: _state_name(spec, target))
+        ]
     return result
 
 
@@ -1381,7 +1403,7 @@ def _component_of(node: Node) -> object:
 
 def _target_references(target: object, spec: _KernelSpec) -> list[Reference]:
     """Return the references of the state components a law targets."""
-    components = components_of(target)
+    components = real_components_of(target)
     references = [spec.references.get(component) for component in components]
     if not all(reference is not None and reference.is_state for reference in references):
         error_msg = f'A law of {spec.owner} targets {target!r}, which is not a state symbol of the namespace `s`.'
@@ -1432,16 +1454,6 @@ def _check_assignments(
         assigned.add(key)
 
 
-def _real_form(expression: Expression) -> Expression:
-    """Return an expression with every modulus of a complex value written with its real and imaginary parts."""
-    if expression.operator() is None or not expression.has(I):
-        return expression
-    operands = [_real_form(operand) for operand in expression.operands()]
-    if getattr(expression.operator(), 'name', lambda: '')() == 'abs':
-        return sqrt(operands[0].real_part() ** 2 + operands[0].imag_part() ** 2)
-    return expression.operator()(*operands)
-
-
 @dataclass
 class _Reductions:
     """Reductions collected from the laws of a system, deduplicated, with their placeholders and hidden entries."""
@@ -1474,7 +1486,7 @@ class _Reductions:
         lowered: Expression = value
         for call in sorted(placeholders, key=lambda item: -len(str(item))):
             lowered = lowered.subs({call: placeholders[call]})
-        return _real_form(lowered)
+        return modulus_form(lowered)
 
     def _group_of(self, item: Expression, spec: _KernelSpec) -> str | None:
         """Return the group, element set, or element whose members a symbol of a reduction stands for."""
@@ -1790,7 +1802,7 @@ def _equations_of(
             if entry not in declarations.states:
                 continue
             components = block.symbols[variable]
-            for column, item in enumerate(components_of(components)):
+            for column, item in enumerate(real_components_of(components)):
                 key = (entry.name, column)
                 if key in excluded:
                     continue
@@ -1864,7 +1876,15 @@ def _compiled_agents(blocks: list[_Block], specs: list[tuple[_KernelSpec, list[L
         node = block.node
         if not node.is_agent:
             continue
-        states = tuple(declarations_of(node.component_type, VariableKind.STATE))
+        declared = declarations_of(node.component_type, VariableKind.STATE)
+        complex_states = [name for name, declaration in declared.items() if declaration.domain is Domain.COMPLEX]
+        if complex_states:
+            error_msg = (
+                f'Agent group {node.path} declares the complex state {complex_states[0]}, which the Mesa backend '
+                'cannot run. Agent states take real domains, so keep the real and imaginary parts as two states.'
+            )
+            raise BackendError(error_msg)
+        states = tuple(declared)
         agents.append(
             CompiledAgents(
                 path=node.path,
@@ -2482,7 +2502,7 @@ def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
             The system mixes law kinds that no form supports.
 
         BackendError:
-            The backend is not registered.
+            The backend is not registered, or an agent group declares a complex state.
 
     Examples:
         >>> from skcomplex.core.compile import compile_system

@@ -116,7 +116,7 @@ def with_values(problem: Problem, paths: Mapping[str, Any]) -> Problem:
         if not entry.domain.contains(value):
             error_msg = f'{name} = {value!r} is not in the {entry.domain.value} domain.'
             raise ValidationError(error_msg)
-        vector[entry.indices] = np.broadcast_to(entry.domain.encode(value), entry.shape).ravel()
+        vector[entry.indices] = entry.encode(value)
     return dataclasses.replace(problem, initial_state=states, initial_parameters=parameters)
 
 

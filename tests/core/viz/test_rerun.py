@@ -3,13 +3,28 @@
 import sys
 
 import networkx as nx
+import numpy as np
 import pytest
 import rerun as rr
+from sage.all__sagemath_symbolics import I
 
-from skcomplex.core.base import VisualSpec
-from skcomplex.core.model import AgentType, ConstantForce, EuclideanSpace, GridSpace, Particle, Rule, System
+from skcomplex.core.base import Domain, VisualSpec, state
+from skcomplex.core.compile import compile_system
+from skcomplex.core.model import (
+    AgentType,
+    ConstantForce,
+    Element,
+    EuclideanSpace,
+    Field,
+    GridSpace,
+    LatticeSpace,
+    Particle,
+    Rate,
+    Rule,
+    System,
+)
 from skcomplex.core.runtime import Frame, Simulation
-from skcomplex.core.viz import PointsVisual, RerunObserver, ScalarsVisual, Visual, resolve_visual
+from skcomplex.core.viz import ImageVisual, PointsVisual, RerunObserver, ScalarsVisual, Visual, resolve_visual
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 from skcomplex.models.social.opinion_dynamics import voter_model
@@ -234,3 +249,52 @@ def test_removed_agents_disappear_from_logs(monkeypatch, tmp_path):
     labels = [archetype.labels.as_arrow_array().to_pylist() for archetype in batches]
     assert '1' in labels[0]
     assert '1' not in labels[1]
+
+
+class Turning(Element):
+    """Complex amplitude that turns at unit frequency."""
+
+    z: complex = state(1.0, domain=Domain.COMPLEX)
+
+    def laws(self, s):
+        """Return `dz/dt = i z`."""
+        return [Rate(s.z, I * s.z)]
+
+
+def _logged(monkeypatch, tmp_path, system):
+    """Return the entity paths and archetypes logged to a saved recording while a system runs for one time unit."""
+    logged = []
+    original = rr.RecordingStream.log
+
+    def log(self, path, archetype, *args, **kwargs):
+        logged.append((path, type(archetype).__name__))
+        return original(self, path, archetype, *args, **kwargs)
+
+    monkeypatch.setattr(rr.RecordingStream, 'log', log)
+    observer = RerunObserver('test', save_path=tmp_path / 'run.rrd')
+    Simulation(system, dt=0.5, observers=[observer]).run(until=1.0)
+    return logged
+
+
+def test_complex_field_logs_modulus_and_phase_images(monkeypatch, tmp_path):
+    """Test that a complex field at `medium` logs a modulus and a phase image for every logged frame."""
+    values = {'z': np.exp(1j * np.linspace(-np.pi, np.pi, 64)).reshape(8, 8)}
+    system = System(elements=[Field('medium', Turning, LatticeSpace((8, 8)), values=values)])
+    logged = _logged(monkeypatch, tmp_path, system)
+    assert logged.count(('medium/z/modulus', 'Image')) == 3
+    assert logged.count(('medium/z/phase', 'Image')) == 3
+    assert ('medium/z', 'Image') not in logged
+
+
+def test_complex_scalar_logs_real_and_imaginary_series(monkeypatch, tmp_path):
+    """Test that a complex state of a single element logs its real and imaginary parts as series."""
+    logged = _logged(monkeypatch, tmp_path, System(elements=[Turning('osc')]))
+    assert logged.count(('osc/z/real', 'Scalars')) == 3
+    assert logged.count(('osc/z/imag', 'Scalars')) == 3
+
+
+def test_complex_field_has_modulus_and_phase_views():
+    """Test that an image visual shows the modulus and the phase of a complex field in two views."""
+    problem = compile_system(System(elements=[Field('medium', Turning, LatticeSpace((4, 4)))]))
+    views = ImageVisual().views(problem.elements[0], problem)
+    assert [str(view.origin) for view in views] == ['medium/z/modulus', 'medium/z/phase']

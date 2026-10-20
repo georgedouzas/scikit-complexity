@@ -10,6 +10,7 @@ import numpy.typing as npt
 from scipy import signal, stats
 
 from ..base import AnalysisError
+from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
 
@@ -28,12 +29,16 @@ def autocorrelation(values: npt.ArrayLike, max_lag: int | None = None) -> Array:
         autocorrelation:
             The autocorrelation per lag, 1 at lag 0.
 
+    Raises:
+        ValidationError:
+            The series is complex.
+
     Examples:
         >>> from skcomplex.core.analysis import autocorrelation
         >>> autocorrelation([1.0, -1.0, 1.0, -1.0], max_lag=1).round(2).tolist()
         [1.0, -0.75]
     """
-    array = np.asarray(values, dtype=float)
+    array = real_array(values, 'values')
     array = array - array.mean()
     size = array.size
     spectrum = np.fft.rfft(array, n=2 * size)
@@ -56,6 +61,10 @@ def power_spectrum(values: npt.ArrayLike, dt: float = 1.0) -> tuple[Array, Array
         spectrum:
             The frequencies and the density at each of them.
 
+    Raises:
+        ValidationError:
+            The series is complex.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import power_spectrum
@@ -64,7 +73,7 @@ def power_spectrum(values: npt.ArrayLike, dt: float = 1.0) -> tuple[Array, Array
         >>> round(float(frequencies[density.argmax()]))
         5
     """
-    array = np.asarray(values, dtype=float)
+    array = real_array(values, 'values')
     return signal.welch(array, fs=1 / dt, nperseg=min(array.size, 1024))
 
 
@@ -117,7 +126,7 @@ def mean_squared_displacement(
         >>> round(mean_squared_displacement(walks).exponent, 1)
         1.0
     """
-    array = np.asarray(positions, dtype=float)
+    array = real_array(positions, 'positions')
     array = array.reshape(array.shape[0], array.shape[1] if array.ndim > 1 else 1, -1)
     frames = array.shape[0]
     steps = (
@@ -161,7 +170,7 @@ def hurst_exponent(values: npt.ArrayLike, scales: npt.ArrayLike | None = None, o
         >>> round(hurst_exponent(np.random.default_rng(0).standard_normal(20000)), 1)
         0.5
     """
-    array = np.asarray(values, dtype=float)
+    array = real_array(values, 'values')
     if array.size < 100:  # noqa: PLR2004
         error_msg = f'Detrended fluctuation analysis needs at least 100 values, not {array.size}.'
         raise AnalysisError(error_msg)
@@ -237,7 +246,7 @@ def early_warning(values: npt.ArrayLike, window: int, *, detrend: bool = True) -
         >>> early_warning(x, 200).autocorrelation_trend > 0.5
         True
     """
-    array = np.asarray(values, dtype=float)
+    array = real_array(values, 'values')
     if not 3 <= window <= array.size:  # noqa: PLR2004
         error_msg = f'window = {window} must lie between 3 and the length of the series, {array.size}.'
         raise AnalysisError(error_msg)

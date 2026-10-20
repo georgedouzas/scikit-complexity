@@ -15,11 +15,11 @@ equation are written today as two coupled real fields. That works, but the law i
 - Add a complex domain for states and parameters, on single elements, groups, and fields. Laws over complex
   symbols use the imaginary unit and the complex functions: real part, imaginary part, conjugate, modulus, argument,
   and the elementary functions over the complex plane.
-- Lower complex laws to NumPy `complex128` arithmetic and to Numba nopython kernels over `complex128` scalars, with
-  both backends giving the same results.
+- Split complex laws into the real laws of their real and imaginary parts with Sage, and lower those to NumPy and
+  to Numba nopython kernels, with both backends giving the same results.
 - Store every complex component as a contiguous pair of floats in the flat state and parameter vectors, so every
-  existing solver, stepper, and spectral discretization runs complex systems unchanged. The compiled kernels view the
-  pairs as complex numbers without copying.
+  existing solver, stepper, and spectral discretization runs complex systems unchanged. Trajectories and frames view
+  the pairs as complex numbers without copying.
 - Return complex arrays from trajectories, frames, and observables. Analysis functions that need real input reject
   complex series with a named error that names the real views to use.
 - Stream complex states to Rerun as their modulus and phase. Lattice fields log two images, one colored by modulus
@@ -44,8 +44,8 @@ equation are written today as two coupled real fields. That works, but the law i
 ## Impact
 
 - `skcomplex.core.base` gains `Domain.COMPLEX`, and `symbol` stops declaring complex symbols real.
-- `skcomplex.core.compile` gains complex-aware layout entries, NumPy and Numba dialect entries for the complex
-  functions, and type inference that chooses complex or real temporaries per expression.
+- `skcomplex.core.compile` gains complex-aware layout entries and the split of complex laws into the real laws of
+  their parts, so its printers and kernels stay real.
 - `skcomplex.core.runtime` returns complex arrays for complex variables, and `skcomplex.core.viz` logs modulus and
   phase.
 - `skcomplex.models.mathematics.fractals` is a new subpackage with `mandelbrot` and `julia`.

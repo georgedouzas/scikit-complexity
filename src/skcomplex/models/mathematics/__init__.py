@@ -1,9 +1,10 @@
-"""Mathematics: dynamical systems, stochastic processes, and networks."""
+"""Mathematics: dynamical systems, fractals, stochastic processes, and networks."""
 
-from . import dynamical_systems, networks, stochastic_processes
+from . import dynamical_systems, fractals, networks, stochastic_processes
 
 __all__: list[str] = [
     'dynamical_systems',
+    'fractals',
     'networks',
     'stochastic_processes',
 ]

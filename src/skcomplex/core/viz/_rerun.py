@@ -16,7 +16,7 @@ from ..compile import CompiledElement, Problem
 from ..model import NetworkSpace
 from ..runtime import Frame, Observer
 from ._blueprints import default_blueprint, save_blueprint
-from ._visuals import AgentsVisual, Visual, resolve_visual
+from ._visuals import AgentsVisual, Visual, _log_scalars, resolve_visual
 
 
 def _viewer_executable() -> str | None:
@@ -163,7 +163,7 @@ class RerunObserver(Observer):
         for name, value in frame.observables.items():
             self.recording_.log(name, rr.Scalars(np.atleast_1d(np.abs(value) if np.iscomplexobj(value) else value)))
         for name in frame.problem.parameters.names:
-            self.recording_.log(f'parameters/{name}', rr.Scalars(np.atleast_1d(frame.value(name))))
+            _log_scalars(self.recording_, f'parameters/{name}', frame.value(name))
         self.logged_frames_ += 1
 
     def on_stop(self) -> None:

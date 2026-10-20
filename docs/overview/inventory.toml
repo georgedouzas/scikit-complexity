@@ -630,8 +630,8 @@ random_graph_ensembles = { title = "Erdos-Renyi and Watts-Strogatz graphs", sour
 
 [mathematics.fractals]
 chaos_game = { title = "Iterated function systems by the chaos game", sources = ["Di 5.4"], status = "blocked add-stochastic-maps", feature = "Random draws from the simulation's stream inside update laws, and discrete-time Markov chains" }
-mandelbrot = { title = "Mandelbrot set", sources = ["Di 5.5"], status = "blocked add-complex-states", feature = "Complex-valued states and fields" }
-julia = { title = "Julia sets", sources = ["Di 5.5"], status = "blocked add-complex-states", feature = "Complex-valued states and fields" }
+mandelbrot = { title = "Mandelbrot set", sources = ["Di 5.5"], status = "implemented" }
+julia = { title = "Julia sets", sources = ["Di 5.5"], status = "implemented" }
 koch_curve = { title = "Koch", sources = ["Th 3.5.2", "Tr 3.5"], status = "blocked add-rewriting-systems", feature = "Rewriting and substitution dynamics" }
 cantor_set = { title = "Cantor", sources = ["Th 3.5.2", "Tr 3.5"], status = "blocked add-rewriting-systems", feature = "Rewriting and substitution dynamics" }
 sierpinski_substitution = { title = "Sierpiński substitutions", sources = ["Th 3.5.2", "Tr 3.5"], status = "blocked add-rewriting-systems", feature = "Rewriting and substitution dynamics" }

@@ -67,6 +67,42 @@ def _palette_colors(values: npt.NDArray[np.float64], low: float, high: float) ->
     return PALETTE[levels]
 
 
+PHASE_SCALE = np.array(
+    [[230, 90, 80], [225, 190, 70], [90, 190, 110], [70, 160, 210], [150, 100, 200], [230, 90, 80]],
+    dtype=float,
+)
+PHASE_PALETTE = (
+    np.stack(
+        [
+            np.interp(np.linspace(0.0, 1.0, 256), np.linspace(0.0, 1.0, len(PHASE_SCALE)), PHASE_SCALE[:, channel])
+            for channel in range(3)
+        ],
+        axis=-1,
+    )
+    .round()
+    .astype(np.uint8)
+)
+MODULUS = 'modulus'
+PHASE = 'phase'
+PARTS = ('real', 'imag')
+
+
+def _phase_colors(phases: npt.NDArray[np.float64]) -> npt.NDArray[np.uint8]:
+    """Return the colors of phases in `(-pi, pi]` from a cyclic palette, so `-pi` and `pi` share one color."""
+    levels = np.mod(phases + np.pi, 2 * np.pi) * (255.0 / (2 * np.pi))
+    return PHASE_PALETTE[np.clip(levels, 0.0, 255.0).astype(np.uint8)]
+
+
+def _log_scalars(recording: rr.RecordingStream, path: str, value: object) -> None:
+    """Log the components of a value as scalar series, the real and imaginary parts of a complex value apart."""
+    values = np.ravel(np.asarray(value))
+    if not np.iscomplexobj(values):
+        recording.log(path, rr.Scalars(values))
+        return
+    for part, components in zip(PARTS, (values.real, values.imag), strict=True):
+        recording.log(f'{path}/{part}', rr.Scalars(components))
+
+
 def _radius_of(extent: float, count: int) -> float:
     """Return a point radius that is a share of the extent of a view, smaller for crowds so they do not overlap."""
     return POINT_SHARE * (extent if extent > 0 else 1.0) / max(count / CROWD_SIZE, 1.0) ** CROWD_EXPONENT
@@ -150,7 +186,7 @@ class ScalarsVisual(Visual):
         return 'ScalarsVisual()'
 
     def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
-        """Log every state of the element under `<path>/<state>`.
+        """Log every state of the element under `<path>/<state>`, a complex one under `real` and `imag` below it.
 
         Args:
             recording:
@@ -163,7 +199,7 @@ class ScalarsVisual(Visual):
                 The frame.
         """
         for state, name in element.states.items():
-            recording.log(f'{element.path}/{state}', rr.Scalars(np.ravel(frame.value(name))))
+            _log_scalars(recording, f'{element.path}/{state}', frame.value(name))
 
     def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
         """Return one time series view of the states of the element.
@@ -314,7 +350,7 @@ class PointsVisual(Visual):
             self.states if self.states is not None else [state for state in element.states if state != self.position]
         )
         for state in others:
-            recording.log(f'{element.path}/{state}', rr.Scalars(np.ravel(frame.value(element.states[state]))))
+            _log_scalars(recording, f'{element.path}/{state}', frame.value(element.states[state]))
 
     def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
         """Return a spatial view of the positions by their dimension, and a time series view of the other states.
@@ -586,8 +622,31 @@ class ImageVisual(Visual):
         depth = rr.DepthImage(_levels_of(image, *self._range(image)), colormap='viridis', depth_range=(0.0, 255.0))
         recording.log(path, depth)
 
+    def _log_image(
+        self,
+        recording: rr.RecordingStream,
+        path: str,
+        values: npt.NDArray[np.float64],
+        *,
+        cyclic: bool,
+    ) -> None:
+        """Log lattice values as an image colored by value or by a cyclic palette, or as a tensor in 3D and more."""
+        if values.ndim > 2:  # noqa: PLR2004
+            recording.log(path, rr.Tensor(values))
+            return
+        values = np.atleast_2d(values)
+        colors = _phase_colors(values) if cyclic else _palette_colors(values, *self._range(values))
+        height, width = values.shape
+        recording.log(
+            path,
+            rr.Image(bytes=colors.tobytes(), width=width, height=height, color_model='RGB', datatype='U8'),
+        )
+
     def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
         """Log every chosen state of a lattice group under `<path>/<state>`, and a space-time image in one dimension.
+
+        A complex state logs its modulus under `<path>/<state>/modulus`, colored over the range, and its phase under
+        `<path>/<state>/phase`, colored by a cyclic palette over `(-pi, pi]`. Its space-time image shows the modulus.
 
         Args:
             recording:
@@ -602,20 +661,16 @@ class ImageVisual(Visual):
         for state, name in element.states.items():
             if self.states is not None and state not in self.states:
                 continue
-            values = np.asarray(frame.lattice(name), dtype=float)
+            values = np.asarray(frame.lattice(name))
             path = f'{element.path}/{state}'
-            if values.ndim > 2:  # noqa: PLR2004
-                recording.log(path, rr.Tensor(values))
+            magnitudes = np.abs(values) if np.iscomplexobj(values) else np.asarray(values, dtype=float)
+            if magnitudes.ndim == 1:
+                self._log_space_time(recording, f'{element.path}/{SPACE_TIME}/{state}', magnitudes)
+            if not np.iscomplexobj(values):
+                self._log_image(recording, path, magnitudes, cyclic=False)
                 continue
-            if values.ndim == 1:
-                self._log_space_time(recording, f'{element.path}/{SPACE_TIME}/{state}', values)
-            values = np.atleast_2d(values)
-            colors = _palette_colors(values, *self._range(values))
-            height, width = values.shape
-            recording.log(
-                path,
-                rr.Image(bytes=colors.tobytes(), width=width, height=height, color_model='RGB', datatype='U8'),
-            )
+            self._log_image(recording, f'{path}/{MODULUS}', magnitudes, cyclic=False)
+            self._log_image(recording, f'{path}/{PHASE}', np.angle(values), cyclic=True)
 
     def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
         """Return one 2D spatial view per chosen state, or a tensor view for a lattice of three or more dimensions.
@@ -631,8 +686,9 @@ class ImageVisual(Visual):
 
         Returns:
             views:
-                One view per chosen state with `<path>/<state>` as origin, after one view per state with
-                `<path>/space_time/<state>` as origin in one dimension.
+                One view per chosen state with `<path>/<state>` as origin, two for a complex state with its modulus
+                and phase as origins, after one view per state with `<path>/space_time/<state>` as origin in one
+                dimension.
 
         Examples:
             >>> from skcomplex.core.compile import compile_system
@@ -658,7 +714,10 @@ class ImageVisual(Visual):
                     rrb.Spatial2DView(origin=f'{element.path}/{SPACE_TIME}/{state}', name=f'{state} history'),
                 )
             kind = rrb.TensorView if len(shape) > 2 else rrb.Spatial2DView  # noqa: PLR2004
-            views.append(kind(origin=path, name=state))
+            if problem.states.entry(name).is_complex:
+                views += [kind(origin=f'{path}/{part}', name=f'{state} {part}') for part in (MODULUS, PHASE)]
+            else:
+                views.append(kind(origin=path, name=state))
         return [*histories, *views]
 
 
@@ -697,8 +756,30 @@ class MeshVisual(Visual):
         """Return the options."""
         return f'MeshVisual(states={self.states!r}, low={self.low!r}, high={self.high!r})'
 
+    def _colors(self, values: npt.NDArray[np.float64]) -> npt.NDArray[np.uint8]:
+        """Return the colors of node values over the given range or the extremes of the values."""
+        low = float(values.min()) if self.low is None else float(self.low)
+        high = float(values.max()) if self.high is None else float(self.high)
+        return _palette_colors(values, low, high)
+
+    @staticmethod
+    def _log_mesh(
+        recording: rr.RecordingStream,
+        path: str,
+        mesh: Any,  # noqa: ANN401
+        values: npt.NDArray[np.float64],
+        colors: npt.NDArray[np.uint8],
+    ) -> None:
+        """Log node values as a flat triangle mesh with the values as height, or as points of a tetrahedral mesh."""
+        nodes, cells = mesh.nodes, np.asarray(mesh.cells)
+        if mesh.n_dim != 2:  # noqa: PLR2004
+            recording.log(path, rr.Points3D(nodes, colors=colors))
+            return
+        positions = np.column_stack([nodes, values])
+        recording.log(path, rr.Mesh3D(vertex_positions=positions, triangle_indices=cells.T, vertex_colors=colors))
+
     def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
-        """Log every chosen state of a finite element field under `<path>/<state>`.
+        """Log every chosen state of a finite element field under `<path>/<state>`, a complex one as modulus and phase.
 
         Args:
             recording:
@@ -711,23 +792,17 @@ class MeshVisual(Visual):
                 The frame.
         """
         mesh: Any = getattr(element.element, 'space', None)
-        nodes, cells = mesh.nodes, np.asarray(mesh.cells)
         for state, name in element.states.items():
             if self.states is not None and state not in self.states:
                 continue
             values = np.ravel(frame.value(name))
-            low = float(values.min()) if self.low is None else float(self.low)
-            high = float(values.max()) if self.high is None else float(self.high)
-            colors = _palette_colors(values, low, high)
             path = f'{element.path}/{state}'
-            if mesh.n_dim == 2:  # noqa: PLR2004
-                positions = np.column_stack([nodes, values])
-                recording.log(
-                    path,
-                    rr.Mesh3D(vertex_positions=positions, triangle_indices=cells.T, vertex_colors=colors),
-                )
-            else:
-                recording.log(path, rr.Points3D(nodes, colors=colors))
+            if not np.iscomplexobj(values):
+                self._log_mesh(recording, path, mesh, values, self._colors(values))
+                continue
+            modulus, phase = np.abs(values), np.angle(values)
+            self._log_mesh(recording, f'{path}/{MODULUS}', mesh, modulus, self._colors(modulus))
+            self._log_mesh(recording, f'{path}/{PHASE}', mesh, phase, _phase_colors(phase))
 
     def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
         """Return one 3D spatial view per chosen state, since meshes are drawn with the value as their height.
@@ -753,8 +828,18 @@ class MeshVisual(Visual):
         """
         if not isinstance(element, CompiledElement):
             return []
-        states = [state for state in element.states if self.states is None or state in self.states]
-        return [rrb.Spatial3DView(origin=f'{element.path}/{state}', name=state) for state in states]
+        views: list[rrb.View] = []
+        for state, name in element.states.items():
+            if self.states is not None and state not in self.states:
+                continue
+            path = f'{element.path}/{state}'
+            if problem.states.entry(name).is_complex:
+                views += [
+                    rrb.Spatial3DView(origin=f'{path}/{part}', name=f'{state} {part}') for part in (MODULUS, PHASE)
+                ]
+            else:
+                views.append(rrb.Spatial3DView(origin=path, name=state))
+        return views
 
 
 VISUALS = Registry[type[Visual]]('visual')

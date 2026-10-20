@@ -57,7 +57,7 @@ class Frame:
     observables: Mapping[str, Any] = field(default_factory=dict)
     events: tuple[EventRecord | RelaxationRecord, ...] = ()
 
-    def value(self, name: str) -> npt.NDArray[np.float64] | float:
+    def value(self, name: str) -> npt.NDArray[Any] | float | complex:
         """Return the value of a state or a parameter by dotted name.
 
         Args:
@@ -76,7 +76,7 @@ class Frame:
             return self.observables[name]
         return self.problem.parameters.read(self.parameters, name)
 
-    def lattice(self, name: str) -> npt.NDArray[np.float64]:
+    def lattice(self, name: str) -> npt.NDArray[Any]:
         """Return the values of a lattice state in lattice shape.
 
         Args:

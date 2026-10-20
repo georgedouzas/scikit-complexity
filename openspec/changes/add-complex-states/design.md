@@ -45,9 +45,9 @@ feature of the numeric stack the framework already depends on:
 
 | Library | Role here | Maturity and fit | Decision |
 |---|---|---|---|
-| NumPy (BSD-3) | `complex128` arrays, ufuncs `np.exp`, `np.abs`, `np.angle`, `np.conj`, `np.real`, `np.imag`, zero-copy `view(np.complex128)` of interleaved float pairs | Core dependency since 1.0, wheels for Linux and macOS on Python 3.12–3.13 | Wrapped. It is the reference backend's arithmetic. |
-| Numba (BSD-2) | `complex128` scalars and arrays in nopython mode, `.real`, `.imag`, `.conjugate()`, the `cmath` module (`exp`, `log`, `sqrt`, `phase`, trigonometric and hyperbolic functions), and NumPy complex ufuncs | Core dependency, documented complex support, wheels for Linux and macOS on Python 3.12–3.13 | Wrapped. The Numba dialect prints complex subexpressions to `cmath` and keeps `math` for real ones. |
-| passagemath-symbolics (GPL-2+, Sage) | Complex symbols, `I`, `real_part`, `imag_part`, `conjugate`, `abs`, `arg`, and simplification over the complex plane | Core dependency, the symbolic layer every law is written in | Wrapped. Complex symbols are left undeclared, which Sage treats as complex. |
+| NumPy (BSD-3) | `complex128` arrays, ufuncs `np.exp`, `np.abs`, `np.angle`, `np.conj`, `np.real`, `np.imag`, zero-copy `view(np.complex128)` of interleaved float pairs | Core dependency since 1.0, wheels for Linux and macOS on Python 3.12–3.13 | Wrapped. It holds the complex views of trajectories, frames, and observables. |
+| Numba (BSD-2) | `complex128` scalars and arrays in nopython mode, `.real`, `.imag`, `.conjugate()`, the `cmath` module (`exp`, `log`, `sqrt`, `phase`, trigonometric and hyperbolic functions), and NumPy complex ufuncs | Core dependency, documented complex support, wheels for Linux and macOS on Python 3.12–3.13 | Not used for complex values. The laws reach the Numba kernels already split into real laws, so the real kernels run unchanged. |
+| passagemath-symbolics (GPL-2+, Sage) | Complex symbols, `I`, `real_part`, `imag_part`, `conjugate`, `abs`, `arg`, and the decomposition of expressions of real symbols into their real and imaginary parts | Core dependency, the symbolic layer every law is written in | Wrapped. Its decomposition splits every complex law into real laws, and complex symbols made with `symbol` are left undeclared, which Sage treats as complex. |
 | SciPy `solve_ivp` (BSD-3) | Accepts a complex `y0` for RK23, RK45, DOP853, and BDF, but not for Radau or LSODA, and BDF needs a holomorphic right side | Core dependency | Not used with complex vectors. Paired storage keeps every method available, including Radau and LSODA, and laws with `abs` or `conjugate` that are not holomorphic. |
 | Rerun (MIT/Apache-2.0) | Images, tensors, and scalar series | Core dependency. Its tensor and image types take integer and float element types only, with no complex type | Wrapped through an adapter that logs the modulus and the phase. |
 | JAX | Complex arrays, automatic differentiation | Mature, but a heavy new dependency and a third backend | Rejected. It adds nothing NumPy and Numba lack for this feature. |
@@ -86,30 +86,40 @@ system, and adds a dtype branch to every in-house stepper and to the hybrid and 
 
 ### Lowering complex laws
 
-The compiler infers a type for every node of a lowered expression: complex when it contains a complex symbol or a
-non-real number, and real when it is a real symbol or number, or the result of `real_part`, `imag_part`, `abs`, or
-`arg`. The rules that use this type:
-- A law's value must be real for a real target, or the compiler raises `ValidationError` with the law and the state.
-- A relation, `min`, `max`, `floor`, `ceil`, `mod`, `sgn`, and `heaviside` must take real operands. This covers the
-  ordering scenario.
-- A complex law for a complex target writes its value to the complex view.
+A complex variable is declared as two real Sage symbols per component, `<name>_re` and `<name>_im`, one per stored
+slot, and the namespace that laws receive holds `re + I * im`. Every symbol the compiler sees is therefore real, and an
+expression is complex exactly when it holds the imaginary unit.
 
-The dialects gain entries:
-- NumPy: `real_part` → `np.real`, `imag_part` → `np.imag`, `conjugate` → `np.conj`, `arg` → `np.angle`. The existing
-  ufunc entries already accept complex arrays.
-- Numba scalar: a complex dialect beside `SCALAR_DIALECT`, chosen per node by the inferred type. It maps elementary
-  functions to `cmath`, `abs` to `abs`, `arg` to `cmath.phase`, `real_part` to `.real`, `imag_part` to `.imag`, and
-  `conjugate` to `.conjugate()`. Real nodes keep `math`, so real kernels print exactly as today.
+Right after the laws are collected, the compiler splits every law that holds a complex value into real laws, before
+any other pass. Sage writes the real and imaginary parts of arithmetic and of the elementary functions with
+`real_part` and `imag_part` (GiNaC's own decomposition over real symbols), and the adapter handles what Sage leaves
+unevaluated:
+- `abs` becomes `sqrt(re² + im²)`, `arg` becomes `arctan2(im, re)`, and `real_part`, `imag_part`, and `conjugate`
+  pick or negate a part.
+- The linear operators `laplacian`, `partial`, `upwind`, `inverse_laplacian`, `derivative`, `lag`, `delayed`, and
+  `shift_member`, and the reductions `total` and `mean`, apply to each part.
+- `where` takes a real condition and splits its branches.
+- A relation, `mod`, `floor`, `ceil`, `sgn`, `heaviside`, `either`, `both`, and the other reductions take real
+  operands, and a relation of complex operands raises `ValidationError` that suggests the modulus or the real part.
+- A law with a complex value for a real state raises `ValidationError` with the law and the state.
+- Any other function applied to a complex value raises `ValidationError` instead of reaching a printer.
 
-The Numba kernels read complex variables through the complex view of the state and parameter vectors and write
-results through the view of the derivative or update vector. Kernel cache keys include the inferred types, so a
-system that differs only in a variable's domain does not reuse a stale kernel.
+A law on a complex state becomes one law per real slot, and a law with no complex value is returned unchanged, so real
+systems compile exactly as before. Since the split laws are real, the NumPy and Numba dialects need no complex
+entries, the kernels need no complex views, and the kernel cache keys stay correct because the split symbols carry
+their own names.
+
+Alternative considered: complex views in the kernels, a type inference per node, and a `cmath` dialect for Numba.
+Rejected during implementation: every kernel path (members, pairs, stencils, lattices, reductions, observables,
+Jacobians, and the spectral splitting) would need a complex branch, while Sage already provides the realification
+that the paired storage needs, and the stiff and spectral passes then see exactly the split real form.
 
 ### Fields and spectral operators
 
-`laplacian`, `partial`, and `gradient` act on a complex field component-wise, which the paired layout gives with no
-new stencil code. On spectral fields, a complex linear term such as `(1 + i b) ∇²A` lowers to the 2 × 2 real block per
-Fourier mode that the spectral discretization already builds for the two-field Ginzburg-Landau equation. The
+`laplacian`, `partial`, and `gradient` act on a complex field component-wise, which the split laws give with no
+new stencil code. On spectral fields, a complex linear term such as `(1 + i b) ∇²A` splits into the linear terms that
+couple the real and imaginary parts, the 2 × 2 real block per Fourier mode that the spectral discretization already
+builds for the two-field Ginzburg-Landau equation. The
 exponential steppers therefore see the same operator as they do for the split form, which the spec's agreement
 scenario checks.
 
@@ -122,7 +132,7 @@ optimisation that the agreement scenario would keep honest.
 `Trajectory.__getitem__`, `Trajectory.lattice`, `Frame` reads, and observables return `complex128` views for complex
 variables. The NumPy array then provides `.real`, `.imag`, `np.abs`, and `np.angle` for the real views, so the
 framework adds no accessor of its own. Analysis functions that cast to `float` gain a guard that raises
-`ValidationError` naming the variable and those real views, instead of NumPy's `ComplexWarning` that drops the
+`ValidationError` naming the argument and those real views, since they receive arrays without the name of a variable, instead of NumPy's `ComplexWarning` that drops the
 imaginary part silently.
 
 ### Visualization
@@ -162,9 +172,9 @@ Two models could use complex fields. Neither is required by this change:
   are spectral and use exponential steppers. A complex-Jacobian path can be added later if a benchmark asks for it.
 - [Users take `float(...)` of a complex trajectory and lose the imaginary part] → Analysis functions raise a named
   error, and the user guide shows the real views.
-- [Numba type unification fails when a `where` mixes a complex and a real branch] → The printer promotes the real
-  branch to `complex(...)` when the inferred type of the `where` is complex. A backend agreement test covers it.
-- [Cache collisions between real and complex variants of one system] → The kernel cache key includes the inferred
-  types.
+- [Splitting a long complex law into parts makes longer real expressions] → Sage expands only the node it splits,
+  with real stand-ins for the parts below it, so the split laws stay close to the split form a user would write.
+- [Cache collisions between real and complex variants of one system] → The split symbols carry their own names, so
+  the kernel sources and their cache keys differ.
 - [Rerun has no complex type, so complex fields need two entities] → Modulus and phase are the conventional domain
   coloring split, and both are logged under the state's own path.

@@ -79,7 +79,7 @@ class Trajectory:
         """Return the number of recorded frames."""
         return len(self.times)
 
-    def __getitem__(self, name: str) -> npt.NDArray[np.float64]:
+    def __getitem__(self, name: str) -> npt.NDArray[Any]:
         """Return the values of a state or a parameter over time by dotted name.
 
         Args:
@@ -110,7 +110,7 @@ class Trajectory:
         error_msg = f'No state or parameter named {name!r}. Available names are: {", ".join(names)}.'
         raise KeyError(error_msg)
 
-    def lattice(self, name: str) -> npt.NDArray[np.float64]:
+    def lattice(self, name: str) -> npt.NDArray[Any]:
         """Return the values of a lattice state over time in lattice shape.
 
         Args:

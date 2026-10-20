@@ -81,7 +81,7 @@ states.
 ### Requirement: Trajectories return complex values
 Trajectories, frames, and observables SHALL return complex arrays for complex variables and real arrays for real
 variables. Analysis functions that require real values SHALL reject complex input with a named error that names the
-variable and the real views to use: real part, imaginary part, modulus, or argument.
+argument that holds it and the real views to use: real part, imaginary part, modulus, or argument.
 
 #### Scenario: Complex trajectory
 - **WHEN** a trajectory of a field with a complex state on a 32 × 32 lattice is asked for that state as a lattice
@@ -89,7 +89,7 @@ variable and the real views to use: real part, imaginary part, modulus, or argum
 
 #### Scenario: Real analysis of a complex series
 - **WHEN** a user asks for the power spectrum of a complex state's series
-- **THEN** a named error names the state and the real views to take first
+- **THEN** a named error names the argument that holds the series and the real views to take first
 
 ### Requirement: Complex values stream as modulus and phase
 Visuals SHALL stream complex states to Rerun as their modulus and their phase. A complex lattice field SHALL appear as

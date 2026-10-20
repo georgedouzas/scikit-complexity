@@ -168,6 +168,8 @@ def declaration_of(value: object) -> Variable | None:
 def companions_of(name: str, declaration: Variable, default: Any) -> dict[str, Any]:
     """Return the companion state fields of a state of higher order or with lags, by field name.
 
+    The derivatives of a complex state are complex, and those of any other state are real.
+
     Args:
         name:
             The name of the state.
@@ -183,9 +185,10 @@ def companions_of(name: str, declaration: Variable, default: Any) -> dict[str, A
             The companion fields, empty for a first-order state without lags.
     """
     fields = {}
+    domain = Domain.COMPLEX if declaration.domain is Domain.COMPLEX else Domain.REAL
     for index in range(1, declaration.order):
         value = declaration.initial[index - 1] if index <= len(declaration.initial) else 0.0
-        companion = Variable(VariableKind.STATE, Domain.REAL, declaration.vector, derivative_of=name, index=index)
+        companion = Variable(VariableKind.STATE, domain, declaration.vector, derivative_of=name, index=index)
         fields[f'{name}_d{index}'] = _declare_field(value, companion)
     for index in range(1, declaration.lags + 1):
         value = declaration.initial[index - 1] if index <= len(declaration.initial) else default

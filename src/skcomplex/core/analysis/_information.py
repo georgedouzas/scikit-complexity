@@ -10,6 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ..base import AnalysisError
+from ._utils import real_array
 
 type Array = npt.NDArray[np.float64]
 METHODS = ('bins', 'quantiles', 'ordinal')
@@ -45,7 +46,7 @@ def symbolize(values: npt.ArrayLike, method: str = 'quantiles', n: int = 2, *, o
         >>> symbolize([0.1, 0.9, 0.4, 0.6], 'quantiles', 2).tolist()
         [0, 1, 0, 1]
     """
-    array = np.asarray(values, dtype=float)
+    array = real_array(values, 'values')
     if method == 'bins':
         edges = np.linspace(array.min(), array.max(), n + 1)[1:-1]
         return np.digitize(array, edges).astype(np.int64)
