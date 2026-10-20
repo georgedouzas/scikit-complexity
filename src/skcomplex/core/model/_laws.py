@@ -168,13 +168,20 @@ class Jump:
             The propensity of the event, as a symbolic expression or a callable `f(t, values)`.
 
         changes:
-            A mapping from the symbol of a scalar state to its increment when the event fires.
+            A mapping from the symbol of a scalar state to its increment when the event fires. In a law of a group,
+            a target may also be a member offset read `shift_member(s.n, k)`, so the event of member `i` changes
+            member `i + k` with the boundary of the read. Past a fixed end that change is left out, so the quantity
+            leaves the group. Offsets follow the member order, which on a lattice of more than one dimension does not
+            follow lattice neighbours.
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.model import Jump
+        >>> from skcomplex.core.model import Jump, shift_member
         >>> s, i = symbol('s'), symbol('i')
         >>> Jump(0.1 * s * i, {s: -1, i: 1}).changes[i]
+        1
+        >>> n = symbol('n')
+        >>> Jump(n, {n: -1, shift_member(n, 1): 1}).changes[shift_member(n, 1)]
         1
     """
 

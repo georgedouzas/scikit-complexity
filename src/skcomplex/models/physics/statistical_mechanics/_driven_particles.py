@@ -9,7 +9,18 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
-from ....core.model import Element, EuclideanSpace, Interaction, Jump, LatticeSpace, Law, Symbols, System, where
+from ....core.model import (
+    Element,
+    EuclideanSpace,
+    Interaction,
+    Jump,
+    LatticeSpace,
+    Law,
+    Symbols,
+    System,
+    shift_member,
+    where,
+)
 from ....core.runtime import register_model
 
 type Array = npt.NDArray[np.float64]
@@ -139,34 +150,40 @@ class ZeroRangeHop(Interaction):
         ]
 
 
-class ExclusionHop(Interaction):
-    """Hop of a particle along a link to an empty site, forward at rate `p` and backward at rate `q`.
+class ZeroRangeHops(Interaction):
+    """Hops of one particle from every site of a ring, to the right at rate `p u(n)` and to the left at rate `q u(n)`.
+
+    The rate depends only on the occupation `n` of the departure site, through `u(n) = 1 + b / n`.
 
     Args:
         label:
-            The label of the link.
+            The label of the hops.
 
-        link:
-            The departure and the arrival site of a forward hop.
+        sites:
+            The group of sites, in ring order.
 
         p:
-            The forward rate.
+            The rate scale of hops to the right.
 
         q:
-            The backward rate.
+            The rate scale of hops to the left.
+
+        b:
+            The strength of the decrease of `u(n)` with the occupation, 0 for a constant rate.
 
     Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import ExclusionHop
-        >>> ExclusionHop('hop', link=['lane[0]', 'lane[1]']).p
-        1.0
+        >>> from skcomplex.models.physics.statistical_mechanics import ZeroRangeHops
+        >>> ZeroRangeHops('hops', sites='sites').b
+        4.0
     """
 
-    link: list[str] = role(variadic=True)
+    sites: str = role()
     p: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
     q: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+    b: float = parameter(default=4.0, domain=Domain.NONNEGATIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
-        """Return the forward and the backward hop.
+        """Return the hops to the right and to the left.
 
         Args:
             s:
@@ -176,10 +193,58 @@ class ExclusionHop(Interaction):
             laws:
                 The laws of the component.
         """
-        first, second = (site.n for site in s.link)
+        n = s.sites.n
+        rate = _departure_rate(n, s.b)
         return [
-            Jump(s.p * first * (1 - second), {first: -1, second: 1}),
-            Jump(s.q * second * (1 - first), {second: -1, first: 1}),
+            Jump(s.p * rate, {n: -1, shift_member(n, 1): 1}),
+            Jump(s.q * rate, {n: -1, shift_member(n, -1): 1}),
+        ]
+
+
+class ExclusionHops(Interaction):
+    """Hops of a particle from every site of a line to an empty neighbour, to the right at rate `p` and left at `q`.
+
+    No particle hops past the ends of the line.
+
+    Args:
+        label:
+            The label of the hops.
+
+        sites:
+            The group of sites, in line order.
+
+        p:
+            The rate of hops to the right.
+
+        q:
+            The rate of hops to the left.
+
+    Examples:
+        >>> from skcomplex.models.physics.statistical_mechanics import ExclusionHops
+        >>> ExclusionHops('hops', sites='lane').p
+        1.0
+    """
+
+    sites: str = role()
+    p: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+    q: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+
+    def laws(self, s: Symbols) -> list[Law]:
+        """Return the hops to the right and to the left.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        n = s.sites.n
+        right, left = (shift_member(n, step, boundary='fixed', fill=1.0) for step in (1, -1))
+        return [
+            Jump(s.p * n * (1 - right), {n: -1, shift_member(n, 1, boundary='fixed'): 1}),
+            Jump(s.q * n * (1 - left), {n: -1, shift_member(n, -1, boundary='fixed'): 1}),
         ]
 
 
@@ -282,15 +347,11 @@ def zero_range_process(
         >>> from skcomplex.models.physics.statistical_mechanics import zero_range_process
         >>> system = zero_range_process(10, density=2.0)
         >>> float(system.elements[0].values['n'].sum()), len(system.interactions)
-        (20.0, 10)
+        (20.0, 1)
     """
     occupations = _scatter(round(density * n_sites), n_sites, random_state)
     sites = ParticleSite.lattice('sites', LatticeSpace(n_sites), n=occupations)
-    hops = [
-        ZeroRangeHop(f'hop_{index}', link=[f'sites[{index}]', f'sites[{(index + 1) % n_sites}]'], p=p, q=q, b=b)
-        for index in range(n_sites)
-    ]
-    return System(elements=[sites], interactions=hops)
+    return System(elements=[sites], interactions=[ZeroRangeHops('hops', sites='sites', p=p, q=q, b=b)])
 
 
 @register_model(
@@ -423,16 +484,13 @@ def asep(
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import asep
         >>> len(asep(10).interactions)
-        11
+        3
     """
     occupied = (np.random.default_rng(random_state).random(n_sites) < density).astype(float)
     lane = ParticleSite.lattice('lane', LatticeSpace(n_sites, boundary='fixed'), n=occupied)
-    hops: list[Interaction] = [
-        ExclusionHop(f'hop_{index}', link=[f'lane[{index}]', f'lane[{index + 1}]'], p=p, q=q)
-        for index in range(n_sites - 1)
-    ]
-    hops += [
+    interactions = [
+        ExclusionHops('hops', sites='lane', p=p, q=q),
         Reservoir('entry', sites=['lane[0]'], entry=alpha, exclusion=True),
         Reservoir('exit', sites=[f'lane[{n_sites - 1}]'], exit=gamma, exclusion=True),
     ]
-    return System(elements=[lane], interactions=hops)
+    return System(elements=[lane], interactions=interactions)

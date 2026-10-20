@@ -226,7 +226,7 @@ def test_agent_rules_read_other_partitions():
         ],
     )
     trajectory = Simulation(system, dt=1).run(until=1).trajectory_
-    assert trajectory.agents('village/farmers', 1).values['seen'].tolist() == pytest.approx([5.0 * np.e] * 2)
+    assert trajectory.agents('village/farmers', 1).values['seen'].tolist() == pytest.approx([5.0 * np.e] * 2, rel=1e-5)
 
 
 def test_sync_interval_must_divide_frame():

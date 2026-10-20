@@ -31,7 +31,7 @@ def test_periodic_duffing_section_is_finite():
 def test_harmonic_oscillator_section_crosses_upward():
     """Test that upward crossings of x = 0 by the harmonic oscillator come once per period with the full speed."""
     section = poincare_section(harmonic_oscillator(), 'mass.x', direction=1, until=20.0)
-    assert np.diff(section.times) == pytest.approx(2 * math.pi, abs=1e-6)
+    assert np.diff(section.times) == pytest.approx(2 * math.pi, abs=1e-5)
     assert section['mass.v'] == pytest.approx(np.ones(len(section)), abs=1e-5)
     both = poincare_section(harmonic_oscillator(), 'mass.x', direction=0, until=20.0)
     assert len(both) == 2 * len(section)

@@ -229,7 +229,8 @@ class JumpChannels:
             The index of the first channel among all channels of the problem.
 
         targets:
-            The flat state index changed by each change, one row per change and one column per channel.
+            The flat state index changed by each change, one row per change and one column per channel, or -1 where
+            a change at a member offset falls past a fixed end and changes nothing.
 
         increments:
             The increment of each change.
@@ -689,7 +690,8 @@ class Problem:
         for channels in self.jumps:
             rows = channels.offset + np.arange(channels.size)
             for targets, increment in zip(channels.targets, channels.increments, strict=True):
-                np.add.at(matrix, (rows, targets), increment)
+                kept = targets >= 0
+                np.add.at(matrix, (rows[kept], targets[kept]), increment)
         return matrix
 
 

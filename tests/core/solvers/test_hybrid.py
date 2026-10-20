@@ -4,6 +4,7 @@ import math
 
 import numpy as np
 import pytest
+from sklearn.base import clone
 
 from skcomplex.core.base import SolverError, ValidationError
 from skcomplex.core.compile import compile_system
@@ -52,8 +53,9 @@ def _divergence_rate(tau, until=1500.0, window=100.0):
     The rate is the slope of the logarithm of the largest distance in successive windows, which estimates the largest
     Lyapunov exponent while the distance stays small.
     """
-    first = Simulation(mackey_glass(tau=tau), dt=0.5).run(until=until).trajectory_
-    second = Simulation(mackey_glass(x=0.5 + 1e-8, tau=tau), dt=0.5).run(until=until).trajectory_
+    solver = ScipyODE(rtol=1e-9, atol=1e-12)
+    first = Simulation(mackey_glass(tau=tau), dt=0.5, solver=solver).run(until=until).trajectory_
+    second = Simulation(mackey_glass(x=0.5 + 1e-8, tau=tau), dt=0.5, solver=clone(solver)).run(until=until).trajectory_
     distance = np.abs(first['cells.x'] - second['cells.x'])
     starts = np.arange(0.0, until, window)
     peaks = [distance[(first.times >= start) & (first.times < start + window)].max() for start in starts]
@@ -102,7 +104,7 @@ def test_declared_history_is_read_before_the_start():
     """Test that a history given as a function of time feeds the delayed state before the start."""
     system = System(elements=[Delayed('d')], history={'d.x': lambda t: 1 + t})
     trajectory = Simulation(system, dt=0.1).run(until=1).trajectory_
-    assert trajectory['d.x'][-1] == pytest.approx(1 - 0.5, abs=1e-6)
+    assert trajectory['d.x'][-1] == pytest.approx(1 - 0.5, abs=1e-5)
 
 
 def test_history_names_states():

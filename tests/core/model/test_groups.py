@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from sklearn.base import clone
 
-from skcomplex.core.base import RoleError, ValidationError
+from skcomplex.core.base import RoleError, ValidationError, VisualSpec
 from skcomplex.core.compile import compile_system
 from skcomplex.core.model import (
     Boundary,
@@ -12,6 +12,7 @@ from skcomplex.core.model import (
     EuclideanSpace,
     Group,
     Interaction,
+    LatticeSpace,
     PairInteraction,
     Particle,
     Rate,
@@ -163,3 +164,15 @@ def test_pair_interaction_needs_vector_position():
     )
     with pytest.raises(ValidationError, match="vector state 'x'"):
         compile_system(system)
+
+
+def test_lattice_keeps_visual_of_element_type():
+    """Test that a lattice group of a type that declares a visual takes that visual, not an image."""
+    Column = Element.define('Column', states={'h': 0.0}, visual=VisualSpec('heights'))
+    assert Column.lattice('columns', LatticeSpace((3,))).visual.kind == 'heights'
+
+
+def test_lattice_without_type_visual_is_an_image():
+    """Test that a lattice group of a type that declares no visual is drawn as an image."""
+    Cell = Element.define('Cell', states={'h': 0.0})
+    assert Cell.lattice('cells', LatticeSpace((3,))).visual.kind == 'image'

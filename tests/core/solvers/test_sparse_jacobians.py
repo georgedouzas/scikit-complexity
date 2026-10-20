@@ -222,7 +222,7 @@ def test_adaptive_explicit_method_warns_once_on_stiff_field():
     """Test that RK45 warns once on the first frame that spans more than 1000 stable steps, and not later."""
     problem = _stiff_fisher(100)
     assert problem.stable_step == pytest.approx(1.25e-3)
-    stepper = ScipyODE()
+    stepper = ScipyODE(method='RK45')
     stepper.initialize(problem, np.random.default_rng(0))
     with pytest.warns(UserWarning, match=r"method='BDF'.*method='Radau'"):
         x = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 2.0)

@@ -23,7 +23,7 @@ Compiling a system infers its mathematical form from its law kinds and builds fa
 
 | Law kinds | Form | Default solver |
 | --- | --- | --- |
-| `Rate` | ordinary differential equations | `ScipyODE` |
+| `Rate` | ordinary differential equations | `ScipyODE` with `LSODA` |
 | `Rate` and `Noise` | stochastic differential equations | `EulerMaruyama` |
 | `Jump` | jump process | `Gillespie` |
 | `Update` | discrete map | `Iteration` |
@@ -219,7 +219,9 @@ States and parameters are named by their path, such as `meadow/rabbits.n` and `h
 
 ## Simulating
 
-`Simulation` compiles the system, picks the solver of its form, and advances it in frames of `dt`.
+`Simulation` compiles the system, picks the solver of its form, and advances it in frames of `dt`. The default ODE
+solver is `ScipyODE` with SciPy's `LSODA`, which starts with Adams methods and switches to BDF methods while the system
+is stiff, so stiff systems also run with the default solver.
 
 ```python
 from skcomplex.core.runtime import RealTime, Simulation
@@ -842,7 +844,7 @@ Jacobian by the chain rule through every reduction, as a SciPy sparse matrix, an
 its structure, which the implicit methods of `ScipyODE` receive (see
 [Discretizations and stiff solvers](#discretizations-and-stiff-solvers)). When the dense blocks exceed 4 million
 entries, `pattern()` returns `None` and an implicit solver estimates a dense Jacobian. Mean-field groups are rarely stiff, so explicit steppers such as `RK4` and
-`ScipyODE` with `RK45` suit large groups with reductions.
+`ScipyODE(method='RK45')` suit large groups with reductions.
 
 ```python
 from skcomplex.core.compile import compile_system

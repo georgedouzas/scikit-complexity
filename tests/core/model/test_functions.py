@@ -6,8 +6,21 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import symbol
-from skcomplex.core.compile import NUMPY_DIALECT, SCALAR_DIALECT, numpy_function, print_expressions
-from skcomplex.core.model import EuclideanSpace, Particle, PeriodicBox, ReflectingBox, System, both, either, mod, where
+from skcomplex.core.compile import NUMPY_DIALECT, SCALAR_DIALECT, compile_system, numpy_function, print_expressions
+from skcomplex.core.model import (
+    Element,
+    EuclideanSpace,
+    Particle,
+    PeriodicBox,
+    Rate,
+    ReflectingBox,
+    System,
+    both,
+    either,
+    mod,
+    series,
+    where,
+)
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4, ScipyODE
 
@@ -105,3 +118,29 @@ def test_long_frame_keeps_particle_in_reflecting_box(solver):
     trajectory = Simulation(system, solver=solver, dt=5.0).run(until=5).trajectory_
     assert trajectory['p.x'][-1, 0] == pytest.approx(0.5, abs=1e-6)
     assert trajectory['p.v'][-1, 0] == pytest.approx(-1.0, abs=1e-6)
+
+
+def _driven_by(data):
+    """Return a system whose one rate reads a series input."""
+    driven = Element.define('Driven', states={'y': 0.0}, laws=lambda s: [Rate(s.y, data(s.t))])
+    return System(elements=[driven('d')])
+
+
+@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+def test_series_compiles_long_held_data(backend):
+    """Test that a held series of 1000 points compiles and holds each value until the next time."""
+    times, values = np.arange(1000.0), np.sin(np.arange(1000.0))
+    problem = compile_system(_driven_by(lambda t: series(t, times, values, 'previous')), backend=backend)
+    rates = [problem.drift(k + 0.5, problem.initial_state, problem.initial_parameters)[0] for k in range(1000)]
+    np.testing.assert_allclose(rates, values, rtol=0, atol=1e-12)
+
+
+@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+def test_series_interpolates_long_linear_data(backend):
+    """Test that a linear series of 1000 points matches linear interpolation and breaks at every data time."""
+    times, values = np.arange(1000.0), np.sin(np.arange(1000.0))
+    problem = compile_system(_driven_by(lambda t: series(t, times, values)), backend=backend)
+    probes = np.linspace(-3.0, 1003.0, 2501)
+    rates = [problem.drift(time, problem.initial_state, problem.initial_parameters)[0] for time in probes]
+    np.testing.assert_allclose(rates, np.interp(probes, times, values), rtol=0, atol=1e-12)
+    assert problem.breakpoints.between(-1.0, 1000.0) == list(times)

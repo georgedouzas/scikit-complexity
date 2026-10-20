@@ -4,17 +4,21 @@
 # License: MIT
 
 from collections.abc import Callable, Iterator, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
 import numpy.typing as npt
+import scipy.sparse
+from sage.all__sagemath_symbolics import SR, I
 
-from ..base import Expression, ValidationError, real_components_of, symbol, symbols_of
-from ..model import Observable, Symbols, System, reduce_values
+from ..base import Domain, Expression, RoleError, ValidationError, real_components_of, symbol, symbols_of
+from ..model import Observable, Reduction, Symbols, System, reduce_values, reductions_in
 from ._complex import joined_complex
+from ._layout import Entry
 from ._printing import numpy_function
 from ._problem import Problem, Vector
+from ._reductions import CompiledReduction, Read, ReductionPass
 
 type AgentsOf = Callable[[str], list[Any] | None]
 type Getter = Callable[[float, Vector, Vector, Mapping[str, Any]], Any]
@@ -28,6 +32,11 @@ def _from_done(name: str) -> Callable[[Vector, Vector, Mapping[str, Any]], Any]:
 def _from_members(read: Callable[[Vector, Vector], Any]) -> Callable[[Vector, Vector, Mapping[str, Any]], Any]:
     """Return a reader of one member variable over a group."""
     return lambda x, p, done: read(x, p)
+
+
+def _read_of(read: Read) -> Callable[[Vector, Vector], Any]:
+    """Return a reader of the values a reduction read stands for, from the state or the extended parameters."""
+    return _from_vector(read.is_state, read.index)
 
 
 def _from_vector(is_state: bool, indices: Any) -> Callable[[Vector, Vector], Any]:  # noqa: ANN401
@@ -85,6 +94,110 @@ def _tree(items: Mapping[str, Any], **root: Any) -> Symbols:  # noqa: ANN401
         return Symbols(**{key: build(value) if isinstance(value, dict) else value for key, value in node.items()})
 
     return Symbols(**{key: build(value) for key, value in nested.items()}, **root)
+
+
+@dataclass
+class _MemberReductions:
+    """Reductions in the member expression of an observable, compiled with the reduction lowering of laws."""
+
+    path: str
+    group: str
+    size: int
+    reads: dict[Expression, Read]
+    time: Expression
+    parameters: int
+    found: dict[str, CompiledReduction] = field(default_factory=dict)
+
+    @property
+    def extent(self) -> int:
+        """Size of the parameter vector extended by the values of the reductions."""
+        return max((item.entry.start + item.entry.size for item in self.found.values()), default=self.parameters)
+
+    def _check_over(self, reduction: Reduction) -> None:
+        """Raise an error when a reduction reduces over a group other than the observable's group."""
+        read = self.reads.get(reduction.over) if reduction.over is not None else None
+        if reduction.over is None or (read is not None and read.per_member):
+            return
+        error_msg = (
+            f'The reduction {reduction.call} of observable {self.path} reads a group other than {self.group}. A '
+            'reduction in the member expression of an observable reduces over the observable\'s group, so write one '
+            'observable per group.'
+        )
+        raise RoleError(error_msg)
+
+    def _read(self, item: Expression) -> Read:
+        """Return how the reduction pass reads one symbol of a reduction."""
+        if item not in self.reads:
+            error_msg = (
+                f'A reduction of observable {self.path} reads {item}, which is not a variable of a member of '
+                f'{self.group}, of a single element, or another reduction. Reductions read the namespace the '
+                'expression receives.'
+            )
+            raise ValidationError(error_msg)
+        return self.reads[item]
+
+    def _weights(self, reduction: Reduction) -> Any:  # noqa: ANN401
+        """Return the weights of a reduction as a CSR array after checking their shape."""
+        if reduction.weights is None:
+            return None
+        shape = tuple(reduction.weights.shape)
+        if shape != (self.size, self.size):
+            error_msg = (
+                f'The weights of the reduction {reduction.call} of observable {self.path} have the shape {shape}, but '
+                f'the reduction needs the shape {(self.size, self.size)}, one row and one column per member of '
+                f'{self.group}.'
+            )
+            raise ValidationError(error_msg)
+        return scipy.sparse.csr_array(reduction.weights, dtype=float)
+
+    def _placeholder(self, reduction: Reduction) -> Expression:
+        """Return the placeholder of a reduction, compiling it the first time it is found."""
+        key = str(reduction.call)
+        if key in self.found:
+            return self.found[key].symbol
+        if SR(reduction.argument).has(I):
+            error_msg = (
+                f'The reduction {reduction.call} of observable {self.path} reduces a complex expression. Reduce its '
+                'real or imaginary part.'
+            )
+            raise ValidationError(error_msg)
+        self._check_over(reduction)
+        argument = SR(self.lower(reduction.argument))
+        condition = None if reduction.condition is None else SR(self.lower(reduction.condition))
+        symbols = symbols_of([argument, *([condition] if condition is not None else [])]) - {self.time}
+        weights = self._weights(reduction)
+        index = len(self.found)
+        shape = (self.size,) if weights is not None else ()
+        members = self.size if weights is not None else None
+        entry = Entry(f'__observed_{index}', self.extent, shape, Domain.REAL, members)
+        placeholder = symbol(f'_observed_{index}')
+        reads = {item: self._read(item) for item in sorted(symbols, key=str)}
+        self.found[key] = CompiledReduction(
+            placeholder,
+            reduction.kind,
+            argument,
+            condition,
+            weights,
+            entry,
+            self.size,
+            self.group,
+            reads,
+            self.time,
+        )
+        indices = entry.start + np.arange(self.size) if weights is not None else entry.start
+        self.reads[placeholder] = Read(False, indices, entry)
+        return placeholder
+
+    def lower(self, expression: Any) -> Any:  # noqa: ANN401
+        """Return an expression with every reduction replaced by the placeholder of its value."""
+        if not isinstance(expression, Expression):
+            return expression
+        found = reductions_in(expression)
+        placeholders = {item.call: self._placeholder(item) for item in found}
+        lowered = expression
+        for call in sorted(placeholders, key=lambda item: -len(str(item))):
+            lowered = lowered.subs({call: placeholders[call]})
+        return lowered
 
 
 @dataclass
@@ -229,22 +342,34 @@ class ObservableEvaluator:
                 error_msg = f'Observable {path} reduces {group} with {observable.reduce!r} but names no variable.'
                 raise ValidationError(error_msg)
             return lambda t, x, p, done: float(size)
-        members: dict[Expression, Callable[[Vector, Vector], Any]] = {}
+        members: dict[Expression, Read] = {}
         for name in names.values():
             entry = self._entry(name)
             is_state = name in self.problem.states
             for column, item in enumerate(real_components_of(self.problem.symbols[name])):
-                indices = entry.start + np.arange(size) * entry.columns + column
-                members[item] = _from_vector(is_state, indices)
+                indices = (entry.start + np.arange(size) * entry.columns + column).astype(np.intp)
+                members[item] = Read(is_state, indices, entry, column, entry.columns)
         namespace = Symbols(
             **{variable: self.problem.symbols[name] for variable, name in names.items()},
             t=self.problem.time,
         )
         expression = observable.expression(namespace) if callable(observable.expression) else observable.expression
-        evaluate = self._compile(path, expression, {}, members)
+        scalars = {item: Read(vector == 'x', index) for item, (vector, index) in self._scalars.items()}
+        lowering = _MemberReductions(
+            path,
+            group,
+            size,
+            {**scalars, **members},
+            self.problem.time,
+            len(self.problem.initial_parameters),
+        )
+        expression = lowering.lower(expression)
+        readers = {item: _read_of(read) for item, read in lowering.reads.items() if item not in scalars}
+        evaluate = self._compile(path, expression, {}, readers)
+        reductions = ReductionPass(tuple(lowering.found.values()), lowering.parameters)
 
         def read_expression(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
-            values = np.broadcast_to(evaluate(t, x, p, done), (size,))
+            values = np.broadcast_to(evaluate(t, x, reductions.extend(t, x, p), done), (size,))
             return reduce_values(values, observable.reduce)
 
         return read_expression

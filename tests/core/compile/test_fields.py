@@ -53,7 +53,8 @@ def _heat_kernel(backend):
 def test_uniform_decay():
     """Test that every site of a 50 x 50 field follows the exponential decay of the single-site equation."""
     trajectory = Simulation(System(elements=[Field('grid', Decay, LatticeSpace((50, 50)))]), dt=0.5).run(2).trajectory_
-    assert trajectory['grid.u'] == pytest.approx(2 * np.exp(-0.5 * trajectory.times)[:, None] * np.ones(2500))
+    expected = 2 * np.exp(-0.5 * trajectory.times)[:, None] * np.ones(2500)
+    assert trajectory['grid.u'] == pytest.approx(expected, rel=1e-5)
 
 
 @pytest.mark.parametrize('backend', ['numpy', 'numba'])

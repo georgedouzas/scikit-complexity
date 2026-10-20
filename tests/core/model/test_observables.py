@@ -6,8 +6,8 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import I, exp
 
-from skcomplex.core.base import Domain, ValidationError, parameter, state
-from skcomplex.core.model import AgentType, Element, Interaction, Observable, Rate, Rule, System
+from skcomplex.core.base import Domain, RoleError, ValidationError, parameter, state, symbol
+from skcomplex.core.model import AgentType, Element, Interaction, Observable, Rate, Rule, System, mean, total
 from skcomplex.core.runtime import Frame, Simulation
 from skcomplex.core.viz import RerunObserver
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population
@@ -223,3 +223,49 @@ def test_observables_read_time():
     trajectory = Simulation(system, dt=1.0).run(until=2).trajectory_
     assert trajectory['timed'].tolist() == [0.0, 2.0, 4.0]
     assert trajectory['member_timed'].tolist() == [2.0, 3.0, 4.0]
+
+
+FIELD_WEIGHTS = np.ones((4, 4)) - np.eye(4)
+Decaying = Element.define('Decaying', states={'x': 1.0}, laws=lambda s: [Rate(s.x, -s.x)])
+
+
+def _local_field_energy(member):
+    """Return a member's state times the weighted total of the states of the others."""
+    return member.x * total(member.x, weights=FIELD_WEIGHTS)
+
+
+def _deviation(member):
+    """Return a member's deviation from the group mean."""
+    return member.x - mean(member.x)
+
+
+def _deviation_from_other(member):
+    """Return a member's state minus the mean of a symbol that is not one of its group."""
+    return member.x - mean(member.x, over=symbol('elsewhere'))
+
+
+def _decaying_group(*observables):
+    """Return a decaying group of 4 members with observables."""
+    return System(elements=[Decaying.group('u', 4, x=np.arange(1.0, 5.0))], observables=list(observables))
+
+
+def test_observable_reads_weighted_reduction_of_its_members():
+    """Test that a member expression with a weighted total gives the local field energy at every frame."""
+    system = _decaying_group(Observable('energy', _local_field_energy, group='u', reduce='sum'))
+    trajectory = Simulation(system, dt=0.5).run(until=2).trajectory_
+    x = np.asarray(trajectory['u.x'])
+    np.testing.assert_allclose(trajectory['energy'], np.einsum('fi,ij,fj->f', x, FIELD_WEIGHTS, x), rtol=1e-12)
+
+
+def test_observable_reads_plain_reduction_of_its_members():
+    """Test that a member expression with a plain mean gives the variance of the group at every frame."""
+    system = _decaying_group(Observable('spread', _deviation, group='u', reduce='var'))
+    trajectory = Simulation(system, dt=0.5).run(until=2).trajectory_
+    np.testing.assert_allclose(trajectory['spread'], np.asarray(trajectory['u.x']).var(axis=1), rtol=1e-12)
+
+
+def test_observable_rejects_reduction_over_another_group():
+    """Test that a reduction over a group other than the observable's raises the role error of laws."""
+    system = _decaying_group(Observable('other', _deviation_from_other, group='u', reduce='sum'))
+    with pytest.raises(RoleError, match=r'observable other reads a group other than u'):
+        Simulation(system, dt=0.5).run(until=1)

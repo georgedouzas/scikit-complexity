@@ -4,6 +4,7 @@
 # License: MIT
 
 import math
+import sys
 import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -27,6 +28,7 @@ STIFF_SPAN = 1000
 RESTART = 1e-12
 DISCONTINUITY_ORDERS = 3
 STEPS_PER_FRAME = 100
+LARGEST_TIME = sys.float_info.max
 
 
 def _is_hybrid(problem: Problem, t: float, until: float) -> bool:
@@ -116,8 +118,9 @@ class ScipyODE(Stepper):
 
     Args:
         method:
-            The integration method: `RK45`, `RK23`, or `DOP853` for non-stiff systems, and `BDF`, `Radau`, or `LSODA`
-            for stiff ones.
+            The integration method: `RK45`, `RK23`, or `DOP853` for non-stiff systems, `BDF` or `Radau` for stiff
+            ones, and the default `LSODA`, which starts with Adams methods and switches to BDF methods while the
+            system is stiff.
 
         rtol:
             The relative tolerance.
@@ -158,7 +161,7 @@ class ScipyODE(Stepper):
 
     form: ClassVar[Form] = Form.ODE
 
-    def __init__(self, method: str = 'RK45', rtol: float = 1e-6, atol: float = 1e-9, jacobian: str = 'auto') -> None:
+    def __init__(self, method: str = 'LSODA', rtol: float = 1e-6, atol: float = 1e-9, jacobian: str = 'auto') -> None:
         self.method = method
         self.rtol = rtol
         self.atol = atol
@@ -299,7 +302,7 @@ class ScipyODE(Stepper):
             field,
             t,
             x.copy(),
-            bound,
+            min(bound, LARGEST_TIME),
             rtol=self.rtol,
             atol=self.atol,
             max_step=max(delay, self._frame / STEPS_PER_FRAME),
@@ -323,6 +326,12 @@ class ScipyODE(Stepper):
             message = solver.step()
             if solver.status == 'failed':
                 error_msg = f'The {self.method} integrator failed at t = {start}: {message}'
+                raise SolverError(error_msg)
+            if solver.t == start or not np.all(np.isfinite(solver.y)):
+                error_msg = (
+                    f'The {self.method} integrator failed at t = {start}: its step makes no progress or the state is '
+                    'not finite. Check the system for a solution that blows up.'
+                )
                 raise SolverError(error_msg)
             segment = _Segment(start, solver.t, before, solver.y.copy(), solver.dense_output())
             if self.history_ is not None:
@@ -1083,7 +1092,9 @@ class Gillespie(Stepper):
                 len(rates) - 1,
             )
             channels = jumps[int(np.searchsorted(offsets, event, side='right')) - 1]
-            np.add.at(state, channels.targets[:, event - channels.offset], channels.increments)
+            targets = channels.targets[:, event - channels.offset]
+            kept = targets >= 0
+            np.add.at(state, targets[kept], channels.increments[kept])
             state = self._bounded(t, state, p)
 
 

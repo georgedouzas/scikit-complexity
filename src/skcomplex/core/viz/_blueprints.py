@@ -59,6 +59,19 @@ def _series_view(views: list[rrb.View], name: str) -> rrb.TimeSeriesView:
     )
 
 
+def _whole_run(view: rrb.View) -> rrb.View:
+    """Return a time series view with the whole-run time axis and readable lines, and any other view unchanged."""
+    if not isinstance(view, rrb.TimeSeriesView) or 'TimeAxis' in view.properties:
+        return view
+    return rrb.TimeSeriesView(
+        origin=view.origin,
+        contents=view.contents,
+        name=view.name,
+        defaults=[rr.SeriesLines.from_fields(widths=SERIES_WIDTH)],
+        axis_x=WHOLE_RUN,
+    )
+
+
 def _type_name(element: CompiledElement) -> str:
     """Return the name of the element type of an element or of the members of a group."""
     kind = getattr(element.element, 'element', None) or type(element.element)
@@ -160,7 +173,7 @@ def _ordered_views(problem: Problem, *, parameters: bool) -> tuple[list[rrb.View
     spatial, series = _element_views(problem)
     spatial = [*spatial, *_agent_views(problem)]
     series = [*_scalar_views(problem), *series, *_summary_views(problem, parameters=parameters)]
-    return spatial, series
+    return [_whole_run(view) for view in spatial], [_whole_run(view) for view in series]
 
 
 def _matches(view: rrb.View, primary: str) -> bool:

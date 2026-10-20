@@ -55,6 +55,8 @@ class Simulation(BaseEstimator):
 
         solver:
             `'auto'` for the default solver of the system's form, a registered solver name, or a stepper instance.
+            The default ODE solver is `ScipyODE` with `LSODA`, which switches to BDF methods while the system is
+            stiff.
 
         backend:
             The backend that compiles the system, `'auto'`, `'numpy'`, `'numba'`, or a backend instance.

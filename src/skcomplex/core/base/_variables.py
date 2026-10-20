@@ -253,8 +253,10 @@ def parameter(
 def role(*, variadic: bool = False) -> Any:
     """Declare a role of an interaction, bound to an element path in the constructor.
 
-    A variadic role binds a sequence of element paths and group member references `<group>[<index>]`, and laws read
-    it as a tuple of namespaces, one per entry in the given order.
+    A plain role binds one element path, one group path, or one group member reference `<group>[<index>]`, and laws
+    read a bound member like a single element whose states stay in the group. A variadic role binds a sequence of
+    element paths and group member references, and laws read it as a tuple of namespaces, one per entry in the given
+    order.
 
     Args:
         variadic:
@@ -271,6 +273,8 @@ def role(*, variadic: bool = False) -> Any:
         ...     target: str = role()
         >>> Mortality('death', target='foxes').target
         'foxes'
+        >>> Mortality('death', target='foxes[3]').target
+        'foxes[3]'
         >>> class Sum(Interaction):
         ...     target: str = role()
         ...     inputs: list[str] = role(variadic=True)

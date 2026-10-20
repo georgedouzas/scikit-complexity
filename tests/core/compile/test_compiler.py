@@ -1,5 +1,7 @@
 """Test the compilation of systems into problems."""
 
+import time
+
 import numpy as np
 import pytest
 
@@ -21,6 +23,7 @@ from skcomplex.core.model import (
     EuclideanSpace,
     HarmonicPotential,
     Interaction,
+    LatticeSpace,
     Particle,
     Rate,
     System,
@@ -31,6 +34,7 @@ from skcomplex.models.biology.ecology import ExponentialGrowth, LogisticGrowth, 
 from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
 from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion
 from skcomplex.models.economics.markets import Cobweb, Market
+from skcomplex.models.physics.statistical_mechanics import ParticleSite, ZeroRangeHop
 
 
 class CallableGrowth(Interaction):
@@ -303,6 +307,52 @@ def test_compile_variadic_role_with_wrong_entry_raises_error(inputs, match):
         compile_system(_summed(inputs))
 
 
+Hub = Element.define('Hub', states={'y': 0.0})
+
+
+class SiteDrive(Interaction):
+    """Growth of a hub at the rate of the state of one site."""
+
+    hub: str = role()
+    site: str = role()
+
+    def laws(self, s):
+        """Return the growth of the hub."""
+        return [Rate(s.hub.y, s.site.x)]
+
+
+class SitesDrive(Interaction):
+    """Growth of a hub at the rate of the summed states of several sites."""
+
+    hub: str = role()
+    sites: list[str] = role(variadic=True)
+
+    def laws(self, s):
+        """Return the growth of the hub."""
+        return [Rate(s.hub.y, sum((item.x for item in s.sites), 0))]
+
+
+def _hub_and_sites(interaction):
+    """Return a hub and a group of five sites with states 0 to 4, coupled by an interaction."""
+    return System(elements=[Node.group('sites', 5, x=np.arange(5.0)), Hub('hub')], interactions=[interaction])
+
+
+def test_compile_plain_role_binds_one_group_member():
+    """Test that a plain role bound to a member reference reads that member like a variadic entry does."""
+    plain = compile_system(_hub_and_sites(SiteDrive('link', hub='hub', site='sites[3]')))
+    variadic = compile_system(_hub_and_sites(SitesDrive('link', hub='hub', sites=['sites[3]'])))
+    for problem in (plain, variadic):
+        drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
+        assert problem.states.read(drift, 'hub.y') == 3.0
+    assert plain.interactions[0].roles['site'] == 'sites[3]'
+
+
+def test_compile_plain_role_past_group_end_raises_error():
+    """Test that a plain role bound past the end of a group names the interaction, role, reference, and size."""
+    with pytest.raises(RoleError, match=r"link binds 'sites\[7\]' to its role 'site', but sites holds 5 members"):
+        compile_system(_hub_and_sites(SiteDrive('link', hub='hub', site='sites[7]')))
+
+
 def test_compile_per_entry_parameter_with_wrong_length_raises_error():
     """Test that a per-entry parameter of another length than its role names the interaction and both lengths."""
     with pytest.raises(ValidationError, match=r"sum .*'weights' 2 values.*'inputs' binds 3 entries"):
@@ -323,3 +373,24 @@ def test_simulation_updates_one_per_entry_weight_live():
     simulation = Simulation(_summed(['a', 'b', 'c'])).run(until=1)
     simulation.update_parameters({'sum.weights[2]': 5.0})
     assert simulation.parameters_.tolist() == [1.0, 1.0, 5.0]
+
+
+def _compile_time(n_links):
+    """Return the shortest of two compile times of a zero-range ring written with one interaction per link."""
+    sites = ParticleSite.lattice('sites', LatticeSpace(n_links), n=np.ones(n_links))
+    links = [
+        ZeroRangeHop(f'hop_{index}', link=[f'sites[{index}]', f'sites[{(index + 1) % n_links}]'])
+        for index in range(n_links)
+    ]
+    system = System(elements=[sites], interactions=links)
+    durations = []
+    for _ in range(2):
+        start = time.perf_counter()
+        compile_system(system, backend='numpy')
+        durations.append(time.perf_counter() - start)
+    return min(durations)
+
+
+def test_compile_system_time_grows_linearly_with_interactions():
+    """Test that compiling 800 one-link interactions takes at most 2.5 times as long as compiling 400."""
+    assert _compile_time(800) <= 2.5 * _compile_time(400)

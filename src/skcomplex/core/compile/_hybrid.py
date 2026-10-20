@@ -5,6 +5,7 @@
 
 import math
 import operator
+from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
@@ -271,11 +272,16 @@ def breakpoints_of(expressions: Iterable[Any], time: Expression) -> Breakpoints:
     periodic: set[tuple[float, float]] = set()
     unresolved = False
     stack = [SR(expression) for expression in expressions]
+    seen: dict[int, list[Expression]] = defaultdict(list)
     while stack:
         item = stack.pop()
         operation = item.operator()
-        if operation is None:
+        if operation is None or not item.has(time):
             continue
+        twins = seen[hash(item)]
+        if any(item.is_trivially_equal(twin) for twin in twins):
+            continue
+        twins.append(item)
         if operation in RELATIONS:
             left, right = item.operands()
             difference = left - right

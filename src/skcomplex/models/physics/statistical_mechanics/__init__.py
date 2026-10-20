@@ -2,11 +2,12 @@
 
 from ._absorbing_processes import ReactingParticles, absorbing_birth_death
 from ._driven_particles import (
-    ExclusionHop,
+    ExclusionHops,
     ParticleSite,
     Reservoir,
     TreeNode,
     ZeroRangeHop,
+    ZeroRangeHops,
     asep,
     dissipative_zero_range,
     zero_range_process,
@@ -41,7 +42,7 @@ from ._traps import TrapWalker, trap_model
 __all__: list[str] = [
     'BondSpin',
     'ContactSite',
-    'ExclusionHop',
+    'ExclusionHops',
     'ExclusionSite',
     'FullyConnectedSpin',
     'GraphIsingSpin',
@@ -60,6 +61,7 @@ __all__: list[str] = [
     'Walker',
     'XYSpin',
     'ZeroRangeHop',
+    'ZeroRangeHops',
     'Zone',
     'absorbing_birth_death',
     'asep',

@@ -132,6 +132,14 @@ def _define(
     return type(name, (base,), namespace)
 
 
+def _lattice_visual(element: type, visual: VisualSpec | None, default: str) -> VisualSpec:
+    """Return the visual of a lattice group: the given one, the element type's, or the default kind."""
+    if visual is not None:
+        return visual
+    declared: VisualSpec = getattr(element, 'visual', VisualSpec())
+    return VisualSpec(default) if declared == VisualSpec() else declared
+
+
 def _caller_module() -> str:
     """Return the module name of the code that defines a component type, so the type pickles by reference there."""
     frame = inspect.currentframe()
@@ -266,8 +274,8 @@ class Element(Component):
         """Return a group of cells of this element type, one member per site of a lattice or node of a network.
 
         Laws of the element type are written for one cell, and local rules read the cells around it. Square lattice
-        groups stream to Rerun as images and other lattice groups as sites, unless a visual is given. The label and
-        the lattice are given by position.
+        groups stream to Rerun as images and other lattice groups as sites, unless a visual is given or the element
+        type declares one. The label and the lattice are given by position.
 
         Args:
             label:
@@ -277,8 +285,8 @@ class Element(Component):
                 The lattice, or the network whose nodes are the sites, in the order of `graph.nodes`.
 
             visual:
-                The visual of the group, or `None` for an image of every state of a square lattice and the sites of
-                other lattices.
+                The visual of the group, or `None` for the visual of the element type, and, when the type declares
+                none, an image of every state of a square lattice and the sites of other lattices.
 
             **values:
                 Arrays of the lattice shape, arrays in node order or mappings from node to value on a network, or
@@ -303,13 +311,13 @@ class Element(Component):
                 name: np.asarray([value[node] for node in nodes]) if isinstance(value, Mapping) else value
                 for name, value in values.items()
             }
-            visual = VisualSpec('sites') if visual is None else visual
+            visual = _lattice_visual(cls, visual, 'sites')
             return Group(label, element=cls, size=len(nodes), values=by_node, visual=visual, space=space)
         flat = {
             name: np.ravel(value) if np.shape(value) == space.dimensions else value for name, value in values.items()
         }
         default = 'image' if space.geometry == 'square' else 'sites'
-        visual = VisualSpec(default) if visual is None else visual
+        visual = _lattice_visual(cls, visual, default)
         return Group(label, element=cls, size=space.size, values=flat, visual=visual, space=space)
 
 

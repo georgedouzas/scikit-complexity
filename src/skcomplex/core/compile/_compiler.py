@@ -9,6 +9,7 @@ import re
 from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field, replace
+from functools import cached_property
 from typing import Any, cast
 
 import numpy as np
@@ -258,6 +259,7 @@ class _Declarations:
     initial_states: list[Vector] = field(default_factory=list)
     initial_parameters: list[Vector] = field(default_factory=list)
     blocks: dict[str, _Block] = field(default_factory=dict)
+    ends: dict[bool, int] = field(default_factory=lambda: {True: 0, False: 0})
 
     def _declare(self, block: _Block, variable: str, declaration: Variable, is_state: bool) -> None:
         """Add one variable of a component to its block."""
@@ -273,8 +275,9 @@ class _Declarations:
         shape = member_shape if members is None else (members, *member_shape)
         values.append(coerce_value(name, node.value_of(variable), member_shape, declaration.domain, members))
         is_complex = declaration.domain is Domain.COMPLEX
-        entry = Entry(name, sum(item.size for item in entries), shape, declaration.domain, members, is_complex)
+        entry = Entry(name, self.ends[is_state], shape, declaration.domain, members, is_complex)
         entries.append(entry)
+        self.ends[is_state] += entry.size
         base = f'{variable}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}'
         names = [f'{base}_{index}' for index in range(member_shape[0])] if member_shape else [base]
         columns = [f'{item}_{part}' for item in names for part in ('re', 'im')] if is_complex else names
@@ -287,6 +290,21 @@ class _Declarations:
         block.entries[variable] = entry
         for column, item in enumerate(components):
             block.references[item] = Reference(entry, is_state, column)
+
+    @cached_property
+    def groups(self) -> frozenset[str]:
+        """Paths of the declared groups, indexed once every component is declared."""
+        return frozenset(path for path, block in self.blocks.items() if block.node.members is not None)
+
+    @cached_property
+    def places(self) -> dict[str, Field]:
+        """Fields by the name of each of their entries, indexed once every component is declared."""
+        return {
+            entry.name: block.node.component
+            for block in self.blocks.values()
+            if isinstance(block.node.component, Field)
+            for entry in block.entries.values()
+        }
 
     def declare_component(self, node: Node) -> _Block:
         """Add the states and parameters of a component and return its block.
@@ -377,27 +395,35 @@ def _resolve_role(node: Node, role: str, elements: dict[str, _Block]) -> _Block:
     return _resolve_path(node, role, getattr(node.component, role), elements)
 
 
-def _resolve_entry(node: Node, role: str, entry: object, elements: dict[str, _Block]) -> tuple[_Block, int | None]:
-    """Return the block of one entry of a variadic role, with the member index of a member reference."""
-    match = MEMBER_REFERENCE.match(entry) if isinstance(entry, str) else None
-    block = _resolve_path(node, role, match['path'] if match else entry, elements)
-    size = block.node.members
-    if match is None:
-        if size is not None:
-            error_msg = (
-                f'Interaction {node.path} binds the group {block.node.path} as an entry of its variadic role {role!r}. '
-                f'Bind single elements or members of the group, such as {entry}[0].'
-            )
-            raise RoleError(error_msg)
-        return block, None
-    index = int(match['index'])
+def _resolve_member(node: Node, role: str, reference: str, elements: dict[str, _Block]) -> tuple[_Block, int] | None:
+    """Return the group block and the member index of a member reference such as `sites[3]`, or `None` for a path."""
+    match = MEMBER_REFERENCE.match(reference)
+    if match is None or f'{node.scope}{reference}' in elements:
+        return None
+    block = _resolve_path(node, role, match['path'], elements)
+    index, size = int(match['index']), block.node.members
     if size is None or not 0 <= index < size:
         error_msg = (
-            f'Interaction {node.path} binds the entry {entry!r} to its variadic role {role!r}, but '
-            f'{block.node.path} holds {size or "no"} members. Give a member index from 0 to the group size minus 1.'
+            f'Interaction {node.path} binds {reference!r} to its role {role!r}, but {block.node.path} holds '
+            f'{size or "no"} members. Give a member index from 0 to the group size minus 1.'
         )
         raise RoleError(error_msg)
     return block, index
+
+
+def _resolve_entry(node: Node, role: str, entry: object, elements: dict[str, _Block]) -> tuple[_Block, int | None]:
+    """Return the block of one entry of a variadic role, with the member index of a member reference."""
+    member = _resolve_member(node, role, entry, elements) if isinstance(entry, str) else None
+    if member is not None:
+        return member
+    block = _resolve_path(node, role, entry, elements)
+    if block.node.members is not None:
+        error_msg = (
+            f'Interaction {node.path} binds the group {block.node.path} as an entry of its variadic role {role!r}. '
+            f'Bind single elements or members of the group, such as {entry}[0].'
+        )
+        raise RoleError(error_msg)
+    return block, None
 
 
 def _resolve_entries(
@@ -621,10 +647,16 @@ def _interaction_specs(
         for role, label in labels.items()
         if role not in sets and role not in variadic and (found := observe(node, label)) is not None
     }
+    single_members = {
+        role: member
+        for role, label in labels.items()
+        if role not in sets and role not in observed and role not in variadic and isinstance(label, str)
+        if (member := _resolve_member(node, role, label, elements)) is not None
+    }
     bound = {
         role: _resolve_role(node, role, elements)
         for role in labels
-        if role not in sets and role not in observed and role not in variadic
+        if role not in sets and role not in observed and role not in variadic and role not in single_members
     }
     sizes = {len(members) for members in sets.values()}
     if len(sizes) > 1:
@@ -636,6 +668,7 @@ def _interaction_specs(
     paths.update({role: tuple(member.node.path for member in members) for role, members in sets.items()})
     paths.update({role: f'{node.scope}{labels[role]}' for role in observed})
     paths.update({role: tuple(_entry_path(*entry) for entry in entries) for role, entries in variadic.items()})
+    paths.update({role: _entry_path(*member) for role, member in single_members.items()})
     specs = []
     for index in range(next(iter(sizes), 1)):
         parameters, references = block.namespace(Source.SINGLE)
@@ -653,6 +686,9 @@ def _interaction_specs(
             namespaces[role] = tuple(namespace for namespace, _ in read)
             for _, entry_references in read:
                 references.update(entry_references)
+        for role, (member_block, position) in single_members.items():
+            namespaces[role], role_references = member_block.member_namespace(position)
+            references.update(role_references)
         for role, item in bound.items():
             namespaces[role], role_references = item.namespace(
                 Source.MEMBER if item.node.members is not None else Source.SINGLE,
@@ -677,8 +713,17 @@ def _interaction_specs(
 def _outside_reductions(value: object) -> set[Expression]:
     """Return the symbols of a law value that occur outside its reductions."""
     expressions = [item for item in components_of(value) if isinstance(item, Expression)]
-    kept = [item.subs({found.call: 0 for found in reductions_in(item)}) for item in expressions]
-    return symbols_of(kept)
+    found = [reduction.call for item in expressions for reduction in reductions_in(item)]
+    calls, operators = {str(call) for call in found}, {call.operator() for call in found}
+    symbols: set[Expression] = set()
+    stack = list(expressions)
+    while stack:
+        item = stack.pop()
+        if item.operator() is None:
+            symbols |= set(item.variables())
+        elif item.operator() not in operators or str(item) not in calls:
+            stack.extend(item.operands())
+    return symbols
 
 
 def _check_aligned(spec: _KernelSpec, groups: list[str]) -> None:
@@ -1018,12 +1063,13 @@ def _declare_renewal(spec: _KernelSpec, law: Renewal, declarations: _Declaration
     sanitized = re.sub(r'[^0-9A-Za-z]', '_', label)
     entry = Entry(
         f'{group}.{sanitized}~renewals',
-        sum(item.size for item in declarations.states),
+        declarations.ends[True],
         (rows,) if rows > 1 else (),
         Domain.NONNEGATIVE_INTEGER,
         rows if rows > 1 else None,
     )
     declarations.states.append(entry)
+    declarations.ends[True] += entry.size
     declarations.initial_states.append(np.zeros(rows))
     return _Renewal(spec, law, label, group, entry, symbol(f'renewals_{sanitized}', Domain.NONNEGATIVE_INTEGER))
 
@@ -1093,12 +1139,13 @@ def _substitute_delays(value: object, spec: _KernelSpec, declarations: _Declarat
         index = len(hybrid.delays)
         hidden = Entry(
             f'__delayed_{index}',
-            sum(item.size for item in declarations.parameters),
+            declarations.ends[False],
             (members,) if members is not None else (),
             Domain.REAL,
             members,
         )
         declarations.parameters.append(hidden)
+        declarations.ends[False] += hidden.size
         declarations.initial_parameters.append(np.asarray(initial, dtype=float))
         placeholder = symbol(f'_delayed_{index}')
         spec.references[placeholder] = Reference(hidden, False, 0, reference.source)
@@ -1225,12 +1272,7 @@ def _linear_terms_of(spec: _KernelSpec, laws: list[Law], places: dict[str, Field
 
 def _with_fields(spec: _KernelSpec, laws: list[Law], declarations: _Declarations, fields: _Fields) -> list[Law]:
     """Return laws whose differential operators are lowered, noting stable steps and the linear terms of rates."""
-    places = {
-        entry.name: block.node.component
-        for block in declarations.blocks.values()
-        if isinstance(block.node.component, Field)
-        for entry in block.entries.values()
-    }
+    places = declarations.places
     fields.linear += _linear_terms_of(spec, laws, places)
     if not any(has_operators(getattr(law, 'value', None)) for law in laws):
         return laws
@@ -1261,7 +1303,10 @@ def _with_member_shifts(spec: _KernelSpec, laws: list[Law], time: Expression) ->
     result: list[Law] = []
     for law in laws:
         if isinstance(law, Jump):
-            result.append(Jump(shifts.lower(law.rate), law.changes))
+            changes: dict[Expression, float] = defaultdict(float)
+            for target, increment in law.changes.items():
+                changes[SR(shifts.lower(target))] += increment
+            result.append(Jump(shifts.lower(law.rate), dict(changes)))
         elif isinstance(law, Rate | Noise):
             result.append(replace(law, value=shifts.lower(law.value)))
         elif isinstance(law, Update | Boundary):
@@ -1542,7 +1587,7 @@ class _Reductions:
     @property
     def parameters(self) -> int:
         """Size of the parameter vector and the drawn values, where the hidden entries of the reductions start."""
-        return sum(entry.size for entry in self.declarations.parameters) + self.drawn
+        return self.declarations.ends[False] + self.drawn
 
     @property
     def extent(self) -> int:
@@ -1743,8 +1788,7 @@ def _prune_foreign(spec: _KernelSpec, declarations: _Declarations) -> None:
         for reference in spec.references.values()
         if reference.source is Source.MEMBER
     }
-    groups = {path for path, block in declarations.blocks.items() if block.node.members is not None}
-    foreign = (owners & groups) - {spec.group, *spec.aligned}
+    foreign = (owners & declarations.groups) - {spec.group, *spec.aligned}
     if not foreign:
         return
     spec.references = {
@@ -1924,7 +1968,7 @@ def _lower(
     drawing: DrawLowering,
 ) -> dict[str, object]:
     """Return the numeric functions and equations of a form, with the update of a stochastic map taking a generator."""
-    kernels, size = lowered.kernels, sum(entry.size for entry in declarations.states)
+    kernels, size = lowered.kernels, declarations.ends[True]
     draws = drawing.draws
     extra = {} if draws is None else {'draws': draws}
     functions: dict[str, object] = vars(
@@ -2166,7 +2210,7 @@ def _with_draws(
     declarations: _Declarations,
 ) -> tuple[list[tuple[_KernelSpec, list[Law]]], DrawLowering]:
     """Return the laws with their draws replaced by values drawn after the parameters, and the lowering of the draws."""
-    drawing = DrawLowering(sum(entry.size for entry in declarations.parameters), declarations.time)
+    drawing = DrawLowering(declarations.ends[False], declarations.time)
     lowered = [(spec, drawing.lower(spec.owner, spec.rows, laws, spec.references)) for spec, laws in specs]
     drawing.allocate()
     return lowered, drawing

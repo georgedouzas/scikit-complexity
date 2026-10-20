@@ -3,9 +3,9 @@
 import pytest
 import rerun.blueprint as rrb
 
-from skcomplex.core.base import ValidationError
+from skcomplex.core.base import ValidationError, VisualSpec, state
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import System
+from skcomplex.core.model import Element, EuclideanSpace, System
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import (
     AgentsVisual,
@@ -62,6 +62,31 @@ def test_views_of_points_log_other_states_as_series():
     problem = compile_system(create('ideal_gas', n_molecules=10))
     views = PointsVisual(position='x').views(problem.elements[0], problem)
     assert [type(view).__name__ for view in views] == ['Spatial2DView', 'TimeSeriesView']
+
+
+def _whole_run_series(blueprint):
+    """Return whether every time series view of a blueprint shows the time range of the whole run."""
+    series = [view for view in _views(blueprint) if isinstance(view, rrb.TimeSeriesView)]
+    return bool(series) and all('TimeAxis' in view.properties for view in series)
+
+
+def test_default_blueprint_shows_one_dimensional_points_over_whole_run():
+    """Test that the time series view of the positions of a one-dimensional gas shows the whole run."""
+    blueprint = default_blueprint(create('ideal_gas', n_molecules=10, n_dim=1))
+    assert 'gas/x' in [str(view.origin) for view in _views(blueprint)]
+    assert _whole_run_series(blueprint)
+
+
+def test_default_blueprint_shows_other_states_of_points_over_whole_run():
+    """Test that the time series view of the other states of two-dimensional points shows the whole run."""
+    Walker = Element.define(
+        'Walker',
+        states={'x': state(0.0, vector=True), 'energy': 0.0},
+        visual=VisualSpec('points', {'position': 'x'}),
+    )
+    blueprint = default_blueprint(System(elements=[Walker.group('walkers', 3)], space=EuclideanSpace(2)))
+    assert [type(view).__name__ for view in _views(blueprint)] == ['Spatial2DView', 'TimeSeriesView']
+    assert _whole_run_series(blueprint)
 
 
 def test_default_blueprint_of_ode_model():

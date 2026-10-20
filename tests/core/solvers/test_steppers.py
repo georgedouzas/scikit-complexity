@@ -1,6 +1,7 @@
 """Test the steppers and the solver registry."""
 
 import dataclasses
+import time
 
 import numpy as np
 import pytest
@@ -11,10 +12,12 @@ from skcomplex.core.compile import compile_system
 from skcomplex.core.model import Interaction, Rate, System
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import EulerMaruyama, Gillespie, Iteration, ScipyODE, resolve_solver
+from skcomplex.models import create, run
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population
 from skcomplex.models.biology.epidemiology import Compartment, Recovery
 from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion
 from skcomplex.models.economics.markets import Cobweb, Market
+from skcomplex.models.physics.mechanics import harmonic_oscillator
 
 
 def _growth_problem():
@@ -69,6 +72,21 @@ def test_resolve_solver_by_name_and_instance():
     assert resolve_solver(problem, stepper) is stepper
     with pytest.raises(SolverError, match='Available names are'):
         resolve_solver(problem, 'gillespie')
+
+
+def test_simulation_runs_stiff_model_with_default_solver():
+    """Test that a stiff model built directly runs fast with the default solver and matches its registered solver."""
+    start = time.perf_counter()
+    default = Simulation(create('nanoparticle_corona')).run(until=10800)
+    assert time.perf_counter() - start < 5
+    registered = run('nanoparticle_corona', settings={'until': 10800})
+    np.testing.assert_allclose(default.state_, registered.state_, rtol=1e-4, atol=1e-12)
+
+
+def test_simulation_default_solver_keeps_accuracy_of_non_stiff_model():
+    """Test that a harmonic oscillator run with the default solver matches the analytic solution within 1e-5."""
+    simulation = Simulation(harmonic_oscillator()).run(until=10)
+    np.testing.assert_allclose(simulation.state_, [np.cos(10), -np.sin(10)], rtol=1e-5)
 
 
 def test_euler_maruyama_without_noise_matches_ode():

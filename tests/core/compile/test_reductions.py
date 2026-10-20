@@ -384,6 +384,29 @@ def test_element_set_reduction():
         np.testing.assert_allclose(_rates(system, backend), [6.0, 6.0, 6.0])
 
 
+def _shared(share, values):
+    """Return a system of one group whose interaction gives every member a share of a reduction."""
+    Share = Interaction.define('Share', roles=['cells'], laws=lambda s: [Rate(s.cells.x, share(s))])
+    return System(
+        elements=[Unit.group('units', len(values), x=values)],
+        interactions=[Share('share', cells='units')],
+    )
+
+
+def test_compile_system_divides_by_count_in_interaction():
+    """Test that an interaction law may divide a member state by the size of its group."""
+    system = _shared(lambda s: s.cells.x / count(over=s.cells), np.arange(1.0, 5.0))
+    np.testing.assert_allclose(_rates(system), np.arange(1.0, 5.0) / 4, atol=1e-12)
+
+
+@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+def test_compile_system_divides_by_weighted_total_in_interaction(backend):
+    """Test that an interaction law may divide a member state by a weighted total."""
+    weights, values = RNG.uniform(0.5, 1.5, size=(4, 4)), np.arange(1.0, 5.0)
+    system = _shared(lambda s: s.cells.x / total(s.cells.x, weights=weights), values)
+    np.testing.assert_allclose(_rates(system, backend), values / (weights @ values), atol=1e-12)
+
+
 def test_element_set_of_mixed_types():
     """Test that a role bound to elements of two types names the role and both types."""
     Other = Element.define('Other', states={'x': 0.0})

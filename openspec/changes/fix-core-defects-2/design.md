@@ -85,10 +85,15 @@ A `Jump` of a group law may name `shift_member(s.n, k)` as a target, with the sa
 compiler gives the jump one channel per member and fills the existing target table of the Gillespie loops: the row of
 member `i` holds the column of `i` for `s.n` and the column of the shifted member for the offset target. A fixed end
 writes the empty target `-1`, so a particle hopping past the last site leaves the system, and a reflecting end maps the
-target back into the group, as reads do. The NumPy and Numba loops need no change, since they already skip `-1`.
+target back into the group, as reads do. The Numba loop needs no change, since it already skips `-1`. The NumPy loop
+and the stoichiometry matrix of the problem skip `-1` targets too, since they scattered every target before.
 
 `zero_range_process` and `asep` become one group of sites with one hop law each, and the reservoirs of `asep` stay
-interactions on its end members. The registered default backend stays `numba`.
+interactions on its end members. The registered default backend stays `numba`. The hop laws are the group
+interactions `ZeroRangeHops`, bound to the sites of a ring, and `ExclusionHops`, bound to the sites of a line, which
+replaces the per-link `ExclusionHop` that nothing else uses. `ZeroRangeHop` stays for the tree of
+`dissipative_zero_range`. Each group interaction holds a forward and a backward hop law, so a model compiles one jump
+kernel with one channel set per law, two channels per site.
 
 The survey for this decision found no maintained Python library for lattice exclusion and zero-range processes that the
 core could wrap. The existing Gillespie table already holds the general case, so the change is an adapter of offsets
@@ -106,7 +111,8 @@ subexpression once.
 The default ODE stepper is `ScipyODE(method='LSODA')`. ODEPACK's `LSODA`, which SciPy wraps, starts with Adams methods
 and switches to BDF when it detects stiffness, so a stiff system with the default solver no longer stalls. Its dense
 output, events, and the persistent integrator of `fix-core-defects` work through the same `OdeSolver` interface as
-`RK45`. `LSODA` takes real states only, so when `add-complex-states` lands, systems with complex states keep `RK45`.
+`RK45`. `LSODA` takes real states only. `add-complex-states` compiles every complex state into its real and imaginary
+parts, so the state vector a stepper receives is always real and systems with complex states also run with `LSODA`.
 
 Two alternatives were weighed:
 - **Systems carry the run settings of their factory.** `create` would attach the registered `solver` and `dt` to the
@@ -119,6 +125,12 @@ Two alternatives were weighed:
   reimplement what `LSODA` does continuously during the run, and a system that becomes stiff later would still stall.
 
 Registered models that set `ScipyODE(method='LSODA')` with their own tolerances keep them.
+
+Two defects of SciPy's `LSODA` showed up when it became the default, and the stepper guards against both:
+- With an infinite `t_bound`, its first step returns a NaN state. The stepper bounds every integrator by the largest
+  finite time instead of infinity, which keeps the persistent integrator of `fix-core-defects`.
+- On a solution that blows up in finite time it keeps returning steps that do not advance time, where `RK45` reports
+  a failure. The stepper raises the named solver error when a step makes no progress or the state is not finite.
 
 ## Risks / Trade-offs
 

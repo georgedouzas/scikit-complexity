@@ -515,6 +515,11 @@ def member_indices(reference: Reference, rows: int) -> Indices:
     """
     if reference.source is Source.MEMBER:
         return reference.flat_indices
+    if reference.source is Source.NEIGHBOR:
+        table = np.asarray(reference.neighbor.table, dtype=np.intp)
+        inside = table < reference.entry.rows
+        flat = reference.entry.start + table * reference.entry.columns + reference.column
+        return np.where(inside, flat, -1).astype(np.intp)
     return np.full(rows, reference.entry.start + reference.column, dtype=np.intp)
 
 
