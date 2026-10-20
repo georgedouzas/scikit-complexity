@@ -57,3 +57,38 @@ sources and status and, for implemented models, a link to the model's documentat
 #### Scenario: Coverage page
 - **WHEN** a user opens the coverage page and the section `earth/climate`
 - **THEN** it lists every surveyed climate model with its sources, and links each implemented one to its documentation
+
+### Requirement: Models exist to exercise the core
+The library's models SHALL serve first to reveal what the core needs and to exercise its general primitives, and only
+second as ready-made examples. Every inventory entry SHALL record the core primitives it exercises, named from a
+vocabulary the inventory defines, and the inventory check SHALL reject a primitive outside that vocabulary.
+
+#### Scenario: Primitives of an entry
+- **WHEN** a contributor reads the inventory entry of `bak_sneppen`
+- **THEN** it lists the lattice and extremal-update primitives it exercises
+
+#### Scenario: Unknown primitive
+- **WHEN** an entry names a primitive that the vocabulary does not define
+- **THEN** the inventory check fails and names the entry and the primitive
+
+### Requirement: Coverage is reported by primitive
+The coverage page SHALL show, for every primitive of the vocabulary, the implemented models that exercise it, and SHALL
+flag every primitive that no implemented model exercises and every primitive that a pending or blocked change adds.
+
+#### Scenario: Uncovered primitive
+- **WHEN** a primitive of the vocabulary is exercised only by models blocked on a change
+- **THEN** the coverage page lists it as uncovered and names the change that adds it
+
+### Requirement: Surveys prioritise new primitives
+Every inventory entry SHALL carry a priority: `core` when it exercises a primitive or a combination of primitives that
+no implemented model exercises, or needs a missing primitive, and `example` when it only repeats covered patterns. A
+change that implements models SHALL implement its `core` entries first, and MAY leave `example` entries pending.
+
+#### Scenario: Priority of a repeated pattern
+- **WHEN** a survey finds a one-population ODE growth law whose primitives every growth model already exercises
+- **THEN** its entry has priority `example`, and a change that implements models reaches it after the `core` entries
+
+#### Scenario: Priority of a new primitive
+- **WHEN** a survey finds a model that needs states on the links of a lattice
+- **THEN** its entry has priority `core` and is blocked on the change that adds link fields
+

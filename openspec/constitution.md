@@ -248,7 +248,9 @@ to fill in as the project takes shape.
   `skcomplex.models.<field>.<subfield>`, and every model registers under the field path `<field>/<subfield>`. Models
   are examples built only from the public names of the core, and every model package is self-contained, so no model
   package imports another. A model the core cannot express MUST be recorded as blocked by an OpenSpec change for the
-  missing general capability, never worked around inside the model package. A layout test enforces these rules.
+  missing general capability, never worked around inside the model package. Models exist first to probe the core: a
+  survey MUST record the primitives each model exercises and MUST implement models that exercise new primitives or
+  combinations before models that repeat covered patterns. A layout test enforces these rules.
 - Surface: the top-level package and `skcomplex.core` re-export nothing, so every public name is imported from the
   subpackage that owns it.
 - Extension points: solvers, visuals, and any other registry in `skcomplex.core.base` accept new entries without changes to

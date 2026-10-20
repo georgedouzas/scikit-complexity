@@ -541,3 +541,17 @@ Source keys:
 These models are not in the inventory, because they are formalisms or already planned rather than distinct models:
 - the system-dynamics demonstrations of Bala chapter 4 and Meadows, beyond those listed above;
 - the kinetic theory of active particles in general (Be 3), which `add-kinetic-models` covers.
+
+## Models as probes of the core
+
+The library grows its models to find out what the core needs. Each surveyed model is a probe: it either runs on the
+primitives the core already has, which shows they are general, or it needs one that is missing, which becomes a
+specified change. Ready-made models are useful to users, but they are a by-product.
+
+The inventory therefore records, for each entry, the primitives it exercises, from a vocabulary that names the core's
+general capabilities, such as rates, noise, jumps, updates, delays, events, groups, reductions, variadic roles, member
+offsets, lattices, fields, agents, networks, draws, renewals, complex states, and rewriting. The coverage page reads
+the same data by primitive, and an entry's priority says whether it adds anything to the core (`core`) or repeats a
+covered pattern (`example`). Future surveys and model changes implement `core` entries first, so effort goes to
+widening the primitives rather than to adding similar models in areas the core already covers.
+

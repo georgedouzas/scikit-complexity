@@ -33,6 +33,11 @@
 - [x] 4.2 Render the inventory as the coverage page and generate the per-field pages with each model's laws and
   equations, and verify the docs build and the pattern scenario
 
+- [ ] 4.3 Define the primitive vocabulary in the inventory, record the primitives and the priority of every entry, and
+  extend the inventory check, and verify the primitives of an entry and unknown primitive scenarios
+- [ ] 4.4 Report coverage by primitive on the coverage page, with uncovered primitives and the changes that add them,
+  and verify the uncovered primitive and priority scenarios
+
 ## 5. Model collections
 
 For every task in this section:
