@@ -93,7 +93,7 @@ def _system_of(maps: Sequence[AffineMap], weights: Sequence[float], n_points: in
             f'{len(weights)} weights.'
         )
         raise ValidationError(error_msg)
-    starts = np.random.default_rng(random_state).random((n_points, 2))  # type: ignore[arg-type]
+    starts = np.random.default_rng(random_state).random((n_points, 2))  # type: ignore[arg-type,unused-ignore]
     points = ChaosPoint.group('points', n_points, p=starts, maps=tuple(map(tuple, maps)), weights=tuple(weights))
     return System(elements=[points], space=EuclideanSpace(2))
 

@@ -1,6 +1,6 @@
 """Test the named random draws of update laws."""
 
-import pickle
+import pickle  # nosec B403: the tests pickle and load only objects they create
 
 import pytest
 
@@ -45,7 +45,8 @@ def test_draw_of_rejects_other_expressions():
 
 def test_is_draw_pickles_with_its_name():
     """Test that a draw survives pickling with its kind and name."""
-    restored = pickle.loads(pickle.dumps(categorical('k', [1, 2])))  # noqa: S301
+    data = pickle.dumps(categorical('k', [1, 2]))
+    restored = pickle.loads(data)  # noqa: S301  # nosec B301: loads only what it dumped
     assert is_draw(restored)
     assert (Draw.of(restored).kind, Draw.of(restored).name) == ('categorical', 'k')
 
