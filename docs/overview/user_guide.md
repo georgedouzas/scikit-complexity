@@ -1221,6 +1221,118 @@ coins = MesaSystem(
 print(Simulation(coins, random_state=0).run(until=10).trajectory_['coins.heads'][-1])
 ```
 
+## Rewriting systems
+
+A rewriting system grows by replacing its parts in parallel: a `Word` by string productions in the style of
+L-systems, a `Patch` of tiles by affine substitutions, and a `HostGraph` by double-pushout graph productions. It
+compiles to the rewriting form, every step is one generation, and `run(until=n)` records the generations `0` to `n`.
+The structure lives next to the state vector, whose states are the count of every symbol, prototile, or node label
+that is a word, and the size `<element>.size`. `Trajectory.structure(path, frame)` returns the recorded structure,
+which later generations do not change.
+
+### Words and productions
+
+A `Rewrite` interaction rewrites its target with fixed rules. Strings are words of one-character symbols, and
+`Module` gives a symbol parameters.
+
+```python
+from skcomplex.core.model import Module, Production, Rewrite, Word
+
+algae = System(
+    elements=[Word('algae', axiom='A')],
+    interactions=[Rewrite('rules', target='algae', rules=[Production('A', 'AB'), Production('B', 'A')])],
+)
+trajectory = Simulation(algae).run(until=5).trajectory_
+print(trajectory['algae.size'].tolist(), str(trajectory.structure('algae', 5)))
+```
+
+A production can be stochastic, with probabilities that sum to one per predecessor and context and draws from the
+simulation's random stream. It can depend on a left or a right context, which skips the word's `ignore` symbols and
+treats bracketed branches as Prusinkiewicz and Lindenmayer (1990) do, and it then takes precedence over context-free
+productions. A parametric production binds the predecessor's parameters to symbols, with a condition and successor
+parameters written as expressions of them and of the parameters of a `Rewriting` interaction, which `schedule` and
+`update_parameters` change between generations.
+
+```python
+from skcomplex.core.base import parameter, symbol
+from skcomplex.core.model import Rewriting
+
+x = symbol('x')
+
+
+class Shrinking(Rewriting):
+    ratio: float = parameter(0.5)
+
+    def productions(self, s):
+        return [Production(Module('A', x), [Module('F', x), Module('A', s.ratio * x)], condition=x > 0.1)]
+
+
+plant = System(
+    elements=[Word('plant', axiom=[Module('A', 1.0)], alphabet={'A': 1, 'F': 1})],
+    interactions=[Shrinking('growth', target='plant')],
+)
+print(Simulation(plant).run(until=5).trajectory_.structure('plant', 5))
+```
+
+A generation that would make a word longer than `max_size` raises `RewritingError` before allocating it, and the
+frames before it stay recorded.
+
+### Turtles, patches, and measures
+
+A `Turtle` draws a word as line segments in two or three dimensions: `F` draws forward, `f` moves, `+` and `-` turn,
+`[` and `]` push and pop a branch, and `contraction` scales the step at every generation. A `Patch` holds tiles, each a
+`Prototile` segment or polygon under an affine placement, and a `Substitution` replaces every tile of a prototile by
+pieces placed by `Affine` maps relative to it. Structures with a geometry report `<element>.length` and
+`<element>.area` at every frame, and give `bounds()` and `raster(resolution)`, a boolean grid that
+`box_counting_dimension` reads.
+
+```python
+from skcomplex.core.analysis import box_counting_dimension
+from skcomplex.core.model import Affine, Patch, Prototile, Substitution, Turtle
+
+koch = System(
+    elements=[Word('koch', axiom='F', turtle=Turtle(angle=60.0, contraction=1 / 3))],
+    interactions=[Rewrite('rules', target='koch', rules=[Production('F', 'F+F--F+F')])],
+)
+curve = Simulation(koch).run(until=4).trajectory_.structure('koch', 4)
+print(len(curve.segments()), round(curve.length(), 6))
+
+interval = Prototile('interval', [(0, 0), (1, 0)])
+thirds = [('interval', Affine(scale=1 / 3)), ('interval', Affine(scale=1 / 3, translation=(2 / 3, 0)))]
+cantor = System(
+    elements=[Patch('cantor', prototiles=[interval])],
+    interactions=[Rewrite('rules', target='cantor', rules=[Substitution('interval', thirds)])],
+)
+trajectory = Simulation(cantor).run(until=5).trajectory_
+print(trajectory['cantor.size'][-1], round(trajectory['cantor.length'][-1], 6))
+grid = trajectory.structure('cantor', 5).raster(729)
+print(round(box_counting_dimension(grid, [3, 9, 27]), 2))
+```
+
+The `geometry` visual logs segments and outlines as line strips, a patch with `filled=True` as an image of its raster,
+and a host graph as graph nodes and edges, in the bounds the element declares or that its first tiles give.
+
+### Graph rewriting
+
+A `GraphProduction` gives a left graph, an interface, and a right graph that share nodes by name, and matches by their
+`label` attributes. Every generation applies it at a maximal set of parallel independent matches, chosen in an order
+drawn from the random stream, and skips matches whose deleted nodes would leave dangling edges.
+
+```python
+import networkx as nx
+
+from skcomplex.core.model import GraphProduction, HostGraph
+
+interface = nx.Graph()
+interface.add_nodes_from('ab')
+subdivide = GraphProduction(nx.Graph([('a', 'b')]), interface, nx.Graph([('a', 'c'), ('c', 'b')]))
+ring = System(
+    elements=[HostGraph('ring', graph=nx.cycle_graph(4))],
+    interactions=[Rewrite('rules', target='ring', rules=[subdivide])],
+)
+print(Simulation(ring, random_state=0).run(until=3).trajectory_['ring.size'].tolist())
+```
+
 ## Co-simulation
 
 A system whose laws do not fit one form, such as agents next to differential equations, is split into partitions at

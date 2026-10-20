@@ -10,7 +10,8 @@ simulation's steps (Thurner et al. 2018 §3.5.2, Trzaska 2023 §3.5).
 #### Scenario: Koch curve
 - **WHEN** `run('koch_curve', until=5)` is called
 - **THEN** the word at the last frame has 1024 symbols `F`, the curve's total length is `(4/3)^5` within 1e-12, and
-  the box-counting dimension of its raster at resolution 2048 is `log 4 / log 3 ≈ 1.262` within 0.05
+  the box-counting dimension of its raster at resolution 2048, over boxes of 16 to 256 cells, is
+  `log 4 / log 3 ≈ 1.262` within 0.05
 
 #### Scenario: Cantor set
 - **WHEN** `run('cantor_set', until=8)` is called

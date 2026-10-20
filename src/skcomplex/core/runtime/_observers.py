@@ -95,4 +95,5 @@ class Recorder(Observer):
             reporters=[frame.reporters for frame in self._frames[:n_frames]],
             observables=[frame.observables for frame in self._frames[:n_frames]],
             events=[event for frame in self._frames[:n_frames] for event in frame.events],
+            structures=[frame.structures for frame in self._frames[:n_frames]],
         )

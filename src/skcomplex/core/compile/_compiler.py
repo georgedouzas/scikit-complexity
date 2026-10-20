@@ -110,6 +110,7 @@ from ._problem import (
     VectorFunction,
 )
 from ._reductions import CompiledReduction, Read, ReductionPass
+from ._rewriting import compile_rewriting, is_rewriting
 from ._splitting import LinearTerm, linear_terms
 from ._stochastic import DrawLowering, MatrixLaw, check_draw_placement, compile_matrix, markov_laws, stochastic_update
 from ._tree import Node, coerce_value, flatten_system, shape_of
@@ -2599,6 +2600,8 @@ def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
     """
     if isinstance(system, MesaSystem):
         return _compile_mesa(system)
+    if is_rewriting(system):
+        return compile_rewriting(system)
     system, held = _with_held_observables(system, _held_observables(system))
     problem = _compile(system, backend, None)
     _check_held_reads(problem, held)

@@ -227,7 +227,8 @@ to fill in as the project takes shape.
   symbolic layer every law is written in and lowered from, `passagemath-maxima` for exact solutions, `cysignals` at a
   version the passagemath wheels need, `numba` for the compiled backend, `lammps` for the LAMMPS backend, `mesa` for agent-based models, `networkx`
   for networks, which Mesa 3.5 imports without declaring it, `rerun-sdk` for visualization, `SALib` for sensitivity
-  analysis, `scikit-fem` for finite-element assembly on unstructured meshes, and `scikit-learn` for the
+  analysis, `scikit-fem` for finite-element assembly on unstructured meshes, `shapely` for the geometry of rewriting
+  systems, and `scikit-learn` for the
   estimator contract. Rerun is a core dependency,
   and spawning a local viewer happens only on request, so it is not a real-world side effect.
 - Dependency placement: a library that `skcomplex.core` uses MUST be a runtime dependency, whatever its licence,

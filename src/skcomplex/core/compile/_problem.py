@@ -427,6 +427,9 @@ class Problem:
 
         accelerated:
             The compiled stepper loops, or `None` when the backend has none for this problem.
+
+        rewriting:
+            The compiled rewriting systems of the words, patches, and host graphs of a rewriting system.
     """
 
     form: Form
@@ -471,6 +474,7 @@ class Problem:
     matrices: tuple[MarkovMatrix, ...] = field(default=(), repr=False)
     backend: str = 'numpy'
     accelerated: Accelerated | None = field(default=None, repr=False)
+    rewriting: tuple[Any, ...] = field(default=(), repr=False)
 
     def _flatten_symbols(self, layout: Layout) -> list[Expression]:
         """Return the symbols of the entries of a layout as a flat list."""

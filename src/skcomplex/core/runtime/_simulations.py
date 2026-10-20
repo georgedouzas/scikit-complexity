@@ -15,7 +15,7 @@ from sklearn.base import BaseEstimator
 from ..base import Domain, Form, ParameterError, SimulationError, ValidationError
 from ..compile import Backend, Entry, ObservableEvaluator, Problem, Vector, compile_system
 from ..model import System
-from ..solvers import AgentState, Stepper, resolve_solver
+from ..solvers import AgentState, RewritingState, Stepper, resolve_solver
 from ._clocks import AsFastAsPossible, Clock
 from ._frames import Frame
 from ._observers import Observer, Recorder
@@ -141,7 +141,7 @@ class Simulation(BaseEstimator):
     def _check_dt(self, problem: Problem, until: float) -> float:
         """Return the time between frames of a run until a time, after validating it for the problem's form."""
         forms = {problem.form, *(partition.problem.form for partition in problem.partitions)}
-        stepwise = bool(forms & {Form.DISCRETE, Form.AGENT, Form.LATTICE, Form.MONTE_CARLO})
+        stepwise = bool(forms & {Form.DISCRETE, Form.AGENT, Form.LATTICE, Form.MONTE_CARLO, Form.REWRITING})
         default = 1.0 if stepwise else _default_dt(until)
         dt = default if self.dt is None else self.dt
         if not Domain.POSITIVE.contains(dt):
@@ -222,6 +222,8 @@ class Simulation(BaseEstimator):
         """Hand the current frame, with the events since the previous one, to every observer."""
         external = self.stepper_.snapshot()
         agents, reporters = (external.groups, external.reporters) if isinstance(external, AgentState) else ({}, {})
+        structures = external.structures if isinstance(external, RewritingState) else {}
+        reporters = external.reporters if isinstance(external, RewritingState) else reporters
         observables = self.observables_.evaluate(self.time_, self.state_, self.parameters_, self.stepper_.agents_of)
         frame = Frame(
             step,
@@ -233,6 +235,7 @@ class Simulation(BaseEstimator):
             reporters,
             observables,
             tuple(self.stepper_.drain_events()),
+            structures,
         )
         for observer in self.observers_:
             observer.on_frame(frame)

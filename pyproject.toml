@@ -41,6 +41,7 @@ dependencies = [
     "scikit-learn>=1.5.1",
     "SALib>=1.5",
     "scikit-fem>=10.0",
+    "shapely>=2.1",
 ]
 
 [project.urls]

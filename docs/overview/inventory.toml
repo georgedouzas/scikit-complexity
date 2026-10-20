@@ -632,9 +632,9 @@ random_graph_ensembles = { title = "Erdos-Renyi and Watts-Strogatz graphs", sour
 chaos_game = { title = "Iterated function systems by the chaos game", sources = ["Di 5.4"], status = "implemented" }
 mandelbrot = { title = "Mandelbrot set", sources = ["Di 5.5"], status = "implemented" }
 julia = { title = "Julia sets", sources = ["Di 5.5"], status = "implemented" }
-koch_curve = { title = "Koch", sources = ["Th 3.5.2", "Tr 3.5"], status = "blocked add-rewriting-systems", feature = "Rewriting and substitution dynamics" }
-cantor_set = { title = "Cantor", sources = ["Th 3.5.2", "Tr 3.5"], status = "blocked add-rewriting-systems", feature = "Rewriting and substitution dynamics" }
-sierpinski_substitution = { title = "Sierpiński substitutions", sources = ["Th 3.5.2", "Tr 3.5"], status = "blocked add-rewriting-systems", feature = "Rewriting and substitution dynamics" }
+koch_curve = { title = "Koch", sources = ["Th 3.5.2", "Tr 3.5"], status = "implemented" }
+cantor_set = { title = "Cantor", sources = ["Th 3.5.2", "Tr 3.5"], status = "implemented" }
+sierpinski_substitution = { title = "Sierpiński substitutions", sources = ["Th 3.5.2", "Tr 3.5"], status = "implemented" }
 
 [mathematics.fractional_dynamics]
 fractional_relaxation = { title = "Fractional relaxation", sources = ["Podlubny 1999"], status = "pending add-fractional-dynamics" }

@@ -22,8 +22,9 @@ and the time between frames SHALL be a positive integer number of generations.
 - **THEN** the run raises a validation error that names `dt` and asks for a positive integer
 
 ### Requirement: Symbol counts are states
-The rewriting form SHALL expose the count of every symbol of the alphabet, or of every prototile, and the size of the
-structure as states, so the trajectory, observables, and analyses read them by dotted name.
+The rewriting form SHALL expose the count of every symbol of the alphabet, every prototile, or every node label whose
+name is a word of letters, digits, and underscores, and the size of the structure as states, so the trajectory,
+observables, and analyses read them by dotted name.
 
 #### Scenario: Parikh vector
 - **WHEN** the Fibonacci L-system above has run 10 generations
@@ -106,19 +107,20 @@ order from the simulation's random stream. It SHALL skip a match whose deletion 
 - **WHEN** a production deletes a node of its left graph that has an edge outside the match
 - **THEN** that match is not applied, and the other matches are
 
-### Requirement: Geometric measures are observables
-The rewriting layer SHALL provide the number of parts, the total length, the area, the bounding box, and a boolean
-raster at a given resolution of a patch or a turtle geometry as observables, and the raster SHALL be accepted by the
-box-counting dimension of the analysis layer.
+### Requirement: Geometric measures are recorded
+The rewriting layer SHALL record the total length and the area of a patch or a turtle geometry at every frame under
+`<element>.length` and `<element>.area`, and every structure SHALL give its number of parts, its bounding box, and a
+boolean raster at a given resolution, which the box-counting dimension of the analysis layer accepts.
 
 #### Scenario: Box-counting dimension of a gasket
 - **WHEN** the box-counting dimension is computed from the raster at resolution 1024 of the Sierpiński triangle at
-  generation 8
+  generation 8, over boxes of 4 to 128 cells
 - **THEN** it is `log 3 / log 2 ≈ 1.585` within 0.05
 
 ### Requirement: Growth is bounded
 A rewriting system SHALL accept a maximum structure size, and a generation that would exceed it SHALL raise a named
-rewriting error before allocating it, naming the element, the generation, and the size it would reach.
+rewriting error before allocating it, naming the element, the generation, and the size it would reach. One generation
+of a word of 10⁶ symbols SHALL take under 0.1 s on an idle reference machine.
 
 #### Scenario: Exponential growth stopped
 - **WHEN** a Koch L-system with a maximum size of 10⁵ symbols runs for 10 generations

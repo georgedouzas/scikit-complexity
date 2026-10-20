@@ -54,8 +54,7 @@ one part of a state by several parts.
 - `skcomplex.core.runtime` gains `Frame.structures` and `Trajectory.structure`, and `skcomplex.core.viz` gains
   `GeometryVisual`.
 - `pyproject.toml` gains `shapely>=2.1`, which is BSD-3-Clause with wheels for every supported platform.
-- The inventory moves `koch_curve`, `cantor_set`, and `sierpinski_substitution` from out of scope to pending this
-  change, and the `organize-model-library` design's list of models with no planned change loses geometric
-  substitution fractals.
-- Stochastic productions draw from the simulation's random stream that `add-stochastic-maps` shares, and use the
-  simulation's generator directly until that change lands.
+- The inventory moves `koch_curve`, `cantor_set`, and `sierpinski_substitution` from blocked on this change to
+  implemented.
+- Stochastic productions and the order of graph matches draw from the simulation's random stream, the generator
+  every stepper receives.

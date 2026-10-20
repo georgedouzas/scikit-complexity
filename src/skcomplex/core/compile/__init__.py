@@ -30,6 +30,9 @@ from ._problem import (
     Vector,
     VectorFunction,
 )
+from ._rewriting import CompiledGraph, CompiledPatch, compile_rewriting
+from ._structures import GraphStructure, PatchStructure, Structure, WordStructure
+from ._words import CompiledWord
 
 __all__: list[str] = [
     'BACKENDS',
@@ -42,15 +45,19 @@ __all__: list[str] = [
     'CompiledDrive',
     'CompiledElement',
     'CompiledEvent',
+    'CompiledGraph',
     'CompiledInteraction',
     'CompiledMonteCarlo',
+    'CompiledPatch',
     'CompiledRelaxation',
     'CompiledRule',
+    'CompiledWord',
     'Delay',
     'Dialect',
     'Draws',
     'Entry',
     'EventRecord',
+    'GraphStructure',
     'JumpChannels',
     'LatticeState',
     'LatticeStep',
@@ -61,10 +68,14 @@ __all__: list[str] = [
     'NumpyBackend',
     'ObservableEvaluator',
     'Partition',
+    'PatchStructure',
     'Problem',
     'RelaxationRecord',
+    'Structure',
     'Vector',
     'VectorFunction',
+    'WordStructure',
+    'compile_rewriting',
     'compile_system',
     'mesh_laplacian',
     'numpy_function',

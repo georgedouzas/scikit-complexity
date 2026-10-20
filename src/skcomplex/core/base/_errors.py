@@ -46,3 +46,7 @@ class SimulationError(SkcomplexError):
 
 class AnalysisError(SkcomplexError):
     """A symbolic analysis cannot be applied to the system."""
+
+
+class RewritingError(SkcomplexError):
+    """A rewriting system is malformed, or a generation would exceed its maximum size."""

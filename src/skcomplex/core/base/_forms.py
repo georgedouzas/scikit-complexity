@@ -16,4 +16,5 @@ class Form(Enum):
     AGENT = 'agent-based model'
     LATTICE = 'lattice dynamics'
     MONTE_CARLO = 'Monte Carlo sampling'
+    REWRITING = 'rewriting system'
     COUPLED = 'co-simulation'

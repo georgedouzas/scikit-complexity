@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..compile import EventRecord, Problem, RelaxationRecord
+from ..compile import EventRecord, Problem, RelaxationRecord, Structure
 from ..solvers import AgentSnapshot
 
 
@@ -42,6 +42,9 @@ class Trajectory:
             The events that fired during the run, in order, each with its time and the states before and after its
             reset, and the relaxations of lattices with their sizes, durations, and areas.
 
+        structures:
+            One mapping from rewritten element path to its structure per frame, empty for other systems.
+
     Examples:
         >>> from skcomplex.core.model import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
@@ -65,6 +68,7 @@ class Trajectory:
         reporters: Sequence[Mapping[str, float]] = (),
         observables: Sequence[Mapping[str, Any]] = (),
         events: Sequence[EventRecord | RelaxationRecord] = (),
+        structures: Sequence[Mapping[str, Structure]] = (),
     ) -> None:
         self.problem = problem
         self.times = times
@@ -74,6 +78,7 @@ class Trajectory:
         self.reporters = reporters
         self.observables = observables
         self.events = list(events)
+        self.structures = structures
 
     def __len__(self) -> int:
         """Return the number of recorded frames."""
@@ -154,3 +159,34 @@ class Trajectory:
             error_msg = f'No agent group {group!r}. Available groups are: {", ".join(groups)}.'
             raise KeyError(error_msg)
         return groups[group]
+
+    def structure(self, path: str, frame: int) -> Structure:
+        """Return the word, patch, or host graph of a rewritten element at a frame.
+
+        Args:
+            path:
+                The path of the rewritten element.
+
+            frame:
+                The index of the frame.
+
+        Returns:
+            structure:
+                The structure recorded at that frame, which later generations do not change.
+
+        Raises:
+            KeyError:
+                The path is not a rewritten element of the system.
+
+        Examples:
+            >>> from skcomplex.models import run
+            >>> trajectory = run('cantor_set', settings={'until': 4}).trajectory_
+            >>> len(trajectory.structure('cantor', 2))
+            4
+        """
+        structures = self.structures[frame] if self.structures else {}
+        if path not in structures:
+            names = ', '.join(structures) or 'none'
+            error_msg = f'No rewritten element {path!r}. The rewritten elements of the system are: {names}.'
+            raise KeyError(error_msg)
+        return structures[path]
