@@ -52,4 +52,4 @@
 
 ## 6. Gate
 
-- [ ] 6.1 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass
+- [x] 6.1 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass
