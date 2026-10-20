@@ -1,6 +1,7 @@
 """Visualize running simulations in Rerun."""
 
 from ._blueprints import default_blueprint, primary_view, save_blueprint
+from ._expectations import ExpectationVisual
 from ._geometry import GeometryVisual
 from ._rerun import RerunObserver
 from ._visuals import (
@@ -19,6 +20,7 @@ from ._visuals import (
 __all__: list[str] = [
     'VISUALS',
     'AgentsVisual',
+    'ExpectationVisual',
     'GeometryVisual',
     'ImageVisual',
     'MeshVisual',

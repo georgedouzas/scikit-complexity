@@ -35,6 +35,7 @@ from ._problem import (
     Vector,
     VectorFunction,
 )
+from ._quantum import QuantumProblem, QuantumTerm
 from ._rewriting import CompiledGraph, CompiledPatch, compile_rewriting
 from ._structures import GraphStructure, PatchStructure, Structure, WordStructure
 from ._words import CompiledWord
@@ -78,6 +79,8 @@ __all__: list[str] = [
     'Partition',
     'PatchStructure',
     'Problem',
+    'QuantumProblem',
+    'QuantumTerm',
     'RelaxationRecord',
     'RenewalProcess',
     'RenewalRecord',

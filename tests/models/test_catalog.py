@@ -9,7 +9,7 @@ from sklearn.base import clone
 
 from skcomplex.core.base import ValidationError
 from skcomplex.core.compile import ObservableEvaluator, compile_system, observables_of
-from skcomplex.core.model import AgentType, Element, Group, Interaction, Rate, System
+from skcomplex.core.model import AgentType, Element, Group, Interaction, QuantumSystem, Rate, System
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
 from skcomplex.models import catalog, create, describe, register_model, run
@@ -223,6 +223,8 @@ def _readers(paths):
 def test_reductions_agree_with_observables(entry):
     """Test that laws reading a model's observables at a state read the values the observable evaluator records."""
     model, paths = _observed(entry.name)
+    if isinstance(model, QuantumSystem):
+        pytest.skip('A quantum system cannot share a co-simulation with classical readers.')
     if not paths:
         pytest.skip('The model has no observable that laws read at the current state.')
     model.label = 'model'

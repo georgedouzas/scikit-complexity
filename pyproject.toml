@@ -51,6 +51,7 @@ dependencies = [
     "mrestimator>=0.2.0",
     "kramersmoyal>=0.4.1",
     "deeptime>=0.4.5",
+    "qutip<6,>=5.3",
 ]
 
 [project.urls]

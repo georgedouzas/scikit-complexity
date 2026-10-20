@@ -1502,6 +1502,69 @@ ring = System(
 print(Simulation(ring, random_state=0).run(until=3).trajectory_['ring.size'].tolist())
 ```
 
+## Quantum systems
+
+A quantum system is a set of quantum subsystems whose state is one vector of their joint Hilbert space. `Spin` has the
+components `x`, `y`, `z` and the ladder operators `plus` and `minus` of spin `j`, `Qubit` has the Pauli matrices,
+`Mode` has `annihilate`, `create`, and `number` truncated at `quanta`, and `Site` is a particle on the sites of a
+lattice or a network with its `laplacian`, its `adjacency`, and the functions `projector` and `diagonal`. A group of
+subsystems, such as `Spin.lattice`, is the tensor product of its members' spaces in member order, and the initial
+state of every subsystem is a basis label, an index, or a vector.
+
+### Operators and laws
+
+Laws receive the local operators of their subsystems, which combine by sums, products, numbers, and symbolic
+coefficients of parameters and time into an `Operator`. `Hamiltonian(operator)` adds to the Hamiltonian, with
+`ħ = 1`, and `Dissipator(operator, rate)` adds a Lindblad dissipator, which makes the system open. An `Exchange`
+interaction is written once for a bond, with `s.first` and `s.second`, and acts on every pair of neighbours of the
+space of its group. Compiling checks that the Hamiltonian is Hermitian and that the dimension stays within the
+`max_dimension` of a `QuantumSystem`, which also takes a whole-system initial state such as `'ground'`.
+
+```python
+from operator import attrgetter
+
+import numpy as np
+
+from skcomplex.core.base import parameter
+from skcomplex.core.model import Exchange, Hamiltonian, LatticeSpace, QuantumSystem, Spin, expectation
+from skcomplex.core.runtime import Simulation
+
+
+class Coupling(Exchange):
+    J: float = parameter(1.0)
+
+    def laws(self, s):
+        a, b = s.first, s.second
+        return [Hamiltonian(s.J * (a.x * b.x + a.y * b.y + a.z * b.z))]
+
+
+chain = QuantumSystem(
+    elements=[Spin.lattice('chain', LatticeSpace(6), initial=['up', 'down'] * 3)],
+    interactions=[Coupling('coupling', target='chain')],
+    observables=[expectation('sz', attrgetter('z'), group='chain')],
+)
+trajectory = Simulation(chain, dt=0.5).run(until=2.0).trajectory_
+print(trajectory['sz'].shape, round(float(np.ptp(trajectory['energy'])), 8))
+```
+
+### Solvers, observables, and spectra
+
+A quantum system compiles to the quantum form, whose state is stored as complex pairs under `<system>.state`, a pure
+state for a closed system and a density matrix for an open one. Its solvers hand every frame to QuTiP: `unitary` for
+the Schrödinger equation, `lindblad`, the default, for the master equation, and `quantum_trajectories` for quantum
+jumps drawn from the run's random stream. `expectation` makes observables of operators, one value per member for a
+group, and every quantum run also records its `energy`, and its `purity` when it is open. Groups on a lattice stream
+the space-time image of their local expectations to Rerun. `spectrum` and `ground_state` diagonalise the Hamiltonian
+exactly, optionally in the sector of a conserved diagonal operator, `purity` and `entanglement_entropy` read
+trajectories, and `hamiltonian_of` prints the Hamiltonian in operator notation.
+
+```python
+from skcomplex.core.analysis import spectrum
+from skcomplex.models import create
+
+print(spectrum(create('quantum_heisenberg', n_sites=4), k=2).energies.round(6).tolist())
+```
+
 ## Co-simulation
 
 A system whose laws do not fit one form, such as agents next to differential equations, is split into partitions at

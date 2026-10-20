@@ -105,7 +105,7 @@ tasep = { title = "TASEP", sources = ["cond-mat/0012229 §I.E.1"], status = "imp
 two_phase_zone_exchange = { title = "Two-phase zone exchange", sources = ["Bs 3.14"], status = "implemented" }
 discrete_master_equation = { title = "Discrete master equation", sources = ["Je 10.7", "Bt 2.6.1"], status = "implemented" }
 graph_ising = { title = "Ising on a graph", sources = ["Ar 2.1"], status = "implemented" }
-quantum_heisenberg = { title = "Quantum Heisenberg model", sources = ["Mi 7.3"], status = "blocked add-quantum-systems", feature = "Quantum states and operators with unitary and Lindblad evolution" }
+quantum_heisenberg = { title = "Quantum Heisenberg model", sources = ["Mi 7.3"], status = "implemented" }
 continuum_percolation = { title = "Continuum percolation", sources = ["Sa 3"], status = "blocked add-static-models", feature = "Models solved, sampled, enumerated, or optimised rather than integrated in time" }
 curie_weiss = { title = "Fully connected Ising model with Glauber dynamics", sources = ["Bt 1.4.1"], status = "implemented" }
 mattis_spin_glass = { title = "Mattis spin glass", sources = ["Bt 1.5.2"], status = "implemented" }

@@ -56,114 +56,130 @@ two runs.
 ### Operators are terms with Sage coefficients
 
 The Sage symbolic ring is commutative, and the project imports Sage only through `sage.all__sagemath_symbolics`, which
-has no free algebra. So an `Operator` is a small term structure: a mapping from an ordered tuple of `(subsystem path,
-local operator name)` factors to a Sage coefficient. Products concatenate factors, sort factors of different subsystems
-by subsystem order, since they commute, and keep the order of factors on one subsystem. Sums add coefficients of equal
-factor tuples, and the adjoint conjugates the coefficient and reverses and adjoins the factors. The coefficients are
-ordinary Sage expressions of parameters, time, observables, and the functions `pulse`, `ramp`, and `step`, so the
-existing validation, domains, and printers apply to them unchanged. An operator never becomes a Sage expression, and
+has no free algebra. So an `Operator` is a small term structure in `skcomplex.core.model`: a mapping from an ordered
+tuple of `(subsystem key, LocalOperator)` factors to a Sage coefficient, where a `LocalOperator` is a named matrix of
+one subsystem. Products concatenate factors and keep their order, sums add the coefficients of equal factor tuples, a
+number added to an operator is a multiple of the identity, and the adjoint conjugates the coefficient and reverses and
+adjoins the factors. The compiler sorts the factors of different subsystems into tensor product order, since they
+commute, and keeps the order of factors on one subsystem. The coefficients are ordinary Sage expressions of parameters
+and time, so the existing NumPy printer lowers them unchanged. An operator never becomes a Sage expression, and
 classical laws never see one.
 
-`Spin(label, j=1/2)`, `Qubit(label)`, `Mode(label, quanta=n)`, and `Site(label, space)` are elements whose namespace
-exposes their local operators, such as `s.x` and `a.annihilate`. Inside a `Group` on a `LatticeSpace` or `NetworkSpace`,
-a member's local operators carry its index, and `Exchange` is an interaction over the neighbours of the space, written
-once for a pair `(a, b)` and expanded to one term per bond, the way pair interactions expand today.
-`Hamiltonian(operator)` and `Dissipator(operator, rate)` are the two quantum laws.
+`Spin(label, j=1/2)`, `Qubit(label)`, `Mode(label, quanta=n)`, and `Site(label, space=...)` are subclasses of the
+`QuantumElement` base, whose namespace exposes their local operators, such as `s.x` and `a.annihilate`, built from
+QuTiP's `jmat`, `sigmax`, `destroy`, and `num`. Inside a group, every member is a subsystem keyed `<path>[<member>]`.
+`Exchange` is an interaction over the neighbours of the space of its group, written once for a bond with `s.first` and
+`s.second` and expanded to one term per bond. `Hamiltonian(operator)` and `Dissipator(operator, rate)` are the two
+quantum laws. They are not members of the classical `Law` union, so the classical compiler keeps its types.
 
 ### The quantum form and its problem
 
-`Form.QUANTUM` joins the forms. `compile_system` lowers a system with quantum elements to a `QuantumProblem`, a
-`Problem` whose extra fields hold:
-- the Hilbert space dimensions, ordered by element and member;
-- one sparse CSR matrix per distinct factor tuple, built with `scipy.sparse.kron` from the local matrices;
-- the coefficient of each matrix lowered by the existing NumPy printer to a function of time and the parameter vector;
-- the collapse operators and their rates, lowered the same way;
-- the expectation observables as operator terms.
+`Form.QUANTUM` joins the forms. `compile_system` dispatches a system tree that holds quantum elements to
+`compile_quantum` in the new module `skcomplex.core.compile._quantum`, the way it dispatches Mesa and rewriting
+systems, so the classical compiler is untouched. A system that mixes quantum and classical elements raises
+`IncompatibleLawsError`. The result is a `QuantumProblem`, a `Problem` subclass whose extra fields hold:
+- the Hilbert space dimensions and the subsystem keys, in tensor product order;
+- the Hamiltonian as `QuantumTerm`s, each a sparse CSR matrix built with `scipy.sparse.kron` and a coefficient lowered
+  by the NumPy printer to a function of time and the parameter vector;
+- the terms of every collapse operator, with the square root of its rate folded into the coefficients;
+- the namespaces of the systems and of the members, which observables and sectors receive.
 
-Constant coefficients are folded at compile time, so a time-independent Hamiltonian is one matrix. The compiler checks
-that the Hamiltonian equals its adjoint symbolically on the coefficients and term by term, and checks the total
-dimension against `max_dimension`, a parameter of the system with a default of `2**20`, raising `HilbertSpaceError`.
+Terms with numeric coefficients fold into one constant matrix and terms with equal coefficients are summed, so the
+isotropic Heisenberg chain is one matrix and one coefficient. The compiler checks that the Hamiltonian is Hermitian
+numerically, at sampled parameter values, and names the laws that are not. It checks the total dimension against
+`max_dimension`, raising `HilbertSpaceError`. A coefficient that reads a symbol other than parameters and time raises
+`ValidationError`.
 
-The state vector of the problem holds the pure state or the density matrix in the paired complex layout of
-`add-complex-states`, under the variable `<system path>.state`. The problem holds a density matrix when the system has
-a dissipator or the initial state is mixed. Initial states come from the elements, as basis labels such as `'up'` or a
-number of quanta, or from the system as a vector, a matrix, or `'ground'`, which takes the lowest eigenstate at the
-initial parameters.
+The compiler stores the state under `<system label>.state` as one complex `Entry` of the layout, so it uses the paired
+storage of `add-complex-states`: the real and imaginary part of every amplitude are adjacent floats, and the
+trajectory decodes them into a complex array. The `_re` and `_im` symbols and the rewriting of complex laws in
+`compile/_complex.py` do not apply, because no Sage expression ever reads the quantum state. The problem stores a pure
+state of shape `(dimension,)` for a closed system with a pure initial state, and a density matrix of shape
+`(dimension, dimension)` otherwise. Initial states come from the elements, as basis labels such as `'up'`, indices, or
+vectors, per member for groups, or from a `QuantumSystem`, a `System` subclass with `initial` and `max_dimension`,
+as a vector, a matrix, or `'ground'`, the lowest eigenstate at the initial parameters.
 
-### Solvers are QuTiP steppers in the backends layer
+### Solvers are QuTiP steppers in the solvers layer
 
-`skcomplex.core.backends` gains `UnitaryEvolution`, `LindbladEvolution`, and `QuantumTrajectories`, `ExternalBackend`
-subclasses for `Form.QUANTUM` registered as `unitary`, `lindblad`, and `quantum_trajectories`. The default solver of the
-form is `lindblad` when the problem has a dissipator and `unitary` otherwise. `build` wraps the CSR matrices as `Qobj`
-with the problem's dimensions and assembles one `QobjEvo` of `[matrix, coefficient]` pairs, where each coefficient
-calls the lowered function with QuTiP's `args` holding the parameter vector. It then creates `SESolver`, `MESolver`, or
-`MCSolver` with tolerances `atol=1e-10` and `rtol=1e-8`. The first `advance` calls `start` at the initial state and
-time, and every `advance(t, x, p, until)` calls `step(until, args={'p': p})`, so a parameter update or a schedule
-reaches the next frame without rebuilding the solver. `QuantumTrajectories` draws its seed from the simulation's
-generator, so one run is one reproducible trajectory, and ensembles of trajectories are ensembles of seeded runs from
-`skcomplex.core.experiments`.
+`skcomplex.core.solvers` gains the base `QuantumSolver` and `UnitaryEvolution`, `LindbladEvolution`, and
+`QuantumTrajectories`, steppers of `Form.QUANTUM` registered as `unitary`, `lindblad`, and `quantum_trajectories`.
+They live in the solvers layer rather than the backends layer, because the default solver of a form has to be
+registered whenever the runtime is imported, and `skcomplex.core.backends` registers its names only when it is
+imported. `lindblad` is the default: it uses QuTiP's `SESolver` for a closed pure problem, which is the master equation
+without dissipators, and `MESolver` otherwise. `unitary` refuses open problems and density matrices.
 
-Frames are instants of physical time, so a quantum run has a time axis as faithful as a classical one, and the
-trajectory reads the same way: `times` holds the frames, `trajectory['<system>.state']` the complex states, and
-`trajectory.observables` the expectations.
+A solver wraps the CSR matrices as `Qobj` with the problem's dimensions, folds the coefficients that do not depend on
+time into one constant `Qobj` at the current parameters, and keeps the time-dependent ones as `QobjEvo` pairs with
+functions of time. It creates the QuTiP solver with `atol=1e-12` and `rtol=1e-10`, and starts it from the current state
+and time at the first frame and again whenever the parameter vector changes, so a parameter update or a schedule
+applies from the next frame on. This replaces passing the parameters through QuTiP's `args`, which would call one
+Python function per coefficient at every right-hand side evaluation. `QuantumTrajectories` seeds QuTiP's `MCSolver`
+from the simulation's generator at every start, so one seeded run is one reproducible trajectory, and stores the
+projector of the pure state when the problem holds a density matrix.
+
+Frames are instants of physical time, so the trajectory reads the same way as a classical one: `times` holds the
+frames, `trajectory['<system>.state']` the complex states, and `trajectory.observables` the expectations.
 
 ### Exact diagonalisation is an analysis, not a run
 
-Diagonalising a Hamiltonian is a static computation with no time axis, so it does not go through `Simulation`.
-`skcomplex.core.analysis.spectrum(system, k=6, parameters=None, sector=None)` compiles the system, sums the matrices at
-the parameter values, and returns the lowest `k` eigenvalues and eigenstates through QuTiP's `Qobj.eigenstates`, dense
-below a dimension of 4096 and sparse with SciPy's `eigsh` above. A sector restricts the basis to the states with a given
-eigenvalue of a conserved diagonal operator, such as the total magnetisation. `ground_state` returns the lowest one,
-and the initial state `'ground'` uses it. Purity and the von Neumann entanglement entropy of a set of subsystems read a
-trajectory frame by frame through QuTiP's `ptrace` and `entropy_vn`. This keeps one honest meaning for every frame of
-a trajectory, and lets the gallery show a spectrum next to a run.
+`skcomplex.core.analysis.spectrum(system, k=6, *, parameters=None, sector=None)` compiles the system, sums the terms at
+time 0 and the given parameter values, and returns a `Spectrum` of the lowest `k` eigenvalues and eigenstates through
+QuTiP's `Qobj.eigenstates`, dense up to a dimension of 1024 and sparse above. A sector is a function of the system
+namespace that returns a conserved operator diagonal in the product basis, such as the total magnetisation, with its
+eigenvalue, and restricts the basis to the states with that eigenvalue. `ground_state` returns the lowest one.
+`purity` and `entanglement_entropy` read a trajectory frame by frame, the latter through QuTiP's `ptrace` and
+`entropy_vn`, and `hamiltonian_of` returns the Hamiltonian as one operator printed in operator notation, while
+`equations_of` raises `AnalysisError` for a quantum system, which has no state equations.
 
 ### Observables
 
-`expectation(operator)` makes an `Observable` whose value is `Tr(ρ O)` or `<psi|O|psi>`, recorded as a real number for
-a Hermitian operator. A reduction over a quantum group, such as `Observable('sz', group='spins', expression=lambda s:
-s.z)`, records one expectation per member. The energy of a system is recorded under `<system>/energy` by default. The
-existing `ObservableEvaluator` gains the quantum case, which uses the QuTiP `expect` function on the frame's state.
+`expectation(label, expression, *, group=None, reduce=None)` makes an `Observable` whose value is `Tr(ρ O)` or
+`<psi|O|psi>`, a float for a Hermitian operator. For a group it records one expectation per member unless `reduce`
+names a reduction. The `ObservableEvaluator` delegates every observable of a quantum problem to the quantum module,
+which adds `energy` to every quantum run, and `purity` to open ones, unless the system declares an observable of that
+name. Expectations are computed with SciPy sparse products on the frame's state.
 
 ### Rerun
 
-Local expectations of a quantum group on a lattice are logged through `ImageVisual` like a classical lattice state, so
-a chain gets its space-time image, which is the light cone of a quench and the thumbnail of its gallery example.
-System observables, the energy, and the purity go through `ScalarsVisual`. The raw state is not logged, since its size
-grows as `2^N` and no view can show it.
+Quantum elements default to the new `ExpectationVisual`, a subclass of `ImageVisual` registered as `expectations`. A
+group logs the expectation of the displayed local operator of every member, `z` for spins and qubits and `number` for
+modes, as a lattice image with a space-time image in one dimension, which is the light cone of a quench and the
+thumbnail of the gallery example. A particle on sites logs the probability of every site the same way, and a single
+spin, qubit, or mode logs its Hermitian local expectations as series. Observables, the energy, and the purity go through
+the observer's scalar series. The raw state is not logged, since its size grows as `2^N`.
 
 ### The Schrödinger model gains an operator formulation
 
 The existing `schrodinger` model is a particle on a periodic lattice written as two real fields. Its operator
-formulation builds the same particle as one `Site` subsystem of dimension `n_sites` over the `LatticeSpace`, with the
-kinetic operator from the lattice's spectral Laplacian and the potential as a diagonal operator. Both formulations then
-evolve the same discrete equation, which gives a direct cross-check of the quantum solvers against `ETDRK4`, and the
-operator formulation can add position dephasing, which the field formulation cannot express. The model keeps its name
-and its default formulation, so the inventory gains no new entry.
-
-`Site` is the general subsystem of a single particle on the sites of a space, with the position projectors and the
-hopping operators of the space as its local operators. It serves tight-binding models in any field.
+formulation, `formulation='operators'`, builds the same particle as one `Site` subsystem over the `LatticeSpace`, with
+the Hamiltonian `-D laplacian + V`, where the compiler builds the Laplacian of the site from the same dealiased
+spectral multiplier the fields use. Both formulations evolve the same discrete equation and agree within 1e-8 on 128
+sites. The operator formulation accepts position dephasing at a rate `gamma`, one projector dissipator per site, which
+the field formulation cannot express. The registered defaults keep `ETDRK4` for the fields, so the operator formulation
+runs with `settings={'solver': 'auto'}` or through `Simulation`. The model keeps its name, so the inventory gains no
+new entry.
 
 ### The quantum Heisenberg model
 
 `quantum_heisenberg(n_sites=12, *, J=1.0, delta=1.0, h=0.0, gamma=0.0, boundary='periodic', initial='flip')` returns a
-group of spins one half on a `LatticeSpace`, an `Exchange` interaction with the XXZ operator, a field term, a
-dephasing `Dissipator(s.z, gamma)` per spin when `gamma > 0`, and the observables `sz` and the total magnetisation.
-Its defaults run to time 8 with `dt = 0.05`, 161 frames within the gallery budget. Its example shows the space-time
-image of `sz` as its thumbnail, and an analysis figure of the ground-state energy per site from `spectrum` for 4 to 16
-sites against `1/4 - ln 2`.
+`QuantumSystem` with a lattice of spins one half, the `XXZExchange` interaction, a `ZeemanField`, a `Dephasing` per
+spin when `gamma > 0`, and the observables `sz` per site and `magnetization`. Its defaults run to time 8 with
+`dt = 0.05`. Its example shows the space-time image of `sz` as its thumbnail, and an analysis figure of the magnon
+against `J_d(t)²` and of the ground-state energy per site from `spectrum` in the sector of zero magnetisation for 4 to
+14 sites against `1/4 - ln 2`.
 
 ## Risks / Trade-offs
 
 - [Exponential cost in the number of subsystems] → `max_dimension` rejects systems that would not fit, with a message
-  that names the dimension, and sectors halve the work of spectra. Chains of up to 16 spins run in seconds.
-- [Trajectories of density matrices are large] → A density matrix of dimension 4096 takes 268 MB per frame, so the
-  trajectory records the state only when it has at most `2**20` components, a setting of the system, and records the
-  observables always. The gallery examples stay at 12 sites for pure states and 6 sites for density matrices, whose
-  Lindblad runs also stay fast.
-- [Operator terms are not Sage expressions] → `equations_of` prints a quantum system as its Hamiltonian and dissipators
-  in operator notation, so documentation still shows the equations.
-- [QuTiP API changes] → The adapter uses only `Qobj`, `QobjEvo`, the three solver classes, `expect`, `ptrace`,
-  `entropy_vn`, and `eigenstates`, all stable since QuTiP 5.0, and the manifest pins `qutip>=5.3,<6`.
-- [Dependence on `add-complex-states`] → The quantum states use its paired layout and complex trajectories, so this
-  change is applied after it.
+  that names every element and its dimension, and sectors cut the work of spectra.
+- [Trajectories of density matrices are large] → A density matrix of dimension 4096 takes 268 MB per frame. The state
+  is the simulation's working vector, which observables read, so a run too large to record uses `record=False` with
+  the Rerun observer. The gallery examples stay at 12 sites for pure states and at most 48 sites or 6 spins for
+  density matrices.
+- [The spectral Laplacian is dense] → The Lindblad superoperator of a dense Hamiltonian grows as `n^3`, so dephased
+  packets stay below about 64 sites.
+- [Operator terms are not Sage expressions] → `hamiltonian_of` prints the Hamiltonian in operator notation.
+- [QuTiP API changes] → The adapter uses only `Qobj`, `QobjEvo`, the three solver classes, `ptrace`, `entropy_vn`,
+  `eigenstates`, and `groundstate`, all stable since QuTiP 5.0, and the manifest pins `qutip>=5.3,<6`.
+- [Coupling to classical partitions] → A quantum system cannot share a co-simulation with classical partitions, so the
+  catalog test of observables read by classical laws skips quantum models.

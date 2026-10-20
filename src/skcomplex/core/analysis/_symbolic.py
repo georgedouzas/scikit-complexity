@@ -89,6 +89,9 @@ def _equations_of_problem(problem: Problem) -> dict[str, Expression]:
     if problem.form is Form.JUMP:
         error_msg = 'A jump process has no symbolic equations. Use a deterministic version of its interactions.'
         raise AnalysisError(error_msg)
+    if problem.form is Form.QUANTUM:
+        error_msg = 'A quantum system has an operator Hamiltonian, not state equations. Use `hamiltonian_of` instead.'
+        raise AnalysisError(error_msg)
     return _written(problem)[0]
 
 
@@ -171,7 +174,7 @@ def equations_of(system: System) -> dict[str, Expression]:
 
     Raises:
         AnalysisError:
-            The system is a jump process.
+            The system is a jump process or a quantum system.
 
     Examples:
         >>> from skcomplex.core.analysis import equations_of

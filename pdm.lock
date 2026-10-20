@@ -5,7 +5,7 @@
 groups = ["default", "changelog", "checks", "docs", "formatting", "gallery", "maintenance", "release", "tests"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.1"
-content_hash = "sha256:76790af72c6312dd1c36a8cdd94e3bd4a490867fa6730ca63a493d9215de32d0"
+content_hash = "sha256:626606682941e943cd59b4f078e0204141298f4783c8dea6f4ffa8c7c438b027"
 
 [[metadata.targets]]
 requires_python = ">=3.12,<3.14"
@@ -2946,6 +2946,33 @@ files = [
 ]
 
 [[package]]
+name = "qutip"
+version = "5.3.1"
+requires_python = ">=3.11"
+summary = "QuTiP: The Quantum Toolbox in Python"
+groups = ["default"]
+dependencies = [
+    "numpy>=1.23.2",
+    "packaging",
+    "scipy!=1.16.0,!=1.17.0,>=1.9.2",
+]
+files = [
+    {file = "qutip-5.3.1-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:17933eeb2a1bc73318369fa660d8f1314615f20ffa4d2668e039909f36f56f16"},
+    {file = "qutip-5.3.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:3daedeec808c87f4b3f899fd874720cf7a5609171afacbc8d2fcdcf7f31a177b"},
+    {file = "qutip-5.3.1-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:d88da28f1757f1ce02ae3a3b6b3432474969302dacef56f996d1b068ed36faed"},
+    {file = "qutip-5.3.1-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:63217730f61da7d410684f77f71498347f8afee22995fa7c93578d32b5623640"},
+    {file = "qutip-5.3.1-cp312-cp312-win_amd64.whl", hash = "sha256:300bd4a8ab301dae405611928a5eeaf4ac8b7dcdddb59652efc130558d71b2ea"},
+    {file = "qutip-5.3.1-cp312-cp312-win_arm64.whl", hash = "sha256:73732d1c294d7a53a239225f93ff776470260126377b545a575ccd46e9671d14"},
+    {file = "qutip-5.3.1-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:de0a97c26817c1937606d30dcae2246acb3eae45bce826e29d3fc7cccb50acb1"},
+    {file = "qutip-5.3.1-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:8e6070cc3ca6f1d006fbecb4a357eecc7e1420016579719925d0cdf93abb37b8"},
+    {file = "qutip-5.3.1-cp313-cp313-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:45ed41d771fb2aa250fca920af8604affde55563cbe1921280f585bd86ba3a17"},
+    {file = "qutip-5.3.1-cp313-cp313-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:a95248e9d06f2d6d7ca9ccdcb77c184066a4e4284eb97408f0354a705043c8cd"},
+    {file = "qutip-5.3.1-cp313-cp313-win_amd64.whl", hash = "sha256:5b3f95ceb0b7c4c0003c82f3022b674e1881bd40e8b0728305efc59605c05ac5"},
+    {file = "qutip-5.3.1-cp313-cp313-win_arm64.whl", hash = "sha256:34abc3daf2dd7c73514e39cbece84076e9a27fe8abfc3f051004b263c4289cdd"},
+    {file = "qutip-5.3.1.tar.gz", hash = "sha256:056206b40cbe97c3c7e4f85eff11873406669cd72b2db039fa1a3812767395e9"},
+]
+
+[[package]]
 name = "readme-renderer"
 version = "46.0"
 requires_python = ">=3.10"
@@ -3441,7 +3468,7 @@ version = "2026.5"
 requires_python = ">=2"
 summary = "Provider of IANA time zone data"
 groups = ["default", "docs"]
-marker = "sys_platform == \"win32\" or sys_platform == \"emscripten\""
+marker = "sys_platform == \"emscripten\" or sys_platform == \"win32\""
 files = [
     {file = "tzdata-2026.5-py2.py3-none-any.whl", hash = "sha256:b683bd1b6659ddcd810ff02ad09ba821d4bf1065072805063eb35c49617905ac"},
     {file = "tzdata-2026.5.tar.gz", hash = "sha256:8cc73c0a0bfca7dbfa59235d60b2eff82231dee33f53d206db1acd9173cfc0a7"},

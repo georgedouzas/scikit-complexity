@@ -57,6 +57,7 @@ from ._laws import (
 )
 from ._meshes import Mesh
 from ._observables import Observable, reduce_values
+from ._operators import Dissipator, Hamiltonian, LocalOperator, Operator
 from ._particles import (
     ConstantForce,
     Gravity,
@@ -71,6 +72,16 @@ from ._particles import (
     ReflectingBox,
     SoftSphere,
     Spring,
+)
+from ._quantum import (
+    Exchange,
+    Mode,
+    QuantumElement,
+    QuantumSystem,
+    Qubit,
+    Site,
+    Spin,
+    expectation,
 )
 from ._reductions import Reduction, count, has_reductions, maximum, mean, minimum, reductions_in, total, variance
 from ._rewriting import (
@@ -101,6 +112,7 @@ __all__: list[str] = [
     'Call',
     'ConstantForce',
     'ContinuousSpace',
+    'Dissipator',
     'Draw',
     'Drive',
     'Element',
@@ -109,6 +121,7 @@ __all__: list[str] = [
     'Equation',
     'EuclideanSpace',
     'Event',
+    'Exchange',
     'Extremal',
     'Field',
     'Flux',
@@ -117,6 +130,7 @@ __all__: list[str] = [
     'Gravity',
     'GridSpace',
     'Group',
+    'Hamiltonian',
     'HarmonicPotential',
     'HostGraph',
     'Interaction',
@@ -126,9 +140,11 @@ __all__: list[str] = [
     'Law',
     'LennardJones',
     'LinearDrag',
+    'LocalOperator',
     'LocalRule',
     'MesaSystem',
     'Mesh',
+    'Mode',
     'Module',
     'Move',
     'Neighborhood',
@@ -136,6 +152,7 @@ __all__: list[str] = [
     'Noise',
     'NumericFunction',
     'Observable',
+    'Operator',
     'OuterTotalistic',
     'PairInteraction',
     'PairPotential',
@@ -145,6 +162,9 @@ __all__: list[str] = [
     'Potential',
     'Production',
     'Prototile',
+    'QuantumElement',
+    'QuantumSystem',
+    'Qubit',
     'Rate',
     'Reduction',
     'ReflectingBox',
@@ -155,8 +175,10 @@ __all__: list[str] = [
     'RewritingLaw',
     'Rule',
     'Sampler',
+    'Site',
     'SoftSphere',
     'Space',
+    'Spin',
     'Spring',
     'Substitution',
     'Symbols',
@@ -181,6 +203,7 @@ __all__: list[str] = [
     'draw',
     'draws_in',
     'either',
+    'expectation',
     'gradient',
     'has_reductions',
     'inverse_laplacian',

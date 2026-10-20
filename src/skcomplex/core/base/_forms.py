@@ -19,3 +19,4 @@ class Form(Enum):
     REWRITING = 'rewriting system'
     RENEWAL = 'renewal process'
     COUPLED = 'co-simulation'
+    QUANTUM = 'quantum dynamics'

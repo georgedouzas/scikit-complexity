@@ -71,8 +71,7 @@ vector, a density matrix, or the ground state. Classical and quantum elements SH
 ### Requirement: Quantum runs use the simulation interface
 A quantum system SHALL run through `Simulation`, `create`, and `run` like any other system, with frames at
 instants of physical time separated by `dt`. Parameters SHALL change between frames through `update_parameters` and
-schedules. The trajectory SHALL record the expectation observables at every frame, and the complex state at every
-frame when it has at most a declared number of components.
+schedules. The trajectory SHALL record the expectation observables, the energy, and the complex state at every frame.
 
 #### Scenario: Run by name
 - **WHEN** a user calls `run('quantum_heisenberg', settings={'until': 2.0, 'dt': 0.1})`

@@ -31,8 +31,8 @@ at a rate `gamma`. Both formulations SHALL register under the one name `schrodin
 
 #### Scenario: Formulations agree
 - **WHEN** `schrodinger` runs with 128 sites to time 4 once with each formulation
-- **THEN** the probability densities `u² + w²` of the fields and `|psi|²` of the operators agree within 1e-6 at every
-  frame
+- **THEN** the probability of every site, `(u² + w²) h` of the fields with the spacing `h` and `|psi|²` of the
+  operators, agrees within 1e-6 at every frame
 
 #### Scenario: Dephased packet
 - **WHEN** `schrodinger` runs with the operator formulation and `gamma = 0.5`

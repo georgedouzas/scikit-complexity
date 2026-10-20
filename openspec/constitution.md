@@ -226,7 +226,7 @@ to fill in as the project takes shape.
 - Runtime dependencies: `numpy` 2.1 or later, `scipy` for numeric integration, `passagemath-symbolics` as the Sage
   symbolic layer every law is written in and lowered from, `passagemath-maxima` for exact solutions, `cysignals` at a
   version the passagemath wheels need, `numba` for the compiled backend, `lammps` for the LAMMPS backend, `mesa` for agent-based models, `networkx`
-  for networks, which Mesa 3.5 imports without declaring it, `rerun-sdk` for visualization, `SALib` for sensitivity
+  for networks, which Mesa 3.5 imports without declaring it, `rerun-sdk` for visualization, `qutip` for quantum systems, `SALib` for sensitivity
   analysis, `scikit-fem` for finite-element assembly on unstructured meshes, `shapely` for the geometry of rewriting
   systems, and `scikit-learn` for the
   estimator contract. The analysis layer adds `antropy` for regularity entropies and Lempel-Ziv complexity, `ordpy`

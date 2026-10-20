@@ -117,6 +117,7 @@ from ._problem import (
     Vector,
     VectorFunction,
 )
+from ._quantum import compile_quantum, contains_quantum
 from ._reductions import CompiledReduction, Read, ReductionPass
 from ._renewals import CompiledRenewal, compile_renewal
 from ._rewriting import compile_rewriting, is_rewriting
@@ -2853,6 +2854,8 @@ def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
         return _compile_mesa(system)
     if is_rewriting(system):
         return compile_rewriting(system)
+    if contains_quantum(system):
+        return compile_quantum(system)
     system, held = _with_held_observables(system, _held_observables(system))
     problem = _compile(system, backend, None)
     _check_held_reads(problem, held)

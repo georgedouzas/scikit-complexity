@@ -18,6 +18,7 @@ from ._complex import joined_complex
 from ._layout import Entry
 from ._printing import numpy_function
 from ._problem import Problem, Vector
+from ._quantum import QuantumProblem, quantum_getters
 from ._reductions import CompiledReduction, Read, ReductionPass
 
 type AgentsOf = Callable[[str], list[Any] | None]
@@ -228,6 +229,9 @@ class ObservableEvaluator:
         self._scalars = self._scalar_sources()
         self.getters_: dict[str, Getter] = {}
         system = self.problem.system
+        if isinstance(self.problem, QuantumProblem):
+            self.getters_ = quantum_getters(self.problem, observables_of(system) if system is not None else ())
+            return
         for scope, observable in observables_of(system) if system is not None else ():
             path = _join(scope, observable.label)
             if path in self.getters_:

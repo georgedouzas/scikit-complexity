@@ -49,13 +49,15 @@ any field that has a quantum subsystem, such as spin chains, qubits, cavities, a
 ## Impact
 
 - `skcomplex.core.base` gains `Form.QUANTUM` and the named error `HilbertSpaceError`.
-- `skcomplex.core.model` gains `Spin`, `Qubit`, `Mode`, `Site`, `Operator`, `Hamiltonian`, `Dissipator`, `Exchange`, and
-  `expectation`, and `System` accepts quantum elements and laws.
+- `skcomplex.core.model` gains `QuantumElement`, `Spin`, `Qubit`, `Mode`, `Site`, `LocalOperator`, `Operator`,
+  `Hamiltonian`, `Dissipator`, `Exchange`, `QuantumSystem`, and `expectation`, and `System` accepts quantum elements and
+  laws.
 - `skcomplex.core.compile` lowers a quantum system to a `QuantumProblem` that holds the operator terms, the lowered
   coefficient functions, and the Hilbert space dimensions.
-- `skcomplex.core.backends` gains the QuTiP adapter and registers the solvers `unitary`, `lindblad`, and
+- `skcomplex.core.solvers` gains the QuTiP steppers and registers the solvers `unitary`, `lindblad`, and
   `quantum_trajectories`.
-- `skcomplex.core.analysis` gains `spectrum`, `ground_state`, `purity`, and `entanglement_entropy`.
+- `skcomplex.core.analysis` gains `spectrum`, `Spectrum`, `ground_state`, `purity`, `entanglement_entropy`, and
+  `hamiltonian_of`, and `skcomplex.core.viz` gains `ExpectationVisual`.
 - `skcomplex.models.physics.statistical_mechanics` gains `quantum_heisenberg`, and
   `skcomplex.models.physics.waves.schrodinger` gains the `formulation` parameter.
 - New runtime dependency: `qutip` 5.3 or later, BSD-3-Clause, with wheels for Linux and macOS on Python 3.12 and

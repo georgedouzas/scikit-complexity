@@ -170,6 +170,7 @@ from ._networks import (
 )
 from ._passage import first_passage_times, hitting_probabilities, laminar_durations, return_times
 from ._percolation import Percolation, cluster_sizes, percolation, spanning_probability
+from ._quantum import Spectrum, entanglement_entropy, ground_state, hamiltonian_of, purity, spectrum
 from ._recurrence import Recurrence, recurrence_matrix, recurrence_quantification
 from ._scaling import Collapse, binder_crossings, binder_cumulant, scaling_collapse
 from ._sections import Section, poincare_section, stroboscopic
@@ -250,6 +251,7 @@ __all__: list[str] = [
     'Series',
     'Signature',
     'Snapshots',
+    'Spectrum',
     'Stability',
     'StableFit',
     'StructureFactor',
@@ -307,6 +309,7 @@ __all__: list[str] = [
     'embed',
     'ensemble_entropy',
     'ensemble_of',
+    'entanglement_entropy',
     'entropy_production',
     'entropy_rate',
     'equations_of',
@@ -325,6 +328,8 @@ __all__: list[str] = [
     'fluctuation_dissipation_ratio',
     'fluctuation_theorem',
     'gini',
+    'ground_state',
+    'hamiltonian_of',
     'hill',
     'histogram',
     'histogram_rate_function',
@@ -375,6 +380,7 @@ __all__: list[str] = [
     'poincare_section',
     'polar_order',
     'power_spectrum',
+    'purity',
     'radial_distribution',
     'record_counts',
     'recurrence_matrix',
@@ -396,6 +402,7 @@ __all__: list[str] = [
     'spanning_probability',
     'spectral_entropy',
     'spectral_gap',
+    'spectrum',
     'stability',
     'stationary_distribution',
     'stroboscopic',

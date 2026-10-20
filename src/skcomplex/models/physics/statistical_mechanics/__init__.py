@@ -35,6 +35,14 @@ from ._processes import (
     site_percolation,
     tasep,
 )
+from ._quantum_spins import (
+    Dephasing,
+    XXZExchange,
+    ZeemanField,
+    local_magnetization,
+    quantum_heisenberg,
+    total_magnetization,
+)
 from ._spin_glasses import BondSpin, MattisSpin, edwards_anderson, mattis_spin_glass
 from ._spins import IsingSpin, PottsSpin, XYSpin, ising, potts, xy
 from ._traps import TrapWalker, trap_model
@@ -42,6 +50,7 @@ from ._traps import TrapWalker, trap_model
 __all__: list[str] = [
     'BondSpin',
     'ContactSite',
+    'Dephasing',
     'ExclusionHops',
     'ExclusionSite',
     'FullyConnectedSpin',
@@ -59,7 +68,9 @@ __all__: list[str] = [
     'TrapWalker',
     'TreeNode',
     'Walker',
+    'XXZExchange',
     'XYSpin',
+    'ZeemanField',
     'ZeroRangeHop',
     'ZeroRangeHops',
     'Zone',
@@ -76,12 +87,15 @@ __all__: list[str] = [
     'ising',
     'landau_relaxation',
     'lennard_jones_fluid',
+    'local_magnetization',
     'mattis_spin_glass',
     'potts',
     'q2r',
+    'quantum_heisenberg',
     'sherrington_kirkpatrick',
     'site_percolation',
     'tasep',
+    'total_magnetization',
     'trap_model',
     'two_phase_zone_exchange',
     'xy',

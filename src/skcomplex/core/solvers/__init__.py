@@ -5,6 +5,7 @@ from ._base import SOLVERS, Stepper, register_solver, resolve_solver
 from ._cosimulation import CoSimulation
 from ._fractional import FractionalEulerMaruyama, fractional_gaussian_noise
 from ._lattices import LatticeStepper, MonteCarlo
+from ._quantum import LindbladEvolution, QuantumSolver, QuantumTrajectories, UnitaryEvolution
 from ._rewriting import Rewriter, RewritingState
 from ._steppers import (
     RK4,
@@ -37,16 +38,20 @@ __all__: list[str] = [
     'IMEXEuler',
     'Iteration',
     'LatticeStepper',
+    'LindbladEvolution',
     'MesaStepper',
     'Milstein',
     'ModelView',
     'MonteCarlo',
+    'QuantumSolver',
+    'QuantumTrajectories',
     'RenewalStepper',
     'Rewriter',
     'RewritingState',
     'ScipyODE',
     'SplitOperator',
     'Stepper',
+    'UnitaryEvolution',
     'VelocityVerlet',
     'fractional_gaussian_noise',
     'register_solver',
