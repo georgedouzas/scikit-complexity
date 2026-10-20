@@ -147,4 +147,4 @@
 
 ## 11. Gate
 
-- [ ] 11.1 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass
+- [x] 11.1 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass
