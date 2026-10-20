@@ -11,6 +11,26 @@ import numpy as np
 import numpy.typing as npt
 
 
+def wrap_angle(values: npt.ArrayLike) -> npt.NDArray[np.float64]:
+    """Return angles wrapped into one turn centred on zero, the half-open interval `(-pi, pi]`.
+
+    Args:
+        values:
+            An angle or an array of angles in radians.
+
+    Returns:
+        angles:
+            The angles in `(-pi, pi]`, with `-pi` moved to `pi`.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.base import wrap_angle
+        >>> wrap_angle(np.array([3 * np.pi / 2, -np.pi, 0.5])).round(4).tolist()
+        [-1.5708, 3.1416, 0.5]
+    """
+    return np.pi - np.mod(np.pi - np.asarray(values, dtype=float), 2 * np.pi)
+
+
 class Domain(Enum):
     """Set of values a variable can take.
 
@@ -68,7 +88,7 @@ class Domain(Enum):
         }[self]
 
     def encode(self, value: object) -> npt.NDArray[Any]:
-        """Return a value as floats, with booleans as 0 and 1 and angles wrapped into one turn, or as complex numbers.
+        """Return a value as floats, with booleans as 0 and 1 and angles in `(-pi, pi]`, or as complex numbers.
 
         Args:
             value:
@@ -87,7 +107,7 @@ class Domain(Enum):
         if self is Domain.COMPLEX:
             return np.asarray(array, dtype=complex)
         array = np.asarray(array.real if np.iscomplexobj(array) else array, dtype=float)
-        return np.mod(array, 2 * np.pi) if self is Domain.ANGLE else array
+        return wrap_angle(array) if self is Domain.ANGLE else array
 
     def decode(self, values: npt.NDArray[np.float64]) -> npt.NDArray[Any]:
         """Return stored values in the domain's own type, booleans for the boolean domain and numbers otherwise.
