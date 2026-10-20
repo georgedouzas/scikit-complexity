@@ -32,7 +32,7 @@ from ._backends import (
 from ._kernels import Kernel, Output, Reference, Source, jump_channels, noise_rows
 from ._layout import Entry
 from ._printing import SCALAR_DIALECT, print_expressions
-from ._problem import Accelerated, Vector
+from ._problem import Accelerated, Draws, Vector
 from ._reductions import CompiledReduction, Read, ReductionPass
 
 DEFAULT_CACHE_DIR = Path.home() / '.cache' / 'skcomplex' / 'kernels'
@@ -155,6 +155,23 @@ def iterate(t, x, p, L, until):
         y = update(float(step), y, p, L)
         if HAS_BOUNDARY:
             y = boundary(float(step + 1), y, p, L)
+    return y
+""",
+    'iterate_random': """
+@njit(cache=CACHE)
+def iterate_random(t, x, p, L, until, rng, offset, normal):
+    y = x.copy()
+    q = np.zeros(offset + normal.size)
+    q[:offset] = p[:offset]
+    for step in range(int(round(t)), int(math.floor(until + 1e-9))):
+        for index in range(normal.size):
+            if normal[index]:
+                q[offset + index] = rng.standard_normal()
+            else:
+                q[offset + index] = rng.random()
+        y = update(float(step), y, q, L)
+        if HAS_BOUNDARY:
+            y = boundary(float(step + 1), y, q, L)
     return y
 """,
 }
@@ -770,6 +787,7 @@ class NumbaBackend(Backend):
         size: int,
         *,
         reductions: ReductionPass | None = None,
+        draws: Draws | None = None,
     ) -> Lowering:
         """Return the numeric functions of a form compiled with Numba.
 
@@ -789,6 +807,10 @@ class NumbaBackend(Backend):
             reductions:
                 The reductions the kernels read, fused into one compiled function that every entry function runs
                 first, or `None`.
+
+            draws:
+                The random values a stochastic map draws at every step into the parameter vector extended after its
+                parameters, which the compiled loop takes from the generator, or `None` for a deterministic problem.
 
         Returns:
             lowering:
@@ -825,7 +847,7 @@ class NumbaBackend(Backend):
             Form.ODE: 'rk4',
             Form.SDE: 'euler_maruyama',
             Form.JUMP: 'gillespie',
-            Form.DISCRETE: 'iterate',
+            Form.DISCRETE: 'iterate' if draws is None else 'iterate_random',
         }[form]
         has_loop = all(compiled[kind] for kind in needed)
         bounded = 'HAS_BOUNDARY = True\n' if Boundary in needed else NO_BOUNDARY
@@ -859,6 +881,7 @@ class NumbaBackend(Backend):
             layout=layout,
             loop=loop,
             reductions=reductions,
+            draws=draws,
         )
 
     def _lowering(
@@ -874,6 +897,7 @@ class NumbaBackend(Backend):
         layout: np.ndarray,
         loop: str | None,
         reductions: ReductionPass,
+        draws: Draws | None,
     ) -> Lowering:
         """Return the lowering that binds the compiled functions to the layout, with NumPy fallbacks."""
 
@@ -904,10 +928,17 @@ class NumbaBackend(Backend):
         if form is Form.DISCRETE:
             lowering.update = functions[Update]
         if loop is not None:
-            lowering.accelerated = self._accelerated(loop, module, layout, lowering)
+            lowering.accelerated = self._accelerated(loop, module, layout, lowering, draws)
         return lowering
 
-    def _accelerated(self, loop: str, module: ModuleType, layout: np.ndarray, lowering: Lowering) -> Accelerated:
+    def _accelerated(
+        self,
+        loop: str,
+        module: ModuleType,
+        layout: np.ndarray,
+        lowering: Lowering,
+        draws: Draws | None,
+    ) -> Accelerated:
         """Return the compiled stepper loop of a form bound to the layout."""
         function = getattr(module, loop)
         if loop == 'rk4':
@@ -935,6 +966,9 @@ class NumbaBackend(Backend):
             return Accelerated(
                 gillespie=lambda t, x, p, until, rng: function(t, x, p, layout, until, rng, targets, increments),
             )
+        if loop == 'iterate_random' and draws is not None:
+            offset, flags = draws.offset, draws.normal
+            return Accelerated(iterate=lambda t, x, p, until, rng: function(t, x, p, layout, until, rng, offset, flags))
         return Accelerated(iterate=lambda t, x, p, until: function(t, x, p, layout, until))
 
 

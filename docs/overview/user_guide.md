@@ -329,6 +329,81 @@ iteration reject delays and events with an error that names the solvers to use. 
 `bouncing_ball`, `newtons_cradle`, `circular_billiard`, and `brownian_near_wall` in physics, and
 `integrate_and_fire` and `izhikevich` in neuroscience.
 
+## Stochastic maps
+
+Update laws can draw random numbers, so a discrete map can be a discrete-time stochastic process. The draws come from
+the simulation's random generator, so two runs with the same `random_state` give the same trajectory.
+
+### Random draws
+
+`uniform(name, low, high)`, `normal(name, mean, deviation)`, `bernoulli(name, p)`, and `categorical(name, weights)`
+are symbolic values that update laws use like any other expression. A draw takes a fresh value at every step, and
+every member of a group draws its own value. The arguments of a draw can be expressions of states and parameters, and
+they take the values from before the step.
+
+Every draw carries a name. Every use of the same name in one component reads the same value within a step, and draws
+with different names are independent. Two uses of one name with different distributions or arguments fail to
+compile. Within a step, the draws are taken by component path, then draw name, then member index, so the trajectory
+does not depend on the order of the laws. The NumPy and Numba backends give equal trajectories for uniform, Bernoulli,
+and categorical draws.
+
+```python
+from skcomplex.core.model import Update, bernoulli, normal, where
+
+Persistent = Element.define(
+    'Persistent',
+    states={'d': 1.0, 'x': 0.0},
+    parameters={'q': 0.8},
+    laws=lambda s: [
+        Update(s.d, where(bernoulli('turn', 1 - s.q) > 0, -s.d, s.d)),
+        Update(s.x, s.x + where(bernoulli('turn', 1 - s.q) > 0, -s.d, s.d) + normal('jitter', 0, 0.1)),
+    ],
+)
+walkers = System(elements=[Persistent.group('walkers', 500)])
+final = Simulation(walkers, dt=1.0, random_state=0).run(until=200).trajectory_['walkers.x'][-1]
+print(round(float(final.var() / 200), 1))
+```
+
+Only update laws take draws. A draw in a rate, noise, jump, boundary, equation, or event law raises
+`IncompatibleLawsError`, since noise laws and jump laws give randomness in continuous time. Draws are not states, so
+the trajectory does not record them, and a model that wants to keep a draw assigns it to a state.
+
+### Markov chains and hidden Markov sources
+
+`Transition(target, matrix)` is the step of a discrete-time Markov chain. The target is a state over a finite alphabet,
+a categorical domain or the integers from 0 to `n - 1`, and its current value selects the row of the transition matrix
+that the next value is drawn from. `Emission(target, source, matrix)` draws an observed state from the row of an
+emission matrix that the hidden state `source` selects, reading the hidden state after the same step, so the two
+sequences align frame by frame. Both are update laws, so they combine with other update laws.
+
+Matrix entries are numbers or expressions of parameters. Compiling checks that the entries are nonnegative and that
+every row sums to 1, and `update_parameters` checks again every matrix a changed parameter enters, rejecting the change
+with a `ParameterError` before it applies.
+
+```python
+from skcomplex.core.model import Emission, Transition
+
+Source = Element.define(
+    'Source',
+    states={
+        'hidden': state(default='calm', domain=Domain.categorical('calm', 'storm')),
+        'symbol': state(default='a', domain=Domain.categorical('a', 'b')),
+    },
+    parameters={'stay': 0.9},
+    laws=lambda s: [
+        Transition(s.hidden, [[s.stay, 1 - s.stay], [0.4, 0.6]]),
+        Emission(s.symbol, s.hidden, [[0.7, 0.3], [0.2, 0.8]]),
+    ],
+)
+simulation = Simulation(System(elements=[Source('source')]), dt=1.0, random_state=0).run(until=10000)
+print(round(float((simulation.trajectory_['source.hidden'] == 'calm').mean()), 1))
+simulation.update_parameters({'source.stay': 0.5})
+```
+
+The library has these models ready: `persistent_random_walk`, `markov_source`, `hidden_markov_source`, and
+`random_walk_with_memory` in stochastic processes, `chaos_game` in fractals, `probabilistic_boolean_network` and
+`intrinsic_instability` in biology, and `diluted_hopfield` in neural networks.
+
 ## Observables
 
 Observables are named quantities of a system, computed at every frame, recorded in trajectories under the system's

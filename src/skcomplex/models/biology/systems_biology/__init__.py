@@ -1,4 +1,4 @@
-"""Systems biology: gene regulatory circuits, Boolean networks, and circadian clocks."""
+"""Systems biology: gene regulatory circuits, Boolean and probabilistic Boolean networks, and circadian clocks."""
 
 from ._boolean import (
     BooleanFunction,
@@ -22,6 +22,7 @@ from ._networks import (
     goodwin_oscillator,
     phosphorylation_oscillator,
 )
+from ._probabilistic import ProbabilisticFunction, ProbabilisticNode, probabilistic_boolean_network
 
 __all__: list[str] = [
     'BooleanFunction',
@@ -33,6 +34,8 @@ __all__: list[str] = [
     'Metabolite',
     'PerClock',
     'PhosphorylationLoop',
+    'ProbabilisticFunction',
+    'ProbabilisticNode',
     'Repression',
     'SSystem',
     'Synthesis',
@@ -44,6 +47,7 @@ __all__: list[str] = [
     'mammalian_cell_cycle',
     'negative_autoregulation',
     'phosphorylation_oscillator',
+    'probabilistic_boolean_network',
     'random_boolean_network',
     'repressilator',
     'three_gene_boolean_network',

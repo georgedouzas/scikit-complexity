@@ -1035,6 +1035,8 @@ class Gillespie(Stepper):
 class Iteration(Stepper):
     """Iteration of a discrete map, one application per unit of time.
 
+    A stochastic map takes its random draws from the stepper's random number generator at every step.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
@@ -1092,12 +1094,13 @@ class Iteration(Stepper):
         update = self.problem_.update
         if update is None:
             return x
+        drawn = (self.rng_,) if self.problem_.stochastic else ()
         accelerated = self.problem_.accelerated
         if accelerated is not None and accelerated.iterate is not None:
-            return accelerated.iterate(t, x, p, until)
+            return accelerated.iterate(t, x, p, until, *drawn)
         state = x.copy()
         for step in range(round(t), math.floor(until + 1e-9)):
-            state = self._bounded(float(step + 1), update(float(step), state, p), p)
+            state = self._bounded(float(step + 1), update(float(step), state, p, *drawn), p)
         return state
 
 

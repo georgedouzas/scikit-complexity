@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import itertools
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, Protocol
@@ -16,6 +17,8 @@ from ._hybrid import Breakpoints, CompiledEvent, Delay
 from ._lattices import LatticeStep, lattice_shape
 from ._layout import Layout
 from ._reductions import CompiledReduction
+
+ROW_TOLERANCE = 1e-9
 
 type Vector = npt.NDArray[np.float64]
 type VectorFunction = Callable[[float, Vector, Vector], Vector]
@@ -153,6 +156,105 @@ class JumpChannels:
 
 
 @dataclass(frozen=True)
+class Draws:
+    """Random values a stochastic map draws at every step, stored after the parameters of an extended vector.
+
+    Args:
+        offset:
+            The index of the first draw in the extended vector, the size of the parameter vector.
+
+        normal:
+            One flag per draw, true for a standard normal value and false for a uniform value in `[0, 1)`, in the
+            order the draws are taken, by component path, draw name, and member index.
+    """
+
+    offset: int
+    normal: npt.NDArray[np.bool_]
+
+    @property
+    def size(self) -> int:
+        """Number of values drawn at every step."""
+        return int(self.normal.size)
+
+    def extend(self, p: Vector) -> Vector:
+        """Return a parameter vector extended with room for the draws.
+
+        Args:
+            p:
+                The parameter vector.
+
+        Returns:
+            extended:
+                A new vector with the parameters first and zeros for the draws.
+        """
+        extended = np.zeros(self.offset + self.size)
+        extended[: self.offset] = p[: self.offset]
+        return extended
+
+    def fill(self, q: Vector, rng: np.random.Generator) -> None:
+        """Draw fresh values into an extended parameter vector, in order, uniform and normal runs as they come.
+
+        Args:
+            q:
+                The extended parameter vector, changed in place.
+
+            rng:
+                The random number generator.
+        """
+        cuts = [0, *(np.flatnonzero(np.diff(self.normal)) + 1).tolist(), self.size]
+        for start, end in itertools.pairwise(cuts):
+            if start == end:
+                continue
+            count = end - start
+            values = rng.standard_normal(count) if self.normal[start] else rng.random(count)
+            q[self.offset + start : self.offset + end] = values
+
+
+@dataclass(frozen=True)
+class MarkovMatrix:
+    """Transition or emission matrix of a law, evaluated from the parameter vector to check its rows.
+
+    Args:
+        law:
+            The description of the law, such as `transition law of chain.x`.
+
+        function:
+            The function `f(p)` that returns the matrix of every evaluation row, of shape `(rows, n, m)`.
+
+        reads:
+            The indices of the parameter vector that the matrix reads.
+    """
+
+    law: str
+    function: Callable[[Vector], npt.NDArray[np.float64]]
+    reads: frozenset[int]
+
+    def violation(self, p: Vector) -> str | None:
+        """Return the description of the first negative entry or row that does not sum to one, or `None`.
+
+        Args:
+            p:
+                The parameter vector.
+
+        Returns:
+            violation:
+                The description of what is wrong with the matrix, or `None` when it is a stochastic matrix.
+        """
+        values = self.function(p)
+        for member, matrix in enumerate(values):
+            where = f' of member {member}' if values.shape[0] > 1 else ''
+            negative = np.argwhere(~(matrix >= 0))
+            if negative.size:
+                row, column = negative[0]
+                return f'the entry ({row}, {column}){where} of the {self.law} is {matrix[row, column]}, below 0'
+            sums = matrix.sum(axis=1)
+            wrong = np.flatnonzero(np.abs(sums - 1) > ROW_TOLERANCE)
+            if wrong.size:
+                return f'the row {wrong[0]}{where} of the {self.law} sums to {sums[wrong[0]]}, not 1'
+        return None
+
+
+@dataclass(frozen=True)
 class Accelerated:
     """Compiled stepper loops of a problem, which run every internal step of a frame in compiled code.
 
@@ -173,7 +275,7 @@ class Accelerated:
             The Gillespie loop `gillespie(t, x, p, until, rng)`.
 
         iterate:
-            The discrete map loop `iterate(t, x, p, until)`.
+            The discrete map loop `iterate(t, x, p, until)`, or `iterate(t, x, p, until, rng)` for a stochastic map.
     """
 
     rk4: Callable[..., Vector] | None = None
@@ -309,10 +411,16 @@ class Problem:
             The channels of every jump law.
 
         update:
-            The function `F(t, x, p)` that returns the next state vector.
+            The function `F(t, x, p)` that returns the next state vector, or `F(t, x, p, rng)` for a stochastic map.
 
         boundary:
             The function `B(t, x, p)` that returns the state after the boundary laws.
+
+        draws:
+            The random values the update draws at every step, or `None` for a deterministic map.
+
+        matrices:
+            The transition and emission matrices of the Markov laws, checked when their parameters change.
 
         backend:
             The name of the backend that produced the numeric functions.
@@ -357,14 +465,21 @@ class Problem:
     noise_rows: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
     propensities: VectorFunction | None = field(default=None, repr=False)
     jumps: tuple[JumpChannels, ...] = field(default=(), repr=False)
-    update: VectorFunction | None = field(default=None, repr=False)
+    update: Callable[..., Vector] | None = field(default=None, repr=False)
     boundary: VectorFunction | None = field(default=None, repr=False)
+    draws: Draws | None = field(default=None, repr=False)
+    matrices: tuple[MarkovMatrix, ...] = field(default=(), repr=False)
     backend: str = 'numpy'
     accelerated: Accelerated | None = field(default=None, repr=False)
 
     def _flatten_symbols(self, layout: Layout) -> list[Expression]:
         """Return the symbols of the entries of a layout as a flat list."""
         return [item for entry in layout for item in real_components_of(self.symbols[entry.name])]
+
+    @property
+    def stochastic(self) -> bool:
+        """Whether the update draws random values, so it takes the random number generator."""
+        return self.draws is not None
 
     @property
     def state_symbols(self) -> list[Expression]:

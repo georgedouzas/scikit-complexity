@@ -1,14 +1,46 @@
-"""Stochastic process models: random walks and diffusions."""
+"""Stochastic process models: random walks, persistent and autoregressive walks, and diffusions."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from typing import ClassVar
 
+import numpy as np
+
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import AgentType, Element, Jump, Law, Noise, Rate, Rule, Symbols, System
+from ....core.model import (
+    AgentType,
+    Element,
+    Jump,
+    Law,
+    Noise,
+    Rate,
+    Rule,
+    Symbols,
+    System,
+    Update,
+    bernoulli,
+    normal,
+)
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+
+PersistentWalker = Element.define(
+    'PersistentWalker',
+    states={'d': state(default=1.0, domain=Domain.INTEGER), 'x': state(default=0.0, domain=Domain.INTEGER)},
+    parameters={'persistence': parameter(0.8, domain=Domain.NONNEGATIVE)},
+    laws=lambda s: [
+        Update(s.d, s.d * (1 - 2 * bernoulli('turn', 1 - s.persistence))),
+        Update(s.x, s.x + s.d * (1 - 2 * bernoulli('turn', 1 - s.persistence))),
+    ],
+)
+
+MemoryWalker = Element.define(
+    'MemoryWalker',
+    states={'x': 0.0, 'v': 0.0},
+    parameters={'alpha': parameter(0.5, domain=Domain.NONNEGATIVE), 'sigma': parameter(1.0, domain=Domain.NONNEGATIVE)},
+    laws=lambda s: [Update(s.x, s.x + s.v), Update(s.v, s.alpha * s.v + normal('xi', 0, s.sigma))],
+)
 
 RandomWalker = Element.define(
     'RandomWalker',
@@ -205,3 +237,80 @@ def ageing_random_walk(n_walkers: int = 50, *, p: float = 0.5, nu: float = 1.0) 
         5
     """
     return System(elements=[AgeingWalker.group('walkers', n_walkers, p=p, nu=nu)])
+
+
+@register_model(
+    field='mathematics/stochastic_processes',
+    tags=('random walk', 'discrete map', 'persistence', 'diffusion'),
+    references=('Jensen 2023',),
+    defaults={'until': 200, 'dt': 1},
+)
+def persistent_random_walk(
+    n_walkers: int = 2000,
+    *,
+    persistence: float = 0.8,
+    random_state: int | np.random.Generator | None = 0,
+) -> System:
+    """Return walkers on the integers that keep the direction of their last step with a probability.
+
+    At every step a walker keeps its direction `d = ±1` with probability `q` and reverses it otherwise, then moves by
+    `d`. Successive steps are correlated with `rho = 2 q - 1`, so the walk diffuses faster than a simple random walk for
+    `q > 1/2`, with a mean squared displacement that grows as `t (1 + rho) / (1 - rho)` at long times.
+
+    Args:
+        n_walkers:
+            The number of independent walkers, all started at 0.
+
+        persistence:
+            The probability `q` of keeping the direction.
+
+        random_state:
+            The seed or generator of the initial directions.
+
+    Returns:
+        system:
+            The model, with the directions `walkers.d` and the positions `walkers.x`.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.stochastic_processes import persistent_random_walk
+        >>> persistent_random_walk(10).elements[0].size
+        10
+    """
+    directions = np.random.default_rng(random_state).choice([-1.0, 1.0], size=n_walkers)
+    return System(elements=[PersistentWalker.group('walkers', n_walkers, d=directions, persistence=persistence)])
+
+
+@register_model(
+    field='mathematics/stochastic_processes',
+    tags=('random walk', 'discrete map', 'memory', 'autoregressive'),
+    references=('Bertin 2021',),
+    defaults={'until': 200, 'dt': 1},
+)
+def random_walk_with_memory(n_walkers: int = 2000, *, alpha: float = 0.5, sigma: float = 1.0) -> System:
+    """Return random walks whose velocity is an autoregressive process, `x ← x + v` and `v ← alpha v + xi`.
+
+    The noise `xi` is normal with mean 0 and deviation `sigma`, and the walks start from `x = v = 0`. The pair
+    `(x, v)` is Markovian while the displacements are correlated, so the mean squared displacement grows as
+    `sigma² t / (1 - alpha)²` at long times instead of `sigma² t / (1 - alpha²)` for uncorrelated steps of the same
+    variance.
+
+    Args:
+        n_walkers:
+            The number of independent walkers.
+
+        alpha:
+            The memory `alpha` of the velocity, between 0 and 1.
+
+        sigma:
+            The deviation `sigma` of the noise.
+
+    Returns:
+        system:
+            The model, with the positions `walkers.x` and the velocities `walkers.v`.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.stochastic_processes import random_walk_with_memory
+        >>> random_walk_with_memory(10).elements[0].size
+        10
+    """
+    return System(elements=[MemoryWalker.group('walkers', n_walkers, alpha=alpha, sigma=sigma)])

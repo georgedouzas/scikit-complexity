@@ -196,13 +196,16 @@ class Simulation(BaseEstimator):
     def _compile_problem(self, problem: Problem) -> None:
         """Call every numeric function of one problem once, so compiled backends finish compiling."""
         x, p = self.state_, self.parameters_
-        for function in (problem.drift, problem.diffusion, problem.propensities, problem.update, problem.boundary):
+        rng = np.random.default_rng(0)
+        drawn = (rng,) if problem.stochastic else ()
+        for function in (problem.drift, problem.diffusion, problem.propensities, problem.boundary):
             if function is not None:
                 function(0.0, x, p)
+        if problem.update is not None:
+            problem.update(0.0, x, p, *drawn)
         accelerated = problem.accelerated
         if accelerated is None:
             return
-        rng = np.random.default_rng(0)
         if accelerated.rk4 is not None:
             accelerated.rk4(0.0, x, p, 0.0, 1.0)
         if accelerated.velocity_verlet is not None:
@@ -213,7 +216,7 @@ class Simulation(BaseEstimator):
         if accelerated.gillespie is not None:
             accelerated.gillespie(0.0, x, p, 0.0, rng)
         if accelerated.iterate is not None:
-            accelerated.iterate(0.0, x, p, 0.0)
+            accelerated.iterate(0.0, x, p, 0.0, *drawn)
 
     def _emit(self, step: int) -> None:
         """Hand the current frame, with the events since the previous one, to every observer."""
@@ -312,6 +315,28 @@ class Simulation(BaseEstimator):
             return entry.encode(value)
         except ValueError as error:
             raise ValidationError(error_msg) from error
+
+    def _check_matrices(self, changes: list[tuple[str, slice, Vector]]) -> None:
+        """Raise an error when parameter changes would break a transition or emission matrix."""
+        problems = (self.problem_, *(partition.problem for partition in self.problem_.partitions))
+        matrices = [matrix for problem in problems for matrix in problem.matrices]
+        if not matrices:
+            return
+        candidate = self.parameters_.copy()
+        positions = np.arange(candidate.size)
+        changed: dict[int, str] = {}
+        for name, indices, value in changes:
+            candidate[indices] = value
+            changed.update(dict.fromkeys(positions[indices].tolist(), name))
+        for matrix in matrices:
+            names = sorted({changed[index] for index in matrix.reads if index in changed})
+            violation = matrix.violation(candidate) if names else None
+            if violation is not None:
+                error_msg = (
+                    f'Setting {", ".join(names)} would make {violation}, so the change is rejected and the parameters '
+                    'keep their values. Choose values that keep every entry nonnegative and every row summing to 1.'
+                )
+                raise ParameterError(error_msg)
 
     def _check_prepared(self) -> None:
         """Raise an error when the simulation has not been run or started."""
@@ -448,20 +473,25 @@ class Simulation(BaseEstimator):
 
         Raises:
             ParameterError:
-                A name is not a parameter or a parameter component of the problem.
+                A name is not a parameter or a parameter component of the problem, or a value would make a
+                transition or emission matrix negative or its rows not sum to 1.
 
             ValidationError:
                 A value has the wrong shape or is outside the domain of its parameter.
         """
         self._check_prepared()
         layout = self.problem_.parameters
+        changes = []
         for name, value in values.items():
             try:
                 entry, indices = layout.locate(name)
             except KeyError as error:
                 error_msg = f'No parameter named {name!r}. Available names are: {", ".join(layout.names)}.'
                 raise ParameterError(error_msg) from error
-            self._pending.put((indices, self._check_value(name, entry, value)))
+            changes.append((name, indices, self._check_value(name, entry, value)))
+        self._check_matrices(changes)
+        for _, indices, value in changes:
+            self._pending.put((indices, value))
         if self._thread is None or not self._thread.is_alive():
             self._apply_pending()
 

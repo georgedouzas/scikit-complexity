@@ -1,6 +1,7 @@
 """Describe models as elements, interactions, laws, spaces, and systems."""
 
 from ._components import AgentType, Aggregate, Element, Group, Interaction, PairInteraction
+from ._draws import Draw, bernoulli, categorical, draws_in, is_draw, normal, uniform
 from ._fields import Field, Flux, advection, divergence, gradient, inverse_laplacian, laplacian
 from ._functions import (
     both,
@@ -33,7 +34,22 @@ from ._lattices import (
     Wolfram,
     neighbors,
 )
-from ._laws import Boundary, Call, Equation, Event, Jump, Law, Noise, NumericFunction, Rate, Rule, Target, Update
+from ._laws import (
+    Boundary,
+    Call,
+    Emission,
+    Equation,
+    Event,
+    Jump,
+    Law,
+    Noise,
+    NumericFunction,
+    Rate,
+    Rule,
+    Target,
+    Transition,
+    Update,
+)
 from ._meshes import Mesh
 from ._observables import Observable, reduce_values
 from ._particles import (
@@ -63,8 +79,10 @@ __all__: list[str] = [
     'Call',
     'ConstantForce',
     'ContinuousSpace',
+    'Draw',
     'Drive',
     'Element',
+    'Emission',
     'Energy',
     'Equation',
     'EuclideanSpace',
@@ -111,18 +129,23 @@ __all__: list[str] = [
     'Table',
     'Target',
     'Totalistic',
+    'Transition',
     'Update',
     'Wolfram',
     'advection',
+    'bernoulli',
     'both',
+    'categorical',
     'count',
     'delayed',
     'derivative',
     'divergence',
+    'draws_in',
     'either',
     'gradient',
     'has_reductions',
     'inverse_laplacian',
+    'is_draw',
     'lag',
     'laplacian',
     'maximum',
@@ -130,6 +153,7 @@ __all__: list[str] = [
     'minimum',
     'mod',
     'neighbors',
+    'normal',
     'pulse',
     'pulse_train',
     'ramp',
@@ -140,6 +164,7 @@ __all__: list[str] = [
     'shift_member',
     'step',
     'total',
+    'uniform',
     'variance',
     'where',
 ]

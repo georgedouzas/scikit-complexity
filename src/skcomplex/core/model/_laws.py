@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, cast
 
@@ -31,6 +31,20 @@ def _checked_value(description: str, value: object) -> object:
     if isinstance(value, np.generic):
         return SR(value.item())
     return value
+
+
+def _checked_matrix(description: str, matrix: object) -> tuple[tuple[object, ...], ...]:
+    """Return a matrix as a tuple of rows of Sage values, after checking that it is a nonempty rectangle."""
+    rows = [list(row) for row in matrix] if isinstance(matrix, list | tuple | np.ndarray) else []
+    widths = {len(row) for row in rows}
+    if not rows or len(widths) != 1 or 0 in widths:
+        error_msg = (
+            f'The matrix of the {description} must be a nonempty sequence of rows of equal length, but got {matrix!r}.'
+        )
+        raise ValidationError(error_msg)
+    return tuple(
+        tuple(_checked_value(f'entry of the matrix of the {description}', entry) for entry in row) for row in rows
+    )
 
 
 def _check_value(law: object, name: str, description: str) -> None:
@@ -207,6 +221,79 @@ class Update:
 
 
 @dataclass(frozen=True)
+class Transition:
+    """Step of a discrete-time Markov chain, a state over a finite alphabet drawn from a row of a transition matrix.
+
+    The state's current value selects the row, and the next value is drawn from it. The state takes a categorical
+    domain or the integers from 0 to `n - 1`. A transition is a kind of update law, so it combines with update laws.
+
+    Args:
+        target:
+            The symbol of a scalar state.
+
+        matrix:
+            The square transition matrix, whose entry `(i, j)` is the probability of the step from `i` to `j`, as
+            numbers or expressions of parameters.
+
+    Raises:
+        ValidationError:
+            The matrix is not a nonempty sequence of rows of equal length.
+
+    Examples:
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import Transition
+        >>> x, q = symbol('x'), symbol('q')
+        >>> Transition(x, [[q, 1 - q], [0.4, 0.6]]).matrix[0]
+        (q, -q + 1)
+    """
+
+    target: Expression
+    matrix: Sequence[Sequence[object]]
+
+    def __post_init__(self) -> None:
+        """Check the matrix of the law."""
+        object.__setattr__(self, 'matrix', _checked_matrix(f'transition law of {self.target}', self.matrix))
+
+
+@dataclass(frozen=True)
+class Emission:
+    """Observation of a hidden Markov source, a state drawn from the row of an emission matrix a hidden state selects.
+
+    The emission reads the hidden state's value after the same step, so the hidden and observed sequences align.
+
+    Args:
+        target:
+            The symbol of the observed scalar state.
+
+        source:
+            The symbol of the hidden state, which an update or transition law of the same component sets.
+
+        matrix:
+            The emission matrix, one row per value of the hidden state and one column per value of the observed state,
+            as numbers or expressions of parameters.
+
+    Raises:
+        ValidationError:
+            The matrix is not a nonempty sequence of rows of equal length.
+
+    Examples:
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import Emission
+        >>> symbol_, hidden = symbol('symbol'), symbol('hidden')
+        >>> len(Emission(symbol_, hidden, [[0.7, 0.3], [0.2, 0.8]]).matrix)
+        2
+    """
+
+    target: Expression
+    source: Expression
+    matrix: Sequence[Sequence[object]]
+
+    def __post_init__(self) -> None:
+        """Check the matrix of the law."""
+        object.__setattr__(self, 'matrix', _checked_matrix(f'emission law of {self.target}', self.matrix))
+
+
+@dataclass(frozen=True)
 class Boundary:
     """Value a state takes after every solver step, such as a reflection at a wall or a wrap around a periodic box.
 
@@ -336,6 +423,8 @@ type Law = (
     | Noise
     | Jump
     | Update
+    | Transition
+    | Emission
     | Boundary
     | Rule
     | Equation

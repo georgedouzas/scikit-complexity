@@ -14,6 +14,7 @@ from ._factories import (
     varying_capacity_logistic,
 )
 from ._fronts import FisherKPP, fisher_kpp
+from ._instability import UnstablePopulations, intrinsic_instability
 from ._meadow import Cow, Grazing, Herding, Pasture, meadow_capacity
 from ._microbial_communities import GeneralizedLotkaVolterra, Microbe, generalized_lotka_volterra
 from ._neutral import NeutralSpecies, neutral_macroecology
@@ -86,6 +87,7 @@ __all__: list[str] = [
     'StigmergicPredator',
     'StigmergicPrey',
     'SuccessionalGrowth',
+    'UnstablePopulations',
     'Wolf',
     'agent_based_lotka_volterra',
     'competition',
@@ -96,6 +98,7 @@ __all__: list[str] = [
     'food_webs',
     'generalized_lotka_volterra',
     'hutchinson',
+    'intrinsic_instability',
     'logistic_growth',
     'lotka_volterra',
     'lotka_volterra_with_harvesting',

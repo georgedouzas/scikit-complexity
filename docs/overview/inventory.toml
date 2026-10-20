@@ -234,7 +234,7 @@ agent_based_lotka_volterra = { title = "Agent-based Lotka-Volterra", sources = [
 stigmergic_predator_prey = { title = "Stigmergic predator-prey automaton", sources = ["Cm 8"], status = "implemented" }
 meadow_capacity = { title = "Carrying capacity of a meadow", sources = ["Ha 10.2"], status = "implemented" }
 neutral_macroecology = { title = "Neutral macroecology", sources = ["Gr 8.6"], status = "implemented" }
-intrinsic_instability = { title = "Intrinsic-instability populations", sources = ["Je 13.2"], status = "blocked add-stochastic-maps", feature = "Random draws from the simulation's stream inside update laws" }
+intrinsic_instability = { title = "Intrinsic-instability populations", sources = ["Je 13.2"], status = "implemented" }
 stochastic_predator_prey = { title = "Generalized stochastic predator-prey", sources = ["Cm 1"], status = "implemented" }
 sequentially_linear_ecosystem = { title = "Sequentially linear ecosystem", sources = ["Th 5.5.2"], status = "pending add-adaptive-networks" }
 droop_cell_quota = { title = "Droop cell-quota growth", sources = ["Pa 7.3"], status = "implemented" }
@@ -303,7 +303,7 @@ three_gene_boolean_network = { title = "Three-gene Boolean network", sources = [
 mammalian_cell_cycle = { title = "Boolean model of the mammalian cell cycle", sources = ["Rm 7.2", "Rm Ex 7.6"], status = "implemented" }
 boolean_repressilator = { title = "Boolean repressilator", sources = ["Rm Ex 7.3"], status = "implemented" }
 goodwin_oscillator = { title = "Goodwin oscillator", sources = ["Rm Ex 13.3", "Rm 12.3.1"], status = "implemented" }
-probabilistic_boolean_network = { title = "Probabilistic Boolean network", sources = ["Rm 7.3.1"], status = "pending add-stochastic-maps" }
+probabilistic_boolean_network = { title = "Probabilistic Boolean network", sources = ["Rm 7.3.1"], status = "implemented" }
 flux_balance = { title = "Flux balance, flux variability, and parsimonious FBA", sources = ["Rm 8.2", "Rm 8.6", "Rm 8.7", "Rm 8.8", "Rm Ex 8.4"], status = "blocked add-constraint-based-models", feature = "Constraint-based models: stoichiometric constraints with bounds and an objective solved as an LP, statically or coupled to dynamics" }
 metabolic_perturbations = { title = "Knock-outs, MoMA, ROOM, OptKnock, and synthetic lethals", sources = ["Rm 9.1", "Rm 9.2", "Rm 9.3", "Rm 10.1", "Rm 10.2", "Rm 10.3"], status = "blocked add-constraint-based-models", feature = "Constraint-based models: stoichiometric constraints with bounds and an objective solved as an LP, statically or coupled to dynamics" }
 regulatory_fba = { title = "Regulatory flux balance analysis", sources = ["Rm 9.4.1"], status = "blocked add-constraint-based-models", feature = "Constraint-based models: stoichiometric constraints with bounds and an objective solved as an LP, statically or coupled to dynamics" }
@@ -610,12 +610,12 @@ fragmentation = { title = "Fragmentation", sources = ["Th 2.5.4", "Th 3.3.5"], s
 ageing_random_walk = { title = "Ageing random walk", sources = ["Th 6.4.3.1"], status = "implemented" }
 bernoulli_process = { title = "Bernoulli process", sources = ["Th 2.5.1"], status = "implemented" }
 poisson_process = { title = "Poisson process", sources = ["Th 2.5.1"], status = "implemented" }
-persistent_random_walk = { title = "Persistent random walk", sources = ["Je 10.4"], status = "blocked add-stochastic-maps", feature = "Random draws from the simulation's stream inside update laws, and discrete-time Markov chains" }
-markov_source = { title = "Markov source", sources = ["Li 3.2"], status = "blocked add-stochastic-maps", feature = "Random draws from the simulation's stream inside update laws, and discrete-time Markov chains" }
-hidden_markov_source = { title = "Hidden Markov source", sources = ["Li 3.2"], status = "blocked add-stochastic-maps", feature = "Random draws from the simulation's stream inside update laws, and discrete-time Markov chains" }
+persistent_random_walk = { title = "Persistent random walk", sources = ["Je 10.4"], status = "implemented" }
+markov_source = { title = "Markov source", sources = ["Li 3.2"], status = "implemented" }
+hidden_markov_source = { title = "Hidden Markov source", sources = ["Li 3.2"], status = "implemented" }
 on_off_intermittency = { title = "Stochastic on-off intermittency", sources = ["Bt 2.5.2"], status = "implemented" }
 birth_death_queue = { title = "Birth-death process and M/M/1 queue", sources = ["Bt 3.2.1", "Bt 3.6"], status = "implemented" }
-random_walk_with_memory = { title = "Random walk with autoregressive velocity", sources = ["Bt 2.7"], status = "pending add-stochastic-maps" }
+random_walk_with_memory = { title = "Random walk with autoregressive velocity", sources = ["Bt 2.7"], status = "implemented" }
 
 [mathematics.networks]
 network_random_walk = { title = "Random walks", sources = ["Th 4.8", "Je 8.5.2"], status = "implemented" }
@@ -629,7 +629,7 @@ network_structure_analysis = { title = "Centralities, assortativity, communities
 random_graph_ensembles = { title = "Erdos-Renyi and Watts-Strogatz graphs", sources = ["Bt 6.1.1", "Bt 6.1.2"], status = "pending add-adaptive-networks" }
 
 [mathematics.fractals]
-chaos_game = { title = "Iterated function systems by the chaos game", sources = ["Di 5.4"], status = "blocked add-stochastic-maps", feature = "Random draws from the simulation's stream inside update laws, and discrete-time Markov chains" }
+chaos_game = { title = "Iterated function systems by the chaos game", sources = ["Di 5.4"], status = "implemented" }
 mandelbrot = { title = "Mandelbrot set", sources = ["Di 5.5"], status = "implemented" }
 julia = { title = "Julia sets", sources = ["Di 5.5"], status = "implemented" }
 koch_curve = { title = "Koch", sources = ["Th 3.5.2", "Tr 3.5"], status = "blocked add-rewriting-systems", feature = "Rewriting and substitution dynamics" }
@@ -666,5 +666,5 @@ evolutionary_optimisers = { title = "Simulated annealing, genetic algorithms, an
 [computer_science.neural_networks]
 hopfield = { title = "Hopfield network", sources = ["Tr 7.3", "2112.12147 §3.1.2", "Bt 6.3.1"], status = "implemented" }
 elman_network = { title = "Elman recurrent network trained by backpropagation", sources = ["Gr 10.5.1"], status = "blocked add-learning-dynamics", feature = "Learning as dynamics: parameters that evolve by gradient descent" }
-diluted_hopfield = { title = "Asymmetric diluted Hopfield network", sources = ["Bt 6.3.2"], status = "pending add-stochastic-maps" }
+diluted_hopfield = { title = "Asymmetric diluted Hopfield network", sources = ["Bt 6.3.2"], status = "implemented" }
 perceptron_satisfiability = { title = "Binary perceptron and random K-SAT", sources = ["Bt 6.3.3", "Bt 6.4"], status = "blocked add-static-models", feature = "Models solved, sampled, enumerated, or optimised rather than integrated in time" }

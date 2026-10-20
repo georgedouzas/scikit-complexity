@@ -14,7 +14,7 @@ from sklearn.base import BaseEstimator
 from ..base import BackendError, Form, Registry
 from ..model import Boundary, Jump, Noise, Rate, Update
 from ._kernels import Indices, Kernel, Reference, add_into, assign_into, jump_channels, noise_rows
-from ._problem import Accelerated, JumpChannels, Vector, VectorFunction
+from ._problem import Accelerated, Draws, JumpChannels, Vector, VectorFunction
 from ._reductions import ReductionPass
 
 AUTO_MEMBERS = 1000
@@ -77,6 +77,7 @@ class Backend(BaseEstimator):
         size: int,
         *,
         reductions: ReductionPass | None = None,
+        draws: Draws | None = None,
     ) -> Lowering:
         """Return the numeric functions of a form.
 
@@ -95,6 +96,10 @@ class Backend(BaseEstimator):
 
             reductions:
                 The reductions the kernels read, evaluated before them at every evaluation, or `None`.
+
+            draws:
+                The random values a stochastic map draws at every step into the parameter vector extended after its
+                parameters, or `None` for a deterministic problem.
 
         Returns:
             lowering:
@@ -220,6 +225,7 @@ class NumpyBackend(Backend):
         size: int,
         *,
         reductions: ReductionPass | None = None,
+        draws: Draws | None = None,
     ) -> Lowering:
         """Return the numeric functions of a form evaluated with NumPy.
 
@@ -239,10 +245,15 @@ class NumpyBackend(Backend):
             reductions:
                 The reductions the kernels read, evaluated before them at every evaluation, or `None`.
 
+            draws:
+                The random values a stochastic map draws at every step into the parameter vector extended after its
+                parameters, or `None` for a deterministic problem.
+
         Returns:
             lowering:
                 The numeric functions.
         """
+        del draws
         lowering = Lowering()
         if kernels.get(Boundary):
             lowering.boundary = assigning_function(kernels[Boundary])

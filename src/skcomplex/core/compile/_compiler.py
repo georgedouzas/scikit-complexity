@@ -43,6 +43,7 @@ from ..model import (
     Call,
     Drive,
     Element,
+    Emission,
     Energy,
     Equation,
     Event,
@@ -67,6 +68,7 @@ from ..model import (
     Space,
     Symbols,
     System,
+    Transition,
     Update,
     count,
     has_reductions,
@@ -97,9 +99,19 @@ from ._lowering import symbolic_components
 from ._members import MemberShifts
 from ._observables import _join, _tree, observables_of
 from ._printing import numpy_function
-from ._problem import CompiledAgents, CompiledElement, CompiledInteraction, Partition, Problem, Vector, VectorFunction
+from ._problem import (
+    CompiledAgents,
+    CompiledElement,
+    CompiledInteraction,
+    MarkovMatrix,
+    Partition,
+    Problem,
+    Vector,
+    VectorFunction,
+)
 from ._reductions import CompiledReduction, Read, ReductionPass
 from ._splitting import LinearTerm, linear_terms
+from ._stochastic import DrawLowering, MatrixLaw, check_draw_placement, compile_matrix, markov_laws, stochastic_update
 from ._tree import Node, coerce_value, flatten_system, shape_of
 from ._volumes import FiniteVolume, compile_volumes
 
@@ -726,11 +738,11 @@ def _state_name(spec: _KernelSpec, target: Expression) -> str:
 def _collect_laws(spec: _KernelSpec, component: object) -> list[Law]:
     """Return the laws a component returns for its namespace after checking their kinds."""
     laws = component.laws(spec.namespace)  # type: ignore[attr-defined]
-    kinds = (Rate, Noise, Jump, Update, Boundary, Rule, Equation, Event, *KERNEL_FREE)
+    kinds = (Rate, Noise, Jump, Update, Transition, Emission, Boundary, Rule, Equation, Event, *KERNEL_FREE)
     if not isinstance(laws, list | tuple) or not all(isinstance(law, kinds) for law in laws):
         error_msg = (
-            f'`laws` of {spec.owner} must return a list of Rate, Noise, Jump, Update, Boundary, Rule, Equation, Event, '
-            'LocalRule, Drive, Relaxation, Energy, Move, Sampler, or Flux laws.'
+            f'`laws` of {spec.owner} must return a list of Rate, Noise, Jump, Update, Transition, Emission, Boundary, '
+            'Rule, Equation, Event, LocalRule, Drive, Relaxation, Energy, Move, Sampler, or Flux laws.'
         )
         raise ValidationError(error_msg)
     if spec.pairs is not None and not all(isinstance(law, Rate) for law in laws):
@@ -907,7 +919,7 @@ def _with_orders(spec: _KernelSpec, laws: list[Law], block: _Block, orders: _Ord
         return laws
     result: list[Any] = []
     for law in laws:
-        if isinstance(law, (Rule, *KERNEL_FREE)):
+        if isinstance(law, (Rule, Transition, Emission, *KERNEL_FREE)):
             result.append(law)
             continue
         if isinstance(law, Equation):
@@ -1459,14 +1471,15 @@ class _Reductions:
     """Reductions collected from the laws of a system, deduplicated, with their placeholders and hidden entries."""
 
     declarations: _Declarations
+    drawn: int = 0
     found: dict[tuple[Any, ...], CompiledReduction] = field(default_factory=dict)
     by_symbol: dict[Expression, CompiledReduction] = field(default_factory=dict)
     readers: dict[Expression, str | None] = field(default_factory=dict)
 
     @property
     def parameters(self) -> int:
-        """Size of the parameter vector, where the hidden entries of the reductions start."""
-        return sum(entry.size for entry in self.declarations.parameters)
+        """Size of the parameter vector and the drawn values, where the hidden entries of the reductions start."""
+        return sum(entry.size for entry in self.declarations.parameters) + self.drawn
 
     @property
     def extent(self) -> int:
@@ -1682,9 +1695,10 @@ def _with_reductions(
     specs: list[tuple[_KernelSpec, list[Law]]],
     hybrid: _Hybrid,
     declarations: _Declarations,
+    drawn: int,
 ) -> tuple[list[tuple[_KernelSpec, list[Law]]], ReductionPass]:
     """Return laws and events whose reductions read placeholders, and the pass that evaluates the reductions."""
-    reductions = _Reductions(declarations)
+    reductions = _Reductions(declarations, drawn)
     lowered = [(spec, [_lower_law(law, spec, reductions) for law in laws]) for spec, laws in specs]
     events = []
     for spec, event in hybrid.events:
@@ -1735,8 +1749,8 @@ def _lower_laws(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Decla
                 lowered.jump_changes[id(output)] = changes
                 outputs[(Jump, False)].append(output)
                 continue
-            if isinstance(law, Equation):
-                error_msg = f'An equation of {spec.owner} reached lowering before it was solved.'
+            if isinstance(law, Equation | Transition | Emission):
+                error_msg = f'A {type(law).__name__} law of {spec.owner} reached lowering before it was rewritten.'
                 raise ValidationError(error_msg)
             targets = _target_references(law.target, spec)
             once = _is_once(spec, law)
@@ -1820,13 +1834,20 @@ def _lower(
     declarations: _Declarations,
     backend: Backend,
     reductions: ReductionPass,
+    *,
+    drawing: DrawLowering,
 ) -> dict[str, object]:
-    """Return the numeric functions and equations of a form."""
+    """Return the numeric functions and equations of a form, with the update of a stochastic map taking a generator."""
     kernels, size = lowered.kernels, sum(entry.size for entry in declarations.states)
+    draws = drawing.draws
+    extra = {} if draws is None else {'draws': draws}
     functions: dict[str, object] = vars(
-        backend.lower(form, kernels, lowered.jump_changes, size, reductions=reductions),
+        backend.lower(form, kernels, lowered.jump_changes, size, reductions=reductions, **extra),
     ).copy()
+    if draws is not None and functions.get('update') is not None:
+        functions['update'] = stochastic_update(cast('Callable[..., Vector]', functions['update']), draws)
     functions['backend'] = backend.name
+    functions['draws'] = draws
     main = {Form.ODE: kernels[Rate], Form.SDE: kernels[Rate] + kernels[Noise], Form.JUMP: kernels[Jump]}.get(
         form,
         kernels[Update],
@@ -1840,6 +1861,26 @@ def _lower(
         has_group_sums=any(_sums_over_members(kernel, item) for kernel in main for item in kernel.outputs),
     )
     return functions
+
+
+def _checked_matrices(
+    markov: list[tuple[_KernelSpec, MatrixLaw]],
+    declarations: _Declarations,
+) -> tuple[MarkovMatrix, ...]:
+    """Return the matrices of the Markov laws after checking them at the initial parameter values."""
+    initial = np.concatenate([np.zeros(0), *declarations.initial_parameters])
+    matrices = []
+    for spec, law in markov:
+        matrix = compile_matrix(law, spec.references, max(spec.rows, 1), declarations.time)
+        violation = matrix.violation(initial)
+        if violation is not None:
+            error_msg = (
+                f'At the initial parameter values, {violation}. Give a matrix with nonnegative entries whose rows sum '
+                'to 1.'
+            )
+            raise ValidationError(error_msg)
+        matrices.append(matrix)
+    return tuple(matrices)
 
 
 def _compile_mesa(system: MesaSystem) -> Problem:
@@ -2031,6 +2072,36 @@ def _specs_of(block: _Block, elements: dict[str, _Block], time: Expression, obse
     return _interaction_specs(block, elements, time, observe)
 
 
+def _with_draws(
+    specs: list[tuple[_KernelSpec, list[Law]]],
+    declarations: _Declarations,
+) -> tuple[list[tuple[_KernelSpec, list[Law]]], DrawLowering]:
+    """Return the laws with their draws replaced by values drawn after the parameters, and the lowering of the draws."""
+    drawing = DrawLowering(sum(entry.size for entry in declarations.parameters))
+    lowered = [(spec, drawing.lower(spec.owner, spec.rows, laws, spec.references)) for spec, laws in specs]
+    drawing.allocate()
+    return lowered, drawing
+
+
+def _collected_laws(
+    blocks: list[_Block],
+    elements: dict[str, _Block],
+    time: Expression,
+    observe: Observe,
+) -> tuple[list[tuple[_KernelSpec, list[Law], _Block]], list[tuple[_KernelSpec, MatrixLaw]]]:
+    """Return the laws of every kernel spec, with Markov laws rewritten as updates, and the matrices of Markov laws."""
+    collected: list[tuple[_KernelSpec, list[Law], _Block]] = []
+    markov: list[tuple[_KernelSpec, MatrixLaw]] = []
+    for block in blocks:
+        for spec in _specs_of(block, elements, time, observe):
+            laws, matrices = markov_laws(spec.owner, _collect_laws(spec, _component_of(block.node)), spec.references)
+            check_draw_placement(spec.owner, laws)
+            _settle_rows(spec, laws)
+            collected.append((spec, laws, block))
+            markov.extend((spec, matrix) for matrix in matrices)
+    return collected, markov
+
+
 def _compile(system: System, backend: str | Backend, owners: frozenset[str] | None) -> Problem:
     """Return the problem of a system, keeping only the laws of the elements in `owners` when it is given."""
     nodes = flatten_system(system)
@@ -2039,12 +2110,8 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
     _check_symbol_names(declarations.blocks)
     elements = {block.node.path: block for block in blocks if not _is_interaction(block.node)}
     observe = _Observer(declarations, _lowerable_observables(system, nodes))
-    collected: list[tuple[_KernelSpec, list[Law], _Block]] = []
-    for block in blocks:
-        for spec in _specs_of(block, elements, declarations.time, observe):
-            laws = _collect_laws(spec, _component_of(block.node))
-            _settle_rows(spec, laws)
-            collected.append((spec, laws, block))
+    collected, markov = _collected_laws(blocks, elements, declarations.time, observe)
+    checked = _checked_matrices(markov, declarations)
     orders = _Orders.of(blocks)
     specs = _solve_equations([(spec, _with_orders(spec, laws, block, orders)) for spec, laws, block in collected])
     noise = getattr(system, 'noise', 'ito')
@@ -2058,6 +2125,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
     agents = {block.node.path for block in blocks if block.node.is_agent}
     if owners is not None:
         specs = [(spec, [law for law in laws if _law_owner(spec, law, agents) in owners]) for spec, laws in specs]
+    specs, drawing = _with_draws(specs, declarations)
     try:
         form = _infer_form([law for _, laws in specs for law in laws])
     except IncompatibleLawsError:
@@ -2069,13 +2137,13 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
                 kinds[_law_owner(spec, law, agents)].add(type(law))
         plan = _plan_partitions(system, kinds)
         return _compile_partitions(system, backend, plan)
-    specs, reductions = _with_reductions(specs, hybrid, declarations)
+    specs, reductions = _with_reductions(specs, hybrid, declarations, drawing.draws.size if drawing.draws else 0)
     lowered = _lower_laws(specs, declarations)
     members = sum(block.node.members or 0 for block in blocks if not block.node.is_agent)
     stepwise = form in {Form.AGENT, Form.LATTICE, Form.MONTE_CARLO}
     chosen = resolve_backend('numpy' if stepwise else backend, members)
     fused = resolve_backend(backend, members).name == 'numba'
-    functions = _lower(form, lowered, declarations, chosen, reductions)
+    functions = _lower(form, lowered, declarations, chosen, reductions, drawing=drawing)
     states, parameters = Layout(declarations.states), Layout(declarations.parameters)
     functions['boundary'] = _wrapping_angles(cast('VectorFunction | None', functions.get('boundary')), states)
     functions['equations'] = _written_equations(cast('dict[str, Expression]', functions['equations']), states, fields)
@@ -2155,6 +2223,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         linear=tuple(fields.linear),
         volumes=volumes,
         constrained=constrained[0],
+        matrices=checked,
         **functions,  # type: ignore[arg-type]
     )
 

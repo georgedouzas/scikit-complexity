@@ -92,6 +92,7 @@ tests = [
     "pytest-cov>=5.0.0",
     "pytest-randomly>=3.15.0",
     "pytest-xdist>=3.6.1",
+    "quantecon>=0.10",
 ]
 changelog = [
     "git-changelog>=2.5.2",

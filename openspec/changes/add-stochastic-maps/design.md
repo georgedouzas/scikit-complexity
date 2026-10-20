@@ -72,19 +72,24 @@ was rejected, because a distribution's arguments often depend on the current sta
 ### Lowering
 
 The compiler collects the draws of each component and checks that every name has one distribution and one argument
-list. It replaces each draw by a fresh scalar symbol per component, or a group variable per group, filled at the start
-of the step. The draw block runs before the update expressions in a fixed order, by component path, draw name, and
-member index:
-- uniform and Bernoulli draws use `rng.random(n)`, compared or scaled;
-- categorical draws use `rng.random(n)` and a search in the cumulative weights, as the compiled `gillespie` kernel does
-  already;
-- normal draws use `rng.normal(mean, deviation, n)`.
+list. Every draw is written in terms of one standard value: a uniform value `U` in `[0, 1)` for uniform, Bernoulli,
+and categorical draws, and a standard normal value `Z` for normal draws:
+- `uniform(a, b)` becomes `a + (b - a) U`, and `bernoulli(p)` becomes `where(U < p, 1, 0)`;
+- `categorical(w)` becomes the number of cumulative weights `w_0 + ... + w_{k-1}`, for `k` from 1, that `U` times the
+  total weight reaches, the inverse cumulative lookup the compiled `gillespie` kernel does already;
+- `normal(m, s)` becomes `m + s Z`.
 
-The NumPy backend draws one vector per name. The Numba backend loops in the same order and calls the same `Generator`
-methods, so uniform-based draws give equal trajectories on both backends. `Problem` gains `stochastic: bool`, the
-update signature becomes `update(t, x, p, rng)` when it is set, and the `iterate` kernel takes the generator. The
-`iteration` stepper passes its generator through. A deterministic map keeps its present signature and kernel, so
-existing models and their cached kernels are unchanged.
+The standard values are stored after the parameters in an extended parameter vector, one per component and name, or
+one per member for a group, so the kernels read them like parameters and every backend lowers them without change.
+The reductions read by laws move after the draws. `Problem.draws` holds the offset of the draws and which of them are
+normal, in the fixed order by component path, draw name, and member index, and `Problem.stochastic` is set when it
+exists. The update of a stochastic problem becomes `update(t, x, p, rng)`, which extends `p`, fills the draws, and
+evaluates the map. The NumPy backend fills each run of uniform or normal draws with one `rng.random(n)` or
+`rng.standard_normal(n)` call, and the Numba loop `iterate_random(t, x, p, L, until, rng, offset, normal)` calls
+`rng.random()` or `rng.standard_normal()` once per draw in the same order, so uniform-based draws give equal
+trajectories on both backends. The `iteration` stepper passes its generator through. A deterministic map keeps its
+present signature and kernel, so existing models and their cached kernels are unchanged. The equations of a stochastic
+map show the standard value of each draw as a symbol named after the draw kind, the draw name, and the component.
 
 ### Transition and emission laws
 
@@ -95,9 +100,11 @@ compiler rewrites them before printing:
 - an emission becomes `Update(target, categorical(key, row))`, where the row is the one the source's new value selects,
   obtained by substituting the source's update expression.
 
-The key is derived from the law's path, so it never collides with a user's draw name. Matrices of numbers lower to
-constant arrays. Matrices with parameters lower to an array assembled from the parameter vector once per step, and the
-row lookup is an index into it. Emission substitution reuses the source's draws, so the hidden draw is taken once.
+The key is derived from the law's target and starts with an underscore, so it never collides with a user's draw name.
+The row lookup is a nested condition on the selecting value, whose entries are numbers or expressions of parameters,
+so a live parameter change reaches the next step. Emission substitution reuses the source's draws, so the hidden draw
+is taken once. `Problem.matrices` holds every matrix as a function of the parameter vector with the parameter indices
+it reads.
 
 The matrix check runs at compile time with the initial parameter values. `Simulation.update_parameters` runs it again
 for every matrix that a changed parameter enters, before it applies the change, and raises `ParameterError`. Compile
@@ -113,15 +120,25 @@ change, since a stochastic map is still the discrete map form.
 
 ### Library models
 
-The models live in `skcomplex.models.mathematics.stochastic_processes` and `skcomplex.models.mathematics.fractals`,
-each self-contained:
-- `persistent_random_walk(n, persistence)` is a group with a direction `d` in `{-1, 1}` and a position `x`, with
-  `d ← where(bernoulli('turn', 1 - q), -d, d)` and `x ← x + where(bernoulli('turn', 1 - q), -d, d)`, which share the
-  draw;
-- `markov_source(matrix, labels)` and `hidden_markov_source(transition, emission, hidden_labels, labels)` use
-  `Transition` and `Emission` on categorical states;
-- `chaos_game(maps, weights, n)` is a group of points with `k = categorical('map', weights)` and a piecewise affine
-  update chosen by `k`, with the Sierpiński triangle and the Barnsley fern as presets.
+The models are self-contained, each in the package of its field:
+- `persistent_random_walk(n_walkers, persistence)` in `mathematics/stochastic_processes` is a group with a direction
+  `d` in `{-1, 1}` and a position `x`, with `d ← d (1 - 2 b)` and `x ← x + d (1 - 2 b)` for one shared draw
+  `b = bernoulli('turn', 1 - q)`;
+- `markov_source(transition)` and `hidden_markov_source(transition, emission)` in `mathematics/stochastic_processes` use
+  `Transition` and `Emission` on states over the integers `0` to `n - 1`. The alphabet is fixed by the matrices rather
+  than by labels, since a categorical domain is declared on the element type and a type built per call would not
+  pickle;
+- `random_walk_with_memory(n_walkers, alpha, sigma)` in `mathematics/stochastic_processes` is Bertin's walk
+  `x ← x + v`, `v ← alpha v + xi` with a normal draw;
+- `chaos_game(preset, maps, weights, n_points)` in `mathematics/fractals` is a group of points with
+  `k = categorical('map', weights)` and a piecewise affine update chosen by `k`, with the Sierpiński triangle and the
+  Barnsley fern as presets;
+- `probabilistic_boolean_network(network, inputs, active)` in `biology/systems_biology` draws the truth table of every
+  node with `categorical` and records the drawn index in a state;
+- `intrinsic_instability` in `biology/ecology` is Jensen's pair of populations, Eqs. (13.3) and (13.4), with normal
+  noise and a Bernoulli mutation;
+- `diluted_hopfield` in `computer_science/neural_networks` updates every neuron in parallel to `±1` with a uniform draw
+  compared with `1 / (1 + exp(-2 beta h))`, for the local field `h` as a weighted sum over the group.
 
 ## Risks / Trade-offs
 

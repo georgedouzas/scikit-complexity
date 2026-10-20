@@ -12,12 +12,13 @@ from sage.all__sagemath_symbolics import SR, floor
 from sage.symbolic.function import BuiltinFunction
 
 from ..base import Expression, ValidationError
+from ._draws import draws_in
 from ._lattices import BOUNDARIES
 
 
 def _is_decided(*arguments: Any) -> bool:  # noqa: ANN401
-    """Check that arguments hold no symbols, so a condition on them is true or false."""
-    return all(not SR(argument).variables() for argument in arguments)
+    """Check that arguments hold no symbols and no random draws, so a condition on them is true or false."""
+    return all(not SR(argument).variables() and not draws_in(argument) for argument in arguments)
 
 
 class _Where(BuiltinFunction):

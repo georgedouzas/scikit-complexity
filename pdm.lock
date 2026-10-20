@@ -5,7 +5,7 @@
 groups = ["default", "changelog", "checks", "docs", "formatting", "gallery", "maintenance", "release", "tests"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.1"
-content_hash = "sha256:d705118776dd0cc6b689edb8c81f9e8c8d43cd660f7eb6cea3e7eeff8112402a"
+content_hash = "sha256:b8cced61dd41127d79bf077b0a0a04be17b60ddae4aad576adb3e0c14a956f0f"
 
 [[metadata.targets]]
 requires_python = ">=3.12,<3.14"
@@ -1172,7 +1172,7 @@ name = "llvmlite"
 version = "0.50.0"
 requires_python = ">=3.10"
 summary = "lightweight wrapper around basic LLVM functionality"
-groups = ["default"]
+groups = ["default", "tests"]
 files = [
     {file = "llvmlite-0.50.0-cp312-cp312-macosx_12_0_arm64.whl", hash = "sha256:55f50a6b7c0b8de88b05d6bc407d70a60486ce024013997dc97e202bd187c75b"},
     {file = "llvmlite-0.50.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:6e8df54380110ea5e9127386e739d2b0829cc6dfa4a24a9195226336c91b06d5"},
@@ -1820,7 +1820,7 @@ name = "numba"
 version = "0.68.0"
 requires_python = ">=3.10"
 summary = "compiling Python code using LLVM"
-groups = ["default"]
+groups = ["default", "tests"]
 dependencies = [
     "llvmlite<0.51,>=0.50.0dev0",
     "numpy<2.6,>=1.22",
@@ -1844,7 +1844,7 @@ name = "numpy"
 version = "2.5.4"
 requires_python = ">=3.12"
 summary = "Fundamental package for array computing in Python"
-groups = ["default", "docs"]
+groups = ["default", "docs", "tests"]
 files = [
     {file = "numpy-2.5.4-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:c6342f54c67093cae5c0227eb0eb772fdb79f2a2c37a6eb278b9909ee06aa356"},
     {file = "numpy-2.5.4-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:b11e8fda06a7d69f15ebf542660b74466c2e51094800c1fb794f47ad4faeef17"},
@@ -2793,6 +2793,22 @@ files = [
 ]
 
 [[package]]
+name = "quantecon"
+version = "0.13.1"
+requires_python = ">=3.12"
+summary = "Import the main names to top level."
+groups = ["tests"]
+dependencies = [
+    "numba>=0.56.0",
+    "numpy>=1.17.0",
+    "scipy>=1.5.0",
+]
+files = [
+    {file = "quantecon-0.13.1-py3-none-any.whl", hash = "sha256:0d49fe6bcf269febe3a3835959152142b07113d8ca701d90663a007ce4c0fd6c"},
+    {file = "quantecon-0.13.1.tar.gz", hash = "sha256:82fead6b675e9529e4acecb93b14e54c48a39349111a1e289b85f8a94379f3ee"},
+]
+
+[[package]]
 name = "readme-renderer"
 version = "46.0"
 requires_python = ">=3.10"
@@ -2994,7 +3010,7 @@ name = "scipy"
 version = "1.18.1"
 requires_python = ">=3.12"
 summary = "Fundamental algorithms for scientific computing in Python"
-groups = ["default"]
+groups = ["default", "tests"]
 dependencies = [
     "numpy<2.8,>=2.0.0",
 ]

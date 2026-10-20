@@ -39,8 +39,9 @@ models as blocked on this gap:
 
 ### Modified Capabilities
 
-- `model-library`: the persistent random walk, Markov and hidden Markov sources, and chaos-game iterated function
-  systems, which this change unblocks.
+- `model-library`: the persistent random walk, Markov and hidden Markov sources, chaos-game iterated function systems,
+  the probabilistic Boolean network, the random walk with memory, the diluted Hopfield network, and the
+  intrinsic-instability populations, which this change unblocks.
 
 ## Impact
 
@@ -52,6 +53,8 @@ models as blocked on this gap:
   `skcomplex.core.solvers` passes its generator through.
 - No new runtime dependency: draws are taken from NumPy's `Generator`, which Numba accepts inside compiled kernels.
   `quantecon` becomes a test dependency, used as the reference for stationary distributions.
-- `skcomplex.models.mathematics.stochastic_processes` gains the persistent random walk and the Markov and hidden
-  Markov sources, and `skcomplex.models.mathematics.fractals` gains the chaos game. The inventory marks the three
+- `skcomplex.models.mathematics.stochastic_processes` gains the persistent random walk, the Markov and hidden Markov
+  sources, and the random walk with memory, `skcomplex.models.mathematics.fractals` gains the chaos game,
+  `skcomplex.models.biology` gains the probabilistic Boolean network and the intrinsic-instability populations, and
+  `skcomplex.models.computer_science.neural_networks` gains the diluted Hopfield network. The inventory marks the eight
   entries as implemented.

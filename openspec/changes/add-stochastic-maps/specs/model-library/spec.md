@@ -45,3 +45,14 @@ change's capability, each with a gallery example.
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** both models are registered under their field paths and marked implemented
 
+
+### Requirement: Intrinsic-instability populations
+The library SHALL provide `intrinsic_instability` in `biology/ecology`, the resident and invading populations of
+Jensen 2023 section 13.2, Eqs. (13.3) and (13.4), whose resident population follows an Ornstein-Uhlenbeck step with
+noise scaled by the square root of its size and is suppressed by an invader that a rare mutation seeds and that then
+grows exponentially, built on this change's capability, with a gallery example.
+
+#### Scenario: Leaving the fixed point from within
+- **WHEN** `intrinsic_instability` runs for 4000 steps with its default parameters and random state 0
+- **THEN** the invader is seeded before step 3000, the resident population stays within 0.15 of 1 before the
+  invader appears, and at the end the resident population is below 0.5 and the invader above 1
