@@ -528,14 +528,14 @@ def scaled_brownian_motion(
     field='physics/soft_matter',
     tags=('anomalous diffusion', 'sde', 'optical forces', 'disorder'),
     references=('Argun et al. 2021', 'Volpe, Volpe, and Gigan 2014'),
-    defaults={'until': 20.0, 'dt': 0.5, 'solver': EulerMaruyama(dt=0.01)},
+    defaults={'until': 60.0, 'dt': 0.5, 'solver': EulerMaruyama(dt=0.01)},
 )
 def diffusion_in_a_speckle_field(
     n_particles: int = 100,
     *,
     n_hotspots: int = 50,
     size: float = 100.0,
-    strength: float = 500.0,
+    strength: float = 30.0,
     length: float = 10.0,
     D: float = 1.0,
     random_state: int | np.random.Generator | None = 0,
@@ -544,6 +544,11 @@ def diffusion_in_a_speckle_field(
 
     The hotspots sit at random places in a square, with intensities `r^(-1/2)` and decay lengths `length r^(-1/2)` for
     independent uniform numbers `r`. The particles start at random places in the middle half of the square.
+
+    The default strength 30 draws the particles into the hotspots over the first ten time units and lets them escape
+    now and then, so from time 10 to 60 their mean squared displacement grows as `t^0.36`, a tenth of free diffusion.
+    A strength of 100 or more traps every particle within the first frames and leaves only the rattling inside one
+    hotspot, with a flat mean squared displacement.
 
     Args:
         n_particles:

@@ -349,6 +349,12 @@ records the measurement in the proposal's dropped items and closes.
   Moon after 3.5 time units, stays within `-0.9 < x < 1.1` for 100 time units, and has a finite-time exponent of 0.2
   over 100 and 200 time units. The docstring states both regimes. The example passes `vy = 1.0` explicitly, so its
   rosette is unchanged.
+- `diffusion_in_a_speckle_field` reproduces as a wrong default: at strength 500 the particles move 20.5 units on
+  average in the first frame of 0.5, as the drift up the hotspot gradients reaches about 40 per time unit, and from
+  time 10 to 60 their mean squared displacement stays flat at 0.2, so the default showed trapping and no anomalous
+  diffusion. At strength 30 the first frame moves them 3.2 units and the displacement grows as `t^0.36` to 19 against
+  200 for free diffusion, and at 100 it is already flat. The default strength becomes 30, the registered `until`
+  becomes 60, and the docstring states the regimes. The example passes strength 30 explicitly and is unchanged.
 
 ### Obesity and priority queues
 

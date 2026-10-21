@@ -212,6 +212,18 @@ def test_speckle_field_traps_particles():
     assert coefficients[1000.0] < 0.1
 
 
+def test_speckle_field_defaults_give_anomalous_diffusion():
+    """Test that the default field draws the particles in over several frames and lets them escape slowly."""
+    solver = EulerMaruyama(dt=0.01)
+    simulation = Simulation(diffusion_in_a_speckle_field(), dt=0.5, solver=solver, random_state=0).run(until=60)
+    positions = np.asarray(simulation.trajectory_['beads.x'])
+    times = simulation.trajectory_.times[21:] - simulation.trajectory_.times[20]
+    squared = ((positions[21:] - positions[20]) ** 2).sum(axis=-1).mean(axis=-1)
+    exponent = np.polyfit(np.log(times), np.log(squared), 1)[0]
+    assert np.linalg.norm(positions[1] - positions[0], axis=-1).mean() < 5
+    assert 0.1 < exponent < 0.8
+
+
 def test_q2r_conserves_energy():
     """Test that the Q2R automaton keeps the Ising energy while the magnetisation changes."""
     trajectory = Simulation(q2r((32, 32)), random_state=0).run(until=50).trajectory_
