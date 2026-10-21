@@ -308,6 +308,11 @@ def breakpoints_of(expressions: Iterable[Any], time: Expression) -> Breakpoints:
     return Breakpoints(tuple(sorted(fixed)), tuple(sorted(periodic)), unresolved=unresolved)
 
 
+def _same_zeros(first: Expression, second: Expression) -> bool:
+    """Check that two conditions are the same expression or opposite ones, which switch at the same states."""
+    return bool(first.is_trivially_equal(second) or (first + second).expand().is_trivially_equal(SR(0)))
+
+
 def state_conditions_of(expressions: Iterable[Any], time: Expression) -> list[Expression]:
     """Return the expressions whose sign switches a law, from conditions and step functions that read more than time.
 
@@ -323,7 +328,7 @@ def state_conditions_of(expressions: Iterable[Any], time: Expression) -> list[Ex
 
     Returns:
         conditions:
-            The distinct expressions whose zeros are the switches of the laws.
+            The distinct expressions whose zeros are the switches of the laws, one of every pair of opposite ones.
     """
     found: list[Expression] = []
     stack = [SR(expression) for expression in expressions]
@@ -340,7 +345,7 @@ def state_conditions_of(expressions: Iterable[Any], time: Expression) -> list[Ex
             candidate = item.operands()[0]
         else:
             continue
-        if set(candidate.variables()) - {time} and not any(candidate.is_trivially_equal(other) for other in found):
+        if set(candidate.variables()) - {time} and not any(_same_zeros(candidate, other) for other in found):
             found.append(candidate)
     return found
 

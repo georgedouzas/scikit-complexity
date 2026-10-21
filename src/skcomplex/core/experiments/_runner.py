@@ -6,13 +6,14 @@
 import dataclasses
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Executor, ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures.process import BrokenProcessPool
 from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from ..base import ValidationError
+from ..base import ExperimentError, ValidationError
 from ..compile import Problem, compile_system, observables_of
 from ..model import System
 from ..runtime import MODELS, Frame, Observer, Simulation, Trajectory
@@ -373,6 +374,11 @@ class Experiment(BaseEstimator):
         Returns:
             result:
                 The results, also stored as `result_`.
+
+        Raises:
+            ExperimentError:
+                The worker processes of a process executor died, as when a script without a main guard runs the
+                experiment.
         """
         tasks = self.tasks()
         if self.executor in {'serial', 'thread'}:
@@ -393,6 +399,14 @@ class Experiment(BaseEstimator):
                 raise ValidationError(error_msg)
             try:
                 results = list(executor.map(run_task, tasks))  # type: ignore[union-attr]
+            except BrokenProcessPool as error:
+                error_msg = (
+                    'The worker processes of the experiment stopped before finishing their tasks. On macOS and '
+                    'Windows every worker imports the main script again, so a script that runs an experiment on '
+                    "processes must guard it with `if __name__ == '__main__':`. Use executor='thread' or "
+                    "executor='serial' to run without processes."
+                )
+                raise ExperimentError(error_msg) from error
             finally:
                 if owned:
                     executor.shutdown()  # type: ignore[union-attr]

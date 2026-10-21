@@ -1,6 +1,9 @@
 """Test experiments: sources, seeds, designs, scenarios, results, sensitivity, and calibration."""
 
 import math
+import os
+import subprocess
+import sys
 
 import numpy as np
 import pytest
@@ -177,3 +180,31 @@ def test_calibration_recovers_logistic_parameters():
     assert result.estimates['growth.K'] == pytest.approx(500, rel=0.05)
     assert result.r2 > 0.99
     assert result.covariance is not None
+
+
+SCRIPT_WITHOUT_GUARD = """
+import skcomplex.models.mathematics.dynamical_systems
+from skcomplex.core.analysis import orbit_diagram
+
+orbit_diagram('logistic_map', 'map.r', [2.9, 3.2], 'map.x', transient=10, keep=2, dt=1, executor='process')
+"""
+
+
+def test_process_executor_names_the_missing_main_guard(tmp_path):
+    """Test that a script without a main guard that runs an experiment on processes gets a named error saying so."""
+    script = tmp_path / 'script.py'
+    script.write_text(SCRIPT_WITHOUT_GUARD)
+    environment = {**os.environ, 'PYTHONPATH': os.pathsep.join(item for item in sys.path if item)}
+    completed = subprocess.run(  # noqa: S603
+        [sys.executable, str(script)],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+        env=environment,
+        timeout=300,
+        check=False,
+    )
+    assert completed.returncode != 0
+    assert 'ExperimentError' in completed.stderr
+    assert "if __name__ == '__main__':" in completed.stderr
+    assert "executor='thread'" in completed.stderr

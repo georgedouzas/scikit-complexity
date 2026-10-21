@@ -174,7 +174,11 @@ def test_laplacian_damps_the_checkerboard_mode(discretization):
     rows, columns = np.indices((16, 16))
     checkerboard = 0.01 * np.cos(np.pi * (rows + columns))
     field = Field(
-        'm', Growth, LatticeSpace((16, 16), spacing=1.0), values={'u': checkerboard}, discretization=discretization,
+        'm',
+        Growth,
+        LatticeSpace((16, 16), spacing=1.0),
+        values={'u': checkerboard},
+        discretization=discretization,
     )
     final = np.asarray(Simulation(System(elements=[field]), dt=0.01).run(until=0.5).trajectory_['m.u'])[-1]
     expected = (

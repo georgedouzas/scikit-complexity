@@ -1471,7 +1471,7 @@ def _hidden_events(
     time: Expression,
     reductions: ReductionPass,
 ) -> tuple[CompiledEvent, ...]:
-    """Return one hidden event per condition on the states of single components that switches a law."""
+    """Return one hidden event per condition on the states of single components that switches a law of a flow."""
     compiled = []
     for spec, laws in specs:
         sources = flat_sources(spec.references, spec.owner)
@@ -2501,7 +2501,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         delays=_compile_delays(hybrid, declarations.time),
         events=(
             *_compile_events(hybrid, declarations.time, reductions),
-            *_hidden_events(specs, declarations.time, reductions),
+            *(_hidden_events(specs, declarations.time, reductions) if form is Form.ODE else ()),
         ),
         reductions=reductions.reductions,
         jacobian=jacobian,

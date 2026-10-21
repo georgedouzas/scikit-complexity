@@ -52,6 +52,10 @@ class SimulationError(SkcomplexError):
     """A simulation is used in a state that does not allow the operation."""
 
 
+class ExperimentError(SkcomplexError):
+    """An experiment cannot run its tasks, such as when its worker processes die."""
+
+
 class AnalysisError(SkcomplexError):
     """An analysis cannot be applied to the system or the data."""
 

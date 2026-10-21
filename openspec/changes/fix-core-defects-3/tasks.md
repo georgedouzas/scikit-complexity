@@ -60,9 +60,9 @@ task removes the workaround.
 
 - [x] 7.1 Compile state conditions of `where` and `step` in rate laws into hidden events, and verify the bathtub
   scenario
-- [ ] 7.2 Print the tangent dynamics of `lyapunov_spectrum` with the parameters as an argument, cache the compiled
+- [x] 7.2 Print the tangent dynamics of `lyapunov_spectrum` with the parameters as an argument, cache the compiled
   functions by source, differentiate `abs` as `sign`, and verify the sweep and Sprott scenarios
-- [ ] 7.3 Add `ExperimentError`, raise it from `Experiment.run` when an owned process pool breaks, and verify the
+- [x] 7.3 Add `ExperimentError`, raise it from `Experiment.run` when an owned process pool breaks, and verify the
   script-without-a-guard scenario
 - [ ] 7.4 Add `replicate` to `skcomplex.core.model`, and verify the many-initial-conditions and interactions scenarios
 - [ ] 7.5 Add `Trajectory.member`, add `vectorized` to `orbit_diagram` and `basin_stability`, and verify the
