@@ -20,6 +20,9 @@ MIN_DEVIATION = 2.0
 MIN_COLORFUL_SHARE = 0.0005
 MIN_SATURATION = 0.25
 MIN_BRIGHTNESS = 40
+MIN_CONTRAST = 32
+BLOCK = 4
+MIN_AREA_SHARE = 0.05
 NOTIFICATION_COLOR = (33, 33, 33)
 NOTIFICATION_TOLERANCE = 2
 MAX_NOTIFICATION_SHARE = 0.05
@@ -118,8 +121,26 @@ def _colorful_share(pixels: npt.NDArray[np.uint8]) -> float:
     return float(np.mean((saturation > MIN_SATURATION) & (high > MIN_BRIGHTNESS)))
 
 
+def _area_share(pixels: npt.NDArray[np.uint8]) -> float:
+    """Return the share of blocks of pixels whose brightness all differ from the commonest brightness.
+
+    The lines and the labels of the viewer chrome are thinner than a block, while the cells of a greyscale image fill
+    whole blocks.
+    """
+    brightness = pixels.astype(int).mean(axis=-1).astype(int)
+    differs = np.abs(brightness - np.bincount(brightness.ravel()).argmax()) > MIN_CONTRAST
+    rows, columns = differs.shape[0] // BLOCK, differs.shape[1] // BLOCK
+    if not rows or not columns:
+        return 0.0
+    blocks = differs[: rows * BLOCK, : columns * BLOCK].reshape(rows, BLOCK, columns, BLOCK)
+    return float(blocks.all(axis=(1, 3)).mean())
+
+
 def is_blank(pixels: npt.NDArray[np.uint8]) -> bool:
     """Return whether a view shows nothing: a single colour, or only the grey of the viewer chrome.
+
+    A view shows content when a share of its pixels has a saturated colour, or when areas of it differ in brightness
+    from the commonest brightness, as the cells of a single-channel image do.
 
     Args:
         pixels:
@@ -137,7 +158,7 @@ def is_blank(pixels: npt.NDArray[np.uint8]) -> bool:
     """
     if not pixels.size or float(pixels.std()) < MIN_DEVIATION:
         return True
-    return _colorful_share(pixels) < MIN_COLORFUL_SHARE
+    return _colorful_share(pixels) < MIN_COLORFUL_SHARE and _area_share(pixels) < MIN_AREA_SHARE
 
 
 def has_notification(pixels: npt.NDArray[np.uint8]) -> bool:

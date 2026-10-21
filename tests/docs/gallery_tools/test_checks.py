@@ -55,6 +55,14 @@ def test_is_blank_detects_uniform_and_grey_views():
     assert not is_blank(np.asarray(_with_lines(_image())))
 
 
+def test_is_blank_accepts_single_channel_image():
+    """Test that a greyscale image of dark and light grey cells, as a single-channel `rr.Image` shows, is not blank."""
+    cells = np.kron(np.random.default_rng(0).integers(0, 2, (7, 10)), np.ones((20, 20), dtype=int)) * 140 + 60
+    pixels = np.repeat(cells[..., None], 3, axis=-1).astype(np.uint8)
+    assert not is_blank(pixels)
+    assert find_problems(Image.fromarray(pixels), SIZE, [('pattern', (0, 0, *SIZE))]) == []
+
+
 def test_has_notification_detects_toast():
     """Test that a notification box in the top right is detected."""
     pixels = np.asarray(_image()).copy()
