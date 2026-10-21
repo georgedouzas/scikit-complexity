@@ -54,3 +54,29 @@
 | active_brownian_particles | 200 swimmers spread over the periodic square | MSD matches the exact ABP law for D_r = 1 and 0.1 | 0.9 s, 201 frames, 0.7 MB |
 | active_ornstein_uhlenbeck_particles | 200 particles spread over the periodic square | MSD matches 4 D (t - tau (1 - exp(-t / tau))) for tau = 1 and 10 | 1.3 s, 201 frames, 1.0 MB |
 | chiral_active_particles | 200 circling swimmers in the periodic square | MSD matches van Teeffelen-Löwen, oscillating for omega = 2, far below omega = 0 | 0.9 s, 201 frames, 0.7 MB |
+| absorbing_birth_death | particle number fluctuating around the active density | histogram matches the quasi-stationary law; time-averaged density follows max(0, (kappa - nu) / lambda) | 0.8 s, 201 frames, 0.06 MB |
+| aligning_active_brownian_particles | swimmers gathered in aligned clusters of one heading colour | polar order stays near 1 / sqrt(N) below the alignment threshold and rises above it | 5.9 s, 101 frames, 0.5 MB |
+| annealed_transient_time_motion | dark slow walkers near the origin, bright fast ones spread out | ensemble MSD subdiffusive, t^0.5, approaching the predicted law | 0.6 s, 201 frames, 1.1 MB |
+| asep | space-time image of particles streaming right at low density | flat profiles at alpha, 1 - gamma, 1/2 and currents matching the three phases | 0.6 s, 251 frames, 0.7 MB |
+| biased_trap_walk | rows of crossed sites growing in bursts to very different lengths | mean displacement approaches t^alpha laws; displacements spread broadly | 8.0 s, 300 frames, 0.3 MB |
+| binary_collision_flocking | particles of mostly one heading colour, partly ordered | polarization large at low noise, dropping near the threshold noise 0.64 | 8.0 s, 201 frames, 1.4 MB |
+| colored_noise_langevin | velocity following the coloured noise smoothly with smaller amplitude | velocity variances follow the tau curve; noise correlation decays as exp(-t / tau) | 0.9 s, 300 frames, 0.07 MB |
+| continuous_time_random_walk | cloud with a sharp peak at the origin | ensemble and time-averaged MSD follow the subdiffusive laws | 0.4 s, 201 frames, 0.2 MB |
+| curie_weiss | space-time image turning to one colour with short-lived flips | magnetization follows the mean-field curve with a 1 / sqrt(N) tail above T_c | 2.8 s, 151 frames, 0.5 MB |
+| dissipative_zero_range | binary tree on rings, root holding most quanta, outer rings empty | inverse temperature across levels as predicted for the two alpha regimes | 0.9 s, 201 frames, 0.7 MB |
+| edwards_anderson | frozen two-colour pattern without ferromagnetic domains | energies follow the high-temperature curve above freezing | 2.4 s, 101 frames, 0.3 MB |
+| fhp_lattice_gas | hexagonal cells with a ring of excess density around the centre | particle number and momentum conserved; disc excess spreads to the mean | 0.2 s, 121 frames, 0.7 MB |
+| flashing_ratchet | positions climbing from well to well to the right | mean velocity peaks at an intermediate flashing rate | 8.5 s, 241 frames, 0.2 MB |
+| fractional_brownian_motion | cloud of walkers spreading slowly | MSD follows 4 D t^0.6; DFA Hurst exponents spread around 0.3 | 1.1 s, 201 frames, 0.8 MB |
+| graph_ising | honeycomb graph nearly one colour with a remaining domain | \|m\|(T) on a random 4-regular graph drops at the Bethe T_c = 2 / ln 2 | 2.1 s, 61 frames, 0.2 MB |
+| hexagonal_forest_fire | burnt band bounded by hexagonal fire fronts | fire activity spreads over decades; fire on a graph burns nodes at graph distance t | 1.1 s, 201 frames, 1.4 MB |
+| ideal_gas | molecules spread uniformly, slow and fast mixed | speeds match the 2D Maxwell-Boltzmann density | 4.1 s, 201 frames, 1.5 MB |
+| levy_flight | weak: zoomed core of large overlapping discs, long jumps not visible | median distance slope 1 / mu = 0.83; jump lengths follow l^(-1 - mu) | 0.4 s, 201 frames, 0.8 MB |
+| levy_walk | dense core with walkers far out | MSD follows t^1.5 at long times | 0.5 s, 201 frames, 2.1 MB |
+| mattis_spin_glass | overlap rising to near 1 while magnetization stays near 0 | overlap matches Onsager's spontaneous magnetization | 1.5 s, 201 frames, 0.08 MB |
+| quantum_heisenberg | weak: blurred vertical stripes, the magnon light cone is not visible | (no explicit should statement found) | 0.9 s, 161 frames, 0.1 MB |
+| shaken_spring_block | space-time image of shaking and frozen phases | velocities fall to zero each cycle; correlation lengths linear in energy | 7.3 s, 287 frames, 0.4 MB |
+| sherrington_kirkpatrick | space-time image of frozen columns of both colours | energies follow -J^2 / (2 T) above T_c; q grows below it | 4.7 s, 201 frames, 1.5 MB |
+| tilted_periodic_potential | positions drifting right from well to well and spreading | mean velocity follows the exact force curve; positions drift at it | 1.5 s, 201 frames, 0.1 MB |
+| trap_model | walkers coloured by trap depth, mostly deep | MSD grows as t^T (slope 0.5); mean depth grows as T ln t | 0.6 s, 201 frames, 0.5 MB |
+| zero_range_process | one bright condensate column | fluid occupations follow the critical law; condensate holds about 125 particles | 0.4 s, 251 frames, 0.1 MB |
