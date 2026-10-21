@@ -15,3 +15,10 @@
 #### Scenario: Waves persist
 - **WHEN** the default hodgepodge machine on a 100 × 100 lattice runs for 300 steps
 - **THEN** more than 10 % of the cells are ill at the last step
+
+### Requirement: Social impact flips under net pressure
+`social_impact` SHALL flip an opinion when the net pressure to change plus the random field is positive.
+
+#### Scenario: No pressure keeps opinions
+- **WHEN** a social impact model without noise starts with every agent of opinion -1
+- **THEN** no opinion changes in 5 steps

@@ -150,7 +150,77 @@ size, duration, and area of the record keep their meaning.
 molecules, and 98 % of the paths of a NumPy reference switch within 200 time units. Its registered `until` becomes 200.
 `hodgepodge` and `HodgepodgeCell` take `g = 34`.
 
+### Second log: what was reproduced
+
+The second log of the curation agents was checked on the merged `development`:
+- `AgentsVisual.views` returns no view when the problem has no agent space, so agents without positions show only the
+  reporters' count. `AgentsVisual._colors` fixes the color range from the first frame, and a range of zero width
+  gives every agent the first color for the whole run.
+- `Element.lattice` gives a group on a `NetworkSpace` the `'sites'` visual, but `Field` keeps a missing visual, so the
+  default scalars visual logs one series per node.
+- `bathtub(water=20)` run until 6 warns that LSODA stalled at `t = 5` and finishes with `RK45`. The drift
+  `where(water > 0, outflow, 0)` jumps at the empty tub, and only time conditions give breakpoints.
+- `lyapunov_spectrum(create('sprott_jerk'))` raises `ZeroDivisionError`. Sage differentiates `abs(x)` to `x / abs(x)`.
+- `circadian_clock` has a period of 22.6 h at `v_d = 0.8` and 29.3 h at `v_d = 1.6`, against its docstring.
+- `complex_ginzburg_landau` passes `None` as the seed of `v`, read in its source.
+- `SocialImpact.update` flips on `opinions * impact + field > 0`. The impact is the net pressure to change whatever
+  the opinion, so the product keeps an agent of opinion -1 under pressure and flips it without pressure.
+
+### Agents without a space
+
+`TraitsVisual(traits=None, bins=20)` logs, for every numeric trait of the agents of a group, the histogram of the
+trait as `BarChart` under `<path>/<trait>/histogram` over bin edges fixed from the first frame and widened when values
+leave them, and the mean and the standard deviation as series under `<path>/<trait>/mean` and `.../std`. Its views
+are one bar chart view of the first trait and one time series view of the statistics. It is the default visual of
+agent groups whose problem has no agent space, chosen where the default `AgentsVisual` is chosen now.
+
+### One-dimensional agents
+
+`AgentsVisual.log_agents` pads positions of one coordinate with a zero second coordinate, and `views` gives such a
+group a 2D spatial view whose bounds are the extent of the space and a strip of height one tenth of it.
+
+### Widening color ranges
+
+`PointsVisual`, `AgentsVisual`, and `SiteVisual` keep a color range that starts at the values of the first frame and
+widens to every value logged since. A given `color_range` stays fixed. A shared helper `_widened` in the visuals
+module holds the rule.
+
+### Network fields
+
+`Field` resolves a missing visual on a `NetworkSpace` to `VisualSpec('sites')`, through the helper that
+`Element.lattice` uses.
+
+### Phase rings and 3D paths
+
+`PhaseRingVisual(phase, position=None)` logs the wrapped phases of a group as `Points2D` at `(position, phase)`, the
+member index by default, with the cyclic palette, and gives a 2D view bounded by `(-pi, pi]`. The chimera models
+declare it. The trail of `PointsVisual` in three dimensions becomes the fading path of `BodiesVisual`, so
+`stormer_problem` shows the path of its particle. `spring_chain` declares the bodies visual with rods between the
+masses.
+
+### Nyquist mode of the spectral Laplacian
+
+The wavenumbers of the spectral Laplacian come from `numpy.fft.fftfreq`, which puts the Nyquist frequency of an even
+length at `-pi / dx`, and the second derivative must use `-k^2` for it. The fix computes the symbol `-k^2` from
+`fftfreq` for every mode including the Nyquist one, and a test compares a checkerboard mode against finite
+differences.
+
+### Hidden events at state conditions
+
+The compiler collects the conditions of `where` and `step` in rate laws that read states, and gives each one a guard,
+the difference of the two sides of the comparison, as an event without a reset that does not record. The event
+locator of `ScipyODE` and `RK4` restarts the integration at the crossing. Steppers without event support ignore them.
+`trajectory.events` leaves them out.
+
+### Remaining items
+
+Each remaining item of the second log is reproduced at the start of its task. A task whose item does not reproduce
+records the measurement in the proposal's dropped items and closes.
+
 ## Risks / Trade-offs
+
+- [Hidden events slow systems with many state conditions] → Each condition costs one guard evaluation per step, and
+  models with hundreds of conditions on a lattice are lattice models, which do not use event location.
 
 - [Angle trajectories change by multiples of 2 pi] → Tests and examples that read angles in `[0, 2 pi)` move to
   `(-pi, pi]`, and the changelog lists the change as breaking.

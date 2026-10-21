@@ -23,3 +23,10 @@ replicated system, with the same results as the sweep of separate runs.
 - **WHEN** a user estimates the basin stability of a bistable system over 200 initial conditions with
   `vectorized=True`
 - **THEN** the fractions equal those of the serial runs with the same seed
+
+### Requirement: Lyapunov spectra of laws with absolute values
+`lyapunov_spectrum` SHALL differentiate `abs(x)` as `sign(x)`, so laws with absolute values have a spectrum.
+
+#### Scenario: Sprott jerk system
+- **WHEN** a user computes the spectrum of `sprott_jerk` until 200
+- **THEN** it returns three finite exponents whose sum is negative

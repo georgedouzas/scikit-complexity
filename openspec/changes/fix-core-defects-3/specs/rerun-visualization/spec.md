@@ -38,3 +38,39 @@ The scalars visual SHALL give every state of an element a distinct series color 
 #### Scenario: Daisyworld
 - **WHEN** the scalars visual logs `daisyworld`
 - **THEN** the series of `planet/white` and `planet/black` have static colors that differ
+
+### Requirement: Agent traits without a space are drawn
+The default visual of an agent group without a space SHALL log the histogram of a numeric trait and the mean and
+standard deviation of every numeric trait.
+
+#### Scenario: Moran process
+- **WHEN** the default blueprint of `moran_process` is built and its visual logs 10 frames
+- **THEN** the first view of the agents is a bar chart of a trait, and the logs hold the mean of every numeric trait
+
+### Requirement: One-dimensional agents are drawn on a line
+Agents whose positions have one coordinate SHALL be drawn as points on a line in a 2D view.
+
+#### Scenario: Traffic on a road
+- **WHEN** the visual of `charbonneau_traffic` logs a frame
+- **THEN** it logs `Points2D` with the positions as first coordinates and 0 as second coordinates
+
+### Requirement: Fields on networks are drawn as colored graphs
+A field on a network space without a visual SHALL take the colored graph visual of lattice groups on networks.
+
+#### Scenario: Network diffusion
+- **WHEN** the default blueprint of `network_diffusion` is built
+- **THEN** its view of the nodes is a graph view
+
+### Requirement: Color ranges widen with the values
+A visual that colors by a state without a given range SHALL widen its range to every value logged so far.
+
+#### Scenario: Agents that start equal
+- **WHEN** an agents visual colors by a state that is 0 for every agent at the first frame and spreads later
+- **THEN** the agents of a later frame have different colors
+
+### Requirement: Oscillator rings show phase against position
+The `'phase_ring'` visual SHALL log the wrapped phases of a group against the member position with the cyclic palette.
+
+#### Scenario: Chimera
+- **WHEN** the visual of a chimera model logs a frame
+- **THEN** it logs one point per oscillator at its index and its phase in `(-pi, pi]`
