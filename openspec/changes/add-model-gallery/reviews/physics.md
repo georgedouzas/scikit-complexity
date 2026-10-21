@@ -24,3 +24,8 @@
 | heat_diffusion | round bump spreading from the hot square | total heat constant; variance grows as var(0) + 2 D t | 1.1 s, 51 frames, 141 KB |
 | standing_waves | space-time image of the third mode | snapshots share the nodes; antinode follows cos(omega t) | 0.7 s, 81 frames, 97 KB |
 | swift_hohenberg | rolls with defects grown from noise | structure factor peaks at k = 1; wavelength 2 pi | 1.7 s, 41 frames, 462 KB |
+| kuramoto | order parameter rising to about 0.98 at K = 4 | time-averaged r of 400 oscillators rises at K_c = 2 / (pi g(0)) | 12.2 s, 151 frames, 121 KB |
+| winfree | order parameter settling as the phases lock | frequency spread vanishes on locking; mean frequency drops to 0 (death) near K = 0.8 | 2.5 s, 201 frames, 145 KB |
+| ott_antonsen | sigmoid growth of coherence to sqrt(1/2) | growth on the exact logistic solution; final r on sqrt(1 - 2 Delta / K) | 0.6 s, 201 frames, 56 KB |
+| mirollo_strogatz | five sawtooth charges merging into one | number of groups of 30 oscillators falls stepwise to 1 | 0.7 s, 201 frames, 52 KB |
+| aggregate_averaging_synchronization | two chaotic maps on one curve after a transient | difference vanishes exactly in the window 1/4 < kappa < 3/4 | 0.2 s, 51 frames, 29 KB |
