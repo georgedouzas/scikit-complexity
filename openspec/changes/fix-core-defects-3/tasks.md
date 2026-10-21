@@ -79,8 +79,8 @@ task removes the workaround.
 Each task reproduces its items first, records any that do not reproduce in the proposal's dropped items, and adds a
 regression test for each fix.
 
-- [ ] 9.1 Hide lag states and cap series in default blueprints, add a blueprint option for components of vector
-  states, and group series of one view by magnitude
+- [x] 9.1 Hide lag states and cap series in default blueprints, add a blueprint option for components of vector
+  states, and record grouping the series of one view by magnitude for a later change
 - [x] 9.2 Scale default point radii to the visual bounds and brighten default point colors
 - [ ] 9.3 Choose or warn about the default solver of large diffusive fields, profile single scalar SDEs, raise the
   named blow-up error for `LSODA` failures of divergent runs, and check `rayleigh_benard` and `decaying_turbulence`
