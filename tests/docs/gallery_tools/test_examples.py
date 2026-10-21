@@ -6,6 +6,7 @@ import pytest
 from gallery_tools import (
     SCAFFOLD_MARK,
     Budget,
+    Coverage,
     GalleryError,
     check_budget,
     check_coverage,
@@ -108,3 +109,13 @@ def test_check_budget_names_exceeded_limits():
     with pytest.raises(GalleryError, match=r'plot_x exceeds the budget: .*bytes.*seconds'):
         check_budget('plot_x', 10, 30_000_000, 90.0, Budget())
     check_budget('plot_x', 300, 20_000_000, 60.0, Budget())
+
+
+def test_coverage_problems_name_models_without_examples_and_examples_without_screenshots():
+    """Test that a strict build reports a new model without an example and an example without a screenshot."""
+    assert Coverage().problems([]) == []
+    problems = Coverage(missing=['new_model']).problems(['plot_unrun'])
+    assert problems == [
+        'These registered models have no gallery example: new_model.',
+        'These gallery examples have no screenshot: plot_unrun.',
+    ]

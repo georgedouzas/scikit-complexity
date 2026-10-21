@@ -84,6 +84,31 @@ class Coverage:
         """Whether every model has exactly one example in its place."""
         return not self.missing and not self.orphans
 
+    def problems(self, without_screenshot: list[str]) -> list[str]:
+        """Return the gaps that a strict documentation build reports as errors.
+
+        Args:
+            without_screenshot:
+                The examples shown with the placeholder instead of a screenshot.
+
+        Returns:
+            problems:
+                One sentence per gap: the models without an example, and the examples without a screenshot.
+
+        Examples:
+            >>> from gallery_tools import Coverage
+            >>> for problem in Coverage(missing=['lorenz']).problems(['plot_sir']):
+            ...     print(problem)
+            These registered models have no gallery example: lorenz.
+            These gallery examples have no screenshot: plot_sir.
+        """
+        problems = []
+        if self.missing:
+            problems.append(f'These registered models have no gallery example: {", ".join(self.missing)}.')
+        if without_screenshot:
+            problems.append(f'These gallery examples have no screenshot: {", ".join(without_screenshot)}.')
+        return problems
+
 
 def _model_of(path: Path) -> str | None:
     """Return the value of the `MODEL` constant of a script, or `None` when it sets none."""
