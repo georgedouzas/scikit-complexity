@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import re
 import sys
 from pathlib import Path
 from typing import Literal
@@ -20,6 +21,8 @@ from ._traits import agents_visual_of
 from ._visuals import AgentsVisual, Visual, _log_scalars, resolve_visual
 
 RENEWAL_MEMBERS = 20
+EXTRA = 'extra'
+UNSAFE = re.compile(r'[^A-Za-z0-9_/.-]')
 
 
 def _viewer_executable() -> str | None:
@@ -29,6 +32,17 @@ def _viewer_executable() -> str | None:
         if candidate.is_file():
             return str(candidate)
     return None
+
+
+def _sanitised(path: str) -> str:
+    """Return an entity path with every character Rerun would escape, such as a space, replaced by an underscore."""
+    return UNSAFE.sub('_', path)
+
+
+def _entity_path(name: str, owners: set[str]) -> str:
+    """Return the entity path of an observable, under its element when it is an element's dotted output."""
+    owner, _, leaf = name.rpartition('.')
+    return _sanitised(f'{owner}/{leaf}' if owner in owners else name)
 
 
 def _renewal_text(record: RenewalRecord) -> str:
@@ -170,14 +184,34 @@ class RerunObserver(Observer):
             visual.log_agents(self.recording_, path, snapshot, self._space)
         for name, value in frame.reporters.items():
             self.recording_.log(f'reporters/{name}', rr.Scalars(np.atleast_1d(value)))
+        owners = {element.path for element in frame.problem.elements}
         for name, value in frame.observables.items():
-            self.recording_.log(name, rr.Scalars(np.atleast_1d(np.abs(value) if np.iscomplexobj(value) else value)))
+            values = np.atleast_1d(np.abs(value) if np.iscomplexobj(value) else value)
+            self.recording_.log(_entity_path(name, owners), rr.Scalars(values))
         for name in frame.problem.parameters.names:
             _log_scalars(self.recording_, f'parameters/{name}', frame.value(name))
         for record in frame.events:
             if isinstance(record, RenewalRecord):
                 self.recording_.log(f'renewals/{record.label}', rr.TextLog(_renewal_text(record)))
         self.logged_frames_ += 1
+
+    def log_extra(self, path: str, archetype: rr.AsComponents, *, static: bool = False) -> None:
+        """Log an archetype of the caller's own under `extra/<path>`, apart from the paths of the system's entities.
+
+        Characters that Rerun would escape, such as spaces, become underscores, so a name such as `chain angle` needs
+        no escaping and the entity never merges into the view of an element.
+
+        Args:
+            path:
+                The path below `extra`.
+
+            archetype:
+                The Rerun archetype to log.
+
+            static:
+                Whether the archetype holds for the whole recording.
+        """
+        self.recording_.log(f'{EXTRA}/{_sanitised(path)}', archetype, static=static)
 
     def on_stop(self) -> None:
         """Flush the recording."""

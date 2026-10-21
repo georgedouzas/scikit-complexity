@@ -289,6 +289,17 @@ The other solver items of the second log:
 - `decaying_turbulence` loses 24.5 % of its energy in 40 time units, against 25.1 % that the viscosity removes at the
   measured enstrophy, so the scheme adds no dissipation and the item does not reproduce.
 
+### Observer paths and trajectory access
+
+The observer logged every observable under its name, so the dotted outputs of stocks and flows, such as
+`hilsa.adult_weight`, landed at an entity that no view of the element reads, and a view of `/hilsa/adult_weight` was
+blank. An observable whose name is an element's path, a dot, and a name is now logged under the element,
+`hilsa/adult_weight`, and every observable path has the characters that Rerun would escape, such as spaces, replaced
+by underscores. `RerunObserver.log_extra(path, archetype)` logs a caller's own entities under `extra/`, so they neither
+need escapes nor merge into the view of an element. `Trajectory.names` lists what indexing the trajectory reads, and
+`Trajectory.agent_locations(group)` gives the locations of a group's agents as one array per frame. The waiting times
+of `priority_queues` belong to the agent that checks that model.
+
 ### Remaining items
 
 Each remaining item of the second log is reproduced at the start of its task. A task whose item does not reproduce

@@ -85,7 +85,7 @@ regression test for each fix.
 - [x] 9.3 Choose or warn about the default solver of large diffusive fields, profile single scalar SDEs, raise the
   named blow-up error for `LSODA` failures of divergent runs, catch states sliding along switches, and check
   `rayleigh_benard` and `decaying_turbulence`
-- [ ] 9.4 Sanitise observer entity paths, give user paths their own namespace, add `Trajectory.names`, add a
+- [x] 9.4 Sanitise observer entity paths, give user paths their own namespace, add `Trajectory.names`, add a
   vectorised accessor of agent positions over frames, log the auxiliaries and flows of stocks and flows as series, and
   log the waiting times of `priority_queues`
 - [ ] 9.5 Check `restricted_three_body`, `diffusion_in_a_speckle_field`, `legion`, `faraday_disk`, `obesity`,

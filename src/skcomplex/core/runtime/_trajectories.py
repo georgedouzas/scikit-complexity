@@ -158,6 +158,37 @@ class Trajectory:
                 target[:, entry.start : entry.start + entry.size] = columns[:, index]
         return Trajectory(problem, self.times, states, parameters)
 
+    @property
+    def names(self) -> list[str]:
+        """Names of the states, parameters, reporters, and observables that indexing the trajectory reads."""
+        reporters = list(self.reporters[0]) if self.reporters else []
+        observables = list(self.observables[0]) if self.observables else []
+        return [*self.problem.states.names, *self.problem.parameters.names, *reporters, *observables]
+
+    def agent_locations(self, group: str) -> list[npt.NDArray[Any]]:
+        """Return the locations of the agents of a group, one array per frame with one row per agent alive.
+
+        Args:
+            group:
+                The path of the agent group.
+
+        Returns:
+            locations:
+                The locations at every frame, empty arrays for frames without locations.
+
+        Examples:
+            >>> from skcomplex.core.runtime import Simulation
+            >>> from skcomplex.models import create
+            >>> trajectory = Simulation(create('boids'), random_state=0).run(until=2).trajectory_
+            >>> [locations.shape[1] for locations in trajectory.agent_locations('flock')]
+            [2, 2, 2]
+        """
+        frames = [self.agents(group, frame) for frame in range(len(self))]
+        return [
+            np.asarray(snapshot.locations) if snapshot.locations is not None else np.zeros((0, 0))
+            for snapshot in frames
+        ]
+
     def lattice(self, name: str) -> npt.NDArray[Any]:
         """Return the values of a lattice state over time in lattice shape.
 

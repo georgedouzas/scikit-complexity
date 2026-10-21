@@ -25,6 +25,7 @@ from skcomplex.core.model import (
 )
 from skcomplex.core.runtime import Frame, Simulation
 from skcomplex.core.viz import ImageVisual, PointsVisual, RerunObserver, ScalarsVisual, Visual, resolve_visual
+from skcomplex.models import create
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 from skcomplex.models.social.opinion_dynamics import voter_model
@@ -290,3 +291,33 @@ def test_complex_field_has_modulus_and_phase_views():
     problem = compile_system(System(elements=[Field('medium', Turning, LatticeSpace((4, 4)))]))
     views = ImageVisual().views(problem.elements[0], problem)
     assert [str(view.origin) for view in views] == ['medium/z/modulus', 'medium/z/phase']
+
+
+def _logged_paths(monkeypatch, tmp_path, system, until, **settings):
+    """Return the entity paths logged while a system runs with a Rerun observer, leaving out static styles."""
+    logged = []
+    original = rr.RecordingStream.log
+
+    def log(self, path, *args, **kwargs):
+        if not kwargs.get('static'):
+            logged.append(path)
+        return original(self, path, *args, **kwargs)
+
+    monkeypatch.setattr(rr.RecordingStream, 'log', log)
+    observer = RerunObserver('paths', save_path=tmp_path / 'paths.rrd')
+    Simulation(system, observers=[observer], **settings).run(until=until)
+    return logged, observer
+
+
+def test_rerun_observer_logs_stock_flow_auxiliaries_under_their_element(monkeypatch, tmp_path):
+    """Test that an auxiliary of a stock and flow model is logged under its element, so its view is not blank."""
+    logged, _ = _logged_paths(monkeypatch, tmp_path, create('hilsa_fishery'), until=10, dt=1)
+    assert 'hilsa/adult_weight' in logged
+    assert 'hilsa.adult_weight' not in logged
+
+
+def test_rerun_observer_logs_extra_entities_in_their_own_sanitised_namespace(monkeypatch, tmp_path):
+    """Test that entities a user logs go under `extra/`, with spaces replaced so Rerun needs no escapes."""
+    logged, observer = _logged_paths(monkeypatch, tmp_path, create('lotka_volterra'), until=1, dt=0.5)
+    observer.log_extra('chain angle/left side', rr.Scalars(1.0))
+    assert logged[-1] == 'extra/chain_angle/left_side'

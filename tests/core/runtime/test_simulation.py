@@ -9,6 +9,7 @@ from skcomplex.core.base import ParameterError, SimulationError, SolverError, Va
 from skcomplex.core.model import AgentType, Rule, System
 from skcomplex.core.runtime import Observer, RealTime, Simulation
 from skcomplex.core.solvers import Gillespie
+from skcomplex.models import create
 from skcomplex.models.biology.ecology import ExponentialGrowth, LogisticGrowth, Population
 from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
 from skcomplex.models.economics.markets import Cobweb, Market
@@ -246,3 +247,19 @@ def test_simulation_default_frames(until, frames, dt):
     simulation = Simulation(_growth(r=0.0), observers=[counter]).run(until=until)
     assert len(counter.times) == frames
     assert simulation.dt_ == dt
+
+
+def test_trajectory_lists_its_names():
+    """Test that a trajectory lists the names of its states, parameters, reporters, and observables."""
+    trajectory = Simulation(create('hilsa_fishery'), dt=1).run(until=2).trajectory_
+    names = trajectory.names
+    assert 'hilsa.adult_weight' in names
+    assert all(name in names for name in trajectory.problem.states.names)
+
+
+def test_trajectory_gives_agent_locations_over_frames():
+    """Test that the locations of a group of agents come as one array per frame."""
+    trajectory = Simulation(create('boids'), random_state=0).run(until=3).trajectory_
+    locations = trajectory.agent_locations('flock')
+    assert len(locations) == len(trajectory)
+    np.testing.assert_allclose(locations[-1], trajectory.agents('flock', len(trajectory) - 1).locations)
