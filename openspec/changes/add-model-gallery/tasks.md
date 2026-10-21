@@ -73,7 +73,7 @@ For every task in this section:
 - [ ] 5.6 Social science
 - [ ] 5.7 Engineering
 - [ ] 5.8 Mathematics
-- [ ] 5.9 Computer science
+- [x] 5.9 Computer science
 
 ## 6. Enforcement and gate
 
