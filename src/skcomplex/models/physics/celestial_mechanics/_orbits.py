@@ -194,7 +194,7 @@ def restricted_three_body(
     x: float = 0.5,
     y: float = 0.0,
     vx: float = 0.0,
-    vy: float = 0.8,
+    vy: float = 1.15,
     *,
     mu: float = 0.01215,
 ) -> System:
@@ -204,6 +204,11 @@ def restricted_three_body(
     `x'' = 2 y' + x - (1 - μ)(x + μ) / r1³ - μ (x - 1 + μ) / r2³` and `y'' = -2 x' + y - (1 - μ) y / r1³ - μ y / r2³`,
     with the Coriolis and centrifugal forces of the rotating frame. The Jacobi constant
     `x² + y² + 2 (1 - μ) / r1 + 2 μ / r2 - x'² - y'²` is conserved. The default `μ` is that of the Earth and the Moon.
+
+    The default start has the Jacobi constant 2.835, below that of the neck towards the Moon, and its orbit is chaotic:
+    it passes near the Moon after 3.5 time units and wanders between the two primaries, with a Lyapunov exponent near
+    0.2. Starts of a larger constant are confined around the Earth, such as `vy = 0.8` with the constant 3.52, which
+    traces a regular precessing rosette.
 
     Args:
         x:

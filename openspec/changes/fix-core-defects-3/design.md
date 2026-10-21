@@ -342,6 +342,13 @@ records the measurement in the proposal's dropped items and closes.
 - `stigmergic_predator_prey` reproduces: offspring started with zero hunger, so prey kept breeding for ten steps after
   the plants were gone and reached 736. Offspring now take their parent's hunger, and the prey die out within 12
   steps of the plants.
+- `restricted_three_body` reproduces: the default start `(0.5, 0)` with `vy = 0.8` has the Jacobi constant 3.52,
+  above the 3.19 of the neck towards the Moon, so the body stays near the Earth on a regular rosette, with a
+  finite-time Lyapunov exponent of 0.06 over 100 time units in an independent SciPy integration, the value of a
+  regular orbit at that length. The default becomes `vy = 1.15`, of constant 2.835: the body passes within 0.2 of the
+  Moon after 3.5 time units, stays within `-0.9 < x < 1.1` for 100 time units, and has a finite-time exponent of 0.2
+  over 100 and 200 time units. The docstring states both regimes. The example passes `vy = 1.0` explicitly, so its
+  rosette is unchanged.
 
 ### Obesity and priority queues
 
