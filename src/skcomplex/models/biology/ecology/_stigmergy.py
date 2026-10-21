@@ -54,11 +54,11 @@ def _empty_cells(agent: AgentView) -> list[object]:
     return [cell for cell in agent.neighbor_cells() if cell not in occupied]
 
 
-def _spawn(agent: AgentView, model: ModelView) -> None:
-    """Place an offspring of an agent in a random empty neighbouring cell, if there is one."""
+def _spawn(agent: AgentView, model: ModelView, **values: float) -> None:
+    """Place an offspring of an agent in a random empty neighbouring cell, if there is one, with given states."""
     cells = _empty_cells(agent)
     if cells:
-        agent.create(location=cells[int(model.rng.integers(len(cells)))])
+        agent.create(location=cells[int(model.rng.integers(len(cells)))], **values)
         agent.age = 0.0
 
 
@@ -124,7 +124,8 @@ class Forager(AgentType):
     marked there minus its own and its own distress minus the distress marked there. It eats food it moves onto.
     Its emotions follow `E' = (1 - memory) (X + communication C) + memory E`, with the experience `X` of the step and
     the mean emotion `C` marked around it, and it marks its cell with them. A mature animal breeds into an empty
-    neighbouring cell with a probability that happiness raises and distress lowers. Subclasses name their food, the
+    neighbouring cell with a probability that happiness raises and distress lowers, and its offspring shares its
+    hunger, so a lineage starves together when its food is gone. Subclasses name their food, the
     marks they read, and their experience of distress.
 
     Args:
@@ -278,7 +279,7 @@ class Forager(AgentType):
             return
         chance = agent.reproduction * (1 + agent.emotions * (agent.happiness - agent.distress))
         if model.rng.random() < chance:
-            _spawn(agent, model)
+            _spawn(agent, model, hunger=agent.hunger)
 
 
 class StigmergicPrey(Forager):
