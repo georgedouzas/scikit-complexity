@@ -283,6 +283,12 @@ records the measurement in the proposal's dropped items and closes.
   basal metabolic rate times a Harris-Benedict `activity` factor (default 1.55) instead of the bare basal rate, which
   made three restaurant meals a day add 10 to 20 points of body mass index a year. After a year the means are low
   22.1, medium 28.6, high 33.6.
+- `priority_queues` needed no core change: its waiting times reach the trajectory and the viewer through the existing
+  reporters. The execution declares `reports = ('wait',)` and reports the wait of the task it executes, so every step
+  records one wait under `execution.wait`, and the tasks declare `VisualSpec('traits', {'color_by': 'age', 'shown':
+  ('agents',)})`, whose per-agent series of the two ages show the waits as ramps. With `greed=0.999` and 100000 steps
+  the waits from 2 to 300 fit a power law of exponent 1.15, against Barabási's 1. The rest of item 9.4 (observer
+  paths, `Trajectory.names`, agent positions, stocks and flows) is left to its own work.
 
 ## Risks / Trade-offs
 

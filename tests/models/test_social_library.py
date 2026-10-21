@@ -294,6 +294,12 @@ def test_priority_queue_waits():
     assert greedy.max() > 100
 
 
+def test_priority_queue_reports_every_wait():
+    """Test that the execution reports the wait of every executed task as a series of the trajectory."""
+    trajectory = _run(priority_queues(random_state=0), 500)
+    np.testing.assert_array_equal(trajectory['execution.wait'][1:], _waits(trajectory, 500))
+
+
 def test_employment_takeover_is_deterministic_and_settles():
     """Test that the employment model gives the same run twice and ends in a fixed point or a short cycle."""
     first = _run(employment_takeover(), 60, dt=1)['cells.colour']
