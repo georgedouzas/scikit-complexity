@@ -13,7 +13,7 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ..base import Registry, VisualSpec
+from ..base import Domain, Registry, VisualSpec
 from ..compile import CompiledAgents, CompiledElement, Problem
 from ..model import ContinuousSpace, GridSpace, LatticeSpace, NetworkSpace, Space
 from ..runtime import Frame
@@ -647,7 +647,8 @@ class ImageVisual(Visual):
         """Log every chosen state of a lattice group under `<path>/<state>`, and a space-time image in one dimension.
 
         A complex state logs its modulus under `<path>/<state>/modulus`, colored over the range, and its phase under
-        `<path>/<state>/phase`, colored by a cyclic palette over `(-pi, pi]`. Its space-time image shows the modulus.
+        `<path>/<state>/phase`, colored by a cyclic palette over `(-pi, pi]`. An angle state is colored by the same
+        cyclic palette. Its space-time image shows the modulus.
 
         Args:
             recording:
@@ -668,7 +669,8 @@ class ImageVisual(Visual):
             if magnitudes.ndim == 1:
                 self._log_space_time(recording, f'{element.path}/{SPACE_TIME}/{state}', magnitudes)
             if not np.iscomplexobj(values):
-                self._log_image(recording, path, magnitudes, cyclic=False)
+                cyclic = frame.problem.states.entry(name).domain is Domain.ANGLE
+                self._log_image(recording, path, magnitudes, cyclic=cyclic)
                 continue
             self._log_image(recording, f'{path}/{MODULUS}', magnitudes, cyclic=False)
             self._log_image(recording, f'{path}/{PHASE}', np.angle(values), cyclic=True)

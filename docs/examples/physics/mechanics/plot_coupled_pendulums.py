@@ -6,13 +6,11 @@ rest while the other takes over, and then the motion flows back, in beats at the
 """
 
 # %%
-# The left pendulum starts at 0.2 radians and the right one at rest, with the spring `k = 0.5`. The angles of the model
-# lie in `[0, 2π)`, so a swing to the left jumps by `2π`. The observer below also logs the horizontal displacements
-# `l sin θ` of the bobs, and the blueprint shows them as time series.
+# The left pendulum starts at 0.2 radians and the right one at rest, with the spring `k = 0.5`. The blueprint shows the
+# two angles as time series.
 
 import matplotlib.pyplot as plt
 import numpy as np
-import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.runtime import Simulation
@@ -22,30 +20,14 @@ from skcomplex.models import create
 MODEL = 'coupled_pendulums'
 
 
-# Workaround: remove once the core draws angles wrapped to (-π, π] in time series.
-class DisplacementObserver(RerunObserver):
-    """Observer that also logs the horizontal displacements of the bobs."""
-
-    def on_start(self, problem):
-        super().on_start(problem)
-        for side, color in (('left', [90, 170, 230]), ('right', [250, 150, 60])):
-            self.recording_.log(f'displacement/{side}', rr.SeriesLines(colors=color, names=side, widths=2), static=True)
-
-    def on_frame(self, frame):
-        super().on_frame(frame)
-        if frame.step % self.interval == 0:
-            for side in ('left', 'right'):
-                self.recording_.log(f'displacement/{side}', rr.Scalars(np.sin(frame.value(f'{side}.theta'))))
-
-
 blueprint = rrb.Blueprint(
-    rrb.TimeSeriesView(origin='/displacement', name='displacement'),
+    rrb.TimeSeriesView(origin='/', contents=['+ /left/theta', '+ /right/theta'], name='angles'),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
 system = create(MODEL, theta1=0.2, theta2=0.0, k=0.5)
-observer = DisplacementObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=4)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=4)
 simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=50)
 
 # %%

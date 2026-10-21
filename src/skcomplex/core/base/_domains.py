@@ -20,7 +20,7 @@ def wrap_angle(values: npt.ArrayLike) -> npt.NDArray[np.float64]:
 
     Returns:
         angles:
-            The angles in `(-pi, pi]`, with `-pi` moved to `pi`.
+            The angles in `(-pi, pi]`, with `-pi` moved to `pi` and angles already inside left exactly as they are.
 
     Examples:
         >>> import numpy as np
@@ -28,7 +28,9 @@ def wrap_angle(values: npt.ArrayLike) -> npt.NDArray[np.float64]:
         >>> wrap_angle(np.array([3 * np.pi / 2, -np.pi, 0.5])).round(4).tolist()
         [-1.5708, 3.1416, 0.5]
     """
-    return np.pi - np.mod(np.pi - np.asarray(values, dtype=float), 2 * np.pi)
+    angles = np.asarray(values, dtype=float)
+    inside = (angles > -np.pi) & (angles <= np.pi)
+    return np.where(inside, angles, np.pi - np.mod(np.pi - angles, 2 * np.pi))
 
 
 class Domain(Enum):

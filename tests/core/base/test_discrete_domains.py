@@ -77,3 +77,9 @@ def test_boolean_values_return_as_booleans():
     assert trajectory['s.on'].tolist() == [True, True]
     with pytest.raises(ValidationError, match='boolean'):
         Simulation(System(elements=[Switch('s', on=0.5)])).run(until=1)
+
+
+def test_wrap_angle_keeps_angles_inside_exactly():
+    """Test that wrap_angle returns angles already in (-π, π] bit for bit, so boundary laws see no change."""
+    values = np.linspace(-3.14, np.pi, 1001)
+    assert np.array_equal(wrap_angle(values), values)
