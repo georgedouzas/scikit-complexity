@@ -29,6 +29,10 @@ def orbits(K, starts, until):
     return np.array([run['map.theta'] for run in runs]), np.array([run['map.p'] for run in runs])
 
 
+# Every view shows the whole run, not the default window that follows the latest frame.
+whole_run = rrb.TimeAxis(
+    view_range=rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite()),
+)
 blueprint = rrb.Blueprint(
     rrb.Horizontal(
         rrb.Spatial2DView(
@@ -36,7 +40,7 @@ blueprint = rrb.Blueprint(
             name='phase portrait',
             visual_bounds=rrb.VisualBounds2D(x_range=[-5, 633], y_range=[-633, 5]),
         ),
-        rrb.TimeSeriesView(origin='/map', name='angle and momentum'),
+        rrb.TimeSeriesView(origin='/map', name='angle and momentum', axis_x=whole_run),
         column_shares=[3, 2],
     ),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),

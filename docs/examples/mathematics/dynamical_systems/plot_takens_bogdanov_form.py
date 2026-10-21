@@ -29,6 +29,10 @@ def focus(beta1, beta2=-1.0):
     return (-beta2 - np.sqrt(beta2**2 - 4 * beta1)) / 2
 
 
+# Every view shows the whole run, not the default window that follows the latest frame.
+whole_run = rrb.TimeAxis(
+    view_range=rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite()),
+)
 blueprint = rrb.Blueprint(
     rrb.Horizontal(
         rrb.Spatial2DView(
@@ -36,7 +40,7 @@ blueprint = rrb.Blueprint(
             name='phase plane',
             visual_bounds=rrb.VisualBounds2D(x_range=[-100, 125], y_range=[-85, 85]),
         ),
-        rrb.TimeSeriesView(origin='/form', name='x, y'),
+        rrb.TimeSeriesView(origin='/form', name='x, y', axis_x=whole_run),
         column_shares=[3, 2],
     ),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),

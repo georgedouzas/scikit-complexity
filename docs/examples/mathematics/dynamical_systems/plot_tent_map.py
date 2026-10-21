@@ -23,6 +23,10 @@ from skcomplex.models import create
 
 MODEL = 'tent_map'
 
+# Every view shows the whole run, not the default window that follows the latest frame.
+whole_run = rrb.TimeAxis(
+    view_range=rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite()),
+)
 blueprint = rrb.Blueprint(
     rrb.Horizontal(
         rrb.Spatial2DView(
@@ -30,7 +34,7 @@ blueprint = rrb.Blueprint(
             name='orbit diagram',
             visual_bounds=rrb.VisualBounds2D(x_range=[95, 205], y_range=[-102, 2]),
         ),
-        rrb.TimeSeriesView(origin='/map', name='x at mu = 1.99'),
+        rrb.TimeSeriesView(origin='/map', name='x at mu = 1.99', axis_x=whole_run),
         column_shares=[3, 2],
     ),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),

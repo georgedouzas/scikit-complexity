@@ -1,8 +1,8 @@
 """
 # Hidden Markov source
 
-A hidden chain stays mostly in state 0 and the source emits symbol 0 more often from it, so the emitted symbols follow
-the hidden state loosely, with errors in both directions.
+A hidden chain stays mostly in state 0, with short visits to state 1, and the source emits symbol 0 more often from
+state 0, so the emitted symbols, in the second view, follow the hidden state loosely, with errors in both directions.
 """
 
 # %%

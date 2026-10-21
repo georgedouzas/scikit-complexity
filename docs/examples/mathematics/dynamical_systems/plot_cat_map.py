@@ -24,6 +24,10 @@ from skcomplex.models import create
 MODEL = 'cat_map'
 STEPS = 3
 
+# Every view shows the whole run, not the default window that follows the latest frame.
+whole_run = rrb.TimeAxis(
+    view_range=rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite()),
+)
 blueprint = rrb.Blueprint(
     rrb.Horizontal(
         rrb.Spatial2DView(
@@ -31,7 +35,7 @@ blueprint = rrb.Blueprint(
             name='square after 3 steps',
             visual_bounds=rrb.VisualBounds2D(x_range=[-2, 102], y_range=[-102, 2]),
         ),
-        rrb.TimeSeriesView(origin='/map', name='x, y'),
+        rrb.TimeSeriesView(origin='/map', name='x, y', axis_x=whole_run),
         column_shares=[3, 2],
     ),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
