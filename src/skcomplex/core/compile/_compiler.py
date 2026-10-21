@@ -2129,14 +2129,21 @@ def _is_interaction(node: Node) -> bool:
 
 
 def _visual_of(node: Node) -> VisualSpec:
-    """Return the visual of an element, or a group's own visual when it sets one."""
+    """Return the visual of an element, a group's own visual when it sets one, or the default of a field's space."""
     if isinstance(node.component, Group) and node.component.visual is not None:
         return node.component.visual
     if isinstance(node.component, Field) and isinstance(node.component.space, LatticeSpace):
         return VisualSpec('image')
     if isinstance(node.component, Field) and isinstance(node.component.space, Mesh):
         return VisualSpec('mesh')
-    return node.component_type.visual
+    declared: VisualSpec = node.component_type.visual
+    if (
+        isinstance(node.component, Field)
+        and isinstance(node.component.space, NetworkSpace)
+        and declared == VisualSpec()
+    ):
+        return VisualSpec('sites')
+    return declared
 
 
 def _law_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
