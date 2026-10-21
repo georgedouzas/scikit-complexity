@@ -58,7 +58,7 @@ def _spawn(agent: AgentView, model: ModelView, **values: float) -> None:
     """Place an offspring of an agent in a random empty neighbouring cell, if there is one, with given states."""
     cells = _empty_cells(agent)
     if cells:
-        agent.create(location=cells[int(model.rng.integers(len(cells)))], **values)
+        agent.create(None, cells[int(model.rng.integers(len(cells)))], **values)
         agent.age = 0.0
 
 
