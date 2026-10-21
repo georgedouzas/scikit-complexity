@@ -24,3 +24,5 @@
 | cascade_classifier | fine product growing much faster than the coarse | steady fine share matches Barsky's fractional extraction for k = 0.3 to 0.7 | 6 s script, 101 frames, 0.22 MB |
 | satellite_transfer | distance swinging out while the energy rises and levels off | energy reaches -0.2 at 9.81 and stays; orbit widens around the planet | 5 s script, 201 frames, 0.08 MB |
 | swarmtaxis | robot cluster with its illuminated side (yellow) facing the beacon | centre drifts from x = 19 to 40 in 3000 steps; spread stays ~2; ~20% illuminated | 10 s script, 201 frames, 0.43 MB |
+| kerner_konhauser | density history with a bright travelling cluster | max density grows to 0.54 and saturates, min falls to 0.15; cluster keeps its shape | 13 s script, 251 frames, 1.43 MB |
+| payne | density history: the bump splits into two waves crossing the ring | number of cars conserved exactly; bump height decays from 0.06 to 0.02 | 7 s script, 101 frames, 0.32 MB |
