@@ -2,8 +2,8 @@
 # Sierpiński substitutions
 
 A triangle becomes the Sierpiński gasket as every triangle is replaced by its three corner copies of half its side,
-and a square becomes the Sierpiński carpet as every square is replaced by the eight copies of a third of its side
-around its middle.
+leaving holes at every scale. The same substitution of a square by the eight copies of a third of its side around its
+middle gives the Sierpiński carpet, shown in the figure below.
 """
 
 # %%
