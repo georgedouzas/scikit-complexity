@@ -7,8 +7,8 @@ excitatory pulses, they kick each other over threshold and the whole network fir
 
 # %%
 # The model is created by name from the catalog with excitabilities centred below threshold, `eta = -0.2`, and the
-# coupling `kappa = 1.5`. The recorded run keeps eight neurons, so that their phases read in the time series view of
-# the default blueprint; the analysis below uses fifty.
+# coupling `kappa = 1.5`. The recorded run keeps four neurons for ten time units, so that their phases read in the
+# time series view of the default blueprint; the analysis below uses fifty.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -19,9 +19,9 @@ from skcomplex.models import create
 
 MODEL = 'theta_neurons'
 
-system = create(MODEL, n_neurons=8, kappa=1.5, random_state=0)
+system = create(MODEL, n_neurons=4, kappa=1.5, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=20)
+simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=10)
 
 # %%
 # Coupling switches on collective firing

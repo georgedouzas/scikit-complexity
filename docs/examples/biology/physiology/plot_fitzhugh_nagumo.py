@@ -7,8 +7,8 @@ that rotates steadily, sending out wave after wave, the pattern of re-entrant wa
 
 # %%
 # The model is created by name from the catalog on a lattice of 100 by 100 sites, with the upper half excited and its
-# left half refractory. The observer saves every frame with the default blueprint, whose primary view is the image of
-# the potential.
+# left half refractory, and integrated with Runge-Kutta steps of 0.05. The observer saves every frame with the default
+# blueprint, whose primary view is the image of the potential.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,6 +16,7 @@ from scipy.signal import find_peaks
 
 from skcomplex.core.analysis import fields_of
 from skcomplex.core.runtime import Simulation
+from skcomplex.core.solvers import RK4
 from skcomplex.core.viz import RerunObserver
 from skcomplex.models import create
 
@@ -23,7 +24,7 @@ MODEL = 'fitzhugh_nagumo'
 
 system = create(MODEL, shape=(100, 100))
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=2.0, observers=[observer]).run(until=300)
+simulation = Simulation(system, dt=2.0, solver=RK4(dt=0.05), observers=[observer]).run(until=300)
 
 # %%
 # A periodic rotation
