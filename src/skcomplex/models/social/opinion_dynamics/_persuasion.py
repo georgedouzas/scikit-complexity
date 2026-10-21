@@ -202,7 +202,8 @@ class SocialImpact(Interaction):
 
     The impact on agent `i` is `I_i = sum_j t_j (1 - o_i o_j) / d_ij^a - sum_j s_j (1 + o_i o_j) / d_ij^a`, with the
     persuasiveness `t`, the supportiveness `s`, and the distance `d` on the grid, where an agent supports itself from
-    distance 1. The next opinion is `o_i = -sign(o_i I_i + h_i)` with a uniform random field `h_i`.
+    distance 1. The impact is the net pressure to change, whatever the opinion, so an agent flips its opinion when
+    `I_i + h_i > 0`, with a uniform random field `h_i`.
 
     Args:
         label:
@@ -233,7 +234,7 @@ class SocialImpact(Interaction):
         return [Rule(self.update)]
 
     def update(self, model: ModelView) -> None:
-        """Set every opinion against the sign of the impact on it.
+        """Flip every opinion under a positive net pressure to change.
 
         Args:
             model:
@@ -254,7 +255,7 @@ class SocialImpact(Interaction):
             axis=1,
         )
         field = model.rng.uniform(-agents[0].noise, agents[0].noise, len(agents))
-        following = np.where(opinions * impact + field > 0, -opinions, opinions)
+        following = np.where(impact + field > 0, -opinions, opinions)
         for agent, opinion in zip(agents, following, strict=True):
             agent.opinion = float(opinion)
 

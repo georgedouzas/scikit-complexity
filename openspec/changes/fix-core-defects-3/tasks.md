@@ -42,7 +42,7 @@ task removes the workaround.
 
 ## 5. Model checks
 
-- [ ] 5.1 Flip opinions of `social_impact` under net pressure, and verify the no-pressure scenario
+- [x] 5.1 Flip opinions of `social_impact` under net pressure, and verify the no-pressure scenario
 - [ ] 5.2 Reproduce and fix the reported behaviour of `gimballed_gyroscope`, `huygens_clocks`,
   `light_seeking_robots`, `meadow_capacity`, and `stigmergic_predator_prey`, each with a regression test
 - [ ] 5.3 Correct the docstrings of `circadian_clock`, `hypercycles`, `bouchaud_mezard_wealth`, and
