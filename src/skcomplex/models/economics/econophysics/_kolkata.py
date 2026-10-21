@@ -188,7 +188,7 @@ def kolkata_restaurant(
     *,
     n_restaurants: int | None = None,
     strategy: str = 'random',
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return the Kolkata Paise Restaurant problem, where diners spread over restaurants that serve one meal each.
 

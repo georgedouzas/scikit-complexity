@@ -228,7 +228,7 @@ def obesity(
     size: float = 280.0,
     reach: float = 30.0,
     activity: float = 1.55,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return the obesity model of adults who eat near home and work, one step per day.
 

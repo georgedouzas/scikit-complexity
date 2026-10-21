@@ -128,7 +128,7 @@ def neutral_biodiversity(
     *,
     nu: float = 0.01,
     species: int = 1,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return a neutral community of constant size, where species arise by speciation and vanish by drift.
 

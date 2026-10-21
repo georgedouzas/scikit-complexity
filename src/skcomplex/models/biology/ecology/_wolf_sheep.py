@@ -229,7 +229,7 @@ def wolf_sheep(
     sheep: int = 100,
     wolves: int = 25,
     regrowth: float = 30.0,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return the wolf and sheep predation model with one grass patch per cell.
 

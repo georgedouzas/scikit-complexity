@@ -246,7 +246,7 @@ def insider_sabotage(
     n_employees: int = 130,
     n_supervisors: int = 3,
     turnover: float = 0.15,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return the insider sabotage model of employees whose risk of sabotage builds up over the days of a year.
 

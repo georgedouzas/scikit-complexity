@@ -240,7 +240,7 @@ def voter_model(
     graph: object = None,
     *,
     share: float = 0.5,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return a voter model with one voter per node of a network.
 
@@ -283,7 +283,7 @@ def voter_variants(
     threshold: float = 0.5,
     contrarians: float = 0.1,
     share: float = 0.5,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return voter model variants on a network, with threshold voters and a share of contrarians.
 

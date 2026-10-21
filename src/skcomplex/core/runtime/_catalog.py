@@ -239,7 +239,8 @@ def run(name: str, *, settings: Mapping[str, Any] | None = None, **parameters: A
             The name of the model.
 
         settings:
-            Run settings that replace the model's defaults: `until` and any `Simulation` argument.
+            Run settings that replace the model's defaults: `until` and any `Simulation` argument. The run is seeded
+            with `random_state=0` unless the settings give another seed, or `None` for a fresh run.
 
         **parameters:
             Arguments of the factory that replace its defaults.
@@ -253,6 +254,6 @@ def run(name: str, *, settings: Mapping[str, Any] | None = None, **parameters: A
             No model has the name.
     """
     entry = MODELS.resolve(name)
-    chosen = {**entry.defaults, **(settings or {})}
+    chosen = {'random_state': 0, **entry.defaults, **(settings or {})}
     until = chosen.pop('until', 10.0)
     return Simulation(create(name, **parameters), **chosen).run(until=until)

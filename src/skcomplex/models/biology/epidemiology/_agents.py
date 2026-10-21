@@ -331,7 +331,7 @@ def agent_based_sir(
     lockdown_start: float = 0.0,
     lockdown_length: float = 0.0,
     lockdown_d: float = 0.1,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return people who walk on a grid and infect those in their cell, with optional extensions of the SIR model.
 
@@ -427,7 +427,7 @@ def random_walker_epidemics(
     infection: float = 1.0,
     travel: float = 1.0,
     graph: object = None,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return random walkers among whom one sick walker starts a deadly epidemic, on a grid or on a network.
 
@@ -505,7 +505,7 @@ def network_sir(
     tau: float = 0.05,
     days: float = 14.0,
     m: float = 0.05,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return SIR epidemics in cities at the nodes of a network, carried between cities by travellers.
 

@@ -155,7 +155,7 @@ def cognitive_consistency(
     *,
     positive: float = 0.7,
     decay: float = 0.05,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return agents whose attitudes spread by conversation and settle in a belief network that seeks consistency.
 

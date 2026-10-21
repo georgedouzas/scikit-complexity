@@ -224,7 +224,7 @@ def meadow_capacity(
     growth: float = 0.2,
     bite: float = 0.75,
     threshold: float = 0.9,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return cows that graze a summer of 25 weeks on a meadow, which shows how many cows the meadow can carry.
 

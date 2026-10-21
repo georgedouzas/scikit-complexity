@@ -448,7 +448,7 @@ def tangled_nature(
     p_kill: float = 0.2,
     length: int = 8,
     seed: int = 0,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return the Tangled Nature model, where organisms whose types interact through random couplings coevolve.
 
@@ -573,7 +573,7 @@ def nk_landscape(
     n: int = 10,
     k: int = 2,
     seed: int = 0,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return agents that climb Kauffman's NK fitness landscape from random genomes until they reach local peaks.
 

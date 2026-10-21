@@ -141,7 +141,7 @@ def origin_fixation_walk(
     field: float = 0.01,
     coupling: float = 0.0,
     F0: float = 1.0,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return a monomorphic population that climbs a fitness landscape as mutants arise and fix one at a time.
 

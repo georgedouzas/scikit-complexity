@@ -163,7 +163,7 @@ def standardized_agents(
     T: float = 0.5,
     H: int = 50,
     standardized: float = 1.0,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return complex agents whose interactions make them standardized, all showing one characteristic, and ordered.
 

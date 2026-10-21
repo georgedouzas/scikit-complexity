@@ -106,7 +106,7 @@ def bonabeau_hierarchies(
     density: float = 0.5,
     eta: float = 1.0,
     relaxation: float = 0.1,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return the Bonabeau model, where a hierarchy of strengths emerges above a critical density of agents.
 

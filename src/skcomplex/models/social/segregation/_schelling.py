@@ -83,7 +83,7 @@ def schelling(
     density: float = 0.8,
     minority: float = 0.3,
     threshold: float = 0.5,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return a Schelling segregation model on a grid with at most one resident per cell.
 

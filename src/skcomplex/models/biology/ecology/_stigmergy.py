@@ -421,7 +421,7 @@ def stigmergic_predator_prey(
     predators: int = 20,
     emotions: bool = True,
     decay: float = 0.2,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return plants, prey, and predators on a grid, whose animals share emotions through decaying marks.
 

@@ -204,7 +204,7 @@ def trafficking(
     n_brothels: int = 3,
     n_victims: int = 12,
     n_free: int = 30,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return the brothel movement model, where victims moved between brothels leave traces in bills and train trips.
 

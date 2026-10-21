@@ -111,7 +111,7 @@ def deffuant(
     *,
     confidence: float = 0.2,
     convergence: float = 0.5,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return the Deffuant bounded confidence model, whose opinions settle into about `1 / (2 * confidence)` clusters.
 

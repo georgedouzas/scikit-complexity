@@ -270,7 +270,7 @@ def sznajd(
     graph: object = None,
     *,
     share: float = 0.5,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return the Sznajd model, where agreeing pairs of agents convince their neighbours.
 
@@ -311,7 +311,7 @@ def galam_majority(
     *,
     group_size: int = 3,
     share: float = 0.4,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return the Galam majority model, where random groups adopt their majority until one opinion wins.
 
@@ -359,7 +359,7 @@ def social_impact(
     share: float = 0.5,
     exponent: float = 2.0,
     noise: float = 0.0,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return the social impact model on a full grid, with random persuasiveness and supportiveness.
 

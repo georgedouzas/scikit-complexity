@@ -207,7 +207,7 @@ def el_farol(
     capacity: float = 60.0,
     n_predictors: int = 6,
     discount: float = 0.9,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return Arthur's El Farol bar problem, whose attendance self-organizes around the capacity.
 

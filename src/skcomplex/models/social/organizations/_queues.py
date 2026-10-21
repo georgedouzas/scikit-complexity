@@ -114,7 +114,7 @@ def priority_queues(
     n_tasks: int = 2,
     *,
     greed: float = 0.99999,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return the Barabási priority queue, whose waiting times follow a power law as the choice becomes greedy.
 

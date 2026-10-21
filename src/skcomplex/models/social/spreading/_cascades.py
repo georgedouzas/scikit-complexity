@@ -81,7 +81,7 @@ def watts_cascades(
     *,
     threshold: float = 0.18,
     seeds: int = 1,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return the Watts threshold model of global cascades started by a few random seeds.
 

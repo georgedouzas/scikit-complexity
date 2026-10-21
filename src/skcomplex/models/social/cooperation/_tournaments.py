@@ -191,7 +191,7 @@ def prisoners_dilemma_tournament(
     rounds: int = 6,
     death: float = 0.1,
     mutation: float = 0.05,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return the evolution of strategies of the iterated prisoner's dilemma from random genomes.
 

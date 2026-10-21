@@ -32,7 +32,7 @@ def ideal_gas(
     size: float = 1.0,
     n_dim: int = 2,
     mass: float = 1.0,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
     label: str = 'gas',
 ) -> System:
     """Return an ideal gas of non-interacting molecules in a reflecting box.

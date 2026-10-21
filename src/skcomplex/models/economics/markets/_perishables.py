@@ -247,7 +247,7 @@ def perishable_goods_duopoly(
     T: float = 0.1,
     alpha: float = 0.9,
     tau_a: float = 1.0,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return customers who choose between two shops of perishable goods, preferring the one that sold fresher goods.
 

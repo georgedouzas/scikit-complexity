@@ -201,7 +201,7 @@ def minority_game(
     evolutionary: bool = False,
     period: int = 50,
     fraction: float = 0.1,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return the minority game of an odd number of agents with two random strategies each.
 

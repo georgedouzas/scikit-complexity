@@ -145,7 +145,7 @@ def agent_based_lotka_volterra(
     birth: float = 0.2,
     conversion: float = 0.5,
     death: float = 0.1,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return prey and predators that walk on a grid, whose numbers cycle like the Lotka-Volterra equations.
 

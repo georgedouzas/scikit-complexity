@@ -203,7 +203,7 @@ def axelrod(
     *,
     features: int = 5,
     traits: int = 10,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return Axelrod's culture dissemination model on a full grid with von Neumann neighbourhoods.
 

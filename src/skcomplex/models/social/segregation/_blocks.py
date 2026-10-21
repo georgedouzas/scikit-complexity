@@ -159,7 +159,7 @@ def stochastic_schelling(
     altruism: float = 0.5,
     slope: float = -4.0 / 3.0,
     intercept: float = 1.0,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return the stochastic Schelling model of agents moving between blocks, which segregates above `beta = 2`.
 

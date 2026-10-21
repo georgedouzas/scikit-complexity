@@ -384,3 +384,11 @@ records the measurement in the proposal's dropped items and closes.
   their own.
 - [The CLE defaults now describe fewer molecules] → The docstring states the volume, and the original constants remain
   arguments.
+
+### Seeded catalog runs
+
+Catalog runs were unseeded: `run()` passed no seed to the simulation, and 36 factories drew their initial conditions
+with `random_state=None`, so a statistical test on `run('ideal_gas')` failed on one gate run. The maintainer chose
+determinism by default: `run()` seeds the simulation with `random_state=0` unless its settings give another seed, the
+36 factories default to 0, and callers ask for a fresh run with `random_state=None`, in the factory arguments for
+random initial conditions or in the settings for stochastic dynamics.

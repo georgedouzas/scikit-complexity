@@ -237,3 +237,14 @@ def test_reductions_agree_with_observables(entry):
     for index, path in enumerate(paths):
         value = rates[problem.states.entry(f'probe_{index}.y').start]
         assert value == pytest.approx(abs(recorded[f'model/{path}']), rel=1e-12, abs=1e-12)
+
+
+def test_default_runs_of_a_stochastic_model_repeat():
+    """Test that default catalog runs repeat, for random initial conditions and for stochastic dynamics."""
+    gas = run('ideal_gas').trajectory_['gas.v']
+    np.testing.assert_array_equal(gas, run('ideal_gas').trajectory_['gas.v'])
+    assert not np.array_equal(gas, run('ideal_gas', random_state=None).trajectory_['gas.v'])
+    counts = run('poisson_process').trajectory_['counters.count']
+    np.testing.assert_array_equal(counts, run('poisson_process').trajectory_['counters.count'])
+    fresh = run('poisson_process', settings={'random_state': None}).trajectory_['counters.count']
+    assert not np.array_equal(counts, fresh)

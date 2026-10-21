@@ -230,7 +230,7 @@ def influentials(
     n_influentials: int = 10,
     influence: float = 3.0,
     news_report: bool = False,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return the belief diffusion model with influentials who care passionately and weigh more with their neighbours.
 
@@ -297,7 +297,7 @@ def threshold_adoption(
     mode: str = 'infection',
     thresholds: str = 'uniform',
     shifting: float = 0.0,
-    random_state: int | np.random.Generator | None = None,
+    random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return the threshold adoption model in social circles, started by the 2.5% of agents with the lowest thresholds.
 
