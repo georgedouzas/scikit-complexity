@@ -31,3 +31,6 @@
 | aggregate_averaging_synchronization | two chaotic maps on one curve after a transient | difference vanishes exactly in the window 1/4 < kappa < 3/4 | 0.2 s, 51 frames, 29 KB |
 | coupled_rossler | chaotic peaks of the two oscillators in step | phase difference drifts at k = 0, stays bounded at k = 0.06 | 4.2 s, 251 frames, 160 KB |
 | delayed_kuramoto | unwrapped phases settling on parallel lines | locked frequencies on the stable branch of Omega = 1 - K' sin(Omega tau) up to tau = 2 | 5.2 s, 251 frames, 646 KB |
+| particle_in_a_well | anharmonic oscillation in the well | orbits follow energy levels; trapped below the separatrix, escaping above (v0 = 0.9) | 0.2 s, 251 frames, 63 KB |
+| two_mass_spring_damper | quasi-periodic beating of the first mass | spectrum peaks at the normal modes 1 and sqrt(3) | 4.5 s, 251 frames, 201 KB |
+| sitnikov | irregular bobbing of the light body (e = 0.2) | stroboscopic section: invariant curves near the centre, chaotic band outside | 19.0 s, 251 frames, 47 KB |
