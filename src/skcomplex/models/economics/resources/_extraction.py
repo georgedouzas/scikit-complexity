@@ -6,7 +6,7 @@
 from collections.abc import Sequence
 
 from ....core.base import Domain, Expression, parameter, state
-from ....core.model import Element, Law, Rate, Symbols, System, where
+from ....core.model import Auxiliary, Element, Flow, Law, Sink, Source, Symbols, System, lookup, where
 from ....core.runtime import register_model
 
 RESOURCE_LEVELS = (0.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0)
@@ -17,14 +17,9 @@ YIELD_LEVELS = (0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0)
 PRICE_BY_YIELD = (10.0, 7.0, 5.0, 3.0, 2.0, 1.5, 1.2)
 
 
-def _lookup(x: Expression, levels: Sequence[float], values: Sequence[float]) -> Expression:
-    """Return the piecewise linear interpolation of a table at an expression, constant beyond its ends."""
-    levels, values = [float(level) for level in levels], [float(value) for value in values]
-    result: Expression = values[-1]
-    for index in reversed(range(len(levels) - 1)):
-        slope = (values[index + 1] - values[index]) / (levels[index + 1] - levels[index])
-        result = where(x < levels[index + 1], values[index] + slope * (x - levels[index]), result)
-    return where(x < levels[0], values[0], result)
+def _table(levels: Sequence[float], values: Sequence[float]) -> list[tuple[float, float]]:
+    """Return the points of a table function from its inputs and outputs."""
+    return [(float(level), float(value)) for level, value in zip(levels, values, strict=True)]
 
 
 def _investment(profit: Expression, goal: Expression) -> Expression:
@@ -74,8 +69,8 @@ class OilEconomy(Element):
         4.0
     """
 
-    resource: float = state(default=1000.0, domain=Domain.NONNEGATIVE)
-    capital: float = state(default=5.0, domain=Domain.NONNEGATIVE)
+    resource: float = state(default=1000.0, domain=Domain.NONNEGATIVE, quantity='oil')
+    capital: float = state(default=5.0, domain=Domain.NONNEGATIVE, quantity='capital')
     price: float = parameter(default=3.0, domain=Domain.POSITIVE)
     cost: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
     growth_goal: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
@@ -94,11 +89,20 @@ class OilEconomy(Element):
             laws:
                 The laws of the component.
         """
-        efficiency = _lookup(s.resource, RESOURCE_LEVELS, self.yield_table)
-        price = s.price if self.price_table is None else _lookup(efficiency, YIELD_LEVELS, self.price_table)
-        extraction = s.capital * efficiency
-        investment = _investment(price * extraction - s.cost * s.capital, s.growth_goal * s.capital)
-        return [Rate(s.resource, -extraction), Rate(s.capital, investment - s.capital / s.lifetime)]
+        efficiency = Auxiliary('yield_per_capital', lookup(s.resource, _table(RESOURCE_LEVELS, self.yield_table)))
+        price = s.price
+        if self.price_table is not None:
+            price = lookup(efficiency.symbol, _table(YIELD_LEVELS, self.price_table))
+        extraction = s.capital * efficiency.symbol
+        profit = Auxiliary('profit', price * extraction - s.cost * s.capital)
+        investment = _investment(profit.symbol, s.growth_goal * s.capital)
+        return [
+            efficiency,
+            profit,
+            Flow(s.resource, Sink('market'), extraction, label='extraction'),
+            Flow(Source('investors'), s.capital, investment, label='investment'),
+            Flow(s.capital, Sink('scrap'), s.capital / s.lifetime, label='depreciation'),
+        ]
 
 
 class Fishery(Element):
@@ -141,8 +145,8 @@ class Fishery(Element):
         15.0
     """
 
-    resource: float = state(default=1000.0, domain=Domain.NONNEGATIVE)
-    capital: float = state(default=5.0, domain=Domain.NONNEGATIVE)
+    resource: float = state(default=1000.0, domain=Domain.NONNEGATIVE, quantity='fish')
+    capital: float = state(default=5.0, domain=Domain.NONNEGATIVE, quantity='capital')
     cost: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
     growth_goal: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
     lifetime: float = parameter(default=20.0, domain=Domain.POSITIVE)
@@ -161,14 +165,20 @@ class Fishery(Element):
             laws:
                 The laws of the component.
         """
-        efficiency = _lookup(s.resource, RESOURCE_LEVELS, self.yield_table)
-        price = _lookup(efficiency, YIELD_LEVELS, self.price_table)
-        harvest = s.capital * efficiency
-        regeneration = s.resource * _lookup(s.resource, RESOURCE_LEVELS, self.regeneration_table)
-        investment = _investment(price * harvest - s.cost * s.capital, s.growth_goal * s.capital)
+        efficiency = Auxiliary('yield_per_capital', lookup(s.resource, _table(RESOURCE_LEVELS, self.yield_table)))
+        price = Auxiliary('price', lookup(efficiency.symbol, _table(YIELD_LEVELS, self.price_table)))
+        harvest = s.capital * efficiency.symbol
+        regeneration = s.resource * lookup(s.resource, _table(RESOURCE_LEVELS, self.regeneration_table))
+        profit = Auxiliary('profit', price.symbol * harvest - s.cost * s.capital)
+        investment = _investment(profit.symbol, s.growth_goal * s.capital)
         return [
-            Rate(s.resource, regeneration - harvest),
-            Rate(s.capital, investment - s.capital / s.lifetime),
+            efficiency,
+            price,
+            profit,
+            Flow(Source('spawning'), s.resource, regeneration, label='regeneration'),
+            Flow(s.resource, Sink('market'), harvest, label='harvest'),
+            Flow(Source('investors'), s.capital, investment, label='investment'),
+            Flow(s.capital, Sink('scrap'), s.capital / s.lifetime, label='depreciation'),
         ]
 
 
