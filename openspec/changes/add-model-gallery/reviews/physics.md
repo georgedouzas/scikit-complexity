@@ -102,3 +102,11 @@
 | lennard_jones_fluid | melted lattice of 400 particles as a dense fluid | g(r) peaks near 2^(1/6); dense liquid shows damped shells near 2.1 and 3.2 | 20.6 s, 251 frames, 2.6 MB |
 | motility_induced_phase_separation | hexagonally packed dense clusters beside a dilute gas | local packing splits from a peak at 0.5 into dilute and dense (about 0.75) modes | 11.5 s, 241 frames, 3.1 MB |
 | toner_tu | smooth density patches of the flocking fluid | flock speed follows sqrt(a (rho0 - rho_c) / beta), zero below rho_c | 4.8 s, 121 frames, 3.3 MB |
+| burgers | space-time image of the sine steepening into a moving sawtooth shock | steepest slope grows as 1 / (1 - t) up to the shock time 1; total conserved to 1e-14 | 0.6 s, 300 frames, 1.1 MB |
+| wave_breaking | space-time image of the wave number steepening into a moving jump | slope saturates at the predicted breaking time 5.8; number of waves conserved to 1e-13 | 1.2 s, 251 frames, 0.9 MB |
+| shallow_water | space-time image of the rarefaction fan and the bore of the dam break | depth at t = 0.6 matches Stoker's solution, plateau 1.454 | 1.7 s, 121 frames, 0.2 MB |
+| kuramoto_sivashinsky | space-time image of chaotic ridges splitting and merging | time-averaged spectrum peaks near q = 1 / sqrt 2 and decays exponentially above q = 1 | 2.5 s, 300 frames, 0.8 MB |
+| discrete_velocity_boltzmann | space-time image of a right-moving pulse spreading and fading | mass conserved to 1e-14; current decays exponentially to 1e-8 | 3.3 s, 201 frames, 0.8 MB |
+| decaying_turbulence | a large vortex wrapped in thin spiral filaments | enstrophy falls by an order of magnitude while energy loses about a quarter | 8.0 s, 201 frames, 5.6 MB |
+| rayleigh_benard | warm and cold convection rolls at Ra = 2000 (layer and mirror image) | final max \|theta\| negligible below Ra_c = 657.5 and finite, growing with Ra, above it | 22.1 s, 201 frames, 0.3 MB |
+| living_crystals | 100 colloids gathered into a few hexagonal crystallites | share of colloids in clusters of 3+ rises to 1 with attraction, fluctuates near 0.3 without | 10.7 s, 201 frames, 0.9 MB |
