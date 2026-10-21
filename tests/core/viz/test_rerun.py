@@ -186,16 +186,6 @@ def test_points_colored_by_speed_follow_the_color_scale():
     assert rgb[2][0] > rgb[1][0]
 
 
-def test_points_color_range_is_fixed_on_first_frame():
-    """Test that the color range is fixed from the first logged frame when it is not given."""
-    system = System(elements=[Particle.group('gas', 2, v=[[1.0, 0.0], [3.0, 0.0]])], space=EuclideanSpace(2))
-    simulation = Simulation(system).run(until=0.0)
-    frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
-    visual = PointsVisual(position='x', color_by='v', states=())
-    visual.log(LoggedPaths(), simulation.problem_.elements[0], frame)
-    assert visual.color_range == (1.0, 3.0)
-
-
 def _agent_logs(monkeypatch, tmp_path, system, until=2):
     """Return the entity paths and archetypes logged while an agent model runs."""
     logged = []

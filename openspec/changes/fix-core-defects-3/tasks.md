@@ -25,7 +25,7 @@ task removes the workaround.
 
 ## 3. Agents, networks, and oscillators
 
-- [ ] 3.1 Widen color ranges that are not given in the points, agents, and sites visuals, and verify the
+- [x] 3.1 Widen color ranges that are not given in the points, agents, and sites visuals, and verify the
   agents-that-start-equal scenario
 - [ ] 3.2 Add `TraitsVisual`, make it the default of agent groups without a space, verify the Moran process scenario,
   and curate the unblocked scaffolds

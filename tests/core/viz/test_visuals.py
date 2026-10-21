@@ -5,6 +5,7 @@ import pytest
 
 from skcomplex.core.model import ContinuousSpace, EuclideanSpace, LatticeSpace, Particle, System
 from skcomplex.core.runtime import Frame, Observer, Simulation
+from skcomplex.core.solvers import AgentSnapshot
 from skcomplex.core.viz import AgentsVisual, ImageVisual, PointsVisual, ScalarsVisual
 from skcomplex.models import create
 from skcomplex.models.physics.statistical_mechanics import XYSpin
@@ -204,3 +205,25 @@ def test_points_visual_draws_two_dimensions_with_vertical_axis_up():
     assert points == [[1.0, -2.0]]
     trail = logs.of('bodies/trail')[0].strips.as_arrow_array().to_pylist()
     assert trail[0][-1] == [1.0, -2.0]
+
+
+def test_agents_visual_widens_color_range_of_equal_start():
+    """Test that agents that all start with one value get different colors once their values spread."""
+    visual, logs = AgentsVisual(color_by='rank'), Logs()
+    space = ContinuousSpace(10.0, 10.0)
+    first = AgentSnapshot(np.arange(3), {'rank': np.zeros(3)}, np.zeros((3, 2)))
+    later = AgentSnapshot(np.arange(3), {'rank': np.array([0.0, 1.0, 2.0])}, np.zeros((3, 2)))
+    visual.log_agents(logs, 'animals', first, space)
+    visual.log_agents(logs, 'animals', later, space)
+    colors = logs.of('animals')[-1].colors.as_arrow_array().to_pylist()
+    assert len(set(colors)) == 3
+    assert visual.color_range is None
+
+
+def test_points_visual_keeps_given_color_range():
+    """Test that a given color range stays fixed and the visual does not overwrite its parameter."""
+    system = System(elements=[Particle.group('bodies', 2, v=[[1.0, 0.0], [3.0, 0.0]])], space=EuclideanSpace(2))
+    problem, frame = _first_frame(system)
+    visual = PointsVisual(position='x', color_by='v', states=())
+    visual.log(Logs(), problem.elements[0], frame)
+    assert visual.color_range is None

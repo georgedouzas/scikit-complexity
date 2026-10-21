@@ -71,6 +71,12 @@ PALETTE = (
 )
 
 
+def _widened(span: tuple[float, float] | None, values: npt.NDArray[np.float64]) -> tuple[float, float]:
+    """Return a color range widened to cover values, starting from their extremes when there is no range yet."""
+    low, high = float(np.min(values)), float(np.max(values))
+    return (low, high) if span is None else (min(span[0], low), max(span[1], high))
+
+
 def _palette_colors(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
     """Return the colors of an array of values from a palette of 256 levels, fast enough for large images."""
     if high <= low:
@@ -285,7 +291,7 @@ class PointsVisual(Visual):
             The name of a scalar state, or of a vector state whose norm, colors the points, or `None` for one color.
 
         color_range:
-            The values at the two ends of the color scale, or `None` to fix them from the first logged frame.
+            The values at the two ends of the color scale, or `None` for a range widened to every logged value.
 
         states:
             The names of the other states to log as time series, or `None` for all of them.
@@ -317,16 +323,18 @@ class PointsVisual(Visual):
         self.trail = trail
         self._trail: deque[npt.NDArray[np.float64]] = deque(maxlen=max(trail, 1))
         self._bounds: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]] | None = None
+        self._span: tuple[float, float] | None = None
 
     def _colors(self, element: CompiledElement, frame: Frame, count: int) -> npt.NDArray[np.uint8] | None:
-        """Return the colors of the points, fixing the color range on first use when it is not given."""
+        """Return the colors of the points over the given range, or over a range widened to every value so far."""
         if self.color_by is None:
             return None
         values = np.asarray(frame.value(element.states[self.color_by]), dtype=float).reshape(count, -1)
         magnitudes = np.linalg.norm(values, axis=1)
-        if self.color_range is None:
-            self.color_range = (float(magnitudes.min()), float(magnitudes.max()))
-        return _colors_of(magnitudes, *self.color_range)
+        if self.color_range is not None:
+            return _colors_of(magnitudes, *self.color_range)
+        self._span = _widened(self._span, magnitudes)
+        return _colors_of(magnitudes, *self._span)
 
     def _extent_radius(self, points: npt.NDArray[np.float64]) -> float:
         """Return a share of the extent of every position logged so far, keeping the bounds of the positions."""
@@ -451,7 +459,7 @@ class AgentsVisual(Visual):
             The name of a numeric state that colors the agents, or `None` for one color.
 
         color_range:
-            The values at the two ends of the color scale, or `None` to fix them from the first logged frame.
+            The values at the two ends of the color scale, or `None` for a range widened to every logged value.
 
         radius:
             The radius of the points, or `None` for 0.4 on grids and networks and a share of the side of other spaces.
@@ -472,6 +480,7 @@ class AgentsVisual(Visual):
         self.color_range = color_range
         self.radius = radius
         self._layouts: dict[int, dict[str, npt.NDArray[np.float64]]] = {}
+        self._span: tuple[float, float] | None = None
 
     def _layout(self, space: NetworkSpace) -> dict[str, npt.NDArray[np.float64]]:
         """Return the positions of the nodes of a network, computed once per network."""
@@ -480,13 +489,14 @@ class AgentsVisual(Visual):
         return self._layouts[id(space.graph)]
 
     def _colors(self, snapshot: AgentSnapshot) -> npt.NDArray[np.uint8] | None:
-        """Return one color per agent from the colored state, fixing the range on first use."""
+        """Return one color per agent over the given range, or over a range widened to every value so far."""
         if self.color_by is None or not len(snapshot):
             return None
         values = np.asarray(snapshot.values[self.color_by], dtype=float)
-        if self.color_range is None:
-            self.color_range = (float(values.min()), float(values.max()))
-        return _colors_of(values, *self.color_range)
+        if self.color_range is not None:
+            return _colors_of(values, *self.color_range)
+        self._span = _widened(self._span, values)
+        return _colors_of(values, *self._span)
 
     def _radius(self, space: Space | None, positions: npt.NDArray[np.float64]) -> float:
         """Return the given radius, a radius in cells on grids and networks, or a share of the side of other spaces."""
