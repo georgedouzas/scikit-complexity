@@ -22,11 +22,15 @@ from skcomplex.models import create
 
 MODEL = 'towel_map'
 
+# Every view shows the whole run, not the default window that follows the latest frame.
+whole_run = rrb.TimeAxis(
+    view_range=rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite()),
+)
 camera = rrb.EyeControls3D(position=(1.25, -0.95, 0.95), look_target=(0.55, 0.0, 0.55), eye_up=(0.0, 0.0, 1.0))
 blueprint = rrb.Blueprint(
     rrb.Horizontal(
         rrb.Spatial3DView(origin='/attractor', name='attractor', eye_controls=camera, line_grid=False),
-        rrb.TimeSeriesView(origin='/map', name='x, y, z'),
+        rrb.TimeSeriesView(origin='/map', name='x, y, z', axis_x=whole_run),
         column_shares=[3, 2],
     ),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),

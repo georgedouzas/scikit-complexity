@@ -43,7 +43,7 @@ defect. Every test follows the naming and public-API rules of the constitution.
 
 ## 5. Benchmarks
 
-- [ ] 5.1 Rerun the real-time benchmarks of the 100 000-sphere interacting gas and the 1000 × 1000 Game of Life on an
+- [x] 5.1 Rerun the real-time benchmarks of the 100 000-sphere interacting gas and the 1000 × 1000 Game of Life on an
   idle machine with `pytest -m benchmark`, and record their timings in the change's design.md. A failure on an idle
   machine is a defect for a later change, not a reason to relax the benchmark
 

@@ -22,6 +22,10 @@ from skcomplex.models import create
 
 MODEL = 'henon_map'
 
+# Every view shows the whole run, not the default window that follows the latest frame.
+whole_run = rrb.TimeAxis(
+    view_range=rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite()),
+)
 blueprint = rrb.Blueprint(
     rrb.Horizontal(
         rrb.Spatial2DView(
@@ -29,7 +33,7 @@ blueprint = rrb.Blueprint(
             name='attractor',
             visual_bounds=rrb.VisualBounds2D(x_range=[-140, 140], y_range=[-60, 60]),
         ),
-        rrb.TimeSeriesView(origin='/map', name='x, y'),
+        rrb.TimeSeriesView(origin='/map', name='x, y', axis_x=whole_run),
         column_shares=[3, 2],
     ),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),

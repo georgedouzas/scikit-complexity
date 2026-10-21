@@ -24,10 +24,14 @@ from skcomplex.models import create
 
 MODEL = 'sprott_jerk'
 
+# Every view shows the whole run, not the default window that follows the latest frame.
+whole_run = rrb.TimeAxis(
+    view_range=rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite()),
+)
 blueprint = rrb.Blueprint(
     rrb.Horizontal(
         rrb.Spatial3DView(origin='/attractor', name='attractor', line_grid=False),
-        rrb.TimeSeriesView(origin='/jerk', name='x and derivatives'),
+        rrb.TimeSeriesView(origin='/jerk', name='x and derivatives', axis_x=whole_run),
         column_shares=[3, 2],
     ),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),

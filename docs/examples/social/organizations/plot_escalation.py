@@ -7,7 +7,8 @@ exponentially, an arms race.
 """
 
 # %%
-# The parties start with 10 and 10.5 units, and the run lasts 100 years. The blueprint shows the two stocks.
+# The parties start with 10 and 10.5 units, and the run lasts 100 years. The blueprint shows the two stocks in one
+# time series view over the whole run.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,9 +21,13 @@ from skcomplex.models import create
 MODEL = 'escalation'
 
 blueprint = rrb.Blueprint(
-    rrb.Vertical(
-        rrb.TimeSeriesView(origin='/race/a', name='first party a'),
-        rrb.TimeSeriesView(origin='/race/b', name='second party b'),
+    rrb.TimeSeriesView(
+        origin='/',
+        contents=['/race/a', '/race/b'],
+        name='stocks of both parties',
+        axis_x=rrb.TimeAxis(
+            view_range=rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite()),
+        ),
     ),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
     rrb.TopPanel(state='hidden'),

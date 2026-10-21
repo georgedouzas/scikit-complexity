@@ -72,13 +72,13 @@ For every task in this section:
 - [x] 5.5 Economics
 - [ ] 5.6 Social science
 - [ ] 5.7 Engineering
-- [ ] 5.8 Mathematics
+- [x] 5.8 Mathematics
 - [x] 5.9 Computer science
 
 ## 6. Enforcement and gate
 
 - [ ] 6.1 Switch the coverage check and the strict documentation build to failing mode, and verify the strict build
   without a screenshot and new model without an example scenarios
-- [ ] 6.2 Document the gallery, how to add an example for a new model, and the review rule in the contributing guide,
+- [x] 6.2 Document the gallery, how to add an example for a new model, and the review rule in the contributing guide,
   and add the `gallery` group and Playwright to the Project Profile
 - [ ] 6.3 Run formatting, checks, the docs build with the gallery, and tests through nox, and verify all of them pass
