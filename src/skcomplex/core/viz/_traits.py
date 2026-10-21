@@ -39,16 +39,16 @@ def _histogram(
     numbers: npt.NDArray[np.float64],
     span: tuple[float, float],
     bins: int,
-) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.float64]]:
-    """Return the counts and the left edges of a histogram, with one bar per value for few integer values."""
+) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.float64], float]:
+    """Return the counts, the bar centres, and the bar width of a histogram, with one bar per value for few integers."""
     low, high = span
     if np.all(numbers == np.round(numbers)) and high - low < MAX_LEVELS:
         levels = np.arange(np.floor(low), np.floor(high) + 1)
         counts = np.bincount((numbers - levels[0]).astype(np.int64), minlength=len(levels))
-        return counts, levels
+        return counts, levels, 1.0
     low, high = (low, high) if high > low else (low - 0.5, low + 0.5)
     counts, edges = np.histogram(numbers, bins=bins, range=(low, high))
-    return counts, edges[:-1]
+    return counts, (edges[:-1] + edges[1:]) / 2, float(edges[1] - edges[0])
 
 
 class TraitsVisual(AgentsVisual):
@@ -79,6 +79,10 @@ class TraitsVisual(AgentsVisual):
             The series of the colored trait that the first view shows, among `'agents'`, `'mean'`, `'std'`, and
             `'distinct'`.
 
+        histogram_first:
+            Whether the histogram view comes before the time series view of the colored trait, for traits whose
+            distribution matters more than its statistics, such as clustered opinions.
+
     Examples:
         >>> from skcomplex.core.viz import TraitsVisual
         >>> TraitsVisual(color_by='fitness').bins
@@ -90,12 +94,15 @@ class TraitsVisual(AgentsVisual):
         color_by: str | None = None,
         color_range: tuple[float, float] | None = None,
         radius: float | None = None,
+        *,
         bins: int = BINS,
         shown: Sequence[str] = ('agents', 'mean', 'std'),
+        histogram_first: bool = False,
     ) -> None:
         super().__init__(color_by=color_by, color_range=color_range, radius=radius)
         self.bins = bins
         self.shown = shown
+        self.histogram_first = histogram_first
         self._spans: dict[str, tuple[float, float]] = {}
 
     def _log_trait(self, recording: rr.RecordingStream, path: str, numbers: npt.NDArray[np.float64]) -> None:
@@ -106,8 +113,8 @@ class TraitsVisual(AgentsVisual):
                 recording.log(f'{path}/{statistic}', style, static=True)
         span = self.color_range if self.color_range is not None else _widened(self._spans.get(path), numbers)
         self._spans[path] = span
-        counts, edges = _histogram(numbers, span, self.bins)
-        recording.log(f'{path}/histogram', rr.BarChart(counts, abscissa=edges))
+        counts, centres, width = _histogram(numbers, span, self.bins)
+        recording.log(f'{path}/histogram', rr.BarChart(counts, abscissa=centres, widths=np.full(len(counts), width)))
         recording.log(f'{path}/mean', rr.Scalars(float(numbers.mean())))
         recording.log(f'{path}/std', rr.Scalars(float(numbers.std())))
         if np.all(numbers == np.round(numbers)):
@@ -156,23 +163,22 @@ class TraitsVisual(AgentsVisual):
 
         Returns:
             views:
-                A time series view of the shown series of `color_by`, or of the first state, a bar chart view of its
-                histogram, and a time series view of the statistics of every trait.
+                A time series view of the shown series of `color_by`, or of the first state, and a bar chart view of
+                its histogram, in the chosen order, and a time series view of the statistics of every trait.
         """
         if not isinstance(element, CompiledAgents) or not element.states:
             return []
         path = element.path
         trait = self.color_by if self.color_by is not None else element.states[0]
         contents = [f'+ /{path}/*/mean', f'+ /{path}/*/std']
-        return [
-            rrb.TimeSeriesView(
-                origin='/',
-                contents=[f'+ /{path}/{trait}/{series}' for series in self.shown],
-                name=f'{path} {trait}',
-            ),
-            rrb.BarChartView(origin=f'{path}/{trait}/histogram', name=f'{path} {trait} histogram'),
-            rrb.TimeSeriesView(origin='/', contents=contents, name=f'{path} traits'),
-        ]
+        series = rrb.TimeSeriesView(
+            origin='/',
+            contents=[f'+ /{path}/{trait}/{name}' for name in self.shown],
+            name=f'{path} {trait}',
+        )
+        histogram = rrb.BarChartView(origin=f'{path}/{trait}/histogram', name=f'{path} {trait} histogram')
+        first = [histogram, series] if self.histogram_first else [series, histogram]
+        return [*first, rrb.TimeSeriesView(origin='/', contents=contents, name=f'{path} traits')]
 
 
 def agents_visual_of(agents: CompiledAgents, problem: Problem) -> AgentsVisual:

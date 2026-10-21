@@ -110,3 +110,10 @@ def test_traits_visual_shows_chosen_statistics_first():
     problem = compile_system(create('tangled_nature', organisms=20))
     view = TraitsVisual(color_by='trait', shown=('distinct',)).views(problem.agents[0], problem)[0]
     assert view.contents == ['+ /organisms/trait/distinct']
+
+
+def test_traits_visual_can_show_the_histogram_first():
+    """Test that a traits visual can put the histogram of its trait before its time series."""
+    problem = compile_system(create('deffuant'))
+    views = TraitsVisual(color_by='opinion', histogram_first=True).views(problem.agents[0], problem)
+    assert [type(view).__name__ for view in views] == ['BarChartView', 'TimeSeriesView', 'TimeSeriesView']
