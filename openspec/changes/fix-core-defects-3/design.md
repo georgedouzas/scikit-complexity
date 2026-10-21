@@ -197,10 +197,13 @@ module holds the rule.
 ### Phase rings and 3D paths
 
 `PhaseRingVisual(phase, position=None)` logs the wrapped phases of a group as `Points2D` at `(position, phase)`, the
-member index by default, with the cyclic palette, and gives a 2D view bounded by `(-pi, pi]`. The chimera models
-declare it. The trail of `PointsVisual` in three dimensions becomes the fading path of `BodiesVisual`, so
-`stormer_problem` shows the path of its particle. `spring_chain` declares the bodies visual with rods between the
-masses.
+member index by default, with the cyclic palette, and gives a 2D view bounded by one turn of phase, which spans six
+tenths of the extent of the positions so the view is not flattened. The chimera models declare it. `BodiesVisual`
+also takes bodies of three coordinates and draws them, their fading paths, and their marks in a 3D view, so
+`stormer_problem` declares it and shows the path of its particle around the planet. The masses of `spring_chain` are
+separate particle elements, which a bodies visual of one element cannot join by rods, so `PointsVisual` instead sizes
+its points by the extent and the count of every element drawn by a points visual of the same position state, and
+the masses of the chain are no longer hairlines.
 
 ### Nyquist mode of the spectral Laplacian
 
