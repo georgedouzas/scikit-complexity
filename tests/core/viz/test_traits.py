@@ -86,3 +86,27 @@ def test_default_blueprint_of_moran_process_shows_trait_statistics_and_histogram
     Simulation(create('moran_process'), observers=[observer], random_state=0).run(until=10)
     assert 'population/trait/mean' in logged
     assert 'population/fitness/mean' in logged
+
+
+def test_traits_visual_counts_distinct_integer_values():
+    """Test that an integer trait such as a genome label logs its number of distinct values."""
+    visual, logs = TraitsVisual(), Logs()
+    snapshot = AgentSnapshot(np.arange(5), {'trait': np.array([3.0, 3.0, 17.0, 200.0, 17.0])})
+    visual.log_agents(logs, 'organisms', snapshot, None)
+    assert logs.of('organisms/trait/distinct')[0].scalars.as_arrow_array().to_pylist() == [3.0]
+
+
+def test_traits_visual_logs_each_agent_of_small_groups():
+    """Test that a group of at most ten agents logs the trait of every agent as its own series, and larger ones do not."""
+    visual, logs = TraitsVisual(), Logs()
+    visual.log_agents(logs, 'trials', AgentSnapshot(np.arange(3), {'successes': np.array([1.0, 2.0, 0.0])}), None)
+    assert logs.of('trials/successes/agents')[0].scalars.as_arrow_array().to_pylist() == [1.0, 2.0, 0.0]
+    visual.log_agents(logs, 'crowd', AgentSnapshot(np.arange(11), {'successes': np.ones(11)}), None)
+    assert not logs.of('crowd/successes/agents')
+
+
+def test_traits_visual_shows_chosen_statistics_first():
+    """Test that the first view shows the chosen statistics of the colored trait."""
+    problem = compile_system(create('tangled_nature', organisms=20))
+    view = TraitsVisual(color_by='trait', shown=('distinct',)).views(problem.agents[0], problem)[0]
+    assert view.contents == ['+ /organisms/trait/distinct']

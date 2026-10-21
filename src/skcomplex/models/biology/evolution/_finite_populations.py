@@ -501,7 +501,8 @@ def tangled_nature(
         length=length,
         seed=seed,
     )
-    return System(elements=[Individual.group(ORGANISMS, organisms, trait=genome)], interactions=[step])
+    visual = VisualSpec('traits', {'color_by': 'trait', 'shown': ('distinct',)})
+    return System(elements=[Individual.group(ORGANISMS, organisms, trait=genome, visual=visual)], interactions=[step])
 
 
 @register_model(

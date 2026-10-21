@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sized
+from collections.abc import Sequence, Sized
 from typing import Any
 
 import numpy as np
@@ -18,6 +18,8 @@ from ._visuals import SERIES_COLORS, AgentsVisual, _widened, register_visual, re
 
 BINS = 20
 MAX_LEVELS = 50
+MAX_AGENT_SERIES = 10
+STATISTICS = ('mean', 'std', 'distinct')
 NUMERIC_KINDS = frozenset('biuf')
 
 
@@ -56,7 +58,9 @@ class TraitsVisual(AgentsVisual):
     numbers such as a genome, or the size of a collection such as a vocabulary. The visual logs the histogram of these
     numbers as a `BarChart` under `<path>/<trait>/histogram`, over a range that widens to every value logged so far,
     with one bar per value when the values are few integers, and their mean and standard deviation as series under
-    `<path>/<trait>/mean` and `<path>/<trait>/std`. Traits of other kinds are left out.
+    `<path>/<trait>/mean` and `<path>/<trait>/std`. Integer numbers, such as type labels, also log their number of
+    distinct values under `<path>/<trait>/distinct`, and a group of at most ten agents logs the number of every agent
+    as its own series under `<path>/<trait>/agents`. Traits of other kinds are left out.
 
     Args:
         color_by:
@@ -71,6 +75,10 @@ class TraitsVisual(AgentsVisual):
         bins:
             The number of bins of the histograms.
 
+        shown:
+            The series of the colored trait that the first view shows, among `'agents'`, `'mean'`, `'std'`, and
+            `'distinct'`.
+
     Examples:
         >>> from skcomplex.core.viz import TraitsVisual
         >>> TraitsVisual(color_by='fitness').bins
@@ -83,15 +91,17 @@ class TraitsVisual(AgentsVisual):
         color_range: tuple[float, float] | None = None,
         radius: float | None = None,
         bins: int = BINS,
+        shown: Sequence[str] = ('agents', 'mean', 'std'),
     ) -> None:
         super().__init__(color_by=color_by, color_range=color_range, radius=radius)
         self.bins = bins
+        self.shown = shown
         self._spans: dict[str, tuple[float, float]] = {}
 
     def _log_trait(self, recording: rr.RecordingStream, path: str, numbers: npt.NDArray[np.float64]) -> None:
         """Log the histogram, the mean, and the standard deviation of the numbers of one trait."""
         if path not in self._spans:
-            for index, statistic in enumerate(('mean', 'std')):
+            for index, statistic in enumerate(STATISTICS):
                 style = rr.SeriesLines(colors=SERIES_COLORS[index], names=statistic)
                 recording.log(f'{path}/{statistic}', style, static=True)
         span = self.color_range if self.color_range is not None else _widened(self._spans.get(path), numbers)
@@ -100,6 +110,10 @@ class TraitsVisual(AgentsVisual):
         recording.log(f'{path}/histogram', rr.BarChart(counts, abscissa=edges))
         recording.log(f'{path}/mean', rr.Scalars(float(numbers.mean())))
         recording.log(f'{path}/std', rr.Scalars(float(numbers.std())))
+        if np.all(numbers == np.round(numbers)):
+            recording.log(f'{path}/distinct', rr.Scalars(float(np.unique(numbers).size)))
+        if numbers.size <= MAX_AGENT_SERIES:
+            recording.log(f'{path}/agents', rr.Scalars(numbers))
 
     def log_agents(
         self,
@@ -142,8 +156,8 @@ class TraitsVisual(AgentsVisual):
 
         Returns:
             views:
-                A time series view of the mean and the standard deviation of `color_by`, or of the first state, a bar
-                chart view of its histogram, and a time series view of the statistics of every trait.
+                A time series view of the shown series of `color_by`, or of the first state, a bar chart view of its
+                histogram, and a time series view of the statistics of every trait.
         """
         if not isinstance(element, CompiledAgents) or not element.states:
             return []
@@ -153,7 +167,7 @@ class TraitsVisual(AgentsVisual):
         return [
             rrb.TimeSeriesView(
                 origin='/',
-                contents=[f'+ /{path}/{trait}/mean', f'+ /{path}/{trait}/std'],
+                contents=[f'+ /{path}/{trait}/{series}' for series in self.shown],
                 name=f'{path} {trait}',
             ),
             rrb.BarChartView(origin=f'{path}/{trait}/histogram', name=f'{path} {trait} histogram'),

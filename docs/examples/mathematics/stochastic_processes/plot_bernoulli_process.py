@@ -6,13 +6,11 @@ staircases around the line `p t`, spreading apart as the square root of the numb
 """
 
 # %%
-# Six sequences run for 100 trials with `p = 0.5`. The model logs only the number of sequences, so after the run the
-# success count of every sequence is logged as a time series, and the blueprint puts it first, as the primary view.
+# Six sequences run for 100 trials with `p = 0.5`. The default blueprint shows the success count of every sequence,
+# with their mean and standard deviation.
 
 import matplotlib.pyplot as plt
 import numpy as np
-import rerun as rr
-import rerun.blueprint as rrb
 from scipy import stats
 
 from skcomplex.core.runtime import Simulation
@@ -27,23 +25,8 @@ def successes(trajectory):
     return np.array([trajectory.agents('trials', frame).values['successes'] for frame in range(len(trajectory.times))])
 
 
-whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
-blueprint = rrb.Blueprint(
-    rrb.TimeSeriesView(origin='/successes', name='successes', axis_x=rrb.TimeAxis(view_range=whole_run)),
-    rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
-    rrb.TopPanel(state='hidden'),
-    collapse_panels=True,
-)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = Simulation(create(MODEL, n_sequences=6), dt=1, observers=[observer], random_state=0).run(until=100)
-counts = successes(simulation.trajectory_)
-for sequence in range(6):
-    observer.recording_.send_columns(
-        f'successes/sequence_{sequence}',
-        indexes=[rr.TimeColumn('sim_time', duration=simulation.trajectory_.times)],
-        columns=rr.Scalars.columns(scalars=counts[:, sequence]),
-    )
-observer.recording_.flush()
 
 # %%
 # Binomial counts

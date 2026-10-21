@@ -43,7 +43,7 @@ class BernoulliTrial(AgentType):
         Group('trials', element=BernoulliTrial, size=4)
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'outcome', 'color_range': (0.0, 1.0)})
+    visual: ClassVar[VisualSpec] = VisualSpec('traits', {'color_by': 'successes'})
     outcome: float = state(default=0.0, domain=Domain.BOOLEAN)
     successes: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
     p: float = parameter(0.5, domain=Domain.NONNEGATIVE)
