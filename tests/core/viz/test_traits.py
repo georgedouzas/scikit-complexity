@@ -97,7 +97,7 @@ def test_traits_visual_counts_distinct_integer_values():
 
 
 def test_traits_visual_logs_each_agent_of_small_groups():
-    """Test that a group of at most ten agents logs the trait of every agent as its own series, and larger ones do not."""
+    """Test that a group of at most ten agents logs every agent's trait as its own series, and larger ones do not."""
     visual, logs = TraitsVisual(), Logs()
     visual.log_agents(logs, 'trials', AgentSnapshot(np.arange(3), {'successes': np.array([1.0, 2.0, 0.0])}), None)
     assert logs.of('trials/successes/agents')[0].scalars.as_arrow_array().to_pylist() == [1.0, 2.0, 0.0]
