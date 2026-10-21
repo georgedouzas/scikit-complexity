@@ -111,3 +111,4 @@
 | rayleigh_benard | warm and cold convection rolls at Ra = 2000 (layer and mirror image) | final max \|theta\| negligible below Ra_c = 657.5 and finite, growing with Ra, above it | 22.1 s, 201 frames, 0.3 MB |
 | living_crystals | 100 colloids gathered into a few hexagonal crystallites | share of colloids in clusters of 3+ rises to 1 with attraction, fluctuates near 0.3 without | 10.7 s, 201 frames, 0.9 MB |
 | gimballed_gyroscope | angle of the outer ring falling linearly, the steady precession | rate nutates between 0 and twice its mean; mean rate matches -torque / (C spin cos beta) for spins 25 to 200 | 15 s script, 251 frames, 0.24 MB |
+| huygens_clocks | angles of the two clocks exchanging amplitude, then swinging together in antiphase | windowed correlation falls from +0.3 to -1 by t ~ 55; amplitudes meet at 0.19 | 52 s script, 251 frames, 4.29 MB |

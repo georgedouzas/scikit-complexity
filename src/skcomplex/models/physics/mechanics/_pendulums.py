@@ -161,7 +161,7 @@ BallisticPendulum = Element.define(
 
 ClockPendulum = Element.define(
     'ClockPendulum',
-    states={'theta': state(default=0.1, order=2), 'x': state(default=0.0, order=2)},
+    states={'theta': state(default=0.2, order=2), 'x': state(default=0.0, order=2)},
     parameters={
         'm': parameter(default=1.0, domain=Domain.POSITIVE),
         'l': parameter(default=1.0, domain=Domain.POSITIVE),
@@ -648,7 +648,7 @@ def ballistic_pendulum(
 def huygens_clocks(
     n_clocks: int = 2,
     *,
-    theta: float = 0.1,
+    theta: float = 0.2,
     k: float = 1.0,
     m: float = 1.0,
     l: float = 1.0,
@@ -664,7 +664,8 @@ def huygens_clocks(
     supports are joined by springs of stiffness `k`. A pendulum follows `m l θ'' + f(θ) θ' + m g sin θ = -m x'' cos θ`
     and its support `(M + m) x'' + 2 rho x' + m l θ'' cos θ = m l θ'² sin θ + spring forces`. The escapement
     `f(θ) = 2 λ sgn(|θ| - θ_c)` is `-2 λ` for `|θ| < θ_c`, pumping energy in, and `2 λ` beyond, so every clock has a
-    limit cycle. With `λ = 0` the clocks are plain pendulums. Two identical clocks synchronize in antiphase.
+    limit cycle. With `λ = 0` the clocks are plain pendulums. Two identical clocks synchronize in antiphase. The
+    first clock starts at `theta`, away from the switch of the escapement at `θ_c`, and the others at rest.
 
     Args:
         n_clocks:
