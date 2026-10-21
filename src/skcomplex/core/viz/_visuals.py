@@ -275,10 +275,12 @@ class ScalarsVisual(Visual):
 class PointsVisual(Visual):
     """Visual that logs a vector state as points, one per member of a group, and other states as time series.
 
-    Each state is logged as one batch, so a group of any size takes one log call per state and frame. Positions in two
-    dimensions are logged with the second coordinate negated, since Rerun's 2D views point their vertical axis down, so
-    the views draw them with the vertical axis up and show the negated value on hover. Without a given
-    radius, the points take a share of the extent of the positions logged so far, smaller for larger groups. A group of
+    Each state is logged as one batch, so a group of any size takes one log call per state and frame. Positions in
+    two dimensions are logged with the second coordinate negated, since Rerun's 2D views point their vertical axis
+    down, so the views draw them with the vertical axis up and show the negated value on hover. Without a given
+    radius, the points take a share of the extent of the positions logged so far, smaller for larger groups. The
+    extent and the count include every element drawn by a points visual of the same position state, so single
+    particles that share a space, such as the masses of a chain, take one radius from the whole drawing. A group of
     at most ten points in two or three dimensions also logs the trail of its recent positions as line strips under
     `<path>/trail`, a quarter as wide as that share, whatever the radius.
 
@@ -347,6 +349,18 @@ class PointsVisual(Visual):
         extent = float((high - low).max()) or float(np.abs(points).max())
         return _radius_of(extent, len(points))
 
+    def _crowd(self, frame: Frame, points: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+        """Return the positions of every element drawn by a points visual of the same position state and dimension."""
+        positions = [
+            np.atleast_2d(np.asarray(frame.value(other.states[self.position]), dtype=float))
+            for other in frame.problem.elements
+            if other.visual.kind == 'points'
+            and other.visual.options.get('position') == self.position
+            and self.position in other.states
+        ]
+        same = [item for item in positions if item.shape[1] == points.shape[1]]
+        return np.vstack(same) if same else points
+
     def _radius(self, points: npt.NDArray[np.float64]) -> float:
         """Return the given radius, or a share of the extent of every position logged so far."""
         extent_radius = self._extent_radius(points)
@@ -387,12 +401,13 @@ class PointsVisual(Visual):
         """
         points = np.atleast_2d(np.asarray(frame.value(element.states[self.position]), dtype=float))
         colors = self._colors(element, frame, len(points))
+        radius = self._radius(self._crowd(frame, points)) if points.shape[1] > 1 else 0.0
         if points.shape[1] == MAX_POINT_DIMENSIONS:
-            recording.log(element.path, rr.Points3D(points, radii=self._radius(points), colors=colors))
+            recording.log(element.path, rr.Points3D(points, radii=radius, colors=colors))
             self._log_trail(recording, element.path, points, colors)
         elif points.shape[1] == MAX_POINT_DIMENSIONS - 1:
             shown = points * UPWARD
-            recording.log(element.path, rr.Points2D(shown, radii=self._radius(shown), colors=colors))
+            recording.log(element.path, rr.Points2D(shown, radii=radius, colors=colors))
             self._log_trail(recording, element.path, shown, colors)
         else:
             recording.log(f'{element.path}/{self.position}', rr.Scalars(points.ravel()))
