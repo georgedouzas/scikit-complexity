@@ -34,7 +34,7 @@ blueprint = rrb.Blueprint(
         rrb.Spatial2DView(
             origin='/phase_plane',
             name='phase plane',
-            visual_bounds=rrb.VisualBounds2D(x_range=[-90, 120], y_range=[-75, 75]),
+            visual_bounds=rrb.VisualBounds2D(x_range=[-100, 125], y_range=[-85, 85]),
         ),
         rrb.TimeSeriesView(origin='/form', name='x, y'),
         column_shares=[3, 2],
@@ -54,7 +54,11 @@ observer.recording_.log(
     rr.LineStrips2D(strips, radii=0.6, colors=[[255, 170, 40], [90, 170, 255]]),
     static=True,
 )
-observer.recording_.log('phase_plane/saddle', rr.Points2D([[100 * saddle, 0]], radii=2.5, colors=[230, 60, 60]), static=True)
+observer.recording_.log(
+    'phase_plane/saddle',
+    rr.Points2D([[100 * saddle, 0]], radii=2.5, colors=[230, 60, 60]),
+    static=True,
+)
 observer.recording_.flush()
 
 # %%
