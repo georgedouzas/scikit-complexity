@@ -70,6 +70,9 @@ static-solutions = { description = "Systems solved, swept, or optimised rather t
 tensor-fields = { description = "Tensor-valued states with declared symmetries", change = "add-tensor-fields" }
 variational-mechanics = { description = "Hamiltonian and Lagrangian mechanics with derived equations", change = "add-variational-mechanics" }
 geographic-spaces = { description = "Three-dimensional continuous and geographic agent spaces", change = "extend-agent-spaces" }
+hypergraphs = { description = "Hypergraph spaces, k-body interactions, regulatory hyperedges, and coupling tensors", change = "add-higher-order-interactions" }
+learned-surrogates = { description = "Surrogate systems fitted to trajectories by mode decomposition, sparse regression, or reservoirs", change = "add-data-driven-dynamics" }
+hyperbolic-networks = { description = "Hyperbolic and popularity-similarity networks and their renormalization", change = "add-multiscale-networks" }
 
 [sources]
 Ar = "Argun et al. 2021"
@@ -155,6 +158,7 @@ kuramoto_on_networks = { title = "Kuramoto on networks", sources = ["0805.2976 �
 coupled_map_lattices_on_networks = { title = "Coupled map lattices on networks", sources = ["0805.2976 §3.3"], primitives = ["network-generators"], priority = "core", status = "pending add-adaptive-networks" }
 oscillator_death = { title = "Globally coupled Stuart-Landau oscillators with frequency spread", sources = ["Bt 7.3.3", "Bt 7.5"], primitives = ["rates", "groups", "interactions", "reductions", "observables"], priority = "example", status = "implemented" }
 heterogeneous_global_coupling = { title = "Globally coupled systems with heterogeneous time scales", sources = ["Bt 7.4.1", "Bt 7.4.2", "Bt 7.4.3"], primitives = ["rates", "groups", "interactions", "reductions", "observables"], priority = "example", status = "implemented" }
+hypergraph_kuramoto = { title = "Kuramoto oscillators with three-body coupling", sources = ["2203.06601"], primitives = ["hypergraphs", "angles", "rates"], priority = "core", status = "pending add-higher-order-interactions" }
 
 [physics.statistical_mechanics]
 ising = { title = "Ising", sources = ["Ar 2", "Je 3.1", "Th 3.3.1", "Bt 1.4", "Bt 1.6"], primitives = ["discrete-states", "groups", "lattices", "monte-carlo"], priority = "core", status = "implemented" }
@@ -231,6 +235,7 @@ active_gels = { title = "Active nematic and polar gels", sources = ["1207.2929 �
 bertin_droz_gregoire = { title = "Bertin-Droz-Grégoire kinetic flocking", sources = ["1207.2929 §V.2.3", "Bt 3.5.1", "Bt 3.5.2"], primitives = ["phase-space-fields"], priority = "core", status = "blocked add-phase-space-fields", feature = "Fields over position and velocity or orientation, for kinetic equations" }
 aligning_active_brownian_particles = { title = "Active Brownian particles with local alignment", sources = ["Bt 3.6", "Bt 3.5"], primitives = ["rates", "noise", "boundaries", "angles", "groups", "interactions", "reductions", "observables", "particles", "continuous-spaces"], priority = "core", status = "implemented" }
 binary_collision_flocking = { title = "Microscopic flocking with aligning binary collisions", sources = ["Bt 3.5", "Bt 3.5.1", "Bt 3.5.2"], primitives = ["interactions", "observables", "continuous-spaces", "agents", "agent-spaces"], priority = "core", status = "implemented" }
+nonreciprocal_vicsek = { title = "Nonreciprocal Vicsek model", sources = ["2405.15751"], primitives = ["particles", "noise", "angles"], priority = "core", status = "pending extend-dynamics-analysis" }
 
 [physics.fluids]
 burgers = { title = "Burgers", sources = ["Burgers 1948", "LeVeque 2002"], primitives = ["rates", "groups", "lattices", "fields", "finite-volumes"], priority = "core", status = "implemented" }
@@ -255,6 +260,7 @@ lattice_gauge_fields = { title = "Lattice Maxwell and gauge link fields", source
 [physics.pattern_formation]
 complex_ginzburg_landau = { title = "Complex Ginzburg-Landau", sources = ["Aranson and Kramer 2002", "Gros 2015"], primitives = ["rates", "groups", "lattices", "fields"], priority = "example", status = "implemented" }
 swift_hohenberg = { title = "Swift-Hohenberg", sources = ["Swift and Hohenberg 1977", "Cross and Hohenberg 1993", "Datseris and Parlitz 2022"], primitives = ["rates", "groups", "lattices", "fields"], priority = "example", status = "implemented" }
+nonreciprocal_cahn_hilliard = { title = "Nonreciprocal Cahn-Hilliard", sources = ["2306.08868"], primitives = ["fields", "rates"], priority = "core", status = "pending extend-dynamics-analysis" }
 
 [physics.heat]
 heat_diffusion = { title = "Heat diffusion", sources = ["Fourier 1822", "Datseris and Parlitz 2022"], primitives = ["rates", "groups", "lattices", "fields"], priority = "example", status = "implemented" }
@@ -311,6 +317,7 @@ comets = { title = "COMETS: dynamic flux balance on a lattice with diffusion", s
 community_fba = { title = "Joint, community, and SteadyCom flux balance", sources = ["Rm 11.1.3.1", "Rm 11.1.3.6"], primitives = ["constraint-networks"], priority = "core", status = "blocked add-constraint-based-models", feature = "Constraint-based models: stoichiometric constraints with bounds and an objective solved as an LP, statically or coupled to dynamics" }
 neutral_biodiversity = { title = "Neutral Moran model with speciation", sources = ["Bt 5.3.4", "Bt 5.5"], primitives = ["interactions", "observables", "agents"], priority = "core", status = "implemented" }
 neutral_clustering = { title = "Neutral birth-death with hopping between boxes", sources = ["Bt 5.4.1", "Bt 5.4.2", "Bt 5.5"], primitives = ["jumps", "discrete-states", "groups", "interactions", "observables", "lattices"], priority = "core", status = "implemented" }
+higher_order_random_lotka_volterra = { title = "Random Lotka-Volterra with higher-order interactions", sources = ["2409.10990"], primitives = ["hypergraphs", "rates", "groups"], priority = "core", status = "pending add-higher-order-interactions" }
 
 [biology.epidemiology]
 sir = { title = "SIR", sources = ["Kermack and McKendrick 1927", "Rm 1.5.2", "Bt 6.2.1"], primitives = ["rates", "interactions"], priority = "example", status = "implemented" }
@@ -356,6 +363,7 @@ winners_take_all = { title = "Winners-take-all network", sources = ["Gr 10.4.2",
 legion = { title = "LEGION oscillators", sources = ["Gr 9.5"], primitives = ["rates", "groups", "interactions", "reductions", "lattices", "fields"], priority = "core", status = "implemented" }
 adaptrode = { title = "Adaptrode synapse", sources = ["Mo 6.9"], primitives = ["updates", "time-inputs", "switches"], priority = "core", status = "implemented" }
 amari_neural_field = { title = "Amari neural field", sources = ["2112.12147 §1.3.1"], primitives = ["nonlocal-operators"], priority = "core", status = "blocked add-nonlocal-operators", feature = "Convolution kernels, reads at shifted positions, and modified-Helmholtz inversion on fields" }
+kinouchi_copelli = { title = "Kinouchi-Copelli excitable network", sources = ["2306.05635"], primitives = ["networks", "draws", "discrete-states"], priority = "core", status = "pending extend-dynamics-analysis" }
 
 [biology.systems_biology]
 toggle_switch = { title = "Genetic toggle switch", sources = ["2111.04508", "Rm 12.2.2"], primitives = ["rates", "interactions"], priority = "example", status = "implemented" }
@@ -461,6 +469,7 @@ lorenz_96 = { title = "Lorenz-96", sources = ["DP 4", "DP 12"], primitives = ["r
 geodynamo = { title = "Gissinger geodynamo", sources = ["DP 4"], primitives = ["rates"], priority = "example", status = "implemented" }
 soil_temperature = { title = "Coupled soil and deep temperature maps", sources = ["Mi 4.5"], primitives = ["updates"], priority = "core", status = "implemented" }
 energy_return = { title = "Declining energy return on investment", sources = ["Mo 9.6"], primitives = ["rates", "stocks-and-flows"], priority = "core", status = "implemented" }
+tipping_cascade_network = { title = "Network of interacting tipping elements", sources = ["2511.01168"], primitives = ["networks", "rates", "groups"], priority = "core", status = "pending extend-dynamics-analysis" }
 
 [earth.oceanography]
 stommel = { title = "Stommel thermohaline boxes", sources = ["DP 12", "1910.00583 §III.3.1"], primitives = ["rates"], priority = "example", status = "implemented" }
@@ -570,6 +579,7 @@ prisoners_dilemma_tournament = { title = "Iterated prisoner's dilemma tournament
 maki_thompson = { title = "Maki-Thompson rumours", sources = ["1408.2701 §X", "Bt 6.2.3"], primitives = ["jumps", "discrete-states", "interactions"], priority = "core", status = "implemented" }
 watts_cascades = { title = "Watts threshold cascades", sources = ["1408.2701 §X"], primitives = ["networks", "agents", "agent-spaces"], priority = "example", status = "implemented" }
 simon_yule = { title = "Simon-Yule growth", sources = ["Th 3.3.4"], primitives = ["interactions", "agents"], priority = "example", status = "implemented" }
+simplicial_contagion = { title = "Simplicial contagion", sources = ["2203.06601"], primitives = ["hypergraphs", "jumps", "discrete-states"], priority = "core", status = "pending add-higher-order-interactions" }
 
 [social.crowds]
 social_force = { title = "Social force pedestrians", sources = ["cond-mat/0012229 §V.B"], primitives = ["rates", "boundaries", "groups", "interactions", "reductions", "particles", "continuous-spaces"], priority = "example", status = "implemented" }
@@ -587,6 +597,7 @@ kauai_population = { title = "The Kauai population model on GIS data", sources =
 success_to_the_successful = { title = "Success to the successful", sources = ["Meadows 2008"], primitives = ["rates", "switches", "stocks-and-flows"], priority = "example", status = "implemented" }
 shifting_the_burden = { title = "Shifting the burden", sources = ["Meadows 2008"], primitives = ["rates", "stocks-and-flows"], priority = "example", status = "implemented" }
 escalation = { title = "Escalation", sources = ["Meadows 2008"], primitives = ["rates", "switches", "stocks-and-flows"], priority = "example", status = "implemented" }
+urban_scaling_interactions = { title = "Urban scaling of interactions", sources = ["2404.02642"], primitives = ["hyperbolic-networks", "agents"], priority = "core", status = "pending add-multiscale-networks" }
 
 [engineering.traffic]
 nagel_schreckenberg = { title = "Nagel-Schreckenberg", sources = ["cond-mat/0012229 §III.B.1"], primitives = ["discrete-states", "groups", "lattices", "local-rules"], priority = "example", status = "implemented" }
@@ -694,6 +705,8 @@ vertex_copying = { title = "Vertex-copying network growth", sources = ["Rm 3.2.4
 network_attack = { title = "Random failures and targeted attacks on networks", sources = ["Rm 3.5.2"], primitives = ["network-generators"], priority = "core", status = "pending add-adaptive-networks" }
 network_structure_analysis = { title = "Centralities, assortativity, communities, and motifs", sources = ["Rm 3.1", "Rm 3.3", "Rm 3.4", "Bt 6.1.1", "Bt 6.1.2"], primitives = ["observables", "networks", "agents", "agent-spaces"], priority = "core", status = "implemented" }
 random_graph_ensembles = { title = "Erdos-Renyi and Watts-Strogatz graphs", sources = ["Bt 6.1.1", "Bt 6.1.2"], primitives = ["network-generators"], priority = "core", status = "pending add-adaptive-networks" }
+triadic_percolation = { title = "Triadic percolation", sources = ["2311.14877"], primitives = ["hypergraphs", "networks", "updates"], priority = "core", status = "pending add-higher-order-interactions" }
+popularity_similarity_network = { title = "Popularity-similarity network", sources = ["2412.12988"], primitives = ["hyperbolic-networks", "networks"], priority = "core", status = "pending add-multiscale-networks" }
 
 [mathematics.fractals]
 chaos_game = { title = "Iterated function systems by the chaos game", sources = ["Di 5.4"], primitives = ["updates", "switches", "draws", "groups", "continuous-spaces"], priority = "core", status = "implemented" }
@@ -735,3 +748,4 @@ hopfield = { title = "Hopfield network", sources = ["Tr 7.3", "2112.12147 §3.1.
 elman_network = { title = "Elman recurrent network trained by backpropagation", sources = ["Gr 10.5.1"], primitives = ["learning"], priority = "core", status = "blocked add-learning-dynamics", feature = "Learning as dynamics: parameters that evolve by gradient descent" }
 diluted_hopfield = { title = "Asymmetric diluted Hopfield network", sources = ["Bt 6.3.2"], primitives = ["updates", "switches", "discrete-states", "draws", "groups", "reductions", "observables"], priority = "core", status = "implemented" }
 perceptron_satisfiability = { title = "Binary perceptron and random K-SAT", sources = ["Bt 6.3.3", "Bt 6.4"], primitives = ["static-solutions"], priority = "core", status = "blocked add-static-models", feature = "Models solved, sampled, enumerated, or optimised rather than integrated in time" }
+echo_state_network = { title = "Echo state network", sources = ["2509.11338"], primitives = ["learned-surrogates", "updates", "groups"], priority = "core", status = "pending add-data-driven-dynamics" }
