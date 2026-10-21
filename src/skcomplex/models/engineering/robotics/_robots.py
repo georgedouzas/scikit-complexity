@@ -291,8 +291,9 @@ def light_seeking_robots(
 
     Each robot moves at `V_inf + (V0 - V_inf) exp(-I(t - delay))` in a direction that diffuses with time scale `tau`,
     in the Gaussian light `I = I0 exp(-(x^2 + y^2) / r0^2)` at the centre of a well of radius `R`. The robots start
-    at the centre, in directions spread around the circle, and do not interact. A positive delay keeps them in the
-    light for longer, because they keep the slow speed they measured there after they leave it.
+    at the centre, in directions spread around the circle, and do not interact. A positive delay drives them out of
+    the light: a robot crosses the light at the fast speed it measured in the dark and lingers outside at the slow
+    speed it measured in the light, so robots with a delay spend less time in the light than robots without one.
 
     Args:
         n_robots:
