@@ -16,3 +16,6 @@
 | regenerative_braking | speed falling as the capacitor voltage rises | stored energy reaches ~17% of the kinetic energy lost, peaking near the current reversal | 4 s script, 121 frames, 0.07 MB |
 | vibration_energy_harvester | wheel and body oscillating with the road | voltage amplitude peaks near the two natural frequencies 7 and 74 rad/s | 18 s script, 251 frames, 0.16 MB |
 | wheel_rail_contact | rail and sleeper dipping twice per bogie | two dips per bogie; peak deflection proportional to the load | 7 s script, 241 frames, 0.22 MB |
+| delayed_car_following | speed swings growing from the leader to car 7 | amplitude grows along the chain for T = 1 and decays for T = 0.2, as omega < 2 lambda sin(omega T) predicts | 8 s script, 121 frames, 0.38 MB |
+| intelligent_driver_model | 20 cars accelerating from rest to one common speed | final speeds for 10 to 60 cars match the IDM equilibrium | 7 s script, 201 frames, 0.16 MB |
+| optimal_velocity | speeds fanning out into a stop-and-go wave | spread grows for headway 2 and decays for headway 4; late states loop around V(h) | 8 s script, 201 frames, 0.13 MB |
