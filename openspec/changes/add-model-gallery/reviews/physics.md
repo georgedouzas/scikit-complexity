@@ -88,3 +88,6 @@
 | run_and_tumble | 100 bacteria scattered over the square | MSD matches the persistent-walk law for tumble rates 0.1 and 1 | 4.7 s, 300 frames, 0.5 MB |
 | depot_brownian_particles | ring of particles flying apart at a common speed | mean speed follows sqrt(q / gamma - c / d) above q_c = 2 | 2.2 s, 201 frames, 0.4 MB |
 | cucker_smale_flocking | 50 birds moving as a formation (dim colours) | velocity spread decays exponentially for beta = 0.25, stays for beta = 1.5 | 2.6 s, 201 frames, 0.1 MB |
+| lennard_jones_fluid | melted lattice of 400 particles as a dense fluid | g(r) peaks near 2^(1/6); dense liquid shows damped shells near 2.1 and 3.2 | 20.6 s, 251 frames, 2.6 MB |
+| motility_induced_phase_separation | hexagonally packed dense clusters beside a dilute gas | local packing splits from a peak at 0.5 into dilute and dense (about 0.75) modes | 11.5 s, 241 frames, 3.1 MB |
+| toner_tu | smooth density patches of the flocking fluid | flock speed follows sqrt(a (rho0 - rho_c) / beta), zero below rho_c | 4.8 s, 121 frames, 3.3 MB |
