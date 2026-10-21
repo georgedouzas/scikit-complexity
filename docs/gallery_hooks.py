@@ -2,6 +2,7 @@
 
 import logging
 import sys
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,11 @@ from mkdocs_gallery import glr_path_static
 sys.path.insert(0, str(Path(__file__).parent))
 
 from gallery_tools import build_from_environment, check_coverage
+
+# mkdocs-gallery 0.10.4, its latest release, still reads docstrings through `ast.Str` and `.s`, which Python 3.12
+# deprecates, so every parsed example logs two warnings. Silence only those, only from mkdocs-gallery.
+for message in (r'ast\.Str is deprecated', r'Attribute s is deprecated'):
+    warnings.filterwarnings('ignore', message=message, category=DeprecationWarning, module=r'mkdocs_gallery\.')
 
 LOGGER = logging.getLogger('mkdocs.plugins.skcomplex_gallery')
 

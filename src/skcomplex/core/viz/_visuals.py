@@ -77,6 +77,14 @@ def _widened(span: tuple[float, float] | None, values: npt.NDArray[np.float64]) 
     return (low, high) if span is None else (min(span[0], low), max(span[1], high))
 
 
+def _on_a_plane(values: npt.ArrayLike, count: int) -> npt.NDArray[np.float64]:
+    """Return positions as rows `(x, y)` with the vertical axis up, on the line `y = 0` for one coordinate."""
+    positions = np.asarray(values, dtype=float).reshape(count, -1)
+    if positions.shape[1] == 1:
+        return np.column_stack([positions[:, 0], np.zeros(count)])
+    return positions[:, :2] * UPWARD
+
+
 def _palette_colors(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
     """Return the colors of an array of values from a palette of 256 levels, fast enough for large images."""
     if high <= low:
@@ -452,7 +460,8 @@ class AgentsVisual(Visual):
     seeded spring layout of the network. On a grid the radius is in cells, and on a network a fraction of the spacing
     of neighbouring nodes. Without a given radius, agents in a continuous space take a share of the side of the space,
     smaller for larger groups. Every point carries the agent id as a hidden label, so agents keep their identity across
-    frames and removed agents disappear.
+    frames and removed agents disappear. Agents whose position is a state, such as cars on a road, are logged as
+    `Points2D` at that state, on the line `y = 0` for one coordinate and with the vertical axis up for two.
 
     Args:
         color_by:
@@ -463,6 +472,9 @@ class AgentsVisual(Visual):
 
         radius:
             The radius of the points, or `None` for 0.4 on grids and networks and a share of the side of other spaces.
+
+        position:
+            The name of a state that holds the position of every agent, or `None` for the location in the space.
 
     Examples:
         >>> from skcomplex.core.viz import AgentsVisual
@@ -475,10 +487,13 @@ class AgentsVisual(Visual):
         color_by: str | None = None,
         color_range: tuple[float, float] | None = None,
         radius: float | None = None,
+        *,
+        position: str | None = None,
     ) -> None:
         self.color_by = color_by
         self.color_range = color_range
         self.radius = radius
+        self.position = position
         self._layouts: dict[int, dict[str, npt.NDArray[np.float64]]] = {}
         self._span: tuple[float, float] | None = None
 
@@ -550,9 +565,15 @@ class AgentsVisual(Visual):
             space:
                 The space the agents live in, or `None`.
         """
+        colors, labels = self._colors(snapshot), [str(agent) for agent in snapshot.ids]
+        if self.position is not None:
+            positions = _on_a_plane(snapshot.values[self.position], len(snapshot))
+            extent = float(np.ptp(positions, axis=0).max()) if len(positions) else 0.0
+            radius = _radius_of(extent, len(positions)) if self.radius is None else float(self.radius)
+            recording.log(path, rr.Points2D(positions, colors=colors, radii=radius, labels=labels, show_labels=False))
+            return
         if snapshot.locations is None:
             return
-        colors, labels = self._colors(snapshot), [str(agent) for agent in snapshot.ids]
         if isinstance(space, NetworkSpace):
             layout = self._layout(space)
             nodes = [str(node) for node in np.ravel(snapshot.locations).tolist()]
@@ -586,7 +607,8 @@ class AgentsVisual(Visual):
 
         Returns:
             views:
-                One view with the path of the agents as origin, or none for agents without a location.
+                One view with the path of the agents as origin, or none for agents without a location or a
+                position state.
 
         Examples:
             >>> from skcomplex.core.compile import compile_system
@@ -596,6 +618,8 @@ class AgentsVisual(Visual):
             >>> type(AgentsVisual().views(problem.agents[0], problem)[0]).__name__
             'GraphView'
         """
+        if self.position is not None:
+            return [rrb.Spatial2DView(origin=element.path, name=element.path)]
         if problem.agent_space is None:
             return []
         if isinstance(problem.agent_space, NetworkSpace):

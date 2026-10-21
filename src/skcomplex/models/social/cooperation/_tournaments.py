@@ -6,7 +6,7 @@
 import numpy as np
 import numpy.typing as npt
 
-from ....core.base import Domain, parameter, role, state
+from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.model import AgentType, Interaction, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
@@ -221,5 +221,6 @@ def prisoners_dilemma_tournament(
         10
     """
     genomes = np.random.default_rng(random_state).integers(0, 2, (n_agents, GENES)).astype(float)
-    agents = Strategist.group('agents', n_agents, genome=genomes, death=death, mutation=mutation)
+    visual = VisualSpec('traits', {'color_by': 'fitness'})
+    agents = Strategist.group('agents', n_agents, genome=genomes, death=death, mutation=mutation, visual=visual)
     return System(elements=[agents], interactions=[Tournament('tournament', target='agents', rounds=rounds)])

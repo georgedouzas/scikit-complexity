@@ -27,7 +27,8 @@ MODEL = 'aligning_active_brownian_particles'
 box = rrb.Spatial2DView(
     origin='/swimmers',
     name='swimmers',
-    visual_bounds=rrb.VisualBounds2D(x_range=(0.0, 20.0), y_range=(0.0, 20.0)),
+    # Points are drawn with y negated so that y points up, so the vertical range is mirrored.
+    visual_bounds=rrb.VisualBounds2D(x_range=(0.0, 20.0), y_range=(-20.0, 0.0)),
     overrides={'swimmers': rr.Points2D.from_fields(radii=0.3).visualizer()},
 )
 blueprint = rrb.Blueprint(
