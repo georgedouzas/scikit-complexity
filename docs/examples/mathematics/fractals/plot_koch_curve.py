@@ -7,10 +7,11 @@ of its length, and a turtle that turns by 60 degrees draws each word as a curve 
 
 # %%
 # The word starts as one segment and is rewritten for five generations, so the last curve has 1024 segments. The
-# blueprint shows the curve at the last generation, in a frame fixed across generations.
+# blueprint shows the curve at the last generation, logged once more after the run as a bright line.
 
 import matplotlib.pyplot as plt
 import numpy as np
+import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.runtime import Simulation
@@ -21,8 +22,8 @@ MODEL = 'koch_curve'
 
 blueprint = rrb.Blueprint(
     rrb.Spatial2DView(
-        origin='/koch',
-        name='koch',
+        origin='/curve',
+        name='Koch curve',
         visual_bounds=rrb.VisualBounds2D(x_range=[-0.03, 1.03], y_range=[-0.35, 0.05]),
     ),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
@@ -32,6 +33,13 @@ blueprint = rrb.Blueprint(
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 simulation = Simulation(create(MODEL), observers=[observer]).run(5)
 trajectory = simulation.trajectory_
+segments = trajectory.structure('koch', 5).segments()
+observer.recording_.log(
+    'curve',
+    rr.LineStrips2D(segments * [1, -1], radii=0.004, colors=[120, 200, 255]),
+    static=True,
+)
+observer.recording_.flush()
 
 # %%
 # Length and box-counting dimension
