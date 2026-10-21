@@ -4,6 +4,7 @@
 # License: MIT
 
 import itertools
+import re
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -20,6 +21,9 @@ MIN_DEVIATION = 2.0
 MIN_COLORFUL_SHARE = 0.0005
 MIN_SATURATION = 0.25
 MIN_BRIGHTNESS = 40
+MIN_CONTRAST = 32
+BLOCK = 4
+MIN_AREA_SHARE = 0.05
 NOTIFICATION_COLOR = (33, 33, 33)
 NOTIFICATION_TOLERANCE = 2
 MAX_NOTIFICATION_SHARE = 0.05
@@ -33,6 +37,8 @@ BORDER_TOLERANCE = 8
 MAX_BAND_SHARE = 0.1
 MIN_SOLID_SHARE = 0.5
 PALETTE_SIZES = (256, 128, 64, 32, 16)
+QUOTED = re.compile(r'`([A-Za-z_][\w./]*)`')
+SENTENCE_END = re.compile(r'(?<=\.)\s+')
 
 
 def _split(box: Box, shares: Sequence[float], *, horizontal: bool) -> list[Box]:
@@ -118,8 +124,26 @@ def _colorful_share(pixels: npt.NDArray[np.uint8]) -> float:
     return float(np.mean((saturation > MIN_SATURATION) & (high > MIN_BRIGHTNESS)))
 
 
+def _area_share(pixels: npt.NDArray[np.uint8]) -> float:
+    """Return the share of blocks of pixels whose brightness all differ from the commonest brightness.
+
+    The lines and the labels of the viewer chrome are thinner than a block, while the cells of a greyscale image fill
+    whole blocks.
+    """
+    brightness = pixels.astype(int).mean(axis=-1).astype(int)
+    differs = np.abs(brightness - np.bincount(brightness.ravel()).argmax()) > MIN_CONTRAST
+    rows, columns = differs.shape[0] // BLOCK, differs.shape[1] // BLOCK
+    if not rows or not columns:
+        return 0.0
+    blocks = differs[: rows * BLOCK, : columns * BLOCK].reshape(rows, BLOCK, columns, BLOCK)
+    return float(blocks.all(axis=(1, 3)).mean())
+
+
 def is_blank(pixels: npt.NDArray[np.uint8]) -> bool:
     """Return whether a view shows nothing: a single colour, or only the grey of the viewer chrome.
+
+    A view shows content when a share of its pixels has a saturated colour, or when areas of it differ in brightness
+    from the commonest brightness, as the cells of a single-channel image do.
 
     Args:
         pixels:
@@ -137,7 +161,7 @@ def is_blank(pixels: npt.NDArray[np.uint8]) -> bool:
     """
     if not pixels.size or float(pixels.std()) < MIN_DEVIATION:
         return True
-    return _colorful_share(pixels) < MIN_COLORFUL_SHARE
+    return _colorful_share(pixels) < MIN_COLORFUL_SHARE and _area_share(pixels) < MIN_AREA_SHARE
 
 
 def has_notification(pixels: npt.NDArray[np.uint8]) -> bool:
@@ -417,3 +441,86 @@ def is_placeholder(path: Path, placeholder: Path) -> bool:
         shown = np.asarray(thumbnail.convert('RGB'), dtype=float)
         expected = np.asarray(reference.convert('RGB').resize(thumbnail.size), dtype=float)
     return float(np.mean(np.abs(shown - expected))) < PLACEHOLDER_TOLERANCE
+
+
+def caption_series(source: str) -> list[str]:
+    """Return the names an example's comments quote where they describe the series of its primary view.
+
+    A sentence of the comments that names the primary view and series is read, and every identifier or entity path it
+    quotes in backticks is taken as a series the primary view shows.
+
+    Args:
+        source:
+            The source of the example.
+
+    Returns:
+        names:
+            The quoted names, in the order of the comments.
+
+    Examples:
+        >>> from gallery_tools import caption_series
+        >>> caption_series('# Its primary view is the time series of `q` and `m`.')
+        ['q', 'm']
+    """
+    lines = [line.strip()[1:].strip() for line in source.splitlines() if line.strip().startswith('#')]
+    sentences = SENTENCE_END.split(' '.join(line for line in lines if not line.startswith('%%')))
+    names: list[str] = []
+    for sentence in sentences:
+        if 'primary view' in sentence and 'series' in sentence:
+            names += [name for name in QUOTED.findall(sentence) if name not in names]
+    return names
+
+
+def _expressions(view: rrb.View) -> list[tuple[bool, str]]:
+    """Return the entity path expressions of a view's contents, whether each includes, and its path pattern."""
+    contents = view.contents if view.contents is not None else '$origin/**'
+    lines = contents.splitlines() if isinstance(contents, str) else [str(line) for line in contents]
+    origin = str(view.origin).rstrip('/')
+    expressions = []
+    for line in (line.strip().replace('$origin', origin) for line in lines if line.strip()):
+        include = not line.startswith('-')
+        expressions.append((include, line.lstrip('+-').strip()))
+    return expressions
+
+
+def _matches(path: str, pattern: str) -> bool:
+    """Return whether an entity path matches a pattern, a path or a path followed by `/**`."""
+    if pattern.endswith('/**'):
+        base = pattern[:-3].rstrip('/')
+        return path == base or path.startswith(f'{base}/')
+    return path == pattern
+
+
+def missing_series(names: Sequence[str], paths: Sequence[str], view: rrb.View) -> list[str]:
+    """Return the names of series that no entity path a view includes ends with.
+
+    Args:
+        names:
+            The names of the series, as `caption_series` reads them.
+
+        paths:
+            The entity paths of a recording.
+
+        view:
+            The view, whose contents are paths and `/**` subtrees, included or, after a leading `-`, excluded.
+
+    Returns:
+        names:
+            The names the view shows no series of.
+
+    Examples:
+        >>> import rerun.blueprint as rrb
+        >>> from gallery_tools import missing_series
+        >>> missing_series(['x', 'y'], ['/lorenz/x', '/lorenz/y'], rrb.TimeSeriesView(origin='/', contents='/lorenz/x'))
+        ['y']
+    """
+    expressions = _expressions(view)
+    included = []
+    for path in paths:
+        shown = False
+        for include, pattern in expressions:
+            if _matches(path, pattern):
+                shown = include
+        if shown:
+            included.append(path)
+    return [name for name in names if not any(path.endswith(f'/{name.strip("/")}') for path in included)]

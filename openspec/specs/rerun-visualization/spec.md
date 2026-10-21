@@ -114,3 +114,14 @@ attribute, and graph edges per frame, shown in a graph view.
 #### Scenario: Subdivided ring in Rerun
 - **WHEN** a ring whose edges are subdivided runs 2 generations with a Rerun observer
 - **THEN** one batch of graph nodes and edges is logged per frame under the host graph's path, in a graph view
+
+### Requirement: Time series views show the whole run
+Every time series view of a default blueprint SHALL show the whole run, whichever visual declares it.
+
+#### Scenario: One-dimensional points
+- **WHEN** the default blueprint of an ideal gas in one dimension is built
+- **THEN** the time series view of the positions shows the time range from the first frame to the last
+
+#### Scenario: Other states of a points visual
+- **WHEN** a points visual in two dimensions also logs a scalar state of its members
+- **THEN** the time series view of that state shows the whole run, like the views of scalar elements

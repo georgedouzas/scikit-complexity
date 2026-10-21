@@ -2,7 +2,7 @@
 
 import math
 import os
-import subprocess
+import subprocess  # nosec B404: the test runs a script it writes itself with this interpreter
 import sys
 
 import numpy as np
@@ -195,7 +195,7 @@ def test_process_executor_names_the_missing_main_guard(tmp_path):
     script = tmp_path / 'script.py'
     script.write_text(SCRIPT_WITHOUT_GUARD)
     environment = {**os.environ, 'PYTHONPATH': os.pathsep.join(item for item in sys.path if item)}
-    completed = subprocess.run(  # noqa: S603
+    completed = subprocess.run(  # noqa: S603  # nosec B603: runs the test's own script with this interpreter
         [sys.executable, str(script)],
         capture_output=True,
         text=True,

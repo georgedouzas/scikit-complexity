@@ -3,9 +3,11 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import ClassVar
+
 import numpy as np
 
-from ....core.base import Domain, parameter, role, state
+from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.model import AgentType, Interaction, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import ModelView
@@ -39,6 +41,7 @@ class Task(AgentType):
         Group('tasks', element=Task, size=2)
     """
 
+    visual: ClassVar[VisualSpec] = VisualSpec('traits', {'color_by': 'age', 'shown': ('agents',)})
     priority: float = state(default=0.5, domain=Domain.NONNEGATIVE)
     age: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
     wait: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
@@ -49,7 +52,8 @@ class Execution(Interaction):
     """Execution of one task per step from the list of the Barabási model.
 
     The highest priority task is executed with probability `greed` and a random task otherwise. The executed task is
-    replaced by a new task with a uniform random priority, and every other task ages by one step.
+    replaced by a new task with a uniform random priority, and every other task ages by one step. The waiting time of
+    the executed task is reported as `wait`, so the run records one waiting time per step.
 
     Args:
         label:
@@ -64,6 +68,7 @@ class Execution(Interaction):
         'tasks'
     """
 
+    reports: ClassVar[tuple[str, ...]] = ('wait',)
     target: str = role()
 
     def laws(self, s: Symbols) -> list[Law]:
@@ -96,6 +101,7 @@ class Execution(Interaction):
             task.age += 1
             if index == chosen:
                 task.wait, task.age, task.priority = task.age, 0.0, float(model.rng.random())
+                model.report('wait', task.wait)
 
 
 @register_model(
@@ -124,7 +130,8 @@ def priority_queues(
 
     Returns:
         system:
-            The model, with the group `tasks`.
+            The model, with the group `tasks` and the execution `execution`, which reports the waiting time of the
+            task it executes at every step.
 
     Examples:
         >>> from skcomplex.models.social.organizations import priority_queues

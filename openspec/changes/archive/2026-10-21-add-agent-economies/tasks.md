@@ -29,4 +29,4 @@
 
 - [x] 5.1 Document phases, markets, institutions, and learning in the user guide, and verify the documentation test
   passes
-- [ ] 5.2 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass
+- [x] 5.2 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass

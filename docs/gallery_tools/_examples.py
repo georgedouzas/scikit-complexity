@@ -84,6 +84,31 @@ class Coverage:
         """Whether every model has exactly one example in its place."""
         return not self.missing and not self.orphans
 
+    def problems(self, without_screenshot: list[str]) -> list[str]:
+        """Return the gaps that a strict documentation build reports as errors.
+
+        Args:
+            without_screenshot:
+                The examples shown with the placeholder instead of a screenshot.
+
+        Returns:
+            problems:
+                One sentence per gap: the models without an example, and the examples without a screenshot.
+
+        Examples:
+            >>> from gallery_tools import Coverage
+            >>> for problem in Coverage(missing=['lorenz']).problems(['plot_sir']):
+            ...     print(problem)
+            These registered models have no gallery example: lorenz.
+            These gallery examples have no screenshot: plot_sir.
+        """
+        problems = []
+        if self.missing:
+            problems.append(f'These registered models have no gallery example: {", ".join(self.missing)}.')
+        if without_screenshot:
+            problems.append(f'These gallery examples have no screenshot: {", ".join(without_screenshot)}.')
+        return problems
+
 
 def _model_of(path: Path) -> str | None:
     """Return the value of the `MODEL` constant of a script, or `None` when it sets none."""
@@ -353,7 +378,10 @@ def check_budget(name: str, frames: int, size: int, seconds: float | None, budge
 
 
 def model_sources(model: str) -> list[Path]:
-    """Return the source files of the subfield package of a registered model.
+    """Return the source files whose change can change the screenshots of a registered model's example.
+
+    These are the files of the subfield package of the model, then the files of the core package, which compiles,
+    runs, and logs every model.
 
     Args:
         model:
@@ -361,12 +389,17 @@ def model_sources(model: str) -> list[Path]:
 
     Returns:
         paths:
-            The Python files of the package, sorted.
+            The Python files of the subfield package, sorted, followed by those of the core package, sorted.
 
     Examples:
         >>> from gallery_tools import model_sources
-        >>> model_sources('lotka_volterra')[0].parent.name
-        'ecology'
+        >>> sources = model_sources('lotka_volterra')
+        >>> sources[0].parent.name, sources[-1].parts[-3]
+        ('ecology', 'core')
     """
     package = importlib.import_module('skcomplex.models.' + describe(model).field.replace('/', '.'))
-    return sorted(Path(str(package.__file__)).parent.rglob('*.py'))
+    core = importlib.import_module('skcomplex.core')
+    return [
+        *sorted(Path(str(package.__file__)).parent.rglob('*.py')),
+        *sorted(Path(str(core.__file__)).parent.rglob('*.py')),
+    ]

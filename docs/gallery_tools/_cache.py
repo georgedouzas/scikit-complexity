@@ -1,4 +1,4 @@
-"""Cache thumbnails under a key computed from the example, its model's code, Rerun, and the capture settings."""
+"""Cache thumbnails under a key computed from the example, its model's and the core's code, Rerun, and the settings."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,15 +22,16 @@ METADATA = 'metadata.json'
 def cache_key(example: Path, sources: Sequence[Path], backend: str, settings: CaptureSettings) -> str:
     """Return the key of the screenshots of an example.
 
-    The key is the SHA-256 of the example source, the sources of the subfield package of its model, the installed Rerun
-    version, the backend, and the capture settings.
+    The key is the SHA-256 of the example source, the sources of the subfield package of its model and of the core
+    package, the installed Rerun version, the backend, and the capture settings.
 
     Args:
         example:
             The path of the example script.
 
         sources:
-            The source files of the subfield package of the example's model, as `model_sources` returns them.
+            The source files of the subfield package of the example's model and of the core package, as
+            `model_sources` returns them.
 
         backend:
             The capture backend.

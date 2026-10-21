@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import warnings
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -184,6 +185,46 @@ class PowerLawFit:
     xmax: float | None = None
 
 
+def _fit_power_law(
+    array: Array,
+    xmin: float | None,
+    xmax: float | None,
+    *,
+    discrete: bool,
+    bootstrap: int,
+    candidates: int,
+    random_state: int | None,
+) -> PowerLawFit:
+    """Fit a power law to the positive samples, as `fit_power_law` describes, with the warnings of `powerlaw` shown."""
+    if xmin is None:
+        fit = _best_fit(array, xmax, discrete=discrete, candidates=candidates)
+    else:
+        inside = array[(array >= xmin) & (array <= (np.inf if xmax is None else xmax))]
+        if inside.size < MIN_TAIL:
+            error_msg = f'Only {inside.size} samples lie at or above xmin = {xmin}. A fit needs at least {MIN_TAIL}.'
+            raise AnalysisError(error_msg)
+        fit = _fit_at(array, float(xmin), xmax, discrete=discrete)
+    alpha, cutoff, distance = float(fit.power_law.alpha), float(fit.xmin), float(fit.power_law.D)
+    tail = array[(array >= cutoff) & (array <= (np.inf if xmax is None else xmax))]
+    p_value = None
+    if bootstrap:
+        rng = np.random.default_rng(random_state)
+        body = array[array < cutoff]
+        exceed = 0
+        for _ in range(bootstrap):
+            in_tail = rng.random(array.size) < tail.size / array.size
+            synthetic = np.concatenate(
+                [
+                    _sample_power_law(int(in_tail.sum()), alpha, cutoff, rng, discrete=discrete),
+                    rng.choice(body, int((~in_tail).sum())) if body.size else np.zeros(0),
+                ],
+            )
+            exceed += _bootstrap_distance(synthetic, xmin, xmax, discrete=discrete, candidates=candidates) >= distance
+        p_value = exceed / bootstrap
+    comparisons = {name: _comparison(fit, name) for name in ALTERNATIVES}
+    return PowerLawFit(alpha, cutoff, distance, p_value, int(tail.size), comparisons, xmax)
+
+
 @analysis(DataKind.SERIES)
 def fit_power_law(
     values: npt.ArrayLike,
@@ -200,7 +241,8 @@ def fit_power_law(
     The lower cutoff minimises the Kolmogorov-Smirnov distance between the tail and the fit. The goodness of fit is the
     share of bootstrap samples whose distance exceeds the data's, and the power law is compared with exponential,
     log-normal, stretched exponential, and truncated power-law tails by likelihood-ratio tests. Discrete samples use
-    the exact discrete likelihood.
+    the exact discrete likelihood. The warnings of `powerlaw` about its optimiser, such as an alternative without a
+    valid fit, are silenced during the call.
 
     Args:
         values:
@@ -240,34 +282,17 @@ def fit_power_law(
         2.5
     """
     array = real_array(values, 'values')
-    array = array[array > 0]
-    if xmin is None:
-        fit = _best_fit(array, xmax, discrete=discrete, candidates=candidates)
-    else:
-        inside = array[(array >= xmin) & (array <= (np.inf if xmax is None else xmax))]
-        if inside.size < MIN_TAIL:
-            error_msg = f'Only {inside.size} samples lie at or above xmin = {xmin}. A fit needs at least {MIN_TAIL}.'
-            raise AnalysisError(error_msg)
-        fit = _fit_at(array, float(xmin), xmax, discrete=discrete)
-    alpha, cutoff, distance = float(fit.power_law.alpha), float(fit.xmin), float(fit.power_law.D)
-    tail = array[(array >= cutoff) & (array <= (np.inf if xmax is None else xmax))]
-    p_value = None
-    if bootstrap:
-        rng = np.random.default_rng(random_state)
-        body = array[array < cutoff]
-        exceed = 0
-        for _ in range(bootstrap):
-            in_tail = rng.random(array.size) < tail.size / array.size
-            synthetic = np.concatenate(
-                [
-                    _sample_power_law(int(in_tail.sum()), alpha, cutoff, rng, discrete=discrete),
-                    rng.choice(body, int((~in_tail).sum())) if body.size else np.zeros(0),
-                ],
-            )
-            exceed += _bootstrap_distance(synthetic, xmin, xmax, discrete=discrete, candidates=candidates) >= distance
-        p_value = exceed / bootstrap
-    comparisons = {name: _comparison(fit, name) for name in ALTERNATIVES}
-    return PowerLawFit(alpha, cutoff, distance, p_value, int(tail.size), comparisons, xmax)
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', module=r'powerlaw\.')
+        return _fit_power_law(
+            array[array > 0],
+            xmin,
+            xmax,
+            discrete=discrete,
+            bootstrap=bootstrap,
+            candidates=candidates,
+            random_state=random_state,
+        )
 
 
 @analysis(DataKind.SERIES)
