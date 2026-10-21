@@ -24,7 +24,7 @@ which shows an analysis plot from its run.
   that the local log-log slope rises while `log |B(n)| / n` falls, so the growth is faster than polynomial and slower
   than exponential
 
-### Requirement: Models are recorded in the model inventory
+### Requirement: Group cellular automaton models are recorded in the model inventory
 Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
 inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
 model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered

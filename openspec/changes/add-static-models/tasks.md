@@ -36,9 +36,9 @@
 ## 5. Library
 
 - [ ] 5.1 Add `lq_cell_survival`, `random_energy_model`, `oligopoly_equilibria`, `perceptron_satisfiability`,
-  `evolutionary_optimisers`, and `continuum_percolation` as registered factories with default sweeps or iteration
-  counts, and verify the fractionation, mixed price equilibrium, and glass transition scenarios and the conformance
-  suite
+  `evolutionary_optimisers`, `continuum_percolation`, and `von_thunen` as registered factories with default sweeps or
+  iteration counts, and verify the fractionation, mixed price equilibrium, von Thünen rings, and glass transition
+  scenarios and the conformance suite
 - [ ] 5.2 Add the inventory entries for `random_energy_model` and `perceptron_satisfiability` and mark the six models
   implemented, and verify the inventory check passes
 - [ ] 5.3 Add a gallery example per model with a Rerun thumbnail and the analysis plot of the design, and verify the

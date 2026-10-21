@@ -10,7 +10,7 @@ the Chirikov standard map, and Hénon-Heiles as registered factories built from 
 - **WHEN** the Kepler problem runs for ten periods of a bound orbit with the Yoshida stepper
 - **THEN** the orbit closes on itself within 1e-6 relative error and the energy drift stays below 1e-8
 
-### Requirement: Models are recorded in the model inventory
+### Requirement: Variational mechanics models are recorded in the model inventory
 Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
 inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
 model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered

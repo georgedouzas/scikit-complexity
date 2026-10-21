@@ -44,6 +44,9 @@
 - [ ] 5.3 Add `hodge_decomposition` over SciPy's `lsqr`, and verify the consistent exchange rates and flow around a
   torus scenarios
 - [ ] 5.4 Add `LinksVisual` under the kind `'links'` with its default blueprint, and verify the plaquette image scenario
+- [ ] 5.5 Add `CellComplex.clique_complex` over NetworkX clique enumeration, and verify the complete-graph scenario
+- [ ] 5.6 Add `frustration`, `betti_numbers` over sparse boundary ranks, and the topological charge over closed surfaces of
+  a complex, and verify the flat and frustrated connections and torus scenarios
 
 ## 6. Library
 
@@ -54,6 +57,8 @@
   implemented, and verify the inventory check passes
 - [ ] 6.3 Add `docs/examples/physics/waves/plot_lattice_gauge_fields.py` with its Rerun blueprint, caption, and the
   mean plaquette against `I_1(β) / I_0(β)` figure, and verify the gallery page scenario and the recording budget
+- [ ] 6.4 Add `gauge_network_agents` to `skcomplex.models.social.opinion_dynamics`, verify the frustration scenario and
+  the conformance suite, and add its curated gallery example with a review row
 
 ## 7. Documentation and gate
 

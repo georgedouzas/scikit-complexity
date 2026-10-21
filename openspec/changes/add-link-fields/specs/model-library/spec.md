@@ -39,6 +39,16 @@ figure SHALL plot the mean plaquette measured from runs at several values of β 
 - **THEN** the `lattice_gauge_fields` thumbnail is the Rerun image of its plaquette angles, and its page shows the
   measured mean plaquettes on the exact curve below the screenshot
 
+### Requirement: Gauge network agents
+The library SHALL provide `gauge_network_agents` in `social/opinion_dynamics`, after Mihaylov and Cacciatori (2025, arXiv
+2509.01581): agents with internal U(1) phases on the nodes of a network whose edges carry connections, relaxing towards
+their neighbours' parallel-transported phases, so frustrated loops prevent global agreement.
+
+#### Scenario: Frustration blocks agreement
+- **WHEN** `gauge_network_agents` runs on a ring of 12 agents with a flat connection and with a total flux of pi around
+  the ring
+- **THEN** the flat ring reaches agreement with zero energy, and the frustrated ring keeps a residual energy and a twist
+
 ### Requirement: Link field models are recorded in the model inventory
 Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
 inventory, and a model the inventory records as pending this change SHALL register under the name of its entry.
@@ -47,6 +57,7 @@ inventory, and a model the inventory records as pending this change SHALL regist
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** these entries are registered under their field paths and marked implemented:
   - `lattice_gauge_fields` in `physics/waves`, sources Sc 2.1 and Sc 4.4
+  - `gauge_network_agents` in `social/opinion_dynamics`, source arXiv 2509.01581
 
 #### Scenario: New model recorded
 - **WHEN** the change registers a model with no inventory entry

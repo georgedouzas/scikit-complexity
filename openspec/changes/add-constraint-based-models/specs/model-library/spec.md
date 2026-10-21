@@ -125,7 +125,7 @@ its own run, with a caption stating the behaviour shown.
 - **WHEN** the gallery coverage check runs after this change
 - **THEN** each of the nine models has exactly one example, and the check names any that does not
 
-### Requirement: Models are recorded in the model inventory
+### Requirement: Constraint-based models are recorded in the model inventory
 Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
 inventory, and a model the inventory records as pending this change SHALL register under the name of its entry.
 

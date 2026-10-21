@@ -201,3 +201,25 @@ The gallery example keeps the Monte Carlo run within 300 recorded frames by reco
   declared degree only, and a degree mismatch raises a named error that names the law and the state.
 - [Floating-point drift moves SU(2) values off the group] → Every write projects back to the group, and a scenario
   checks the norm after 1000 sweeps.
+
+## Simplicial complexes and frustration (added from arXiv 2509.01581)
+
+Mihaylov and Cacciatori model a complex adaptive system as a gauge theory on a simplicial complex: agents at the
+vertices, connections on the edges, and curvature on the faces, so complexity is the obstruction, local or topological,
+to a globally consistent state. The cell complexes of this change already hold states on links and faces and multiply
+them around loops; the paper needs three general additions.
+
+- **Clique complexes.** A network's faces are its triangles, and higher simplices are its larger cliques, enumerated with
+  NetworkX's `enumerate_all_cliques` up to a chosen dimension. The incidence matrices follow from the oriented simplices,
+  so cell states and exterior calculus work on them unchanged.
+- **Frustration.** A plaquette is frustrated when its holonomy is not the identity. The measure reports the share of
+  frustrated plaquettes and their energy, the Wilson action term `1 - Re tr(U) / d` summed over them, which is zero for a
+  flat connection.
+- **Topology.** The Betti numbers come from the ranks of the boundary matrices over the rationals, with SciPy sparse
+  rank-revealing factorisation, and a nonzero first Betti number is the topological frustration of the paper: loops
+  that no gauge transformation can trivialise. The topological charge of a U(1) field generalises from the
+  two-dimensional lattice to any closed oriented surface of a complex, as the sum of plaquette angles over the surface
+  divided by `2 pi`.
+- GUDHI and Ripser compute persistent homology of point clouds and filtrations, a different task; the Betti numbers of
+  one fixed complex are a rank computation the project's sparse linear algebra already covers, so no new dependency is
+  added.

@@ -189,6 +189,7 @@ sandpile = { title = "Bak-Tang-Wiesenfeld sandpile", sources = ["Ch 5", "Gr 6.4"
 forest_fire = { title = "Drossel-Schwabl forest fire", sources = ["Ar 3", "Ch 6", "Je 12.1.4"], primitives = ["discrete-states", "groups", "lattices", "local-rules"], priority = "example", status = "implemented" }
 manna_sandpile = { title = "Manna sandpile", sources = ["Je 12.5"], primitives = ["discrete-states", "groups", "lattices"], priority = "example", status = "implemented" }
 hexagonal_forest_fire = { title = "Forest fire on hexagonal lattices and graphs", sources = ["Ar 3"], primitives = ["discrete-states", "groups", "lattices", "local-rules"], priority = "example", status = "implemented" }
+evolutionary_sk_game = { title = "Evolutionary Sherrington-Kirkpatrick game", sources = ["2604.15669 II"], primitives = ["groups", "reductions", "draws", "extremal-updates"], priority = "core", status = "pending add-emergence-analysis" }
 
 [physics.soft_matter]
 brownian_near_wall = { title = "Brownian particle near a wall", sources = ["Ar 7.6"], primitives = ["rates", "noise", "boundaries"], priority = "core", status = "implemented" }
@@ -489,9 +490,9 @@ car_dealer = { title = "Car-dealer inventory with delays", sources = ["TS 2"], p
 car_wash = { title = "Car wash queue", sources = ["Cy 6.4"], primitives = ["interactions", "agents"], priority = "example", status = "implemented" }
 commodity_cycle = { title = "Commodity cycle with capacity delay", sources = ["Ba 4.11.4"], primitives = ["rates", "time-inputs", "switches", "stocks-and-flows"], priority = "example", status = "implemented" }
 double_auction = { title = "Double auction", sources = ["Go 8–12"], primitives = ["interactions", "agents", "phases", "markets"], priority = "core", status = "implemented" }
-goods_traders = { title = "Toy and three-goods traders", sources = ["Go 8–12"], primitives = ["agents", "agent-spaces", "phases", "markets"], priority = "example", status = "pending add-agent-economies" }
-shops = { title = "Shops and digital markets", sources = ["Ha 6.3–6.4"], primitives = ["agents", "agent-spaces", "phases", "markets"], priority = "example", status = "pending add-agent-economies" }
-barter = { title = "Edgeworth and Red Cross barter", sources = ["Ha 5"], primitives = ["agents", "agent-spaces", "phases", "markets"], priority = "example", status = "pending add-agent-economies" }
+goods_traders = { title = "Toy and three-goods traders", sources = ["Go 8–12"], primitives = ["agents", "agent-spaces", "phases", "markets"], priority = "example", status = "pending add-agent-economy-models" }
+shops = { title = "Shops and digital markets", sources = ["Ha 6.3–6.4"], primitives = ["agents", "agent-spaces", "phases", "markets"], priority = "example", status = "pending add-agent-economy-models" }
+barter = { title = "Edgeworth and Red Cross barter", sources = ["Ha 5"], primitives = ["agents", "agent-spaces", "phases", "markets"], priority = "example", status = "pending add-agent-economy-models" }
 labour_market = { title = "Labour market", sources = ["Ha 7"], primitives = ["interactions", "observables", "agents", "phases", "markets"], priority = "core", status = "implemented" }
 fair_food = { title = "Ajani's choice and fair food", sources = ["Cy 3", "Cy 7"], primitives = ["observables", "agents", "agent-spaces", "phases"], priority = "core", status = "implemented" }
 sugarscape = { title = "Sugarscape", sources = ["Ar 16.2", "TC 9"], primitives = ["interactions", "agents", "agent-spaces", "phases"], priority = "core", status = "implemented" }
@@ -508,7 +509,7 @@ kesten_process = { title = "Kesten processes", sources = ["Ca 4.3.5", "Th 3.3.3"
 bouchaud_mezard_wealth = { title = "Bouchaud-Mézard wealth", sources = ["0905.1518 §III.2", "Bt 4.4.1", "Bt 4.4.2", "Bt 4.4.3", "Bt 4.6"], primitives = ["rates", "noise", "groups", "reductions", "observables"], priority = "core", status = "implemented" }
 debtrank = { title = "DebtRank cascades", sources = ["Th 4.10.1"], primitives = ["interactions", "observables", "agents"], priority = "example", status = "implemented" }
 arbitrage_traders = { title = "Random-walk traders with arbitrage", sources = ["Sc 2.2"], primitives = ["rates", "time-inputs", "groups", "lattices", "fields"], priority = "core", status = "implemented" }
-order_book = { title = "Order book with imitation", sources = ["Ca 3"], primitives = ["agents", "agent-spaces", "phases", "markets"], priority = "example", status = "pending add-agent-economies" }
+order_book = { title = "Order book with imitation", sources = ["Ca 3"], primitives = ["agents", "agent-spaces", "phases", "markets"], priority = "example", status = "pending add-agent-economy-models" }
 
 [economics.econophysics]
 boltzmann_wealth = { title = "Boltzmann wealth exchange", sources = ["Go 8.1"], primitives = ["agents"], priority = "example", status = "implemented" }
@@ -522,11 +523,12 @@ kinetic_wealth_welfare = { title = "Kinetic wealth and welfare dynamics", source
 harvesting = { title = "Harvesting farmers", sources = ["Hamill and Gilbert 2016 ch. 10"], primitives = ["rates", "interactions", "reductions", "co-simulation", "agents"], priority = "core", status = "implemented" }
 oil_economy = { title = "Oil economy", sources = ["TS 2"], primitives = ["rates", "switches", "stocks-and-flows"], priority = "core", status = "implemented" }
 fishery_capital = { title = "Renewable fishery with capital", sources = ["TS 2"], primitives = ["rates", "switches", "stocks-and-flows"], priority = "example", status = "implemented" }
-tragedy_of_the_commons = { title = "Tragedy of the meadow commons", sources = ["Ha 10.2"], primitives = ["agents", "agent-spaces", "phases", "markets"], priority = "example", status = "pending add-agent-economies" }
+tragedy_of_the_commons = { title = "Tragedy of the meadow commons", sources = ["Ha 10.2"], primitives = ["agents", "agent-spaces", "phases", "markets"], priority = "example", status = "pending add-agent-economy-models" }
 cocoa = { title = "Cocoa", sources = ["Ba 8"], primitives = ["rates", "stocks-and-flows"], priority = "example", status = "implemented" }
 hilsa_fishery = { title = "Hilsa fishery", sources = ["Ba 9"], primitives = ["rates", "stocks-and-flows"], priority = "example", status = "implemented" }
 food_security = { title = "Food security models", sources = ["Ba 10"], primitives = ["rates", "stocks-and-flows"], priority = "example", status = "implemented" }
 optimal_harvesting = { title = "Optimal harvesting", sources = ["Clark 1990"], primitives = ["optimal-control"], priority = "core", status = "pending add-optimal-control" }
+von_thunen = { title = "Von Thünen land use", sources = ["2407.02181 7"], primitives = ["static-solutions"], priority = "core", status = "pending add-static-models" }
 
 [economics.innovation]
 nk_technology = { title = "NK technology model", sources = ["Th 5.4.3.5"], primitives = ["interactions", "observables", "agents"], priority = "example", status = "implemented" }
@@ -553,6 +555,7 @@ join_a_club = { title = "Join-a-club spins", sources = ["Th 6.4.3.2"], primitive
 axelrod = { title = "Axelrod culture dissemination", sources = ["0710.3256 §IV"], primitives = ["interactions", "agents", "agent-spaces"], priority = "example", status = "implemented" }
 kinetic_opinion = { title = "Kinetic opinion formation", sources = ["Bellomo et al. 2017"], primitives = ["distribution-states"], priority = "core", status = "pending add-kinetic-models" }
 standardized_agents = { title = "Complex agents with internal states and standardization", sources = ["Bt 4.5.1", "Bt 4.5.2"], primitives = ["interactions", "observables", "agents"], priority = "example", status = "implemented" }
+gauge_network_agents = { title = "Gauge theory of agents on a network", sources = ["2509.01581 3"], primitives = ["networks", "link-fields"], priority = "core", status = "pending add-link-fields" }
 
 [social.segregation]
 schelling = { title = "Schelling", sources = ["Ar 16.1", "TC 9", "Je 11.2", "Bt 4.1"], primitives = ["agents", "agent-spaces"], priority = "example", status = "implemented" }
@@ -596,7 +599,7 @@ kerner_konhauser = { title = "Kerner-Konhäuser model", sources = ["cond-mat/001
 delayed_car_following = { title = "Car following with delay", sources = ["Gr 4.4"], primitives = ["rates", "delays", "interactions"], priority = "example", status = "implemented" }
 ring_road_drivers = { title = "Ring-road driver agents", sources = ["TC 10"], primitives = ["continuous-spaces", "agents", "agent-spaces"], priority = "example", status = "implemented" }
 gkt_traffic = { title = "GKT non-local traffic", sources = ["cond-mat/0012229 §III.E.4"], primitives = ["nonlocal-operators"], priority = "core", status = "blocked add-nonlocal-operators", feature = "Convolution kernels, reads at shifted positions, and modified-Helmholtz inversion on fields" }
-ridesharing = { title = "Ridesharing", sources = ["Cm 7"], primitives = ["agents", "agent-spaces", "phases", "markets"], priority = "example", status = "pending add-agent-economies" }
+ridesharing = { title = "Ridesharing", sources = ["Cm 7"], primitives = ["agents", "agent-spaces", "phases", "markets"], priority = "example", status = "pending add-agent-economy-models" }
 langevin_traffic = { title = "Langevin car-following toward a density-dependent speed", sources = ["Bt 4.2.1"], primitives = ["rates", "noise", "groups", "interactions", "member-offsets"], priority = "core", status = "implemented" }
 traffic_density_equation = { title = "Moment equations of Langevin traffic with a jam instability", sources = ["Bt 4.2.1", "Bt 4.2.2", "Bt 4.6"], primitives = ["rates", "groups", "lattices", "fields"], priority = "example", status = "implemented" }
 

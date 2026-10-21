@@ -10,7 +10,7 @@ competition, and opinion formation as registered kinetic factories.
 - **WHEN** the tumour-immune model runs with an immune activity above its threshold
 - **THEN** the tumour density decays, and below the threshold it grows
 
-### Requirement: Models are recorded in the model inventory
+### Requirement: Kinetic models are recorded in the model inventory
 Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
 inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
 model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered

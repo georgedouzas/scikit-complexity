@@ -36,6 +36,15 @@ lattice gauge model a first-class registered model.
 - Add the Hodge decomposition of an edge flow into its gradient, curl, and harmonic parts, as an analysis function.
 - Add a link visual that streams link states to Rerun as colored segments or arrows and plaquette states as images or
   colored faces.
+- Add simplicial complexes of networks, after Mihaylov and Cacciatori (2025, arXiv 2509.01581): the clique complex of a
+  network up to a chosen dimension, so triangles and higher simplices are cells of agent interaction networks, with the
+  same incidence matrices and cell states as lattices.
+- Add frustration and topology measures: the frustration of a link field, the share and the energy of plaquettes whose
+  holonomy is not the identity, the Betti numbers of a complex from the ranks of its boundary matrices, and the
+  topological charge of a U(1) link field over any closed oriented surface of a complex, so complexity can be measured as
+  a local and a topological obstruction to consistent order.
+- Add the library model `gauge_network_agents` in `social/opinion_dynamics`, agents with internal U(1) phases on a
+  network whose edges carry connections, after Mihaylov and Cacciatori, with a gallery example.
 - Add the library model `lattice_gauge_fields` in `physics/waves`, with Monte Carlo sampling of the Wilson action for
   U(1), Z_N, and SU(2), and the real-time Hamiltonian evolution of lattice Maxwell fields, with a gallery example.
 
@@ -45,11 +54,13 @@ lattice gauge model a first-class registered model.
 
 - `link-fields`: cell complexes of lattices and networks, states on links and plaquettes, discrete exterior calculus,
   compact group-valued states, holonomies, link Monte Carlo, gauge transformations and gauge-invariant observables,
-  the Hodge decomposition of edge flows, and the link visual.
+  the Hodge decomposition of edge flows, simplicial complexes of networks, frustration, Betti numbers, and the
+  link visual.
 
 ### Modified Capabilities
 
-- `model-library`: the lattice Maxwell and gauge link field model in `physics/waves`.
+- `model-library`: the lattice Maxwell and gauge link field model in `physics/waves`, and the gauge network agents model
+  in `social/opinion_dynamics`.
 
 ## Impact
 
@@ -59,7 +70,7 @@ lattice gauge model a first-class registered model.
   `Sampler` gains the `'colored'` schedule for links.
 - `skcomplex.core.compile` gains the lowering of cell states, exterior calculus, and holonomies to NumPy and Numba.
 - `skcomplex.core.analysis` gains `gauge_transform`, `wilson_loop`, `polyakov_loop`, `topological_charge`,
-  `gauss_residual`, and `hodge_decomposition`.
+  `gauss_residual`, `hodge_decomposition`, `frustration`, and `betti_numbers`; `CellComplex` gains `clique_complex`.
 - `skcomplex.core.viz` gains `LinksVisual`, registered under the kind `'links'`.
 - No new runtime dependency. The feature builds on NumPy, SciPy sparse matrices, NetworkX, and Numba, which the
   project already depends on, after the survey in the design found no maintained Python library that fits.

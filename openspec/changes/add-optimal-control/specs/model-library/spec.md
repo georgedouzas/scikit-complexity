@@ -10,7 +10,7 @@ pendulum, and a linear-quadratic regulated oscillator as registered factories.
 - **WHEN** the SIR vaccination problem is solved with a bounded vaccination rate and a cost on infections
 - **THEN** the optimally controlled epidemic peak is lower than the uncontrolled one
 
-### Requirement: Models are recorded in the model inventory
+### Requirement: Optimal control models are recorded in the model inventory
 Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
 inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
 model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered

@@ -18,11 +18,17 @@ example with a Rerun thumbnail and an analysis plot.
 - **THEN** the symmetric equilibrium price distribution is `F(P) = 1 - (alpha (1 - P)/(beta P))^(1/(m - 1))` on
   `[alpha/(alpha + beta), 1]`, and each firm's expected profit is `alpha` (Forrest 2018 Lemma 20.1)
 
+#### Scenario: Von Thünen rings
+- **WHEN** `von_thunen` assigns the cells of a plain around one market to the crop of highest bid rent
+  `Y_i (p_i - c_i) - Y_i f_i d` at distance `d`, after Giordano (2024, arXiv 2407.02181 §7)
+- **THEN** the land use forms concentric rings whose boundaries lie where the bid rents of neighbouring crops are equal,
+  within one cell, and raising a crop's transport rate `f_i` shrinks its ring
+
 #### Scenario: Glass transition
 - **WHEN** `random_energy_model` sweeps the temperature with `N = 20` over 10 draws
 - **THEN** the entropy follows `ln 2 - 1/(4 T^2)` above `T_g = 0.6006` and stays below 0.1 at `T = 0.3`
 
-### Requirement: Models are recorded in the model inventory
+### Requirement: Static models are recorded in the model inventory
 Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
 inventory, and a model the inventory records as pending this change SHALL register under the name of its entry.
 
@@ -35,6 +41,7 @@ inventory, and a model the inventory records as pending this change SHALL regist
   - `perceptron_satisfiability` in `computer_science/neural_networks` (Bt 6.3.3, Bt 6.4)
   - `evolutionary_optimisers` in `computer_science/evolutionary_computation` (Rm 6.3.3.3, Rm 6.3.4)
   - `continuum_percolation` in `physics/statistical_mechanics` (Sa 3)
+  - `von_thunen` in `economics/resources` (arXiv 2407.02181 §7)
 
 #### Scenario: New model recorded
 - **WHEN** the change registers a model with no inventory entry

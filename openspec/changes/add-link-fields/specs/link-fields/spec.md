@@ -182,3 +182,27 @@ more than two dimensions SHALL be drawn as a declared 2D slice.
 - **WHEN** a 2D U(1) model on a 32 × 32 lattice runs with a `RerunObserver`
 - **THEN** the viewer shows the plaquette angles as a 32 × 32 image with a cyclic color map and the links as 2048
   colored segments at every recorded frame
+
+### Requirement: Networks have clique complexes
+A network SHALL yield its clique complex up to a chosen dimension, with its triangles and larger cliques as oriented
+simplices and the incidence matrices between them, so cell states and exterior calculus work on agent interaction
+networks as on lattices.
+
+#### Scenario: Complete graph on four nodes
+- **WHEN** the clique complex of the complete graph on four nodes is built up to dimension 3
+- **THEN** it has 4 vertices, 6 edges, 4 triangles, and 1 tetrahedron, and the product of consecutive boundary matrices
+  is zero
+
+### Requirement: Frustration and topology of link fields
+The analysis SHALL report the frustration of a link field, the share and the energy of plaquettes whose holonomy is not
+the identity, and the Betti numbers of a complex from the ranks of its boundary matrices. The topological charge of a
+U(1) link field SHALL be defined over any closed oriented surface of a complex.
+
+#### Scenario: Flat and frustrated connections
+- **WHEN** the frustration of a pure-gauge U(1) field and of a field with flux pi through one plaquette is computed
+- **THEN** the first has no frustrated plaquette and zero energy, and the second has exactly one frustrated plaquette
+
+#### Scenario: Betti numbers of a torus
+- **WHEN** the Betti numbers of the cell complex of a periodic 8 × 8 lattice are computed
+- **THEN** they are 1, 2, and 1
+

@@ -27,7 +27,7 @@ with a given correlation, as a registered factory.
 - **WHEN** the model runs with correlation 0.7 over 10 000 frames
 - **THEN** the sample correlation of the two assets' log returns per frame is 0.7 within 0.05
 
-### Requirement: Models are recorded in the model inventory
+### Requirement: Correlated noise models are recorded in the model inventory
 Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
 inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
 model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
