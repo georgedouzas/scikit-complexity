@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 type Vector = npt.NDArray[np.float64]
 type Scalars = Callable[[float, Vector, Vector], list[float]]
 RELATIONS = (operator.lt, operator.le, operator.gt, operator.ge)
+SWITCHES = frozenset({'sign', 'sgn', 'heaviside', 'unit_step'})
 
 
 @dataclass(frozen=True)
@@ -80,6 +81,10 @@ class CompiledEvent:
 
         terminal:
             Whether the event ends the run.
+
+        hidden:
+            Whether the event only marks a switch of a law at a condition on states, so integrators restart at the
+            crossing, without a reset and without a record in the trajectory.
     """
 
     label: str
@@ -87,6 +92,7 @@ class CompiledEvent:
     reset: Callable[[float, Vector, Vector], Vector] | None
     direction: int
     terminal: bool
+    hidden: bool = False
 
 
 @dataclass(frozen=True)
@@ -300,6 +306,43 @@ def breakpoints_of(expressions: Iterable[Any], time: Expression) -> Breakpoints:
             unresolved = unresolved or not resolved
         stack.extend(item.operands())
     return Breakpoints(tuple(sorted(fixed)), tuple(sorted(periodic)), unresolved=unresolved)
+
+
+def state_conditions_of(expressions: Iterable[Any], time: Expression) -> list[Expression]:
+    """Return the expressions whose sign switches a law, from conditions and step functions that read more than time.
+
+    A condition `a < b` gives `a - b`, and `sign(u)`, `heaviside(u)`, and `unit_step(u)` give `u`. Conditions on time
+    alone are left to the breakpoints.
+
+    Args:
+        expressions:
+            The expressions of laws.
+
+        time:
+            The time symbol.
+
+    Returns:
+        conditions:
+            The distinct expressions whose zeros are the switches of the laws.
+    """
+    found: list[Expression] = []
+    stack = [SR(expression) for expression in expressions]
+    while stack:
+        item = stack.pop()
+        operation = item.operator()
+        if operation is None:
+            continue
+        stack.extend(item.operands())
+        if operation in RELATIONS:
+            left, right = item.operands()
+            candidate = left - right
+        elif getattr(operation, 'name', lambda: '')() in SWITCHES:
+            candidate = item.operands()[0]
+        else:
+            continue
+        if set(candidate.variables()) - {time} and not any(candidate.is_trivially_equal(other) for other in found):
+            found.append(candidate)
+    return found
 
 
 def _mod_calls(expression: Expression) -> list[Expression]:

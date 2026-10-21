@@ -1,6 +1,7 @@
 """Test delays, events, drivers, and noise conventions through the steppers and the simulation."""
 
 import math
+import warnings
 
 import numpy as np
 import pytest
@@ -13,7 +14,8 @@ from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4, EulerMaruyama, Gillespie, Heun, Milstein, ScipyODE, VelocityVerlet
 from skcomplex.models.biology.ecology import hutchinson
 from skcomplex.models.biology.physiology import mackey_glass
-from skcomplex.models.physics.mechanics import bouncing_ball
+from skcomplex.models.engineering.processes import bathtub
+from skcomplex.models.physics.mechanics import bouncing_ball, huygens_clocks
 
 Clock = Element.define('Clock', states={'x': 0.0}, laws=lambda s: [Rate(s.x, 1), Event(s.x - 3.2, terminal=True)])
 
@@ -295,3 +297,26 @@ def test_delay_of_parameter_expression():
     assert problem.delays[0].minimum == 1.0
     trajectory = Simulation(problem, dt=0.5).run(until=3).trajectory_
     assert trajectory['d.x'][-1] == pytest.approx(-1 / 6, abs=1e-6)
+
+
+def test_state_conditions_restart_the_integrator_without_stalling():
+    """Test that the bathtub drains without a stall warning, keeps its water nonnegative, and records no events."""
+    with warnings.catch_warnings():
+        warnings.simplefilter('error')
+        trajectory = Simulation(bathtub(water=20.0), dt=1).run(until=6).trajectory_
+    assert np.all(np.asarray(trajectory['tub.water']) >= -1e-6)
+    assert not trajectory.events
+
+
+def test_state_conditions_compile_into_hidden_events():
+    """Test that the condition of a rate law compiles into a hidden event without a reset."""
+    problem = compile_system(bathtub(water=20.0))
+    hidden = [event for event in problem.events if event.hidden]
+    assert len(hidden) == 1
+    assert hidden[0].reset is None
+
+
+def test_sign_conditions_compile_into_hidden_events():
+    """Test that the escapement `sign(|theta| - theta_c)` of each clock compiles into a hidden event."""
+    problem = compile_system(huygens_clocks())
+    assert sum(event.hidden for event in problem.events) == 2

@@ -91,7 +91,16 @@ from ._backends import Backend, resolve_backend
 from ._complex import modulus_form, split_law
 from ._fields import DiffusiveLimit, FieldLowering, has_operators
 from ._flows import StockFlowPass, quantities_of
-from ._hybrid import Breakpoints, CompiledEvent, Delay, Scalars, breakpoints_of, flat_sources, scalar_function
+from ._hybrid import (
+    Breakpoints,
+    CompiledEvent,
+    Delay,
+    Scalars,
+    breakpoints_of,
+    flat_sources,
+    scalar_function,
+    state_conditions_of,
+)
 from ._jacobians import ExactJacobian
 from ._kernels import Kernel, Output, PairSearch, Reference, Source
 from ._lattices import (
@@ -1444,6 +1453,37 @@ def _compile_events(hybrid: _Hybrid, time: Expression, reductions: ReductionPass
     return tuple(compiled)
 
 
+def _law_values(laws: list[Law]) -> list[Any]:
+    """Return the expressions of the laws that integrators follow, leaving out the rates of jumps."""
+    values: list[Any] = []
+    for law in laws:
+        if isinstance(law, Jump):
+            continue
+        sides = [law.lhs, law.rhs] if isinstance(law, Equation) else [getattr(law, 'value', None)]
+        for side in sides:
+            if side is not None:
+                values += [item for item in components_of(side) if isinstance(item, Expression)]
+    return values
+
+
+def _hidden_events(
+    specs: list[tuple[_KernelSpec, list[Law]]],
+    time: Expression,
+    reductions: ReductionPass,
+) -> tuple[CompiledEvent, ...]:
+    """Return one hidden event per condition on the states of single components that switches a law."""
+    compiled = []
+    for spec, laws in specs:
+        sources = flat_sources(spec.references, spec.owner)
+        for index, condition in enumerate(state_conditions_of(_law_values(laws), time)):
+            if not set(condition.variables()) - {time} <= set(sources):
+                continue
+            guard = scalar_function([condition], sources, time, spec.owner)
+            label = f'{spec.owner}:switch:{index}'
+            compiled.append(CompiledEvent(label, reductions.wrap(_first_value(guard)), None, 0, False, hidden=True))  # type: ignore[arg-type]
+    return tuple(compiled)
+
+
 def _first_value(function: Scalars) -> Callable[[float, Vector, Vector], float]:
     """Return a function that gives the single value of a scalar function."""
 
@@ -2459,7 +2499,10 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         agent_space=_agent_space(blocks),
         companions=_companions(blocks),
         delays=_compile_delays(hybrid, declarations.time),
-        events=_compile_events(hybrid, declarations.time, reductions),
+        events=(
+            *_compile_events(hybrid, declarations.time, reductions),
+            *_hidden_events(specs, declarations.time, reductions),
+        ),
         reductions=reductions.reductions,
         jacobian=jacobian,
         breakpoints=_breakpoints(specs, hybrid, declarations.time),

@@ -311,6 +311,8 @@ class EventLocator:
                 The event fires again within the minimum separation, which signals chattering.
         """
         event = self.problem.events[index]
+        if event.hidden:
+            return state.copy()
         last = self._last.get(event.label)
         if last is not None and time - last < SEPARATION * max(1.0, abs(time)):
             error_msg = (
