@@ -39,3 +39,8 @@
 | heterogeneous_global_coupling | limit cycles damped to rest after the coupling switches on | decay rates follow the leading eigenvalue inside the stability window | 11.9 s, 201 frames, 203 KB |
 | schrodinger | space-time image of the moving, spreading packet | site probabilities agree with the operator formulation; dephasing lowers purity at trace 1 | 1.6 s, 41 frames, 78 KB |
 | heat_l_shape | temperature surface over the L-shaped plate (camera crops the plate at small size) | nodes on the exact harmonic steady state; error decays exponentially | 0.3 s, 21 frames, 48 KB |
+| parametric_pendulum | swing growing from 0.1 rad under parametric pumping (wrapped-angle workaround) | peak |theta| grows parallel to exp(eps omega0 t / 4); constant without shaking | 0.7 s, 251 frames, 90 KB |
+| ballistic_pendulum | swing of the block after the impact (wrapped-angle workaround) | swing heights on (m v / (m + M))^2 / (2 g) | 1.1 s, 201 frames, 84 KB |
+| newtons_cradle | velocity jumping between balls at collisions | velocity passes from the first ball to the last and back | 0.2 s, 251 frames, 298 KB |
+| cart_pendulum | cart and bob swinging in opposition (position workaround) | centre of mass constant; small-swing frequency on sqrt(g (m1 + m2) / (m1 l)) | 3.5 s, 251 frames, 125 KB |
+| magnetic_pendulum | tangled path of the bob settling over a magnet | final magnet switches irregularly along a line of releases | 18.4 s, 251 frames, 178 KB |
