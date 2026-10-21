@@ -35,3 +35,22 @@
 | two_mass_spring_damper | quasi-periodic beating of the first mass | spectrum peaks at the normal modes 1 and sqrt(3) | 4.5 s, 251 frames, 201 KB |
 | sitnikov | irregular bobbing of the light body (e = 0.2) | stroboscopic section: invariant curves near the centre, chaotic band outside | 19.0 s, 251 frames, 47 KB |
 | restricted_three_body | precessing rosette around the Earth, Moon aside (custom path view) | path outside the Jacobi forbidden region; C drift below 2e-5 | 0.3 s, 251 frames, 121 KB |
+| ising | up and down domains coarsening on a 256 x 256 torus at T = 2.0 | \|m\|(T) on 48 x 48 follows Onsager below T_c, rounded tail above | 5.4 s, 101 frames, 3.3 MB |
+| potts | q = 5 domains of five colors after a quench | energy per site passes the exact e_c at T_c; smooth for q = 3, jump for q = 8 | 30.6 s, 101 frames, 4.2 MB |
+| tasep | space-time image of jams drifting backwards on a ring | ring current matches the exact parallel-update formula for p = 0.5, 0.9 | 2.0 s, 251 frames, 3.1 MB |
+| contact_process | sparse infected clusters just above lambda_c | steady density zero below 1.65, rising above, under mean field | 5.9 s, 251 frames, 3.7 MB |
+| site_percolation | burnt spanning cluster at p = 0.6 | spanning probability curves for L = 16, 32, 64 cross near p_c | 30.9 s, 300 frames, 5.0 MB |
+| forest_fire | fire fronts sweeping through older stands | tree density settles near 0.4, below the percolation threshold | 9.0 s, 300 frames, 11.3 MB |
+| sandpile | stable heights 0-3 in the critical state | mean height plateaus at 2.1; size density follows s^-1.2 over two decades | 22.3 s, 300 frames, 1.1 MB |
+| manna_sandpile | stable heights 0-1 in the critical state | density plateaus near 0.68; size density follows s^-1.27 | 15.3 s, 300 frames, 0.4 MB |
+| brownian_motion | round Gaussian cloud of 500 particles | MSD follows the Ornstein-Uhlenbeck law from ballistic to diffusive | 0.6 s, 201 frames, 2.5 MB |
+| optical_trap | elongated cloud in an anisotropic trap | position histograms match Gaussians of variance kT / k (k = 1.01, 0.26) | 0.2 s, 251 frames, 1.1 MB |
+| stochastic_resonance | hops between wells locked to the forcing | response at the forcing frequency peaks at D = 0.12, near the matching 0.10 | 20.6 s, 251 frames, 0.06 MB |
+| kramers_escape | six particles rattling in a well and hopping at random times | survival is exponential, slopes about 15% below the Kramers rate at barrier / D of 2.5-3 | 14.0 s, 201 frames, 0.06 MB |
+| scaled_brownian_motion | paths of eight walkers fanning out then slowing | ensemble MSD matches 2 K ((t + t0)^alpha - t0^alpha) for alpha = 0.5, 1.5 | 0.6 s, 201 frames, 0.06 MB |
+| multiplicative_noise | eight Itô particles lingering near the quiet wall | stationary histograms match 1 / sigma^2, 1 / sigma, flat for Itô, Stratonovich, anti-Itô | 5.6 s, 300 frames, 0.08 MB |
+| brownian_near_wall | height sinking from 20 then wandering near the wall | anti-Itô heights match the barometric law with D0 / v = 5 | 30.0 s, 251 frames, 0.07 MB |
+| diffusion_in_a_speckle_field | 300 particles clumped at hotspots | MSD from t = 10: free 4 D t, plateau with escapes at 30, flat plateau at 100 | 23.6 s, 241 frames, 0.8 MB |
+| active_brownian_particles | 200 swimmers spread over the periodic square | MSD matches the exact ABP law for D_r = 1 and 0.1 | 0.9 s, 201 frames, 0.7 MB |
+| active_ornstein_uhlenbeck_particles | 200 particles spread over the periodic square | MSD matches 4 D (t - tau (1 - exp(-t / tau))) for tau = 1 and 10 | 1.3 s, 201 frames, 1.0 MB |
+| chiral_active_particles | 200 circling swimmers in the periodic square | MSD matches van Teeffelen-Löwen, oscillating for omega = 2, far below omega = 0 | 0.9 s, 201 frames, 0.7 MB |
