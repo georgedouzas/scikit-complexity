@@ -19,3 +19,5 @@
 | delayed_car_following | speed swings growing from the leader to car 7 | amplitude grows along the chain for T = 1 and decays for T = 0.2, as omega < 2 lambda sin(omega T) predicts | 8 s script, 121 frames, 0.38 MB |
 | intelligent_driver_model | 20 cars accelerating from rest to one common speed | final speeds for 10 to 60 cars match the IDM equilibrium | 7 s script, 201 frames, 0.16 MB |
 | optimal_velocity | speeds fanning out into a stop-and-go wave | spread grows for headway 2 and decays for headway 4; late states loop around V(h) | 8 s script, 201 frames, 0.13 MB |
+| lighthill_whitham_richards | density history with the shock edge moving upstream | shock position follows the Rankine-Hugoniot speed -0.1 | 8 s script, 51 frames, 0.03 MB |
+| nagel_schreckenberg | space-time road with backward-leaning jam stripes | fundamental diagram: free flow (vmax - p) rho up to ~0.15, then falling flow | 7 s script, 201 frames, 7.95 MB |
