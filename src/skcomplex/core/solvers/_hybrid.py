@@ -223,6 +223,7 @@ class EventLocator:
         *,
         p: Vector,
         interpolant: Interpolant,
+        include_hidden: bool = True,
     ) -> tuple[float, int] | None:
         """Return the earliest event crossing in a step, with its time and the index of its event.
 
@@ -245,12 +246,18 @@ class EventLocator:
             interpolant:
                 The state as a function of time within the step.
 
+            include_hidden:
+                Whether to locate hidden events, which only restart adaptive integrators at switches of the drift.
+                Fixed-step integrators step over those switches, so they leave them out.
+
         Returns:
             crossing:
                 The time and the event index, or `None` when no guard crosses zero in its direction.
         """
         earliest: tuple[float, int] | None = None
         for index, event in enumerate(self.problem.events):
+            if event.hidden and not include_hidden:
+                continue
             g0, g1 = event.guard(t0, x0, p), event.guard(t1, x1, p)
             crossed = (
                 (event.direction >= 0 and g0 < 0 < g1)

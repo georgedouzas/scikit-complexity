@@ -12,7 +12,7 @@ from skcomplex.core.base import SolverError, role
 from skcomplex.core.compile import compile_system
 from skcomplex.core.model import Element, Interaction, Rate, System, mean, step, where
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import EulerMaruyama, Gillespie, Iteration, ScipyODE, resolve_solver
+from skcomplex.core.solvers import RK4, EulerMaruyama, Gillespie, Iteration, ScipyODE, resolve_solver
 from skcomplex.models import create, run
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population
 from skcomplex.models.biology.epidemiology import Compartment, Recovery
@@ -244,3 +244,13 @@ def test_default_solver_steps_large_diffusive_fields_explicitly():
     """Test that a large field whose frames span a few stable steps runs with RK45, not a costly implicit method."""
     simulation = Simulation(create('fitzhugh_nagumo'), dt=2.0).run(until=4)
     assert simulation.stepper_.method_ == 'RK45'
+
+
+def test_fixed_step_integrators_step_over_switches_of_the_drift():
+    """Test that RK4 steps over the swing-up controller switch instead of firing its hidden event forever."""
+    system = create('pendulum_swing_up')
+    assert any(event.hidden for event in compile_system(system).events)
+    start = time.perf_counter()
+    simulation = Simulation(system, dt=0.1, solver=RK4(dt=0.01)).run(until=75)
+    assert time.perf_counter() - start < 30
+    assert simulation.time_ == pytest.approx(75)

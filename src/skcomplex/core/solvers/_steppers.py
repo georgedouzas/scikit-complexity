@@ -709,7 +709,15 @@ def _advance_rk4_hybrid(stepper: Stepper, t: float, x: Vector, p: Vector, until:
             if history is not None:
                 history.add(time, time + step, interpolant)
             hit = (
-                stepper.locator_.crossing(time, time + step, state, following, p=p, interpolant=interpolant)
+                stepper.locator_.crossing(
+                    time,
+                    time + step,
+                    state,
+                    following,
+                    p=p,
+                    interpolant=interpolant,
+                    include_hidden=False,
+                )
                 if problem.events
                 else None
             )
@@ -766,7 +774,15 @@ def _advance_sde_hybrid(
             if history is not None:
                 history.add(time, time + step, interpolant)
             hit = (
-                stepper.locator_.crossing(time, time + step, state, following, p=p, interpolant=interpolant)
+                stepper.locator_.crossing(
+                    time,
+                    time + step,
+                    state,
+                    following,
+                    p=p,
+                    interpolant=interpolant,
+                    include_hidden=False,
+                )
                 if problem.events
                 else None
             )
