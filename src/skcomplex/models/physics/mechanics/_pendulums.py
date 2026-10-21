@@ -8,7 +8,7 @@ import math
 import numpy as np
 from sage.all__sagemath_symbolics import cos, sign, sin, sqrt
 
-from ....core.base import Domain, Expression, parameter, role, state
+from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
 from ....core.model import (
     Element,
     Equation,
@@ -26,6 +26,18 @@ from ....core.model import (
 )
 from ....core.runtime import register_model
 from ._mechanics import Pendulum
+
+
+def _double_bobs(theta1: float, theta2: float, l1: float, l2: float, **_: float) -> np.ndarray:
+    """Return the positions of the two bobs of a double pendulum hanging from the origin."""
+    first = np.array([l1 * np.sin(theta1), -l1 * np.cos(theta1)])
+    return np.stack([first, first + np.array([l2 * np.sin(theta2), -l2 * np.cos(theta2)])])
+
+
+def _cart_and_bob(y: float, theta: float, l: float, **_: float) -> np.ndarray:
+    """Return the positions of a cart on a horizontal track and of the bob that hangs from it."""
+    return np.array([[y, 0.0], [y + l * np.sin(theta), -l * np.cos(theta)]])
+
 
 DoublePendulum = Element.define(
     'DoublePendulum',
@@ -56,6 +68,7 @@ DoublePendulum = Element.define(
             == 0,
         ),
     ],
+    visual=VisualSpec('bodies', {'positions': _double_bobs, 'pivot': (0.0, 0.0), 'rods': True, 'traced': [1]}),
 )
 
 PendulumSpring = Interaction.define(
@@ -99,6 +112,7 @@ CartPendulum = Element.define(
         ),
         Equation(s.l * derivative(s.theta, 2) + derivative(s.y, 2) * cos(s.theta) + s.g * sin(s.theta) == 0),
     ],
+    visual=VisualSpec('bodies', {'positions': _cart_and_bob, 'rods': True, 'traced': [1]}),
 )
 
 ParametricPendulum = Element.define(
@@ -147,7 +161,7 @@ BallisticPendulum = Element.define(
 
 ClockPendulum = Element.define(
     'ClockPendulum',
-    states={'theta': state(default=0.1, order=2), 'x': state(default=0.0, order=2)},
+    states={'theta': state(default=0.2, order=2), 'x': state(default=0.0, order=2)},
     parameters={
         'm': parameter(default=1.0, domain=Domain.POSITIVE),
         'l': parameter(default=1.0, domain=Domain.POSITIVE),
@@ -634,7 +648,7 @@ def ballistic_pendulum(
 def huygens_clocks(
     n_clocks: int = 2,
     *,
-    theta: float = 0.1,
+    theta: float = 0.2,
     k: float = 1.0,
     m: float = 1.0,
     l: float = 1.0,
@@ -650,7 +664,8 @@ def huygens_clocks(
     supports are joined by springs of stiffness `k`. A pendulum follows `m l θ'' + f(θ) θ' + m g sin θ = -m x'' cos θ`
     and its support `(M + m) x'' + 2 rho x' + m l θ'' cos θ = m l θ'² sin θ + spring forces`. The escapement
     `f(θ) = 2 λ sgn(|θ| - θ_c)` is `-2 λ` for `|θ| < θ_c`, pumping energy in, and `2 λ` beyond, so every clock has a
-    limit cycle. With `λ = 0` the clocks are plain pendulums. Two identical clocks synchronize in antiphase.
+    limit cycle. With `λ = 0` the clocks are plain pendulums. Two identical clocks synchronize in antiphase. The
+    first clock starts at `theta`, away from the switch of the escapement at `θ_c`, and the others at rest.
 
     Args:
         n_clocks:

@@ -13,7 +13,8 @@ import rerun.blueprint as rrb
 from ..base import ValidationError
 from ..compile import CompiledAgents, CompiledElement, Problem, compile_system, observables_of
 from ..model import MesaSystem, System
-from ._visuals import AgentsVisual, PointsVisual, ScalarsVisual, resolve_visual
+from ._traits import agents_visual_of
+from ._visuals import PointsVisual, ScalarsVisual, resolve_visual
 
 MAX_SERIES_PER_VIEW = 6
 MAX_VIEWS_PER_ROW = 3
@@ -63,12 +64,14 @@ def _whole_run(view: rrb.View) -> rrb.View:
     """Return a time series view with the whole-run time axis and readable lines, and any other view unchanged."""
     if not isinstance(view, rrb.TimeSeriesView) or 'TimeAxis' in view.properties:
         return view
+    legend = view.properties.get('PlotLegend')
     return rrb.TimeSeriesView(
         origin=view.origin,
         contents=view.contents,
         name=view.name,
         defaults=[rr.SeriesLines.from_fields(widths=SERIES_WIDTH)],
         axis_x=WHOLE_RUN,
+        plot_legend=legend if isinstance(legend, rrb.PlotLegend) else None,
     )
 
 
@@ -139,15 +142,17 @@ def _element_views(problem: Problem) -> tuple[list[rrb.View], list[rrb.View]]:
 
 
 def _agent_views(problem: Problem) -> list[rrb.View]:
-    """Return one view per view class that shows every agent group, since the groups share one space."""
-    by_class: dict[type, list[rrb.View]] = {}
+    """Return the views of the agents, merged into one per view class when the groups share a space."""
+    views: list[rrb.View] = []
     agents: CompiledAgents
     for agents in problem.agents:
-        visual = resolve_visual(agents.visual)
-        visual = visual if isinstance(visual, AgentsVisual) else AgentsVisual()
-        for view in visual.views(agents, problem):
-            by_class.setdefault(type(view), []).append(view)
-    return [_merged(views, 'agents') for views in by_class.values()]
+        views += agents_visual_of(agents, problem).views(agents, problem)
+    if problem.agent_space is None:
+        return views
+    by_class: dict[type, list[rrb.View]] = {}
+    for view in views:
+        by_class.setdefault(type(view), []).append(view)
+    return [_merged(group, 'agents') for group in by_class.values()]
 
 
 def _summary_views(problem: Problem, *, parameters: bool) -> list[rrb.View]:

@@ -138,5 +138,13 @@ def deffuant(
         20
     """
     opinions = np.random.default_rng(random_state).random(n_agents)
-    people = Discussant.group('people', n_agents, opinion=opinions, confidence=confidence, convergence=convergence)
+    visual = VisualSpec('traits', {'color_by': 'opinion', 'color_range': (0.0, 1.0), 'histogram_first': True})
+    people = Discussant.group(
+        'people',
+        n_agents,
+        opinion=opinions,
+        confidence=confidence,
+        convergence=convergence,
+        visual=visual,
+    )
     return System(elements=[people], interactions=[Encounters('meetings', target='people')])

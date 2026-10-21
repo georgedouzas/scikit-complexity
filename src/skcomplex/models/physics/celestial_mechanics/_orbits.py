@@ -11,7 +11,7 @@ from typing import Any
 import numpy as np
 from sage.all__sagemath_symbolics import cos
 
-from ....core.base import Domain, ValidationError, parameter, state
+from ....core.base import Domain, ValidationError, VisualSpec, parameter, state
 from ....core.model import Element, EuclideanSpace, Gravity, Particle, Rate, System, derivative
 from ....core.runtime import register_model
 
@@ -35,6 +35,12 @@ INNER_SOLAR_SYSTEM = {
 }
 PRESETS = {'figure_eight': FIGURE_EIGHT, 'inner_solar_system': INNER_SOLAR_SYSTEM}
 
+
+def _primaries(mu: float, **_: float) -> list[list[float]]:
+    """Return the positions of the two primaries in the rotating frame."""
+    return [[-mu, 0.0], [1 - mu, 0.0]]
+
+
 RotatingFrameBody = Element.define(
     'RotatingFrameBody',
     states={'x': state(default=0.5, order=2), 'y': state(default=0.0, order=2)},
@@ -55,6 +61,7 @@ RotatingFrameBody = Element.define(
             - s.mu * s.y / ((s.x - 1 + s.mu) ** 2 + s.y**2) ** (3 / 2),
         ),
     ],
+    visual=VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'marks': _primaries}),
 )
 
 

@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.base import Domain, ValidationError, parameter, state
+from skcomplex.core.base import Domain, ValidationError, parameter, state, wrap_angle
 from skcomplex.core.model import Element, Interaction, Rate, System, Update
 from skcomplex.core.runtime import Simulation
 
@@ -44,11 +44,31 @@ def test_checked_mode_catches_values_outside_alphabet():
 
 
 def test_angle_wraps_into_one_turn():
-    """Test that an angle growing past 2π lies in [0, 2π) after every frame."""
+    """Test that an angle growing past π lies in (-π, π] after every frame."""
     system = System(elements=[Rotor('r', theta=6.0, omega=1.0)], interactions=[Spin('s', target='r')])
     values = Simulation(system, dt=0.5).run(until=3).trajectory_['r.theta']
-    assert np.all((values >= 0) & (values < 2 * np.pi))
-    assert values[-1] == pytest.approx(np.mod(9.0, 2 * np.pi), abs=1e-6)
+    assert np.all((values > -np.pi) & (values <= np.pi))
+    assert values[-1] == pytest.approx(9.0 - 2 * np.pi, abs=1e-6)
+
+
+def test_angle_swings_around_zero_without_jumping():
+    """Test that an angle decreasing through zero stays near zero instead of jumping a full turn."""
+    system = System(elements=[Rotor('r', theta=0.1, omega=-1.0)], interactions=[Spin('s', target='r')])
+    values = Simulation(system, dt=0.1).run(until=1).trajectory_['r.theta']
+    assert np.all((values > -np.pi) & (values <= np.pi))
+    assert values[-1] == pytest.approx(-0.9, abs=1e-6)
+
+
+def test_angle_encode_wraps_into_half_open_turn():
+    """Test that encoding an angle wraps it into (-π, π], keeping π and moving -π to π."""
+    encoded = Domain.ANGLE.encode([3 * np.pi / 2, -np.pi, np.pi])
+    np.testing.assert_allclose(encoded, [-np.pi / 2, np.pi, np.pi])
+
+
+def test_wrap_angle_maps_into_half_open_turn():
+    """Test that wrap_angle maps any real value into (-π, π]."""
+    values = wrap_angle(np.array([0.1, -0.1, 7.0, -7.0, np.pi, -np.pi]))
+    np.testing.assert_allclose(values, [0.1, -0.1, 7.0 - 2 * np.pi, -7.0 + 2 * np.pi, np.pi, np.pi])
 
 
 def test_boolean_values_return_as_booleans():
@@ -57,3 +77,9 @@ def test_boolean_values_return_as_booleans():
     assert trajectory['s.on'].tolist() == [True, True]
     with pytest.raises(ValidationError, match='boolean'):
         Simulation(System(elements=[Switch('s', on=0.5)])).run(until=1)
+
+
+def test_wrap_angle_keeps_angles_inside_exactly():
+    """Test that wrap_angle returns angles already in (-π, π] bit for bit, so boundary laws see no change."""
+    values = np.linspace(-3.14, np.pi, 1001)
+    assert np.array_equal(wrap_angle(values), values)

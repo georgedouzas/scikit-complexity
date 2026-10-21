@@ -59,7 +59,7 @@ class HodgepodgeCell(Element):
     n: float = parameter(default=100.0, domain=Domain.POSITIVE)
     k1: float = parameter(default=2.0, domain=Domain.POSITIVE)
     k2: float = parameter(default=3.0, domain=Domain.POSITIVE)
-    g: float = parameter(default=28.0, domain=Domain.NONNEGATIVE)
+    g: float = parameter(default=34.0, domain=Domain.NONNEGATIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the rule of infection, worsening, and healing.
@@ -96,7 +96,7 @@ def hodgepodge(
     n: float = 100.0,
     k1: float = 2.0,
     k2: float = 3.0,
-    g: float = 28.0,
+    g: float = 34.0,
     random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return the hodgepodge machine, a model of a chemical reaction whose waves form spirals.
@@ -127,7 +127,7 @@ def hodgepodge(
     Examples:
         >>> from skcomplex.models.chemistry.kinetics import hodgepodge
         >>> hodgepodge((10, 10)).elements[0].values['g']
-        28.0
+        34.0
     """
     levels = np.random.default_rng(random_state).integers(0, int(n) + 1, size=tuple(shape)).astype(float)
     space = LatticeSpace(tuple(shape))

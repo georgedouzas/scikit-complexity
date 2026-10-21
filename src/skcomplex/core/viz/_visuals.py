@@ -13,13 +13,16 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ..base import Registry, VisualSpec
+from ..base import Domain, Registry, VisualSpec
 from ..compile import CompiledAgents, CompiledElement, Problem
 from ..model import ContinuousSpace, GridSpace, LatticeSpace, NetworkSpace, Space
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
 
 MAX_POINT_DIMENSIONS = 3
+UPWARD = np.array([1.0, -1.0])
+PATH_COLOR = (86, 180, 233)
+PATH_WIDTH = 1.0
 LAYOUT_SEED = 0
 NODE_SPACING = 40.0
 POINT_SHARE = 0.02
@@ -33,6 +36,16 @@ MIN_HISTORY = 64
 MAX_HISTORY = 256
 SPACE_TIME = 'space_time'
 HEXAGON_RADIUS = float(1 / np.sqrt(3.0))
+SERIES_COLORS = (
+    (230, 159, 0),
+    (86, 180, 233),
+    (0, 158, 115),
+    (240, 228, 66),
+    (0, 114, 178),
+    (213, 94, 0),
+    (204, 121, 167),
+    (170, 170, 170),
+)
 COLOR_SCALE = np.array(
     [[68, 1, 84], [59, 82, 139], [33, 145, 140], [94, 201, 98], [253, 231, 37]],
     dtype=float,
@@ -58,6 +71,12 @@ PALETTE = (
     .round()
     .astype(np.uint8)
 )
+
+
+def _widened(span: tuple[float, float] | None, values: npt.NDArray[np.float64]) -> tuple[float, float]:
+    """Return a color range widened to cover values, starting from their extremes when there is no range yet."""
+    low, high = float(np.min(values)), float(np.max(values))
+    return (low, high) if span is None else (min(span[0], low), max(span[1], high))
 
 
 def _palette_colors(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
@@ -92,6 +111,21 @@ def _phase_colors(phases: npt.NDArray[np.float64]) -> npt.NDArray[np.uint8]:
     """Return the colors of phases in `(-pi, pi]` from a cyclic palette, so `-pi` and `pi` share one color."""
     levels = np.mod(phases + np.pi, 2 * np.pi) * (255.0 / (2 * np.pi))
     return PHASE_PALETTE[np.clip(levels, 0.0, 255.0).astype(np.uint8)]
+
+
+def _series_index(problem: Problem, path: str, state: str) -> int:
+    """Return the position of a state among the states of every element of a problem, in declaration order."""
+    names = [(element.path, name) for element in problem.elements for name in element.states]
+    return names.index((path, state)) if (path, state) in names else 0
+
+
+def _style_series(recording: rr.RecordingStream, path: str, value: object, index: int) -> None:
+    """Log static series colors for the components of a value, from the categorical palette starting at an index."""
+    values = np.ravel(np.asarray(value))
+    parts = [f'{path}/{part}' for part in PARTS] if np.iscomplexobj(values) else [path]
+    for offset, entity in enumerate(parts):
+        colors = [SERIES_COLORS[(index + offset + column) % len(SERIES_COLORS)] for column in range(values.size)]
+        recording.log(entity, rr.SeriesLines(colors=colors), static=True)
 
 
 def _log_scalars(recording: rr.RecordingStream, path: str, value: object) -> None:
@@ -176,11 +210,17 @@ class Visual:
 class ScalarsVisual(Visual):
     """Visual that logs each state component of an element as a time series.
 
+    Every state gets static series colors from a categorical palette, by its position among the states of every element
+    of the problem, so the series of one view are told apart.
+
     Examples:
         >>> from skcomplex.core.viz import ScalarsVisual
         >>> ScalarsVisual()
         ScalarsVisual()
     """
+
+    def __init__(self) -> None:
+        self._styled: set[str] = set()
 
     def __repr__(self) -> str:
         """Return the class name."""
@@ -200,7 +240,11 @@ class ScalarsVisual(Visual):
                 The frame.
         """
         for state, name in element.states.items():
-            _log_scalars(recording, f'{element.path}/{state}', frame.value(name))
+            path, value = f'{element.path}/{state}', frame.value(name)
+            if path not in self._styled:
+                _style_series(recording, path, value, _series_index(frame.problem, element.path, state))
+                self._styled.add(path)
+            _log_scalars(recording, path, value)
 
     def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
         """Return one time series view of the states of the element.
@@ -231,8 +275,12 @@ class ScalarsVisual(Visual):
 class PointsVisual(Visual):
     """Visual that logs a vector state as points, one per member of a group, and other states as time series.
 
-    Each state is logged as one batch, so a group of any size takes one log call per state and frame. Without a given
-    radius, the points take a share of the extent of the positions logged so far, smaller for larger groups. A group of
+    Each state is logged as one batch, so a group of any size takes one log call per state and frame. Positions in
+    two dimensions are logged with the second coordinate negated, since Rerun's 2D views point their vertical axis
+    down, so the views draw them with the vertical axis up and show the negated value on hover. Without a given
+    radius, the points take a share of the extent of the positions logged so far, smaller for larger groups. The
+    extent and the count include every element drawn by a points visual of the same position state, so single
+    particles that share a space, such as the masses of a chain, take one radius from the whole drawing. A group of
     at most ten points in two or three dimensions also logs the trail of its recent positions as line strips under
     `<path>/trail`, a quarter as wide as that share, whatever the radius.
 
@@ -247,7 +295,7 @@ class PointsVisual(Visual):
             The name of a scalar state, or of a vector state whose norm, colors the points, or `None` for one color.
 
         color_range:
-            The values at the two ends of the color scale, or `None` to fix them from the first logged frame.
+            The values at the two ends of the color scale, or `None` for a range widened to every logged value.
 
         states:
             The names of the other states to log as time series, or `None` for all of them.
@@ -279,16 +327,18 @@ class PointsVisual(Visual):
         self.trail = trail
         self._trail: deque[npt.NDArray[np.float64]] = deque(maxlen=max(trail, 1))
         self._bounds: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]] | None = None
+        self._span: tuple[float, float] | None = None
 
     def _colors(self, element: CompiledElement, frame: Frame, count: int) -> npt.NDArray[np.uint8] | None:
-        """Return the colors of the points, fixing the color range on first use when it is not given."""
+        """Return the colors of the points over the given range, or over a range widened to every value so far."""
         if self.color_by is None:
             return None
         values = np.asarray(frame.value(element.states[self.color_by]), dtype=float).reshape(count, -1)
         magnitudes = np.linalg.norm(values, axis=1)
-        if self.color_range is None:
-            self.color_range = (float(magnitudes.min()), float(magnitudes.max()))
-        return _colors_of(magnitudes, *self.color_range)
+        if self.color_range is not None:
+            return _colors_of(magnitudes, *self.color_range)
+        self._span = _widened(self._span, magnitudes)
+        return _colors_of(magnitudes, *self._span)
 
     def _extent_radius(self, points: npt.NDArray[np.float64]) -> float:
         """Return a share of the extent of every position logged so far, keeping the bounds of the positions."""
@@ -298,6 +348,18 @@ class PointsVisual(Visual):
         self._bounds = (low, high)
         extent = float((high - low).max()) or float(np.abs(points).max())
         return _radius_of(extent, len(points))
+
+    def _crowd(self, frame: Frame, points: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+        """Return the positions of every element drawn by a points visual of the same position state and dimension."""
+        positions = [
+            np.atleast_2d(np.asarray(frame.value(other.states[self.position]), dtype=float))
+            for other in frame.problem.elements
+            if other.visual.kind == 'points'
+            and other.visual.options.get('position') == self.position
+            and self.position in other.states
+        ]
+        same = [item for item in positions if item.shape[1] == points.shape[1]]
+        return np.vstack(same) if same else points
 
     def _radius(self, points: npt.NDArray[np.float64]) -> float:
         """Return the given radius, or a share of the extent of every position logged so far."""
@@ -339,12 +401,14 @@ class PointsVisual(Visual):
         """
         points = np.atleast_2d(np.asarray(frame.value(element.states[self.position]), dtype=float))
         colors = self._colors(element, frame, len(points))
+        radius = self._radius(self._crowd(frame, points)) if points.shape[1] > 1 else 0.0
         if points.shape[1] == MAX_POINT_DIMENSIONS:
-            recording.log(element.path, rr.Points3D(points, radii=self._radius(points), colors=colors))
+            recording.log(element.path, rr.Points3D(points, radii=radius, colors=colors))
             self._log_trail(recording, element.path, points, colors)
         elif points.shape[1] == MAX_POINT_DIMENSIONS - 1:
-            recording.log(element.path, rr.Points2D(points, radii=self._radius(points), colors=colors))
-            self._log_trail(recording, element.path, points, colors)
+            shown = points * UPWARD
+            recording.log(element.path, rr.Points2D(shown, radii=radius, colors=colors))
+            self._log_trail(recording, element.path, shown, colors)
         else:
             recording.log(f'{element.path}/{self.position}', rr.Scalars(points.ravel()))
         others = (
@@ -405,17 +469,23 @@ class AgentsVisual(Visual):
     seeded spring layout of the network. On a grid the radius is in cells, and on a network a fraction of the spacing
     of neighbouring nodes. Without a given radius, agents in a continuous space take a share of the side of the space,
     smaller for larger groups. Every point carries the agent id as a hidden label, so agents keep their identity across
-    frames and removed agents disappear.
+    frames and removed agents disappear. Agents whose position is a state are logged at that state: positions of one
+    coordinate, such as cars on a road, as one thin series of one color per agent under `<path>/<position>`, so their
+    time series view, without a legend, is a space-time diagram, and positions of two coordinates as `Points2D` with
+    the vertical axis up.
 
     Args:
         color_by:
             The name of a numeric state that colors the agents, or `None` for one color.
 
         color_range:
-            The values at the two ends of the color scale, or `None` to fix them from the first logged frame.
+            The values at the two ends of the color scale, or `None` for a range widened to every logged value.
 
         radius:
             The radius of the points, or `None` for 0.4 on grids and networks and a share of the side of other spaces.
+
+        position:
+            The name of a state that holds the position of every agent, or `None` for the location in the space.
 
     Examples:
         >>> from skcomplex.core.viz import AgentsVisual
@@ -428,11 +498,16 @@ class AgentsVisual(Visual):
         color_by: str | None = None,
         color_range: tuple[float, float] | None = None,
         radius: float | None = None,
+        *,
+        position: str | None = None,
     ) -> None:
         self.color_by = color_by
         self.color_range = color_range
         self.radius = radius
+        self.position = position
+        self._styled: set[str] = set()
         self._layouts: dict[int, dict[str, npt.NDArray[np.float64]]] = {}
+        self._span: tuple[float, float] | None = None
 
     def _layout(self, space: NetworkSpace) -> dict[str, npt.NDArray[np.float64]]:
         """Return the positions of the nodes of a network, computed once per network."""
@@ -441,13 +516,14 @@ class AgentsVisual(Visual):
         return self._layouts[id(space.graph)]
 
     def _colors(self, snapshot: AgentSnapshot) -> npt.NDArray[np.uint8] | None:
-        """Return one color per agent from the colored state, fixing the range on first use."""
+        """Return one color per agent over the given range, or over a range widened to every value so far."""
         if self.color_by is None or not len(snapshot):
             return None
         values = np.asarray(snapshot.values[self.color_by], dtype=float)
-        if self.color_range is None:
-            self.color_range = (float(values.min()), float(values.max()))
-        return _colors_of(values, *self.color_range)
+        if self.color_range is not None:
+            return _colors_of(values, *self.color_range)
+        self._span = _widened(self._span, values)
+        return _colors_of(values, *self._span)
 
     def _radius(self, space: Space | None, positions: npt.NDArray[np.float64]) -> float:
         """Return the given radius, a radius in cells on grids and networks, or a share of the side of other spaces."""
@@ -501,9 +577,24 @@ class AgentsVisual(Visual):
             space:
                 The space the agents live in, or `None`.
         """
+        colors, labels = self._colors(snapshot), [str(agent) for agent in snapshot.ids]
+        if self.position is not None:
+            positions = np.asarray(snapshot.values[self.position], dtype=float).reshape(len(snapshot), -1)
+            if positions.shape[1] == 1:
+                entity = f'{path}/{self.position}'
+                if entity not in self._styled:
+                    style = rr.SeriesLines(colors=[PATH_COLOR] * len(positions), widths=PATH_WIDTH)
+                    recording.log(entity, style, static=True)
+                    self._styled.add(entity)
+                recording.log(entity, rr.Scalars(positions[:, 0]))
+                return
+            positions = positions[:, :2] * UPWARD
+            extent = float(np.ptp(positions, axis=0).max()) if len(positions) else 0.0
+            radius = _radius_of(extent, len(positions)) if self.radius is None else float(self.radius)
+            recording.log(path, rr.Points2D(positions, colors=colors, radii=radius, labels=labels, show_labels=False))
+            return
         if snapshot.locations is None:
             return
-        colors, labels = self._colors(snapshot), [str(agent) for agent in snapshot.ids]
         if isinstance(space, NetworkSpace):
             layout = self._layout(space)
             nodes = [str(node) for node in np.ravel(snapshot.locations).tolist()]
@@ -537,7 +628,8 @@ class AgentsVisual(Visual):
 
         Returns:
             views:
-                One view with the path of the agents as origin, or none for agents without a location.
+                One view with the path of the agents as origin, or none for agents without a location or a
+                position state.
 
         Examples:
             >>> from skcomplex.core.compile import compile_system
@@ -547,6 +639,12 @@ class AgentsVisual(Visual):
             >>> type(AgentsVisual().views(problem.agents[0], problem)[0]).__name__
             'GraphView'
         """
+        if self.position is not None and isinstance(element, CompiledAgents):
+            initial: Any = element.values[self.position]
+            if np.ndim(initial) < 2:  # noqa: PLR2004
+                origin = f'{element.path}/{self.position}'
+                return [rrb.TimeSeriesView(origin=origin, name=origin, plot_legend=rrb.PlotLegend(visible=False))]
+            return [rrb.Spatial2DView(origin=element.path, name=element.path)]
         if problem.agent_space is None:
             return []
         if isinstance(problem.agent_space, NetworkSpace):
@@ -647,7 +745,8 @@ class ImageVisual(Visual):
         """Log every chosen state of a lattice group under `<path>/<state>`, and a space-time image in one dimension.
 
         A complex state logs its modulus under `<path>/<state>/modulus`, colored over the range, and its phase under
-        `<path>/<state>/phase`, colored by a cyclic palette over `(-pi, pi]`. Its space-time image shows the modulus.
+        `<path>/<state>/phase`, colored by a cyclic palette over `(-pi, pi]`. An angle state is colored by the same
+        cyclic palette. Its space-time image shows the modulus.
 
         Args:
             recording:
@@ -668,7 +767,8 @@ class ImageVisual(Visual):
             if magnitudes.ndim == 1:
                 self._log_space_time(recording, f'{element.path}/{SPACE_TIME}/{state}', magnitudes)
             if not np.iscomplexobj(values):
-                self._log_image(recording, path, magnitudes, cyclic=False)
+                cyclic = frame.problem.states.entry(name).domain is Domain.ANGLE
+                self._log_image(recording, path, magnitudes, cyclic=cyclic)
                 continue
             self._log_image(recording, f'{path}/{MODULUS}', magnitudes, cyclic=False)
             self._log_image(recording, f'{path}/{PHASE}', np.angle(values), cyclic=True)

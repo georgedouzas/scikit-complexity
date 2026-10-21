@@ -37,6 +37,7 @@ from ..base import (
     symbol,
     symbols_of,
     vector,
+    wrap_angle,
 )
 from ..model import (
     Aggregate,
@@ -295,6 +296,42 @@ class _Declarations:
         block.entries[variable] = entry
         for column, item in enumerate(components):
             block.references[item] = Reference(entry, is_state, column)
+
+    def declare_state(
+        self,
+        name: str,
+        initial: Vector,
+        domain: Domain,
+        shape: tuple[int, ...] = (),
+        members: int | None = None,
+    ) -> Entry:
+        """Add a hidden state after every state declared so far and return its entry.
+
+        Args:
+            name:
+                The path of the state.
+
+            initial:
+                The flat initial value.
+
+            domain:
+                The domain of the state.
+
+            shape:
+                The shape of the state.
+
+            members:
+                The number of members of a group state, or `None`.
+
+        Returns:
+            entry:
+                The entry of the state.
+        """
+        entry = Entry(name, self.ends[True], shape, domain, members)
+        self.states.append(entry)
+        self.ends[True] += entry.size
+        self.initial_states.append(initial)
+        return entry
 
     @cached_property
     def groups(self) -> frozenset[str]:
@@ -1067,16 +1104,13 @@ def _declare_renewal(spec: _KernelSpec, law: Renewal, declarations: _Declaration
     group = _renewal_group(spec, law)
     rows = spec.rows
     sanitized = re.sub(r'[^0-9A-Za-z]', '_', label)
-    entry = Entry(
+    entry = declarations.declare_state(
         f'{group}.{sanitized}~renewals',
-        declarations.ends[True],
-        (rows,) if rows > 1 else (),
+        np.zeros(rows),
         Domain.NONNEGATIVE_INTEGER,
+        (rows,) if rows > 1 else (),
         rows if rows > 1 else None,
     )
-    declarations.states.append(entry)
-    declarations.ends[True] += entry.size
-    declarations.initial_states.append(np.zeros(rows))
     return _Renewal(spec, law, label, group, entry, symbol(f'renewals_{sanitized}', Domain.NONNEGATIVE_INTEGER))
 
 
@@ -2095,14 +2129,21 @@ def _is_interaction(node: Node) -> bool:
 
 
 def _visual_of(node: Node) -> VisualSpec:
-    """Return the visual of an element, or a group's own visual when it sets one."""
+    """Return the visual of an element, a group's own visual when it sets one, or the default of a field's space."""
     if isinstance(node.component, Group) and node.component.visual is not None:
         return node.component.visual
     if isinstance(node.component, Field) and isinstance(node.component.space, LatticeSpace):
         return VisualSpec('image')
     if isinstance(node.component, Field) and isinstance(node.component.space, Mesh):
         return VisualSpec('mesh')
-    return node.component_type.visual
+    declared: VisualSpec = node.component_type.visual
+    if (
+        isinstance(node.component, Field)
+        and isinstance(node.component.space, NetworkSpace)
+        and declared == VisualSpec()
+    ):
+        return VisualSpec('sites')
+    return declared
 
 
 def _law_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
@@ -2707,7 +2748,7 @@ def _history(system: System, states: Layout) -> dict[str, Any]:
 
 
 def _wrapping_angles(boundary: VectorFunction | None, states: Layout) -> VectorFunction | None:
-    """Return a boundary function that also wraps every angle state into one turn."""
+    """Return a boundary function that also wraps every angle state into `(-pi, pi]`."""
     indices = np.concatenate(
         [np.zeros(0, dtype=np.intp)]
         + [np.arange(entry.start, entry.start + entry.size) for entry in states if entry.domain is Domain.ANGLE],
@@ -2719,7 +2760,7 @@ def _wrapping_angles(boundary: VectorFunction | None, states: Layout) -> VectorF
         """Apply the boundary laws, then wrap the angle states."""
         state = x if boundary is None else boundary(t, x, p)
         state = state.copy()
-        state[indices] = np.mod(state[indices], 2 * np.pi)
+        state[indices] = wrap_angle(state[indices])
         return state
 
     return wrapped

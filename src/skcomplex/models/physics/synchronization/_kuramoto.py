@@ -8,7 +8,7 @@ import math
 import numpy as np
 from sage.all__sagemath_symbolics import cos, sin
 
-from ....core.base import Domain, Expression, parameter, state
+from ....core.base import Domain, Expression, VisualSpec, parameter, state
 from ....core.model import (
     Element,
     EuclideanSpace,
@@ -311,8 +311,20 @@ def kuramoto_sakaguchi_chimera(
     rng = np.random.default_rng(seed)
     alpha, mu, nu = math.pi / 2 - beta, (1 + A) / 2, (1 - A) / 2
     populations = [
-        PhaseOscillator.group('first', n_oscillators, theta=rng.normal(0.0, spread, n_oscillators), omega=0.0),
-        PhaseOscillator.group('second', n_oscillators, theta=_spread_phases(n_oscillators, seed + 1), omega=0.0),
+        PhaseOscillator.group(
+            'first',
+            n_oscillators,
+            theta=rng.normal(0.0, spread, n_oscillators),
+            omega=0.0,
+            visual=VisualSpec('phase_ring', {'phase': 'theta'}),
+        ),
+        PhaseOscillator.group(
+            'second',
+            n_oscillators,
+            theta=_spread_phases(n_oscillators, seed + 1),
+            omega=0.0,
+            visual=VisualSpec('phase_ring', {'phase': 'theta'}),
+        ),
     ]
     interactions: list[Interaction] = [
         MeanFieldCoupling(
@@ -384,6 +396,7 @@ def nonlocal_ring_chimera(
         theta=_spread_phases(n_oscillators, seed),
         omega=omega,
         x=np.arange(n_oscillators, dtype=float).reshape(-1, 1),
+        visual=VisualSpec('phase_ring', {'phase': 'theta', 'position': 'x'}),
     )
     return System(
         elements=[ring],

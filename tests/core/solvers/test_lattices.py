@@ -25,7 +25,7 @@ from skcomplex.core.model import (
 from skcomplex.core.runtime import Simulation
 from skcomplex.models.computer_science.automata import elementary_automaton, game_of_life
 from skcomplex.models.physics.criticality import forest_fire
-from skcomplex.models.physics.statistical_mechanics import ising
+from skcomplex.models.physics.statistical_mechanics import ising, xy
 
 Shift = Element.define(
     'Shift',
@@ -298,3 +298,9 @@ def test_temperature_changes_live():
     magnetization = np.abs(simulation.trajectory_['spins.spin'].mean(axis=1))
     assert magnetization[2] > 0.95
     assert magnetization[-1] < 0.3
+
+
+def test_monte_carlo_wraps_angles_after_every_sweep():
+    """Test that Monte Carlo rotations of the XY model keep every angle in (-π, π]."""
+    values = Simulation(xy(16)).run(until=50).trajectory_['spins.theta']
+    assert np.all((values > -np.pi) & (values <= np.pi))

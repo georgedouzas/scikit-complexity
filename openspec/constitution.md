@@ -220,9 +220,9 @@ to fill in as the project takes shape.
 - Platforms: Linux and macOS 13 or later. Windows is not supported because passagemath publishes no Windows wheels, and
   Windows users run the package in WSL.
 - Build and tooling: PDM with SCM-derived versioning and a `src`
-  layout. The `nox` sessions are `formatting`, `checks`, `tests`, `docs`, `changelog`, and `release`. The gate covers
-  `ruff`, `mypy`, `bandit`, `pip-audit`, `deptry`, `pydoclint`, and `interrogate`, with `pytest` under branch coverage
-  and randomized ordering. Docstring examples and the Python blocks of the README and the user guide run as tests.
+  layout. The `nox` sessions are `formatting`, `checks`, `tests`, `docs`, `gallery`, `changelog`, and `release`. The
+  gate covers `ruff`, `mypy`, `bandit`, `pip-audit`, `deptry`, `pydoclint`, and `interrogate`, with `pytest` under
+  branch coverage and randomized ordering. Docstring examples and the Python blocks of the README and the user guide run as tests.
 - Runtime dependencies: `numpy` 2.1 or later, `scipy` for numeric integration, `passagemath-symbolics` as the Sage
   symbolic layer every law is written in and lowered from, `passagemath-maxima` for exact solutions, `cysignals` at a
   version the passagemath wheels need, `numba` for the compiled backend, `lammps` for the LAMMPS backend, `mesa` for agent-based models, `networkx`
@@ -234,6 +234,10 @@ to fill in as the project takes shape.
   `ennemi` for nearest-neighbour transfer entropy, `tidynamics` for displacements, `mrestimator` for branching
   ratios, `kramersmoyal` for Kramers-Moyal coefficients, and `deeptime` for Markov state models. Rerun is a core dependency,
   and spawning a local viewer happens only on request, so it is not a real-world side effect.
+- Model gallery: the `gallery` dependency group holds `pillow` 11.0 or later for encoding the screenshots and
+  `playwright` 1.50 or later for the web capture backend in headless Chromium, next to `mkdocs-gallery` in the `docs`
+  group. The gallery tooling lives in `docs/gallery_tools`, and `nox -s gallery` runs the examples, captures their
+  screenshots, and builds the documentation with them.
 - Dependency placement: a library that `skcomplex.core` uses MUST be a runtime dependency, whatever its licence,
   including copyleft licences such as that of `passagemath-symbolics`. An optional extra MUST hold only libraries that a
   model of `skcomplex.models` alone needs, and a model that needs one MUST raise a named error naming the extra.
@@ -259,4 +263,4 @@ to fill in as the project takes shape.
 - Extension points: solvers, visuals, and any other registry in `skcomplex.core.base` accept new entries without changes to
   existing modules. Base classes users subclass are `Element`, `AgentType`, `Interaction`, `PairInteraction`, `Potential`,
   `PairPotential`, `Backend`, `Stepper`, `ExternalBackend`, `Clock`, `Observer`, and `Visual`.
-**Version**: 1.5.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-19
+**Version**: 1.5.1 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-21

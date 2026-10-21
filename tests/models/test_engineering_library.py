@@ -156,10 +156,11 @@ def test_ring_roads_hold_one_group_of_cars():
     [(optimal_velocity, PerCarVelocity, 200.0), (intelligent_driver_model, PerCarDriver, 100.0)],
 )
 def test_ring_roads_match_one_interaction_per_car(factory, interaction, until):
-    """Test that the ring road of one group runs as the ring of one element and one interaction per car."""
+    """Test that the ring road of one group runs as the ring of one element and one interaction per car under RK45."""
     system = factory(n_cars=20)
-    group = Simulation(system, dt=1.0).run(until=until).trajectory_
-    per_car = Simulation(_per_car(system, interaction), dt=1.0).run(until=until).trajectory_
+    group = Simulation(system, dt=1.0, solver=ScipyODE(method='RK45')).run(until=until).trajectory_
+    per_car = Simulation(_per_car(system, interaction), dt=1.0, solver=ScipyODE(method='RK45')).run(until=until)
+    per_car = per_car.trajectory_
     for variable in ('x', 'v'):
         np.testing.assert_allclose(group[f'cars.{variable}'], _cars(per_car, 20, variable), rtol=1e-8, atol=1e-12)
 
@@ -363,14 +364,15 @@ def test_wheel_rail_response_is_periodic():
     assert rail.max() > 0.1
 
 
-def test_light_seeking_robots_stay_in_light_with_delay():
-    """Test that robots that start in the light stay nearer to it with a positive sensory delay."""
-    radii = []
+def test_light_seeking_robots_avoid_light_with_delay():
+    """Test that robots with a positive sensory delay spend less time in the light than robots without one."""
+    intensities = []
     for delay in (0.0, 5.0):
-        system = light_seeking_robots(50, delay=delay, R=100.0)
-        trajectory = Simulation(system, dt=1.0, solver=EulerMaruyama(dt=0.01), random_state=1).run(until=10)
-        radii.append(np.hypot(trajectory.trajectory_['robots.x'], trajectory.trajectory_['robots.y'])[-1].mean())
-    assert radii[1] < radii[0]
+        system = light_seeking_robots(40, delay=delay)
+        trajectory = Simulation(system, dt=0.5, solver=EulerMaruyama(dt=0.01), random_state=1).run(until=150)
+        x, y = trajectory.trajectory_['robots.x'], trajectory.trajectory_['robots.y']
+        intensities.append(np.exp(-(x**2 + y**2))[trajectory.trajectory_.times > 50].mean())
+    assert intensities[1] < 0.9 * intensities[0]
 
 
 def test_light_seeking_robots_stay_in_the_well():

@@ -25,15 +25,17 @@ BASE = 1000.0
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
-    rrb.Vertical(
-        rrb.TimeSeriesView(origin='/broad_money', name='broad money', axis_x=rrb.TimeAxis(view_range=whole_run)),
-        rrb.TimeSeriesView(origin='/reserves', name='reserves', axis_x=rrb.TimeAxis(view_range=whole_run)),
+    rrb.TimeSeriesView(
+        origin='/',
+        contents=['/broad_money', '/reserves'],
+        name='broad money and reserves',
+        axis_x=rrb.TimeAxis(view_range=whole_run),
     ),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
 system = create(MODEL, base_money=BASE, ratio=0.1, new_ratio=0.2, change_at=150.0, random_state=0)
 simulation = Simulation(system, observers=[observer], random_state=0).run(until=300)
 

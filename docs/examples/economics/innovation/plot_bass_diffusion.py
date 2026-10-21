@@ -8,7 +8,7 @@ follow an S-shaped curve and the adoption rate rises to a peak before the market
 
 # %%
 # The market starts without adopters, with the mean coefficients `p = 0.03` and `q = 0.38` per year, and evolves for
-# 20 years. The blueprint shows the potential adopters above the adopters.
+# 20 years. The blueprint shows the potential adopters falling as the adopters rise along an S-curve.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,10 +20,13 @@ from skcomplex.models import create
 
 MODEL = 'bass_diffusion'
 
+whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
-    rrb.Vertical(
-        rrb.TimeSeriesView(origin='/market/P', name='potential adopters P'),
-        rrb.TimeSeriesView(origin='/market/A', name='adopters A'),
+    rrb.TimeSeriesView(
+        origin='/',
+        contents=['/market/P', '/market/A'],
+        name='potential adopters P and adopters A',
+        axis_x=rrb.TimeAxis(view_range=whole_run),
     ),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
     rrb.TopPanel(state='hidden'),

@@ -24,7 +24,8 @@ MODEL = 'ideal_gas'
 box = rrb.Spatial2DView(
     origin='/gas',
     name='gas',
-    visual_bounds=rrb.VisualBounds2D(x_range=(-0.02, 1.02), y_range=(-0.02, 1.02)),
+    # Points are drawn with y negated so that y points up, so the vertical range is mirrored.
+    visual_bounds=rrb.VisualBounds2D(x_range=(-0.02, 1.02), y_range=(-1.02, 0.02)),
     overrides={'gas': rr.Points2D.from_fields(radii=0.011).visualizer()},
 )
 blueprint = rrb.Blueprint(

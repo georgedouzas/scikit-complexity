@@ -7,7 +7,7 @@ import pytest
 from skcomplex.core.model import System
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import ScipyODE
-from skcomplex.models import catalog
+from skcomplex.models import catalog, describe, run
 from skcomplex.models.biology.ecology import (
     agent_based_lotka_volterra,
     competition,
@@ -143,10 +143,25 @@ def test_food_web_species_coexist():
 
 def test_rosenzweig_macarthur_tips_only_at_fast_rates():
     """Test that the prey track the coexistence point under a slow rise of crowding and collapse under a fast one."""
-    slow = _run(rosenzweig_macarthur(rate=1e-4), 100, dt=0.5)
-    fast = _run(rosenzweig_macarthur(rate=0.004), 100, dt=0.5)
+    solver = describe('rosenzweig_macarthur').defaults['solver']
+    slow = _run(rosenzweig_macarthur(rate=1e-4), 100, dt=0.5, solver=solver)
+    fast = _run(rosenzweig_macarthur(rate=0.004), 100, dt=0.5, solver=solver)
     assert slow['prey.n'].min() > 4.5
     assert fast['prey.n'].min() < 0.1
+
+
+def test_rosenzweig_macarthur_prey_return_after_a_deep_collapse():
+    """Test that the registered run follows the prey through a collapse far below any absolute tolerance and back."""
+    trajectory = run('rosenzweig_macarthur').trajectory_
+    reference = _run(
+        rosenzweig_macarthur(),
+        describe('rosenzweig_macarthur').defaults['until'],
+        dt=describe('rosenzweig_macarthur').defaults['dt'],
+        solver=ScipyODE(method='DOP853', rtol=1e-12, atol=1e-300),
+    )
+    assert trajectory['prey.n'].min() < 1e-20
+    assert trajectory['prey.n'][-1] > 4.0
+    np.testing.assert_allclose(trajectory['prey.n'], reference['prey.n'], rtol=1e-3, atol=1e-3)
 
 
 def test_nicholson_bailey_equilibrium_is_unstable():
@@ -379,6 +394,35 @@ def test_hypercycle_keeps_all_and_network_selects():
     assert np.abs(concentrations[-1] - concentrations[-2]).max() < 1e-4
     complete = _run(hypercycles(20, alpha=1.0, omega=50.0, topology='complete'), 50, dt=1.0)
     assert abs(np.sum(complete['soup.x'][-1] > 1e-3) - 10) <= 1
+
+
+def test_stigmergic_prey_do_not_outlive_their_food():
+    """Test that prey starve within their starvation time once the plants are gone, offspring included."""
+    trajectory = _run(stigmergic_predator_prey(random_state=0), 60, random_state=0)
+    plants = [len(trajectory.agents('life/plants', frame).ids) for frame in range(len(trajectory.times))]
+    prey = [len(trajectory.agents('life/prey', frame).ids) for frame in range(len(trajectory.times))]
+    gone = plants.index(0)
+    assert prey[gone + 12] == 0
+
+
+def test_meadow_capacity_carries_or_loses_the_whole_herd():
+    """Test that a meadow of 1600 patches carries 61 cows without regrowth and 80 with it, and loses larger herds."""
+
+    def survivors(cows, growth):
+        trajectory = _run(meadow_capacity(cows=cows, growth=growth, random_state=0), 25, random_state=0)
+        return len(trajectory.agents('cows', len(trajectory.times) - 1).ids)
+
+    assert survivors(61, 0.0) == 61
+    assert survivors(80, 0.0) == 0
+    assert survivors(80, 0.2) == 80
+    assert survivors(160, 0.2) == 0
+
+
+def test_hypercycle_of_five_loses_members():
+    """Test that a hypercycle of five molecules loses some members and settles at a fixed point."""
+    concentrations = _run(hypercycles(5), 400, dt=0.5)['soup.x']
+    assert concentrations[-1].min() < 1e-3
+    assert np.abs(concentrations[-1] - concentrations[-2]).max() < 1e-4
 
 
 def test_moran_fixation_probability():

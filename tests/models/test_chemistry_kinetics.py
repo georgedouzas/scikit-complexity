@@ -72,20 +72,33 @@ def test_michaelis_menten_conserves_enzyme_and_substrate():
 def test_chemical_langevin_equation_keeps_both_states():
     """Test that the Schlögl reaction fluctuates around its low or its high state, depending on its start."""
     low = _run(
-        chemical_langevin_equation(x=85.0),
+        chemical_langevin_equation(x=17.0),
         until=1.0,
         dt=0.05,
         solver=describe('chemical_langevin_equation').defaults['solver'],
     )
     high = _run(
-        chemical_langevin_equation(x=570.0),
+        chemical_langevin_equation(x=113.0),
         until=1.0,
         dt=0.05,
         solver=describe('chemical_langevin_equation').defaults['solver'],
     )
-    assert abs(low['reactor.x'].mean() - 85.0) < 30.0
-    assert abs(high['reactor.x'].mean() - 570.0) < 60.0
+    assert abs(low['reactor.x'].mean() - 17.0) < 10.0
+    assert abs(high['reactor.x'].mean() - 113.0) < 25.0
     assert low['reactor.x'].std() > 1.0
+
+
+def test_chemical_langevin_equation_switches_by_noise():
+    """Test that the default Schlögl reaction switches between its low and its high state within 200 time units."""
+    trajectory = _run(
+        chemical_langevin_equation(),
+        until=200.0,
+        dt=0.05,
+        solver=describe('chemical_langevin_equation').defaults['solver'],
+    )
+    late = trajectory['reactor.x'][trajectory.times > 20]
+    assert late.min() < 30.0
+    assert late.max() > 90.0
 
 
 def test_catalyst_pellet_is_bistable():

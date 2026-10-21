@@ -61,6 +61,7 @@ class Motorist(AgentType):
         3
     """
 
+    visual: ClassVar[VisualSpec] = VisualSpec('agents', {'position': 'x', 'color_by': 'v'})
     x: float = state(default=0.0)
     v: float = state(default=0.0, domain=Domain.NONNEGATIVE)
     rank: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)

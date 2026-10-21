@@ -1,15 +1,47 @@
 """
 # Bernoulli process
 
-Independent Bernoulli processes, one success or failure per step, whose success counts are binomial.
-
-This example is scaffolded from the catalog and awaits curation.
+Each of six sequences adds a success with probability 1/2 at every step, so the success counts climb as noisy
+staircases around the line `p t`, spreading apart as the square root of the number of trials.
 """
 
+# %%
+# Six sequences run for 100 trials with `p = 0.5`. The default blueprint shows the success count of every sequence,
+# with their mean and standard deviation.
+
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy import stats
+
+from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import run
+from skcomplex.models import create
 
 MODEL = 'bernoulli_process'
 
+
+def successes(trajectory):
+    """Return the success counts, one row per step and one column per sequence."""
+    return np.array([trajectory.agents('trials', frame).values['successes'] for frame in range(len(trajectory.times))])
+
+
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = run(MODEL, settings={'observers': [observer], 'random_state': 0})
+simulation = Simulation(create(MODEL, n_sequences=6), dt=1, observers=[observer], random_state=0).run(until=100)
+
+# %%
+# Binomial counts
+# ---------------
+# Over 2000 sequences the number of successes after `n` trials should follow the binomial distribution `B(n, p)`,
+# here with mean 50 and variance 25 at `n = 100`, for `p = 0.5` and for `p = 0.2`.
+
+fig, ax = plt.subplots(figsize=(6.5, 4.5))
+grid = np.arange(0, 80)
+for p, color in ((0.2, 'C1'), (0.5, 'C0')):
+    final = successes(Simulation(create(MODEL, n_sequences=2000, p=p), dt=1, random_state=1).run(until=100).trajectory_)
+    ax.hist(final[-1], bins=np.arange(-0.5, 80.5), density=True, alpha=0.5, color=color, label=f'simulated, p = {p}')
+    ax.plot(grid, stats.binom.pmf(grid, 100, p), '.-', color=color, markersize=3, label=f'B(100, {p})')
+ax.set_xlabel('successes after 100 trials')
+ax.set_ylabel('probability')
+ax.set_title('Success counts are binomial')
+ax.legend()
+plt.show()

@@ -54,7 +54,17 @@ class _Declared(Protocol):
     parameters: list[Entry]
     initial_states: list[Vector]
     initial_parameters: list[Vector]
-    ends: dict[bool, int]
+
+    def declare_state(
+        self,
+        name: str,
+        initial: Vector,
+        domain: Domain,
+        shape: tuple[int, ...] = (),
+        members: int | None = None,
+    ) -> Entry:
+        """Add a hidden state after every state declared so far and return its entry."""
+        ...
 
 
 @dataclass
@@ -111,15 +121,6 @@ def _delay_calls(expression: object) -> list[Expression]:
             found.append(item)
         stack.extend(item.operands())
     return found
-
-
-def _declare_stock(declarations: _Declared, name: str, shape: tuple[int, ...], initial: Vector) -> Entry:
-    """Return the entry of a hidden stock after appending it to the declared states."""
-    entry = Entry(name, declarations.ends[True], shape, Domain.REAL)
-    declarations.states.append(entry)
-    declarations.ends[True] += entry.size
-    declarations.initial_states.append(initial)
-    return entry
 
 
 def _initial(item: Expression, spec: _Spec, declarations: _Declared) -> float:
@@ -339,7 +340,7 @@ class StockFlowPass:
             if discrete and any(born.spec.rows > 1 for born in items):
                 continue
             name = f'{BOUNDARY_PREFIX}.{quantity}'
-            entry = _declare_stock(declarations, name, (), np.zeros(1))
+            entry = declarations.declare_state(name, np.zeros(1), Domain.REAL)
             accumulator = symbol(f'_boundary_{re.sub(r"[^0-9A-Za-z]", "_", quantity)}')
             names[quantity] = name
             for born in items:
@@ -385,7 +386,12 @@ class StockFlowPass:
             stages = [symbol(f'_{kind}_{counter}_{owner}_{index}') for index in range(order)]
             start = _initial(value, spec, declarations)
             each = _initial(SR(time), spec, declarations) / order if kind in MATERIAL_DELAYS else 1.0
-            entry = _declare_stock(declarations, f'{spec.owner}.{kind}_{counter}', (order,), np.full(order, start * each))
+            entry = declarations.declare_state(
+                f'{spec.owner}.{kind}_{counter}',
+                np.full(order, start * each),
+                Domain.REAL,
+                (order,),
+            )
             for column, stage in enumerate(stages):
                 spec.references[stage] = Reference(entry, True, column, Read.SINGLE)
             output = stages[-1] / (time / order) if kind in MATERIAL_DELAYS else stages[-1]

@@ -16,6 +16,7 @@ from ..compile import CompiledElement, Problem, RenewalRecord
 from ..model import NetworkSpace
 from ..runtime import Frame, Observer
 from ._blueprints import default_blueprint, save_blueprint
+from ._traits import agents_visual_of
 from ._visuals import AgentsVisual, Visual, _log_scalars, resolve_visual
 
 RENEWAL_MEMBERS = 20
@@ -143,8 +144,7 @@ class RerunObserver(Observer):
         ]
         self._agent_visuals: dict[str, AgentsVisual] = {}
         for agents in problem.agents:
-            visual = resolve_visual(agents.visual)
-            self._agent_visuals[agents.path] = visual if isinstance(visual, AgentsVisual) else AgentsVisual()
+            self._agent_visuals[agents.path] = agents_visual_of(agents, problem)
         self._space = problem.agent_space
         if isinstance(self._space, NetworkSpace):
             edges = [(str(first), str(second)) for first, second in self._space.graph.edges]

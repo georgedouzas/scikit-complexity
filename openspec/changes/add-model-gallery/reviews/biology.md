@@ -1,0 +1,129 @@
+# Biology review
+
+| Model | Thumbnail shows | Analysis checks | Budget |
+| --- | --- | --- | --- |
+| active_walkers | trail network across the green | Gini of the wear settles at 0.60 | 2.3 s, 151 frames, 0.78 MB |
+| binary_ant_decision | one branch pulls ahead | 40 colonies split into two humps; deterministic stays 0.50 | 0.6 s, 201 frames, 0.09 MB |
+| bird_swarm | birds on a ring, a mill | milling order rises to ~1, polar order ~0; speed sqrt(2) | 13.8 s, 201 frames, 1.08 MB |
+| boids | The boids start scattered with random headings and gather into flocks that fly in one direction | Polarization | not captured in this worktree |
+| pheromone_foraging | pheromone trail band | final pheromone trail between nest and food; carrying ants rise | 4.0 s, 201 frames, 0.64 MB |
+| rats | nervous share rises to about one half | deterministic sweep on 1 - calming/contagion | 0.3 s, 201 frames, 0.05 MB |
+| agent_based_lotka_volterra | prey and predators on the grid | noisy cycles; predators lag the prey by 16 steps | 1.3 s, 201 frames, 0.95 MB |
+| competition | two species settle below their capacities | trajectory ends at the nullcline crossing (85.7, 28.6) | 0.2 s, 151 frames, 0.07 MB |
+| droop_cell_quota | The biomass first falls while the cells fill their nutrient quota, and grows once the quota is high enough for the growth rate to exceed the death rate | Quota equilibrium | not captured in this worktree |
+| exponential_growth | curve bending ever more steeply up | fitted log-slope 0.200 = r | 0.1 s, 201 frames, 0.03 MB |
+| fibonacci_rabbits | pairs grow geometrically | ratio of months converges to the golden ratio 1.618034 | 0.4 s, 21 frames, 0.02 MB |
+| fisher_kpp | space-time image with a straight front | fitted front speed 1.97 vs 2 sqrt(rD) = 2 | 0.3 s, 81 frames, 0.07 MB |
+| food_webs | damped oscillations to coexistence | Jacobian eigenvalues at the end all negative: stable focus | 0.3 s, 201 frames, 0.16 MB |
+| generalized_lotka_volterra | Three microbial species that compete weakly and limit themselves grow from low abundances and coexist at the fixed point of their interaction matrix | Coexistence at the interior fixed point | not captured in this worktree |
+| hutchinson | sustained oscillations around K | period between peaks 8.8, above 4 tau = 8 | 0.3 s, 251 frames, 0.06 MB |
+| intrinsic_instability | The resident population fluctuates about 1 until a rare mutation seeds an invader | Leaving the fixed point along its unstable direction | not captured in this worktree |
+| logistic_growth | S-shaped rise to K = 100 | matches the closed form; dn/dt parabola peaks at K/2 | 0.2 s, 201 frames, 0.04 MB |
+| lotka_volterra | The prey and predator populations cycle out of phase | Phase portrait and the conserved quantity | not captured in this worktree |
+| lotka_volterra_with_harvesting | prey and predators cycle out of phase | harvested orbit circles the shifted centre (18, 6) | 0.3 s, 251 frames, 0.09 MB |
+| mangrove_succession | Keora, then Gewa, then Sundari dominate | peaks at years 46, 198, 299; Sundari 69% at the end | 0.1 s, 300 frames, 0.20 MB |
+| meadow_capacity | grazed and regrown grass with cows | herds of 40 and 80 survive, 160 and 320 collapse | 4.4 s, 26 frames, 0.32 MB |
+| mutualism | both species rise to 91, above K = 50 | alone run levels at K = 50, partners at 91 | 0.2 s, 151 frames, 0.07 MB |
+| neutral_biodiversity | The number of species of a neutral community of 200 individuals, all of one species at the start, rises as new species arise and then fluctuates around a stationary value, while every single species appears and dies out by drift | Number and abundances of species | not captured in this worktree |
+| neutral_clustering | Organisms that divide, die, and hop on a ring of 128 patches gather in clusters, one column per patch and one row per frame | Growth of the fluctuations | not captured in this worktree |
+| neutral_macroecology | fluctuating abundances of 100 species | pooled abundances on the negative binomial, mean 10.1 vs 10 | 9.5 s, 101 frames, 0.31 MB |
+| nicholson_bailey | oscillations grow until a crash | generations spiral out from the equilibrium | 0.1 s, 31 frames, 0.03 MB |
+| rosenzweig_macarthur | prey collapse then recovery | slow ramp min prey 4.9, fast ramp 8.5e-31 | 0.8 s, 299 frames, 0.10 MB |
+| stigmergic_predator_prey | emotion marks on the ground | plants, prey, predators peak in turn, with and without emotions | 11.9 s, 101 frames, 2.62 MB |
+| stochastic_predator_prey | noisy sustained cycles | jump process circles the point the ODE spirals into | 1.8 s, 201 frames, 0.15 MB |
+| varying_capacity_logistic | population settles on a seasonal cycle | starts at 5 and 180 converge to one lagging cycle | 0.2 s, 161 frames, 0.05 MB |
+| wolf_sheep | Sheep graze and wolves hunt the sheep on a field of regrowing grass | Populations over time | not captured in this worktree |
+| agent_based_sir | people on the grid, mostly recovered at the end | S, I, R counts: 20 of 500 never infected | 2.3 s, 300 frames, 1.40 MB |
+| delayed_sirs | two cities alternate outbreaks | correlation -0.69 at lag 0, 0.99 at half period | 0.5 s, 201 frames, 0.30 MB |
+| heterogeneous_mean_field_sir | Above the epidemic threshold of a scale-free network, the infected densities of all degree classes rise and fall in one outbreak while the susceptible densities fall to a plateau and the recovered densities rise to the final epidemic size, the hubs fastest | Final size against the transmission rate | not captured in this worktree |
+| heterogeneous_mean_field_sis | class densities settle, higher for hubs | final rho_k on the mean-field law; threshold 0.114 < lam | 0.2 s, 101 frames, 0.06 MB |
+| metapopulation | waves of infection across cities | peak day grows with distance from the seed city | 0.2 s, 151 frames, 0.16 MB |
+| network_sir | network mid-epidemic, cities in three states | S, I, R counts: 2 of 400 never infected | 0.6 s, 26 frames, 0.15 MB |
+| random_walker_epidemics | front of dead walkers through the healthy | dead share jumps above about 0.1 walkers per cell | 21.8 s, 300 frames, 2.50 MB |
+| sir | A single outbreak | Final size of the epidemic | not captured in this worktree |
+| sirs | first outbreak then damped waves | spiral into the endemic point (333, 111) | 0.2 s, 151 frames, 0.06 MB |
+| sis | infected rise to an endemic level | random run follows the logistic solution, mean 658 vs 667 | 0.4 s, 101 frames, 0.03 MB |
+| bak_sneppen | The least fit species of a ring and its two neighbours are replaced, one update at a time, by species of random fitness | The gap and the distribution of fitnesses | not captured in this worktree |
+| eigen_quasispecies | master share falls to 0.4, mutant classes settle | master share follows 1 - u/sigma, lost at u = sigma | 0.6 s, 41 frames, 0.06 MB |
+| hypercycles | six molecules dominate in turn | ring keeps all members cycling; complete network keeps 5 of 10 (~4.5) | 0.7 s, 291 frames, 0.06 MB |
+| origin_fixation_walk | The genome of a monomorphic population of 100 individuals, one column per locus and one row per frame from the oldest at the top, climbs a landscape of random fields as mutants fix one at a time | Climbing and the stationary law | not captured in this worktree |
+| replicator_dynamics | hawk share rises to 2/3 | four starts converge to V / C | 0.2 s, 151 frames, 0.02 MB |
+| rock_paper_scissors | three-colour domains | shares stay near 1/3, none dies out | 18.5 s, 101 frames, 0.48 MB |
+| adaptrode | fast, medium, slow weights build and fade | normalized decay: fast fastest, slow longest | 0.3 s, 201 frames, 0.13 MB |
+| delayed_lif_network | sawtooth potentials of the neurons | raster; mean rate 46 Hz alone, 50 Hz coupled | 3.8 s, 201 frames, 1.51 MB |
+| fitzhugh_nagumo_ode | relaxation spikes of v and w | orbit hugs the outer branches of the cubic nullcline | 0.3 s, 251 frames, 0.07 MB |
+| hodgkin_huxley | regular action potentials to +40 mV | mean interspike interval 14.7 ms | 0.5 s, 251 frames, 0.13 MB |
+| integrate_and_fire | sawtooth of charge and reset | f-I curve on the closed form above rheobase 1.5 nA | 1.9 s, 251 frames, 0.08 MB |
+| izhikevich | chattering bursts of spikes | bursts alternate short and long intervals; regular spiking contrast | 1.1 s, 251 frames, 0.09 MB |
+| legion | activity field with one object active | objects fire in turns, never together; unstimulated sites silent | 2.4 s, 291 frames, 0.31 MB |
+| polyhomeostatic_neuron | gain and threshold adapt, potential oscillates | mean rate 0.186 vs target 0.2; skewed histogram | 0.3 s, 201 frames, 0.10 MB |
+| theta_neurons | four phases advance and wrap | raster: 48 spikes uncoupled vs 371 coupled | 0.8 s, 101 frames, 0.03 MB |
+| wilson_cowan | E and I oscillate | two starts converge to one limit cycle; P = 0 decays to rest | 0.5 s, 126 frames, 0.10 MB |
+| winners_take_all | one unit rises to 1.1, others vanish | beta = 2 one winner at I_max; beta = 0.5 several | 0.3 s, 201 frames, 0.14 MB |
+| angiogenesis_immunotherapy | Every three weeks both drugs are infused, the vasculature collapses step by step, the effector cells rise, and the tumour shrinks to about a third of its initial volume | Each drug alone and both together | not captured in this worktree |
+| anti_pd1_checkpoint | At the book's low anti-PD-1 infusion, PD-1-PD-L1 binding keeps the T cells low, and the tumour falls at first and then grows back toward its capacity | Dose response | not captured in this worktree |
+| bone_marrow_blood_leukaemia | The normal marrow cells first grow toward their capacity, but the blasts that mutation and cancer stem cells feed overtake them in the bone marrow, spill into the blood, and end up outnumbering them a hundredfold | Blasts crowd out the normal cells | not captured in this worktree |
+| cell_cycle_chemotherapy | A killing agent that kills 60% of the dividing cells, with a blocking agent that slows the S phase, makes every compartment of the cell cycle decay after an initial redistribution of the cells | The kill threshold | not captured in this worktree |
+| chemoimmunotherapy | The tumour cells regrow between three weekly doses of chemotherapy, IL-2, and tumour-infiltrating lymphocytes and are gone after the third, while the NK cells expand and the circulating lymphocytes recover from the drug | Each therapy alone and both together | not captured in this worktree |
+| chemovirotherapy | The uninfected tumour cells grow while the drug holds at its infusion balance, until the virus takes off and the infected cells rise behind it | Each therapy alone and both together | not captured in this worktree |
+| clonal_chemoimmunotherapy | Under chemotherapy alone, the sensitive clone dies out and the resistant clone, freed from competition, grows to a tumour of more than 20 million cells | Selection of the resistant clone | not captured in this worktree |
+| continuous_androgen_suppression | The suppression lowers the serum androgen, and the androgen-dependent cancer cells first grow and then decline, while the androgen-independent cells grow throughout and cause the relapse | Androgen and relapse | not captured in this worktree |
+| de_pillis_radunskaya | A constant drug infusion drives the tumour cells to zero within two months, while the normal cells dip and then recover close to their carrying capacity | Untreated and treated tumours | not captured in this worktree |
+| delayed_dc_vaccine | Under four weekly vaccine doses the tumour still grows toward its capacity of `5 10^9` cells, because regulatory T cells hold down the adaptive response, which the vaccine starts only after the divisions that maturation takes | The lag of two divisions | not captured in this worktree |
+| delayed_metastasis | The primary tumour outcompetes the normal cells within a day, and the tumour cells that migrate after a delay of one day seed a secondary tumour that does the same at the second site | Takeover at both sites | not captured in this worktree |
+| delayed_resting_hunting_chemotherapy | The delay with which resting immune cells become hunting cells makes the tumour rise and collapse in irregular bursts, and a constant drug infusion ends the bursts by clearing the tumour in one of its troughs | Oscillations and clearance | not captured in this worktree |
+| dendritic_cell_vaccine | Eight weekly vaccine injections drive the cytotoxic T cells up and the tumour far below the level where it settles without vaccine, and the tumour regrows once the injections stop | Vaccinated and unvaccinated tumours | not captured in this worktree |
+| drug_resistance_switching | Under a constant dose the drug kills the sensitive cells, and the resistant cells, which the drug itself induces, grow to fill the tumour's capacity | Spontaneous and induced resistance | not captured in this worktree |
+| dynamic_carrying_capacity | The tumour first fills its initial carrying capacity, and then grows together with the capacity that the vessels on its surface keep raising | Tumour and capacity | not captured in this worktree |
+| erythropoiesis_mercaptopurine | From the healthy steady state, a constant level of 6-mercaptopurine makes the mean red-cell volume rise and the mature red cells and the quiescent cells fall, all settling over a few years at new steady values | Volume and cell counts at steady state | not captured in this worktree |
+| exponential_linear_growth | The tumour volume first grows exponentially, then bends into a straight line once its growth reaches the limiting rate of 67.8 mm³ a day, near day 15 | Growth rate | not captured in this worktree |
+| generalized_logistic | Tumours with three exponents of saturation grow along S-shaped curves to the same carrying capacity, and the larger exponent keeps the growth fast for longer before it stops | Exponents of the saturation | not captured in this worktree |
+| glioma_chemovirotherapy | Untreated, the glioma grows by more than an order of magnitude, crowds out the glia, and the neurons die with the glia | Therapy spares the neurons | not captured in this worktree |
+| gompertz | The tumour volume rises along an S-shaped curve | Closed-form solution | not captured in this worktree |
+| hahnfeldt | A tumour at the equilibrium of its vasculature regresses under a continuous infusion of endostatin, which prunes the vasculature that sets its carrying capacity | Equilibrium and regression | not captured in this worktree |
+| her2_targeted_therapy | The antibody binds the receptors at once, and from day 2 the tumour cells grow toward their carrying capacity at half their rate, while the paclitaxel accumulates in the cells | Logistic growth at a lowered rate | not captured in this worktree |
+| ideta_intermittent_androgen | The therapy starts when the PSA rises through 15 ng/mL and stops when it falls through 10 ng/mL, so the PSA cycles between the two thresholds | Switching at the thresholds | not captured in this worktree |
+| kirschner_panetta | Untreated, the tumour and the effector cells oscillate in long cycles in which the tumour nearly vanishes and regrows, while adoptive therapy with IL-2 above the book's treatment levels clears the tumour | Oscillations and clearance | not captured in this worktree |
+| leukaemia_stem_cells | A single leukaemic stem cell, which renews a little faster, grows in the niche and drives the normal stem cells and their progeny out of it | Competitive exclusion in the niche | not captured in this worktree |
+| lq_radiosensitizer | Ten daily fractions of 2 Gy each move a fixed share of the proliferating cells into the damaged compartments, where they divide once more and die over the following weeks, while the survivors regrow more slowly | Surviving fractions | not captured in this worktree |
+| multidrug_resistance | A single drug wipes out the sensitive cells within days, and the cells resistant to it, which the tumour seeded by mutation, grow back into a tumour of 10^11 cells | One drug against three | not captured in this worktree |
+| norton_simon | A Gompertzian tumour approaches its capacity until chemotherapy starts on day 42, and then every dose shrinks it and it regrows quickly, since a smaller Gompertzian tumour grows faster | Regrowth after a dose | not captured in this worktree |
+| oncolytic_virus | The infected cells spread through the tumour, and the uninfected and infected cells settle on a coexistence point at two thirds of the carrying capacity | Coexistence point | not captured in this worktree |
+| oncolytic_virus_dendritic | The virus infects and lyses most of the tumour within days, but the T cells that the injected dendritic cells raise dilute the infection, and the tumour regrows past its initial volume | Each therapy alone and both together | not captured in this worktree |
+| piecewise_linear_ias | The PSA of a patient of type 1 falls during therapy and rises after it, so the therapy cycles between 10 and 4 ng/mL without relapse | Three patient types | not captured in this worktree |
+| power_law_growth | The tumour volume grows more slowly than an exponential, since only a part of the tumour that scales as a power of its volume proliferates | Growth rate against volume | not captured in this worktree |
+| prostate_androgen_receptor | With high receptor activation the androgen-dependent cancer cells grow towards their capacity and the PSA in the tissue and the serum rises with them | Androgen ablation | not captured in this worktree |
+| prostate_cell_quota | During each therapy period the serum androgen falls, the cells use up their androgen quota and shrink, and the PSA falls | Quotas set the growth | not captured in this worktree |
+| radiotherapy_competition | Periodic irradiation holds the tumour cells below their capacity, and the normal cells, which the untreated tumour would push out, decline towards a level at which the two coexist | Coexistence instead of exclusion | not captured in this worktree |
+| sirna_tgf_beta | The tumour secretes TGF-beta, which blinds the immune system, and escapes to its carrying capacity of nearly two billion cells within weeks | Immune escape and its reversal | not captured in this worktree |
+| skipper_log_kill | Weekly doses of chemotherapy cut the tumour by a fixed fraction, and the tumour regrows between doses, so its size falls in a sawtooth | Logarithmic steps | not captured in this worktree |
+| stem_cell_differentiation | Under continuous therapy the normal lineage overshoots, collapses, and recovers, and the eight compartments settle on a steady state in which the mutation of normal progenitors feeds a small malignant population | Mutation feeds the malignant lineage | not captured in this worktree |
+| tamoxifen_cell_cycle | A continuous infusion of tamoxifen and its metabolite kills cells in the growth phase, and the tumour shrinks from 1000 mm³ while the drug levels settle | Treated and untreated | not captured in this worktree |
+| tcr_gene_therapy | The effector cells and the tumour cells swing in damped predator-prey cycles and settle on a dormant tumour of about twelve thousand cells, far below the carrying capacity of a billion | Spiral into the dormant state | not captured in this worktree |
+| tumour_angiogenesis | oxygen/VEGF field between vessel and tumour | tumour stalls hypoxic until the vessels arrive, then grows | 2.8 s, 121 frames, 0.78 MB |
+| tumour_immune_suppression | At a moderate antigenicity the tumour and the T cells oscillate | Antigenicity decides escape | not captured in this worktree |
+| vascular_core_periphery | Under a weekly anti-angiogenic infusion the starved tumour recruits few vessels, so its radius stays near 13 mm and its live cells grow only to about `3 10^4` in two months, against about `10^11` without treatment | Treated and untreated tumours | not captured in this worktree |
+| von_bertalanffy | The tumour volume rises and levels off where its growth, which scales as a power of the volume, balances its loss, which scales with the volume | Closed-form solution | not captured in this worktree |
+| aliev_panfilov | rotating spiral wave | probe spikes periodically, rotation period 37 | 5.1 s, 151 frames, 3.64 MB |
+| cardiovascular | volumes pulse with each beat | stroke volume 71 ml; total volume conserved | 0.8 s, 251 frames, 0.24 MB |
+| drug_toxicity | Six weekly doses raise the plasma concentration in spikes, the toxicity climbs in steps with every dose, and once the doses stop the metabolism lowers it | Toxicity and exposure | not captured in this worktree |
+| fitzhugh_nagumo | rotating spiral wave | probe spikes periodically, rotation period ~109 | 3.6 s, 151 frames, 2.70 MB |
+| mackey_glass | irregular chaotic oscillation | delay plot: one loop at tau = 6, strange attractor at 17 | 1.2 s, 251 frames, 0.07 MB |
+| two_compartment_pharmacokinetics | After a bolus of doxorubicin the plasma concentration falls fast while the drug spreads into the tissues, and then slowly as the body eliminates it, while the tissue concentration rises and follows it down | Bi-exponential decay | not captured in this worktree |
+| biochemical_systems_theory | An unbranched pathway whose end product inhibits its supply, written as an S-system, relaxes to the steady state that the linear equations in the logarithms of the concentrations predict | The steady state of an S-system | not captured in this worktree |
+| boolean_repressilator | Three genes that repress each other in a ring switch on and off in turn, so each one oscillates with a period of six steps | Delayed repression | not captured in this worktree |
+| circadian_clock | mRNA and PER forms oscillate | period 23.7 h at the published v_d | 5.7 s, 241 frames, 0.25 MB |
+| goodwin_oscillator | A product that represses the synthesis of its own mRNA through an enzyme oscillates when the repression is steep, with a Hill coefficient of 12 | The threshold of the Hill coefficient | not captured in this worktree |
+| mammalian_cell_cycle | With the growth signal CycD on, the ten proteins of the cell cycle leave the quiescent state and run through a cycle of period 7, in which the cyclins E, A, and B rise and fall in turn | The cycle of the cyclins | not captured in this worktree |
+| negative_autoregulation | bursty protein count | feedback lowers the mean and the Fano factor | 3.8 s, 201 frames, 0.09 MB |
+| phosphorylation_oscillator | Three proteins switch between their unphosphorylated and phosphorylated forms in turn, A, then B, then C, and the loop keeps oscillating with a period of about 4.2 | A negative feedback loop of switches | not captured in this worktree |
+| probabilistic_boolean_network | Three genes switch on and off as every gene draws one of its candidate functions at every step | Attractors reached from one start | not captured in this worktree |
+| random_boolean_network | node values settle into a cycle | transient 17 steps, cycle length 6 | 0.1 s, 51 frames, 0.09 MB |
+| repressilator | three proteins peak in turn | jump process still oscillates, CV 0.74 | 5.6 s, 201 frames, 0.30 MB |
+| three_gene_boolean_network | Three genes updated synchronously by AND, OR, and NOT run from the state 100 into a cycle of period three, while the state 011 is a point attractor | Attractors from every state | not captured in this worktree |
+| toggle_switch | one gene on, the other off | grid of starts splits along the diagonal | 3.3 s, 201 frames, 0.16 MB |
+| yeast_cell_cycle | proteins switch on and off in sequence | sequence ends in the stationary G1 state at step 12 | 0.0 s, 16 frames, 0.06 MB |
+| moran_process | share of mutants rising from 0.2 to fixation within 16 steps, spread of the trait peaking at 0.5 halfway | one mutant with r = 1.5 in N = 20 fixes in 20 of 60 runs, 0.333 against Moran's 0.333 and the neutral 0.05 | 2.1 s, 41 frames, 0.07 MB |
+| nk_landscape | mean fitness of 50 climbers rising from 0.52 and levelling off near 0.70 as they stop on peaks | distinct final genomes grow with ruggedness: 1, 8, 14, 23, 35 for k = 0, 2, 4, 6, 9 | 0.6 s, 51 frames, 0.08 MB |
+| adaptive_climbing | mean fitness climbing in two rare steps from 0.64 to 0.97 | best fitness over eight landscapes averages 0.900 at generation 10, 0.972 at 50, and 0.979 at 200, ever rarer steps | 0.4 s, 201 frames, 0.10 MB |
+| tangled_nature | number of genome types alive jumping from 1 to about 40 and fluctuating near 30 | population grows from 100 to about 340; the founder type gives way to a coexisting set whose most common type holds 0.2 to 0.4 | 22.1 s, 151 frames, 2.4 MB |

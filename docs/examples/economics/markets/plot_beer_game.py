@@ -21,9 +21,13 @@ from skcomplex.models import create
 MODEL = 'beer_game'
 ECHELONS = ('retailer', 'wholesaler', 'distributor', 'factory')
 
+whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
-    rrb.Vertical(
-        *(rrb.TimeSeriesView(origin=f'/{echelon}/inventory', name=f'{echelon} inventory') for echelon in ECHELONS),
+    rrb.TimeSeriesView(
+        origin='/',
+        contents=[f'/{echelon}/inventory' for echelon in ECHELONS],
+        name='inventories',
+        axis_x=rrb.TimeAxis(view_range=whole_run),
     ),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
     rrb.TopPanel(state='hidden'),

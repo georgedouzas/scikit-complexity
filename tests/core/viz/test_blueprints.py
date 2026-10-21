@@ -5,7 +5,7 @@ import rerun.blueprint as rrb
 
 from skcomplex.core.base import ValidationError, VisualSpec, state
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import Element, EuclideanSpace, System
+from skcomplex.core.model import Element, EuclideanSpace, Field, LatticeSpace, System
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import (
     AgentsVisual,
@@ -20,6 +20,7 @@ from skcomplex.core.viz import (
 )
 from skcomplex.models import create
 from skcomplex.models.biology.ecology import Population
+from skcomplex.models.physics.heat import Heat
 
 
 def _views(blueprint):
@@ -207,13 +208,13 @@ def test_primary_view_of_one_dimensional_lattice_is_space_time():
     assert str(view.name) == 'alive history'
 
 
-def test_primary_view_of_agents_without_space_is_reporters():
-    """Test that agents without a space get no spatial view, so the reporters come first."""
+def test_primary_view_of_agents_without_space_is_a_trait_series():
+    """Test that agents without a space show the statistics of their colored trait first, not the reporters."""
     problem = compile_system(create('moran_process'))
     assert problem.agent_space is None
     assert AgentsVisual().views(problem.agents[0], problem) == []
     view = primary_view(problem)
-    assert (type(view).__name__, str(view.name)) == ('TimeSeriesView', 'reporters')
+    assert (type(view).__name__, str(view.name)) == ('TimeSeriesView', 'population trait')
 
 
 def test_views_of_image_without_history_leave_out_space_time():
@@ -221,3 +222,16 @@ def test_views_of_image_without_history_leave_out_space_time():
     problem = compile_system(create('elementary_automaton'))
     views = ImageVisual(history=0).views(problem.elements[0], problem)
     assert [str(view.origin) for view in views] == ['cells/alive']
+
+
+def test_fields_on_networks_are_drawn_as_colored_graphs():
+    """Test that a field on a network without a visual is drawn as a colored graph, not one series per node."""
+    problem = compile_system(create('network_diffusion'))
+    assert problem.elements[0].visual.kind == 'sites'
+    assert any(type(view).__name__ == 'GraphView' for view in _views(default_blueprint(problem)))
+
+
+def test_fields_keep_a_given_visual():
+    """Test that a field keeps the visual it is given."""
+    field = Field('plate', Heat, LatticeSpace((4, 4)), visual=VisualSpec('sites'))
+    assert compile_system(System(elements=[field])).elements[0].visual.kind == 'sites'

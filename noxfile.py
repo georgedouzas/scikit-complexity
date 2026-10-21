@@ -76,7 +76,7 @@ def clean(session: nox.Session) -> None:
             file.unlink()
 
 
-@nox.session
+@nox.session(python=PYTHON_VERSIONS[-1])
 def docs(session: nox.Session) -> None:
     """Build or serve the documentation.
 
@@ -85,10 +85,12 @@ def docs(session: nox.Session) -> None:
     """
     arg = check_cli(session, ['serve', 'build'], default='serve')
     session.run('pdm', 'install', '-dG', 'docs', external=True)
-    session.run('properdocs', arg)
+    # mkdocs-gallery imports MkDocs' deprecated `warning_filter` when the plugin loads, before any hook can filter it.
+    env = {'PYTHONWARNINGS': "ignore:warning_filter doesn't do anything:DeprecationWarning"}
+    session.run('properdocs', arg, env=env)
 
 
-@nox.session
+@nox.session(python=PYTHON_VERSIONS[-1])
 def gallery(session: nox.Session) -> None:
     """Run the gallery examples, capture their screenshots into the cache, and build the documentation with them.
 
@@ -114,7 +116,7 @@ def gallery(session: nox.Session) -> None:
     session.run('pdm', 'run', 'properdocs', 'build', '--strict', env=env, external=True)
 
 
-@nox.session
+@nox.session(python=PYTHON_VERSIONS[-1])
 @nox.parametrize('file', FILES)
 def formatting(session: nox.Session, file: str) -> None:
     """Format the code.
@@ -193,7 +195,7 @@ def tests(session: nox.Session) -> None:
     session.run('coverage', 'xml')
 
 
-@nox.session
+@nox.session(python=PYTHON_VERSIONS[-1])
 def changelog(session: nox.Session) -> None:
     """Build the changelog.
 
@@ -206,7 +208,7 @@ def changelog(session: nox.Session) -> None:
     build_and_render(**CHANGELOG_ARGS)
 
 
-@nox.session
+@nox.session(python=PYTHON_VERSIONS[-1])
 def release(session: nox.Session) -> None:
     """Kick off a release process.
 

@@ -24,13 +24,20 @@ EQUATION_FORMS = {
     'delay differential equations',
     'discrete map',
 }
+SHOWN_MODELS = 8
 STATUS_LABELS = {'implemented': 'Implemented', 'pending': 'Pending', 'blocked': 'Blocked'}
 
 
 def _load() -> tuple[dict[str, str], dict[str, Any]]:
     """Return the source keys and the inventory by field and subfield."""
     data = tomllib.loads(INVENTORY.read_text())
+    data.pop('primitives')
     return data.pop('sources'), data
+
+
+def _vocabulary() -> dict[str, dict[str, str]]:
+    """Return the primitive vocabulary of the inventory, by name."""
+    return tomllib.loads(INVENTORY.read_text())['primitives']
 
 
 def _title(name: str) -> str:
@@ -77,6 +84,70 @@ def _gallery_lines(name: str, examples: dict[str, Example]) -> list[str]:
     return lines
 
 
+def _primitive_users(inventory: dict[str, Any]) -> tuple[dict[str, list[str]], dict[str, set[str]]]:
+    """Return the links of the implemented models of every primitive, and the changes its other entries wait for."""
+    users: dict[str, list[str]] = {name: [] for name in _vocabulary()}
+    waiting: dict[str, set[str]] = {name: set() for name in users}
+    entries = [
+        (field, name, entry)
+        for field, subfields in inventory.items()
+        for models in subfields.values()
+        for name, entry in models.items()
+    ]
+    for field, name, entry in entries:
+        status, _, change = entry['status'].partition(' ')
+        for primitive in entry['primitives']:
+            if status == 'implemented':
+                users[primitive].append(f'[{name}]({field}.md#{name})')
+            else:
+                waiting[primitive].add(change)
+    return users, waiting
+
+
+def _coverage(models: list[str], waiting: set[str], change: str | None) -> str:
+    """Return the coverage of one primitive from its implemented models and the changes that add or need it."""
+    if models:
+        return f'Covered by {len(models)}'
+    coverage = f'Uncovered, added by `{change}`' if change else 'Uncovered'
+    if waiting - {change}:
+        coverage += ', waited for by ' + ', '.join(f'`{name}`' for name in sorted(waiting))
+    return coverage
+
+
+def primitive_lines(inventory: dict[str, Any]) -> list[str]:
+    """Return the coverage of every primitive: the implemented models that exercise it, or the change that adds it.
+
+    Args:
+        inventory:
+            The inventory by field and subfield.
+
+    Returns:
+        lines:
+            The Markdown lines of the section.
+    """
+    users, waiting = _primitive_users(inventory)
+    lines = [
+        '',
+        '## Coverage by primitive',
+        '',
+        'Models exist first to exercise the core. Every entry records the core primitives it exercises. Its priority',
+        'is `core` when it exercises a primitive or a combination that no implemented model exercises, or needs a',
+        'missing one, and `example` when it repeats a covered pattern. A primitive is uncovered when no implemented',
+        'model exercises it.',
+        '',
+        '| Primitive | Description | Coverage | Implemented models |',
+        '|---|---|---|---|',
+    ]
+    for primitive, item in _vocabulary().items():
+        models = users[primitive]
+        shown = ', '.join(models[:SHOWN_MODELS])
+        if len(models) > SHOWN_MODELS:
+            shown += f', and {len(models) - SHOWN_MODELS} more'
+        coverage = _coverage(models, waiting[primitive], item.get('change'))
+        lines.append(f'| `{primitive}` | {item["description"]} | {coverage} | {shown} |')
+    return lines
+
+
 def coverage_page() -> str:
     """Return the coverage page: the inventory grouped by field and subfield, with sources and status."""
     keys, inventory = _load()
@@ -94,10 +165,12 @@ def coverage_page() -> str:
         statuses = [entry['status'].split(' ')[0] for models in subfields.values() for entry in models.values()]
         counts = [statuses.count(status) for status in STATUS_LABELS]
         lines.append(f'| [{_title(field)}](#{field.replace("_", "-")}) | {" | ".join(map(str, counts))} |')
+    lines += primitive_lines(inventory)
     for field, subfields in inventory.items():
         lines += ['', f'## {_title(field)} {{#{field.replace("_", "-")}}}']
         for subfield, models in subfields.items():
-            lines += ['', f'### {field}/{subfield}', '', '| Model | Sources | Status | Example |', '|---|---|---|---|']
+            header = ['| Model | Sources | Primitives | Priority | Status | Example |', '|---|---|---|---|---|---|']
+            lines += ['', f'### {field}/{subfield}', '', *header]
             for name, entry in models.items():
                 model, example = entry['title'], ''
                 if entry['status'] == 'implemented':
@@ -105,7 +178,9 @@ def coverage_page() -> str:
                 if name in examples:
                     example = f'[{examples[name].path.stem}](../{_page_of(examples[name])})'
                 sources = '; '.join(_source(source, keys) for source in entry['sources'])
-                lines.append(f'| {model} | {sources} | {_status(entry)} | {example} |')
+                primitives = ', '.join(f'`{primitive}`' for primitive in entry['primitives'])
+                cells = [model, sources, primitives, entry['priority'], _status(entry), example]
+                lines.append(f'| {" | ".join(cells)} |')
     return '\n'.join(lines) + '\n'
 
 

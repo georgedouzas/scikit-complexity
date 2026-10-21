@@ -1,6 +1,6 @@
 """Shared vocabulary of the framework: errors, domains, declarations, forms, and registries."""
 
-from ._domains import AnyDomain, Categorical, Domain
+from ._domains import AnyDomain, Categorical, Domain, wrap_angle
 from ._errors import (
     AnalysisError,
     BackendError,
@@ -73,4 +73,5 @@ __all__: list[str] = [
     'symbol',
     'symbols_of',
     'vector',
+    'wrap_angle',
 ]

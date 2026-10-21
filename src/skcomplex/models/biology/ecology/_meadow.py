@@ -230,7 +230,10 @@ def meadow_capacity(
 
     Every week the grass regrows logistically, each cow eats `bite` of the grass of its patch, and each cow moves to the
     nearest patch that no other cow occupies and whose grass reaches `threshold`. A cow that finds none dies. Without
-    regrowth the meadow feeds `width * height / 25` cows for the summer, and regrowth raises its carrying capacity.
+    regrowth a cow grazes its first patch and 25 more over the summer, so the meadow feeds about
+    `width * height / 26` cows, and regrowth raises its carrying capacity.
+    The cows graze the patches down at the same pace, so a herd above the capacity runs out of grown patches all at
+    once and dies out within a week, instead of shrinking to the capacity.
 
     Args:
         width:

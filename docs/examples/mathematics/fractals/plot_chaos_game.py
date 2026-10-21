@@ -7,10 +7,11 @@ point moves at every step half way towards one of the three corners, chosen at r
 
 # %%
 # The points start uniformly in the unit square and iterate the three maps of the Sierpiński triangle with equal
-# weights for 30 steps. The blueprint shows the cloud of points at the last frame.
+# weights for 30 steps. The blueprint shows the cloud of points at the last frame, upright.
 
 import matplotlib.pyplot as plt
 import numpy as np
+import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import box_counting_dimension
@@ -21,7 +22,7 @@ from skcomplex.models import create
 MODEL = 'chaos_game'
 
 blueprint = rrb.Blueprint(
-    rrb.Spatial2DView(origin='/points', name='points'),
+    rrb.Spatial2DView(origin='/upright', name='points at the last frame'),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
@@ -29,6 +30,10 @@ blueprint = rrb.Blueprint(
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 system = create(MODEL, preset='sierpinski', n_points=20000)
 simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(30)
+# Rerun's 2D views point y downward, so the last cloud is logged again with y flipped to stand the triangle upright.
+last = simulation.trajectory_['points.p'][-1]
+observer.recording_.log('upright', rr.Points2D(last * [1, -1], radii=0.002, colors=[200, 90, 220]), static=True)
+observer.recording_.flush()
 
 # %%
 # Box-counting dimension and the Barnsley fern

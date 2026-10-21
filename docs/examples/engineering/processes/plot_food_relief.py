@@ -20,10 +20,14 @@ from skcomplex.models import create
 
 MODEL = 'food_relief'
 
+# Every view shows the whole run, not the default window that follows the latest frame.
+whole_run = rrb.TimeAxis(
+    view_range=rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite()),
+)
 blueprint = rrb.Blueprint(
     rrb.Vertical(
-        rrb.TimeSeriesView(origin='/relief/in_transit', name='food in transit'),
-        rrb.TimeSeriesView(origin='/relief/warehouse', name='warehouse'),
+        rrb.TimeSeriesView(origin='/relief/in_transit', name='food in transit', axis_x=whole_run),
+        rrb.TimeSeriesView(origin='/relief/warehouse', name='warehouse', axis_x=whole_run),
     ),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
     rrb.TopPanel(state='hidden'),

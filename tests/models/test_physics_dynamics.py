@@ -158,6 +158,14 @@ def test_ballistic_pendulum_rises_to_the_height_of_momentum_conservation():
     assert height == pytest.approx((0.01 * 200 / 1.01) ** 2 / (2 * G), rel=1e-4)
 
 
+def test_huygens_clocks_synchronize_in_antiphase():
+    """Test that the default clocks run quickly past the escapement switch and lock in antiphase."""
+    trajectory = Simulation(huygens_clocks(), dt=0.05).run(until=80.0).trajectory_
+    late = trajectory.times >= 60.0
+    first, second = trajectory['clock_0.theta'][late], trajectory['clock_1.theta'][late]
+    assert np.corrcoef(first, second)[0, 1] < -0.95
+
+
 def test_huygens_pendulums_without_escapement_conserve_energy():
     """Test that pendulums on undamped supports joined by a spring keep their total energy."""
     system = huygens_clocks(2, theta=0.3, k=2.0, M=0.5, rho=0.0, lam=0.0)
@@ -204,6 +212,14 @@ def test_rotating_balls_turn_faster_when_pulled_in():
     theta = np.unwrap(_series(trajectory, 'right.theta')[0])
     early, late = np.diff(theta[:10]).mean(), np.diff(theta[-5:]).mean()
     assert late / early == pytest.approx(4.0)
+
+
+def test_gimballed_gyroscope_precesses_at_torque_over_angular_momentum():
+    """Test that the mean precession rate is `-torque / (C spin cos beta)`, shrinking as the rotor spins faster."""
+    for spin in (25.0, 50.0, 100.0):
+        trajectory = _run(gimballed_gyroscope(spin=spin), 10.0, 0.01)
+        mean_rate = trajectory['gyroscope.alpha'][-1] / 10.0
+        assert mean_rate == pytest.approx(-1.0 / (2.0 * spin * np.cos(0.3)), rel=0.01)
 
 
 def test_gimballed_gyroscope_conserves_its_cyclic_momenta_and_precesses():

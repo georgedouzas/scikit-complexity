@@ -5,7 +5,7 @@
 
 from sage.all__sagemath_symbolics import cos, sin
 
-from ....core.base import Domain, parameter, state
+from ....core.base import Domain, VisualSpec, parameter, state
 from ....core.model import Element, Rate, System, derivative
 from ....core.runtime import register_model
 
@@ -29,6 +29,7 @@ HenonHeiles = Element.define(
     'HenonHeiles',
     states={'x': state(default=0.0, order=2, initial=(0.35,)), 'y': state(default=0.1, order=2)},
     laws=lambda s: [Rate(s.x, -s.x - 2 * s.x * s.y), Rate(s.y, -s.y - s.x**2 + s.y**2)],
+    visual=VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None}),
 )
 
 
