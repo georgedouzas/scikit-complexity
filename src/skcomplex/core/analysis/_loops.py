@@ -27,7 +27,8 @@ class Loop:
 
     Args:
         nodes:
-            The states, auxiliaries, and flows of the loop, in the order of their influence.
+            The states, auxiliaries, and flows of the loop, in the order of their influence, starting at its first
+            state by name, or at its first node by name when it holds no state.
 
         polarity:
             `'reinforcing'` for a positive product of edge signs, `'balancing'` for a negative one, or `'neutral'`
@@ -206,8 +207,12 @@ def _signed_loops(graph: _Graph, gains: Mapping[tuple[str, str], float]) -> tupl
             continue
         gain = gains[(start, end)]
         directed.add_edge(start, end, sign=int(np.sign(gain)), gain=gain)
+    stocks = {entry.name for entry in graph.problem.states.entries}
     loops = []
-    for cycle in nx.simple_cycles(directed):
+    for found in nx.simple_cycles(directed):
+        anchor = min((node for node in found if node in stocks), default=min(found))
+        start = found.index(anchor)
+        cycle = [*found[start:], *found[:start]]
         pairs = list(zip(cycle, [*cycle[1:], cycle[0]], strict=True))
         gain = float(np.prod([directed.edges[pair]['gain'] for pair in pairs]))
         loops.append(Loop(tuple(cycle), POLARITIES[int(np.sign(gain))], gain))

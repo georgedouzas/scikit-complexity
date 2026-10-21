@@ -8,6 +8,7 @@ from sage.all__sagemath_symbolics import exp
 from ....core.base import Domain, Expression, parameter, role
 from ....core.model import Interaction, Jump, Law, Rate, Symbols, System, Update, where
 from ....core.runtime import register_model
+from ....core.solvers import ScipyODE
 from ._populations import ExponentialGrowth, Mortality, Population, Predation
 
 
@@ -215,7 +216,7 @@ class PredatorPreyEvents(Interaction):
     field='biology/ecology',
     tags=('predator-prey', 'ode', 'tipping', 'rate-induced tipping', 'slow-fast'),
     references=('Rosenzweig and MacArthur 1963', 'Datseris and Parlitz 2022'),
-    defaults={'until': 150.0, 'dt': 0.5},
+    defaults={'until': 150.0, 'dt': 0.5, 'solver': ScipyODE(rtol=1e-8, atol=1e-300)},
 )
 def rosenzweig_macarthur(
     prey: float | None = None,
@@ -232,6 +233,10 @@ def rosenzweig_macarthur(
     By default the crowding rises from `eta (1 - eta) / (1 + eta)` to `1 - eta`, the range where the coexistence point
     at `x = 1 / (1 - eta)` is stable, and the run starts there. A slow rise lets the populations track the point, and a
     rise faster than about 0.0004 makes the prey collapse for a while before they return.
+
+    In a collapse the prey fall to about `1e-30`, far below any absolute tolerance, and an error of either sign there
+    decides whether they return or, below zero, run into the pole of the feeding at `x = -1 / eta`. The registered
+    solver therefore controls the relative error only, with `ScipyODE(rtol=1e-8, atol=1e-300)`.
 
     Args:
         prey:
