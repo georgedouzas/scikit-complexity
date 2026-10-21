@@ -38,7 +38,7 @@ defect. Every test follows the naming and public-API rules of the constitution.
 - [x] 4.1 Make `ScipyODE(method='LSODA')` the default ODE stepper, document it on `Simulation` and in the user guide,
   and leave its breaking changelog entry to the release. Verify the stiff-model-built-directly and non-stiff accuracy
   scenarios, and move tests that pin values of default `RK45` runs to tolerances
-- [ ] 4.2 Run the registered ODE models of the catalog with the new default, and verify that their tests, the
+- [x] 4.2 Run the registered ODE models of the catalog with the new default, and verify that their tests, the
   documentation test, and the gallery examples pass
 
 ## 5. Benchmarks
