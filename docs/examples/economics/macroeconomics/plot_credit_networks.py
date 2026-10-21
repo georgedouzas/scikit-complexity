@@ -24,14 +24,11 @@ MODEL = 'credit_networks'
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
-    rrb.Vertical(
-        rrb.TimeSeriesView(origin='/herfindahl', name='Herfindahl index', axis_x=rrb.TimeAxis(view_range=whole_run)),
-        rrb.TimeSeriesView(
-            origin='/reporters',
-            contents=['/reporters/credit.spread'],
-            name='rate spread',
-            axis_x=rrb.TimeAxis(view_range=whole_run),
-        ),
+    rrb.TimeSeriesView(
+        origin='/',
+        contents=['/herfindahl', '/reporters/credit.spread'],
+        name='Herfindahl index and rate spread',
+        axis_x=rrb.TimeAxis(view_range=whole_run),
     ),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
     rrb.TopPanel(state='hidden'),

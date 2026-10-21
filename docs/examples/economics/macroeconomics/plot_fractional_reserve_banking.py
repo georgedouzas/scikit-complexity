@@ -25,9 +25,11 @@ BASE = 1000.0
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
-    rrb.Vertical(
-        rrb.TimeSeriesView(origin='/broad_money', name='broad money', axis_x=rrb.TimeAxis(view_range=whole_run)),
-        rrb.TimeSeriesView(origin='/reserves', name='reserves', axis_x=rrb.TimeAxis(view_range=whole_run)),
+    rrb.TimeSeriesView(
+        origin='/',
+        contents=['/broad_money', '/reserves'],
+        name='broad money and reserves',
+        axis_x=rrb.TimeAxis(view_range=whole_run),
     ),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
     rrb.TopPanel(state='hidden'),

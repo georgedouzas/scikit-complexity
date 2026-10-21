@@ -20,8 +20,9 @@ from skcomplex.models import create
 
 MODEL = 'car_dealer'
 
+whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
-    rrb.TimeSeriesView(origin='/dealer/inventory', name='cars on the lot'),
+    rrb.TimeSeriesView(origin='/dealer/inventory', name='cars on the lot', axis_x=rrb.TimeAxis(view_range=whole_run)),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
