@@ -8,7 +8,8 @@ larger ends with the whole budget, and the other one disappears.
 
 # %%
 # The first competitor starts with 55 units of resources and the second with 45. The budget is 10 units a year and
-# resources last 10 years, and the run lasts 100 years. The blueprint shows the two stocks.
+# resources last 10 years, and the run lasts 100 years. The blueprint shows the two stocks
+# in one time series view over the whole run.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -22,9 +23,13 @@ from skcomplex.models import create
 MODEL = 'success_to_the_successful'
 
 blueprint = rrb.Blueprint(
-    rrb.Vertical(
-        rrb.TimeSeriesView(origin='/contest/a', name='first competitor a'),
-        rrb.TimeSeriesView(origin='/contest/b', name='second competitor b'),
+    rrb.TimeSeriesView(
+        origin='/',
+        contents=['/contest/a', '/contest/b'],
+        name='stocks of both competitors',
+        axis_x=rrb.TimeAxis(
+            view_range=rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite()),
+        ),
     ),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
     rrb.TopPanel(state='hidden'),
