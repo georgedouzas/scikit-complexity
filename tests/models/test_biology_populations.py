@@ -396,6 +396,19 @@ def test_hypercycle_keeps_all_and_network_selects():
     assert abs(np.sum(complete['soup.x'][-1] > 1e-3) - 10) <= 1
 
 
+def test_meadow_capacity_carries_or_loses_the_whole_herd():
+    """Test that a meadow of 1600 patches carries 61 cows without regrowth and 80 with it, and loses larger herds."""
+
+    def survivors(cows, growth):
+        trajectory = _run(meadow_capacity(cows=cows, growth=growth, random_state=0), 25, random_state=0)
+        return len(trajectory.agents('cows', len(trajectory.times) - 1).ids)
+
+    assert survivors(61, 0.0) == 61
+    assert survivors(80, 0.0) == 0
+    assert survivors(80, 0.2) == 80
+    assert survivors(160, 0.2) == 0
+
+
 def test_hypercycle_of_five_loses_members():
     """Test that a hypercycle of five molecules loses some members and settles at a fixed point."""
     concentrations = _run(hypercycles(5), 400, dt=0.5)['soup.x']
