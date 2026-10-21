@@ -119,7 +119,6 @@ when it does not reproduce:
   magnetisations at `T = 2.0, 2.5, 3.0` are 0.915, 0.133, and 0.035. The dynamics are correct, so there is no defect.
 - `catalyst_pellet` under LSODA and the gallery runtime of `network_structure_analysis` belong to
   `fix-core-defects-2`.
-- The gallery budget covering analysis time is a tooling question outside the core.
 
 ## Capabilities
 
@@ -147,7 +146,8 @@ None.
 - `skcomplex.core.model`: a new `_ensembles.py` with `replicate`.
 - `skcomplex.core.solvers`: `_lattices.py` (boundary laws after lattice steps).
 - `skcomplex.core.viz`: `_visuals.py` (`ImageVisual`, `PointsVisual`, `ScalarsVisual`, and `BodiesVisual`).
-- `skcomplex.core.analysis`: `_lyapunov.py` and `_bifurcation.py`.
+- `skcomplex.core.analysis`: `_lyapunov.py`, `_bifurcation.py`, and `_statistics.py` (silenced `powerlaw` warnings).
+- `docs/gallery_tools`, `docs/gallery_conf.py`, and `docs/gallery_hooks.py`: the gallery tooling items.
 - `skcomplex.core.experiments`: `_runner.py`.
 - `skcomplex.core.viz`: also `TraitsVisual`, `PhaseRingVisual`, and the default visuals of agents and network fields.
 - `skcomplex.core.compile` and `skcomplex.core.solvers`: hidden events of state conditions, and the spectral Laplacian.

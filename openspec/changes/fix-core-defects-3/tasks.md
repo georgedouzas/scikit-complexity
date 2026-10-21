@@ -89,7 +89,7 @@ regression test for each fix.
   log the waiting times of `priority_queues`
 - [ ] 9.5 Check `restricted_three_body`, `diffusion_in_a_speckle_field`, `legion`, `faraday_disk`, `obesity`,
   `priority_queues`, and `burridge_knopoff`, and document the dealiasing of `kuramoto_sivashinsky`
-- [ ] 9.6 Print the thumbnail path from `gallery_tools run`, enforce the whole-script budget, accept single-channel
+- [x] 9.6 Print the thumbnail path from `gallery_tools run`, enforce the whole-script budget, accept single-channel
   images, warn when a thumbnail lacks the series its caption names, silence the warnings of `fit_power_law`, include
   the core code in the gallery cache key, write every run's recording to a unique temporary path the scraper is told
   about, and remove the md5 of every example whose capture failed

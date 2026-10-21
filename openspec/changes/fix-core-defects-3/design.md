@@ -271,6 +271,27 @@ instead of its near-black purple.
 Each remaining item of the second log is reproduced at the start of its task. A task whose item does not reproduce
 records the measurement in the proposal's dropped items and closes.
 
+### Gallery tooling
+
+- `gallery_tools run` already timed the whole script, but the documentation build passed no run time to the budget
+  check. `RerunScraper.begin` runs as a module resetter of `mkdocs-gallery` before every example: it starts the clock,
+  and every scraper call checks the run time without the captures against the budget, so an example over 60 s fails at
+  its next code block, analysis included.
+- The same resetter gives the run a fresh temporary folder. An observer started in the example's folder with a
+  relative `save_path` writes its recording there, by a wrapper of `RerunObserver.on_start` that the scraper installs
+  in the build process, and the scraper publishes it from the observer's resolved `save_path`. Two builds of one
+  example never share a file, and `gallery_tools run` already runs each example in its own temporary folder.
+- A view is not blank when blocks of 4 × 4 pixels differ in brightness from its commonest brightness over 5 % of it,
+  as the cells of a single-channel image do, while the thin lines and labels of the chrome fill no block. A
+  greyscale image whose near-white grey covers more than a fifth still reads as the light theme.
+- The caption check reads every name quoted in backticks in a comment sentence that names the primary view and series,
+  lists the entity paths of the recording, and warns with `GalleryWarning` for each name that no path included by the
+  contents of the first view ends with. It is a heuristic and never fails a build.
+- `fit_power_law` silences the warnings of `powerlaw` modules for the duration of the call only.
+- The cache key hashes the core package next to the subfield package of the model, through `model_sources`.
+- The documentation hooks remove the checksum of every example whose page shows an error or that has no screenshot,
+  since `mkdocs-gallery` writes it even after a failure.
+
 ### Model checks
 
 - `social_impact(random_state=1)` reaches consensus with the corrected flip rule, so the frozen-minority test runs
