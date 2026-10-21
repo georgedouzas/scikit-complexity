@@ -37,7 +37,7 @@ task removes the workaround.
 
 ## 4. Fields
 
-- [ ] 4.1 Give the Nyquist mode of the spectral Laplacian its eigenvalue, seed `v` of `complex_ginzburg_landau` from
+- [x] 4.1 Give the Nyquist mode of the spectral Laplacian its eigenvalue, seed `v` of `complex_ginzburg_landau` from
   `random_state`, and verify the checkerboard and seeded-fields scenarios
 
 ## 5. Model checks

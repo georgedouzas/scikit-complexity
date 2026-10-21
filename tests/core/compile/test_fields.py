@@ -163,3 +163,23 @@ def test_agents_read_and_deposit_fields():
     assert level[1, 2] == pytest.approx(5.0)
     assert level.sum() == pytest.approx(5.0)
     assert simulation.trajectory_.agents('walkers/markers', 5).values['seen'][0] == pytest.approx(4.0)
+
+
+Growth = Element.define('Growth', states={'u': 0.0}, laws=lambda s: [Rate(s.u, s.u + laplacian(s.u))])
+
+
+@pytest.mark.parametrize('discretization', ['spectral', 'finite-difference'])
+def test_laplacian_damps_the_checkerboard_mode(discretization):
+    """Test that the Laplacian damps the Nyquist mode, so a checkerboard of `u' = u + lap(u)` decays."""
+    rows, columns = np.indices((16, 16))
+    checkerboard = 0.01 * np.cos(np.pi * (rows + columns))
+    field = Field(
+        'm', Growth, LatticeSpace((16, 16), spacing=1.0), values={'u': checkerboard}, discretization=discretization,
+    )
+    final = np.asarray(Simulation(System(elements=[field]), dt=0.01).run(until=0.5).trajectory_['m.u'])[-1]
+    expected = (
+        0.01 * np.exp((1 - 8) * 0.5)
+        if discretization == 'finite-difference'
+        else 0.01 * np.exp((1 - 2 * np.pi**2) * 0.5)
+    )
+    assert np.abs(final).max() == pytest.approx(expected, rel=1e-2)
