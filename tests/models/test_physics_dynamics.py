@@ -206,6 +206,14 @@ def test_rotating_balls_turn_faster_when_pulled_in():
     assert late / early == pytest.approx(4.0)
 
 
+def test_gimballed_gyroscope_precesses_at_torque_over_angular_momentum():
+    """Test that the mean precession rate is `-torque / (C spin cos beta)`, shrinking as the rotor spins faster."""
+    for spin in (25.0, 50.0, 100.0):
+        trajectory = _run(gimballed_gyroscope(spin=spin), 10.0, 0.01)
+        mean_rate = trajectory['gyroscope.alpha'][-1] / 10.0
+        assert mean_rate == pytest.approx(-1.0 / (2.0 * spin * np.cos(0.3)), rel=0.01)
+
+
 def test_gimballed_gyroscope_conserves_its_cyclic_momenta_and_precesses():
     """Test that the gyroscope keeps the momenta of its outer ring and rotor and precesses under the torque."""
     trajectory = _run(gimballed_gyroscope(), 5.0, 0.05)
