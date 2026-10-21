@@ -84,7 +84,8 @@ def complex_ginzburg_landau(
         -1.5
     """
     shape = tuple(shape)
-    values = {'u': _noise(shape, 0.01, random_state), 'v': _noise(shape, 0.01, None), 'b': b, 'c': c}
+    rng = np.random.default_rng(random_state)
+    values = {'u': _noise(shape, 0.01, rng), 'v': _noise(shape, 0.01, rng), 'b': b, 'c': c}
     space = LatticeSpace(shape, spacing=length / shape[0])
     return System(elements=[Field('medium', GinzburgLandau, space, values=values, discretization='spectral')])
 

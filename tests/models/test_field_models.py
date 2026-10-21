@@ -11,6 +11,7 @@ from skcomplex.models.biology.ecology import fisher_kpp
 from skcomplex.models.biology.physiology import fitzhugh_nagumo
 from skcomplex.models.chemistry.pattern_formation import brusselator, gray_scott, schnakenberg
 from skcomplex.models.physics.heat import heat_diffusion
+from skcomplex.models.physics.pattern_formation import complex_ginzburg_landau
 
 
 class Images:
@@ -98,3 +99,12 @@ def test_gray_scott_streams_images(tmp_path):
     observer = RerunObserver('gray-scott', save_path=tmp_path / 'gray-scott.rrd')
     Simulation(gray_scott((32, 32)), dt=20, solver=RK4(dt=1.0), observers=[observer]).run(until=40)
     assert observer.logged_frames_ == 3
+
+
+def test_complex_ginzburg_landau_seeds_both_parts():
+    """Test that the random state fixes both the real and the imaginary part of the initial amplitude."""
+    first, second, other = (complex_ginzburg_landau((8, 8), random_state=seed) for seed in (1, 1, 2))
+    for part in ('u', 'v'):
+        values = [np.asarray(system.elements[0].values[part]) for system in (first, second, other)]
+        np.testing.assert_array_equal(values[0], values[1])
+        assert not np.array_equal(values[0], values[2])

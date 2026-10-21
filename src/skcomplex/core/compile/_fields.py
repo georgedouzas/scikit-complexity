@@ -116,7 +116,11 @@ def spectral_multiplier(
     dimensions: tuple[int, ...],
     spacings: tuple[float, ...],
 ) -> npt.NDArray[np.complex128]:
-    """Return the Fourier multiplier of an operator on a periodic lattice, dealiased by the two-thirds rule.
+    """Return the Fourier multiplier of an operator on a periodic lattice.
+
+    The Laplacian and its inverse act on every mode, so the Laplacian damps the Nyquist mode by `-|k|^2` like any other.
+    A first derivative is zero at the Nyquist mode of its axis, and keeps only the modes of the two-thirds rule, which
+    dealiases the derivatives of products.
 
     Args:
         name:
@@ -138,16 +142,14 @@ def spectral_multiplier(
     waves = wavenumbers(dimensions, spacings)
     squared = np.sum([wave**2 for wave in waves], axis=0)
     if name == 'laplacian':
-        factor = -squared.astype(complex)
-    elif name == 'inverse_laplacian':
+        return -squared.astype(complex)
+    if name == 'inverse_laplacian':
         with np.errstate(divide='ignore'):
-            factor = np.where(squared > 0, -1.0 / np.where(squared > 0, squared, 1.0), 0.0).astype(complex)
-    else:
-        factor = 1j * waves[axis]
-        size = dimensions[axis]
-        if size % 2 == 0:
-            nyquist = np.isclose(np.abs(waves[axis]), np.pi / spacings[axis])
-            factor = np.where(nyquist, 0.0, factor)
+            return np.where(squared > 0, -1.0 / np.where(squared > 0, squared, 1.0), 0.0).astype(complex)
+    factor = 1j * waves[axis]
+    if dimensions[axis] % 2 == 0:
+        nyquist = np.isclose(np.abs(waves[axis]), np.pi / spacings[axis])
+        factor = np.where(nyquist, 0.0, factor)
     return np.where(dealiasing_mask(dimensions), factor, 0.0)
 
 
