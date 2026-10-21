@@ -46,7 +46,7 @@ def test_fit_stable_of_cauchy_sums():
 
 def test_compare_with_law_boltzmann_law_on_two_domains():
     """Test that gas energies and exchanged money are exponential at the energy per molecule and money per agent."""
-    snapshots = snapshots_of(run('ideal_gas').trajectory_)
+    snapshots = snapshots_of(run('ideal_gas', settings={'random_state': 0}).trajectory_)
     energies = 0.5 * np.sum(snapshots.velocities**2, axis=-1)
     gas = compare_with_law(energies[-1], fixed={'loc': 0})
     assert gas.p_value > 0.05
