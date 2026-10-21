@@ -60,8 +60,8 @@ Visuals of agents, networks, and oscillators, from the second log:
   `galam_majority`, `naming_game`, `prisoners_dilemma_tournament`, `bit_string_evolution`, `robby_ga`, and
   `bernoulli_process` shows only the constant number of agents, since `AgentsVisual.views` returns no view without a
   space.
-- Agents with one coordinate, such as the cars of `charbonneau_traffic`, are drawn as points on a line, with the
-  position as the first coordinate and 0 as the second.
+- Agents whose position is a state of one coordinate, such as the cars of `charbonneau_traffic`, are drawn as a
+  space-time diagram, one line per agent.
 - A `Field` on a `NetworkSpace` without a visual takes the `'sites'` visual, a colored graph, as `Element.lattice`
   already does. Today `network_diffusion` and `pagerank` log one series per node.
 - A visual's `color_by` without `color_range` widens its range as new values appear, instead of fixing it from the
