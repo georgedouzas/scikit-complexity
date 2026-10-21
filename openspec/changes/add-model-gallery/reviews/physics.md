@@ -54,3 +54,14 @@
 | active_brownian_particles | 200 swimmers spread over the periodic square | MSD matches the exact ABP law for D_r = 1 and 0.1 | 0.9 s, 201 frames, 0.7 MB |
 | active_ornstein_uhlenbeck_particles | 200 particles spread over the periodic square | MSD matches 4 D (t - tau (1 - exp(-t / tau))) for tau = 1 and 10 | 1.3 s, 201 frames, 1.0 MB |
 | chiral_active_particles | 200 circling swimmers in the periodic square | MSD matches van Teeffelen-Löwen, oscillating for omega = 2, far below omega = 0 | 0.9 s, 201 frames, 0.7 MB |
+| oscillator_death | 50 oscillations collapsing to 0 after the coupling switches on | mean amplitude decays at the rate 1 - omega0 above the critical width 1 | 7.6 s, 281 frames, 252 KB |
+| heterogeneous_global_coupling | limit cycles damped to rest after the coupling switches on | decay rates follow the leading eigenvalue inside the stability window | 11.9 s, 201 frames, 203 KB |
+| schrodinger | space-time image of the moving, spreading packet | site probabilities agree with the operator formulation; dephasing lowers purity at trace 1 | 1.6 s, 41 frames, 78 KB |
+| heat_l_shape | temperature surface over the L-shaped plate (camera crops the plate at small size) | nodes on the exact harmonic steady state; error decays exponentially | 0.3 s, 21 frames, 48 KB |
+| parametric_pendulum | swing growing from 0.1 rad under parametric pumping (wrapped-angle workaround) | peak |theta| grows parallel to exp(eps omega0 t / 4); constant without shaking | 0.7 s, 251 frames, 90 KB |
+| ballistic_pendulum | swing of the block after the impact (wrapped-angle workaround) | swing heights on (m v / (m + M))^2 / (2 g) | 1.1 s, 201 frames, 84 KB |
+| newtons_cradle | velocity jumping between balls at collisions | velocity passes from the first ball to the last and back | 0.2 s, 251 frames, 298 KB |
+| cart_pendulum | cart and bob swinging in opposition (position workaround) | centre of mass constant; small-swing frequency on sqrt(g (m1 + m2) / (m1 l)) | 3.5 s, 251 frames, 125 KB |
+| magnetic_pendulum | tangled path of the bob settling over a magnet | final magnet switches irregularly along a line of releases | 18.4 s, 251 frames, 178 KB |
+| rotating_balls_on_rods | sawtooth angles narrowing fourfold when r halves at t = 5 | angular velocity after the pull on 1 / r^2 for r = 0.9, 0.7, 0.5 | 0.2 s, 251 frames, 110 KB |
+| rotating_swing | chain angle and stand speed oscillating in opposition (workaround view) | chain angle swings about the steady angle at the conserved momentum; L drift below 2e-5 | 1.2 s, 201 frames, 128 KB |

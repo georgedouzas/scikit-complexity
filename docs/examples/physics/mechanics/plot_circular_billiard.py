@@ -22,6 +22,7 @@ from skcomplex.models import create
 MODEL = 'circular_billiard'
 
 
+# Workaround: remove once the core draws billiard tables and trajectories in a y-up 2D view.
 class TableObserver(RerunObserver):
     """Observer that also logs the wall of the unit circle and the path of the particle."""
 

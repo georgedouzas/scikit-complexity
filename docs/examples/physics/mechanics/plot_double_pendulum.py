@@ -29,6 +29,7 @@ def bobs(theta1, theta2):
     return first, first + np.array([np.sin(theta2), np.cos(theta2)])
 
 
+# Workaround: remove once the core draws pendulums as bodies (rod and bob) in a y-up 2D view.
 class DoublePendulumObserver(RerunObserver):
     """Observer that also draws the rods, the bobs, and the trace of the lower bob."""
 
