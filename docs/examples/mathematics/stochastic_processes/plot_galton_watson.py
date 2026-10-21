@@ -54,7 +54,7 @@ observer.recording_.flush()
 # ----------------------
 # With Poisson offspring the generating function is `f(s) = exp(m (s - 1))`. Starting from one individual, the
 # probability to be extinct by generation `n` is the `n`-th iterate of `f` from 0, and the ultimate extinction
-# probability is the smallest root of `q = f(q)`: 1 up to `m = 1` and below 1 above it. The share of 400 runs extinct
+# probability is the smallest root of `q = f(q)`: 1 up to `m = 1` and below 1 above it. The share of 200 runs extinct
 # after 12 generations should follow the 12-th iterate.
 
 rates = np.linspace(0.5, 2.0, 7)
@@ -68,7 +68,7 @@ extinct = [
                 .ids,
             )
             == 0
-            for seed in range(400)
+            for seed in range(200)
         ],
     )
     for m in rates
@@ -85,7 +85,7 @@ for run in runs:
 paths.set_xlabel('generation')
 paths.set_ylabel('population size')
 paths.set_title('Critical populations die out one by one')
-extinction.plot(rates, extinct, 'o', label='simulated, 400 runs')
+extinction.plot(rates, extinct, 'o', label='simulated, 200 runs')
 extinction.plot(grid, iterate, 'k--', label='extinct by generation 12')
 extinction.plot(grid, ultimate, 'k:', label='ultimate extinction q')
 extinction.set_xlabel('mean offspring m')
