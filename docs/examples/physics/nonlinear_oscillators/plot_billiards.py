@@ -22,6 +22,7 @@ from skcomplex.models import create
 MODEL = 'billiards'
 
 
+# Workaround: remove once the core draws billiard tables and trajectories in a y-up 2D view.
 class TableObserver(RerunObserver):
     """Observer that also logs the walls of the Sinai table and the path of the particle."""
 

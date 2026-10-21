@@ -24,6 +24,7 @@ MODEL = 'henon_heiles'
 ENERGY = 1 / 8
 
 
+# Workaround: remove once the core draws planar trajectories y-up.
 class OrbitObserver(RerunObserver):
     """Observer that also logs the path of the star in the plane."""
 

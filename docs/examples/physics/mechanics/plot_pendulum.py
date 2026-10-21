@@ -23,6 +23,7 @@ from skcomplex.models import create
 MODEL = 'pendulum'
 
 
+# Workaround: remove once the core draws pendulums as bodies (rod and bob) in a y-up 2D view.
 class PendulumObserver(RerunObserver):
     """Observer that also draws the rod, the bob, and its trace."""
 

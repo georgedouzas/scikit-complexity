@@ -22,6 +22,7 @@ from skcomplex.models import create
 MODEL = 'coupled_pendulums'
 
 
+# Workaround: remove once the core draws angles wrapped to (-π, π] in time series.
 class DisplacementObserver(RerunObserver):
     """Observer that also logs the horizontal displacements of the bobs."""
 

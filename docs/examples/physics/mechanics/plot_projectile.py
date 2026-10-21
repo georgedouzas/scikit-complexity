@@ -22,6 +22,7 @@ from skcomplex.models import create
 MODEL = 'projectile'
 
 
+# Workaround: remove once the core draws planar trajectories y-up.
 class FlightObserver(RerunObserver):
     """Observer that also logs the path of the ball and the ground."""
 

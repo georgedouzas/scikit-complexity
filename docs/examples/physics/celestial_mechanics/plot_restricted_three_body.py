@@ -25,6 +25,7 @@ MODEL = 'restricted_three_body'
 MU = 0.01215
 
 
+# Workaround: remove once the core draws planar trajectories y-up.
 class PathObserver(RerunObserver):
     """Observer that also logs the primaries and the path of the spacecraft."""
 
