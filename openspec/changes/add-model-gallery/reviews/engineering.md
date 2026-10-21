@@ -26,3 +26,11 @@
 | swarmtaxis | robot cluster with its illuminated side (yellow) facing the beacon | centre drifts from x = 19 to 40 in 3000 steps; spread stays ~2; ~20% illuminated | 10 s script, 201 frames, 0.43 MB |
 | kerner_konhauser | density history with a bright travelling cluster | max density grows to 0.54 and saturates, min falls to 0.15; cluster keeps its shape | 13 s script, 251 frames, 1.43 MB |
 | payne | density history: the bump splits into two waves crossing the ring | number of cars conserved exactly; bump height decays from 0.06 to 0.02 | 7 s script, 101 frames, 0.32 MB |
+| ring_road_drivers | 30 cars as dots along the road, bunched where jams hold them (all one colour) | 10 cars reach the limit 40; 30 and 60 cars level off near 10 and 6 | 6 s script, 151 frames, 0.10 MB |
+| bathtub | water level falling, then held when the faucet opens | level changes at faucet minus drain; flows balance after the faucet opens (budget from capture only) | 0.2 s run, 21 frames, 0.02 MB |
+| food_relief | food in transit falling as the pipeline drains (curve ends mid-view; time axis starts at +1m30s) | arrivals follow the Erlang response of the third-order delay; unmet need until enough food arrives | 0.3 s run, 121 frames, 0.10 MB |
+| irrigation | reservoir level rising (curve ends mid-view; time axis offset) | release covers demand while the reservoir holds; pumping takes over; water stress only when both fall short | 0.3 s run, 147 frames, 0.21 MB |
+| langevin_traffic | speeds of all cars fluctuating around 0.5 | flows follow rho u(rho); speed variance follows D1 rho / gamma at low density | 2.8 s run, 201 frames, 0.24 MB |
+| rice_milling | paddy stock cycling with the harvests (curve ends mid-view; time axis offset) | milling capped by capacity after harvests; grain conserved into rice, husk, and bran | 0.4 s run, 121 frames, 0.17 MB |
+| solid_waste | landfill filling, then closing | landfilling rises until the acceptance table closes the landfill, then dumping | 0.2 s run, 81 frames, 0.13 MB |
+| traffic_density_equation | density waves growing from the uniform flow | log Fourier amplitudes grow at the linear rate, fastest near q = 0.9 | 0.9 s run, 101 frames, 0.74 MB |
