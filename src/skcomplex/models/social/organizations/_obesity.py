@@ -93,9 +93,11 @@ class Restaurant(AgentType):
 class Eater(AgentType):
     """Person of the obesity model, who goes from home to work and back every day and eats near each place.
 
-    At home, at work, and at home again the person eats one meal at a random restaurant within `reach`, with calories
-    drawn from the bottom, middle, or top half of the restaurant's range by its eating habit. Every week its weight
-    changes by the calories eaten beyond seven days of its basal metabolic rate, at 7700 kilocalories per kilogram.
+    At home, at work, and at home again the person eats one meal at a random restaurant within `reach`, or at the
+    nearest restaurant when none is within reach, so that access changes what is eaten but never skips a meal. The
+    calories are drawn from the bottom, middle, or top half of the restaurant's range by its eating habit. Every week
+    its weight changes by the calories eaten beyond seven days of its expenditure, the basal metabolic rate times the
+    `activity` factor of the Harris-Benedict equation, at 7700 kilocalories per kilogram.
 
     Args:
         label:
@@ -137,6 +139,9 @@ class Eater(AgentType):
         reach:
             The distance within which a person looks for a restaurant.
 
+        activity:
+            The factor of the basal metabolic rate a person spends a day, 1.2 when sedentary and 1.9 when very active.
+
     Examples:
         >>> from skcomplex.models.social.organizations import Eater
         >>> Eater.group('people', 5, home=[1.0, 2.0], work=[3.0, 4.0])
@@ -155,6 +160,7 @@ class Eater(AgentType):
     bmi: float = state(default=24.0, domain=Domain.POSITIVE)
     day: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
     reach: float = parameter(default=30.0, domain=Domain.POSITIVE)
+    activity: float = parameter(default=1.55, domain=Domain.POSITIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the daily rule.
@@ -170,8 +176,11 @@ class Eater(AgentType):
         return [Rule(self.live)]
 
     def _eat(self, agent: AgentView, model: ModelView) -> None:
-        """Eat one meal at a random restaurant within reach, if there is one."""
+        """Eat one meal at a random restaurant within reach, or at the nearest restaurant if none is within reach."""
         restaurants = [other for other in agent.neighbors(radius=agent.reach) if other.group != agent.group]
+        if not restaurants:
+            nearest = min(model.agents('restaurants'), key=agent.distance_to, default=None)
+            restaurants = [] if nearest is None else [nearest]
         if not restaurants:
             return
         restaurant = restaurants[int(model.rng.integers(len(restaurants)))]
@@ -182,7 +191,8 @@ class Eater(AgentType):
 
     def _gain(self, agent: AgentView) -> None:
         """Change the weight by the calories of the week beyond the basal needs, and start a new week."""
-        needs = DAYS_PER_WEEK * basal_metabolic_rate(agent.weight, agent.height, agent.age, agent.male)
+        rate = basal_metabolic_rate(agent.weight, agent.height, agent.age, agent.male)
+        needs = DAYS_PER_WEEK * agent.activity * rate
         agent.weight += (agent.calories - needs) / KCAL_PER_KG
         agent.calories = 0.0
         agent.bmi = agent.weight / (agent.height / 100) ** 2
@@ -217,6 +227,7 @@ def obesity(
     n_places: int = 20,
     size: float = 280.0,
     reach: float = 30.0,
+    activity: float = 1.55,
     random_state: int | np.random.Generator | None = None,
 ) -> System:
     """Return the obesity model of adults who eat near home and work, one step per day.
@@ -235,6 +246,9 @@ def obesity(
 
         reach:
             The distance within which a person looks for a restaurant.
+
+        activity:
+            The factor of the basal metabolic rate a person spends a day, 1.55 for moderate activity.
 
         random_state:
             The seed or generator of the places and the people.
@@ -267,6 +281,7 @@ def obesity(
         habit=np.arange(n_people) % 3,
         bmi=weight / (height / 100) ** 2,
         reach=reach,
+        activity=activity,
     )
     restaurants = Restaurant.group(
         'restaurants',

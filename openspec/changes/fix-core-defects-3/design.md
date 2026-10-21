@@ -299,6 +299,23 @@ records the measurement in the proposal's dropped items and closes.
   the plants were gone and reached 736. Offspring now take their parent's hunger, and the prey die out within 12
   steps of the plants.
 
+### Obesity and priority queues
+
+- `obesity` reproduces (seed 0, one year: mean body mass index low 24.3 → 20.9, medium 23.8 → 26.0, high 24.2 →
+  24.5). The cause was not the habit ranges but access: with 20 restaurants on a square of side 280 and a reach of
+  30, about 40% of the people had no restaurant within reach of home or work and skipped those meals, so the gains
+  followed geography (1.24 meals a day in the medium group, 1.0 in the high group) and the people without access
+  starved. A person now eats at the nearest restaurant when none is within reach, and the weekly expenditure is the
+  basal metabolic rate times a Harris-Benedict `activity` factor (default 1.55) instead of the bare basal rate, which
+  made three restaurant meals a day add 10 to 20 points of body mass index a year. After a year the means are low
+  22.1, medium 28.6, high 33.6.
+- `priority_queues` needed no core change: its waiting times reach the trajectory and the viewer through the existing
+  reporters. The execution declares `reports = ('wait',)` and reports the wait of the task it executes, so every step
+  records one wait under `execution.wait`, and the tasks declare `VisualSpec('traits', {'color_by': 'age', 'shown':
+  ('agents',)})`, whose per-agent series of the two ages show the waits as ramps. With `greed=0.999` and 100000 steps
+  the waits from 2 to 300 fit a power law of exponent 1.15, against Barabási's 1. The rest of item 9.4 (observer
+  paths, `Trajectory.names`, agent positions, stocks and flows) is left to its own work.
+
 ## Risks / Trade-offs
 
 - [Hidden events slow systems with many state conditions] → Each condition costs one guard evaluation per step, and
