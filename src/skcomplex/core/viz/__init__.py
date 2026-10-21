@@ -5,6 +5,7 @@ from ._bodies import BodiesVisual
 from ._expectations import ExpectationVisual
 from ._geometry import GeometryVisual
 from ._rerun import RerunObserver
+from ._rings import PhaseRingVisual
 from ._traits import TraitsVisual, agents_visual_of
 from ._visuals import (
     VISUALS,
@@ -27,6 +28,7 @@ __all__: list[str] = [
     'GeometryVisual',
     'ImageVisual',
     'MeshVisual',
+    'PhaseRingVisual',
     'PointsVisual',
     'RerunObserver',
     'ScalarsVisual',

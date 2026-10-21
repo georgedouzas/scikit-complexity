@@ -110,3 +110,4 @@
 | decaying_turbulence | a large vortex wrapped in thin spiral filaments | enstrophy falls by an order of magnitude while energy loses about a quarter | 8.0 s, 201 frames, 5.6 MB |
 | rayleigh_benard | warm and cold convection rolls at Ra = 2000 (layer and mirror image) | final max \|theta\| negligible below Ra_c = 657.5 and finite, growing with Ra, above it | 22.1 s, 201 frames, 0.3 MB |
 | living_crystals | 100 colloids gathered into a few hexagonal crystallites | share of colloids in clusters of 3+ rises to 1 with attraction, fluctuates near 0.3 without | 10.7 s, 201 frames, 0.9 MB |
+| nonlocal_ring_chimera | phases of 100 ring oscillators against their place: a smooth coherent wave on one stretch, scattered drifting phases elsewhere | mean frequencies over the last 100 time units form a plateau near -0.69 on the coherent stretch and an arc up to -0.26 on the incoherent one | 2.3 s, 201 frames, 0.40 MB |
