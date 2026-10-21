@@ -30,7 +30,7 @@ Visuals:
   from the entity paths, and the white and black daisies of `daisyworld` come out in nearly the same color.
 
 Analysis and experiments:
-- **New:** `replicate(system, size, **values)` returns a system whose single elements become groups of `size`
+- **New:** `replicate(system, size, values)` returns a system whose single elements become groups of `size`
   members, with per-member values by dotted path, so many initial conditions or parameter values run as one
   vectorised simulation. `orbit_diagram` and `basin_stability` take `vectorized=True` to run their sweeps that way.
 - `lyapunov_spectrum` compiles its tangent dynamics once per model structure, with the parameters as an argument.

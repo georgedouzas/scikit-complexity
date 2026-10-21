@@ -2,6 +2,7 @@
 
 from ._components import AgentType, Aggregate, Element, Group, Interaction, PairInteraction
 from ._draws import Draw, bernoulli, categorical, draw, draws_in, is_draw, normal, uniform
+from ._ensembles import replicate
 from ._fields import Field, Flux, advection, divergence, gradient, inverse_laplacian, laplacian
 from ._flows import Auxiliary, Flow, Sink, Source, delay1, delay3, lookup, smooth, smooth3
 from ._functions import (
@@ -268,6 +269,7 @@ __all__: list[str] = [
     'ramp',
     'reduce_values',
     'reductions_in',
+    'replicate',
     'series',
     'shift_arguments',
     'shift_member',

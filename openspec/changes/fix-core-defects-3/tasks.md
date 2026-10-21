@@ -64,7 +64,7 @@ task removes the workaround.
   functions by source, differentiate `abs` as `sign`, and verify the sweep and Sprott scenarios
 - [x] 7.3 Add `ExperimentError`, raise it from `Experiment.run` when an owned process pool breaks, and verify the
   script-without-a-guard scenario
-- [ ] 7.4 Add `replicate` to `skcomplex.core.model`, and verify the many-initial-conditions and interactions scenarios
+- [x] 7.4 Add `replicate` to `skcomplex.core.model`, and verify the many-initial-conditions and interactions scenarios
 - [ ] 7.5 Add `Trajectory.member`, add `vectorized` to `orbit_diagram` and `basin_stability`, and verify the
   vectorised period doubling and basins scenarios
 

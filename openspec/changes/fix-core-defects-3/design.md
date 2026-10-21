@@ -103,9 +103,9 @@ daisies in different colors with no change to the model.
 
 ### Replicated systems
 
-`replicate(system, size, **values)` in `skcomplex.core.model` returns a system whose elements are groups of `size`
+`replicate(system, size, values)` in `skcomplex.core.model` returns a system whose elements are groups of `size`
 members of the same element types, with the same labels, so a dotted path such as `map.x` names the same state.
-Keyword arguments map dotted paths, as `values={'map.r': array}`, to per-member values. Each group keeps its element's
+The mapping `values` takes dotted paths, as `{'map.r': array}`, to per-member values. Each group keeps its element's
 other values. The system's observables are kept. A system with interactions, subsystems, groups, fields, or agents
 raises the named `ValidationError`, since a replica of those needs role bindings per member that the system does not
 declare.

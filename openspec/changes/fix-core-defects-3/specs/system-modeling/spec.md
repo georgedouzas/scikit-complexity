@@ -15,7 +15,7 @@ the `ANGLE` domain SHALL wrap it into the same range.
 - **THEN** it returns `[-pi / 2, pi, pi]`
 
 ### Requirement: Systems replicate into vectorised ensembles
-`replicate(system, size, **values)` SHALL return a system whose elements are groups of `size` members of the same
+`replicate(system, size, values)` SHALL return a system whose elements are groups of `size` members of the same
 element types and labels, with per-member values by dotted path, and SHALL raise a named error for a system with
 interactions, subsystems, groups, fields, or agents.
 
