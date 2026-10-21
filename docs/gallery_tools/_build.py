@@ -161,6 +161,32 @@ class GalleryBuild:
         """
         return self.generated_dir(example) / f'{example.path.name}.key'
 
+    def checksum(self, example: Example) -> Path:
+        """Return the checksum file `mkdocs-gallery` writes after running an example, which makes later builds skip it.
+
+        Args:
+            example:
+                The example.
+
+        Returns:
+            path:
+                The path of the checksum file.
+        """
+        return self.generated_dir(example) / f'{example.path.name}.md5'
+
+    def forget(self, examples: list[Example]) -> None:
+        """Remove the checksum files of examples, so the next build runs them again.
+
+        `mkdocs-gallery` writes the checksum even when an example fails, so a later build would skip the unchanged
+        script and keep its error page.
+
+        Args:
+            examples:
+                The examples.
+        """
+        for example in examples:
+            self.checksum(example).unlink(missing_ok=True)
+
     def mark_stale(self) -> list[Example]:
         """Make `mkdocs-gallery` run again the selected examples whose page does not show the current screenshots.
 
@@ -178,9 +204,8 @@ class GalleryBuild:
             stamp = self.stamp(example)
             if self.cache.get(key) is not None and stamp.exists() and stamp.read_text() == key:
                 continue
-            checksum = self.generated_dir(example) / f'{example.path.name}.md5'
-            checksum.unlink(missing_ok=True)
             stale.append(example)
+        self.forget(stale)
         return stale
 
     def failed_pages(self) -> list[Example]:
