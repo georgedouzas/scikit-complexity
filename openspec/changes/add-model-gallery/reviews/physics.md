@@ -44,3 +44,5 @@
 | newtons_cradle | velocity jumping between balls at collisions | velocity passes from the first ball to the last and back | 0.2 s, 251 frames, 298 KB |
 | cart_pendulum | cart and bob swinging in opposition (position workaround) | centre of mass constant; small-swing frequency on sqrt(g (m1 + m2) / (m1 l)) | 3.5 s, 251 frames, 125 KB |
 | magnetic_pendulum | tangled path of the bob settling over a magnet | final magnet switches irregularly along a line of releases | 18.4 s, 251 frames, 178 KB |
+| rotating_balls_on_rods | sawtooth angles narrowing fourfold when r halves at t = 5 | angular velocity after the pull on 1 / r^2 for r = 0.9, 0.7, 0.5 | 0.2 s, 251 frames, 110 KB |
+| rotating_swing | chain angle and stand speed oscillating in opposition (workaround view) | chain angle swings about the steady angle at the conserved momentum; L drift below 2e-5 | 1.2 s, 201 frames, 128 KB |
