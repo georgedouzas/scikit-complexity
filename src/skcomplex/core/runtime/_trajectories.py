@@ -116,6 +116,48 @@ class Trajectory:
         error_msg = f'No state or parameter named {name!r}. Available names are: {", ".join(names)}.'
         raise KeyError(error_msg)
 
+    def member(self, index: int, problem: Problem) -> 'Trajectory':
+        """Return the trajectory of one member of a replicated system, as a trajectory of the original system.
+
+        Args:
+            index:
+                The member index, the same in every group of the replicated system.
+
+            problem:
+                The compiled original system, whose single elements the replicated groups hold.
+
+        Returns:
+            trajectory:
+                The times, states, and parameters of the member, laid out as the original problem lays them out.
+
+        Examples:
+            >>> import numpy as np
+            >>> from skcomplex.core.compile import compile_system
+            >>> from skcomplex.core.model import replicate
+            >>> from skcomplex.core.runtime import Simulation
+            >>> from skcomplex.models.mathematics.dynamical_systems import logistic_map
+            >>> ensemble = replicate(logistic_map(), 3, {'map.x': [0.1, 0.2, 0.3]})
+            >>> trajectory = Simulation(ensemble, dt=1).run(until=2).trajectory_
+            >>> float(trajectory.member(1, compile_system(logistic_map()))['map.x'][0])
+            0.2
+        """
+        frames = len(self)
+        states = np.zeros((frames, problem.states.size))
+        parameters = np.zeros((frames, problem.parameters.size))
+        for layout, source, target, values in (
+            (problem.states, self.problem.states, states, self.states),
+            (problem.parameters, self.problem.parameters, parameters, self.parameters),
+        ):
+            for entry in layout:
+                origin = source.entry(entry.name)
+                columns = np.asarray(values)[:, origin.start : origin.start + origin.size].reshape(
+                    frames,
+                    -1,
+                    entry.size,
+                )
+                target[:, entry.start : entry.start + entry.size] = columns[:, index]
+        return Trajectory(problem, self.times, states, parameters)
+
     def lattice(self, name: str) -> npt.NDArray[Any]:
         """Return the values of a lattice state over time in lattice shape.
 

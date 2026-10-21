@@ -38,3 +38,22 @@ def test_double_well_basins_are_symmetric():
     )
     assert set(result.fractions) == {'left', 'right'}
     assert result.fractions['left'] == pytest.approx(0.5, abs=3 * result.errors['left'] + 0.05)
+
+
+def test_vectorised_orbit_diagram_matches_the_serial_sweep():
+    """Test that the orbit diagram of the logistic map run as one ensemble equals the sweep of separate runs."""
+    rates = np.linspace(2.8, 4.0, 200)
+    serial = orbit_diagram(logistic_map, 'map.r', rates, 'map.x', transient=200, keep=16, dt=1)
+    vectorised = orbit_diagram(logistic_map, 'map.r', rates, 'map.x', transient=200, keep=16, dt=1, vectorized=True)
+    assert len(vectorised.points) == 200
+    for first, second in zip(serial.points, vectorised.points, strict=True):
+        np.testing.assert_allclose(np.ravel(first), np.ravel(second), atol=1e-12)
+
+
+def test_vectorised_basins_match_the_serial_runs():
+    """Test that basin stability over 200 initial conditions run as one ensemble equals the serial runs."""
+    bounds = {'duffing.x': (-2.0, 2.0), 'duffing.x_d1': (-2.0, 2.0)}
+    settings = {'n': 200, 'until': 40, 'dt': 0.5, 'random_state': 0}
+    serial = basin_stability(duffing(gamma=0.0), bounds, side, **settings)
+    vectorised = basin_stability(duffing(gamma=0.0), bounds, side, vectorized=True, **settings)
+    assert vectorised.fractions == serial.fractions
