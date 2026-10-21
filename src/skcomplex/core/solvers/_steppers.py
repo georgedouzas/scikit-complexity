@@ -25,6 +25,7 @@ JACOBIANS = ('auto', 'exact', 'dense')
 DENSITY_LIMIT = 0.5
 BAND_FRACTION = 0.1
 STIFF_SPAN = 1000
+EXPLICIT_SPAN = 100
 RESTART = 1e-12
 DISCONTINUITY_ORDERS = 3
 STEPS_PER_FRAME = 100
@@ -247,6 +248,7 @@ class ScipyODE(Stepper):
         self._warned = False
         self._stalled = 0
         self._frame_steps = 0
+        self._choosing = False
         self.method_ = 'LSODA' if self.method == 'auto' else self.method
         if self.method_ in IMPLICIT and self.jacobian != 'dense' and problem.jacobian is not None:
             self._prepare_jacobian(problem)
@@ -259,11 +261,9 @@ class ScipyODE(Stepper):
                     'method.'
                 )
                 raise SolverError(error_msg)
-            stiff = problem.stable_step is not None and self.jacobian_pattern_ is not None
-            self.method_ = 'BDF' if stiff else 'RK45'
+            self._choosing = problem.stable_step is not None and self.jacobian_pattern_ is not None
+            self.method_ = 'RK45'
             self.jacobian_options_ = {}
-            if self.method_ == 'BDF':
-                self._prepare_jacobian(problem)
         self._solver: OdeSolver | None = None
         self._segment: _Segment | None = None
         self._time = math.nan
@@ -313,6 +313,16 @@ class ScipyODE(Stepper):
             return matrix.toarray() if dense else matrix
 
         return {'jac': exact}
+
+    def _choose_for_span(self, span: float) -> None:
+        """Choose RK45 or BDF for a large diffusive system by how many stable steps the first call spans."""
+        if not self._choosing:
+            return
+        self._choosing = False
+        limit = self.problem_.stable_step
+        if limit is not None and span > EXPLICIT_SPAN * limit:
+            self.method_ = 'BDF'
+            self._prepare_jacobian(self.problem_)
 
     def _warn_stiff(self, t: float, until: float) -> None:
         """Warn once when an explicit method spans many stable steps of the diffusion of a field in one call."""
@@ -551,6 +561,7 @@ class ScipyODE(Stepper):
             self.history_ = History(problem, t, x, extrapolate=True)
         self._until = until
         self._frame_steps = 0
+        self._choose_for_span(until - t)
         self._warn_stiff(t, until)
         if not self._continues(t, x, p):
             self._frame = until - t

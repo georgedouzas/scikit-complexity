@@ -82,8 +82,9 @@ regression test for each fix.
 - [x] 9.1 Hide lag states and cap series in default blueprints, add a blueprint option for components of vector
   states, and record grouping the series of one view by magnitude for a later change
 - [x] 9.2 Scale default point radii to the visual bounds and brighten default point colors
-- [ ] 9.3 Choose or warn about the default solver of large diffusive fields, profile single scalar SDEs, raise the
-  named blow-up error for `LSODA` failures of divergent runs, and check `rayleigh_benard` and `decaying_turbulence`
+- [x] 9.3 Choose or warn about the default solver of large diffusive fields, profile single scalar SDEs, raise the
+  named blow-up error for `LSODA` failures of divergent runs, catch states sliding along switches, and check
+  `rayleigh_benard` and `decaying_turbulence`
 - [ ] 9.4 Sanitise observer entity paths, give user paths their own namespace, add `Trajectory.names`, add a
   vectorised accessor of agent positions over frames, log the auxiliaries and flows of stocks and flows as series, and
   log the waiting times of `priority_queues`

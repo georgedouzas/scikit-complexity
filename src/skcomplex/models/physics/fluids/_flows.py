@@ -338,7 +338,8 @@ def rayleigh_benard(
 
     The layer has height 1 and width `2 sqrt(2)`, the wavelength of the critical mode, and convection sets in above
     `Ra = 27 pi^4 / 4`, about 657.5. The lattice holds twice the layer's height with odd states, which gives the
-    free-slip walls.
+    free-slip walls. The registered step `ETDRK4(dt=0.005)` is stable up to about `Ra = 4000`, and faster convection
+    needs a smaller step, such as `ETDRK4(dt=0.0025)` at `Ra = 5000`.
 
     Args:
         Ra:

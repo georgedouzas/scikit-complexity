@@ -238,3 +238,9 @@ def test_default_solver_names_a_blow_up():
     """Test that a solution that blows up in finite time ends in an error that names the blow-up."""
     with pytest.raises(SolverError, match='blows up'):
         Simulation(create('takens_bogdanov_form', x=5.0, y=5.0, beta1=0.1, beta2=-1.0), dt=0.1).run(until=50)
+
+
+def test_default_solver_steps_large_diffusive_fields_explicitly():
+    """Test that a large field whose frames span a few stable steps runs with RK45, not a costly implicit method."""
+    simulation = Simulation(create('fitzhugh_nagumo'), dt=2.0).run(until=4)
+    assert simulation.stepper_.method_ == 'RK45'

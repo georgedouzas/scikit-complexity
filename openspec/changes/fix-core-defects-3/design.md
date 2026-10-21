@@ -266,6 +266,29 @@ orientation, since they share their views with lattice images. The custom bounds
 mirrored. The color scale of points, agents, and sites starts at a quarter of viridis, a blue that reads on black,
 instead of its near-black purple.
 
+### Solvers
+
+The default ODE stepper keeps two guards. LSODA gives way to RK45 after 1000 consecutive steps too short to advance
+the run, as before, or after 50000 steps in one frame. A state that slides along a switch no event sees, such as
+`w' = 5 - 10 ceil(w / 100)`, makes RK45 crawl in its turn, so any other integrator that takes 50000 steps in one frame
+raises the named solver error that says so, instead of running without end. A failure of the integrator while the
+largest state exceeds `1e12` raises an error that names the blow-up, instead of `Unexpected istate in LSODA`, as
+`takens_bogdanov_form` from `x = y = 5` shows.
+
+For a system too large for the dense matrix of LSODA, the default solver chose BDF whenever a field has a stable step,
+which made `fitzhugh_nagumo` on 100 x 100 sites take 11.6 s to `t = 20` against 0.4 s with RK45. It now chooses at
+the first call: RK45 when the call spans at most 100 stable steps, and BDF otherwise.
+
+The other solver items of the second log:
+- A single scalar SDE, such as `stochastic_resonance`, runs about 35000 Euler-Maruyama steps per second. The profile
+  shows the generic kernel calls, about 30 microseconds a step, and no single hot spot. A compiled stochastic loop
+  would remove them and belongs to a later change.
+- `rayleigh_benard` at `Ra = 5000` with its registered `ETDRK4(dt=0.005)` turns to NaN near `t = 5.5`, with or without
+  the Nyquist fix, and stays finite with `dt = 0.0025`. This is the stability limit of the explicit nonlinear terms,
+  not a core defect, so the docstring now names the step.
+- `decaying_turbulence` loses 24.5 % of its energy in 40 time units, against 25.1 % that the viscosity removes at the
+  measured enstrophy, so the scheme adds no dissipation and the item does not reproduce.
+
 ### Remaining items
 
 Each remaining item of the second log is reproduced at the start of its task. A task whose item does not reproduce
