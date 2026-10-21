@@ -27,3 +27,4 @@
 | voter_model | lattice of purple and yellow voters coarsening into domains | mean opinion wanders around its start; interface density decays slowly | 8 s script, 61 frames, 0.25 MB |
 | bonabeau_hierarchies | 200 agents on a 20 x 20 torus colored from purple (subordinate) to yellow (dominant) | standard deviation of strengths after 100 steps grows with density, about 1.5 at 0.1 to 11 at 0.8 over three seeds | 8.1 s, 101 frames, 0.24 MB |
 | deffuant | histogram of 200 opinions collapsed into two peaks near 0.3 and 0.8 for d = 0.2 | large clusters average 5.3, 3.3, 2.3, 2.0, 1.3, 1.0 for d = 0.1 to 0.4 against floor(1 / (2 d)) = 5, 3, 2, 2, 1, 1 | 3.3 s, 51 frames, 0.07 MB |
+| galam_majority | share of opinion 1 falling from 0.34 to 0 within four rounds, spread vanishing | share after one round of 3000 people follows p^3 + 3 p^2 (1 - p) within 0.017 for p from 0.05 to 0.95 | 2.4 s, 11 frames, 0.05 MB |
