@@ -18,7 +18,7 @@ task removes the workaround.
 
 - [x] 2.1 Negate the second coordinate of 2D points and trails in `PointsVisual`, document it, and verify the
   point-above-the-origin scenario and the existing visual tests
-- [ ] 2.2 Add `BodiesVisual`, register it as `'bodies'`, export it from `skcomplex.core.viz`, and verify the double
+- [x] 2.2 Add `BodiesVisual`, register it as `'bodies'`, export it from `skcomplex.core.viz`, and verify the double
   pendulum and billiard scenarios
 - [ ] 2.3 Declare the bodies visual on the pendulum, billiard, and orbit models whose examples subclass
   `RerunObserver`, drop those subclasses, and check their gallery thumbnails
