@@ -34,3 +34,4 @@
 | particle_in_a_well | anharmonic oscillation in the well | orbits follow energy levels; trapped below the separatrix, escaping above (v0 = 0.9) | 0.2 s, 251 frames, 63 KB |
 | two_mass_spring_damper | quasi-periodic beating of the first mass | spectrum peaks at the normal modes 1 and sqrt(3) | 4.5 s, 251 frames, 201 KB |
 | sitnikov | irregular bobbing of the light body (e = 0.2) | stroboscopic section: invariant curves near the centre, chaotic band outside | 19.0 s, 251 frames, 47 KB |
+| restricted_three_body | precessing rosette around the Earth, Moon aside (custom path view) | path outside the Jacobi forbidden region; C drift below 2e-5 | 0.3 s, 251 frames, 121 KB |
