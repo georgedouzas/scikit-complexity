@@ -6,14 +6,10 @@ apart at every hit, so the motion of the Sinai billiard is chaotic and its path 
 """
 
 # %%
-# The model logs the position as time series only, so the observer below also logs the walls of the table and the
-# path of the particle, sampled at every step of the simulation, with `y` negated because the 2D views of Rerun point
-# their vertical axis down. The blueprint shows the table alone.
+# The default blueprint draws the table and the whole path of the particle.
 
 import matplotlib.pyplot as plt
 import numpy as np
-import rerun as rr
-import rerun.blueprint as rrb
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
@@ -22,38 +18,8 @@ from skcomplex.models import create
 MODEL = 'billiards'
 
 
-# Workaround: remove once the core draws billiard tables and trajectories in a y-up 2D view.
-class TableObserver(RerunObserver):
-    """Observer that also logs the walls of the Sinai table and the path of the particle."""
-
-    def on_start(self, problem):
-        super().on_start(problem)
-        square = [[-1, -1], [1, -1], [1, 1], [-1, 1], [-1, -1]]
-        angles = np.linspace(0, 2 * np.pi, 100)
-        disc = np.column_stack([0.4 * np.cos(angles), 0.4 * np.sin(angles)])
-        self.recording_.log('table/walls', rr.LineStrips2D([square, disc], colors=[220, 220, 220]), static=True)
-        self.path_ = []
-
-    def on_frame(self, frame):
-        self.path_.append([frame.value('particle.x'), -frame.value('particle.y')])
-        super().on_frame(frame)
-        if frame.step % self.interval == 0:
-            self.recording_.log('table/path', rr.LineStrips2D([self.path_], radii=0.006, colors=[90, 170, 230]))
-            self.recording_.log('table/particle', rr.Points2D([self.path_[-1]], radii=0.04, colors=[250, 180, 60]))
-
-
-blueprint = rrb.Blueprint(
-    rrb.Spatial2DView(
-        origin='/table',
-        name='table',
-        visual_bounds=rrb.VisualBounds2D(x_range=(-1.5, 1.5), y_range=(-1.1, 1.1)),
-    ),
-    rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
-    rrb.TopPanel(state='hidden'),
-    collapse_panels=True,
-)
 system = create(MODEL, shape='sinai', x=0.1, y=0.6, vx=0.6, vy=0.8)
-observer = TableObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=4)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
 simulation = Simulation(system, dt=0.04, observers=[observer]).run(until=40)
 
 # %%

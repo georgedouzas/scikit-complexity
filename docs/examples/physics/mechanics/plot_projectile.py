@@ -6,13 +6,11 @@ reaches. Air drag bends the path into a lopsided arc that falls more steeply tha
 """
 
 # %%
-# The ball is launched at speed 10 without drag and lands after `2 v sin(45°) / g`, about 1.44 time units. The model
-# logs the ball as a point, so the observer below also logs its path, with the height negated because the 2D views of
-# Rerun point their vertical axis down. The blueprint shows the flight alone.
+# The ball is launched at speed 10 without drag and lands after `2 v sin(45°) / g`, about 1.44 time units. The blueprint
+# draws the ball with its trail over the whole flight.
 
 import matplotlib.pyplot as plt
 import numpy as np
-import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.runtime import Simulation
@@ -21,32 +19,9 @@ from skcomplex.models import create
 
 MODEL = 'projectile'
 
-
-# Workaround: remove once the core draws planar trajectories y-up.
-class FlightObserver(RerunObserver):
-    """Observer that also logs the path of the ball and the ground."""
-
-    def on_start(self, problem):
-        super().on_start(problem)
-        self.recording_.log(
-            'flight/ground',
-            rr.LineStrips2D([[[-0.5, 0.0], [10.7, 0.0]]], colors=[150, 150, 150]),
-            static=True,
-        )
-        self.path_ = []
-
-    def on_frame(self, frame):
-        x, y = frame.value('ball.x')
-        self.path_.append([x, -y])
-        super().on_frame(frame)
-        if frame.step % self.interval == 0:
-            self.recording_.log('flight/path', rr.LineStrips2D([self.path_], radii=0.04, colors=[90, 170, 230]))
-            self.recording_.log('flight/ball', rr.Points2D([self.path_[-1]], radii=0.2, colors=[250, 180, 60]))
-
-
 blueprint = rrb.Blueprint(
     rrb.Spatial2DView(
-        origin='/flight',
+        origin='/ball',
         name='flight',
         visual_bounds=rrb.VisualBounds2D(x_range=(-0.5, 10.7), y_range=(-3.2, 0.4)),
     ),
@@ -55,7 +30,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 system = create(MODEL, speed=10.0, angle=45.0)
-observer = FlightObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 simulation = Simulation(system, dt=0.01, observers=[observer]).run(until=1.44)
 
 # %%

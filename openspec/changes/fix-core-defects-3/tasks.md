@@ -20,7 +20,7 @@ task removes the workaround.
   point-above-the-origin scenario and the existing visual tests
 - [x] 2.2 Add `BodiesVisual`, register it as `'bodies'`, export it from `skcomplex.core.viz`, and verify the double
   pendulum and billiard scenarios
-- [ ] 2.3 Declare the bodies visual on the pendulum, billiard, and orbit models whose examples subclass
+- [x] 2.3 Declare the bodies visual on the pendulum, billiard, and orbit models whose examples subclass
   `RerunObserver`, drop those subclasses, and check their gallery thumbnails
 
 ## 3. Agents, networks, and oscillators

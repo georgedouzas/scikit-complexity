@@ -18,6 +18,8 @@ from ..runtime import Frame
 from ._visuals import TRAIL_LENGTH, UPWARD, Visual, _log_scalars, _radius_of, register_visual
 
 type Positions = Callable[..., npt.ArrayLike] | Sequence[str]
+type Outline = Callable[..., Sequence[npt.ArrayLike]] | Sequence[npt.ArrayLike]
+type Marks = Callable[..., npt.ArrayLike] | Sequence[Sequence[float]]
 
 BODY_COLOR = (250, 180, 60)
 ROD_COLOR = (220, 220, 220)
@@ -92,10 +94,12 @@ class BodiesVisual(Visual):
             The number of recent positions in a trail, 0 for no trail, or `None` for the whole path.
 
         outline:
-            Static polylines, each an array of rows `(x, y)`, such as the walls of a table.
+            Static polylines, each an array of rows `(x, y)`, such as the walls of a table, or a function of the
+            parameters and states by keyword that returns them from the first frame.
 
         marks:
-            Static points, such as fixed attracting centres.
+            Static points, such as fixed attracting centres, or a function of the parameters and states by keyword that
+            returns them from the first frame.
 
         radius:
             The radius of the bodies, or `None` for a share of the extent of the view.
@@ -114,8 +118,8 @@ class BodiesVisual(Visual):
         rods: bool = False,
         traced: Sequence[int] | None = None,
         trail: int | None = TRAIL_LENGTH,
-        outline: Sequence[npt.ArrayLike] = (),
-        marks: Sequence[Sequence[float]] = (),
+        outline: Outline = (),
+        marks: Marks = (),
         radius: float | None = None,
     ) -> None:
         self.positions = positions
@@ -144,33 +148,39 @@ class BodiesVisual(Visual):
             raise ValidationError(error_msg)
         return points
 
+    def _static(self, values: dict[str, Any]) -> tuple[list[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
+        """Return the outline polylines and the marks, evaluated from the values when they are functions."""
+        outline = self.outline(**values) if callable(self.outline) else self.outline
+        marks = self.marks(**values) if callable(self.marks) else self.marks
+        strips = [np.atleast_2d(np.asarray(item, dtype=float)) for item in outline]
+        points = np.asarray(marks, dtype=float).reshape(-1, PAIR)
+        return strips, points
+
     def _chain(self, bodies: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         """Return the points the rods join, from the pivot when there is one."""
         return bodies if self.pivot is None else np.vstack([np.asarray(self.pivot, dtype=float), bodies])
 
-    def _scale(self, bodies: npt.NDArray[np.float64]) -> float:
+    def _scale(self, bodies: npt.NDArray[np.float64], values: dict[str, Any]) -> float:
         """Return the extent of the drawing: the outline, the marks, the pivot, and the rods at full length."""
         chain = self._chain(bodies)
-        pieces = [chain, *(np.atleast_2d(np.asarray(item, dtype=float)) for item in self.outline)]
-        if self.marks:
-            pieces.append(np.asarray(self.marks, dtype=float))
-        points = np.vstack(pieces)
+        strips, marks = self._static(values)
+        points = np.vstack([chain, *strips, marks])
         extent = float(np.ptp(points, axis=0).max())
         if self.rods and len(chain) > 1:
             extent = max(extent, 2 * float(np.linalg.norm(np.diff(chain, axis=0), axis=1).sum()))
         return extent
 
-    def _log_static(self, recording: rr.RecordingStream, path: str) -> None:
+    def _log_static(self, recording: rr.RecordingStream, path: str, values: dict[str, Any], radius: float) -> None:
         """Log the outline and the marks once."""
         if path in self._drawn:
             return
         self._drawn.add(path)
-        if self.outline:
-            strips = [np.asarray(item, dtype=float) * UPWARD for item in self.outline]
-            recording.log(f'{path}/outline', rr.LineStrips2D(strips, colors=OUTLINE_COLOR), static=True)
-        if self.marks:
-            marks = np.asarray(self.marks, dtype=float) * UPWARD
-            recording.log(f'{path}/marks', rr.Points2D(marks, colors=MARK_COLOR), static=True)
+        strips, marks = self._static(values)
+        if strips:
+            shown = [strip * UPWARD for strip in strips]
+            recording.log(f'{path}/outline', rr.LineStrips2D(shown, colors=OUTLINE_COLOR), static=True)
+        if len(marks):
+            recording.log(f'{path}/marks', rr.Points2D(marks * UPWARD, radii=radius, colors=MARK_COLOR), static=True)
 
     def _log_trail(
         self,
@@ -208,10 +218,11 @@ class BodiesVisual(Visual):
                 The positions are not pairs of coordinates.
         """
         path = element.path
-        bodies = self._bodies(_values_of(element, frame.value))
-        share = _radius_of(self._scale(bodies), len(bodies))
+        values = _values_of(element, frame.value)
+        bodies = self._bodies(values)
+        share = _radius_of(self._scale(bodies, values), len(bodies))
         radius = share if self.radius is None else float(self.radius)
-        self._log_static(recording, path)
+        self._log_static(recording, path, values, radius)
         shown = bodies * UPWARD
         recording.log(f'{path}/bodies', rr.Points2D(shown, radii=radius, colors=BODY_COLOR))
         if self.rods:
@@ -233,8 +244,8 @@ class BodiesVisual(Visual):
 
         Returns:
             views:
-                A 2D spatial view with the element path as origin, bounded by the outline, the marks, the pivot, and
-                the rods at full length, and a time series view of the states.
+                A 2D spatial view with the element path as origin, bounded by the rods at full length around the
+                pivot or by the outline, and fitted to the drawing otherwise, and a time series view of the states.
         """
         if not isinstance(element, CompiledElement):
             return []
@@ -247,19 +258,20 @@ class BodiesVisual(Visual):
             )
             return layout.read(vector, name)
 
-        bodies = self._bodies(_values_of(element, read))
+        values = _values_of(element, read)
+        bodies = self._bodies(values)
         chain = self._chain(bodies)
-        half = self._scale(bodies) / 2
-        center = chain[0] if self.rods and self.pivot is not None else None
-        points = np.vstack([center - half, center + half]) if center is not None else np.vstack([chain, bodies])
-        if center is None and (self.outline or self.marks):
-            pieces = [np.atleast_2d(np.asarray(item, dtype=float)) for item in self.outline]
-            pieces += [np.asarray(self.marks, dtype=float)] if self.marks else []
-            points = np.vstack([points, *pieces])
+        strips, marks = self._static(values)
+        bounds = None
+        if self.rods and self.pivot is not None:
+            half = self._scale(bodies, values) / 2
+            bounds = _bounds_of(np.vstack([chain[0] - half, chain[0] + half]))
+        elif strips:
+            bounds = _bounds_of(np.vstack([chain, *strips, marks]))
         path = element.path
         contents = [f'+ {path}/{state}/**' for state in element.states]
         return [
-            rrb.Spatial2DView(origin=path, name=path, visual_bounds=_bounds_of(points)),
+            rrb.Spatial2DView(origin=path, name=path, visual_bounds=bounds),
             rrb.TimeSeriesView(origin=path, contents=contents, name=f'{path} states'),
         ]
 

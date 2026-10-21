@@ -6,15 +6,11 @@ never repeating path, and two releases that differ by a hair soon move in comple
 """
 
 # %%
-# The rods start high, at 2 and 2.5 radians from the downward vertical, and at rest. The model logs the angles as time
-# series only, so the observer below also draws the rods, the bobs, and the trace of the lower bob. The 2D views of
-# Rerun point their vertical axis down, so a bob at angle `θ` from the downward vertical sits at `(l sin θ, l cos θ)`
-# from its pivot.
+# The rods start high, at 2 and 2.5 radians from the downward vertical, and at rest. The default blueprint draws
+# the rods, the bobs, and the fading trace of the lower bob.
 
 import matplotlib.pyplot as plt
 import numpy as np
-import rerun as rr
-import rerun.blueprint as rrb
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
@@ -24,42 +20,13 @@ MODEL = 'double_pendulum'
 
 
 def bobs(theta1, theta2):
-    """Return the positions of the two bobs of unit rods, with the vertical axis pointing down."""
+    """Return the positions of the two bobs of unit rods."""
     first = np.array([np.sin(theta1), np.cos(theta1)])
     return first, first + np.array([np.sin(theta2), np.cos(theta2)])
 
 
-# Workaround: remove once the core draws pendulums as bodies (rod and bob) in a y-up 2D view.
-class DoublePendulumObserver(RerunObserver):
-    """Observer that also draws the rods, the bobs, and the trace of the lower bob."""
-
-    def on_start(self, problem):
-        super().on_start(problem)
-        self.trace_ = []
-
-    def on_frame(self, frame):
-        first, second = bobs(frame.value('pendulum.theta1'), frame.value('pendulum.theta2'))
-        self.trace_.append(second)
-        super().on_frame(frame)
-        if frame.step % self.interval == 0:
-            self.recording_.log('swing/trace', rr.LineStrips2D([self.trace_], radii=0.008, colors=[90, 170, 230]))
-            rods = rr.LineStrips2D([[[0, 0], first, second]], radii=0.025, colors=[220, 220, 220])
-            self.recording_.log('swing/rods', rods)
-            self.recording_.log('swing/bobs', rr.Points2D([first, second], radii=0.09, colors=[250, 180, 60]))
-
-
-blueprint = rrb.Blueprint(
-    rrb.Spatial2DView(
-        origin='/swing',
-        name='swing',
-        visual_bounds=rrb.VisualBounds2D(x_range=(-2.2, 2.2), y_range=(-2.1, 2.1)),
-    ),
-    rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
-    rrb.TopPanel(state='hidden'),
-    collapse_panels=True,
-)
 system = create(MODEL, theta1=2.0, theta2=2.5)
-observer = DoublePendulumObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=10)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=10)
 simulation = Simulation(system, dt=0.005, observers=[observer]).run(until=12)
 
 # %%

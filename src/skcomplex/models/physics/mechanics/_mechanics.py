@@ -6,7 +6,7 @@
 import numpy as np
 from sage.all__sagemath_symbolics import cos, sin
 
-from ....core.base import Domain, parameter, state
+from ....core.base import Domain, VisualSpec, parameter, state
 from ....core.model import (
     ConstantForce,
     Element,
@@ -24,6 +24,18 @@ from ....core.model import (
 from ....core.runtime import register_model
 
 GRAVITY = 9.81
+WALL_POINTS = 200
+
+
+def _pendulum_bob(theta: float, l: float, **_: float) -> list[list[float]]:
+    """Return the position of the bob of a pendulum hanging from the origin."""
+    return [[l * np.sin(theta), -l * np.cos(theta)]]
+
+
+def _disc_wall(radius: float, **_: float) -> list[np.ndarray]:
+    """Return the wall of a disc table as one closed polyline."""
+    angles = np.linspace(0.0, 2 * np.pi, WALL_POINTS)
+    return [radius * np.column_stack([np.cos(angles), np.sin(angles)])]
 
 
 @register_model(
@@ -129,6 +141,7 @@ Pendulum = Element.define(
         'l': parameter(default=1.0, domain=Domain.POSITIVE),
     },
     laws=lambda s: [Equation(s.m * s.l * derivative(s.theta, 2) == -s.m * s.g * sin(s.theta))],
+    visual=VisualSpec('bodies', {'positions': _pendulum_bob, 'pivot': (0.0, 0.0), 'rods': True}),
 )
 
 Oscillator = Element.define(
@@ -291,6 +304,7 @@ DiscBilliard = Element.define(
             label='bounce',
         ),
     ],
+    visual=VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'outline': _disc_wall}),
 )
 
 
