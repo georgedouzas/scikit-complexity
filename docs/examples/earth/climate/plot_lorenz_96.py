@@ -7,10 +7,13 @@ travel around the latitude circle, from site to site.
 
 # %%
 # The model is created by name from the catalog with 20 sites and the forcing `F = 8`, with the first site displaced by
-# 0.01 from the steady state, and runs for 30 time units. The default blueprint shows the sites in time series views.
+# 0.01 from the steady state, and runs for 30 time units. The blueprint shows three sites of the ring in one time series
+# view, hiding the other seventeen.
 
 import matplotlib.pyplot as plt
 import numpy as np
+import rerun as rr
+import rerun.blueprint as rrb
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
@@ -18,8 +21,24 @@ from skcomplex.models import create
 
 MODEL = 'lorenz_96'
 
+shown = [site in (0, 7, 14) for site in range(20)]
+sites = rrb.TimeSeriesView(
+    origin='/ring/x',
+    name='sites 0, 7, and 14',
+    overrides={'ring/x': rr.SeriesLines.from_fields(visible_series=shown, widths=2.0)},
+    axis_x=rrb.TimeAxis(
+        view_range=rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite()),
+    ),
+    plot_legend=rrb.PlotLegend(visible=False),
+)
+blueprint = rrb.Blueprint(
+    sites,
+    rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
+    rrb.TopPanel(state='hidden'),
+    collapse_panels=True,
+)
 system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=3)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=3)
 simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=30)
 
 # %%
