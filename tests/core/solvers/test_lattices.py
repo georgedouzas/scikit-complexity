@@ -304,3 +304,45 @@ def test_monte_carlo_wraps_angles_after_every_sweep():
     """Test that Monte Carlo rotations of the XY model keep every angle in (-π, π]."""
     values = Simulation(xy(16)).run(until=50).trajectory_['spins.theta']
     assert np.all((values > -np.pi) & (values <= np.pi))
+
+
+def _pile(activity, evaluated):
+    """Return a 32 x 32 sandpile whose relaxation declares an activity or none, counting the sites it topples."""
+
+    def topple(height, *around):
+        evaluated.append(np.size(height))
+        return height - 4 * (height >= 4) + sum(item >= 4 for item in around)
+
+    def drop(heights, *, random):
+        following = heights.copy()
+        following[tuple(random.integers(size) for size in heights.shape)] += 1
+        return following
+
+    Pile = Element.define(
+        'Pile',
+        states={'height': state(0.0)},
+        laws=lambda s: [
+            Relaxation(
+                drive=[Drive(s.height, drop)],
+                relax=[LocalRule(s.height, Neighborhood.von_neumann(center=True), topple)],
+                stable=lambda heights: bool((heights < 4).all()),
+                activity=activity,
+                label='avalanche',
+            ),
+        ],
+    )
+    heights = np.random.default_rng(0).integers(0, 4, size=(32, 32)).astype(float)
+    space = LatticeSpace((32, 32), boundary='fixed')
+    return System(elements=[Pile.lattice('pile', space, height=heights)])
+
+
+def test_relaxation_over_active_sites_matches_the_full_update():
+    """Test that relaxing only active sites and their neighbours gives the heights and durations of full updates."""
+    sparse_sites, full_sites = [], []
+    sparse = Simulation(_pile(lambda heights: heights >= 4, sparse_sites), dt=5000, random_state=0)
+    sparse = sparse.run(until=5000).trajectory_
+    full = Simulation(_pile(None, full_sites), dt=5000, random_state=0).run(until=5000).trajectory_
+    np.testing.assert_array_equal(sparse['pile.height'][-1], full['pile.height'][-1])
+    assert [event.duration for event in sparse.events] == [event.duration for event in full.events]
+    assert [event.time for event in sparse.events] == [event.time for event in full.events]
+    assert sum(sparse_sites) < sum(full_sites) / 10

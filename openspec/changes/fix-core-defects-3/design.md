@@ -137,11 +137,17 @@ own tracebacks would still print.
 
 ### Relaxations update their active neighbourhoods
 
-`CompiledRelaxation.apply` evaluates the first iteration on every site. When the relaxation declares `activity`, each
-later iteration applies its synchronous local rules only at the active sites and at the sites that read them, found
-from the reverse of the neighbour table. The documented contract of `activity` becomes: a site that is not active and
-reads no active site keeps its value in an iteration. Drives and rules on other schedules keep their full updates. The
-size, duration, and area of the record keep their meaning.
+When the relaxation declares `activity`, every iteration applies its synchronous local rules only at the active sites
+and at the sites that read them, found by a product of the activity with a sparse matrix of who reads whom, which
+`CompiledRule.reading` builds once from the neighbour table. The contract of `activity` is that a site that is not
+active and reads no active site keeps its value in an iteration. Drives and rules on other schedules keep their full
+updates. The size, duration, and area of the record keep their meaning.
+
+The first version found the readers with `np.isin` over the whole table, which cost as much as the update it saved.
+With the sparse product, `sandpile((64, 64))` takes 1.25 s per 1000 grains in its steady state instead of 3.6 s, so
+60000 grains take about 75 s. The rest is the Python overhead of about 17 iterations per grain, which a compiled
+relaxation loop would remove and which stays for a later change. `manna_sandpile` relaxes with a drive, which keeps its
+full update, and takes 2.3 s per 1000 grains instead of 5.2 s, the gain coming from the cheaper stability checks.
 
 ### Model defaults
 

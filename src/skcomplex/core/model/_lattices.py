@@ -603,7 +603,9 @@ class Relaxation:
 
         activity:
             A function of the targets' arrays that returns a boolean array of the active sites of an iteration, or
-            `None` to count the sites that change.
+            `None` to count the sites that change. With an activity, every iteration updates its synchronous local
+            rules only at the active sites and the sites that read them, so a site that is not active and reads no
+            active site must keep its value.
 
     Examples:
         >>> from skcomplex.core.base import symbol
