@@ -80,3 +80,11 @@
 | tilted_periodic_potential | positions drifting right from well to well and spreading | mean velocity follows the exact force curve; positions drift at it | 1.5 s, 201 frames, 0.1 MB |
 | trap_model | walkers coloured by trap depth, mostly deep | MSD grows as t^T (slope 0.5); mean depth grows as T ln t | 0.6 s, 201 frames, 0.5 MB |
 | zero_range_process | one bright condensate column | fluid occupations follow the critical law; condensate holds about 125 particles | 0.4 s, 251 frames, 0.1 MB |
+| landau_relaxation | S-shaped growth of phi from 0.1 to sqrt(0.5) | relaxation times follow 1 / (2 a (Tc - T)) below and 1 / (a (T - Tc)) above Tc | 0.4 s, 201 frames, 0.07 MB |
+| discrete_master_equation | space-time image of probability spreading into the potential valley | KL divergence from Boltzmann falls monotonically, exponentially late, for beta = 0.5, 1 | 0.5 s, 251 frames, 0.6 MB |
+| two_phase_zone_exchange | ten zones filling from zero and fluctuating around 10 | pooled occupations match binomial(100, 0.1), variance 8.99 vs 9 | 8.0 s, 201 frames, 0.05 MB |
+| q2r | ragged minority clusters in a majority sea | late \|m\| against conserved energy follows Onsager m(u), zero above u_c = -sqrt 2 | 3.9 s, 201 frames, 2.1 MB |
+| diffusion_limited_aggregation | branched yellow aggregate among scattered walkers | mass-radius slope 1.61, near d_f = 1.71 and below 2 | 9.9 s, 300 frames, 2.3 MB |
+| run_and_tumble | 100 bacteria scattered over the square | MSD matches the persistent-walk law for tumble rates 0.1 and 1 | 4.7 s, 300 frames, 0.5 MB |
+| depot_brownian_particles | ring of particles flying apart at a common speed | mean speed follows sqrt(q / gamma - c / d) above q_c = 2 | 2.2 s, 201 frames, 0.4 MB |
+| cucker_smale_flocking | 50 birds moving as a formation (dim colours) | velocity spread decays exponentially for beta = 0.25, stays for beta = 1.5 | 2.6 s, 201 frames, 0.1 MB |
