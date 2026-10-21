@@ -378,6 +378,10 @@ records the measurement in the proposal's dropped items and closes.
   again. It becomes the registered solver, the docstring says why, and the example passes it, which cuts its script
   from 31 s to 3.6 s. The thumbnail still shows the slipping blocks lighting up in the speed history. Per-member
   hidden events for fields remain a core gap.
+- `kuramoto_sivashinsky`: the cut reproduces and is the two-thirds rule of the spectral first derivative. With 128
+  modes on `32 π` the mean power over the last 50 frames of the registered run is 3.5e-2 at `q = 2.625`, the last
+  kept mode, against 3e3 at the peak `q = 0.625`, and about 1e-29 from `q = 2.69` on. The modes there decay at
+  `q⁴ - q²`, above 45, so the cut is harmless, and the docstring now states it.
 
 ### Obesity and priority queues
 

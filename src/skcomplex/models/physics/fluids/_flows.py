@@ -49,6 +49,12 @@ def kuramoto_sivashinsky(modes: int = 128, *, length: float = 32 * math.pi) -> S
     The field is spectral on a periodic line, started from `cos(x / 16) (1 + sin(x / 16))` as in Kassam and Trefethen,
     and the stiff fourth derivative suits exponential time differencing.
 
+    The derivative of the nonlinear term `u²/2` is dealiased by the two-thirds rule: it keeps only the wavenumbers
+    below a third of `2 π modes / length`, 2.67 for the defaults, so the spectrum drops to round-off from `q = 2.69`
+    on. The cut costs little, since the modes there decay at the rate `q⁴ - q²` above 45, and with the defaults the
+    power at the last kept mode is five decades below the peak near `q = 0.6`. More modes on the same length move the
+    cut up in proportion.
+
     Args:
         modes:
             The number of sites, and of Fourier modes.
