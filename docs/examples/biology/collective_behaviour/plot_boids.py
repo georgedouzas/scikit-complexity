@@ -23,7 +23,7 @@ MODEL = 'boids'
 flock = rrb.Spatial2DView(
     origin='/flock',
     name='flock',
-    visual_bounds=rrb.VisualBounds2D(x_range=(0.0, 40.0), y_range=(0.0, 40.0)),
+    visual_bounds=rrb.VisualBounds2D(x_range=(0.0, 40.0), y_range=(-40.0, 0.0)),
     overrides={'flock': rr.Points2D.from_fields(radii=0.55).visualizer()},
 )
 blueprint = rrb.Blueprint(

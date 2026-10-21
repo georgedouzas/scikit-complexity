@@ -254,3 +254,28 @@ def test_scalars_visual_logs_chosen_components():
     ScalarsVisual(components=[0, 1, 2]).log(logs, problem.elements[0], frame)
     scalars = [item for item in logs.of('ring/x') if type(item).__name__ == 'Scalars']
     assert len(scalars[0].scalars.as_arrow_array().to_pylist()) == 3
+
+
+def test_agents_visual_draws_continuous_spaces_with_vertical_axis_up():
+    """Test that agents in a continuous space are logged with y negated and the view covers the whole space."""
+    space = ContinuousSpace(10.0, 20.0)
+    snapshot = AgentSnapshot(np.arange(1), {'rank': np.zeros(1)}, np.array([[3.0, 4.0]]))
+    logs = Logs()
+    AgentsVisual().log_agents(logs, 'birds', snapshot, space)
+    assert logs.of('birds')[0].positions.as_arrow_array().to_pylist() == [[3.0, -4.0]]
+    problem, _ = _frames(create('obesity', n_people=10, n_places=4, random_state=0), steps=1, dt=1.0)
+    view = AgentsVisual().views(problem.agents[0], problem)[0]
+    bounds = view.properties['VisualBounds2D']
+    assert bounds is not None
+
+
+def test_colors_start_bright_enough_to_see_on_black():
+    """Test that the lowest color of the point scale is not the near-black purple of viridis."""
+    problem, frame = _first_frame(
+        System(elements=[Particle.group('bodies', 2, v=[[0.0, 0.0], [1.0, 0.0]])], space=EuclideanSpace(2)),
+    )
+    logs = Logs()
+    PointsVisual(position='x', color_by='v', states=()).log(logs, problem.elements[0], frame)
+    darkest = logs.of('bodies')[0].colors.as_arrow_array().to_pylist()[0]
+    red, green, blue = (darkest >> 24) & 0xFF, (darkest >> 16) & 0xFF, (darkest >> 8) & 0xFF
+    assert max(red, green, blue) >= 120

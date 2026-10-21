@@ -250,6 +250,22 @@ once. A restart at a crossing that lies within a hair of the end of a frame left
 which `commodity_cycle`, whose lookup tables give 14 hidden events, hit at `t = 2`, so `ScipyODE` now restarts at the
 end of such an interval instead of reporting a step without progress.
 
+### Blueprint clutter and point visibility
+
+`ScalarsVisual` leaves out the lag states, the companions of kind `lag` that keep the past values of a delayed
+state, so `delayed_sirs` logs `first.x` and not its twelve lags, and the blueprint counts only the shown series when
+it splits views at six. `ScalarsVisual(components=[...])` logs only chosen components of vector states, so a model
+such as `lorenz_96` can declare a readable subset. Grouping the series of one view by magnitude, for
+`impulsive_circuits`, `regenerative_braking`, and `power_grid`, is not done: a blueprint is built before the run and
+the initial values, often zero, do not tell the magnitudes apart, so it needs the observer to rebuild the blueprint
+after some frames, which belongs to a later change.
+
+Agents in a continuous space are logged with their second coordinate negated, like points and bodies, and the view of
+`AgentsVisual` is bounded by the space, so examples no longer write the bounds by hand. Agents on grids keep Rerun's
+orientation, since they share their views with lattice images. The custom bounds of `boids` and `swarmtaxis` are
+mirrored. The color scale of points, agents, and sites starts at a quarter of viridis, a blue that reads on black,
+instead of its near-black purple.
+
 ### Remaining items
 
 Each remaining item of the second log is reproduced at the start of its task. A task whose item does not reproduce

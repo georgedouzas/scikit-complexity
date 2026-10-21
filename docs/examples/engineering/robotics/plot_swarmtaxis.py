@@ -24,7 +24,7 @@ MODEL = 'swarmtaxis'
 arena = rrb.Spatial2DView(
     origin='/robots',
     name='arena',
-    visual_bounds=rrb.VisualBounds2D(x_range=(0.0, 60.0), y_range=(30.0, 70.0)),
+    visual_bounds=rrb.VisualBounds2D(x_range=(0.0, 60.0), y_range=(-70.0, -30.0)),
     overrides={'robots': rr.Points2D.from_fields(radii=0.8).visualizer()},
 )
 blueprint = rrb.Blueprint(

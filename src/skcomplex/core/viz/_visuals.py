@@ -46,6 +46,8 @@ SERIES_COLORS = (
     (204, 121, 167),
     (170, 170, 170),
 )
+POINT_FLOOR = 0.25
+VIEW_MARGIN = 0.05
 COLOR_SCALE = np.array(
     [[68, 1, 84], [59, 82, 139], [33, 145, 140], [94, 201, 98], [253, 231, 37]],
     dtype=float,
@@ -53,8 +55,9 @@ COLOR_SCALE = np.array(
 
 
 def _colors_of(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
-    """Return one color per value on a fixed scale from dark purple at `low` to yellow at `high`."""
+    """Return one color per value on a scale from blue at `low` to yellow at `high`, bright enough to see on black."""
     fractions = np.clip((values - low) / (high - low), 0.0, 1.0) if high > low else np.zeros_like(values)
+    fractions = POINT_FLOOR + (1.0 - POINT_FLOOR) * fractions
     anchors = np.linspace(0.0, 1.0, len(COLOR_SCALE))
     channels = [np.interp(fractions, anchors, COLOR_SCALE[:, channel]) for channel in range(3)]
     return np.stack(channels, axis=-1).round().astype(np.uint8)
@@ -483,7 +486,9 @@ class AgentsVisual(Visual):
     on a network as `GraphNodes` at their nodes, which keep the `pos` attributes of the nodes, or the positions of a
     seeded spring layout of the network. On a grid the radius is in cells, and on a network a fraction of the spacing
     of neighbouring nodes. Without a given radius, agents in a continuous space take a share of the side of the space,
-    smaller for larger groups. Every point carries the agent id as a hidden label, so agents keep their identity across
+    smaller for larger groups. Agents in a continuous space are logged with their second coordinate negated, so the
+    view, bounded by the space, draws them with the vertical axis up. Every point carries the agent id as a hidden
+    label, so agents keep their identity across
     frames and removed agents disappear. Agents whose position is a state are logged at that state: positions of one
     coordinate, such as cars on a road, as one thin series of one color per agent under `<path>/<position>`, so their
     time series view, without a legend, is a space-time diagram, and positions of two coordinates as `Points2D` with
@@ -628,6 +633,8 @@ class AgentsVisual(Visual):
         positions = np.asarray(snapshot.locations, dtype=float).reshape(len(snapshot), -1)
         if isinstance(space, GridSpace):
             positions = positions + 0.5
+        if isinstance(space, ContinuousSpace):
+            positions = positions * UPWARD
         radius = self._radius(space, positions)
         recording.log(path, rr.Points2D(positions, colors=colors, radii=radius, labels=labels, show_labels=False))
 
@@ -667,6 +674,14 @@ class AgentsVisual(Visual):
             low, high = positions.min(axis=0) - NODE_SPACING, positions.max(axis=0) + NODE_SPACING
             bounds = rrb.VisualBounds2D(x_range=(low[0], high[0]), y_range=(low[1], high[1]))
             return [rrb.GraphView(origin=element.path, name=element.path, visual_bounds=bounds)]
+        space = problem.agent_space
+        if isinstance(space, ContinuousSpace):
+            margin = VIEW_MARGIN * max(space.width, space.height)
+            bounds = rrb.VisualBounds2D(
+                x_range=(-margin, space.width + margin),
+                y_range=(-space.height - margin, margin),
+            )
+            return [rrb.Spatial2DView(origin=element.path, name=element.path, visual_bounds=bounds)]
         return [rrb.Spatial2DView(origin=element.path, name=element.path)]
 
 
