@@ -6,11 +6,13 @@ on, as every interval is substituted by its two outer thirds at every generation
 """
 
 # %%
-# The interval is substituted for eight generations, so the last patch holds 256 intervals of length `3^-8`. The
-# blueprint shows the intervals at the last generation.
+# The interval is substituted for eight generations, so the last patch holds 256 intervals of length `3^-8`. After the
+# run the first seven generations are logged once more as an image of stacked bars, the first at the top, and the
+# blueprint shows them as the primary view.
 
 import matplotlib.pyplot as plt
 import numpy as np
+import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.runtime import Simulation
@@ -21,9 +23,9 @@ MODEL = 'cantor_set'
 
 blueprint = rrb.Blueprint(
     rrb.Spatial2DView(
-        origin='/cantor',
-        name='cantor',
-        visual_bounds=rrb.VisualBounds2D(x_range=[-0.03, 1.03], y_range=[-0.1, 0.1]),
+        origin='/generations',
+        name='generations 0 to 6',
+        visual_bounds=rrb.VisualBounds2D(x_range=[-20, 749], y_range=[-20, 510]),
     ),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
     rrb.TopPanel(state='hidden'),
@@ -32,6 +34,12 @@ blueprint = rrb.Blueprint(
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 simulation = Simulation(create(MODEL), observers=[observer]).run(8)
 trajectory = simulation.trajectory_
+stack = np.zeros((490, 729, 3), dtype=np.uint8)
+for generation in range(7):
+    for (start, _), (end, _) in trajectory.structure('cantor', generation).segments():
+        stack[70 * generation : 70 * generation + 40, round(729 * start) : round(729 * end)] = [255, 170, 40]
+observer.recording_.log('generations', rr.Image(stack), static=True)
+observer.recording_.flush()
 
 # %%
 # Length and box-counting dimension
