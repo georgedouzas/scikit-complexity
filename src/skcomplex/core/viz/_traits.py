@@ -24,11 +24,11 @@ NUMERIC_KINDS = frozenset('biuf')
 
 
 def _numbers_of(values: object) -> npt.NDArray[np.float64] | None:
-    """Return one number per agent: the value, the mean of a row of numbers, or the size of a collection."""
+    """Return one number per agent: the value, the total of a row of numbers, or the size of a collection."""
     array = np.asarray(values)
     if array.dtype.kind in NUMERIC_KINDS:
         numbers = array.astype(float)
-        return numbers if numbers.ndim == 1 else numbers.reshape(len(numbers), -1).mean(axis=1)
+        return numbers if numbers.ndim == 1 else numbers.reshape(len(numbers), -1).sum(axis=1)
     items = list(np.ravel(array)) if array.ndim else [array.item()]
     if items and all(isinstance(item, Sized) and not isinstance(item, str) for item in items):
         return np.asarray([len(item) for item in items], dtype=float)
@@ -54,13 +54,13 @@ def _histogram(
 class TraitsVisual(AgentsVisual):
     """Visual that logs the traits of agents without a space as histograms and statistics.
 
-    For every trait of the agents, a number per agent is taken: the value of a numeric trait, the mean of a row of
-    numbers such as a genome, or the size of a collection such as a vocabulary. The visual logs the histogram of these
-    numbers as a `BarChart` under `<path>/<trait>/histogram`, over a range that widens to every value logged so far,
-    with one bar per value when the values are few integers, and their mean and standard deviation as series under
-    `<path>/<trait>/mean` and `<path>/<trait>/std`. Integer numbers, such as type labels, also log their number of
-    distinct values under `<path>/<trait>/distinct`, and a group of at most ten agents logs the number of every agent
-    as its own series under `<path>/<trait>/agents`. Traits of other kinds are left out.
+    For every trait of the agents, a number per agent is taken: the value of a numeric trait, the total of a row of
+    numbers such as the ones of a genome, or the size of a collection such as a vocabulary. The visual logs the
+    histogram of these numbers as a `BarChart` under `<path>/<trait>/histogram`, over a range that widens to every value
+    logged so far, with one bar per value when the values are few integers, and their mean and standard deviation as
+    series under `<path>/<trait>/mean` and `<path>/<trait>/std`. Integer numbers, such as type labels, also log their
+    number of distinct values under `<path>/<trait>/distinct`, and a group of at most ten agents logs the number of
+    every agent as its own series under `<path>/<trait>/agents`. Traits of other kinds are left out.
 
     Args:
         color_by:
@@ -206,7 +206,7 @@ def agents_visual_of(agents: CompiledAgents, problem: Problem) -> AgentsVisual:
     visual: Any = resolve_visual(agents.visual)
     if not isinstance(visual, AgentsVisual):
         visual = AgentsVisual()
-    if problem.agent_space is None and type(visual) is AgentsVisual:
+    if problem.agent_space is None and type(visual) is AgentsVisual and visual.position is None:
         return TraitsVisual(color_by=visual.color_by, color_range=visual.color_range)
     return visual
 

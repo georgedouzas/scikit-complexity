@@ -7,7 +7,7 @@ import rerun.blueprint as rrb
 from skcomplex.core.compile import compile_system
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import AgentSnapshot
-from skcomplex.core.viz import RerunObserver, TraitsVisual, agents_visual_of, default_blueprint
+from skcomplex.core.viz import AgentsVisual, RerunObserver, TraitsVisual, agents_visual_of, default_blueprint
 from skcomplex.models import create
 
 
@@ -117,3 +117,29 @@ def test_traits_visual_can_show_the_histogram_first():
     problem = compile_system(create('deffuant'))
     views = TraitsVisual(color_by='opinion', histogram_first=True).views(problem.agents[0], problem)
     assert [type(view).__name__ for view in views] == ['BarChartView', 'TimeSeriesView', 'TimeSeriesView']
+
+
+def test_traits_visual_totals_rows_of_numbers():
+    """Test that a trait holding a row of numbers per agent, such as an inventory of known words, logs its total."""
+    visual, logs = TraitsVisual(), Logs()
+    words = np.array([[1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [1.0, 1.0, 1.0]])
+    visual.log_agents(logs, 'namers', AgentSnapshot(np.arange(3), {'words': words}), None)
+    assert logs.of('namers/words/mean')[0].scalars.as_arrow_array().to_pylist() == [2.0]
+
+
+def test_agents_visual_draws_one_dimensional_positions_on_a_line():
+    """Test that agents whose position state has one coordinate are drawn as points on a line in a 2D view."""
+    visual, logs = AgentsVisual(position='x', color_by='v'), Logs()
+    snapshot = AgentSnapshot(np.arange(3), {'x': np.array([1.0, 4.0, 9.0]), 'v': np.array([0.0, 1.0, 2.0])})
+    visual.log_agents(logs, 'cars', snapshot, None)
+    points = logs.of('cars')[0].positions.as_arrow_array().to_pylist()
+    assert points == [[1.0, 0.0], [4.0, 0.0], [9.0, 0.0]]
+
+
+def test_charbonneau_traffic_has_a_road_view():
+    """Test that the cars of Charbonneau's traffic model keep the agents visual and get a 2D view of the road."""
+    problem = compile_system(create('charbonneau_traffic'))
+    visual = agents_visual_of(problem.agents[0], problem)
+    assert not isinstance(visual, TraitsVisual)
+    views = visual.views(problem.agents[0], problem)
+    assert type(views[0]).__name__ == 'Spatial2DView'
