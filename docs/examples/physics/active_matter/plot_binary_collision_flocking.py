@@ -27,8 +27,7 @@ MODEL = 'binary_collision_flocking'
 torus = rrb.Spatial2DView(
     origin='/birds',
     name='birds',
-    # Points are drawn with y negated so that y points up, so the vertical range is mirrored.
-    visual_bounds=rrb.VisualBounds2D(x_range=(0.0, 20.0), y_range=(-20.0, 0.0)),
+    visual_bounds=rrb.VisualBounds2D(x_range=(0.0, 20.0), y_range=(0.0, 20.0)),
     overrides={'birds': rr.Points2D.from_fields(radii=0.25).visualizer()},
 )
 blueprint = rrb.Blueprint(
