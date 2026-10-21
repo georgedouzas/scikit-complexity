@@ -69,6 +69,19 @@ def _last_observer(example: Example, variables: dict[str, Any]) -> RerunObserver
     return observers[-1]
 
 
+def _quiet_matplotlib() -> None:
+    """Switch Matplotlib to its non-interactive backend and make `plt.show` do nothing, even if it is imported.
+
+    A worker runs several examples, and once any module has imported `pyplot` the environment variable no longer
+    chooses the backend, so on macOS an example's `plt.show()` would open a window and wait for it to close.
+    """
+    import matplotlib as mpl  # noqa: PLC0415
+    import matplotlib.pyplot as plt  # noqa: PLC0415
+
+    mpl.use('agg', force=True)
+    plt.show = lambda *_, **__: None
+
+
 def run_example(example: Example, build: GalleryBuild, budget: Budget) -> RunReport:
     """Run an example in a temporary folder, and capture or take from the cache its thumbnail.
 
@@ -89,6 +102,7 @@ def run_example(example: Example, build: GalleryBuild, budget: Budget) -> RunRep
             The report of the run, with the error that failed it.
     """
     os.environ['MPLBACKEND'] = 'agg'
+    _quiet_matplotlib()
     start = time.perf_counter()
     with tempfile.TemporaryDirectory() as folder:
         os.chdir(folder)
