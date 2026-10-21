@@ -5,6 +5,7 @@ from ._bodies import BodiesVisual
 from ._expectations import ExpectationVisual
 from ._geometry import GeometryVisual
 from ._rerun import RerunObserver
+from ._traits import TraitsVisual, agents_visual_of
 from ._visuals import (
     VISUALS,
     AgentsVisual,
@@ -30,7 +31,9 @@ __all__: list[str] = [
     'RerunObserver',
     'ScalarsVisual',
     'SiteVisual',
+    'TraitsVisual',
     'Visual',
+    'agents_visual_of',
     'default_blueprint',
     'primary_view',
     'register_visual',

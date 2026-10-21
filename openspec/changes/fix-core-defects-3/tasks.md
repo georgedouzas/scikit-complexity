@@ -27,7 +27,7 @@ task removes the workaround.
 
 - [x] 3.1 Widen color ranges that are not given in the points, agents, and sites visuals, and verify the
   agents-that-start-equal scenario
-- [ ] 3.2 Add `TraitsVisual`, make it the default of agent groups without a space, verify the Moran process scenario,
+- [x] 3.2 Add `TraitsVisual`, make it the default of agent groups without a space, verify the Moran process scenario,
   and curate the unblocked scaffolds
 - [ ] 3.3 Draw agents of one coordinate on a line, verify the traffic scenario, and curate `charbonneau_traffic`
 - [ ] 3.4 Give fields on networks the sites visual, verify the network diffusion scenario, and curate the unblocked

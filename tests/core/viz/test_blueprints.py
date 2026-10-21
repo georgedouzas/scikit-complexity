@@ -207,13 +207,13 @@ def test_primary_view_of_one_dimensional_lattice_is_space_time():
     assert str(view.name) == 'alive history'
 
 
-def test_primary_view_of_agents_without_space_is_reporters():
-    """Test that agents without a space get no spatial view, so the reporters come first."""
+def test_primary_view_of_agents_without_space_is_a_trait_histogram():
+    """Test that agents without a space show the histogram of their colored trait first, not the reporters."""
     problem = compile_system(create('moran_process'))
     assert problem.agent_space is None
     assert AgentsVisual().views(problem.agents[0], problem) == []
     view = primary_view(problem)
-    assert (type(view).__name__, str(view.name)) == ('TimeSeriesView', 'reporters')
+    assert (type(view).__name__, str(view.origin)) == ('BarChartView', 'population/trait/histogram')
 
 
 def test_views_of_image_without_history_leave_out_space_time():
