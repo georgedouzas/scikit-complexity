@@ -40,6 +40,8 @@ LSODA_LARGEST_SIZE = 4096
 STALL_STEP = 1e-9
 RESTING_SPAN = 1e-9
 STALL_STEPS = 1000
+MAX_FRAME_STEPS = 50_000
+BLOW_UP = 1e12
 SMALL_NORM = 1e-5
 TINY_NORM = 1e-15
 FALLBACK_STEP = 1e-6
@@ -244,6 +246,7 @@ class ScipyODE(Stepper):
         self._exact = False
         self._warned = False
         self._stalled = 0
+        self._frame_steps = 0
         self.method_ = 'LSODA' if self.method == 'auto' else self.method
         if self.method_ in IMPLICIT and self.jacobian != 'dense' and problem.jacobian is not None:
             self._prepare_jacobian(problem)
@@ -397,6 +400,14 @@ class ScipyODE(Stepper):
             start, before = solver.t, solver.y.copy()
             message = solver.step()
             if solver.status == 'failed':
+                largest = float(np.max(np.abs(solver.y))) if solver.y.size else 0.0
+                if not np.isfinite(largest) or largest > BLOW_UP:
+                    error_msg = (
+                        f'The solution blows up near t = {start}: the largest state reaches {largest:.3g}, and the '
+                        f'{self.method_} integrator cannot follow it. Check the laws for growth without bound, or end '
+                        'the run before it.'
+                    )
+                    raise SolverError(error_msg)
                 error_msg = f'The {self.method_} integrator failed at t = {start}: {message}'
                 raise SolverError(error_msg)
             if solver.t == start and solver.t_bound - start <= 2 * RESTART * max(1.0, abs(start)):
@@ -417,8 +428,25 @@ class ScipyODE(Stepper):
         return segment
 
     def _stalls(self, start: float, end: float) -> bool:
-        """Check whether LSODA has taken many consecutive steps too short to advance the run."""
-        if self.method_ != 'LSODA' or end - start >= STALL_STEP * max(1.0, abs(end)):
+        """Check whether LSODA has taken many consecutive steps too short to advance the run, or too many in a frame.
+
+        Raises:
+            SolverError:
+                Another integrator takes too many steps in one frame, as when a state slides along a discontinuity.
+        """
+        self._frame_steps += 1
+        if self.method_ != 'LSODA':
+            if self._frame_steps >= MAX_FRAME_STEPS:
+                error_msg = (
+                    f'The {self.method_} integrator took {MAX_FRAME_STEPS} steps in one frame at t = {end}, as when a '
+                    'state slides along a discontinuity of the drift, which no adaptive integrator crosses. Smooth the '
+                    'switch of the law, or use a fixed step with RK4.'
+                )
+                raise SolverError(error_msg)
+            return False
+        if self._frame_steps >= MAX_FRAME_STEPS:
+            return True
+        if end - start >= STALL_STEP * max(1.0, abs(end)):
             self._stalled = 0
             return False
         self._stalled += 1
@@ -426,19 +454,24 @@ class ScipyODE(Stepper):
 
     def _leave_lsoda(self, t: float, x: Vector, p: Vector) -> None:
         """Continue with `RK45` after LSODA stalls on a default method, or raise the named error on an explicit one."""
+        cause = (
+            f'{MAX_FRAME_STEPS} steps in one frame'
+            if self._frame_steps >= MAX_FRAME_STEPS
+            else f'{STALL_STEPS} consecutive steps shorter than {STALL_STEP:g} of the time'
+        )
         if self.method != 'auto':
             error_msg = (
-                f'The LSODA integrator stalled at t = {t}: {STALL_STEPS} consecutive steps are shorter than '
-                f'{STALL_STEP:g} of the time, as when a state rests on a discontinuity of the drift. Use '
-                "ScipyODE(method='RK45'), which needs no Jacobian."
+                f'The LSODA integrator stalled at t = {t} with {cause}, as when a state rests on a discontinuity of '
+                "the drift or slides along one. Use ScipyODE(method='RK45'), which needs no Jacobian."
             )
             raise SolverError(error_msg)
         warning_msg = (
-            f'LSODA stalled at t = {t} with {STALL_STEPS} consecutive steps shorter than {STALL_STEP:g} of the time, '
-            'as when a state rests on a discontinuity of the drift, so the run continues with RK45.'
+            f'LSODA stalled at t = {t} with {cause}, as when a state rests on a discontinuity of the drift or slides '
+            'along one, so the run continues with RK45.'
         )
         warnings.warn(warning_msg, UserWarning, stacklevel=5)
         self.method_, self.jacobian_options_, self._exact, self._stalled = 'RK45', {}, False, 0
+        self._frame_steps = 0
         self._restart(t, x, p)
 
     def _first_change(self, dense: Callable[[float], Vector], end: float, p: Vector) -> float:
@@ -517,6 +550,7 @@ class ScipyODE(Stepper):
         if problem.delays and self.history_ is None:
             self.history_ = History(problem, t, x, extrapolate=True)
         self._until = until
+        self._frame_steps = 0
         self._warn_stiff(t, until)
         if not self._continues(t, x, p):
             self._frame = until - t

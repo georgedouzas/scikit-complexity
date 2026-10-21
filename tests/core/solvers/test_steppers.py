@@ -5,7 +5,7 @@ import time
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import sin
+from sage.all__sagemath_symbolics import ceil, sin
 from scipy.integrate import solve_ivp
 
 from skcomplex.core.base import SolverError, role
@@ -223,3 +223,18 @@ def test_scipy_ode_restarts_on_parameter_change():
     values = simulation.extend(until=10).trajectory_['a.n']
     assert values[500] == pytest.approx(np.exp(-5.0), rel=1e-5)
     assert np.all(values[500:] == values[500])
+
+
+Chatter = Element.define('Chatter', states={'w': 20.0}, laws=lambda s: [Rate(s.w, 5 - 10 * ceil(s.w / 100))])
+
+
+def test_default_solver_names_a_state_sliding_along_a_discontinuity():
+    """Test that a state sliding along a switch no event sees ends in a named error instead of a run without end."""
+    with pytest.warns(UserWarning, match='LSODA stalled'), pytest.raises(SolverError, match='slides along'):
+        Simulation(System(elements=[Chatter('tub')]), dt=1).run(until=6)
+
+
+def test_default_solver_names_a_blow_up():
+    """Test that a solution that blows up in finite time ends in an error that names the blow-up."""
+    with pytest.raises(SolverError, match='blows up'):
+        Simulation(create('takens_bogdanov_form', x=5.0, y=5.0, beta1=0.1, beta2=-1.0), dt=0.1).run(until=50)
