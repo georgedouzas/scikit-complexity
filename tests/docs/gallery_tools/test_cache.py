@@ -57,6 +57,15 @@ def test_cache_key_depends_on_model_sources(example, tmp_path):
     assert cache_key(example, [epidemiology], 'native', CaptureSettings()) == keys[1]
 
 
+def test_model_sources_include_core_code():
+    """Test that the sources of an example's key hold the core package next to the subfield of its model."""
+    sources = model_sources('lotka_volterra')
+    assert sources[0].parent.name == 'ecology'
+    assert any(path.parts[-3:] == ('core', 'viz', '_visuals.py') for path in sources)
+    assert any(path.parts[-3:] == ('core', 'runtime', '__init__.py') for path in sources)
+    assert not any('epidemiology' in path.parts for path in sources)
+
+
 def test_screenshot_cache_stores_and_returns_thumbnails(tmp_path, thumbnail):
     """Test that a stored thumbnail is returned under its key and a missing one is not."""
     cache = ScreenshotCache(tmp_path / 'cache')
