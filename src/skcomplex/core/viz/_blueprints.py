@@ -64,12 +64,14 @@ def _whole_run(view: rrb.View) -> rrb.View:
     """Return a time series view with the whole-run time axis and readable lines, and any other view unchanged."""
     if not isinstance(view, rrb.TimeSeriesView) or 'TimeAxis' in view.properties:
         return view
+    legend = view.properties.get('PlotLegend')
     return rrb.TimeSeriesView(
         origin=view.origin,
         contents=view.contents,
         name=view.name,
         defaults=[rr.SeriesLines.from_fields(widths=SERIES_WIDTH)],
         axis_x=WHOLE_RUN,
+        plot_legend=legend if isinstance(legend, rrb.PlotLegend) else None,
     )
 
 

@@ -127,19 +127,18 @@ def test_traits_visual_totals_rows_of_numbers():
     assert logs.of('namers/words/mean')[0].scalars.as_arrow_array().to_pylist() == [2.0]
 
 
-def test_agents_visual_draws_one_dimensional_positions_on_a_line():
-    """Test that agents whose position state has one coordinate are drawn as points on a line in a 2D view."""
+def test_agents_visual_logs_one_dimensional_positions_as_series():
+    """Test that agents whose position state has one coordinate log one position series per agent."""
     visual, logs = AgentsVisual(position='x', color_by='v'), Logs()
     snapshot = AgentSnapshot(np.arange(3), {'x': np.array([1.0, 4.0, 9.0]), 'v': np.array([0.0, 1.0, 2.0])})
     visual.log_agents(logs, 'cars', snapshot, None)
-    points = logs.of('cars')[0].positions.as_arrow_array().to_pylist()
-    assert points == [[1.0, 0.0], [4.0, 0.0], [9.0, 0.0]]
+    assert logs.of('cars/x')[0].scalars.as_arrow_array().to_pylist() == [1.0, 4.0, 9.0]
 
 
-def test_charbonneau_traffic_has_a_road_view():
-    """Test that the cars of Charbonneau's traffic model keep the agents visual and get a 2D view of the road."""
+def test_charbonneau_traffic_has_a_space_time_view():
+    """Test that the cars of Charbonneau's traffic model keep the agents visual and get a space-time view."""
     problem = compile_system(create('charbonneau_traffic'))
     visual = agents_visual_of(problem.agents[0], problem)
     assert not isinstance(visual, TraitsVisual)
     views = visual.views(problem.agents[0], problem)
-    assert type(views[0]).__name__ == 'Spatial2DView'
+    assert (type(views[0]).__name__, str(views[0].origin)) == ('TimeSeriesView', 'cars/x')
