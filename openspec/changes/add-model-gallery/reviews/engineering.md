@@ -35,3 +35,4 @@
 | solid_waste | landfill filling, then closing | landfilling rises until the acceptance table closes the landfill, then dumping | 0.2 s run, 81 frames, 0.13 MB |
 | traffic_density_equation | density waves growing from the uniform flow | log Fourier amplitudes grow at the linear rate, fastest near q = 0.9 | 0.9 s run, 101 frames, 0.74 MB |
 | charbonneau_traffic | space-time diagram of 100 cars whose lines run flat in jams that drift backwards while the platoon advances | speed-colored scatter of position against step shows dark jam bands moving against the traffic | 1.5 s, 201 frames, 0.18 MB |
+| light_seeking_robots | x of 20 robots shuttling between the walls at -2 and 2 across the light at 0 | mean light intensity at 40 robots after t = 50 falls from ~0.17 for delays 0 and 1 to ~0.13 for delays 3 to 8; long delays reach the centre less often | 33 s script, 201 frames, 0.41 MB |

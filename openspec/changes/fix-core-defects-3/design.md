@@ -237,6 +237,20 @@ records the measurement in the proposal's dropped items and closes.
   to `1 + 2 J / sigma^2 = 3`.
 - `living_crystals`: clusters form only with attraction (4.4 contacts per colloid against 0.7) and slowly coarsen,
   keeping 78 % of their contacts over 40 time units, so they do not keep rearranging.
+- `gimballed_gyroscope` does not reproduce. Its Lagrange equations match an independent SciPy integration, and the
+  precession rate nutates between 0 and twice its mean at about 60 rad/s. The reproducer read it once per time unit,
+  near the zeros of the nutation. The mean rate over 10 time units is `-torque / (C spin cos beta)` within 0.1 % for
+  spins 25, 50, and 100.
+- `huygens_clocks` reproduces: the default first clock starts at `theta = theta_c`, on the switch of the escapement
+  `sign(|theta| - theta_c)`, and LSODA grinds there (2 time units took 800 s). Starting at `theta = 0.2` the default
+  run takes 9 s to `t = 20`, and the clocks lock in antiphase by `t = 55`. Sign conditions in laws give no hidden
+  events, and the stall guard did not fire.
+- `meadow_capacity`: the model follows its rules. Every grown patch is grazed at the same pace, so a herd above the
+  capacity finds no grown patch in the same week and dies at once. The docstring now says so, and gives the capacity
+  without regrowth as `width * height / 26`: 61 cows survive the summer, 64 do not.
+- `stigmergic_predator_prey` reproduces: offspring started with zero hunger, so prey kept breeding for ten steps after
+  the plants were gone and reached 736. Offspring now take their parent's hunger, and the prey die out within 12
+  steps of the plants.
 
 ## Risks / Trade-offs
 
