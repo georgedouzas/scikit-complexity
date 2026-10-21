@@ -234,6 +234,12 @@ Two gaps remain for task 9.3. A true sliding mode on a switch that hidden events
 minutes without the stall guard firing. The guard of `fix-core-defects-2` still catches a state that rests on a switch
 of a group member, which its test now uses instead of the bathtub.
 
+Hidden events are compiled for flows only: the map and lattice steppers reject events, and the first run of the
+catalog with hidden events broke `tent_map` and `baker_map`. Opposite conditions such as `x < a` and `x >= a` count
+once. A restart at a crossing that lies within a hair of the end of a frame left `LSODA` an interval too short to step,
+which `commodity_cycle`, whose lookup tables give 14 hidden events, hit at `t = 2`, so `ScipyODE` now restarts at the
+end of such an interval instead of reporting a step without progress.
+
 ### Remaining items
 
 Each remaining item of the second log is reproduced at the start of its task. A task whose item does not reproduce

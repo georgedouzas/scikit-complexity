@@ -399,6 +399,9 @@ class ScipyODE(Stepper):
             if solver.status == 'failed':
                 error_msg = f'The {self.method_} integrator failed at t = {start}: {message}'
                 raise SolverError(error_msg)
+            if solver.t == start and solver.t_bound - start <= 2 * RESTART * max(1.0, abs(start)):
+                self._restart(solver.t_bound, before, p)
+                continue
             if solver.t == start or not np.all(np.isfinite(solver.y)):
                 error_msg = (
                     f'The {self.method_} integrator failed at t = {start}: its step makes no progress or the state is '
