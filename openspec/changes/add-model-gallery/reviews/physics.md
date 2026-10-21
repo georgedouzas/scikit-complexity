@@ -29,3 +29,5 @@
 | ott_antonsen | sigmoid growth of coherence to sqrt(1/2) | growth on the exact logistic solution; final r on sqrt(1 - 2 Delta / K) | 0.6 s, 201 frames, 56 KB |
 | mirollo_strogatz | five sawtooth charges merging into one | number of groups of 30 oscillators falls stepwise to 1 | 0.7 s, 201 frames, 52 KB |
 | aggregate_averaging_synchronization | two chaotic maps on one curve after a transient | difference vanishes exactly in the window 1/4 < kappa < 3/4 | 0.2 s, 51 frames, 29 KB |
+| coupled_rossler | chaotic peaks of the two oscillators in step | phase difference drifts at k = 0, stays bounded at k = 0.06 | 4.2 s, 251 frames, 160 KB |
+| delayed_kuramoto | unwrapped phases settling on parallel lines | locked frequencies on the stable branch of Omega = 1 - K' sin(Omega tau) up to tau = 2 | 5.2 s, 251 frames, 646 KB |
