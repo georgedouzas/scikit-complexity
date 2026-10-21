@@ -25,8 +25,9 @@
 
 - [x] 5.1 Add the models that probe the primitives in distinct ways as registered factories with gallery examples,
   rebuild `bathtub` and `car_dealer` on flows, and verify the inventory scenario and the conformance suite
-- [ ] 5.2 Add `energy_return`, `cocoa`, `hilsa_fishery`, `food_security`, `renewable_resource`, and
-  `nonrenewable_resource`, which repeat patterns the implemented models already probe
+- [x] 5.2 Add `energy_return`, `cocoa`, `hilsa_fishery`, and `food_security`, which repeat patterns the implemented
+  models already probe, and rebuild `oil_economy` and `fishery_capital`, Meadows' nonrenewable and renewable
+  resources, on flows in place of the duplicate entries `renewable_resource` and `nonrenewable_resource`
 
 ## 6. Documentation and gate
 

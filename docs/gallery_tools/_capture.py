@@ -216,10 +216,11 @@ class NativeCapturer(Capturer):
         arguments = ['--headless', '--port', str(self._port), '--hide-welcome-screen', '--window-size']
         self._process = _start_viewer([*arguments, f'{width}x{height}'], self._home)
         self._url = f'rerun+http://127.0.0.1:{self._port}/proxy'
-        self._client = ViewerClient.connect(self._url)
         deadline = time.monotonic() + STARTUP_SECONDS
         while True:
             try:
+                # Connecting fails until the viewer listens, which takes longer on a busy machine, so it is retried.
+                self._client = ViewerClient.connect(self._url)
                 self._client.viewer_state()
             except ConnectionError:
                 if time.monotonic() > deadline or self._process.poll() is not None:
