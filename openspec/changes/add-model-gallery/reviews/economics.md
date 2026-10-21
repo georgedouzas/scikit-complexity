@@ -23,3 +23,4 @@
 | arthur_polak | pool of technologies growing in rare jumps | over 12 runs the step of invention grows with the NAND cost of the invention | 3.1 s, 151 frames, 0.03 MB |
 | creative_phase_transition | diversity bursting from 0.1 to 1 as the new share spikes | final diversity of the simulation lies on the directly iterated map for three x0, jumping at a critical r that falls with x0 | 0.3 s, 21 frames, 0.02 MB |
 | nk_technology | total cost falling in ever rarer steps | mean cost over 8 designs is a power law; exponent 0.99 for d = 1, 0.42 and 0.31 for d = 2, 3, approaching 1 / d from below | 7.4 s, 251 frames, 0.04 MB |
+| phone_adoption | household grid in 1969, phones filling the upper-class quarter and spreading | per class, phone share rises on an S-curve below the share that can afford one; lag longest for the lower class | 0.5 s, 19 frames, 0.12 MB |
