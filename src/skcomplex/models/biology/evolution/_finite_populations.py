@@ -547,7 +547,15 @@ def adaptive_climbing(
     """
     fitness = _random_fitness(0, seed)
     return System(
-        elements=[Individual.group('population', size, trait=0.0, fitness=fitness)],
+        elements=[
+            Individual.group(
+                'population',
+                size,
+                trait=0.0,
+                fitness=fitness,
+                visual=VisualSpec('agents', {'color_by': 'fitness'}),
+            ),
+        ],
         interactions=[AdaptiveClimbing('climbing', population='population', u=u, length=length, seed=seed)],
     )
 
