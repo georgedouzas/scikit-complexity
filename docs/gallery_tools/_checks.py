@@ -7,6 +7,7 @@ import itertools
 import re
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -473,7 +474,7 @@ def caption_series(source: str) -> list[str]:
 
 def _expressions(view: rrb.View) -> list[tuple[bool, str]]:
     """Return the entity path expressions of a view's contents, whether each includes, and its path pattern."""
-    contents = view.contents if view.contents is not None else '$origin/**'
+    contents: Any = view.contents if view.contents is not None else '$origin/**'
     lines = contents.splitlines() if isinstance(contents, str) else [str(line) for line in contents]
     origin = str(view.origin).rstrip('/')
     expressions = []

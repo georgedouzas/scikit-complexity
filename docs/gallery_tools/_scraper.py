@@ -137,7 +137,7 @@ class RerunScraper:
             shutil.rmtree(self._folder, ignore_errors=True)
         self._folder = Path(tempfile.mkdtemp(prefix=f'{Path(file).stem}-'))
         _REDIRECT.source, _REDIRECT.target = Path(file).resolve().parent, self._folder
-        RerunObserver.on_start = _on_start  # type: ignore[method-assign]
+        RerunObserver.on_start = _on_start  # type: ignore[method-assign,unused-ignore]
         self._start, self._captured = time.perf_counter(), 0.0
 
     def _seconds(self) -> float | None:
