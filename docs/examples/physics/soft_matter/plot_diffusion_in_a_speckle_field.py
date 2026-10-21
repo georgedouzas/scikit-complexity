@@ -29,7 +29,8 @@ system = create(MODEL, n_particles=300, strength=30.0, random_state=0)
 view = rrb.Spatial2DView(
     origin='/beads',
     name='beads',
-    visual_bounds=rrb.VisualBounds2D(x_range=(0, 100), y_range=(0, 100)),
+    # Points are drawn with y negated so that y points up, so the vertical range is mirrored.
+    visual_bounds=rrb.VisualBounds2D(x_range=(0, 100), y_range=(-100, 0)),
     overrides={'beads': rr.Points2D.from_fields(radii=0.8).visualizer()},
 )
 blueprint = rrb.Blueprint(
