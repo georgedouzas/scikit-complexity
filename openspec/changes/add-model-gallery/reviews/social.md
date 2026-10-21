@@ -18,5 +18,4 @@
 | watts_cascades | network with a global cascade (yellow adopters) | probability of a global cascade falls from 1 to 0 between thresholds 0.16 and 0.26; outcomes all or nothing | 12 s script, 31 frames, 0.08 MB |
 | employment_takeover | final colour field split into two large frozen regions | changing cells drop from 314 to 0 by step ~42; employer and worker shares freeze at 0.36 | 4 s script, 51 frames, 0.04 MB |
 | insider_sabotage | employees on the office grid coloured by risk, a few bright | mean risk rises 0.63 to 1.01 and the 90th percentile 1.05 to 1.8 over the year; distribution widens | 5 s script, 183 frames, 0.40 MB |
-| employment_takeover | final colour field split into two large frozen regions | changing cells drop from 314 to 0 by step ~42; employer and worker shares freeze at 0.36 | 4 s script, 51 frames, 0.04 MB |
-| insider_sabotage | employees on the office grid coloured by risk, a few bright | mean risk rises 0.63 to 1.01 and the 90th percentile 1.05 to 1.8 over the year; distribution widens | 5 s script, 183 frames, 0.40 MB |
+| trafficking | dark houses and free women scattered over the grid, bright brothel cells holding the victims | quarterly bills of the 3 brothels (70 to 89) stand above all 40 houses (at most ~50) in every quarter | 5 s script, 181 frames, 0.12 MB |
