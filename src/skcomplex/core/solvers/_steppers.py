@@ -38,6 +38,7 @@ def _is_hybrid(problem: Problem, t: float, until: float) -> bool:
 
 LSODA_LARGEST_SIZE = 4096
 STALL_STEP = 1e-9
+RESTING_SPAN = 1e-9
 STALL_STEPS = 1000
 SMALL_NORM = 1e-5
 TINY_NORM = 1e-15
@@ -453,7 +454,12 @@ class ScipyODE(Stepper):
         return high
 
     def _to_event(self, p: Vector, until: float) -> None:
-        """Integrate the current step up to a time or to its first event, and apply the event or the boundary."""
+        """Integrate the current step up to a time or to its first event, and apply the event or the boundary.
+
+        The integrator restarts where a boundary law first changes the state. When that happens at once after a
+        restart, the state rests on the boundary while the drift pushes it out, as for a clipped stock under a
+        constant inflow, so the step runs to its end and the boundary projects the state there instead.
+        """
         segment = self._next_segment(p)
         end = min(segment.end, until)
         after = segment.after if end == segment.end else np.asarray(segment.dense(end), dtype=float)
@@ -471,6 +477,8 @@ class ScipyODE(Stepper):
             self._time, self._state = end, after
             return
         time = self._first_change(segment.dense, end, p)
+        if time - self._time <= RESTING_SPAN * max(1.0, abs(time)):
+            time = end
         self._restart(time, self._bounded(time, np.asarray(segment.dense(time), dtype=float), p), p)
 
     def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
