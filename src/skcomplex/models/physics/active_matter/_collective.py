@@ -372,7 +372,7 @@ def living_crystals(
     k: float = 200.0,
     random_state: int | np.random.Generator | None = 0,
 ) -> System:
-    """Return active colloids of radius 1 with phoretic attraction, which gather into clusters that keep rearranging.
+    """Return active colloids of radius 1 with phoretic attraction, which gather into clusters that slowly coarsen.
 
     The colloids swim as active Brownian particles, drift towards each other at the speed `v0 / r^2` within the
     cutoff, and a stiff soft repulsion stands in for the hard-sphere correction at contact.

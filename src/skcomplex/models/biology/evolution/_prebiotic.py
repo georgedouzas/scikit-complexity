@@ -241,10 +241,10 @@ def hypercycles(
 ) -> System:
     """Return a network of self-replicating molecules whose catalysis keeps a set of them alive, a hypercycle.
 
-    The growth rates rise as `lambda_i = alpha i`. In a `'cycle'`, every molecule catalyses the next one, and the
-    hypercycle keeps all of them, at a fixed point up to four molecules and on a limit cycle from five. In a
-    `'complete'` network every molecule catalyses every other, and about `sqrt(2 omega / alpha)` of the fastest
-    replicators survive while the others die out.
+    The growth rates rise as `lambda_i = alpha i`. In a `'cycle'`, every molecule catalyses the next one. Up to four
+    molecules the hypercycle keeps all of them at a fixed point, and from five some members die out and the others
+    settle at a fixed point. In a `'complete'` network every molecule catalyses every other, and about
+    `sqrt(2 omega / alpha)` of the fastest replicators survive while the others die out.
 
     Args:
         molecules:

@@ -73,7 +73,7 @@ def bouchaud_mezard_wealth(
     agent exchanges with the group mean, `(J N / (N - 1)) (<W> - W_i)`, the complete graph at a cost linear in the
     number of agents. A given graph keeps the agents on a field with its Laplacian. Exchange conserves the total wealth,
     and on the complete graph the relative wealth `W_i / <W>` approaches a stationary distribution with the Pareto tail
-    of exponent `1 + J / sigma^2`.
+    `P(W_i / <W> > w) ~ w^-mu` of exponent `mu = 1 + 2 J / sigma^2`.
 
     Args:
         n_agents:
