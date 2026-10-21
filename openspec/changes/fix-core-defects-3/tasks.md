@@ -47,9 +47,9 @@ task removes the workaround.
   `light_seeking_robots`, `meadow_capacity`, and `stigmergic_predator_prey`, each with a regression test
 - [ ] 5.3 Correct the docstrings of `circadian_clock`, `hypercycles`, `bouchaud_mezard_wealth`, and
   `living_crystals`
-- [ ] 5.4 Scale the defaults of `chemical_langevin_equation` to a volume five times smaller with `until = 200`, and
+- [x] 5.4 Scale the defaults of `chemical_langevin_equation` to a volume five times smaller with `until = 200`, and
   verify the switching scenario and its catalog tests
-- [ ] 5.5 Set `g = 34` in `hodgepodge` and `HodgepodgeCell`, and verify the waves scenario and its catalog tests
+- [x] 5.5 Set `g = 34` in `hodgepodge` and `HodgepodgeCell`, and verify the waves scenario and its catalog tests
 
 ## 6. Visual defaults
 

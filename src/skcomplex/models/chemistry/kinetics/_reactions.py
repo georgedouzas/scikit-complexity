@@ -159,8 +159,8 @@ class Dissociation(Interaction):
 
 Schlogl = Element.define(
     'Schlogl',
-    states={'x': state(default=250.0, domain=Domain.REAL)},
-    parameters={'c1': 3e-7, 'c2': 1e-4, 'c3': 1e-3, 'c4': 3.5, 'A': 1e5, 'B': 2e5},
+    states={'x': state(default=50.0, domain=Domain.REAL)},
+    parameters={'c1': 1.5e-6, 'c2': 2.5e-3, 'c3': 2e-4, 'c4': 3.5, 'A': 1e5, 'B': 2e5},
     laws=_schlogl_laws,
 )
 
@@ -227,14 +227,14 @@ def michaelis_menten(
     field='chemistry/kinetics',
     tags=('sde', 'chemical Langevin equation', 'bistability', 'noise'),
     references=('Schlögl 1972', 'Gillespie 2000', 'Trzaska 2023'),
-    defaults={'until': 5.0, 'dt': 0.05, 'solver': EulerMaruyama(dt=1e-3)},
+    defaults={'until': 200.0, 'dt': 0.05, 'solver': EulerMaruyama(dt=1e-3)},
 )
 def chemical_langevin_equation(
-    x: float = 250.0,
+    x: float = 50.0,
     *,
-    c1: float = 3e-7,
-    c2: float = 1e-4,
-    c3: float = 1e-3,
+    c1: float = 1.5e-6,
+    c2: float = 2.5e-3,
+    c3: float = 2e-4,
     c4: float = 3.5,
     A: float = 1e5,
     B: float = 2e5,
@@ -243,7 +243,9 @@ def chemical_langevin_equation(
 
     The channels `A + 2X -> 3X`, `3X -> A + 2X`, `B -> X`, and `X -> B` have the propensities `c1 A x (x - 1) / 2`,
     `c2 x (x - 1) (x - 2) / 6`, `c3 B`, and `c4 x`. Every channel adds its propensity times its change of `x` to the
-    drift and drives `x` with its own Wiener process of amplitude the square root of its propensity.
+    drift and drives `x` with its own Wiener process of amplitude the square root of its propensity. The default rate
+    constants are those of Gillespie 2000 scaled to a volume five times smaller, so the stable states lie near 17 and
+    113 molecules and the noise switches between them within 200 time units.
 
     Args:
         x:

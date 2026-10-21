@@ -143,6 +143,12 @@ def test_hodgepodge_stays_in_range():
     assert np.ptp(levels[-1]) > 50
 
 
+def test_hodgepodge_keeps_waves():
+    """Test that the default hodgepodge machine keeps travelling waves, with more than a tenth of the cells ill."""
+    levels = Simulation(hodgepodge(), dt=1, random_state=0).run(until=300).trajectory_['cells.level']
+    assert (levels[-1] == 100).mean() > 0.1
+
+
 def test_earthquakes_have_broad_sizes():
     """Test that the earthquake model records earthquakes of sizes spanning two decades."""
     observer = Events()
