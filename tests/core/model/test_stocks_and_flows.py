@@ -191,7 +191,7 @@ def test_population_has_one_reinforcing_and_one_balancing_loop():
     """Test that births close a reinforcing loop and deaths a balancing loop, and births dominate."""
     system = System(elements=[Population('pop')])
     found = {loop.nodes: loop.polarity for loop in loops(system).loops}
-    assert found == {('pop.deaths', 'pop.n'): 'balancing', ('pop.n', 'pop.birth_rate', 'pop.births'): 'reinforcing'}
+    assert found == {('pop.n', 'pop.deaths'): 'balancing', ('pop.n', 'pop.birth_rate', 'pop.births'): 'reinforcing'}
     trajectory = Simulation(system, dt=1).run(5).trajectory_
     dominance = loop_dominance(trajectory)
     assert dominance.gains[-1] == pytest.approx([-0.01, 0.03])
