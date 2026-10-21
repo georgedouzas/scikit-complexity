@@ -5,12 +5,14 @@ import pytest
 import rerun.blueprint as rrb
 from gallery_tools import (
     GalleryError,
+    caption_series,
     encode_png,
     find_problems,
     has_bands,
     has_notification,
     is_blank,
     is_placeholder,
+    missing_series,
     trim_border,
     view_boxes,
 )
@@ -53,6 +55,14 @@ def test_is_blank_detects_uniform_and_grey_views():
     grey[::7] = (120, 120, 120)
     assert is_blank(grey)
     assert not is_blank(np.asarray(_with_lines(_image())))
+
+
+def test_is_blank_accepts_single_channel_image():
+    """Test that a greyscale image of dark and light grey cells, as a single-channel `rr.Image` shows, is not blank."""
+    cells = np.kron(np.random.default_rng(0).integers(0, 2, (7, 10)), np.ones((20, 20), dtype=int)) * 140 + 60
+    pixels = np.repeat(cells[..., None], 3, axis=-1).astype(np.uint8)
+    assert not is_blank(pixels)
+    assert find_problems(Image.fromarray(pixels), SIZE, [('pattern', (0, 0, *SIZE))]) == []
 
 
 def test_has_notification_detects_toast():
@@ -158,3 +168,23 @@ def test_encode_png_uses_adaptive_palette(tmp_path):
     path = encode_png(Image.fromarray(noise), tmp_path / 'noise.png', 100_000)
     with Image.open(path) as image:
         assert image.mode == 'P'
+
+
+def test_caption_series_reads_names_of_primary_view():
+    """Test that the names quoted where the caption describes the series of the primary view are read."""
+    source = (
+        '# The model is created with `q = 5` and `p`. The observer saves every frame, and the\n'
+        '# primary view is the time series of `q` and `hilsa/adult_weight`.\n'
+        'MODEL = "q"\n'
+        '# After the run, `x` is logged as a series.\n'
+    )
+    assert caption_series(source) == ['q', 'hilsa/adult_weight']
+    assert caption_series('# The primary view is the image of the trails.\n') == []
+
+
+def test_missing_series_names_series_outside_primary_view():
+    """Test that a named series is missing when no entity path of the view's contents ends with it."""
+    view = rrb.TimeSeriesView(origin='/', contents=['/agents/**', '- /agents/hidden'])
+    paths = ['/agents/q', '/agents/hidden', '/parameters/m']
+    assert missing_series(['q', 'm', 'hidden'], paths, view) == ['m', 'hidden']
+    assert missing_series(['m'], paths, rrb.TimeSeriesView(origin='/parameters')) == []

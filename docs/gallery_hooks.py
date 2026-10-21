@@ -24,6 +24,9 @@ LOGGER = logging.getLogger('mkdocs.plugins.skcomplex_gallery')
 def on_pre_build(config: Any, **kwargs: Any) -> None:  # noqa: ANN401
     """Fail the build on a failed example, a run example without a screenshot, or an orphan, and on any gap if strict.
 
+    The checksums of the failed examples and of those without a screenshot are removed first, so the next build runs
+    them again.
+
     Args:
         config:
             The documentation configuration.
@@ -38,11 +41,13 @@ def on_pre_build(config: Any, **kwargs: Any) -> None:  # noqa: ANN401
     """
     build = build_from_environment(Path(__file__).parent)
     errors = build.failed_pages()
+    build.forget(errors)
     if errors:
         names = ', '.join(example.path.stem for example in errors)
         error_msg = f'These gallery examples failed and show an error on their page: {names}.'
         raise PluginError(error_msg)
     failing, waiting = build.missing_screenshots(Path(glr_path_static()) / 'no_image.png')
+    build.forget(failing)
     if failing:
         names = ', '.join(example.path.stem for example in failing)
         error_msg = f'These gallery examples ran but have no screenshot as their thumbnail: {names}.'

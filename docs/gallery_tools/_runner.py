@@ -46,6 +46,9 @@ class RunReport:
 
         error:
             The error that failed the example, or `None`.
+
+        thumbnail:
+            The path of the cached thumbnail, or `None` when the example failed.
     """
 
     example: str
@@ -54,6 +57,7 @@ class RunReport:
     size: int = 0
     cached: bool = False
     error: str | None = None
+    thumbnail: str | None = None
 
 
 def _last_observer(example: Example, variables: dict[str, Any]) -> RerunObserver:
@@ -93,7 +97,7 @@ def run_example(example: Example, build: GalleryBuild, budget: Budget) -> RunRep
             seconds = time.perf_counter() - start
             observer = _last_observer(example, variables)
             frames, size = int(observer.logged_frames_), Path(str(observer.save_path)).stat().st_size
-            _, cached = thumbnail_of(
+            thumbnail, cached = thumbnail_of(
                 example.path.absolute(),
                 example.model,
                 observer,
@@ -105,7 +109,7 @@ def run_example(example: Example, build: GalleryBuild, budget: Budget) -> RunRep
             )
         except Exception as error:  # noqa: BLE001  # the report names any error of the example, which is user code
             return RunReport(example.path.name, time.perf_counter() - start, error=f'{type(error).__name__}: {error}')
-    return RunReport(example.path.name, seconds, frames, size, cached)
+    return RunReport(example.path.name, seconds, frames, size, cached, thumbnail=str(thumbnail))
 
 
 def run_examples(examples: list[Example], build: GalleryBuild, budget: Budget, jobs: int) -> list[RunReport]:
@@ -135,7 +139,7 @@ def run_examples(examples: list[Example], build: GalleryBuild, budget: Budget, j
 
 
 def summarize(reports: list[RunReport]) -> str:
-    """Return a summary of runs: the slowest examples with their times, and the failures.
+    """Return a summary of runs: the slowest examples with their times, the thumbnails, and the failures.
 
     Args:
         reports:
@@ -147,10 +151,12 @@ def summarize(reports: list[RunReport]) -> str:
 
     Examples:
         >>> from gallery_tools import RunReport, summarize
-        >>> print(summarize([RunReport('plot_lorenz.py', 1.5, 251, 9000)]))
+        >>> print(summarize([RunReport('plot_lorenz.py', 1.5, 251, 9000, thumbnail='cache/key/thumbnail.png')]))
         1 examples, 0 failed, 0 from the cache.
         Slowest examples:
           plot_lorenz.py: 1.5 s, 251 frames, 9000 bytes
+        Thumbnails:
+          plot_lorenz.py: cache/key/thumbnail.png
     """
     failed = [report for report in reports if report.error is not None]
     lines = [
@@ -159,6 +165,10 @@ def summarize(reports: list[RunReport]) -> str:
     lines.append('Slowest examples:')
     for report in sorted(reports, key=lambda report: -report.seconds)[:SLOWEST]:
         lines.append(f'  {report.example}: {report.seconds:.1f} s, {report.frames} frames, {report.size} bytes')
+    thumbnails = [report for report in reports if report.thumbnail is not None]
+    if thumbnails:
+        lines.append('Thumbnails:')
+        lines += [f'  {report.example}: {report.thumbnail}' for report in thumbnails]
     if failed:
         lines.append('Failures:')
         lines += [f'  {report.example}: {report.error}' for report in failed]

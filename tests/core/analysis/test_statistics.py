@@ -1,5 +1,7 @@
 """Test distribution statistics, event detection, and time-series measures."""
 
+import warnings
+
 import networkx as nx
 import numpy as np
 import pytest
@@ -35,6 +37,18 @@ def test_exponential_sample_is_not_a_power_law():
     """Test that an exponential sample loses the comparison with an exponential tail."""
     samples = np.random.default_rng(2).exponential(5.0, 5000) + 1
     assert fit_power_law(samples, xmin=1.0, bootstrap=0).comparisons['exponential'][0] < 0
+
+
+def test_fit_power_law_silences_powerlaw_warnings():
+    """Test that the fits of `powerlaw` warn nothing, and that the silencing ends with the call."""
+    rng = np.random.default_rng(0)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always')
+        fit_power_law(np.floor((1 - rng.random(3000)) ** (-1 / 1.5)), discrete=True, bootstrap=0)
+        fit_power_law(rng.exponential(size=2000), bootstrap=0)
+        assert caught == []
+        warnings.warn('after the fit', UserWarning, stacklevel=1)
+    assert [str(warning.message) for warning in caught] == ['after the fit']
 
 
 def test_discrete_fit_of_preferential_attachment():
