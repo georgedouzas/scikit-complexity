@@ -69,8 +69,9 @@ Visuals of agents, networks, and oscillators, from the second log:
   `ring_road_drivers`, keep one color for the whole run.
 - **New:** `PhaseRingVisual`, registered as `'phase_ring'`, logs the phases of a group of oscillators against their
   position as points, so chimeras show their coherent and incoherent halves.
-- `PointsVisual` in three dimensions draws a fading path of each point of a small group, so `stormer_problem` shows
-  its 3D path, and `BodiesVisual` draws the masses and springs of `spring_chain` with radii from the spacing.
+- `BodiesVisual` draws bodies of three coordinates in a 3D view with their fading paths, so `stormer_problem` shows
+  its 3D path, and `PointsVisual` sizes single particles that share a space by the whole drawing, so the masses of
+  `spring_chain` are readable.
 
 Fields:
 - The spectral Laplacian gives the Nyquist mode `k = pi` its eigenvalue `-pi^2`. Today a checkerboard mode of

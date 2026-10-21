@@ -20,6 +20,7 @@ from ._visuals import TRAIL_LENGTH, UPWARD, Visual, _log_scalars, _radius_of, re
 type Positions = Callable[..., npt.ArrayLike] | Sequence[str]
 type Outline = Callable[..., Sequence[npt.ArrayLike]] | Sequence[npt.ArrayLike]
 type Marks = Callable[..., npt.ArrayLike] | Sequence[Sequence[float]]
+type Colors = tuple[int, int, int] | list[tuple[int, int, int, int]]
 
 BODY_COLOR = (250, 180, 60)
 ROD_COLOR = (220, 220, 220)
@@ -31,6 +32,34 @@ ROD_SHARE = 0.25
 TRAIL_SHARE = 0.1
 MARGIN = 0.1
 PAIR = 2
+SPACE = 3
+
+
+def _shown(points: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+    """Return points as logged: with the vertical axis up in two dimensions, unchanged in three."""
+    return points * UPWARD if points.shape[-1] == PAIR else points
+
+
+def _points(
+    points: npt.NDArray[np.float64],
+    radius: float,
+    colors: Colors,
+) -> rr.Points2D | rr.Points3D:
+    """Return the points archetype of the dimension of some points."""
+    if points.shape[-1] == PAIR:
+        return rr.Points2D(_shown(points), radii=radius, colors=colors)
+    return rr.Points3D(points, radii=radius, colors=colors)
+
+
+def _strips(
+    strips: Sequence[npt.NDArray[np.float64]],
+    radius: float | None,
+    colors: Colors,
+) -> rr.LineStrips2D | rr.LineStrips3D:
+    """Return the line strips archetype of the dimension of some polylines."""
+    if strips and strips[0].shape[-1] == SPACE:
+        return rr.LineStrips3D(list(strips), radii=radius, colors=colors)
+    return rr.LineStrips2D([_shown(strip) for strip in strips], radii=radius, colors=colors)
 
 
 def _values_of(element: CompiledElement, read: Callable[[str], Any]) -> dict[str, Any]:
@@ -70,11 +99,12 @@ def _bounds_of(points: npt.NDArray[np.float64]) -> rrb.VisualBounds2D | None:
 class BodiesVisual(Visual):
     """Visual that draws bodies at positions computed from the states of an element, with rods, trails, and outlines.
 
-    The bodies are logged as `Points2D` under `<path>/bodies`, the rods from the pivot through the bodies in order as
-    one line strip under `<path>/rods`, the trails of the traced bodies as segments under `<path>/trail` that grow more
+    The bodies are logged as points under `<path>/bodies`, the rods from the pivot through the bodies in order as one
+    line strip under `<path>/rods`, the trails of the traced bodies as segments under `<path>/trail` that grow more
     transparent with age, the outlines once as static line strips under `<path>/outline`, and the marks once as static
-    points under `<path>/marks`. Every state is also logged as a time series under `<path>/<state>`. The second
-    coordinate is negated, since Rerun's 2D views point their vertical axis down, so the views draw it upward.
+    points under `<path>/marks`. Every state is also logged as a time series under `<path>/<state>`. Bodies with three
+    coordinates are drawn in a 3D view. Bodies with two are drawn in a 2D view with the second coordinate negated,
+    since Rerun's 2D views point their vertical axis down, so the views draw it upward.
 
     Args:
         positions:
@@ -134,26 +164,30 @@ class BodiesVisual(Visual):
         self._drawn: set[str] = set()
 
     def _bodies(self, values: dict[str, Any]) -> npt.NDArray[np.float64]:
-        """Return the positions of the bodies as rows `(x, y)`."""
+        """Return the positions of the bodies as rows `(x, y)` or `(x, y, z)`."""
         if callable(self.positions):
             points = np.asarray(self.positions(**values), dtype=float)
         else:
             points = np.array([[float(np.ravel(values[name])[0]) for name in self.positions]])
         points = np.atleast_2d(points)
-        if points.ndim != PAIR or points.shape[1] != PAIR:
+        if points.ndim != PAIR or points.shape[1] not in {PAIR, SPACE}:
             error_msg = (
                 f'The positions of the bodies visual have shape {points.shape}, but they must be pairs of coordinates, '
-                'one row (x, y) per body.'
+                'one row (x, y) per body, or triples, one row (x, y, z) per body.'
             )
             raise ValidationError(error_msg)
         return points
 
-    def _static(self, values: dict[str, Any]) -> tuple[list[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
+    def _static(
+        self,
+        values: dict[str, Any],
+        dimension: int,
+    ) -> tuple[list[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
         """Return the outline polylines and the marks, evaluated from the values when they are functions."""
         outline = self.outline(**values) if callable(self.outline) else self.outline
         marks = self.marks(**values) if callable(self.marks) else self.marks
         strips = [np.atleast_2d(np.asarray(item, dtype=float)) for item in outline]
-        points = np.asarray(marks, dtype=float).reshape(-1, PAIR)
+        points = np.asarray(marks, dtype=float).reshape(-1, dimension)
         return strips, points
 
     def _chain(self, bodies: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
@@ -163,24 +197,30 @@ class BodiesVisual(Visual):
     def _scale(self, bodies: npt.NDArray[np.float64], values: dict[str, Any]) -> float:
         """Return the extent of the drawing: the outline, the marks, the pivot, and the rods at full length."""
         chain = self._chain(bodies)
-        strips, marks = self._static(values)
+        strips, marks = self._static(values, bodies.shape[1])
         points = np.vstack([chain, *strips, marks])
         extent = float(np.ptp(points, axis=0).max())
         if self.rods and len(chain) > 1:
             extent = max(extent, 2 * float(np.linalg.norm(np.diff(chain, axis=0), axis=1).sum()))
         return extent
 
-    def _log_static(self, recording: rr.RecordingStream, path: str, values: dict[str, Any], radius: float) -> None:
-        """Log the outline and the marks once."""
+    def _log_static(
+        self,
+        recording: rr.RecordingStream,
+        path: str,
+        values: dict[str, Any],
+        sizes: tuple[int, float],
+    ) -> None:
+        """Log the outline and the marks once, for bodies of a dimension and a radius."""
         if path in self._drawn:
             return
         self._drawn.add(path)
-        strips, marks = self._static(values)
+        dimension, radius = sizes
+        strips, marks = self._static(values, dimension)
         if strips:
-            shown = [strip * UPWARD for strip in strips]
-            recording.log(f'{path}/outline', rr.LineStrips2D(shown, colors=OUTLINE_COLOR), static=True)
+            recording.log(f'{path}/outline', _strips(strips, None, OUTLINE_COLOR), static=True)
         if len(marks):
-            recording.log(f'{path}/marks', rr.Points2D(marks * UPWARD, radii=radius, colors=MARK_COLOR), static=True)
+            recording.log(f'{path}/marks', _points(marks, radius, MARK_COLOR), static=True)
 
     def _log_trail(
         self,
@@ -198,7 +238,7 @@ class BodiesVisual(Visual):
             return
         history = np.stack(self._paths)
         segments, colors = _fading_segments([history[:, column] for column in range(len(traced))])
-        recording.log(f'{path}/trail', rr.LineStrips2D(segments, radii=width, colors=colors))
+        recording.log(f'{path}/trail', _strips(segments, width, colors))
 
     def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
         """Log the bodies, the rods, the trails, the outline, and the states of an element at one frame.
@@ -222,13 +262,14 @@ class BodiesVisual(Visual):
         bodies = self._bodies(values)
         share = _radius_of(self._scale(bodies, values), len(bodies))
         radius = share if self.radius is None else float(self.radius)
-        self._log_static(recording, path, values, radius)
-        shown = bodies * UPWARD
-        recording.log(f'{path}/bodies', rr.Points2D(shown, radii=radius, colors=BODY_COLOR))
+        self._log_static(recording, path, values, (bodies.shape[1], radius))
+        recording.log(f'{path}/bodies', _points(bodies, radius, BODY_COLOR))
         if self.rods:
-            chain = self._chain(bodies) * UPWARD
-            recording.log(f'{path}/rods', rr.LineStrips2D([chain], radii=share * ROD_SHARE, colors=ROD_COLOR))
-        self._log_trail(recording, path, shown, share * TRAIL_SHARE)
+            recording.log(
+                f'{path}/rods',
+                _strips([self._chain(bodies)], share * ROD_SHARE, ROD_COLOR),
+            )
+        self._log_trail(recording, path, bodies, share * TRAIL_SHARE)
         for state, name in element.states.items():
             _log_scalars(recording, f'{path}/{state}', frame.value(name))
 
@@ -260,20 +301,20 @@ class BodiesVisual(Visual):
 
         values = _values_of(element, read)
         bodies = self._bodies(values)
+        path = element.path
+        contents = [f'+ {path}/{state}/**' for state in element.states]
+        series = rrb.TimeSeriesView(origin=path, contents=contents, name=f'{path} states')
+        if bodies.shape[1] == SPACE:
+            return [rrb.Spatial3DView(origin=path, name=path), series]
         chain = self._chain(bodies)
-        strips, marks = self._static(values)
+        strips, marks = self._static(values, PAIR)
         bounds = None
         if self.rods and self.pivot is not None:
             half = self._scale(bodies, values) / 2
             bounds = _bounds_of(np.vstack([chain[0] - half, chain[0] + half]))
         elif strips:
             bounds = _bounds_of(np.vstack([chain, *strips, marks]))
-        path = element.path
-        contents = [f'+ {path}/{state}/**' for state in element.states]
-        return [
-            rrb.Spatial2DView(origin=path, name=path, visual_bounds=bounds),
-            rrb.TimeSeriesView(origin=path, contents=contents, name=f'{path} states'),
-        ]
+        return [rrb.Spatial2DView(origin=path, name=path, visual_bounds=bounds), series]
 
 
 register_visual('bodies', BodiesVisual)

@@ -227,3 +227,11 @@ def test_points_visual_keeps_given_color_range():
     visual = PointsVisual(position='x', color_by='v', states=())
     visual.log(Logs(), problem.elements[0], frame)
     assert visual.color_range is None
+
+
+def test_points_visual_sizes_single_particles_by_the_whole_drawing():
+    """Test that the masses of a spring chain, one particle per element, take a radius from the extent of the chain."""
+    problem, frame = _first_frame(create('spring_chain'))
+    logs = Logs()
+    PointsVisual(position='x', states=()).log(logs, problem.elements[0], frame)
+    assert _radius(logs.of('mass_0')[0]) > 0.01
