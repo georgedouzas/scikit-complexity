@@ -107,3 +107,6 @@
 | shallow_water | space-time image of the rarefaction fan and the bore of the dam break | depth at t = 0.6 matches Stoker's solution, plateau 1.454 | 1.7 s, 121 frames, 0.2 MB |
 | kuramoto_sivashinsky | space-time image of chaotic ridges splitting and merging | time-averaged spectrum peaks near q = 1 / sqrt 2 and decays exponentially above q = 1 | 2.5 s, 300 frames, 0.8 MB |
 | discrete_velocity_boltzmann | space-time image of a right-moving pulse spreading and fading | mass conserved to 1e-14; current decays exponentially to 1e-8 | 3.3 s, 201 frames, 0.8 MB |
+| decaying_turbulence | a large vortex wrapped in thin spiral filaments | enstrophy falls by an order of magnitude while energy loses about a quarter | 8.0 s, 201 frames, 5.6 MB |
+| rayleigh_benard | warm and cold convection rolls at Ra = 2000 (layer and mirror image) | final max \|theta\| negligible below Ra_c = 657.5 and finite, growing with Ra, above it | 22.1 s, 201 frames, 0.3 MB |
+| living_crystals | 100 colloids gathered into a few hexagonal crystallites | share of colloids in clusters of 3+ rises to 1 with attraction, fluctuates near 0.3 without | 10.7 s, 201 frames, 0.9 MB |
