@@ -7,9 +7,9 @@ task removes the workaround.
 
 ## 1. Angles
 
-- [ ] 1.1 Add `wrap_angle` to `skcomplex.core.base`, wrap `ANGLE` states into `(-pi, pi]` in `Domain.ANGLE.encode`
+- [x] 1.1 Add `wrap_angle` to `skcomplex.core.base`, wrap `ANGLE` states into `(-pi, pi]` in `Domain.ANGLE.encode`
   and `_wrapping_angles`, and verify the small-swing and encoding scenarios, and the existing tests of angle models
-- [ ] 1.2 Apply the boundary laws after every step of `LatticeStepper`, and verify the XY scenario and the existing
+- [x] 1.2 Apply the boundary laws after every step of `LatticeStepper`, and verify the XY scenario and the existing
   lattice and Monte Carlo tests
 - [x] 1.3 Color real `ANGLE` states of `ImageVisual` with the cyclic palette, verify the angles scenario, and remove
   the angle workarounds of the mechanics examples
