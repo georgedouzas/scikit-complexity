@@ -15,12 +15,14 @@ ARXIV = re.compile(r'(\d{4}\.\d{4,5}|[a-z-]+/\d{7})( |$)')
 CITATION = re.compile(r'.+ \d{4}( |$)')
 INVENTORY_CHANGE = 'organize-model-library'
 STATUSES = re.compile(r'implemented|(pending|blocked) [a-z0-9-]+')
+PRIORITIES = ('core', 'example')
 
 
 def _load():
     """Return the source keys and the entries of the inventory, each with its name and field path."""
     data = tomllib.loads(INVENTORY.read_text())
     keys = data.pop('sources')
+    data.pop('primitives')
     entries = [
         (name, f'{field}/{subfield}', entry)
         for field, subfields in data.items()
@@ -28,6 +30,11 @@ def _load():
         for name, entry in models.items()
     ]
     return keys, entries
+
+
+def _vocabulary():
+    """Return the primitive vocabulary of the inventory, by name."""
+    return tomllib.loads(INVENTORY.read_text())['primitives']
 
 
 def _registered():
@@ -81,6 +88,41 @@ def _change_problems(entries, active, archived):
     return problems
 
 
+def _primitive_problems(entries, vocabulary, changes):
+    """Return the entries whose primitives or priority the vocabulary does not support, and the unknown changes.
+
+    Args:
+        entries:
+            The name, field path, and table of every entry.
+
+        vocabulary:
+            The primitives the inventory defines, by name.
+
+        changes:
+            The names of the active and archived OpenSpec changes.
+
+    Returns:
+        problems:
+            One sentence per problem.
+    """
+    problems = [
+        f'The primitive {primitive} is added by {item["change"]}, which is not an OpenSpec change'
+        for primitive, item in vocabulary.items()
+        if 'change' in item and item['change'] not in changes
+    ]
+    for name, _, entry in entries:
+        if not entry.get('primitives'):
+            problems.append(f'{name} records no primitive')
+        problems.extend(
+            f'{name} names the primitive {primitive}, which the vocabulary does not define'
+            for primitive in entry.get('primitives', [])
+            if primitive not in vocabulary
+        )
+        if entry.get('priority') not in PRIORITIES:
+            problems.append(f'{name} has the priority {entry.get("priority")}, which is not core or example')
+    return problems
+
+
 def test_inventory_entries_are_well_formed():
     """Test that every entry has a unique name, a title, a known status, and sources that resolve."""
     keys, entries = _load()
@@ -98,6 +140,56 @@ def test_inventory_agrees_with_catalog():
     """Test that every implemented entry is registered under its field path, and every model has an entry."""
     _, entries = _load()
     assert _catalog_problems(entries, _registered()) == []
+
+
+def test_inventory_entries_record_known_primitives():
+    """Test that every entry records primitives of the vocabulary and a priority, and the vocabulary names changes."""
+    _, entries = _load()
+    active, archived = _changes()
+    assert _primitive_problems(entries, _vocabulary(), set(active) | archived) == []
+
+
+@pytest.mark.parametrize(
+    ('entry', 'message'),
+    [
+        (
+            {'primitives': ['rates', 'telepathy'], 'priority': 'core'},
+            'model names the primitive telepathy, which the vocabulary does not define',
+        ),
+        ({'primitives': [], 'priority': 'core'}, 'model records no primitive'),
+        (
+            {'primitives': ['rates'], 'priority': 'urgent'},
+            'model has the priority urgent, which is not core or example',
+        ),
+    ],
+)
+def test_inventory_check_names_primitive_problems(entry, message):
+    """Test that the inventory check names an unknown primitive, a missing primitive list, and an unknown priority."""
+    vocabulary = {'rates': {'description': 'Rate laws'}}
+    assert _primitive_problems([('model', 'physics/mechanics', entry)], vocabulary, set()) == [message]
+
+
+def test_inventory_primitives_of_a_book_model():
+    """Test that the Bak-Sneppen entry lists the lattice and extremal-update primitives it exercises."""
+    _, entries = _load()
+    entry = next(entry for name, _, entry in entries if name == 'bak_sneppen')
+    assert {'lattices', 'extremal-updates'} <= set(entry['primitives'])
+
+
+def test_inventory_priorities_follow_new_primitives():
+    """Test that blocked entries need a primitive of their change with priority core, and repeated sets are examples."""
+    _, entries = _load()
+    vocabulary = _vocabulary()
+    seen = set()
+    for name, _, entry in entries:
+        status, _, change = entry['status'].partition(' ')
+        if status == 'blocked':
+            assert entry['priority'] == 'core', name
+            assert any(vocabulary[primitive].get('change') == change for primitive in entry['primitives']), name
+        if status == 'implemented':
+            primitives = frozenset(entry['primitives'])
+            assert entry['priority'] == ('example' if primitives in seen else 'core'), name
+            seen.add(primitives)
 
 
 def test_inventory_names_existing_changes():
@@ -174,6 +266,16 @@ def test_coverage_page_lists_every_entry():
         assert entry['title'] in page, name
         if entry['status'] == 'implemented':
             assert f'({path.split("/")[0]}.md#{name})' in page, name
+
+
+def test_coverage_page_flags_uncovered_primitives():
+    """Test that a primitive exercised only by blocked models is uncovered and names the change that adds it."""
+    page = _generator()['coverage_page']()
+    row = next(line for line in page.splitlines() if line.startswith('| `link-fields` |'))
+    assert 'Uncovered, added by `add-link-fields`' in row
+    covered = next(line for line in page.splitlines() if line.startswith('| `extremal-updates` |'))
+    assert 'Covered by 1' in covered
+    assert '[bak_sneppen](biology.md#bak_sneppen)' in covered
 
 
 def test_field_page_shows_the_pattern_of_every_model():

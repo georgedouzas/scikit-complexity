@@ -22,7 +22,7 @@ defect. Every test follows the naming and public-API rules of the constitution.
   same-law-as-per-link scenarios on NumPy and Numba
 - [x] 2.3 Keep running offsets in the variable declarations, index blocks by path once per compilation, and visit each
   distinct subexpression once in `breakpoints_of`, and verify the many one-link interactions scenario
-- [ ] 2.4 Rebuild `zero_range_process` and `asep` on one group law with offset jumps, keeping their trajectory paths
+- [x] 2.4 Rebuild `zero_range_process` and `asep` on one group law with offset jumps, keeping their trajectory paths
   and their reservoirs, and verify their existing scenarios, the conformance suite, their gallery examples, and the
   many-sites scenario
 

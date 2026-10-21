@@ -108,7 +108,8 @@ subexpression once.
 
 ### Default ODE solver detects stiffness
 
-The default ODE stepper is `ScipyODE(method='LSODA')`. ODEPACK's `LSODA`, which SciPy wraps, starts with Adams methods
+The default ODE stepper is `ScipyODE()`, whose method `'auto'` is `LSODA` for every system whose dense matrix fits,
+as below. ODEPACK's `LSODA`, which SciPy wraps, starts with Adams methods
 and switches to BDF when it detects stiffness, so a stiff system with the default solver no longer stalls. Its dense
 output, events, and the persistent integrator of `fix-core-defects` work through the same `OdeSolver` interface as
 `RK45`. `LSODA` takes real states only. `add-complex-states` compiles every complex state into its real and imaginary
@@ -131,6 +132,24 @@ Two defects of SciPy's `LSODA` showed up when it became the default, and the ste
   finite time instead of infinity, which keeps the persistent integrator of `fix-core-defects`.
 - On a solution that blows up in finite time it keeps returning steps that do not advance time, where `RK45` reports
   a failure. The stepper raises the named solver error when a step makes no progress or the state is not finite.
+
+Running the whole catalog and the documentation on the new default found two more:
+- When the drift vanishes at the start, as in `catalyst_pellet` at `c = 0` or a forced oscillator at rest, LSODA
+  guesses its first step from the distance to the end and fails before its first step. The stepper then selects the
+  first step from the drift's change over a trial step, as SciPy's other solvers do, and keeps LSODA's own guess
+  otherwise, since a trial step across a discontinuous drift, such as the stick-slip friction of `burridge_knopoff`,
+  gives needlessly small steps at every restart.
+- LSODA stores a dense matrix of the size of the state squared, so the 40 000 states of a gas of 10 000 particles
+  ask for 12 GB. The default method is therefore `'auto'`: `LSODA` while its matrix fits, for at most 4096 states or a
+  Jacobian with a narrow band. Larger systems get `BDF` with the sparsity pattern of the Jacobian when fields limit
+  the stable step by diffusion, the stiffness signal the stepper already warns on, and `RK45` otherwise, since `BDF`
+  runs a gas of 2000 particles 9 times slower than `RK45`. `ScipyODE(method='LSODA')` asked for more states raises the named solver error instead of exhausting
+  memory. This is not stiffness detection of our own: it chooses by storage, and LSODA keeps detecting stiffness.
+- When a state rests on a discontinuity of the drift, as the empty `bathtub` on its drain switch once the inflow
+  balances the outflow, LSODA's finite-difference Jacobian straddles the switch and its step stays near 1e-10 for
+  ever. After 1000 consecutive steps shorter than 1e-9 of the time, the default method warns and continues with
+  `RK45`, which needs no Jacobian, and an explicit `LSODA` raises the named solver error. Restarting at state switches
+  and limiting the outflows of a nonnegative stock are core features that `fix-core-defects-3` specifies.
 
 ## Risks / Trade-offs
 

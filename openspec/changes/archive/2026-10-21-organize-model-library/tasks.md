@@ -33,9 +33,9 @@
 - [x] 4.2 Render the inventory as the coverage page and generate the per-field pages with each model's laws and
   equations, and verify the docs build and the pattern scenario
 
-- [ ] 4.3 Define the primitive vocabulary in the inventory, record the primitives and the priority of every entry, and
+- [x] 4.3 Define the primitive vocabulary in the inventory, record the primitives and the priority of every entry, and
   extend the inventory check, and verify the primitives of an entry and unknown primitive scenarios
-- [ ] 4.4 Report coverage by primitive on the coverage page, with uncovered primitives and the changes that add them,
+- [x] 4.4 Report coverage by primitive on the coverage page, with uncovered primitives and the changes that add them,
   and verify the uncovered primitive and priority scenarios
 
 ## 5. Model collections
@@ -66,7 +66,9 @@ For every task in this section:
 
 ## 7. Documentation and gate
 
-- [ ] 7.1 Document the core and models layout, the taxonomy, the model pattern, and the coverage page in the user guide,
-  list the moved paths in the changelog, and verify the documentation test passes
+- [x] 7.1 Document the core and models layout, the taxonomy, the model pattern, and the coverage page in the user guide,
+  list the moved paths in the changelog, and verify the documentation test passes. The changelog is generated from
+  commit subjects by `nox -s changelog`, so the moves reach it through the two refactor commits, and the guide's
+  Moved paths section lists every path
 - [x] 7.2 Run formatting, checks, the docs build, and tests through nox, and the benchmarks with `--benchmarks`, and
   verify all of them pass

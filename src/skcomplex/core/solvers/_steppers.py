@@ -36,9 +36,50 @@ def _is_hybrid(problem: Problem, t: float, until: float) -> bool:
     return bool(problem.delays or problem.events or problem.breakpoints.between(t, math.nextafter(until, math.inf)))
 
 
+LSODA_LARGEST_SIZE = 4096
+STALL_STEP = 1e-9
+RESTING_SPAN = 1e-9
+STALL_STEPS = 1000
+SMALL_NORM = 1e-5
+TINY_NORM = 1e-15
+FALLBACK_STEP = 1e-6
+
+
 def _smallest_delay(problem: Problem) -> float:
     """Return the smallest delay of a problem, or infinity without delays."""
     return min((delay.minimum for delay in problem.delays), default=math.inf)
+
+
+def _lsoda_first_step(
+    field: Callable[[float, Vector], Vector],
+    t: float,
+    x: Vector,
+    *,
+    end: float,
+    max_step: float,
+    rtol: float,
+    atol: float,
+) -> float | None:
+    """Return the first step of LSODA when the drift vanishes at the start, or `None` to let LSODA choose.
+
+    LSODA guesses its first step from the distance to the end when the drift vanishes at the start, and without a
+    largest step it fails before its first step on a far end. The step then comes from the drift's change over a trial
+    step, as in SciPy's other solvers (Hairer, Norsett, and Wanner, II.4). Elsewhere LSODA's own guess is kept, since
+    a trial step across a discontinuous drift, such as stick-slip friction, gives needlessly small steps.
+    """
+    span = abs(end - t)
+    with np.errstate(all='ignore'):
+        drift = field(t, x)
+        scale = atol + np.abs(x) * rtol
+        drift_norm = np.sqrt(np.mean((drift / scale) ** 2))
+        if drift_norm >= SMALL_NORM:
+            return None
+        trial = min(FALLBACK_STEP, span)
+        change = np.sqrt(np.mean(((field(t + trial, x + trial * drift) - drift) / scale) ** 2)) / trial
+        largest = max(drift_norm, change)
+        second = max(FALLBACK_STEP, trial * 1e-3) if largest <= TINY_NORM else (0.01 / largest) ** 0.5
+        step = min(100 * trial, second, span, max_step)
+    return float(step) if math.isfinite(step) and step > 0 else None
 
 
 def _bounds(problem: Problem, t: float, until: float) -> list[float]:
@@ -119,8 +160,11 @@ class ScipyODE(Stepper):
     Args:
         method:
             The integration method: `RK45`, `RK23`, or `DOP853` for non-stiff systems, `BDF` or `Radau` for stiff
-            ones, and the default `LSODA`, which starts with Adams methods and switches to BDF methods while the
-            system is stiff.
+            ones, `LSODA`, which starts with Adams methods and switches to BDF methods while the system is stiff, or
+            the default `'auto'`. It chooses `LSODA` when its dense work array fits, for at most 4096 states or a
+            Jacobian with a narrow band, since `LSODA` stores a dense matrix of the size of the state squared.
+            Larger systems get `BDF` with the sparsity pattern of the Jacobian when fields limit the stable step by
+            diffusion, and `RK45` otherwise.
 
         rtol:
             The relative tolerance.
@@ -136,6 +180,9 @@ class ScipyODE(Stepper):
             ignore it.
 
     Attributes:
+        method_:
+            The method the stepper integrates with, which `'auto'` resolves for the problem.
+
         jacobian_pattern_:
             The sparsity pattern of the Jacobian that an implicit method uses, or `None`.
 
@@ -161,7 +208,7 @@ class ScipyODE(Stepper):
 
     form: ClassVar[Form] = Form.ODE
 
-    def __init__(self, method: str = 'LSODA', rtol: float = 1e-6, atol: float = 1e-9, jacobian: str = 'auto') -> None:
+    def __init__(self, method: str = 'auto', rtol: float = 1e-6, atol: float = 1e-9, jacobian: str = 'auto') -> None:
         self.method = method
         self.rtol = rtol
         self.atol = atol
@@ -179,14 +226,15 @@ class ScipyODE(Stepper):
 
         Raises:
             SolverError:
-                The problem is not an ODE, or the method or the Jacobian option is unknown.
+                The problem is not an ODE, the method or the Jacobian option is unknown, or `LSODA` would store a dense
+                matrix larger than its limit.
 
             ValidationError:
                 The exact Jacobian is asked for laws without a symbolic form.
         """
         super().initialize(problem, rng)
-        if self.method not in METHODS:
-            error_msg = f'Unknown method {self.method!r}. Use one of {", ".join(METHODS)}.'
+        if self.method != 'auto' and self.method not in METHODS:
+            error_msg = f'Unknown method {self.method!r}. Use one of auto, {", ".join(METHODS)}.'
             raise SolverError(error_msg)
         if self.jacobian not in JACOBIANS:
             error_msg = f'Unknown Jacobian option {self.jacobian!r}. Use one of {", ".join(map(repr, JACOBIANS))}.'
@@ -195,8 +243,24 @@ class ScipyODE(Stepper):
         self.jacobian_options_: dict[str, Any] = {}
         self._exact = False
         self._warned = False
-        if self.method in IMPLICIT and self.jacobian != 'dense' and problem.jacobian is not None:
+        self._stalled = 0
+        self.method_ = 'LSODA' if self.method == 'auto' else self.method
+        if self.method_ in IMPLICIT and self.jacobian != 'dense' and problem.jacobian is not None:
             self._prepare_jacobian(problem)
+        if self.method_ == 'LSODA' and not self._fits_lsoda(problem.initial_state.size):
+            if self.method != 'auto':
+                error_msg = (
+                    f'LSODA would store a dense {problem.initial_state.size} x {problem.initial_state.size} matrix, '
+                    f'more than the limit of {LSODA_LARGEST_SIZE} states without a narrow band. Use '
+                    "ScipyODE(method='BDF'), which receives the sparsity pattern of the Jacobian, or an explicit "
+                    'method.'
+                )
+                raise SolverError(error_msg)
+            stiff = problem.stable_step is not None and self.jacobian_pattern_ is not None
+            self.method_ = 'BDF' if stiff else 'RK45'
+            self.jacobian_options_ = {}
+            if self.method_ == 'BDF':
+                self._prepare_jacobian(problem)
         self._solver: OdeSolver | None = None
         self._segment: _Segment | None = None
         self._time = math.nan
@@ -204,6 +268,10 @@ class ScipyODE(Stepper):
         self._until = math.inf
         self._state = np.zeros(0)
         self._parameters = np.zeros(0)
+
+    def _fits_lsoda(self, size: int) -> bool:
+        """Check whether the dense or banded matrix of LSODA fits for a state of a size."""
+        return size <= LSODA_LARGEST_SIZE or 'lband' in self.jacobian_options_
 
     def _prepare_jacobian(self, problem: Problem) -> None:
         """Derive the Jacobian structure an implicit method receives, or check that the exact Jacobian exists."""
@@ -219,7 +287,7 @@ class ScipyODE(Stepper):
         if pattern is None or pattern.nnz > DENSITY_LIMIT * size * size:
             return
         self.jacobian_pattern_ = pattern
-        if self.method != 'LSODA':
+        if self.method_ != 'LSODA':
             self.jacobian_options_ = {'jac_sparsity': pattern}
             return
         rows, columns = pattern.nonzero()
@@ -235,7 +303,7 @@ class ScipyODE(Stepper):
         problem = self.problem_
         jacobian = problem.jacobian
         assert jacobian is not None
-        dense = self.method == 'LSODA'
+        dense = self.method_ == 'LSODA'
 
         def exact(time: float, state: Vector) -> Any:  # noqa: ANN401
             matrix = jacobian(time, state, with_delays(problem, history, time, state, p))
@@ -246,11 +314,11 @@ class ScipyODE(Stepper):
     def _warn_stiff(self, t: float, until: float) -> None:
         """Warn once when an explicit method spans many stable steps of the diffusion of a field in one call."""
         limit = self.problem_.stable_step
-        if self._warned or self.method in IMPLICIT or limit is None or until - t <= STIFF_SPAN * limit:
+        if self._warned or self.method_ in IMPLICIT or limit is None or until - t <= STIFF_SPAN * limit:
             return
         self._warned = True
         warning_msg = (
-            f'{self.method} spans {until - t:.6g} in one call, more than {STIFF_SPAN} times the stability limit '
+            f'{self.method_} spans {until - t:.6g} in one call, more than {STIFF_SPAN} times the stability limit '
             f'{limit:.6g} of the diffusion of the fields, so its steps are limited by stability. Use '
             "ScipyODE(method='BDF') or ScipyODE(method='Radau'), which receive the sparsity pattern of the Jacobian."
         )
@@ -297,15 +365,19 @@ class ScipyODE(Stepper):
             return drift(time, state, with_delays(problem, history, time, state, p))  # type: ignore[misc]
 
         delay = _smallest_delay(problem)
+        end = min(bound, LARGEST_TIME)
+        max_step = max(delay, self._frame / STEPS_PER_FRAME)
         first_step = min(delay / 2, bound - t) if problem.delays else None
-        self._solver = METHODS[self.method](
+        if first_step is None and self.method_ == 'LSODA':
+            first_step = _lsoda_first_step(field, t, x, end=end, max_step=max_step, rtol=self.rtol, atol=self.atol)
+        self._solver = METHODS[self.method_](
             field,
             t,
             x.copy(),
-            min(bound, LARGEST_TIME),
+            end,
             rtol=self.rtol,
             atol=self.atol,
-            max_step=max(delay, self._frame / STEPS_PER_FRAME),
+            max_step=max_step,
             first_step=first_step,
             **self._jacobian_options(history, p),
         )
@@ -325,19 +397,46 @@ class ScipyODE(Stepper):
             start, before = solver.t, solver.y.copy()
             message = solver.step()
             if solver.status == 'failed':
-                error_msg = f'The {self.method} integrator failed at t = {start}: {message}'
+                error_msg = f'The {self.method_} integrator failed at t = {start}: {message}'
                 raise SolverError(error_msg)
             if solver.t == start or not np.all(np.isfinite(solver.y)):
                 error_msg = (
-                    f'The {self.method} integrator failed at t = {start}: its step makes no progress or the state is '
+                    f'The {self.method_} integrator failed at t = {start}: its step makes no progress or the state is '
                     'not finite. Check the system for a solution that blows up.'
                 )
                 raise SolverError(error_msg)
+            if self._stalls(start, solver.t):
+                self._leave_lsoda(solver.t, solver.y, p)
             segment = _Segment(start, solver.t, before, solver.y.copy(), solver.dense_output())
             if self.history_ is not None:
                 self.history_.add(start, solver.t, segment.dense)
             self._segment = segment
         return segment
+
+    def _stalls(self, start: float, end: float) -> bool:
+        """Check whether LSODA has taken many consecutive steps too short to advance the run."""
+        if self.method_ != 'LSODA' or end - start >= STALL_STEP * max(1.0, abs(end)):
+            self._stalled = 0
+            return False
+        self._stalled += 1
+        return self._stalled >= STALL_STEPS
+
+    def _leave_lsoda(self, t: float, x: Vector, p: Vector) -> None:
+        """Continue with `RK45` after LSODA stalls on a default method, or raise the named error on an explicit one."""
+        if self.method != 'auto':
+            error_msg = (
+                f'The LSODA integrator stalled at t = {t}: {STALL_STEPS} consecutive steps are shorter than '
+                f'{STALL_STEP:g} of the time, as when a state rests on a discontinuity of the drift. Use '
+                "ScipyODE(method='RK45'), which needs no Jacobian."
+            )
+            raise SolverError(error_msg)
+        warning_msg = (
+            f'LSODA stalled at t = {t} with {STALL_STEPS} consecutive steps shorter than {STALL_STEP:g} of the time, '
+            'as when a state rests on a discontinuity of the drift, so the run continues with RK45.'
+        )
+        warnings.warn(warning_msg, UserWarning, stacklevel=5)
+        self.method_, self.jacobian_options_, self._exact, self._stalled = 'RK45', {}, False, 0
+        self._restart(t, x, p)
 
     def _first_change(self, dense: Callable[[float], Vector], end: float, p: Vector) -> float:
         """Return the first time of a step, up to its end, at which the boundary laws change the state, by bisection."""
@@ -355,7 +454,12 @@ class ScipyODE(Stepper):
         return high
 
     def _to_event(self, p: Vector, until: float) -> None:
-        """Integrate the current step up to a time or to its first event, and apply the event or the boundary."""
+        """Integrate the current step up to a time or to its first event, and apply the event or the boundary.
+
+        The integrator restarts where a boundary law first changes the state. When that happens at once after a
+        restart, the state rests on the boundary while the drift pushes it out, as for a clipped stock under a
+        constant inflow, so the step runs to its end and the boundary projects the state there instead.
+        """
         segment = self._next_segment(p)
         end = min(segment.end, until)
         after = segment.after if end == segment.end else np.asarray(segment.dense(end), dtype=float)
@@ -373,6 +477,8 @@ class ScipyODE(Stepper):
             self._time, self._state = end, after
             return
         time = self._first_change(segment.dense, end, p)
+        if time - self._time <= RESTING_SPAN * max(1.0, abs(time)):
+            time = end
         self._restart(time, self._bounded(time, np.asarray(segment.dense(time), dtype=float), p), p)
 
     def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
