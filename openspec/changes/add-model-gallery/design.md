@@ -170,9 +170,11 @@ gallery now takes the thumbnail only, so a capture takes about half these times:
 | native, `ViewerClient` | 10 of 10, and two captures differ by less than 2% | 2.9 to 4.6 s, median 3.1 s | yes on macOS (Metal); Linux needs Vulkan through Mesa lavapipe |
 | web, Playwright | 10 of 10, and two captures differ by less than 2% | 7.8 to 13.0 s, median 10.9 s | yes, Chromium with SwiftShader needs no GPU |
 
-On Linux with software rendering neither backend was measured locally, since no Linux machine or container was
-available. The CI job `gallery` runs both backends on Ubuntu, the native one with `mesa-vulkan-drivers`, and records
-the result there.
+On Linux with software rendering the CI job `gallery` is the measurement: it runs both backends on Ubuntu, the native one
+with `mesa-vulkan-drivers` and `WGPU_BACKEND=vulkan`, the web one with Playwright's Chromium, and fails on any capture
+that does not pass the checks. A local run in an aarch64 Debian container with lavapipe and Chromium was built on
+2026-10-21 but stopped before capturing: the host disk filled during the image build and Docker Desktop's storage
+returned input/output errors. Per-capture Linux timings therefore come from the CI logs, not from this design.
 
 **Default:** the native backend. Both pass every check, and the native one is three times faster. The web backend
 stays selectable with `--backend web` or `SKCOMPLEX_GALLERY_BACKEND=web`, and is the fallback where no Vulkan adapter

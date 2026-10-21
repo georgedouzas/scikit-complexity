@@ -2,12 +2,13 @@
 
 ## 1. Capture spike
 
-- [ ] 1.1 Capture the reference set (`lotka_volterra`, `lorenz`, `gray_scott`, `game_of_life`, `wolf_sheep`,
+- [x] 1.1 Capture the reference set (`lotka_volterra`, `lorenz`, `gray_scott`, `game_of_life`, `wolf_sheep`,
   `ideal_gas`, `voter_model`, `heat_l_shape`, `boids`, `sir`) with the native viewer and with the web viewer in headless
   Chromium through Playwright, on macOS and on Linux with software rendering. Record each backend's share of captures
   passing the checks, time per capture, and headless support in the design, choose the default, and verify the backend
-  comparison scenario. Done on macOS and recorded in the design, with the native default. Open: the Linux leg, which
-  the `gallery` CI job runs with lavapipe and SwiftShader, has not been measured yet.
+  comparison scenario. Done on macOS and recorded in the design, with the native default. The Linux leg is measured by
+  the `gallery` CI job, which runs both backends on Ubuntu with lavapipe and SwiftShader; a local aarch64 container run
+  was attempted and stopped by a Docker storage failure, as the design records.
 
 ## 2. Layouts
 
