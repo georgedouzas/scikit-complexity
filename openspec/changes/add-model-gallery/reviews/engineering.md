@@ -21,3 +21,6 @@
 | optimal_velocity | speeds fanning out into a stop-and-go wave | spread grows for headway 2 and decays for headway 4; late states loop around V(h) | 8 s script, 201 frames, 0.13 MB |
 | lighthill_whitham_richards | density history with the shock edge moving upstream | shock position follows the Rankine-Hugoniot speed -0.1 | 8 s script, 51 frames, 0.03 MB |
 | nagel_schreckenberg | space-time road with backward-leaning jam stripes | fundamental diagram: free flow (vmax - p) rho up to ~0.15, then falling flow | 7 s script, 201 frames, 7.95 MB |
+| cascade_classifier | fine product growing much faster than the coarse | steady fine share matches Barsky's fractional extraction for k = 0.3 to 0.7 | 6 s script, 101 frames, 0.22 MB |
+| satellite_transfer | distance swinging out while the energy rises and levels off | energy reaches -0.2 at 9.81 and stays; orbit widens around the planet | 5 s script, 201 frames, 0.08 MB |
+| swarmtaxis | robot cluster with its illuminated side (yellow) facing the beacon | centre drifts from x = 19 to 40 in 3000 steps; spread stays ~2; ~20% illuminated | 10 s script, 201 frames, 0.43 MB |
