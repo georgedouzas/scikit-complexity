@@ -206,7 +206,7 @@ def agents_visual_of(agents: CompiledAgents, problem: Problem) -> AgentsVisual:
     visual: Any = resolve_visual(agents.visual)
     if not isinstance(visual, AgentsVisual):
         visual = AgentsVisual()
-    if problem.agent_space is None and type(visual) is AgentsVisual:
+    if problem.agent_space is None and type(visual) is AgentsVisual and visual.position is None:
         return TraitsVisual(color_by=visual.color_by, color_range=visual.color_range)
     return visual
 
