@@ -22,6 +22,10 @@ from skcomplex.models import create
 MODEL = 'skew_tent_map'
 
 system = create(MODEL, n_points=100, a=0.3, random_state=0)
+# Every view shows the whole run, not the default window that follows the latest frame.
+whole_run = rrb.TimeAxis(
+    view_range=rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite()),
+)
 blueprint = rrb.Blueprint(
     rrb.Horizontal(
         rrb.Spatial2DView(
@@ -29,7 +33,7 @@ blueprint = rrb.Blueprint(
             name='where the points are, step by step',
             visual_bounds=rrb.VisualBounds2D(x_range=[0, 360], y_range=[0, 300]),
         ),
-        rrb.TimeSeriesView(origin='/points', name='x'),
+        rrb.TimeSeriesView(origin='/points', name='x', axis_x=whole_run),
         column_shares=[3, 2],
     ),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),

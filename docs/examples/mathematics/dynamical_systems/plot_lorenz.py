@@ -21,11 +21,20 @@ from skcomplex.models import create
 
 MODEL = 'lorenz'
 
+# Every view shows the whole run, not the default window that follows the latest frame.
+whole_run = rrb.TimeAxis(
+    view_range=rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite()),
+)
 camera = rrb.EyeControls3D(position=(0.0, -62.0, 26.0), look_target=(0.0, 0.0, 24.0), eye_up=(0.0, 0.0, 1.0))
 blueprint = rrb.Blueprint(
     rrb.Horizontal(
         rrb.Spatial3DView(origin='/attractor', name='attractor', eye_controls=camera, line_grid=False),
-        rrb.TimeSeriesView(origin='/lorenz', name='x, y, z', defaults=[rr.SeriesLines.from_fields(widths=1.5)]),
+        rrb.TimeSeriesView(
+            origin='/lorenz',
+            name='x, y, z',
+            axis_x=whole_run,
+            defaults=[rr.SeriesLines.from_fields(widths=1.5)],
+        ),
         column_shares=[3, 2],
     ),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),

@@ -44,7 +44,7 @@
 | pagerank | karate club with the two hubs largest and brightest | L1 error to networkx.pagerank falls to 1e-7, faster than 0.85^t; rank grows with degree | 0.2 s, 41 frames, 53 KB |
 | network_random_walk | walkers crowding on the hubs 0 and 33 | share of walker-steps equals k_i / 2m | 0.2 s, 201 frames, 584 KB |
 | bernoulli_process | six success staircases around 0.5 t | final counts match B(100, 0.5) and B(100, 0.2) over 2000 sequences | 1.1 s, 101 frames, 40 KB |
-| galton_watson | sizes of eight critical populations of ten founders, most dying out within 40 generations | extinction share of 400 runs by generation 12 matches the 12th iterate of exp(m (s - 1)); certain up to m = 1 | 21.4 s, 41 frames, 33 KB |
+| galton_watson | sizes of eight critical populations of ten founders, most dying out within 40 generations | extinction share of 200 runs by generation 12 matches the 12th iterate of exp(m (s - 1)); certain up to m = 1 | 17.8 s, 41 frames, 34 KB |
 | sample_space_reducing | one ball's level: descending staircases restarting at the top | visits below the restart state fall as i^-lam for lam = 1, 0.7, 0.4, 0 | 3.6 s, 41 frames, 24 KB |
 | fragmentation | fragments of every step sorted by size and laid end to end, ever finer down the rows | fragment count grows by 1.5 per step; mean ln L falls 0.5 and its variance grows ~0.75 per step; size conserved | 0.4 s, 15 frames, 26 KB |
 | weakening_ornstein_uhlenbeck | four particles jittering near 0 with excursions to ±3 | pooled density follows (1 + x²)^-2 out to abs(x) ≈ 5, far above the OU Gaussian | 12.7 s, 251 frames, 195 KB |
