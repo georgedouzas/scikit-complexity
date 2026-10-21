@@ -116,13 +116,13 @@ logistic ODE, and the harvest depends on the number of farmers through an aggreg
 - **THEN** the resource stock settles at a positive level
 
 ### Requirement: Ready-made models are registered factories
-Every ready-made model SHALL be a factory function registered in a catalog with its field, description, tags,
+Every ready-made model SHALL be a factory function registered in a catalog with its field path, description, tags,
 references, and default run settings, and the catalog SHALL list, describe, create, and run models by name.
 
 #### Scenario: Browse the catalog
-- **WHEN** a user lists the catalog filtered by the field `ecology`
-- **THEN** the result holds every ecology model with its description, its references, and the formalism inferred from
-  its laws
+- **WHEN** a user lists the catalog filtered by the field `biology`, or by the field path `biology/ecology`
+- **THEN** the result holds every model of that field or subfield with its description, its references, and the
+  formalism inferred from its laws
 
 #### Scenario: Create by name
 - **WHEN** a user creates `lotka_volterra` with a predation rate of 0.2
@@ -137,7 +137,8 @@ same public interface, without code specific to the model.
 - **THEN** every model completes all five steps, and its trajectory holds every declared state and observable
 
 ### Requirement: The library uses only the public interface
-Library modules SHALL build their models only from names that the core packages export.
+Library modules SHALL build their models only from the public names of `skcomplex.core` and third-party numerical
+libraries used inside laws, and no model package SHALL import another.
 
 #### Scenario: Private import
 - **WHEN** a library module imports a private name of another package
@@ -756,3 +757,168 @@ implemented.
 - **WHEN** a user opens the gallery example of `network_structure_analysis`
 - **THEN** it shows the Rerun screenshot of the graph colored by community, and below it the degree distribution and the
   motif z-scores as analysis figures
+
+### Requirement: Models are organized by scientific field
+The library SHALL organize models into packages per scientific field, `physics`, `chemistry`, `biology`, `earth`,
+`economics`, `social`, `engineering`, `mathematics`, and `computer_science`, each split into subfield packages. Every
+model SHALL live in exactly one subfield.
+
+#### Scenario: Import by field
+- **WHEN** a user imports `skcomplex.models.physics.fluids`, `skcomplex.models.biology.ecology`, or
+  `skcomplex.models.chemistry.pattern_formation`
+- **THEN** each package exports the factories and component types of its subfield, such as `burgers`,
+  `lotka_volterra`, and `gray_scott`
+
+#### Scenario: Technique packages are gone
+- **WHEN** a user imports `skcomplex.models.fluids`, `skcomplex.models.lattices`, `skcomplex.models.fields`, or
+  `skcomplex.models.nonlinear`
+- **THEN** the import fails, and every model of those packages is found in its scientific subfield
+
+#### Scenario: One home per model
+- **WHEN** the catalog is listed in full
+- **THEN** every model name appears once, with a field path of the form `<field>/<subfield>`
+
+### Requirement: Models document their pattern
+Every registered model SHALL document how it is built from the interface: its states, parameters, and laws as written,
+and its equations as the symbolic layer shows them, so a user can copy it as the pattern for a model of their own.
+
+#### Scenario: Equations in the documentation
+- **WHEN** a user reads the documentation page of the field `biology`
+- **THEN** every ODE, SDE, map, and field model of the field shows its equations as `equations_of` returns them, and
+  every agent, lattice, and Monte Carlo model shows its laws as written
+
+### Requirement: Physics model collection
+The physics packages SHALL provide models across mechanics, celestial mechanics, oscillators and synchronization,
+statistical mechanics, stochastic processes and soft matter, active matter, fluids, waves, and cosmology, as the model
+inventory lists them.
+
+#### Scenario: Kepler orbit
+- **WHEN** the Kepler two-body model runs for ten periods
+- **THEN** its energy and angular momentum stay within solver tolerance, and its period matches Kepler's third law
+  within 0.1%
+
+#### Scenario: Active Brownian particles
+- **WHEN** active Brownian particles run in two dimensions with speed `v` and rotational diffusion `D_r`
+- **THEN** their mean squared displacement at long times grows as `(4 D_t + 2 v^2 / D_r) t` within 5%
+
+### Requirement: Chemistry model collection
+The chemistry packages SHALL provide reaction kinetics, oscillating reactions, and pattern formation models, as the
+model inventory lists them.
+
+#### Scenario: Oregonator oscillates
+- **WHEN** the Oregonator runs with its standard parameters
+- **THEN** it settles on a relaxation limit cycle with a stable period
+
+### Requirement: Biology model collection
+The biology packages SHALL provide ecology, epidemiology, evolution, neuroscience, systems biology, physiology, and
+collective behaviour models, as the model inventory lists them.
+
+#### Scenario: Repressilator oscillates
+- **WHEN** the repressilator runs as ODEs and as a jump process with the same rates
+- **THEN** both oscillate, and their periods agree within 10%
+
+#### Scenario: Hodgkin-Huxley spikes
+- **WHEN** the Hodgkin-Huxley neuron receives a constant current above threshold
+- **THEN** it fires periodically, and its spike threshold current lies within 10% of the published value
+
+### Requirement: Earth science model collection
+The earth packages SHALL provide climate, oceanography, atmosphere, and seismology models, as the model inventory
+lists them.
+
+#### Scenario: Ice-albedo bistability
+- **WHEN** the energy-balance model runs from a warm and from a cold initial temperature at the same solar constant
+- **THEN** the runs settle in different stable climates
+
+### Requirement: Economics model collection
+The economics packages SHALL provide macroeconomics, markets, finance, and econophysics models, as the model
+inventory lists them.
+
+#### Scenario: Kinetic wealth exchange
+- **WHEN** the random money exchange model runs with conserved money
+- **THEN** the total money stays constant and the wealth distribution approaches an exponential
+
+### Requirement: Social science model collection
+The social packages SHALL provide opinion dynamics, segregation, spreading, cooperation, and crowd models, as the model
+inventory lists them.
+
+#### Scenario: Bounded confidence clusters
+- **WHEN** the Deffuant model runs with confidence bound 0.2 from uniform opinions
+- **THEN** opinions converge to a few clusters, about `1 / (2 * 0.2)` of them
+
+### Requirement: Engineering model collection
+The engineering packages SHALL provide circuits, control, traffic, and power-system models, as the model inventory
+lists them.
+
+#### Scenario: Optimal velocity jams
+- **WHEN** the optimal velocity model of cars on a ring runs above its critical density from uniform flow
+- **THEN** a stop-and-go wave forms and moves against the direction of travel
+
+### Requirement: Mathematics model collection
+The mathematics packages SHALL provide dynamical systems, stochastic processes, network processes, and fractal models,
+as the model inventory lists them.
+
+#### Scenario: Standard map
+- **WHEN** the Chirikov standard map runs above `K = 0.971635` from an orbit near the golden-mean torus
+- **THEN** the orbit diffuses in momentum, and below that value it stays bounded
+
+### Requirement: Computer science model collection
+The computer science packages SHALL provide automata, evolutionary computation, and neural network models, as the model
+inventory lists them.
+
+#### Scenario: Random Boolean network phases
+- **WHEN** Kauffman networks with connectivity 1 and 3 run from random states
+- **THEN** perturbations die out at connectivity 1 and spread at connectivity 3
+
+### Requirement: Quantum spin chain models
+The library SHALL provide the quantum Heisenberg model (Mihailović et al. 2023 §7.3) under
+`physics/statistical_mechanics`: a chain of spins one half with the XXZ Hamiltonian
+`J Σ (S^x_i S^x_j + S^y_i S^y_j + Δ S^z_i S^z_j) - h Σ S^z_i` over neighbouring pairs, optional dephasing at a rate
+`gamma`, and an initial Néel state, a single flipped spin, a domain wall, or the ground state.
+
+#### Scenario: Ground state of the ring
+- **WHEN** the spectrum of `quantum_heisenberg` with 4 periodic sites, `J = 1`, `Δ = 1`, and `h = 0` is computed
+- **THEN** its lowest eigenvalue is -2 within 1e-12
+
+#### Scenario: Single magnon spreads as a Bessel light cone
+- **WHEN** `quantum_heisenberg` runs with 12 periodic sites, `J = 1`, `Δ = 0`, and one flipped spin at site 6, to
+  time 2
+- **THEN** at every frame the probability `1/2 - <S^z_{6+d}>` of finding the flip at distance `d` equals
+  `J_d(J t)²` within 1e-5, and the total magnetisation stays constant within 1e-8
+
+#### Scenario: Dephasing destroys coherence
+- **WHEN** `quantum_heisenberg` runs with 6 periodic sites from a Néel state with `gamma = 0.1`
+- **THEN** the solver is the Lindblad solver, the purity never increases from frame to frame and ends below 1, and
+  the total magnetisation stays constant within 1e-8
+
+### Requirement: Operator formulation of the Schrödinger model
+The `schrodinger` model SHALL accept a `formulation` of `'fields'`, the default, which keeps its two real fields, or
+`'operators'`, which builds a particle on the same lattice as a single-particle Hilbert space with the kinetic operator
+of the lattice's spectral Laplacian and the harmonic potential as a diagonal operator, and accepts position dephasing
+at a rate `gamma`. Both formulations SHALL register under the one name `schrodinger` in `physics/waves`.
+
+#### Scenario: Formulations agree
+- **WHEN** `schrodinger` runs with 128 sites to time 4 once with each formulation
+- **THEN** the probability of every site, `(u² + w²) h` of the fields with the spacing `h` and `|psi|²` of the
+  operators, agrees within 1e-6 at every frame
+
+#### Scenario: Dephased packet
+- **WHEN** `schrodinger` runs with the operator formulation and `gamma = 0.5`
+- **THEN** the trace stays 1 within 1e-10 and the purity never increases from frame to frame
+
+### Requirement: Quantum models are recorded in the model inventory
+Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
+inventory, and a model the inventory records as out of scope or blocked by this change SHALL register under the name of
+its entry. A model that the library already implements SHALL gain the new formulation under the same name, not be
+registered twice.
+
+#### Scenario: Inventory models registered
+- **WHEN** the change is applied and the inventory check runs
+- **THEN** these entries are registered under their field paths and marked implemented:
+  - `quantum_heisenberg` in `physics/statistical_mechanics` (Mi 7.3)
+  - `schrodinger` in `physics/waves` (Sc 4), with the operator formulation
+
+#### Scenario: Gallery example of a quantum model
+- **WHEN** the gallery runs the example `docs/examples/physics/statistical_mechanics/plot_quantum_heisenberg.py`
+- **THEN** it creates `quantum_heisenberg` by name, streams the run to Rerun within the recording budget, its
+  thumbnail is the space-time image of the local magnetisation with a light cone, and its analysis figure compares the
+  ground-state energy per site with `1/4 - ln 2`

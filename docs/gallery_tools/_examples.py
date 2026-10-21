@@ -173,6 +173,7 @@ def _titles(inventory: Path) -> dict[str, str]:
     """Return the title of every model of the inventory."""
     data = tomllib.loads(inventory.read_text())
     data.pop('sources', None)
+    data.pop('primitives', None)
     return {
         name: entry['title']
         for subfields in data.values()
