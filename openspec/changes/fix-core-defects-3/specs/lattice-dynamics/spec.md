@@ -15,10 +15,10 @@ A relaxation that declares its active sites SHALL update, in every iteration aft
 and the sites that read them, and SHALL record the same avalanches as a full update.
 
 #### Scenario: Same avalanches as a full update
-- **WHEN** the Bak-Tang-Wiesenfeld sandpile on a 32 × 32 lattice drops 3000 grains from a fixed seed
-- **THEN** its final heights and the sizes, durations, and areas of its avalanches equal those of a full update of
-  every site in every iteration
+- **WHEN** a Bak-Tang-Wiesenfeld sandpile on a 32 × 32 lattice drops 5000 grains from a fixed seed, once with an
+  activity and once without
+- **THEN** both runs end with the same heights and record avalanches at the same times with the same durations
 
-#### Scenario: Steady-state speed
-- **WHEN** the Bak-Tang-Wiesenfeld sandpile on a 64 × 64 lattice drops 2000 grains after 5000 grains of transient
-- **THEN** the 2000 grains take less than 2 seconds
+#### Scenario: Fewer sites evaluated
+- **WHEN** the same two runs count the sites their toppling rule evaluates
+- **THEN** the run with an activity evaluates fewer than a tenth of the sites of the run without

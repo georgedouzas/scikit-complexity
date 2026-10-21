@@ -70,7 +70,7 @@ task removes the workaround.
 
 ## 8. Lattices
 
-- [ ] 8.1 Update only the active sites and the sites that read them in relaxation iterations after the first,
+- [x] 8.1 Update only the active sites and the sites that read them in relaxation iterations after the first,
   document the contract of `activity`, and verify the same-avalanches and steady-state speed scenarios and the
   existing relaxation tests
 

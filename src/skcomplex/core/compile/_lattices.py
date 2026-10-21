@@ -13,6 +13,7 @@ import networkx as nx
 import numba
 import numpy as np
 import numpy.typing as npt
+import scipy.sparse
 from sage.all__sagemath_symbolics import SR
 
 from ..base import Expression, SolverError, ValidationError, symbol
@@ -385,6 +386,16 @@ class CompiledRule:
         """Lattice or network of the rule."""
         return self.targets[0].space
 
+    @functools.cached_property
+    def reading(self) -> scipy.sparse.csr_matrix:
+        """Sparse matrix whose entry `(i, j)` is 1 when site `i` reads site `j`."""
+        size = self.table.shape[0]
+        rows = np.repeat(np.arange(size), self.table.shape[1])
+        columns = self.table.ravel()
+        real = columns < size
+        ones = np.ones(int(real.sum()))
+        return scipy.sparse.csr_matrix((ones, (rows[real], columns[real])), shape=(size, size))
+
     def _next(self, x: Vector, p: Vector, sites: Indices | None, rng: np.random.Generator) -> list[Vector]:
         """Return the next values of the targets at some sites, read from the current state."""
         space = self.space
@@ -437,6 +448,27 @@ class CompiledRule:
                 x[state.sites] = value
             else:
                 x[state.start + sites] = value
+
+    def apply_near(self, x: Vector, p: Vector, rng: np.random.Generator, active: npt.NDArray[np.bool_]) -> None:
+        """Update in place, synchronously, the active sites and the sites that read one of them, and no other site.
+
+        Args:
+            x:
+                The state vector.
+
+            p:
+                The parameter vector.
+
+            rng:
+                The random number generator.
+
+            active:
+                Whether every site is active.
+        """
+        readers = active | (self.reading @ active.astype(np.float64) > 0)
+        sites = np.flatnonzero(readers)
+        if sites.size:
+            self._assign(x, self._next(x, p, sites, rng), sites)
 
     def apply(self, x: Vector, p: Vector, rng: np.random.Generator) -> None:
         """Update the state vector in place by one application of the rule on its schedule.
@@ -600,7 +632,10 @@ class CompiledRelaxation:
                 np.ravel(np.asarray(self.activity(*self._arrays(x)), dtype=bool)) if self.activity is not None else None
             )
             for law in self.relax:
-                law.apply(x, p, rng)
+                if active is not None and isinstance(law, CompiledRule) and law.schedule == 'synchronous':
+                    law.apply_near(x, p, rng, active)
+                else:
+                    law.apply(x, p, rng)
             updated = (x[sites] != before).reshape(len(self.targets), -1).any(axis=0) if active is None else active
             size += int(updated.sum())
             changed = updated if changed is None else changed | updated
