@@ -2,6 +2,7 @@
 
 import numpy as np
 import rerun as rr
+import rerun.blueprint as rrb
 
 from skcomplex.core.compile import compile_system
 from skcomplex.core.runtime import Simulation
@@ -18,20 +19,26 @@ class Logs:
         self.logs = []
 
     def log(self, path, archetype, static=False):
-        """Keep a logged entity path and archetype."""
-        self.logs.append((path, archetype))
+        """Keep a logged entity path and archetype, leaving out static styles."""
+        if not static:
+            self.logs.append((path, archetype))
 
     def of(self, path):
         """Return the archetypes logged under a path."""
         return [archetype for logged, archetype in self.logs if logged == path]
 
 
-def _views(view):
-    """Return every view below a container view, depth first."""
-    contents = getattr(view, 'contents', None)
-    if isinstance(contents, list) and contents and not isinstance(contents[0], str):
-        return [item for child in contents for item in _views(child)]
-    return [view]
+def _views(blueprint):
+    """Return the views of a blueprint in layout order."""
+    found = []
+    stack = [blueprint.root_container]
+    while stack:
+        part = stack.pop(0)
+        if isinstance(part, rrb.View):
+            found.append(part)
+        else:
+            stack = list(part.contents) + stack
+    return found
 
 
 def test_traits_visual_is_the_default_of_agents_without_space():
@@ -62,11 +69,11 @@ def test_traits_visual_counts_collections():
     assert logs.of('namers/words/mean')[0].scalars.as_arrow_array().to_pylist() == [2.0]
 
 
-def test_default_blueprint_of_moran_process_shows_a_trait_histogram(monkeypatch, tmp_path):
-    """Test that the first agent view of the Moran process is a bar chart and that every numeric trait has a mean."""
+def test_default_blueprint_of_moran_process_shows_trait_statistics_and_histogram(monkeypatch, tmp_path):
+    """Test that the Moran process shows its trait over time and its histogram, and logs the mean of every trait."""
     problem = compile_system(create('moran_process'))
-    views = [item for view in default_blueprint(problem).root_container.contents for item in _views(view)]
-    assert any(type(view).__name__ == 'BarChartView' for view in views)
+    views = [type(view).__name__ for view in _views(default_blueprint(problem))]
+    assert views[:2] == ['TimeSeriesView', 'BarChartView']
     logged = []
     original = rr.RecordingStream.log
 

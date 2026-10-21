@@ -14,9 +14,10 @@ import rerun.blueprint as rrb
 from ..compile import CompiledAgents, CompiledElement, Problem
 from ..model import Space
 from ..solvers import AgentSnapshot
-from ._visuals import AgentsVisual, _widened, register_visual, resolve_visual
+from ._visuals import SERIES_COLORS, AgentsVisual, _widened, register_visual, resolve_visual
 
 BINS = 20
+MAX_LEVELS = 50
 NUMERIC_KINDS = frozenset('biuf')
 
 
@@ -32,14 +33,30 @@ def _numbers_of(values: object) -> npt.NDArray[np.float64] | None:
     return None
 
 
+def _histogram(
+    numbers: npt.NDArray[np.float64],
+    span: tuple[float, float],
+    bins: int,
+) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.float64]]:
+    """Return the counts and the left edges of a histogram, with one bar per value for few integer values."""
+    low, high = span
+    if np.all(numbers == np.round(numbers)) and high - low < MAX_LEVELS:
+        levels = np.arange(np.floor(low), np.floor(high) + 1)
+        counts = np.bincount((numbers - levels[0]).astype(np.int64), minlength=len(levels))
+        return counts, levels
+    low, high = (low, high) if high > low else (low - 0.5, low + 0.5)
+    counts, edges = np.histogram(numbers, bins=bins, range=(low, high))
+    return counts, edges[:-1]
+
+
 class TraitsVisual(AgentsVisual):
     """Visual that logs the traits of agents without a space as histograms and statistics.
 
     For every trait of the agents, a number per agent is taken: the value of a numeric trait, the mean of a row of
     numbers such as a genome, or the size of a collection such as a vocabulary. The visual logs the histogram of these
-    numbers as a `BarChart` under `<path>/<trait>/histogram`, over a range that widens to every value logged so far, and
-    their mean and standard deviation as series under `<path>/<trait>/mean` and `<path>/<trait>/std`. Traits of other
-    kinds are left out.
+    numbers as a `BarChart` under `<path>/<trait>/histogram`, over a range that widens to every value logged so far,
+    with one bar per value when the values are few integers, and their mean and standard deviation as series under
+    `<path>/<trait>/mean` and `<path>/<trait>/std`. Traits of other kinds are left out.
 
     Args:
         color_by:
@@ -73,11 +90,14 @@ class TraitsVisual(AgentsVisual):
 
     def _log_trait(self, recording: rr.RecordingStream, path: str, numbers: npt.NDArray[np.float64]) -> None:
         """Log the histogram, the mean, and the standard deviation of the numbers of one trait."""
+        if path not in self._spans:
+            for index, statistic in enumerate(('mean', 'std')):
+                style = rr.SeriesLines(colors=SERIES_COLORS[index], names=statistic)
+                recording.log(f'{path}/{statistic}', style, static=True)
         span = self.color_range if self.color_range is not None else _widened(self._spans.get(path), numbers)
         self._spans[path] = span
-        low, high = span if span[1] > span[0] else (span[0] - 0.5, span[0] + 0.5)
-        counts, edges = np.histogram(numbers, bins=self.bins, range=(low, high))
-        recording.log(f'{path}/histogram', rr.BarChart(counts, abscissa=edges[:-1]))
+        counts, edges = _histogram(numbers, span, self.bins)
+        recording.log(f'{path}/histogram', rr.BarChart(counts, abscissa=edges))
         recording.log(f'{path}/mean', rr.Scalars(float(numbers.mean())))
         recording.log(f'{path}/std', rr.Scalars(float(numbers.std())))
 
@@ -111,7 +131,7 @@ class TraitsVisual(AgentsVisual):
                 self._log_trait(recording, f'{path}/{trait}', numbers)
 
     def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
-        """Return a bar chart view of the histogram of one trait and a time series view of every trait's statistics.
+        """Return the statistics of one trait over time, its histogram, and the statistics of every trait.
 
         Args:
             element:
@@ -122,8 +142,8 @@ class TraitsVisual(AgentsVisual):
 
         Returns:
             views:
-                A bar chart view of the histogram of `color_by`, or of the first state, and a time series view of the
-                means and standard deviations.
+                A time series view of the mean and the standard deviation of `color_by`, or of the first state, a bar
+                chart view of its histogram, and a time series view of the statistics of every trait.
         """
         if not isinstance(element, CompiledAgents) or not element.states:
             return []
@@ -131,7 +151,12 @@ class TraitsVisual(AgentsVisual):
         trait = self.color_by if self.color_by is not None else element.states[0]
         contents = [f'+ /{path}/*/mean', f'+ /{path}/*/std']
         return [
-            rrb.BarChartView(origin=f'{path}/{trait}/histogram', name=f'{path} {trait}'),
+            rrb.TimeSeriesView(
+                origin='/',
+                contents=[f'+ /{path}/{trait}/mean', f'+ /{path}/{trait}/std'],
+                name=f'{path} {trait}',
+            ),
+            rrb.BarChartView(origin=f'{path}/{trait}/histogram', name=f'{path} {trait} histogram'),
             rrb.TimeSeriesView(origin='/', contents=contents, name=f'{path} traits'),
         ]
 

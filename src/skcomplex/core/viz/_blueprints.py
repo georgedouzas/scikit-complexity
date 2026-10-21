@@ -139,16 +139,18 @@ def _element_views(problem: Problem) -> tuple[list[rrb.View], list[rrb.View]]:
     return [*spatial, *(_merged(views, 'points') for views in points.values())], series
 
 
-def _agent_views(problem: Problem) -> tuple[list[rrb.View], list[rrb.View]]:
-    """Return the spatial and the time series views of the agents, one per view class, shared by every group."""
-    by_class: dict[type, list[rrb.View]] = {}
+def _agent_views(problem: Problem) -> list[rrb.View]:
+    """Return the views of the agents, merged into one per view class when the groups share a space."""
+    views: list[rrb.View] = []
     agents: CompiledAgents
     for agents in problem.agents:
-        for view in agents_visual_of(agents, problem).views(agents, problem):
-            by_class.setdefault(type(view), []).append(view)
-    merged = [_merged(views, 'agents') for views in by_class.values()]
-    series: list[rrb.View] = [view for view in merged if isinstance(view, rrb.TimeSeriesView)]
-    return [view for view in merged if not isinstance(view, rrb.TimeSeriesView)], series
+        views += agents_visual_of(agents, problem).views(agents, problem)
+    if problem.agent_space is None:
+        return views
+    by_class: dict[type, list[rrb.View]] = {}
+    for view in views:
+        by_class.setdefault(type(view), []).append(view)
+    return [_merged(group, 'agents') for group in by_class.values()]
 
 
 def _summary_views(problem: Problem, *, parameters: bool) -> list[rrb.View]:
@@ -172,9 +174,8 @@ def _summary_views(problem: Problem, *, parameters: bool) -> list[rrb.View]:
 def _ordered_views(problem: Problem, *, parameters: bool) -> tuple[list[rrb.View], list[rrb.View]]:
     """Return the spatial views and the time series views of a problem, each in order of importance."""
     spatial, series = _element_views(problem)
-    agent_spatial, agent_series = _agent_views(problem)
-    spatial = [*spatial, *agent_spatial]
-    series = [*_scalar_views(problem), *series, *agent_series, *_summary_views(problem, parameters=parameters)]
+    spatial = [*spatial, *_agent_views(problem)]
+    series = [*_scalar_views(problem), *series, *_summary_views(problem, parameters=parameters)]
     return [_whole_run(view) for view in spatial], [_whole_run(view) for view in series]
 
 
