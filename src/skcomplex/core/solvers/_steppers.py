@@ -440,6 +440,17 @@ class ScipyODE(Stepper):
     def _stalls(self, start: float, end: float) -> bool:
         """Check whether LSODA has taken many consecutive steps too short to advance the run, or too many in a frame.
 
+        Args:
+            start:
+                The time at the start of the step.
+
+            end:
+                The time at the end of the step.
+
+        Returns:
+            stalled:
+                Whether LSODA should give way to another method.
+
         Raises:
             SolverError:
                 Another integrator takes too many steps in one frame, as when a state slides along a discontinuity.
