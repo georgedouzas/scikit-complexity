@@ -29,8 +29,8 @@ task removes the workaround.
   agents-that-start-equal scenario
 - [x] 3.2 Add `TraitsVisual`, make it the default of agent groups without a space, verify the Moran process scenario,
   and curate the unblocked scaffolds
-- [ ] 3.3 Draw agents of one coordinate on a line, verify the traffic scenario, and curate `charbonneau_traffic`
-- [ ] 3.4 Give fields on networks the sites visual, verify the network diffusion scenario, and curate the unblocked
+- [x] 3.3 Draw agents of one coordinate on a line, verify the traffic scenario, and curate `charbonneau_traffic`
+- [x] 3.4 Give fields on networks the sites visual, verify the network diffusion scenario, and curate the unblocked
   scaffolds
 - [ ] 3.5 Add `PhaseRingVisual` and declare it on the chimera models, draw 3D paths for small groups of points, and
   declare the bodies visual on `spring_chain`, and verify the chimera scenario

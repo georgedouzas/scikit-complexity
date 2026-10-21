@@ -21,6 +21,8 @@ from ..solvers import AgentSnapshot
 
 MAX_POINT_DIMENSIONS = 3
 UPWARD = np.array([1.0, -1.0])
+PATH_COLOR = (86, 180, 233)
+PATH_WIDTH = 1.0
 LAYOUT_SEED = 0
 NODE_SPACING = 40.0
 POINT_SHARE = 0.02
@@ -75,14 +77,6 @@ def _widened(span: tuple[float, float] | None, values: npt.NDArray[np.float64]) 
     """Return a color range widened to cover values, starting from their extremes when there is no range yet."""
     low, high = float(np.min(values)), float(np.max(values))
     return (low, high) if span is None else (min(span[0], low), max(span[1], high))
-
-
-def _on_a_plane(values: npt.ArrayLike, count: int) -> npt.NDArray[np.float64]:
-    """Return positions as rows `(x, y)` with the vertical axis up, on the line `y = 0` for one coordinate."""
-    positions = np.asarray(values, dtype=float).reshape(count, -1)
-    if positions.shape[1] == 1:
-        return np.column_stack([positions[:, 0], np.zeros(count)])
-    return positions[:, :2] * UPWARD
 
 
 def _palette_colors(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
@@ -460,8 +454,10 @@ class AgentsVisual(Visual):
     seeded spring layout of the network. On a grid the radius is in cells, and on a network a fraction of the spacing
     of neighbouring nodes. Without a given radius, agents in a continuous space take a share of the side of the space,
     smaller for larger groups. Every point carries the agent id as a hidden label, so agents keep their identity across
-    frames and removed agents disappear. Agents whose position is a state, such as cars on a road, are logged as
-    `Points2D` at that state, on the line `y = 0` for one coordinate and with the vertical axis up for two.
+    frames and removed agents disappear. Agents whose position is a state are logged at that state: positions of one
+    coordinate, such as cars on a road, as one thin series of one color per agent under `<path>/<position>`, so their
+    time series view, without a legend, is a space-time diagram, and positions of two coordinates as `Points2D` with
+    the vertical axis up.
 
     Args:
         color_by:
@@ -494,6 +490,7 @@ class AgentsVisual(Visual):
         self.color_range = color_range
         self.radius = radius
         self.position = position
+        self._styled: set[str] = set()
         self._layouts: dict[int, dict[str, npt.NDArray[np.float64]]] = {}
         self._span: tuple[float, float] | None = None
 
@@ -567,7 +564,16 @@ class AgentsVisual(Visual):
         """
         colors, labels = self._colors(snapshot), [str(agent) for agent in snapshot.ids]
         if self.position is not None:
-            positions = _on_a_plane(snapshot.values[self.position], len(snapshot))
+            positions = np.asarray(snapshot.values[self.position], dtype=float).reshape(len(snapshot), -1)
+            if positions.shape[1] == 1:
+                entity = f'{path}/{self.position}'
+                if entity not in self._styled:
+                    style = rr.SeriesLines(colors=[PATH_COLOR] * len(positions), widths=PATH_WIDTH)
+                    recording.log(entity, style, static=True)
+                    self._styled.add(entity)
+                recording.log(entity, rr.Scalars(positions[:, 0]))
+                return
+            positions = positions[:, :2] * UPWARD
             extent = float(np.ptp(positions, axis=0).max()) if len(positions) else 0.0
             radius = _radius_of(extent, len(positions)) if self.radius is None else float(self.radius)
             recording.log(path, rr.Points2D(positions, colors=colors, radii=radius, labels=labels, show_labels=False))
@@ -618,7 +624,11 @@ class AgentsVisual(Visual):
             >>> type(AgentsVisual().views(problem.agents[0], problem)[0]).__name__
             'GraphView'
         """
-        if self.position is not None:
+        if self.position is not None and isinstance(element, CompiledAgents):
+            initial: Any = element.values[self.position]
+            if np.ndim(initial) < 2:  # noqa: PLR2004
+                origin = f'{element.path}/{self.position}'
+                return [rrb.TimeSeriesView(origin=origin, name=origin, plot_legend=rrb.PlotLegend(visible=False))]
             return [rrb.Spatial2DView(origin=element.path, name=element.path)]
         if problem.agent_space is None:
             return []

@@ -5,7 +5,7 @@ import rerun.blueprint as rrb
 
 from skcomplex.core.base import ValidationError, VisualSpec, state
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import Element, EuclideanSpace, System
+from skcomplex.core.model import Element, EuclideanSpace, Field, LatticeSpace, System
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import (
     AgentsVisual,
@@ -20,6 +20,7 @@ from skcomplex.core.viz import (
 )
 from skcomplex.models import create
 from skcomplex.models.biology.ecology import Population
+from skcomplex.models.physics.heat import Heat
 
 
 def _views(blueprint):
@@ -221,3 +222,16 @@ def test_views_of_image_without_history_leave_out_space_time():
     problem = compile_system(create('elementary_automaton'))
     views = ImageVisual(history=0).views(problem.elements[0], problem)
     assert [str(view.origin) for view in views] == ['cells/alive']
+
+
+def test_fields_on_networks_are_drawn_as_colored_graphs():
+    """Test that a field on a network without a visual is drawn as a colored graph, not one series per node."""
+    problem = compile_system(create('network_diffusion'))
+    assert problem.elements[0].visual.kind == 'sites'
+    assert any(type(view).__name__ == 'GraphView' for view in _views(default_blueprint(problem)))
+
+
+def test_fields_keep_a_given_visual():
+    """Test that a field keeps the visual it is given."""
+    field = Field('plate', Heat, LatticeSpace((4, 4)), visual=VisualSpec('sites'))
+    assert compile_system(System(elements=[field])).elements[0].visual.kind == 'sites'

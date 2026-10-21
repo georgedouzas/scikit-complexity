@@ -47,12 +47,14 @@ standard deviation of every numeric trait.
 - **WHEN** the default blueprint of `moran_process` is built and its visual logs 10 frames
 - **THEN** the first view of the agents is a bar chart of a trait, and the logs hold the mean of every numeric trait
 
-### Requirement: One-dimensional agents are drawn on a line
-Agents whose positions have one coordinate SHALL be drawn as points on a line in a 2D view.
+### Requirement: One-dimensional agents are drawn as a space-time diagram
+Agents whose position state has one coordinate SHALL be logged as one series per agent, shown in a time series view
+without a legend.
 
 #### Scenario: Traffic on a road
 - **WHEN** the visual of `charbonneau_traffic` logs a frame
-- **THEN** it logs `Points2D` with the positions as first coordinates and 0 as second coordinates
+- **THEN** it logs the positions of the cars as scalars under `cars/x`, and its view is a time series view of
+  `cars/x`
 
 ### Requirement: Fields on networks are drawn as colored graphs
 A field on a network space without a visual SHALL take the colored graph visual of lattice groups on networks.

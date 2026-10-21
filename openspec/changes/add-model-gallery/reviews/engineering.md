@@ -34,3 +34,4 @@
 | rice_milling | paddy stock peaking at every harvest and running low before the next, over ten years | milling capped by capacity after harvests; grain conserved into rice, husk, and bran | 5 s script, 121 frames, 0.18 MB |
 | solid_waste | landfill filling, then closing | landfilling rises until the acceptance table closes the landfill, then dumping | 0.2 s run, 81 frames, 0.13 MB |
 | traffic_density_equation | density waves growing from the uniform flow | log Fourier amplitudes grow at the linear rate, fastest near q = 0.9 | 0.9 s run, 101 frames, 0.74 MB |
+| charbonneau_traffic | space-time diagram of 100 cars whose lines run flat in jams that drift backwards while the platoon advances | speed-colored scatter of position against step shows dark jam bands moving against the traffic | 1.5 s, 201 frames, 0.18 MB |

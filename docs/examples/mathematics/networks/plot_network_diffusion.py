@@ -7,15 +7,12 @@ smallest nonzero eigenvalue of the graph Laplacian.
 """
 
 # %%
-# The mass starts on node 0 and diffuses with `D = 1` for 0.6 time units. The model logs the contents as time series;
-# after the run the contents at every frame are logged again as the colours of the nodes of the graph, on a
-# logarithmic scale from `10^-3` (dark) to 1 (yellow), and the blueprint puts this graph first, as the primary view.
+# The mass starts on node 0 and diffuses with `D = 1` for 0.6 time units. The default blueprint colors the nodes of the
+# club by their content, from the emptiest (dark) to the fullest (yellow) node of every frame.
 
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
-import rerun as rr
-import rerun.blueprint as rrb
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
@@ -24,31 +21,10 @@ from skcomplex.models import create
 MODEL = 'network_diffusion'
 
 graph = nx.karate_club_graph()
-blueprint = rrb.Blueprint(
-    rrb.Horizontal(
-        rrb.GraphView(origin='/club', name='content of every node'),
-        rrb.TimeSeriesView(origin='/nodes', name='contents'),
-        column_shares=[3, 2],
-    ),
-    rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
-    rrb.TopPanel(state='hidden'),
-    collapse_panels=True,
-)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = Simulation(create(MODEL, graph=graph), dt=0.01, observers=[observer]).run(until=0.6)
 trajectory = simulation.trajectory_
 contents = trajectory['nodes.u']
-layout = nx.spring_layout(graph, seed=1)
-positions = np.array([layout[node] for node in graph.nodes]) * 300
-observer.recording_.log('club', rr.GraphEdges(list(graph.edges), graph_type='undirected'), static=True)
-for time, row in zip(trajectory.times, contents, strict=True):
-    observer.recording_.set_time('sim_time', duration=time)
-    shades = plt.get_cmap('viridis')(np.clip((np.log10(np.maximum(row, 1e-3)) + 3) / 3, 0, 1))[:, :3]
-    observer.recording_.log(
-        'club',
-        rr.GraphNodes(list(graph.nodes), positions=positions, colors=shades, radii=12, show_labels=False),
-    )
-observer.recording_.flush()
 
 # %%
 # Relaxation to the uniform state

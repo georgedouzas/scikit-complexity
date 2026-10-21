@@ -40,7 +40,7 @@
 | newton_raphson_map | three basins of the cube roots meeting along a fractal boundary | orbits end on the roots of their basins; boundary box dimension 1.41 | 0.5 s, 31 frames, 37 KB |
 | sprott_jerk | folded band of the attractor in (x, x', x'') | single-curve return map of x maxima; exponents 0.041, 0, -0.641 summing to -A | 6.6 s, 251 frames, 94 KB |
 | towel_map | folded sheet of points (y stretched 4x) | exponents 0.43, 0.38, -3.30; Kaplan-Yorke dimension 2.25 | 1.5 s, 251 frames, 160 KB |
-| network_diffusion | karate club coloured by content, bright near the source, dark on the far side | distance to 1/n decays at λ2 = 0.469; mass drift 1e-13; farther nodes fill later | 0.3 s, 61 frames, 56 KB |
+| network_diffusion | karate club coloured by content through the default sites visual, bright near the source, dark on the far side | distance to 1/n decays at λ2 = 0.469; mass drift 1e-13; farther nodes fill later | 0.4 s, 61 frames, 38 KB |
 | pagerank | karate club with the two hubs largest and brightest | L1 error to networkx.pagerank falls to 1e-7, faster than 0.85^t; rank grows with degree | 0.2 s, 41 frames, 53 KB |
 | network_random_walk | walkers crowding on the hubs 0 and 33 | share of walker-steps equals k_i / 2m | 0.2 s, 201 frames, 584 KB |
 | bernoulli_process | six success staircases with their mean along 0.5 t and a spread near 2 | final counts match B(100, 0.5) and B(100, 0.2) over 2000 sequences | 8.7 s, 101 frames, 0.15 MB |

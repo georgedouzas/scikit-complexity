@@ -176,8 +176,12 @@ agent groups whose problem has no agent space, chosen where the default `AgentsV
 
 ### One-dimensional agents
 
-`AgentsVisual.log_agents` pads positions of one coordinate with a zero second coordinate, and `views` gives such a
-group a 2D spatial view whose bounds are the extent of the space and a strip of height one tenth of it.
+`AgentsVisual` takes `position`, the name of a state that holds the position of every agent. Positions of two
+coordinates are drawn as `Points2D` with the vertical axis up. Positions of one coordinate are logged as one thin
+series of one color per agent, and the view is a time series view without a legend, so it is a space-time diagram.
+Points on the line `y = 0` were tried first and rejected: Rerun cannot fit a 2D view to points of zero height, so the
+gallery capture of `charbonneau_traffic` was blank, and fixed bounds cannot follow cars that drive off along an open
+road.
 
 ### Widening color ranges
 
