@@ -111,6 +111,16 @@ def test_default_solver_leaves_lsoda_for_states_its_dense_matrix_cannot_hold():
         Simulation(_relaxing_group(10_000), dt=0.5, solver=ScipyODE(method='LSODA')).run(until=1)
 
 
+def test_default_solver_leaves_lsoda_when_a_state_rests_on_a_discontinuity():
+    """Test that a bathtub resting empty on its drain switch finishes with RK45, and explicit LSODA names the stall."""
+    with pytest.warns(UserWarning, match='LSODA stalled'):
+        simulation = Simulation(create('bathtub', water=20.0), dt=1).run(until=6)
+    assert simulation.stepper_.method_ == 'RK45'
+    np.testing.assert_allclose(simulation.trajectory_['tub.water'][:5], [20, 15, 10, 5, 0], atol=1e-6)
+    with pytest.raises(SolverError, match='stalled'):
+        Simulation(create('bathtub', water=20.0), dt=1, solver=ScipyODE(method='LSODA')).run(until=6)
+
+
 def test_default_solver_starts_from_rest_with_a_vanishing_drift():
     """Test that an oscillator at rest, forced by `sin(t)`, leaves its zero drift at time 0 and follows the solution."""
     Forced = Element.define(

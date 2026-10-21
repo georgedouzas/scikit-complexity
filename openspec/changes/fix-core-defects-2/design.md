@@ -145,6 +145,11 @@ Running the whole catalog and the documentation on the new default found two mor
   the stable step by diffusion, the stiffness signal the stepper already warns on, and `RK45` otherwise, since `BDF`
   runs a gas of 2000 particles 9 times slower than `RK45`. `ScipyODE(method='LSODA')` asked for more states raises the named solver error instead of exhausting
   memory. This is not stiffness detection of our own: it chooses by storage, and LSODA keeps detecting stiffness.
+- When a state rests on a discontinuity of the drift, as the empty `bathtub` on its drain switch once the inflow
+  balances the outflow, LSODA's finite-difference Jacobian straddles the switch and its step stays near 1e-10 for
+  ever. After 1000 consecutive steps shorter than 1e-9 of the time, the default method warns and continues with
+  `RK45`, which needs no Jacobian, and an explicit `LSODA` raises the named solver error. Restarting at state switches
+  and limiting the outflows of a nonnegative stock are core features that `fix-core-defects-3` specifies.
 
 ## Risks / Trade-offs
 

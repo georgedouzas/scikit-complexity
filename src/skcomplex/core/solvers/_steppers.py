@@ -37,6 +37,8 @@ def _is_hybrid(problem: Problem, t: float, until: float) -> bool:
 
 
 LSODA_LARGEST_SIZE = 4096
+STALL_STEP = 1e-9
+STALL_STEPS = 1000
 SMALL_NORM = 1e-5
 TINY_NORM = 1e-15
 FALLBACK_STEP = 1e-6
@@ -240,6 +242,7 @@ class ScipyODE(Stepper):
         self.jacobian_options_: dict[str, Any] = {}
         self._exact = False
         self._warned = False
+        self._stalled = 0
         self.method_ = 'LSODA' if self.method == 'auto' else self.method
         if self.method_ in IMPLICIT and self.jacobian != 'dense' and problem.jacobian is not None:
             self._prepare_jacobian(problem)
@@ -401,11 +404,38 @@ class ScipyODE(Stepper):
                     'not finite. Check the system for a solution that blows up.'
                 )
                 raise SolverError(error_msg)
+            if self._stalls(start, solver.t):
+                self._leave_lsoda(solver.t, solver.y, p)
             segment = _Segment(start, solver.t, before, solver.y.copy(), solver.dense_output())
             if self.history_ is not None:
                 self.history_.add(start, solver.t, segment.dense)
             self._segment = segment
         return segment
+
+    def _stalls(self, start: float, end: float) -> bool:
+        """Check whether LSODA has taken many consecutive steps too short to advance the run."""
+        if self.method_ != 'LSODA' or end - start >= STALL_STEP * max(1.0, abs(end)):
+            self._stalled = 0
+            return False
+        self._stalled += 1
+        return self._stalled >= STALL_STEPS
+
+    def _leave_lsoda(self, t: float, x: Vector, p: Vector) -> None:
+        """Continue with `RK45` after LSODA stalls on a default method, or raise the named error on an explicit one."""
+        if self.method != 'auto':
+            error_msg = (
+                f'The LSODA integrator stalled at t = {t}: {STALL_STEPS} consecutive steps are shorter than '
+                f'{STALL_STEP:g} of the time, as when a state rests on a discontinuity of the drift. Use '
+                "ScipyODE(method='RK45'), which needs no Jacobian."
+            )
+            raise SolverError(error_msg)
+        warning_msg = (
+            f'LSODA stalled at t = {t} with {STALL_STEPS} consecutive steps shorter than {STALL_STEP:g} of the time, '
+            'as when a state rests on a discontinuity of the drift, so the run continues with RK45.'
+        )
+        warnings.warn(warning_msg, UserWarning, stacklevel=5)
+        self.method_, self.jacobian_options_, self._exact, self._stalled = 'RK45', {}, False, 0
+        self._restart(t, x, p)
 
     def _first_change(self, dense: Callable[[float], Vector], end: float, p: Vector) -> float:
         """Return the first time of a step, up to its end, at which the boundary laws change the state, by bisection."""

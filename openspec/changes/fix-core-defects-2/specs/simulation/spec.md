@@ -32,3 +32,9 @@ systems run with the default solver, and SHALL choose a method whose storage fit
 - **WHEN** 10 000 states coupled through their mean run with the default solver
 - **THEN** the run uses a method other than `LSODA` and matches the analytic solution within 1e-5, and
   `ScipyODE(method='LSODA')` for the same system raises a named error that names the size of its dense matrix
+
+#### Scenario: State resting on a discontinuity
+- **WHEN** `bathtub` with 20 gallons runs until 6 with the default solver, so the empty tub rests on its drain switch
+  once the faucet opens
+- **THEN** the run warns that LSODA stalled, finishes with `RK45`, and the water drains to 0 by time 4, and
+  `ScipyODE(method='LSODA')` for the same run raises a named error that says it stalled
