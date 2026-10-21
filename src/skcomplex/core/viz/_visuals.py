@@ -20,6 +20,7 @@ from ..runtime import Frame
 from ..solvers import AgentSnapshot
 
 MAX_POINT_DIMENSIONS = 3
+UPWARD = np.array([1.0, -1.0])
 LAYOUT_SEED = 0
 NODE_SPACING = 40.0
 POINT_SHARE = 0.02
@@ -266,7 +267,9 @@ class ScalarsVisual(Visual):
 class PointsVisual(Visual):
     """Visual that logs a vector state as points, one per member of a group, and other states as time series.
 
-    Each state is logged as one batch, so a group of any size takes one log call per state and frame. Without a given
+    Each state is logged as one batch, so a group of any size takes one log call per state and frame. Positions in two
+    dimensions are logged with the second coordinate negated, since Rerun's 2D views point their vertical axis down, so
+    the views draw them with the vertical axis up and show the negated value on hover. Without a given
     radius, the points take a share of the extent of the positions logged so far, smaller for larger groups. A group of
     at most ten points in two or three dimensions also logs the trail of its recent positions as line strips under
     `<path>/trail`, a quarter as wide as that share, whatever the radius.
@@ -378,8 +381,9 @@ class PointsVisual(Visual):
             recording.log(element.path, rr.Points3D(points, radii=self._radius(points), colors=colors))
             self._log_trail(recording, element.path, points, colors)
         elif points.shape[1] == MAX_POINT_DIMENSIONS - 1:
-            recording.log(element.path, rr.Points2D(points, radii=self._radius(points), colors=colors))
-            self._log_trail(recording, element.path, points, colors)
+            shown = points * UPWARD
+            recording.log(element.path, rr.Points2D(shown, radii=self._radius(shown), colors=colors))
+            self._log_trail(recording, element.path, shown, colors)
         else:
             recording.log(f'{element.path}/{self.position}', rr.Scalars(points.ravel()))
         others = (

@@ -192,3 +192,15 @@ def test_scalars_visual_colors_elements_apart():
     left = next(item for item in logs.of('left/theta') if type(item).__name__ == 'SeriesLines')
     right = next(item for item in logs.of('right/theta') if type(item).__name__ == 'SeriesLines')
     assert _series_color(left) != _series_color(right)
+
+
+def test_points_visual_draws_two_dimensions_with_vertical_axis_up():
+    """Test that a 2D position (1, 2) is logged as (1, -2), since Rerun's 2D views point their vertical axis down."""
+    system = System(elements=[Particle.group('bodies', 1, x=[[1.0, 2.0]])], space=EuclideanSpace(2))
+    problem, frame = _first_frame(system)
+    logs = Logs()
+    PointsVisual(position='x', states=()).log(logs, problem.elements[0], frame)
+    points = logs.of('bodies')[0].positions.as_arrow_array().to_pylist()
+    assert points == [[1.0, -2.0]]
+    trail = logs.of('bodies/trail')[0].strips.as_arrow_array().to_pylist()
+    assert trail[0][-1] == [1.0, -2.0]

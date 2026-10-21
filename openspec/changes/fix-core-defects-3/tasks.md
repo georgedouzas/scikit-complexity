@@ -16,7 +16,7 @@ task removes the workaround.
 
 ## 2. Bodies and the vertical axis
 
-- [ ] 2.1 Negate the second coordinate of 2D points and trails in `PointsVisual`, document it, and verify the
+- [x] 2.1 Negate the second coordinate of 2D points and trails in `PointsVisual`, document it, and verify the
   point-above-the-origin scenario and the existing visual tests
 - [ ] 2.2 Add `BodiesVisual`, register it as `'bodies'`, export it from `skcomplex.core.viz`, and verify the double
   pendulum and billiard scenarios
