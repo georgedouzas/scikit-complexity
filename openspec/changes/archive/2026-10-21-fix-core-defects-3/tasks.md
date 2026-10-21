@@ -97,4 +97,6 @@ regression test for each fix.
 
 ## 10. Gate
 
-- [ ] 10.1 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass
+- [x] 10.1 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass
+  Closed on 2026-10-21 by the maintainer's decision on the checks alone: formatting and all 8 check sessions pass at
+  5f9fe07; the full test suite and the strict gallery build were last run before the final merges.

@@ -82,4 +82,6 @@ For every task in this section:
   without a screenshot and new model without an example scenarios
 - [x] 6.2 Document the gallery, how to add an example for a new model, and the review rule in the contributing guide,
   and add the `gallery` group and Playwright to the Project Profile
-- [ ] 6.3 Run formatting, checks, the docs build with the gallery, and tests through nox, and verify all of them pass
+- [x] 6.3 Run formatting, checks, the docs build with the gallery, and tests through nox, and verify all of them pass
+  Closed on 2026-10-21 by the maintainer's decision on the checks alone: formatting and all 8 check sessions pass at
+  5f9fe07; the full test suite and the strict gallery build were last run before the final merges.

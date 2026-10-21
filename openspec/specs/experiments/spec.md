@@ -58,3 +58,11 @@ and MAPE.
 #### Scenario: Recover logistic parameters
 - **WHEN** a user calibrates the logistic growth model to data generated with `r = 0.8` and `K = 500` plus 1% noise
 - **THEN** the estimates lie within 5% of the true values and R² exceeds 0.99
+
+### Requirement: Dead worker processes raise a named error
+An experiment run on processes SHALL raise a named error when its worker processes die, and the message SHALL name the
+main guard that a script needs and the executors that avoid processes.
+
+#### Scenario: Script without a main guard
+- **WHEN** a script without `if __name__ == '__main__':` builds an orbit diagram with `executor='process'`
+- **THEN** it raises `ExperimentError`, whose message names the main guard and `executor='thread'`
