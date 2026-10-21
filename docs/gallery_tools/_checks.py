@@ -4,6 +4,7 @@
 # License: MIT
 
 import itertools
+import re
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -36,6 +37,8 @@ BORDER_TOLERANCE = 8
 MAX_BAND_SHARE = 0.1
 MIN_SOLID_SHARE = 0.5
 PALETTE_SIZES = (256, 128, 64, 32, 16)
+QUOTED = re.compile(r'`([A-Za-z_][\w./]*)`')
+SENTENCE_END = re.compile(r'(?<=\.)\s+')
 
 
 def _split(box: Box, shares: Sequence[float], *, horizontal: bool) -> list[Box]:
@@ -438,3 +441,86 @@ def is_placeholder(path: Path, placeholder: Path) -> bool:
         shown = np.asarray(thumbnail.convert('RGB'), dtype=float)
         expected = np.asarray(reference.convert('RGB').resize(thumbnail.size), dtype=float)
     return float(np.mean(np.abs(shown - expected))) < PLACEHOLDER_TOLERANCE
+
+
+def caption_series(source: str) -> list[str]:
+    """Return the names an example's comments quote where they describe the series of its primary view.
+
+    A sentence of the comments that names the primary view and series is read, and every identifier or entity path it
+    quotes in backticks is taken as a series the primary view shows.
+
+    Args:
+        source:
+            The source of the example.
+
+    Returns:
+        names:
+            The quoted names, in the order of the comments.
+
+    Examples:
+        >>> from gallery_tools import caption_series
+        >>> caption_series('# Its primary view is the time series of `q` and `m`.')
+        ['q', 'm']
+    """
+    lines = [line.strip()[1:].strip() for line in source.splitlines() if line.strip().startswith('#')]
+    sentences = SENTENCE_END.split(' '.join(line for line in lines if not line.startswith('%%')))
+    names: list[str] = []
+    for sentence in sentences:
+        if 'primary view' in sentence and 'series' in sentence:
+            names += [name for name in QUOTED.findall(sentence) if name not in names]
+    return names
+
+
+def _expressions(view: rrb.View) -> list[tuple[bool, str]]:
+    """Return the entity path expressions of a view's contents, whether each includes, and its path pattern."""
+    contents = view.contents if view.contents is not None else '$origin/**'
+    lines = contents.splitlines() if isinstance(contents, str) else [str(line) for line in contents]
+    origin = str(view.origin).rstrip('/')
+    expressions = []
+    for line in (line.strip().replace('$origin', origin) for line in lines if line.strip()):
+        include = not line.startswith('-')
+        expressions.append((include, line.lstrip('+-').strip()))
+    return expressions
+
+
+def _matches(path: str, pattern: str) -> bool:
+    """Return whether an entity path matches a pattern, a path or a path followed by `/**`."""
+    if pattern.endswith('/**'):
+        base = pattern[:-3].rstrip('/')
+        return path == base or path.startswith(f'{base}/')
+    return path == pattern
+
+
+def missing_series(names: Sequence[str], paths: Sequence[str], view: rrb.View) -> list[str]:
+    """Return the names of series that no entity path a view includes ends with.
+
+    Args:
+        names:
+            The names of the series, as `caption_series` reads them.
+
+        paths:
+            The entity paths of a recording.
+
+        view:
+            The view, whose contents are paths and `/**` subtrees, included or, after a leading `-`, excluded.
+
+    Returns:
+        names:
+            The names the view shows no series of.
+
+    Examples:
+        >>> import rerun.blueprint as rrb
+        >>> from gallery_tools import missing_series
+        >>> missing_series(['x', 'y'], ['/lorenz/x', '/lorenz/y'], rrb.TimeSeriesView(origin='/', contents='/lorenz/x'))
+        ['y']
+    """
+    expressions = _expressions(view)
+    included = []
+    for path in paths:
+        shown = False
+        for include, pattern in expressions:
+            if _matches(path, pattern):
+                shown = include
+        if shown:
+            included.append(path)
+    return [name for name in names if not any(path.endswith(f'/{name.strip("/")}') for path in included)]

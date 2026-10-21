@@ -4,18 +4,22 @@
 # License: MIT
 
 import tempfile
+import warnings
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 import rerun as rr
+import rerun.blueprint as rrb
+from rerun.chunk import RrdReader
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
 
 from ._cache import ScreenshotCache, cache_key
-from ._capture import capture_thumbnail
-from ._errors import GalleryError
+from ._capture import capture_thumbnail, first_view
+from ._checks import caption_series, missing_series
+from ._errors import GalleryError, GalleryWarning
 from ._examples import check_budget, model_sources
 from ._settings import Budget, CaptureSettings
 
@@ -56,6 +60,19 @@ def finished_observers(variables: Mapping[str, Any]) -> list[RerunObserver]:
     return found
 
 
+def _warn_missing_series(example: Path, recording: Path, blueprint: rrb.Blueprint) -> None:
+    """Warn about every series the caption of an example names that the primary view of its recording does not show."""
+    names = caption_series(example.read_text())
+    if not names:
+        return
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        paths = RrdReader(recording).stream().collect().schema().entity_paths()
+    for name in missing_series(names, paths, first_view(blueprint.root_container)):
+        warning_msg = f'{example.stem}: the primary view shows no series `{name}`, which its caption names.'
+        warnings.warn(warning_msg, GalleryWarning, stacklevel=3)
+
+
 def thumbnail_of(
     example: Path,
     model: str,
@@ -68,6 +85,9 @@ def thumbnail_of(
     seconds: float | None = None,
 ) -> tuple[Path, bool]:
     """Return the thumbnail of an example from the cache, or capture, check, and cache it.
+
+    A `GalleryWarning` names every series that the comments of the example quote as a series of the primary view, and
+    that the primary view does not show, as `caption_series` and `missing_series` find them.
 
     Args:
         example:
@@ -105,14 +125,15 @@ def thumbnail_of(
     recording = Path(str(observer.save_path)).absolute()
     frames = int(observer.logged_frames_)
     check_budget(example.stem, frames, recording.stat().st_size, seconds, budget)
-    key = cache_key(example, model_sources(model), backend, settings)
-    cached = cache.get(key)
-    if cached is not None:
-        return cached, True
     blueprint = observer.blueprint_
     if blueprint is None:
         error_msg = f'{example.stem} sends no blueprint. Pass `blueprint=\'default\'` or a blueprint to its observer.'
         raise GalleryError(error_msg)
+    _warn_missing_series(example, recording, blueprint)
+    key = cache_key(example, model_sources(model), backend, settings)
+    cached = cache.get(key)
+    if cached is not None:
+        return cached, True
     with tempfile.TemporaryDirectory() as folder:
         try:
             thumbnail = capture_thumbnail(

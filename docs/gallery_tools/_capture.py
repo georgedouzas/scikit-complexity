@@ -80,12 +80,31 @@ def _stop_viewer(process: subprocess.Popen[bytes]) -> None:
     process.wait()
 
 
-def _first_view(part: rrb.View | rrb.Container) -> rrb.View:
-    """Return the first view of a layout, its primary view."""
+def first_view(part: rrb.View | rrb.Container) -> rrb.View:
+    """Return the first view of a layout, its primary view.
+
+    Args:
+        part:
+            The root container or view of a blueprint.
+
+    Returns:
+        view:
+            The first view, depth first.
+
+    Raises:
+        GalleryError:
+            The layout has no view.
+
+    Examples:
+        >>> import rerun.blueprint as rrb
+        >>> from gallery_tools import first_view
+        >>> str(first_view(rrb.Horizontal(rrb.Spatial2DView(origin='/u'), rrb.Spatial2DView(origin='/v'))).origin)
+        '/u'
+    """
     if isinstance(part, rrb.View):
         return part
     for child in part.contents:
-        return _first_view(child)
+        return first_view(child)
     error_msg = 'The blueprint has no view. Give the example a blueprint with at least one view.'
     raise GalleryError(error_msg)
 
@@ -113,7 +132,7 @@ def thumbnail_blueprint(blueprint: rrb.Blueprint) -> rrb.Blueprint:
         >>> str(view.origin), view.titlebar
         ('/u', False)
     """
-    view = copy.copy(_first_view(blueprint.root_container))
+    view = copy.copy(first_view(blueprint.root_container))
     view.titlebar = False
     return rrb.Blueprint(view, *HIDDEN_PANELS)
 

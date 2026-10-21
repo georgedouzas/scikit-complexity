@@ -5,12 +5,14 @@ import pytest
 import rerun.blueprint as rrb
 from gallery_tools import (
     GalleryError,
+    caption_series,
     encode_png,
     find_problems,
     has_bands,
     has_notification,
     is_blank,
     is_placeholder,
+    missing_series,
     trim_border,
     view_boxes,
 )
@@ -166,3 +168,23 @@ def test_encode_png_uses_adaptive_palette(tmp_path):
     path = encode_png(Image.fromarray(noise), tmp_path / 'noise.png', 100_000)
     with Image.open(path) as image:
         assert image.mode == 'P'
+
+
+def test_caption_series_reads_names_of_primary_view():
+    """Test that the names quoted where the caption describes the series of the primary view are read."""
+    source = (
+        '# The model is created with `q = 5` and `p`. The observer saves every frame, and the\n'
+        '# primary view is the time series of `q` and `hilsa/adult_weight`.\n'
+        'MODEL = "q"\n'
+        '# After the run, `x` is logged as a series.\n'
+    )
+    assert caption_series(source) == ['q', 'hilsa/adult_weight']
+    assert caption_series('# The primary view is the image of the trails.\n') == []
+
+
+def test_missing_series_names_series_outside_primary_view():
+    """Test that a named series is missing when no entity path of the view's contents ends with it."""
+    view = rrb.TimeSeriesView(origin='/', contents=['/agents/**', '- /agents/hidden'])
+    paths = ['/agents/q', '/agents/hidden', '/parameters/m']
+    assert missing_series(['q', 'm', 'hidden'], paths, view) == ['m', 'hidden']
+    assert missing_series(['m'], paths, rrb.TimeSeriesView(origin='/parameters')) == []

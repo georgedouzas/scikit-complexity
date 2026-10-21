@@ -8,9 +8,11 @@ from ._capture import (
     NativeCapturer,
     WebCapturer,
     capture_thumbnail,
+    first_view,
     thumbnail_blueprint,
 )
 from ._checks import (
+    caption_series,
     encode_png,
     find_problems,
     has_bands,
@@ -18,10 +20,11 @@ from ._checks import (
     has_notification,
     is_blank,
     is_placeholder,
+    missing_series,
     trim_border,
     view_boxes,
 )
-from ._errors import GalleryError
+from ._errors import GalleryError, GalleryWarning
 from ._examples import (
     SCAFFOLD_MARK,
     Coverage,
@@ -54,6 +57,7 @@ __all__: list[str] = [
     'Example',
     'GalleryBuild',
     'GalleryError',
+    'GalleryWarning',
     'NativeCapturer',
     'RerunScraper',
     'RunReport',
@@ -61,6 +65,7 @@ __all__: list[str] = [
     'WebCapturer',
     'build_from_environment',
     'cache_key',
+    'caption_series',
     'capture_thumbnail',
     'check_budget',
     'check_coverage',
@@ -68,6 +73,7 @@ __all__: list[str] = [
     'find_examples',
     'find_problems',
     'finished_observers',
+    'first_view',
     'gallery_interval',
     'has_bands',
     'has_light_chrome',
@@ -76,6 +82,7 @@ __all__: list[str] = [
     'is_blank',
     'is_placeholder',
     'library_models',
+    'missing_series',
     'model_sources',
     'plot_signature',
     'plot_signatures',
