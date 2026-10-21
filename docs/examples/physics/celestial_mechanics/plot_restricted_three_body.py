@@ -8,14 +8,11 @@ quantity of the rotating frame, although at this energy a narrow neck towards th
 
 # %%
 # The mass ratio is that of the Earth and the Moon, `μ = 0.01215`, with the Earth at `x = -μ` and the Moon at
-# `x = 1 - μ`. The model logs the coordinates as time series only, so the observer below also logs the path of the
-# spacecraft and the two primaries in the plane, with `y` negated because the 2D views of Rerun point their vertical
-# axis down (remove once the core draws planar positions y-up).
+# `x = 1 - μ`. The default blueprint draws the two primaries
+# and the whole path of the spacecraft in the plane.
 
 import matplotlib.pyplot as plt
 import numpy as np
-import rerun as rr
-import rerun.blueprint as rrb
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
@@ -25,39 +22,8 @@ MODEL = 'restricted_three_body'
 MU = 0.01215
 
 
-# Workaround: remove once the core draws planar trajectories y-up.
-class PathObserver(RerunObserver):
-    """Observer that also logs the primaries and the path of the spacecraft."""
-
-    def on_start(self, problem):
-        super().on_start(problem)
-        primaries = rr.Points2D(
-            [[-MU, 0.0], [1 - MU, 0.0]],
-            radii=[0.06, 0.03],
-            colors=[[90, 170, 230], [200, 200, 200]],
-        )
-        self.recording_.log('frame/primaries', primaries, static=True)
-        self.path_ = []
-
-    def on_frame(self, frame):
-        self.path_.append([frame.value('body.x'), -frame.value('body.y')])
-        super().on_frame(frame)
-        if frame.step % self.interval == 0:
-            self.recording_.log('frame/path', rr.LineStrips2D([self.path_], radii=0.005, colors=[250, 180, 60]))
-
-
-blueprint = rrb.Blueprint(
-    rrb.Spatial2DView(
-        origin='/frame',
-        name='rotating frame',
-        visual_bounds=rrb.VisualBounds2D(x_range=(-1.0, 1.2), y_range=(-0.9, 0.9)),
-    ),
-    rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
-    rrb.TopPanel(state='hidden'),
-    collapse_panels=True,
-)
 system = create(MODEL, x=0.5, y=0.0, vx=0.0, vy=1.0, mu=MU)
-observer = PathObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=8)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=8)
 simulation = Simulation(system, dt=0.02, observers=[observer]).run(until=40)
 
 # %%

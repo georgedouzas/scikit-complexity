@@ -25,3 +25,4 @@
 | standardized_agents | q falling from 1 near 0 and jumping back, m ordering only at low temperature | q follows its branch past T_S on both ramps and leaves at the spinodals; abs(m) lags the maximum of f | 10 s script, 251 frames, 0.10 MB |
 | success_to_the_successful | a rising to 100 while b falls to 0 over the whole run (one view, fixed from a following window) | two reinforcing and two balancing loops; runs from several splits show the larger starter always wins | 7 s script, 101 frames, 0.07 MB |
 | voter_model | lattice of purple and yellow voters coarsening into domains | mean opinion wanders around its start; interface density decays slowly | 8 s script, 61 frames, 0.25 MB |
+| bonabeau_hierarchies | 200 agents on a 20 x 20 torus colored from purple (subordinate) to yellow (dominant) | standard deviation of strengths after 100 steps grows with density, about 1.5 at 0.1 to 11 at 0.8 over three seeds | 8.1 s, 101 frames, 0.24 MB |

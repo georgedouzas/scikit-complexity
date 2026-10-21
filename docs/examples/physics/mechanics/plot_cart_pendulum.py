@@ -6,14 +6,11 @@ their common centre of mass never moves, and the pair swings faster than a pendu
 """
 
 # %%
-# Cart and bob have equal masses, the rod has length 1, and the bob starts at 0.5 radians at rest. The model logs the
-# angle in `[0, 2π)`, so the observer below logs the horizontal positions of the cart and the bob instead, and the
-# blueprint shows them swinging in opposition.
+# Cart and bob have equal masses, the rod has length 1, and the bob starts at 0.5 radians at rest. The default
+# blueprint draws the cart, the rod, and the bob, which swing in opposition.
 
 import matplotlib.pyplot as plt
 import numpy as np
-import rerun as rr
-import rerun.blueprint as rrb
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
@@ -22,31 +19,8 @@ from skcomplex.models import create
 MODEL = 'cart_pendulum'
 
 
-# Workaround: remove once the core draws angles wrapped to (-π, π] in time series and pendulums as bodies.
-class PositionObserver(RerunObserver):
-    """Observer that also logs the horizontal positions of the cart and the bob."""
-
-    def on_start(self, problem):
-        super().on_start(problem)
-        for name, color in (('cart', [90, 170, 230]), ('bob', [250, 150, 60])):
-            self.recording_.log(f'positions/{name}', rr.SeriesLines(colors=color, names=name, widths=2), static=True)
-
-    def on_frame(self, frame):
-        super().on_frame(frame)
-        if frame.step % self.interval == 0:
-            cart = frame.value('cart.y')
-            self.recording_.log('positions/cart', rr.Scalars(cart))
-            self.recording_.log('positions/bob', rr.Scalars(cart + np.sin(frame.value('cart.theta'))))
-
-
-blueprint = rrb.Blueprint(
-    rrb.TimeSeriesView(origin='/positions', name='horizontal positions'),
-    rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
-    rrb.TopPanel(state='hidden'),
-    collapse_panels=True,
-)
 system = create(MODEL, theta=0.5, y=0.0, m1=1.0, m2=1.0, l=1.0)
-observer = PositionObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, dt=0.02, observers=[observer]).run(until=10)
 
 # %%

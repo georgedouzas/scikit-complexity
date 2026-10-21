@@ -8,7 +8,7 @@ import math
 import numpy as np
 from sage.all__sagemath_symbolics import cos, sign, sin, sqrt
 
-from ....core.base import Domain, Expression, parameter, role, state
+from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
 from ....core.model import (
     Element,
     Equation,
@@ -26,6 +26,18 @@ from ....core.model import (
 )
 from ....core.runtime import register_model
 from ._mechanics import Pendulum
+
+
+def _double_bobs(theta1: float, theta2: float, l1: float, l2: float, **_: float) -> np.ndarray:
+    """Return the positions of the two bobs of a double pendulum hanging from the origin."""
+    first = np.array([l1 * np.sin(theta1), -l1 * np.cos(theta1)])
+    return np.stack([first, first + np.array([l2 * np.sin(theta2), -l2 * np.cos(theta2)])])
+
+
+def _cart_and_bob(y: float, theta: float, l: float, **_: float) -> np.ndarray:
+    """Return the positions of a cart on a horizontal track and of the bob that hangs from it."""
+    return np.array([[y, 0.0], [y + l * np.sin(theta), -l * np.cos(theta)]])
+
 
 DoublePendulum = Element.define(
     'DoublePendulum',
@@ -56,6 +68,7 @@ DoublePendulum = Element.define(
             == 0,
         ),
     ],
+    visual=VisualSpec('bodies', {'positions': _double_bobs, 'pivot': (0.0, 0.0), 'rods': True, 'traced': [1]}),
 )
 
 PendulumSpring = Interaction.define(
@@ -99,6 +112,7 @@ CartPendulum = Element.define(
         ),
         Equation(s.l * derivative(s.theta, 2) + derivative(s.y, 2) * cos(s.theta) + s.g * sin(s.theta) == 0),
     ],
+    visual=VisualSpec('bodies', {'positions': _cart_and_bob, 'rods': True, 'traced': [1]}),
 )
 
 ParametricPendulum = Element.define(

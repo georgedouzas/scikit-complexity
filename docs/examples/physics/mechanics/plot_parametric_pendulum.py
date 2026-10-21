@@ -11,7 +11,6 @@ a child pumping a swing: parametric resonance pumps energy in at every half swin
 
 import matplotlib.pyplot as plt
 import numpy as np
-import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.runtime import Simulation
@@ -21,26 +20,14 @@ from skcomplex.models import create
 MODEL = 'parametric_pendulum'
 
 
-# Workaround: remove once the core draws angles wrapped to (-π, π] in time series; it logs them in [0, 2π), so a
-# swing to the left jumps by 2π.
-class AngleObserver(RerunObserver):
-    """Observer that also logs the angle wrapped to (-π, π]."""
-
-    def on_frame(self, frame):
-        super().on_frame(frame)
-        if frame.step % self.interval == 0:
-            angle = np.angle(np.exp(1j * frame.value('swing.theta')))
-            self.recording_.log('angle', rr.Scalars(angle))
-
-
 blueprint = rrb.Blueprint(
-    rrb.TimeSeriesView(origin='/angle', name='angle'),
+    rrb.TimeSeriesView(origin='/', contents=['+ /swing/theta'], name='angle'),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
 system = create(MODEL, theta=0.1, omega=0.0, epsilon=0.2)
-observer = AngleObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=6)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=6)
 simulation = Simulation(system, dt=0.02, observers=[observer]).run(until=30)
 
 # %%
@@ -56,7 +43,7 @@ fig, ax = plt.subplots(figsize=(6, 4))
 for epsilon in [0.2, 0.0]:
     run = Simulation(create(MODEL, theta=0.01, omega=0.0, epsilon=epsilon), dt=0.01).run(until=40)
     times = np.asarray(run.trajectory_.times)
-    angle = np.abs(np.angle(np.exp(1j * np.ravel(run.trajectory_['swing.theta']))))
+    angle = np.abs(np.ravel(run.trajectory_['swing.theta']))
     peaks = (angle[1:-1] > angle[:-2]) & (angle[1:-1] >= angle[2:])
     ax.semilogy(times[1:-1][peaks], angle[1:-1][peaks], 'o', markersize=3, label=f'ε = {epsilon}')
 ax.semilogy(times, 0.01 * np.exp(0.2 * natural / 4 * times), '--', color='black', label='0.01 exp(ε ω0 t / 4)')

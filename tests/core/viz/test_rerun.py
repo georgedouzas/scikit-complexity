@@ -38,9 +38,10 @@ class LoggedPaths:
         """Start with no logs."""
         self.logs = []
 
-    def log(self, path, archetype):
-        """Keep a logged entity path and archetype."""
-        self.logs.append((path, type(archetype).__name__))
+    def log(self, path, archetype, static=False):
+        """Keep a logged entity path and archetype, leaving out static styles."""
+        if not static:
+            self.logs.append((path, type(archetype).__name__))
 
 
 def _run(system, observer, until=1.0, dt=0.1):
@@ -95,12 +96,13 @@ def test_points_visual_logs_positions(n_dim, archetype):
 
 
 def test_rerun_observer_logs_parameters(monkeypatch, tmp_path):
-    """Test that parameters are logged under the parameters path every frame."""
+    """Test that parameters and states are logged every frame, besides static styles."""
     logged = []
     original = rr.RecordingStream.log
 
     def log(self, path, *args, **kwargs):
-        logged.append(path)
+        if not kwargs.get('static'):
+            logged.append(path)
         return original(self, path, *args, **kwargs)
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
@@ -182,16 +184,6 @@ def test_points_colored_by_speed_follow_the_color_scale():
     assert rgb[0][2] > rgb[0][1]
     assert rgb[2][1] > rgb[0][1]
     assert rgb[2][0] > rgb[1][0]
-
-
-def test_points_color_range_is_fixed_on_first_frame():
-    """Test that the color range is fixed from the first logged frame when it is not given."""
-    system = System(elements=[Particle.group('gas', 2, v=[[1.0, 0.0], [3.0, 0.0]])], space=EuclideanSpace(2))
-    simulation = Simulation(system).run(until=0.0)
-    frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
-    visual = PointsVisual(position='x', color_by='v', states=())
-    visual.log(LoggedPaths(), simulation.problem_.elements[0], frame)
-    assert visual.color_range == (1.0, 3.0)
 
 
 def _agent_logs(monkeypatch, tmp_path, system, until=2):

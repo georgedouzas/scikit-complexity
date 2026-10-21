@@ -3,10 +3,12 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.model import ContinuousSpace, EuclideanSpace, Particle, System
+from skcomplex.core.model import ContinuousSpace, EuclideanSpace, LatticeSpace, Particle, System
 from skcomplex.core.runtime import Frame, Observer, Simulation
-from skcomplex.core.viz import AgentsVisual, ImageVisual, PointsVisual
+from skcomplex.core.solvers import AgentSnapshot
+from skcomplex.core.viz import AgentsVisual, ImageVisual, PointsVisual, ScalarsVisual
 from skcomplex.models import create
+from skcomplex.models.physics.statistical_mechanics import XYSpin
 
 
 class Logs:
@@ -15,10 +17,13 @@ class Logs:
     def __init__(self):
         """Start with no logs."""
         self.logs = []
+        self.static = []
 
-    def log(self, path, archetype):
-        """Keep a logged entity path and archetype."""
+    def log(self, path, archetype, static=False):
+        """Keep a logged entity path and archetype, and whether it is static."""
         self.logs.append((path, archetype))
+        if static:
+            self.static.append(path)
 
     def of(self, path):
         """Return the archetypes logged under a path."""
@@ -145,3 +150,80 @@ def test_points_visual_trail_width_follows_extent():
     logs = Logs()
     PointsVisual(position='x', radius=0.05, states=()).log(logs, problem.elements[0], frame)
     assert _radius(logs.of('bodies/trail')[0]) == pytest.approx(0.5)
+
+
+def test_image_visual_colors_angles_cyclically():
+    """Test that angles just either side of ±π get nearly the same color, as on a cyclic palette."""
+    space = LatticeSpace((2, 2))
+    system = System(elements=[XYSpin.lattice('spins', space, theta=[[-3.1, 3.1], [0.0, 1.5]])])
+    problem, frame = _first_frame(system)
+    logs = Logs()
+    ImageVisual().log(logs, problem.elements[0], frame)
+    image = logs.of('spins/theta')[0]
+    pixels = np.asarray(image.buffer.as_arrow_array()[0].as_py(), dtype=int).reshape(4, 3)
+    assert np.abs(pixels[0] - pixels[1]).max() < 20
+    assert np.abs(pixels[0] - pixels[3]).max() > 60
+
+
+def _series_color(archetype):
+    """Return the color of logged series lines."""
+    return archetype.colors.as_arrow_array().to_pylist()[0]
+
+
+def test_scalars_visual_gives_states_distinct_colors():
+    """Test that the white and black daisies of Daisyworld get distinct static series colors."""
+    problem, frame = _first_frame(create('daisyworld'))
+    logs = Logs()
+    visual = ScalarsVisual()
+    visual.log(logs, problem.elements[0], frame)
+    visual.log(logs, problem.elements[0], frame)
+    white = [item for item in logs.of('planet/white') if type(item).__name__ == 'SeriesLines']
+    black = [item for item in logs.of('planet/black') if type(item).__name__ == 'SeriesLines']
+    assert len(white) == len(black) == 1
+    assert 'planet/white' in logs.static
+    assert _series_color(white[0]) != _series_color(black[0])
+
+
+def test_scalars_visual_colors_elements_apart():
+    """Test that the first states of two elements get distinct series colors."""
+    problem, frame = _first_frame(create('coupled_pendulums'))
+    logs = Logs()
+    for element in problem.elements:
+        ScalarsVisual().log(logs, element, frame)
+    left = next(item for item in logs.of('left/theta') if type(item).__name__ == 'SeriesLines')
+    right = next(item for item in logs.of('right/theta') if type(item).__name__ == 'SeriesLines')
+    assert _series_color(left) != _series_color(right)
+
+
+def test_points_visual_draws_two_dimensions_with_vertical_axis_up():
+    """Test that a 2D position (1, 2) is logged as (1, -2), since Rerun's 2D views point their vertical axis down."""
+    system = System(elements=[Particle.group('bodies', 1, x=[[1.0, 2.0]])], space=EuclideanSpace(2))
+    problem, frame = _first_frame(system)
+    logs = Logs()
+    PointsVisual(position='x', states=()).log(logs, problem.elements[0], frame)
+    points = logs.of('bodies')[0].positions.as_arrow_array().to_pylist()
+    assert points == [[1.0, -2.0]]
+    trail = logs.of('bodies/trail')[0].strips.as_arrow_array().to_pylist()
+    assert trail[0][-1] == [1.0, -2.0]
+
+
+def test_agents_visual_widens_color_range_of_equal_start():
+    """Test that agents that all start with one value get different colors once their values spread."""
+    visual, logs = AgentsVisual(color_by='rank'), Logs()
+    space = ContinuousSpace(10.0, 10.0)
+    first = AgentSnapshot(np.arange(3), {'rank': np.zeros(3)}, np.zeros((3, 2)))
+    later = AgentSnapshot(np.arange(3), {'rank': np.array([0.0, 1.0, 2.0])}, np.zeros((3, 2)))
+    visual.log_agents(logs, 'animals', first, space)
+    visual.log_agents(logs, 'animals', later, space)
+    colors = logs.of('animals')[-1].colors.as_arrow_array().to_pylist()
+    assert len(set(colors)) == 3
+    assert visual.color_range is None
+
+
+def test_points_visual_keeps_given_color_range():
+    """Test that a given color range stays fixed and the visual does not overwrite its parameter."""
+    system = System(elements=[Particle.group('bodies', 2, v=[[1.0, 0.0], [3.0, 0.0]])], space=EuclideanSpace(2))
+    problem, frame = _first_frame(system)
+    visual = PointsVisual(position='x', color_by='v', states=())
+    visual.log(Logs(), problem.elements[0], frame)
+    assert visual.color_range is None

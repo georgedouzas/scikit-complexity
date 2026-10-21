@@ -14,8 +14,8 @@ from ._base import Stepper, register_solver
 class LatticeStepper(Stepper):
     """Stepper of lattice dynamics that applies every local rule, drive, relaxation, and extremal law once per step.
 
-    Steps apply in the order the laws are declared. Relaxations record their size, duration, and area as events, and
-    extremal laws record the site and the value of every application.
+    Steps apply in the order the laws are declared, and the boundary laws apply after every step. Relaxations record
+    their size, duration, and area as events, and extremal laws record the site and the value of every application.
 
     Examples:
         >>> import numpy as np
@@ -62,6 +62,7 @@ class LatticeStepper(Stepper):
                     self.locator_.records.extend(item.apply(state, p, self.rng_, float(step + 1)))
                 else:
                     item.apply(state, p, self.rng_)
+            state = self._bounded(float(step + 1), state, p)
         return state
 
 

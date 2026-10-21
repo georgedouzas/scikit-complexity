@@ -123,3 +123,6 @@
 | three_gene_boolean_network | Three genes updated synchronously by AND, OR, and NOT run from the state 100 into a cycle of period three, while the state 011 is a point attractor | Attractors from every state | not captured in this worktree |
 | toggle_switch | one gene on, the other off | grid of starts splits along the diagonal | 3.3 s, 201 frames, 0.16 MB |
 | yeast_cell_cycle | proteins switch on and off in sequence | sequence ends in the stationary G1 state at step 12 | 0.0 s, 16 frames, 0.06 MB |
+| moran_process | share of mutants rising from 0.2 to fixation within 16 steps, spread of the trait peaking at 0.5 halfway | one mutant with r = 1.5 in N = 20 fixes in 20 of 60 runs, 0.333 against Moran's 0.333 and the neutral 0.05 | 2.1 s, 41 frames, 0.07 MB |
+| nk_landscape | mean fitness of 50 climbers rising from 0.52 and levelling off near 0.70 as they stop on peaks | distinct final genomes grow with ruggedness: 1, 8, 14, 23, 35 for k = 0, 2, 4, 6, 9 | 0.6 s, 51 frames, 0.08 MB |
+| adaptive_climbing | mean fitness climbing in two rare steps from 0.64 to 0.97 | best fitness over eight landscapes averages 0.900 at generation 10, 0.972 at 50, and 0.979 at 200, ever rarer steps | 0.4 s, 201 frames, 0.10 MB |

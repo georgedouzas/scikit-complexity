@@ -3,7 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import Domain, Expression, ValidationError, parameter
+import numpy as np
+
+from ....core.base import Domain, Expression, ValidationError, VisualSpec, parameter
 from ....core.model import Element, Event, Law, Rate, Symbols, System, where
 from ....core.runtime import register_model
 
@@ -50,6 +52,13 @@ def _mushroom_laws(s: Symbols) -> list[Law]:
     ]
 
 
+def _sinai_walls(size: float, radius: float, **_: float) -> list[np.ndarray]:
+    """Return the square wall and the central disc of a Sinai table as closed polylines."""
+    square = size * np.array([[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0], [-1.0, -1.0]])
+    angles = np.linspace(0.0, 2 * np.pi, 100)
+    return [square, radius * np.column_stack([np.cos(angles), np.sin(angles)])]
+
+
 SinaiBilliard = Element.define(
     'SinaiBilliard',
     states={'x': 0.1, 'y': 0.6, 'vx': 0.6, 'vy': 0.8},
@@ -58,6 +67,7 @@ SinaiBilliard = Element.define(
         'radius': parameter(default=0.4, domain=Domain.POSITIVE),
     },
     laws=_sinai_laws,
+    visual=VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'outline': _sinai_walls}),
 )
 
 MushroomBilliard = Element.define(
