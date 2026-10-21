@@ -211,7 +211,12 @@ class ScalarsVisual(Visual):
     """Visual that logs each state component of an element as a time series.
 
     Every state gets static series colors from a categorical palette, by its position among the states of every element
-    of the problem, so the series of one view are told apart.
+    of the problem, so the series of one view are told apart. The lag states that keep the past values of a delayed
+    state are left out.
+
+    Args:
+        components:
+            The indices of the components of vector states to log, or `None` for every component.
 
     Examples:
         >>> from skcomplex.core.viz import ScalarsVisual
@@ -219,12 +224,20 @@ class ScalarsVisual(Visual):
         ScalarsVisual()
     """
 
-    def __init__(self) -> None:
+    def __init__(self, components: Sequence[int] | None = None) -> None:
+        self.components = components
         self._styled: set[str] = set()
 
     def __repr__(self) -> str:
-        """Return the class name."""
-        return 'ScalarsVisual()'
+        """Return the class name and the chosen components."""
+        return 'ScalarsVisual()' if self.components is None else f'ScalarsVisual(components={list(self.components)!r})'
+
+    def _value(self, value: object) -> object:
+        """Return the chosen components of a vector value, or the value itself."""
+        array = np.ravel(np.asarray(value))
+        if self.components is None or array.size == 1:
+            return value
+        return array[[index for index in self.components if index < array.size]]
 
     def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
         """Log every state of the element under `<path>/<state>`, a complex one under `real` and `imag` below it.
@@ -240,7 +253,9 @@ class ScalarsVisual(Visual):
                 The frame.
         """
         for state, name in element.states.items():
-            path, value = f'{element.path}/{state}', frame.value(name)
+            if frame.problem.companions.get(name, ('',))[0] == 'lag':
+                continue
+            path, value = f'{element.path}/{state}', self._value(frame.value(name))
             if path not in self._styled:
                 _style_series(recording, path, value, _series_index(frame.problem, element.path, state))
                 self._styled.add(path)

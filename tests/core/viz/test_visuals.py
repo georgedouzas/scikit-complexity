@@ -235,3 +235,22 @@ def test_points_visual_sizes_single_particles_by_the_whole_drawing():
     logs = Logs()
     PointsVisual(position='x', states=()).log(logs, problem.elements[0], frame)
     assert _radius(logs.of('mass_0')[0]) > 0.01
+
+
+def test_scalars_visual_leaves_out_lag_companions():
+    """Test that the past values a delayed model keeps as lag states are not logged as series."""
+    problem, frame = _first_frame(create('delayed_sirs'))
+    logs = Logs()
+    ScalarsVisual().log(logs, problem.elements[0], frame)
+    paths = {path for path, _ in logs.logs}
+    assert 'first/x' in paths
+    assert not any('_lag' in path for path in paths)
+
+
+def test_scalars_visual_logs_chosen_components():
+    """Test that a scalars visual with chosen components logs only those components of a vector state."""
+    problem, frame = _first_frame(create('lorenz_96'))
+    logs = Logs()
+    ScalarsVisual(components=[0, 1, 2]).log(logs, problem.elements[0], frame)
+    scalars = [item for item in logs.of('ring/x') if type(item).__name__ == 'Scalars']
+    assert len(scalars[0].scalars.as_arrow_array().to_pylist()) == 3

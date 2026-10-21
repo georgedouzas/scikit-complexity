@@ -81,17 +81,21 @@ def _type_name(element: CompiledElement) -> str:
     return str(getattr(kind, '__name__', type(element.element).__name__))
 
 
-def _series_count(element: CompiledElement) -> int:
-    """Return the number of series a scalars visual logs for an element."""
-    return len(element.states) * (element.members or 1)
+def _series_count(element: CompiledElement, problem: Problem) -> int:
+    """Return the number of series a scalars visual logs for an element, leaving out lag states."""
+    shown = [name for name in element.states.values() if problem.companions.get(name, ('',))[0] != 'lag']
+    return len(shown) * (element.members or 1)
 
 
-def _chunks(elements: list[tuple[CompiledElement, rrb.View]]) -> Iterator[list[tuple[CompiledElement, rrb.View]]]:
+def _chunks(
+    elements: list[tuple[CompiledElement, rrb.View]],
+    problem: Problem,
+) -> Iterator[list[tuple[CompiledElement, rrb.View]]]:
     """Yield consecutive runs of elements whose series fit in one view."""
     chunk: list[tuple[CompiledElement, rrb.View]] = []
     count = 0
     for element, view in elements:
-        series = _series_count(element)
+        series = _series_count(element, problem)
         if chunk and count + series > MAX_SERIES_PER_VIEW:
             yield chunk
             chunk, count = [], 0
@@ -112,7 +116,7 @@ def _scalar_views(problem: Problem) -> list[rrb.View]:
             groups.setdefault(_type_name(element), []).append((element, view))
     views: list[rrb.View] = []
     for name, members in groups.items():
-        chunks = list(_chunks(members))
+        chunks = list(_chunks(members, problem))
         for number, chunk in enumerate(chunks, start=1):
             label = name if len(chunks) == 1 else f'{name} {number}'
             views.append(_series_view([view for _, view in chunk], label))
