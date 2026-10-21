@@ -322,6 +322,17 @@ def test_obesity_weight_follows_meals():
     assert basal_metabolic_rate(70.0, 175.0, 30.0, 0.0) < basal_metabolic_rate(70.0, 175.0, 30.0, 1.0)
 
 
+def test_obesity_gains_follow_habits_whatever_the_access():
+    """Test that people with no restaurant within reach still eat, so mean gains rise from low to high habits."""
+    trajectory = _run(obesity(random_state=0), 70)
+    habits = _values(trajectory, 'people', 'habit')
+    meals = _values(trajectory, 'restaurants', 'sold').sum()
+    assert meals == 3 * 70 * len(habits)
+    gain = _values(trajectory, 'people', 'weight') - _values(trajectory, 'people', 'weight', 0)
+    means = [gain[habits == habit].mean() for habit in range(3)]
+    assert means[0] < means[1] < means[2]
+
+
 TRAFFICKING_TRIPS = '011101220001123101500402242222122031341221'
 TRAFFICKING_BILLS = (
     '15.39067 17.901823 30.5131 8.432013 37.175629 29.030561 7.355628 18.482139 6.048363 12.712 7.70364 '
