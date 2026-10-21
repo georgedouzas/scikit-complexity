@@ -20,11 +20,15 @@ from skcomplex.models import create
 
 MODEL = 'rice_milling'
 
+# Every view shows the whole run, not the default window that follows the latest frame.
+whole_run = rrb.TimeAxis(
+    view_range=rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite()),
+)
 blueprint = rrb.Blueprint(
     rrb.Vertical(
-        rrb.TimeSeriesView(origin='/mill/paddy', name='paddy'),
-        rrb.TimeSeriesView(origin='/mill/rice', name='rice'),
-        rrb.TimeSeriesView(origin='/mill/capacity', name='milling capacity'),
+        rrb.TimeSeriesView(origin='/mill/paddy', name='paddy', axis_x=whole_run),
+        rrb.TimeSeriesView(origin='/mill/rice', name='rice', axis_x=whole_run),
+        rrb.TimeSeriesView(origin='/mill/capacity', name='milling capacity', axis_x=whole_run),
     ),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
     rrb.TopPanel(state='hidden'),
