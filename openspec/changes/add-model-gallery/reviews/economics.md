@@ -15,3 +15,8 @@
 | multiplicative_process | largest firm leaping as the mean drifts | relative sizes have a CCDF tail w^-1.43 = w^-1 / (1 - c); spread of log w stationary | 5.9 s, 251 frames, 0.28 MB |
 | produce_market | items left falling and money spent saturating | items left match the exact hypergeometric expectation for the realised stocks (incl. the floor of unsold kinds); geometric law as reference | 0.8 s, 10 frames, 0.03 MB |
 | riccati_prices | price lingering near 25 then falling onto 3.38 | phase line with stable and unstable equilibria; simulated prices match the closed-form Riccati solution from five starts | 0.3 s, 201 frames, 0.07 MB |
+| capital_stock | capital stock growing exponentially from 100 | stocks for f = 0.1 to 0.3 follow exp((f o - 1 / L) t); measured net rates on the line, zero at f = 0.2 | 0.2 s, 51 frames, 0.03 MB |
+| fishery_capital | fleet rising and fish falling into a damped equilibrium | stock-fleet plane spirals to a fixed point; a yield table of better technology overshoots and both collapse | 0.6 s, 151 frames, 0.05 MB |
+| multiplier_accelerator | income swinging around 100 in damped cycles | one run in each Samuelson region behaves as predicted; periods 2 pi / arg(lambda) of 13.6 and 14.9 | 0.3 s, 41 frames, 0.03 MB |
+| oil_economy | capital peaking and declining as the resource is drawn down | doubling the oil delays the extraction peak by about 16 years (38, 54, 70), the capital peak less (65, 72, 80) | 0.2 s, 101 frames, 0.04 MB |
+| solow | capital per worker rising from 1 onto k* = 7.25 | paths from three starts match the closed form via z = k^(1 - alpha); steady-state consumption peaks at s = alpha | 0.2 s, 151 frames, 0.04 MB |
