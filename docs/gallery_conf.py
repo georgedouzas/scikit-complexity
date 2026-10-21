@@ -1,7 +1,8 @@
 """Configure `mkdocs-gallery`: the Rerun scraper before the Matplotlib one, the examples to run, and stale examples.
 
 The Rerun scraper comes first, so the Rerun screenshot is image 1 of every example, which `mkdocs-gallery` takes as
-the thumbnail by default, and the analysis figures follow it.
+the thumbnail by default, and the analysis figures follow it. The scraper also resets before every example, so it
+times the whole script and writes its recording to a temporary folder of the run.
 """
 
 import sys
@@ -32,11 +33,12 @@ def quiet_show(gallery_conf: dict[str, Any], file: Path) -> None:
 
 BUILD = build_from_environment(Path(__file__).parent)
 BUILD.mark_stale()
+SCRAPER = RerunScraper(BUILD.backend, BUILD.gallery / '_cache', BUILD.settings)
 
 conf = {
-    'image_scrapers': (RerunScraper(BUILD.backend, BUILD.gallery / '_cache', BUILD.settings), 'matplotlib'),
+    'image_scrapers': (SCRAPER, 'matplotlib'),
     'filename_pattern': BUILD.filename_pattern(),
-    'reset_modules': ('matplotlib', quiet_show),
+    'reset_modules': ('matplotlib', quiet_show, SCRAPER.begin),
     'thumbnail_size': (400, 280),
     'show_memory': False,
     'min_reported_time': 1,
