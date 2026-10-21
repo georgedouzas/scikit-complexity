@@ -36,6 +36,7 @@ def _is_hybrid(problem: Problem, t: float, until: float) -> bool:
     return bool(problem.delays or problem.events or problem.breakpoints.between(t, math.nextafter(until, math.inf)))
 
 
+LSODA_LARGEST_SIZE = 4096
 SMALL_NORM = 1e-5
 TINY_NORM = 1e-15
 FALLBACK_STEP = 1e-6
@@ -156,8 +157,11 @@ class ScipyODE(Stepper):
     Args:
         method:
             The integration method: `RK45`, `RK23`, or `DOP853` for non-stiff systems, `BDF` or `Radau` for stiff
-            ones, and the default `LSODA`, which starts with Adams methods and switches to BDF methods while the
-            system is stiff.
+            ones, `LSODA`, which starts with Adams methods and switches to BDF methods while the system is stiff, or
+            the default `'auto'`. It chooses `LSODA` when its dense work array fits, for at most 4096 states or a
+            Jacobian with a narrow band, since `LSODA` stores a dense matrix of the size of the state squared.
+            Larger systems get `BDF` with the sparsity pattern of the Jacobian when fields limit the stable step by
+            diffusion, and `RK45` otherwise.
 
         rtol:
             The relative tolerance.
@@ -173,6 +177,9 @@ class ScipyODE(Stepper):
             ignore it.
 
     Attributes:
+        method_:
+            The method the stepper integrates with, which `'auto'` resolves for the problem.
+
         jacobian_pattern_:
             The sparsity pattern of the Jacobian that an implicit method uses, or `None`.
 
@@ -198,7 +205,7 @@ class ScipyODE(Stepper):
 
     form: ClassVar[Form] = Form.ODE
 
-    def __init__(self, method: str = 'LSODA', rtol: float = 1e-6, atol: float = 1e-9, jacobian: str = 'auto') -> None:
+    def __init__(self, method: str = 'auto', rtol: float = 1e-6, atol: float = 1e-9, jacobian: str = 'auto') -> None:
         self.method = method
         self.rtol = rtol
         self.atol = atol
@@ -216,14 +223,15 @@ class ScipyODE(Stepper):
 
         Raises:
             SolverError:
-                The problem is not an ODE, or the method or the Jacobian option is unknown.
+                The problem is not an ODE, the method or the Jacobian option is unknown, or `LSODA` would store a dense
+                matrix larger than its limit.
 
             ValidationError:
                 The exact Jacobian is asked for laws without a symbolic form.
         """
         super().initialize(problem, rng)
-        if self.method not in METHODS:
-            error_msg = f'Unknown method {self.method!r}. Use one of {", ".join(METHODS)}.'
+        if self.method != 'auto' and self.method not in METHODS:
+            error_msg = f'Unknown method {self.method!r}. Use one of auto, {", ".join(METHODS)}.'
             raise SolverError(error_msg)
         if self.jacobian not in JACOBIANS:
             error_msg = f'Unknown Jacobian option {self.jacobian!r}. Use one of {", ".join(map(repr, JACOBIANS))}.'
@@ -232,8 +240,23 @@ class ScipyODE(Stepper):
         self.jacobian_options_: dict[str, Any] = {}
         self._exact = False
         self._warned = False
-        if self.method in IMPLICIT and self.jacobian != 'dense' and problem.jacobian is not None:
+        self.method_ = 'LSODA' if self.method == 'auto' else self.method
+        if self.method_ in IMPLICIT and self.jacobian != 'dense' and problem.jacobian is not None:
             self._prepare_jacobian(problem)
+        if self.method_ == 'LSODA' and not self._fits_lsoda(problem.initial_state.size):
+            if self.method != 'auto':
+                error_msg = (
+                    f'LSODA would store a dense {problem.initial_state.size} x {problem.initial_state.size} matrix, '
+                    f'more than the limit of {LSODA_LARGEST_SIZE} states without a narrow band. Use '
+                    "ScipyODE(method='BDF'), which receives the sparsity pattern of the Jacobian, or an explicit "
+                    'method.'
+                )
+                raise SolverError(error_msg)
+            stiff = problem.stable_step is not None and self.jacobian_pattern_ is not None
+            self.method_ = 'BDF' if stiff else 'RK45'
+            self.jacobian_options_ = {}
+            if self.method_ == 'BDF':
+                self._prepare_jacobian(problem)
         self._solver: OdeSolver | None = None
         self._segment: _Segment | None = None
         self._time = math.nan
@@ -241,6 +264,10 @@ class ScipyODE(Stepper):
         self._until = math.inf
         self._state = np.zeros(0)
         self._parameters = np.zeros(0)
+
+    def _fits_lsoda(self, size: int) -> bool:
+        """Check whether the dense or banded matrix of LSODA fits for a state of a size."""
+        return size <= LSODA_LARGEST_SIZE or 'lband' in self.jacobian_options_
 
     def _prepare_jacobian(self, problem: Problem) -> None:
         """Derive the Jacobian structure an implicit method receives, or check that the exact Jacobian exists."""
@@ -256,7 +283,7 @@ class ScipyODE(Stepper):
         if pattern is None or pattern.nnz > DENSITY_LIMIT * size * size:
             return
         self.jacobian_pattern_ = pattern
-        if self.method != 'LSODA':
+        if self.method_ != 'LSODA':
             self.jacobian_options_ = {'jac_sparsity': pattern}
             return
         rows, columns = pattern.nonzero()
@@ -272,7 +299,7 @@ class ScipyODE(Stepper):
         problem = self.problem_
         jacobian = problem.jacobian
         assert jacobian is not None
-        dense = self.method == 'LSODA'
+        dense = self.method_ == 'LSODA'
 
         def exact(time: float, state: Vector) -> Any:  # noqa: ANN401
             matrix = jacobian(time, state, with_delays(problem, history, time, state, p))
@@ -283,11 +310,11 @@ class ScipyODE(Stepper):
     def _warn_stiff(self, t: float, until: float) -> None:
         """Warn once when an explicit method spans many stable steps of the diffusion of a field in one call."""
         limit = self.problem_.stable_step
-        if self._warned or self.method in IMPLICIT or limit is None or until - t <= STIFF_SPAN * limit:
+        if self._warned or self.method_ in IMPLICIT or limit is None or until - t <= STIFF_SPAN * limit:
             return
         self._warned = True
         warning_msg = (
-            f'{self.method} spans {until - t:.6g} in one call, more than {STIFF_SPAN} times the stability limit '
+            f'{self.method_} spans {until - t:.6g} in one call, more than {STIFF_SPAN} times the stability limit '
             f'{limit:.6g} of the diffusion of the fields, so its steps are limited by stability. Use '
             "ScipyODE(method='BDF') or ScipyODE(method='Radau'), which receive the sparsity pattern of the Jacobian."
         )
@@ -337,9 +364,9 @@ class ScipyODE(Stepper):
         end = min(bound, LARGEST_TIME)
         max_step = max(delay, self._frame / STEPS_PER_FRAME)
         first_step = min(delay / 2, bound - t) if problem.delays else None
-        if first_step is None and self.method == 'LSODA':
+        if first_step is None and self.method_ == 'LSODA':
             first_step = _lsoda_first_step(field, t, x, end=end, max_step=max_step, rtol=self.rtol, atol=self.atol)
-        self._solver = METHODS[self.method](
+        self._solver = METHODS[self.method_](
             field,
             t,
             x.copy(),
@@ -366,11 +393,11 @@ class ScipyODE(Stepper):
             start, before = solver.t, solver.y.copy()
             message = solver.step()
             if solver.status == 'failed':
-                error_msg = f'The {self.method} integrator failed at t = {start}: {message}'
+                error_msg = f'The {self.method_} integrator failed at t = {start}: {message}'
                 raise SolverError(error_msg)
             if solver.t == start or not np.all(np.isfinite(solver.y)):
                 error_msg = (
-                    f'The {self.method} integrator failed at t = {start}: its step makes no progress or the state is '
+                    f'The {self.method_} integrator failed at t = {start}: its step makes no progress or the state is '
                     'not finite. Check the system for a solution that blows up.'
                 )
                 raise SolverError(error_msg)

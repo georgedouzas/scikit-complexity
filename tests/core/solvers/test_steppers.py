@@ -10,7 +10,7 @@ from scipy.integrate import solve_ivp
 
 from skcomplex.core.base import SolverError, role
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import Element, Interaction, Rate, System
+from skcomplex.core.model import Element, Interaction, Rate, System, mean
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import EulerMaruyama, Gillespie, Iteration, ScipyODE, resolve_solver
 from skcomplex.models import create, run
@@ -18,6 +18,7 @@ from skcomplex.models.biology.ecology import ExponentialGrowth, Population
 from skcomplex.models.biology.epidemiology import Compartment, Recovery
 from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion
 from skcomplex.models.economics.markets import Cobweb, Market
+from skcomplex.models.physics.heat import heat_diffusion
 from skcomplex.models.physics.mechanics import harmonic_oscillator
 
 
@@ -88,6 +89,26 @@ def test_simulation_default_solver_keeps_accuracy_of_non_stiff_model():
     """Test that a harmonic oscillator run with the default solver matches the analytic solution within 1e-5."""
     simulation = Simulation(harmonic_oscillator()).run(until=10)
     np.testing.assert_allclose(simulation.state_, [np.cos(10), -np.sin(10)], rtol=1e-5)
+
+
+def _relaxing_group(size):
+    """Return a group whose members relax to their mean, so every member reads every other one."""
+    Relax = Element.define('Relax', states={'x': 0.0}, laws=lambda s: [Rate(s.x, -(s.x - mean(s.x)))])
+    return System(elements=[Relax.group('cells', size, x=np.linspace(0.0, 1.0, size))])
+
+
+def test_default_solver_leaves_lsoda_for_states_its_dense_matrix_cannot_hold():
+    """Test that 10^4 coupled states leave LSODA, a banded field of 6400 states keeps it, and LSODA names the limit."""
+    simulation = Simulation(_relaxing_group(10_000), dt=0.5).run(until=1)
+    assert simulation.stepper_.method_ != 'LSODA'
+    start = np.linspace(0.0, 1.0, 10_000)
+    np.testing.assert_allclose(simulation.state_, 0.5 + (start - 0.5) * np.exp(-1), atol=1e-5)
+    assert Simulation(_relaxing_group(10), dt=0.5).run(until=1).stepper_.method_ == 'LSODA'
+    banded = Simulation(heat_diffusion(shape=(80, 80)), dt=0.1).run(until=0.2)
+    assert banded.stepper_.method_ == 'LSODA'
+    assert 'lband' in banded.stepper_.jacobian_options_
+    with pytest.raises(SolverError, match='dense 10000 x 10000 matrix'):
+        Simulation(_relaxing_group(10_000), dt=0.5, solver=ScipyODE(method='LSODA')).run(until=1)
 
 
 def test_default_solver_starts_from_rest_with_a_vanishing_drift():
