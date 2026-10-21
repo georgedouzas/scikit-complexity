@@ -1,5 +1,7 @@
 """Test the climate, oceanography, and seismology models against their known behavior."""
 
+import warnings
+
 import numpy as np
 
 from skcomplex.core.runtime import Simulation
@@ -143,6 +145,17 @@ def test_burridge_knopoff_sticks_and_slips():
     assert (v > 0.01).any()
     assert (np.abs(v) < 1e-6).mean() > 0.5
     assert x[-1].mean() > 0.05 * 40.0 - 2.0
+
+
+def test_burridge_knopoff_default_solver_does_not_stall():
+    """Test that the registered solver runs the fault through its slips without the stall of LSODA."""
+    solver = describe('burridge_knopoff').defaults['solver']
+    with warnings.catch_warnings():
+        warnings.simplefilter('error')
+        trajectory = _run(burridge_knopoff(), until=400.0, dt=10.0, solver=solver)
+    steps = np.diff(trajectory['fault.x'], axis=0)
+    assert steps.min() > -1e-9
+    assert (steps > 0.3).any()
 
 
 def test_van_der_pol_ice_ages_cycle_every_hundred_thousand_years():

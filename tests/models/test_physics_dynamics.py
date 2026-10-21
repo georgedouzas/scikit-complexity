@@ -262,6 +262,17 @@ def test_restricted_three_body_conserves_the_jacobi_constant():
     assert np.ptp(jacobi) < 1e-8
 
 
+def test_restricted_three_body_defaults_are_chaotic():
+    """Test that the default light body visits the Moon and separates from a neighbour started 1e-8 away."""
+    mu = 0.01215
+    first = _run(restricted_three_body(), 20.0, 0.02)
+    second = _run(restricted_three_body(x=0.5 + 1e-8), 20.0, 0.02)
+    x, y = _series(first, 'body.x', 'body.y')
+    other_x, other_y = _series(second, 'body.x', 'body.y')
+    assert np.hypot(x - 1 + mu, y).min() < 0.2
+    assert np.hypot(x - other_x, y - other_y)[-1] > 1e-6
+
+
 def test_stormer_problem_conserves_speed_and_axial_momentum():
     """Test that a charge in a dipole field keeps its speed and its canonical angular momentum about the axis."""
     trajectory = _run(stormer_problem(), 20.0, 0.02)

@@ -8,7 +8,7 @@
 | rlc_circuit | decaying ringing of q and its rate | matches the exact damped solution; resonance curve peaks at 1 / sqrt(L C) | 7 s script, 251 frames, 0.08 MB |
 | thermostat | room warming to ~17.5 °C and swinging with the day | 13 leaks land on (setting + leak outside) / (1 + leak) | 5 s script, 193 frames, 0.06 MB |
 | tunnel_diode_oscillator | voltage growing from 0.1 into a steady oscillation | four starts converge on one limit cycle of amplitude 1.16 (weak-nonlinearity estimate 1.15) | 5 s script, 251 frames, 0.07 MB |
-| faraday_disk | disk spinning up while current and battery voltage settle | spin-up ends on a steady state; steady speed grows linearly with torque from 3 to 9 | 5 s script, 251 frames, 0.20 MB |
+| faraday_disk | disk spinning up while current and battery voltage settle at small negative values, the battery discharging | spin-up ends on a steady state; steady speed grows linearly with torque from 3 to 9, below the oscillations near 9.5 | 5 s script, 251 frames, 0.20 MB |
 | impulsive_circuits | response kicked every 2 units settling into a periodic waveform | stroboscopic x and x' converge; last five periods coincide | 5 s script, 251 frames, 0.09 MB |
 | memristor_oscillator | irregular oscillations of v, i, and w | v-i attractor; largest Lyapunov exponent 0.034 > 0 | 7 s script, 251 frames, 0.08 MB |
 | mixed_mode_chua | small oscillations between large spikes | c = 0 small only, c = 0.00053 mixed, c = 0.00105 large only | 21 s script, 201 frames, 0.35 MB |

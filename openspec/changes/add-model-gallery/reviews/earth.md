@@ -3,7 +3,7 @@
 | Model | Thumbnail shows | Analysis checks | Budget |
 | --- | --- | --- | --- |
 | budyko_sellers | warm equator to cold pole gradient (history view shows no visible transient) | ice cap climate from 15 °C, snowball below -10 °C from -40 °C | 5 s script, 65 frames, 0.09 MB |
-| burridge_knopoff | speckles of slipping blocks in the speed history | blocks trail the plate in jumps; 72 of 200 frames hold slips of 0.3 to 9 | 31 s script, 201 frames, 1.95 MB |
+| burridge_knopoff | speckles of slipping blocks in the speed history | blocks trail the plate in jumps; 75 of 200 frames hold slips of 0.3 to 10 (RK4, dt = 0.05) | 3.6 s script, 201 frames, 0.56 MB |
 | carbon_cycle | carbonate ion collapse, overshoot to 188, ringing back to 84 | peak `c` jumps from ~95 to ~180 at a deficit threshold near 100 | 15 s script, 201 frames, 0.11 MB |
 | daisyworld | white and black daisy areas settling | temperature held near 22.5 °C for L in 0.7 to 1.2, bare planet warms steadily | 8 s script, 201 frames, 0.13 MB |
 | earthquakes | OFC force field organized into patches | 30,000 sizes: CCDF straight over two decades, power-law exponent ~1.9, cutoff near grid size | 16 s script, 201 frames, 1.52 MB |

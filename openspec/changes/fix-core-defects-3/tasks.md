@@ -88,7 +88,7 @@ regression test for each fix.
 - [x] 9.4 Sanitise observer entity paths, give user paths their own namespace, add `Trajectory.names`, add a
   vectorised accessor of agent positions over frames, log the auxiliaries and flows of stocks and flows as series, and
   log the waiting times of `priority_queues`
-- [ ] 9.5 Check `restricted_three_body`, `diffusion_in_a_speckle_field`, `legion`, `faraday_disk`, `obesity`,
+- [x] 9.5 Check `restricted_three_body`, `diffusion_in_a_speckle_field`, `legion`, `faraday_disk`, `obesity`,
   `priority_queues`, and `burridge_knopoff`, and document the dealiasing of `kuramoto_sivashinsky`
 - [x] 9.6 Print the thumbnail path from `gallery_tools run`, enforce the whole-script budget, accept single-channel
   images, warn when a thumbnail lacks the series its caption names, silence the warnings of `fit_power_law`, include

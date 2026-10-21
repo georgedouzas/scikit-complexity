@@ -353,6 +353,46 @@ records the measurement in the proposal's dropped items and closes.
 - `stigmergic_predator_prey` reproduces: offspring started with zero hunger, so prey kept breeding for ten steps after
   the plants were gone and reached 736. Offspring now take their parent's hunger, and the prey die out within 12
   steps of the plants.
+- `restricted_three_body` reproduces: the default start `(0.5, 0)` with `vy = 0.8` has the Jacobi constant 3.52,
+  above the 3.19 of the neck towards the Moon, so the body stays near the Earth on a regular rosette, with a
+  finite-time Lyapunov exponent of 0.06 over 100 time units in an independent SciPy integration, the value of a
+  regular orbit at that length. The default becomes `vy = 1.15`, of constant 2.835: the body passes within 0.2 of the
+  Moon after 3.5 time units, stays within `-0.9 < x < 1.1` for 100 time units, and has a finite-time exponent of 0.2
+  over 100 and 200 time units. The docstring states both regimes. The example passes `vy = 1.0` explicitly, so its
+  rosette is unchanged.
+- `diffusion_in_a_speckle_field` reproduces as a wrong default: at strength 500 the particles move 20.5 units on
+  average in the first frame of 0.5, as the drift up the hotspot gradients reaches about 40 per time unit, and from
+  time 10 to 60 their mean squared displacement stays flat at 0.2, so the default showed trapping and no anomalous
+  diffusion. At strength 30 the first frame moves them 3.2 units and the displacement grows as `t^0.36` to 19 against
+  200 for free diffusion, and at 100 it is already flat. The default strength becomes 30, the registered `until`
+  becomes 60, and the docstring states the regimes. The example passes strength 30 explicitly and is unchanged.
+- `legion` reproduces as a wrong default: at `epsilon = 0.02`, the value of Terman and Wang, no object starts an
+  active phase in the registered run of 50 time units, and the first onsets come at `t = 224` and `t = 297`. At
+  `epsilon = 0.1` the cycle is about 60 time units, the objects first fire at `t = 51` and `t = 70.5`, never
+  together, and the background stays silent. The default becomes 0.1 with a registered `until` of 150, and the
+  docstring names the value of the paper. The example passes `epsilon = 0.1` explicitly and is unchanged.
+- `faraday_disk`: the model follows its equations, and its docstring and example were wrong. The generator voltage
+  `a ω` stays below the battery's `a0 = 8` up to `ω = 35`, so at every torque from 2 to 9 the steady current is a
+  small discharge, -0.061 at `M = 2` and -0.040 at the default 4.8, with the speed on the line `(M - alpha) / (β r2)`
+  of slope 3.64. The sign of the current does not change at `M = 2`. Near `M = 9.5` the speed reaches
+  `(R1 + a1) / b = 32`, where the negative resistance `b ω` of the self-exciting coil outweighs `R1 + a1`, and the
+  steady state gives way to an oscillation of the current around zero, of peak to peak 1.5 at `M = 10` and 6.2 at
+  `M = 20`, whose mean braking `b <I²>` bends the speed below the line, 68.6 against 70.9 at `M = 20`. The docstring
+  states the regimes, a test pins them, and the example no longer claims a charging current. Its thumbnail shows the
+  spin-up with the current and the polarization voltage settling at small negative values.
+- `burridge_knopoff` reproduces: 2000 time units in frames of 10 take 23.6 s, and LSODA's stall guard fires at
+  `t = 138` and hands over to RK45. Hidden events cannot help, since the switches `v > 0` and `force < F0` belong to
+  the members of a lattice field, which give no events. RK45 alone takes 20.8 s, BDF fails on a step below the spacing
+  of floats at `t = 85`, and Radau hits the guard of 50000 steps in one frame. A fixed-step `RK4(dt=0.05)`, far below
+  the stability limit `2.8 / sqrt(k_p + 4 k_c) = 0.85`, takes 3.4 s, never moves a block backwards, and gives 75
+  frames with slips against 72 with LSODA and 82 with RK45, with the same spread of sizes, and `dt = 0.02` gives 75
+  again. It becomes the registered solver, the docstring says why, and the example passes it, which cuts its script
+  from 31 s to 3.6 s. The thumbnail still shows the slipping blocks lighting up in the speed history. Per-member
+  hidden events for fields remain a core gap.
+- `kuramoto_sivashinsky`: the cut reproduces and is the two-thirds rule of the spectral first derivative. With 128
+  modes on `32 π` the mean power over the last 50 frames of the registered run is 3.5e-2 at `q = 2.625`, the last
+  kept mode, against 3e3 at the peak `q = 0.625`, and about 1e-29 from `q = 2.69` on. The modes there decay at
+  `q⁴ - q²`, above 45, so the cut is harmless, and the docstring now states it.
 
 ### Obesity and priority queues
 

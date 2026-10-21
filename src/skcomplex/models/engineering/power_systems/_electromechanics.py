@@ -213,6 +213,15 @@ def faraday_disk(
     `J ω' = M - alpha sign(ω) - β r2 ω - (a + b I) I`, where the battery voltage is `E(I) = a0 + a1 I + a3 I^3` and the
     last term is the braking torque of the Lorentz force.
 
+    The generator charges the battery only when its voltage `a ω` exceeds the open-circuit voltage `a0 = 8` of the
+    battery, at `ω` above 35 for the default field. Below that speed the steady current is a small negative current,
+    the battery discharges through the disk and helps the motor, and the steady speed grows linearly with the torque,
+    as `(M - alpha) / (β r2)` up to the small Lorentz torque: with the defaults the current settles at -0.040 and the
+    speed at 15.7. The coil acts as a negative resistance `b ω` against `R1 + a1`, so above `ω = (R1 + a1) / b`, about
+    32 or a torque near 9.5 for the defaults, the steady state loses its stability and the current oscillates around
+    zero, swinging between charging and discharging, while the mean braking torque `b <I²>` bends the speed below the
+    linear trend. A stronger magnet charges at the default torque: `B = 4` gives a steady current of 0.013.
+
     Args:
         I:
             The initial charging current.

@@ -356,6 +356,16 @@ def test_faraday_disk_reaches_torque_balance():
     assert voltage == pytest.approx(109.0 * current, abs=1e-4)
 
 
+def test_faraday_disk_charges_only_above_the_battery_voltage():
+    """Test that the default disk discharges the battery steadily and a fast disk makes the current oscillate."""
+    slow = Simulation(faraday_disk(), dt=0.1).run(until=50).trajectory_
+    fast = Simulation(faraday_disk(M=11.0), dt=0.1).run(until=200).trajectory_
+    current, omega = slow['charger.I'][-1], slow['charger.omega'][-1]
+    assert current == pytest.approx(-0.040, abs=1e-3)
+    assert 1.5 * (0.55**2 - 0.025**2) / 2 * omega < 8.0
+    assert np.ptp(fast['charger.I'][-500:]) > 1.0
+
+
 def test_wheel_rail_response_is_periodic():
     """Test that the rail settles on a response with the period of the passing bogies."""
     trajectory = Simulation(wheel_rail_contact(), dt=0.05).run(until=60).trajectory_
