@@ -39,8 +39,8 @@ def landscape(width: int, height: int) -> Array:
 
     Examples:
         >>> from skcomplex.models.economics.markets._sugarscape import landscape
-        >>> landscape(50, 50).max(), landscape(50, 50)[0, 49]
-        (np.float64(4.0), np.float64(0.0))
+        >>> float(landscape(50, 50).max()), float(landscape(50, 50)[0, 49])
+        (4.0, 0.0)
     """
     x, y = np.meshgrid(np.arange(width), np.arange(height), indexing='ij')
     scale = min(width, height) / 50

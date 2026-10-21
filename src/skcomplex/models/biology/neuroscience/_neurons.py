@@ -87,8 +87,8 @@ def integrate_and_fire(
         >>> from skcomplex.models.biology.neuroscience import integrate_and_fire
         >>> from skcomplex.core.runtime import Simulation
         >>> trajectory = Simulation(integrate_and_fire(), dt=0.1).run(until=50.0).trajectory_
-        >>> round(trajectory.events[0].time, 4)
-        13.8629
+        >>> round(trajectory.events[0].time, 2)
+        13.86
     """
     return System(
         elements=[

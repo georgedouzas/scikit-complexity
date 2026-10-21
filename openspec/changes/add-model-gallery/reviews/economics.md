@@ -1,0 +1,46 @@
+# Economics review
+
+| Model | Thumbnail shows | Analysis checks | Budget |
+| --- | --- | --- | --- |
+| arbitrage_traders | space-time ridge of the good bending into a parabola | centre D E t^2, variance 1/2 + 2 D t plus the upwind diffusion dx D E t^2, mass exp(D E^2 t^3 / 3), all exact | 0.4 s, 176 frames, 0.36 MB |
+| boltzmann_wealth | Gini coefficient jumps from 0 and settles near 0.62 | pooled wealth falls exponentially, exp(-w / 1.34); Lorenz curve, final Gini 0.62 | 5.8 s, 201 frames, 0.10 MB |
+| bouchaud_mezard_wealth | Gini coefficient rises and settles near 0.5 | relative wealth follows the inverse gamma of mu = 1 + 2 J / sigma^2 = 2 in density and tail (model docstring says 1 + J / sigma^2, which is wrong for its noise) | 6.2 s, 151 frames, 0.74 MB |
+| car_wash | cars on the forecourt over an eight-hour day | till grows at the expected 41.6 an hour; daily revenue saturates at the demand from three workers on, while the queue keeps shrinking | 22.7 s, 289 frames, 0.38 MB |
+| cobweb | price oscillating in alternate directions and damping onto 2.5 | cobweb diagram spirals in; deviation scales exactly as (d / b)^t for d / b = 0.5, 1.0, 1.1 | 0.5 s, 31 frames, 0.03 MB |
+| cournot_duopoly | total output overshooting, settling on the Nash total 95, jittering | trajectory zigzags to the crossing of the reaction curves; distance to Nash halves every period, 2^-t | 0.4 s, 61 frames, 0.04 MB |
+| debtrank | value at risk climbing round by round to a plateau | DebtRank of all 50 banks equals a direct Battiston iteration on the impact matrix; DebtRank uncorrelated with bank size | 0.4 s, 11 frames, 0.02 MB |
+| geometric_brownian_motion | one price path wandering from 100 | variance of log returns grows as sigma^2 tau over 200 years; one-step log returns normal with mean (mu - sigma^2 / 2) dt | 5.6 s, 201 frames, 0.04 MB |
+| gibrat_process | largest firm pulling away from the mean | final log sizes normal with the Gauss-Hermite mean and variance; variance of log size grows as v t | 1.6 s, 151 frames, 0.09 MB |
+| kesten_process | largest firm leaping in bursts above a flat mean | tail of P(X > x) parallels x^-1.47 from <lambda^alpha> = 1; mean relaxes to <b> / (1 - <lambda>) = 25 | 14.5 s, 251 frames, 0.70 MB |
+| multiplicative_process | largest firm leaping as the mean drifts | relative sizes have a CCDF tail w^-1.43 = w^-1 / (1 - c); spread of log w stationary | 5.9 s, 251 frames, 0.28 MB |
+| produce_market | items left falling and money spent saturating | items left match the exact hypergeometric expectation for the realised stocks (incl. the floor of unsold kinds); geometric law as reference | 0.8 s, 10 frames, 0.03 MB |
+| riccati_prices | price lingering near 25 then falling onto 3.38 | phase line with stable and unstable equilibria; simulated prices match the closed-form Riccati solution from five starts | 0.3 s, 201 frames, 0.07 MB |
+| capital_stock | capital stock growing exponentially from 100 | stocks for f = 0.1 to 0.3 follow exp((f o - 1 / L) t); measured net rates on the line, zero at f = 0.2 | 0.2 s, 51 frames, 0.03 MB |
+| fishery_capital | fleet rising and fish falling into a damped equilibrium | stock-fleet plane spirals to a fixed point; a yield table of better technology overshoots and both collapse | 0.6 s, 151 frames, 0.05 MB |
+| multiplier_accelerator | income swinging around 100 in damped cycles | one run in each Samuelson region behaves as predicted; periods 2 pi / arg(lambda) of 13.6 and 14.9 | 0.3 s, 41 frames, 0.03 MB |
+| oil_economy | capital peaking and declining as the resource is drawn down | doubling the oil delays the extraction peak by about 16 years (38, 54, 70), the capital peak less (65, 72, 80) | 0.2 s, 101 frames, 0.04 MB |
+| solow | capital per worker rising from 1 onto k* = 7.25 | paths from three starts match the closed form via z = k^(1 - alpha); steady-state consumption peaks at s = alpha | 0.2 s, 151 frames, 0.04 MB |
+| arthur_polak | pool of technologies growing in rare jumps | over 12 runs the step of invention grows with the NAND cost of the invention | 3.1 s, 151 frames, 0.03 MB |
+| creative_phase_transition | diversity bursting from 0.1 to 1 as the new share spikes | final diversity of the simulation lies on the directly iterated map for three x0, jumping at a critical r that falls with x0 | 0.3 s, 21 frames, 0.02 MB |
+| nk_technology | total cost falling in ever rarer steps | mean cost over 8 designs is a power law; exponent 0.99 for d = 1, 0.42 and 0.31 for d = 2, 3, approaching 1 / d from below | 7.4 s, 251 frames, 0.04 MB |
+| phone_adoption | household grid in 1969, phones filling the upper-class quarter and spreading | per class, phone share rises on an S-curve below the share that can afford one; lag longest for the lower class | 0.5 s, 19 frames, 0.12 MB |
+| exchange_rates | balance of trade jumping into surplus and falling into deficit, a J-curve | balances after adjustment for 11 elasticities match the exact fixed-rate X0 PH0 ((1 + pi)(1 + pi e_x) - 1), sign change at 1 / (1 + pi), and floating -pi e_m X0 PH0 (1 + pi) | 0.1 s, 5 frames, 0.04 MB |
+| harvesting | stock falling from 1000 onto 500 | final stock for 1 to 25 farmers on K (1 - e F / r), collapsing above 20; sustained harvest peaks at E = r / 2 | 0.7 s, 21 frames, 0.04 MB |
+| toy_firm_investment | capital share of the top 1% climbing from 0.01 to 0.10 | final capital has a power-law tail (MLE alpha 2.79); top share grows with aggregate production | 4.1 s, 251 frames, 0.18 MB |
+| bass_diffusion | potential adopters P falling and adopters A rising on S-curves, crossing at 500 | adopters follow the closed-form Bass curve, peak at log(q / p) / (p + q) ~ 6.2 years | 0.1 s, 81 frames, 0.04 MB (primary view merged from two views) |
+| beer_game | inventories of all four echelons, dipping at the demand step and swelling late, upstream first | order peaks grow from retailer to factory although demand only doubles (bullwhip) | 0.6 s, 73 frames, 0.37 MB (primary view merged from four views) |
+| brock_hommes | a bubble growing and crashing in the price deviation | bifurcation diagram of the mean-field map loses stability at beta* ~ 2.4; spread of 200-trader runs follows it | 3.2 s, 101 frames, 0.09 MB |
+| car_dealer | cars on the lot over the whole run: flat at 200, a dip after the demand step, then damped oscillation around 220 | longer response delay damps the oscillation; perception delay hardly matters | 0.7 s, 101 frames, 0.08 MB (whole-run time axis added) |
+| commodity_cycle | inventory in a slowly damped multi-year cycle | loop analysis finds the balancing capacity loop; price peaks before orders and capacity | 0.9 s, 241 frames, 0.24 MB |
+| credit_networks | Herfindahl index of loans rising from 0.2 to ~0.95, with the rate spread near 0.04 | Herfindahl rises and spread falls with the switching intensity | 1.6 s, 101 frames, 0.11 MB (primary view merged from two views) |
+| double_auction | allocative efficiency per period between 0.94 and 0.99 | ZI-C efficiency 97-99% against much lower ZI-U, for both order book and call auction | 1.4 s, 21 frames, 0.04 MB |
+| el_farol | attendance fluctuating around the capacity 60 | running mean after the transient approaches 60 | 0.9 s, 251 frames, 0.06 MB (observer interval raised to 2 to fit the 300-frame budget) |
+| fair_food | grid of fair-food (yellow) and regular buyers (purple) | share without influence matches the mean logit expectation over drawn ethics and budgets; influence raises it at every premium | 3.1 s, 31 frames, 0.11 MB |
+| fractional_reserve_banking | broad money at 10000 falling to 5000 when the reserve ratio doubles, reserves flat at 1000 | broad money approaches B / r for r = 0.1 and 0.2 | 2.6 s, 151 frames, 0.12 MB (observer interval 2; primary view merged from two views) |
+| kinetic_wealth_exchange | variance of wealth rising from 0 to ~1 | final wealth follows Gamma laws for saving propensities and the shifted exponential with debt | 1.3 s, 151 frames, 0.03 MB |
+| kolkata_restaurant | utilization rising from 0.63 to ~0.8 | random choice gives 1 - 1/e; crowd-avoiding strategy settles near 0.8 | 0.2 s, 101 frames, 0.03 MB |
+| labour_market | unemployment falling from 0.5 to fluctuate near 0.2 | steady-state unemployment matches s / (s + f) with f measured from hires; accepted wages fall below 1 | 1.1 s, 201 frames, 0.14 MB |
+| minority_game | attendance fluctuating around zero | volatility sigma^2 / N against alpha dips near alpha_c ~ 0.34 (Savit-Manuca-Riolo); evolutionary version stays low | 1.4 s, 151 frames, 0.03 MB (observer interval raised to 2 to fit the budget) |
+| perishable_goods_duopoly | asymmetry m drifting from 0 to ~-0.97 | stationary asymmetry against temperature follows the mean-field m*, vanishing at T_c = 0.25 | 13.0 s, 151 frames, 0.09 MB |
+| stock_flow_consistent_economy | household, firm, and bank deposits and the loans settling together | total deposits change exactly by lending minus repayment; transaction-flow matrix rows sum to zero | 0.1 s, 101 frames, 0.13 MB (primary view merged from four views) |
+| sugarscape | sugar landscape with two peaks and the foragers gathered on them | population levels off at the carrying capacity; Gini rises from ~0.22 to above 0.3 | 3.2 s, 51 frames, 1.08 MB |

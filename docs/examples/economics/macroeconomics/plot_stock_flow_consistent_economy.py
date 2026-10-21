@@ -9,7 +9,7 @@ and sales stop changing.
 # %%
 # The economy starts with 60 in household deposits, 20 in firm deposits, 10 in bank funds, and 50 in loans, and runs
 # for 100 periods. A conservation monitor checks at every period that the total money changes only by lending minus
-# repayment. The blueprint shows the deposits of the three sectors above the loans of the firms.
+# repayment. The blueprint shows the deposits of the three sectors together with the loans of the firms.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,21 +24,11 @@ MODEL = 'stock_flow_consistent_economy'
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
-    rrb.Vertical(
-        rrb.Horizontal(
-            rrb.TimeSeriesView(
-                origin='/households/deposits',
-                name='household deposits',
-                axis_x=rrb.TimeAxis(view_range=whole_run),
-            ),
-            rrb.TimeSeriesView(
-                origin='/firms/deposits',
-                name='firm deposits',
-                axis_x=rrb.TimeAxis(view_range=whole_run),
-            ),
-            rrb.TimeSeriesView(origin='/bank/deposits', name='bank funds', axis_x=rrb.TimeAxis(view_range=whole_run)),
-        ),
-        rrb.TimeSeriesView(origin='/firms/loans', name='loans', axis_x=rrb.TimeAxis(view_range=whole_run)),
+    rrb.TimeSeriesView(
+        origin='/',
+        contents=['/households/deposits', '/firms/deposits', '/bank/deposits', '/firms/loans'],
+        name='deposits of the sectors and loans',
+        axis_x=rrb.TimeAxis(view_range=whole_run),
     ),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
     rrb.TopPanel(state='hidden'),

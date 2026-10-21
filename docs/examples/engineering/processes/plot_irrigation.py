@@ -19,11 +19,15 @@ from skcomplex.models import create
 
 MODEL = 'irrigation'
 
+# Every view shows the whole run, not the default window that follows the latest frame.
+whole_run = rrb.TimeAxis(
+    view_range=rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite()),
+)
 blueprint = rrb.Blueprint(
     rrb.Vertical(
-        rrb.TimeSeriesView(origin='/scheme/reservoir', name='reservoir'),
-        rrb.TimeSeriesView(origin='/scheme/soil', name='root zone'),
-        rrb.TimeSeriesView(origin='/scheme/groundwater', name='aquifer'),
+        rrb.TimeSeriesView(origin='/scheme/reservoir', name='reservoir', axis_x=whole_run),
+        rrb.TimeSeriesView(origin='/scheme/soil', name='root zone', axis_x=whole_run),
+        rrb.TimeSeriesView(origin='/scheme/groundwater', name='aquifer', axis_x=whole_run),
     ),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
     rrb.TopPanel(state='hidden'),
