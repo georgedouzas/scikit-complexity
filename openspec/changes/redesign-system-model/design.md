@@ -1,0 +1,280 @@
+# Design
+
+## Context
+
+A system today is `System(label, elements, interactions, systems, space, observables, history, noise, phases)`.
+Elements and interactions are `Component` dataclasses that declare `state`, `parameter`, and `role` fields and return
+laws from `laws(self, s)`.
+
+The compiler infers a `Form` from the set of law kinds through one table, `FORMS` in `compile/_compiler.py`, and
+partitions systems whose children have different forms. Every other incompatibility is a local raise somewhere in
+compilation or a solver.
+
+`skcomplex.core.model` exports 158 names. About sixty of them name a field rather than a mathematical or modelling
+concept.
+
+## Goals / Non-Goals
+
+**Goals:**
+- A system is its components, interactions, space, and time. Nothing about how it runs is part of its definition.
+- A small vocabulary of general primitives, each named by its mathematics or modelling role, which composes to cover
+  every implemented and pending model.
+- Extension without editing central tables: a new primitive, solver, or backend declares its requirements and support,
+  and validation and documentation follow from the declarations.
+- One validation pass that reports every problem with its path, reason, and fix before compilation.
+
+**Non-Goals:**
+- New numerical methods. Solvers and kernels keep their algorithms; only their declarations and their selection change.
+- Deprecation shims. The package is on 0.1.x, and the migration is done in one change.
+- A graphical or acausal modelling language. Acausal components with ports are pending in `add-acausal-components`
+  and must map onto this design (see the inventory gate), but they are not built here.
+
+## Decisions
+
+### A system is components, interactions, space, and time
+
+```text
+System(label, *, components=(), interactions=(), space=None, time=None)
+```
+
+| Part | Holds | Primitives |
+|---|---|---|
+| Components | everything that carries state | `Element`, `Group`, `System` (nested) |
+| Interactions | stateless couplings, bound through roles | `Interaction` |
+| Space | the substrate, its boundary conditions, and its sites, edges, and hyperedges | `Space` kinds |
+| Time | continuous, discrete with a schedule, or absent | `Time` kinds |
+
+A `System` is itself a component, so composition is recursive. An interaction in a parent refers to a component of a
+child by slash path, as today.
+
+Dynamics are not a fifth part. They are the laws of components (intrinsic dynamics) and of interactions (coupling).
+Removed from `System`:
+
+| Was | Becomes |
+|---|---|
+| `elements=`, `systems=` | `components=` |
+| `observables=` | `Simulation(observables=...)` and catalog entries; the model factory returns them beside the system |
+| `history=` | `state(history=...)` on the delayed state |
+| `noise=` | `Noise(convention=...)` |
+| `phases=` | `DiscreteTime(schedule=Phases(...))` |
+| `MesaSystem` | removed; Mesa is a backend |
+
+Rejected alternative: keeping observables on the system. An observable is a measurement chosen by the user of a model,
+not part of the system. Catalog entries still ship a model's standard observables, so `create`/`run` users lose
+nothing.
+
+### Components
+
+| Primitive | Meaning |
+|---|---|
+| `Element` | one entity with declared states, parameters, and intrinsic laws |
+| `Group(label, element=, size=, variable=False, on=None)` | `size` identical members held as arrays |
+| `System` | a nested system |
+
+Group options:
+- `variable=True` lets laws add and remove members. This covers agent birth and death, particle creation, and
+  network rewiring.
+- `on` places one member per site, edge, or hyperedge of the space.
+
+Field-specific component types dissolve into these:
+
+| Today | Becomes |
+|---|---|
+| `AgentType` | `Element` whose laws are `Rule`s, in a `variable` group |
+| `Particle` | `Element` with position and velocity states in a continuous space |
+| `Field` | `Group(on='sites')` over a lattice or mesh; its differential operators stay expressions |
+| `Aggregate` | a reduction expression; co-simulation reads it across partitions |
+| `QuantumElement`, `Spin`, `Qubit`, `Mode`, `Site` | `Element` with a Hilbert-space state domain; the species move to the library |
+| `Word`, `Patch`, `HostGraph` | `Element` with a sequence, tiling, or graph state domain |
+| link weights, synapses, hyperedge states | `Group(on='edges')` or `Group(on='hyperedges')` on a network space |
+
+State domains therefore grow to structured values:
+- scalar real, integer, Boolean, categorical, angle, complex (existing);
+- vector of the space's dimension (existing);
+- Hilbert space of a dimension;
+- sequence over an alphabet;
+- graph;
+- tiling.
+
+The domain decides which laws and solvers are valid, through validation.
+
+### Interactions
+
+`Interaction` declares roles and parameters, and returns laws. Every role has an arity and a binding:
+- `role()` binds one component or one member;
+- `role(many=True)` binds a sequence;
+- the binding `over` is one of `'members'`, `'pairs'`, `'neighbours'` (pairs adjacent in the space), or
+  `'hyperedges'`.
+
+`PairInteraction` becomes `over='pairs'` or `over='neighbours'`, and higher-order interactions are `over='hyperedges'`.
+
+Interactions hold no state. Rejected alternative: stateful interactions. These would duplicate state storage, group
+vectorisation, and variable size for couplings. Putting coupling state on edge groups reuses all three.
+
+### Space
+
+| Kind | Sites | Notes |
+|---|---|---|
+| none (well-mixed) | — | the default |
+| `Lattice` | regular cells with ordered neighbourhoods | square, hexagonal, triangular, any dimension |
+| `Network` | nodes, edges, optional hyperedges | static, or dynamic through variable edge groups |
+| `Continuous` | positions in `d` dimensions | boundary conditions `periodic`, `reflecting`, `open` |
+| `Mesh` | cells and faces | for finite volumes |
+
+Boundary conditions belong to the space: `PeriodicBox` and `ReflectingBox` become `Continuous(boundary=...)`. Agent
+spaces (grid, network, continuous) are these same kinds; an agent group lives on a space like any group.
+
+### Time
+
+| Kind | Meaning |
+|---|---|
+| `ContinuousTime()` | laws are rates, noise, events, and jumps in continuous time |
+| `DiscreteTime(schedule=...)` | laws are updates applied each step; schedules: `'synchronous'`, `'random-sequential'`, `Phases(...)` |
+| `None` | static: constraints and objectives only, solved once |
+
+When `time` is omitted, it is inferred from the law classes, and validation reports an ambiguous inference. Declaring
+time explicitly is always allowed and always checked. Static time covers the constraint-based, optimal-control, and
+static models of the pending changes.
+
+### Laws by time semantics
+
+| Class | Laws | Valid under |
+|---|---|---|
+| Continuous | `Rate`, `Noise(convention=)`, `Equation` (implicit), `Generator` (unitary) and `Dissipator` (Lindblad) on Hilbert domains | continuous time |
+| Event | `Jump(clock=exponential or distribution)` (absorbs `Renewal`), `Event` (guard and reset) | continuous time |
+| Discrete | `Update`, `Transition` (Markov chain), `Rule` (imperative), `LocalRule` (neighbourhood table), `Rewrite` (productions on structured domains), `Sample` (energy, move, and acceptance; absorbs `Energy`, `Move`, `Sampler`) | discrete time |
+| Constraint | `Equation` (algebraic), `Boundary`, `Invariant`, and objectives (extension point for the pending changes) | any time |
+| Cross-cutting | `Transfer`, `Match` | lowered per time class |
+
+`Hamiltonian` keeps its mathematical meaning under the name `Generator`. Rejected alternative: keeping `Hamiltonian`
+as an alias. The application-agnostic test allows physics only where the term is the mathematics itself; the Lindblad
+dissipator is, and an energy operator generating unitary flow is better named for its role.
+
+### General primitives that replace field vocabulary
+
+| Primitive | Meaning | Replaces |
+|---|---|---|
+| `Transfer(amount, source, sink)` | moves a quantity between two states; a pair of opposite rates in continuous time, an atomic update in discrete time; `source` or `sink` may be outside the system | `Flow`, `Source`, `Sink`, `transfer`, the trades of markets |
+| `Invariant(expression, tolerance=)` | a conserved sum, checked at every frame, or enforced by projection when declared so | `Identity`, ledger checks, conserved-quantity checks |
+| `Match(left, right, pairing=..., capacity=...)` | pairs the members of one or two groups each step; `pairing` is a function from the two groups to pairs, and the core ships only uniform random pairing | `Market` protocols, matching in mating, labour, and assignment models |
+| `parameter(adaptive=True)` | a parameter that laws may change; compiled as a state and recorded | `Institution` |
+| `Equation` solved for adaptive parameters | clears an aggregate balance each step | `Walrasian`, `CallAuction` clearing |
+
+### Realizations live in the models
+
+The core holds each primitive in its general form, with at most one neutral default:
+- `Match` defaults to random pairing;
+- `Sample` defaults to Metropolis acceptance;
+- `Jump` defaults to an exponential clock.
+
+Every specific realization lives in the `skcomplex.models.<field>.<subfield>` module of the models that use it. This
+includes:
+- a named potential, force law, or thermostat;
+- a pairing algorithm, such as stable matching, an order book, or an auction;
+- a rule code or neighbourhood rule family;
+- a quantum species or operator set;
+- a learning heuristic;
+- a tiling, turtle, or production family;
+- a waiting-time distribution beyond the default.
+
+A realization shared by several fields lives in the field that introduced it, and the others import it.
+
+The core depends on no models module. Its tests define their realizations inline, and an import-graph test checks that
+the core never imports `skcomplex.models`.
+
+These are library compositions, not core names:
+
+| Moved to `skcomplex.models` | Built on |
+|---|---|
+| markets, order books, auctions, institutions | `Match`, `Transfer`, `Invariant`, adaptive parameters, `Equation` |
+| `logit_choice`, `imitate`, `evolve`, `heuristics` | draws, lags, reductions |
+| `Gravity`, `Spring`, `LennardJones`, `SoftSphere`, `LinearDrag`, `ConstantForce`, `HarmonicPotential`, `LangevinThermostat` | `Potential`, pair interactions, noise |
+| `Spin`, `Qubit`, `Mode`, `Site`, `Exchange` | Hilbert domains, `Generator`, local operators |
+| `Turtle`, `Prototile`, `Affine`, `Substitution` | `Rewrite` on sequence and tiling domains; the turtle becomes a visual |
+| `Wolfram`, `Totalistic`, `OuterTotalistic` codes | `LocalRule` tables |
+| `Auxiliary`, `smooth`, `smooth3`, `delay1`, `delay3` | named expressions and the distributed-delay expression |
+| `Drive`, `Relaxation`, `Extremal` | `Update` with member selection and `Event` |
+
+### The application-agnostic rule
+
+A core name is a mathematical term (rate, noise, generator, invariant), a modelling term (element, group, interaction,
+agent rule, matching), or an engineering term (solver, backend). A test holds a reviewed list of forbidden field terms
+(market, bank, firm, predator, gravity, qubit, turtle, and others) and fails if any core public name or core module
+contains one. New field terms are added to the list when a review finds them.
+
+### Validation is declarative
+
+Every primitive, solver, and backend declares a frozen record:
+
+```text
+Requires(time={...}, space={...}, domains={...}, arity={...}, laws={...})
+Supports(time={...}, space={...}, domains={...}, laws={...}, groups={'fixed', 'variable'})
+```
+
+`validate(system, *, solver=None, backend=None) -> ValidationReport` walks the system once and checks:
+
+1. **Structure:** unique labels, resolvable paths, every role bound, binding arity met.
+2. **Components with space:** for example, a vector state with no space, or `on='edges'` without a network.
+3. **Laws with time:** for example, a `Rate` under discrete time, or an `Update` under continuous time.
+4. **Laws with domains:** for example, a `Rate` on a categorical state, or a `Generator` on a real state.
+5. **Laws with laws:** combinations within one partition that no solver supports, with the partition boundaries that
+   would make them valid.
+6. **The system with the solver, and the solver with the backend:** the chosen or `'auto'` solver supports every
+   requirement, and the backend supports the solver.
+7. **Availability:** optional backends are importable.
+
+Each problem is an `Issue(code, path, message, fix, severity)`:
+- `code` is stable and documented;
+- `path` is the slash path of the component or law;
+- `fix` names the change that makes the system valid.
+
+`compile_system` and `Simulation` call `validate` first and raise one `ValidationError` that lists every error. Warnings
+are emitted as named warnings.
+
+The compiler's `FORMS` table is replaced by the solvers' `Supports` declarations: the form is the label of the solver
+family whose support covers the system. Adding a solver or backend extends what is valid without editing the validator.
+
+The documentation page of valid combinations is generated from the declarations, and a test fails if any registered
+primitive, solver, or backend has no declaration.
+
+Rejected alternative: a hand-written compatibility table. It is the source of the current drift, and it cannot be
+extended by a plug-in backend.
+
+### Mesa is a backend
+
+Agent systems are ordinary systems: elements with `Rule` laws in variable groups, discrete time, and a space. Mesa is
+the backend that executes discrete-time systems with imperative rules, and it declares that support like any other
+backend.
+
+`MesaSystem` and the wrapping of arbitrary Mesa model classes are removed. Its only users were tests and one gallery
+example, and that example is ported.
+
+### Inventory gate
+
+Before any code changes, every inventory entry is re-tagged with the new vocabulary: the 438 implemented models and the
+entries of the 26 pending changes. A script reports entries that do not map, and each one either maps after a review or
+adds a general primitive to this design. The models most likely to strain the design:
+- acausal ports;
+- optimal-control objectives;
+- multiscale coupling across time classes;
+- dynamic hypergraphs.
+
+## Risks / Trade-offs
+
+- **The migration is large: 438 models, gallery, and tests.** Mitigation: migrate field by field behind the
+  conformance suite, which already runs every model, and compare trajectories before and after on fixed seeds.
+- **Generic names are less discoverable for domain users.** Mitigation: the library keeps the domain building blocks
+  under their domain names, so `skcomplex.models.economics` still offers an order book.
+- **Explicit time adds a choice for simple models.** Mitigation: time is inferred when the law classes are unambiguous,
+  and validation explains an ambiguous inference.
+- **The pending changes become stale.** Mitigation: rebase their artifacts onto the new vocabulary in this change's
+  final task, before any of them is applied.
+
+## Migration Plan
+
+1. Inventory gate and declarations, with no behaviour change.
+2. Validation pass behind the existing compiler; existing raises are retired as the validator covers them.
+3. New system signature, space and time, and law classes in the core, migrating the models field by field.
+4. Move field primitives to the library.
+5. Remove `MesaSystem` and the old names.
+6. Rebase the pending changes.
