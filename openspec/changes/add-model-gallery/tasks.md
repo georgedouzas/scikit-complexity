@@ -69,7 +69,7 @@ For every task in this section:
 - [x] 5.2 Chemistry
 - [ ] 5.3 Biology
 - [x] 5.4 Earth science
-- [ ] 5.5 Economics
+- [x] 5.5 Economics
 - [ ] 5.6 Social science
 - [ ] 5.7 Engineering
 - [ ] 5.8 Mathematics
