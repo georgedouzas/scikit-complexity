@@ -355,6 +355,11 @@ records the measurement in the proposal's dropped items and closes.
   diffusion. At strength 30 the first frame moves them 3.2 units and the displacement grows as `t^0.36` to 19 against
   200 for free diffusion, and at 100 it is already flat. The default strength becomes 30, the registered `until`
   becomes 60, and the docstring states the regimes. The example passes strength 30 explicitly and is unchanged.
+- `legion` reproduces as a wrong default: at `epsilon = 0.02`, the value of Terman and Wang, no object starts an
+  active phase in the registered run of 50 time units, and the first onsets come at `t = 224` and `t = 297`. At
+  `epsilon = 0.1` the cycle is about 60 time units, the objects first fire at `t = 51` and `t = 70.5`, never
+  together, and the background stays silent. The default becomes 0.1 with a registered `until` of 150, and the
+  docstring names the value of the paper. The example passes `epsilon = 0.1` explicitly and is unchanged.
 
 ### Obesity and priority queues
 

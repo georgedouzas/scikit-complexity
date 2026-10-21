@@ -397,12 +397,12 @@ def delayed_lif_network(
     field='biology/neuroscience',
     tags=('oscillators', 'synchronization', 'segmentation', 'lattice', 'field'),
     references=('Terman and Wang 1995', 'Wang and Terman 1995', 'Gros 2015'),
-    defaults={'until': 50.0, 'dt': 0.5},
+    defaults={'until': 150.0, 'dt': 0.5},
 )
 def legion(
     stimulus: Sequence[Sequence[float]] = LEGION_OBJECTS,
     *,
-    epsilon: float = 0.02,
+    epsilon: float = 0.1,
     W: float = 6.0,
     W_z: float = 1.5,
     random_state: int | np.random.Generator | None = 0,
@@ -413,6 +413,10 @@ def legion(
     inhibitor lets only one object be active at a time, so different objects take turns. The inhibitor is driven by the
     largest activity of the oscillators, so one active oscillator drives it fully. Unstimulated sites have a negative
     input and stay silent.
+
+    The default `epsilon = 0.1` gives a cycle of about 60 time units, so with the default stimulus the second object
+    first fires near `t = 51` and the first near `t = 70`. The value 0.02 of Terman and Wang makes the slow phases five
+    times longer, and then no object starts an active phase before `t = 220`.
 
     Args:
         stimulus:

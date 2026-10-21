@@ -305,6 +305,15 @@ def test_legion_segments_objects():
     assert active[:, [2, 3, 5, 6, 7]].mean() < 0.02
 
 
+def test_legion_defaults_fire_both_objects_in_a_short_run():
+    """Test that both objects of the default LEGION network start an active phase within 100 time units."""
+    trajectory = Simulation(legion(), dt=0.5).run(until=100).trajectory_
+    active = trajectory['oscillators.x'].reshape(len(trajectory.times), -1) > 0
+    for sites in ([0, 1, 4], [11, 15]):
+        on = active[:, sites].any(axis=1)
+        assert (on[1:] & ~on[:-1]).any()
+
+
 def test_adaptrode_keeps_long_term_memory():
     """Test that the Adaptrode weights order by time scale during input and that the slow weight outlasts it."""
     trajectory = Simulation(adaptrode(), dt=1).run(until=400).trajectory_
