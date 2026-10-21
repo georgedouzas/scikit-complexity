@@ -90,14 +90,17 @@ class OilEconomy(Element):
                 The laws of the component.
         """
         efficiency = Auxiliary('yield_per_capital', lookup(s.resource, _table(RESOURCE_LEVELS, self.yield_table)))
-        price = s.price if self.price_table is None else lookup(efficiency.symbol, _table(YIELD_LEVELS, self.price_table))
+        price = s.price
+        if self.price_table is not None:
+            price = lookup(efficiency.symbol, _table(YIELD_LEVELS, self.price_table))
         extraction = s.capital * efficiency.symbol
         profit = Auxiliary('profit', price * extraction - s.cost * s.capital)
+        investment = _investment(profit.symbol, s.growth_goal * s.capital)
         return [
             efficiency,
             profit,
             Flow(s.resource, Sink('market'), extraction, label='extraction'),
-            Flow(Source('investors'), s.capital, _investment(profit.symbol, s.growth_goal * s.capital), label='investment'),
+            Flow(Source('investors'), s.capital, investment, label='investment'),
             Flow(s.capital, Sink('scrap'), s.capital / s.lifetime, label='depreciation'),
         ]
 
@@ -167,13 +170,14 @@ class Fishery(Element):
         harvest = s.capital * efficiency.symbol
         regeneration = s.resource * lookup(s.resource, _table(RESOURCE_LEVELS, self.regeneration_table))
         profit = Auxiliary('profit', price.symbol * harvest - s.cost * s.capital)
+        investment = _investment(profit.symbol, s.growth_goal * s.capital)
         return [
             efficiency,
             price,
             profit,
             Flow(Source('spawning'), s.resource, regeneration, label='regeneration'),
             Flow(s.resource, Sink('market'), harvest, label='harvest'),
-            Flow(Source('investors'), s.capital, _investment(profit.symbol, s.growth_goal * s.capital), label='investment'),
+            Flow(Source('investors'), s.capital, investment, label='investment'),
             Flow(s.capital, Sink('scrap'), s.capital / s.lifetime, label='depreciation'),
         ]
 

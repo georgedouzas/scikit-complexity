@@ -35,10 +35,17 @@ twice.
   - `food_relief` in `engineering/processes`
   - `irrigation` in `engineering/processes`
 
-#### Scenario: Repeated patterns stay pending
-- **WHEN** a surveyed model only repeats a pattern of stocks and flows that an implemented model already probes
-- **THEN** its entry stays pending this change: `energy_return` in `earth/climate`, and `cocoa`, `hilsa_fishery`,
-  `food_security`, `renewable_resource`, and `nonrenewable_resource` in `economics/resources`
+#### Scenario: Repeated patterns registered
+- **WHEN** the change is applied and the inventory check runs
+- **THEN** these entries, which repeat patterns of stocks and flows that the models above probe, are registered under
+  their field paths and marked implemented: `energy_return` in `earth/climate`, and `cocoa`, `hilsa_fishery`, and
+  `food_security` in `economics/resources`
+
+#### Scenario: Meadows' resource models rebuilt
+- **WHEN** the change is applied
+- **THEN** Meadows' nonrenewable and renewable resource models stay registered as `oil_economy` and
+  `fishery_capital`, rebuilt on flows, and the duplicate survey entries `renewable_resource` and
+  `nonrenewable_resource` are removed from the inventory
 
 #### Scenario: New model recorded
 - **WHEN** the change registers a model with no inventory entry

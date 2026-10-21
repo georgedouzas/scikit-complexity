@@ -67,11 +67,11 @@ def energy_return(
     The extraction capacity draws the gross energy from the reserve at a rate that falls with the remaining fraction,
     since the easy sources go first. Part of the gross energy pays for the extraction work, the gross energy divided
     by the energy return on investment (EROI), which falls from `initial_eroi` to one with the cube of the remaining
-    fraction as the reserve empties. The rest is the net energy that society receives. Society reinvests a share of the net energy in
-    extraction capacity, which depreciates, and the population grows exponentially with no feedback from the energy
-    it receives. Energy is conserved, every unit leaving the reserve is either cost or net energy, so the gross
-    energy rises exponentially and peaks, the net energy peaks before it, and the net energy per person peaks
-    earlier still. The structure follows Mobus (2022, Section 9.6) and its figures of peak net energy, with
+    fraction as the reserve empties. The rest is the net energy that society receives. Society reinvests a share of
+    the net energy in extraction capacity, which depreciates, and the population grows exponentially with no feedback
+    from the energy it receives. Energy is conserved, every unit leaving the reserve is either cost or net energy, so
+    the gross energy rises exponentially and peaks, the net energy peaks before it, and the net energy per person
+    peaks earlier still. The structure follows Mobus (2022, Section 9.6) and its figures of peak net energy, with
     illustrative parameters in energy units, persons, and years.
 
     Args:

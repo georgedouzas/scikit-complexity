@@ -172,10 +172,10 @@ def hilsa_fishery(
     """
     hilsa = Hilsa(
         'hilsa',
-        **_filled_stages(spawners, eggs_per_nest, juvenile_harvest, adult_harvest, migration_loss),
         eggs_per_nest=eggs_per_nest,
         juvenile_harvest=juvenile_harvest,
         adult_harvest=adult_harvest,
         migration_loss=migration_loss,
     )
+    hilsa.set_params(**_filled_stages(spawners, eggs_per_nest, juvenile_harvest, adult_harvest, migration_loss))
     return System(elements=[hilsa])

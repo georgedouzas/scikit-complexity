@@ -459,7 +459,7 @@ lorenz_84 = { title = "Lorenz-84", sources = ["DP 4", "DP 12"], primitives = ["r
 lorenz_96 = { title = "Lorenz-96", sources = ["DP 4", "DP 12"], primitives = ["rates", "continuous-spaces"], priority = "core", status = "implemented" }
 geodynamo = { title = "Gissinger geodynamo", sources = ["DP 4"], primitives = ["rates"], priority = "example", status = "implemented" }
 soil_temperature = { title = "Coupled soil and deep temperature maps", sources = ["Mi 4.5"], primitives = ["updates"], priority = "core", status = "implemented" }
-energy_return = { title = "Declining energy return on investment", sources = ["Mo 9.6"], primitives = ["rates", "stocks-and-flows"], priority = "example", status = "pending add-stocks-and-flows" }
+energy_return = { title = "Declining energy return on investment", sources = ["Mo 9.6"], primitives = ["rates", "stocks-and-flows"], priority = "core", status = "implemented" }
 
 [earth.oceanography]
 stommel = { title = "Stommel thermohaline boxes", sources = ["DP 12", "1910.00583 §III.3.1"], primitives = ["rates"], priority = "example", status = "implemented" }
@@ -520,22 +520,20 @@ kinetic_wealth_welfare = { title = "Kinetic wealth and welfare dynamics", source
 
 [economics.resources]
 harvesting = { title = "Harvesting farmers", sources = ["Hamill and Gilbert 2016 ch. 10"], primitives = ["rates", "interactions", "reductions", "co-simulation", "agents"], priority = "core", status = "implemented" }
-oil_economy = { title = "Oil economy", sources = ["TS 2"], primitives = ["rates", "switches"], priority = "example", status = "implemented" }
-fishery_capital = { title = "Renewable fishery with capital", sources = ["TS 2"], primitives = ["rates", "switches"], priority = "example", status = "implemented" }
+oil_economy = { title = "Oil economy", sources = ["TS 2"], primitives = ["rates", "switches", "stocks-and-flows"], priority = "core", status = "implemented" }
+fishery_capital = { title = "Renewable fishery with capital", sources = ["TS 2"], primitives = ["rates", "switches", "stocks-and-flows"], priority = "example", status = "implemented" }
 tragedy_of_the_commons = { title = "Tragedy of the meadow commons", sources = ["Ha 10.2"], primitives = ["agents", "agent-spaces", "phases", "markets"], priority = "example", status = "pending add-agent-economies" }
-cocoa = { title = "Cocoa", sources = ["Ba 8–10"], primitives = ["rates", "stocks-and-flows"], priority = "example", status = "pending add-stocks-and-flows" }
-hilsa_fishery = { title = "Hilsa fishery", sources = ["Ba 8–10"], primitives = ["rates", "stocks-and-flows"], priority = "example", status = "pending add-stocks-and-flows" }
-food_security = { title = "Food security models", sources = ["Ba 8–10"], primitives = ["rates", "stocks-and-flows"], priority = "example", status = "pending add-stocks-and-flows" }
+cocoa = { title = "Cocoa", sources = ["Ba 8"], primitives = ["rates", "stocks-and-flows"], priority = "example", status = "implemented" }
+hilsa_fishery = { title = "Hilsa fishery", sources = ["Ba 9"], primitives = ["rates", "stocks-and-flows"], priority = "example", status = "implemented" }
+food_security = { title = "Food security models", sources = ["Ba 10"], primitives = ["rates", "stocks-and-flows"], priority = "example", status = "implemented" }
 optimal_harvesting = { title = "Optimal harvesting", sources = ["Clark 1990"], primitives = ["optimal-control"], priority = "core", status = "pending add-optimal-control" }
-renewable_resource = { title = "Renewable resource", sources = ["Meadows 2008"], primitives = ["rates", "stocks-and-flows"], priority = "example", status = "pending add-stocks-and-flows" }
-nonrenewable_resource = { title = "Nonrenewable resource", sources = ["Meadows 2008"], primitives = ["rates", "stocks-and-flows"], priority = "example", status = "pending add-stocks-and-flows" }
 
 [economics.innovation]
 nk_technology = { title = "NK technology model", sources = ["Th 5.4.3.5"], primitives = ["interactions", "observables", "agents"], priority = "example", status = "implemented" }
 arthur_polak = { title = "Arthur-Polak technology evolution", sources = ["Th 5.6.3"], primitives = ["interactions", "agents"], priority = "example", status = "implemented" }
 creative_phase_transition = { title = "Combinatorial creative phase transition", sources = ["Th 5.6.4"], primitives = ["updates", "switches"], priority = "core", status = "implemented" }
 phone_adoption = { title = "Fixed-line phone adoption", sources = ["Ha 4.5"], primitives = ["observables", "agents", "agent-spaces"], priority = "core", status = "implemented" }
-bass_diffusion = { title = "Bass diffusion", sources = ["Bass 1969"], primitives = ["rates", "stocks-and-flows"], priority = "core", status = "implemented" }
+bass_diffusion = { title = "Bass diffusion", sources = ["Bass 1969"], primitives = ["rates", "stocks-and-flows"], priority = "example", status = "implemented" }
 
 [social.opinion_dynamics]
 voter_model = { title = "Voter model", sources = ["Holley and Liggett 1975"], primitives = ["networks", "agents", "agent-spaces"], priority = "example", status = "implemented" }
@@ -583,7 +581,7 @@ trafficking = { title = "Brothel movement model", sources = ["Cy 5"], primitives
 insider_sabotage = { title = "Insider sabotage", sources = ["Cm 4", "Cm 6"], primitives = ["agents", "agent-spaces"], priority = "example", status = "implemented" }
 obesity = { title = "Obesity model", sources = ["Cm 4", "Cm 6"], primitives = ["continuous-spaces", "agents", "agent-spaces"], priority = "example", status = "implemented" }
 kauai_population = { title = "The Kauai population model on GIS data", sources = ["Cm 3"], primitives = ["geographic-spaces"], priority = "core", status = "blocked extend-agent-spaces", feature = "Three-dimensional continuous agent spaces and geographic spaces" }
-success_to_the_successful = { title = "Success to the successful", sources = ["Meadows 2008"], primitives = ["rates", "switches", "stocks-and-flows"], priority = "core", status = "implemented" }
+success_to_the_successful = { title = "Success to the successful", sources = ["Meadows 2008"], primitives = ["rates", "switches", "stocks-and-flows"], priority = "example", status = "implemented" }
 shifting_the_burden = { title = "Shifting the burden", sources = ["Meadows 2008"], primitives = ["rates", "stocks-and-flows"], priority = "example", status = "implemented" }
 escalation = { title = "Escalation", sources = ["Meadows 2008"], primitives = ["rates", "switches", "stocks-and-flows"], priority = "example", status = "implemented" }
 
