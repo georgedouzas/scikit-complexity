@@ -117,3 +117,11 @@ def test_traits_visual_can_show_the_histogram_first():
     problem = compile_system(create('deffuant'))
     views = TraitsVisual(color_by='opinion', histogram_first=True).views(problem.agents[0], problem)
     assert [type(view).__name__ for view in views] == ['BarChartView', 'TimeSeriesView', 'TimeSeriesView']
+
+
+def test_traits_visual_totals_rows_of_numbers():
+    """Test that a trait holding a row of numbers per agent, such as an inventory of known words, logs its total."""
+    visual, logs = TraitsVisual(), Logs()
+    words = np.array([[1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [1.0, 1.0, 1.0]])
+    visual.log_agents(logs, 'namers', AgentSnapshot(np.arange(3), {'words': words}), None)
+    assert logs.of('namers/words/mean')[0].scalars.as_arrow_array().to_pylist() == [2.0]
