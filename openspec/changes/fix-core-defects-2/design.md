@@ -151,6 +151,16 @@ Running the whole catalog and the documentation on the new default found two mor
   `RK45`, which needs no Jacobian, and an explicit `LSODA` raises the named solver error. Restarting at state switches
   and limiting the outflows of a nonnegative stock are core features that `fix-core-defects-3` specifies.
 
+### Benchmarks after the fixes
+
+The real-time benchmarks ran with `pytest --benchmarks -m benchmark` on 2026-10-21, on the 8-core development machine
+with no other job running and a decaying load average near 10 from earlier work, so the timings are upper bounds:
+
+| Benchmark | Test time | Result |
+| --- | --- | --- |
+| Interacting gas of 100 000 spheres on Numba | 2.18 s | passes, runs in real time |
+| Game of Life of 1000 × 1000 cells on Numba | 3.22 s | passes, runs in real time |
+
 ## Risks / Trade-offs
 
 - [Trajectories of default ODE runs change within tolerance] → Tests that compare against analytic solutions keep
