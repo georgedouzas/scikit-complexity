@@ -103,6 +103,10 @@ class QuantumSolver(Stepper):
             p:
                 The parameter vector.
 
+        Returns:
+            solver:
+                The QuTiP solver of the subclass.
+
         Raises:
             NotImplementedError:
                 The subclass does not implement the method.
