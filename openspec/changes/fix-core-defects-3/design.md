@@ -207,10 +207,12 @@ the masses of the chain are no longer hairlines.
 
 ### Nyquist mode of the spectral Laplacian
 
-The wavenumbers of the spectral Laplacian come from `numpy.fft.fftfreq`, which puts the Nyquist frequency of an even
-length at `-pi / dx`, and the second derivative must use `-k^2` for it. The fix computes the symbol `-k^2` from
-`fftfreq` for every mode including the Nyquist one, and a test compares a checkerboard mode against finite
-differences.
+`spectral_multiplier` applied the two-thirds dealiasing mask to every operator, so the Laplacian was zero on the top
+third of the modes, the Nyquist mode included, and a checkerboard of `u' = u + lap(u)` grew at the rate 1 instead of
+decaying at `1 - 2 pi^2`. Dealiasing belongs to the derivatives of products, not to a linear operator, so the
+Laplacian and its inverse now act on every mode. First derivatives keep the mask and their zero Nyquist mode. The
+fix also gives the Laplacian of quantum Hamiltonians and of the linear part of exponential steppers its full
+spectrum. A test compares a checkerboard mode against its exact decay for both discretizations.
 
 ### Hidden events at state conditions
 
