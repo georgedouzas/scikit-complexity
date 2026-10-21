@@ -33,7 +33,7 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
 system = create(MODEL, base_money=BASE, ratio=0.1, new_ratio=0.2, change_at=150.0, random_state=0)
 simulation = Simulation(system, observers=[observer], random_state=0).run(until=300)
 
