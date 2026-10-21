@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import state
+from ....core.base import VisualSpec, state
 from ....core.model import Element, Rate, System, derivative
 from ....core.runtime import register_model
 
@@ -43,6 +43,7 @@ DipoleCharge = Element.define(
             * (derivative(s.x, 1) * s.y - derivative(s.y, 1) * s.x),
         ),
     ],
+    visual=VisualSpec('bodies', {'positions': ('x', 'y', 'z'), 'trail': None, 'marks': [(0.0, 0.0, 0.0)]}),
 )
 
 

@@ -103,6 +103,18 @@ def test_bodies_visual_is_registered():
 def test_bodies_visual_rejects_positions_of_wrong_shape():
     """Test that positions that are not pairs of coordinates raise a named error."""
     problem, frames = _frames(create('circular_billiard'), steps=1, dt=0.05)
-    visual = BodiesVisual(lambda x, **_: np.array([x, x, x]))
+    visual = BodiesVisual(lambda x, **_: np.array([x, x, x, x]))
     with pytest.raises(ValidationError, match='pairs of coordinates'):
         visual.log(Logs(), problem.elements[0], frames[0])
+
+
+def test_bodies_visual_draws_a_path_in_three_dimensions():
+    """Test that a body with three coordinates is drawn as a 3D point with a 3D fading path in a 3D view."""
+    problem, frames = _frames(create('stormer_problem'), steps=5, dt=0.02)
+    visual, logs = BodiesVisual(('x', 'y', 'z')), Logs()
+    for frame in frames:
+        visual.log(logs, problem.elements[0], frame)
+    assert type(logs.of('charge/bodies')[-1]).__name__ == 'Points3D'
+    assert type(logs.of('charge/trail')[-1]).__name__ == 'LineStrips3D'
+    views = visual.views(problem.elements[0], problem)
+    assert type(views[0]).__name__ == 'Spatial3DView'
