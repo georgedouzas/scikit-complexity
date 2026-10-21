@@ -11,7 +11,7 @@ task removes the workaround.
   and `_wrapping_angles`, and verify the small-swing and encoding scenarios, and the existing tests of angle models
 - [ ] 1.2 Apply the boundary laws after every step of `LatticeStepper`, and verify the XY scenario and the existing
   lattice and Monte Carlo tests
-- [ ] 1.3 Color real `ANGLE` states of `ImageVisual` with the cyclic palette, verify the angles scenario, and remove
+- [x] 1.3 Color real `ANGLE` states of `ImageVisual` with the cyclic palette, verify the angles scenario, and remove
   the angle workarounds of the mechanics examples
 
 ## 2. Bodies and the vertical axis
@@ -53,7 +53,7 @@ task removes the workaround.
 
 ## 6. Visual defaults
 
-- [ ] 6.1 Give the series of `ScalarsVisual` static distinct colors from a categorical palette, and verify the
+- [x] 6.1 Give the series of `ScalarsVisual` static distinct colors from a categorical palette, and verify the
   daisyworld scenario
 
 ## 7. Laws, analysis, and experiments

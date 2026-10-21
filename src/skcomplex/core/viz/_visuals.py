@@ -33,6 +33,16 @@ MIN_HISTORY = 64
 MAX_HISTORY = 256
 SPACE_TIME = 'space_time'
 HEXAGON_RADIUS = float(1 / np.sqrt(3.0))
+SERIES_COLORS = (
+    (230, 159, 0),
+    (86, 180, 233),
+    (0, 158, 115),
+    (240, 228, 66),
+    (0, 114, 178),
+    (213, 94, 0),
+    (204, 121, 167),
+    (170, 170, 170),
+)
 COLOR_SCALE = np.array(
     [[68, 1, 84], [59, 82, 139], [33, 145, 140], [94, 201, 98], [253, 231, 37]],
     dtype=float,
@@ -92,6 +102,21 @@ def _phase_colors(phases: npt.NDArray[np.float64]) -> npt.NDArray[np.uint8]:
     """Return the colors of phases in `(-pi, pi]` from a cyclic palette, so `-pi` and `pi` share one color."""
     levels = np.mod(phases + np.pi, 2 * np.pi) * (255.0 / (2 * np.pi))
     return PHASE_PALETTE[np.clip(levels, 0.0, 255.0).astype(np.uint8)]
+
+
+def _series_index(problem: Problem, path: str, state: str) -> int:
+    """Return the position of a state among the states of every element of a problem, in declaration order."""
+    names = [(element.path, name) for element in problem.elements for name in element.states]
+    return names.index((path, state)) if (path, state) in names else 0
+
+
+def _style_series(recording: rr.RecordingStream, path: str, value: object, index: int) -> None:
+    """Log static series colors for the components of a value, from the categorical palette starting at an index."""
+    values = np.ravel(np.asarray(value))
+    parts = [f'{path}/{part}' for part in PARTS] if np.iscomplexobj(values) else [path]
+    for offset, entity in enumerate(parts):
+        colors = [SERIES_COLORS[(index + offset + column) % len(SERIES_COLORS)] for column in range(values.size)]
+        recording.log(entity, rr.SeriesLines(colors=colors), static=True)
 
 
 def _log_scalars(recording: rr.RecordingStream, path: str, value: object) -> None:
@@ -176,11 +201,17 @@ class Visual:
 class ScalarsVisual(Visual):
     """Visual that logs each state component of an element as a time series.
 
+    Every state gets static series colors from a categorical palette, by its position among the states of every element
+    of the problem, so the series of one view are told apart.
+
     Examples:
         >>> from skcomplex.core.viz import ScalarsVisual
         >>> ScalarsVisual()
         ScalarsVisual()
     """
+
+    def __init__(self) -> None:
+        self._styled: set[str] = set()
 
     def __repr__(self) -> str:
         """Return the class name."""
@@ -200,7 +231,11 @@ class ScalarsVisual(Visual):
                 The frame.
         """
         for state, name in element.states.items():
-            _log_scalars(recording, f'{element.path}/{state}', frame.value(name))
+            path, value = f'{element.path}/{state}', frame.value(name)
+            if path not in self._styled:
+                _style_series(recording, path, value, _series_index(frame.problem, element.path, state))
+                self._styled.add(path)
+            _log_scalars(recording, path, value)
 
     def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
         """Return one time series view of the states of the element.

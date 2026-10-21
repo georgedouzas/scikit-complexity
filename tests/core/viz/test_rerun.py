@@ -38,9 +38,10 @@ class LoggedPaths:
         """Start with no logs."""
         self.logs = []
 
-    def log(self, path, archetype):
-        """Keep a logged entity path and archetype."""
-        self.logs.append((path, type(archetype).__name__))
+    def log(self, path, archetype, static=False):
+        """Keep a logged entity path and archetype, leaving out static styles."""
+        if not static:
+            self.logs.append((path, type(archetype).__name__))
 
 
 def _run(system, observer, until=1.0, dt=0.1):
@@ -95,12 +96,13 @@ def test_points_visual_logs_positions(n_dim, archetype):
 
 
 def test_rerun_observer_logs_parameters(monkeypatch, tmp_path):
-    """Test that parameters are logged under the parameters path every frame."""
+    """Test that parameters and states are logged every frame, besides static styles."""
     logged = []
     original = rr.RecordingStream.log
 
     def log(self, path, *args, **kwargs):
-        logged.append(path)
+        if not kwargs.get('static'):
+            logged.append(path)
         return original(self, path, *args, **kwargs)
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)

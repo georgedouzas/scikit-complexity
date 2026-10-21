@@ -5,7 +5,7 @@ import pytest
 
 from skcomplex.core.model import ContinuousSpace, EuclideanSpace, LatticeSpace, Particle, System
 from skcomplex.core.runtime import Frame, Observer, Simulation
-from skcomplex.core.viz import AgentsVisual, ImageVisual, PointsVisual
+from skcomplex.core.viz import AgentsVisual, ImageVisual, PointsVisual, ScalarsVisual
 from skcomplex.models import create
 from skcomplex.models.physics.statistical_mechanics import XYSpin
 
@@ -16,10 +16,13 @@ class Logs:
     def __init__(self):
         """Start with no logs."""
         self.logs = []
+        self.static = []
 
-    def log(self, path, archetype):
-        """Keep a logged entity path and archetype."""
+    def log(self, path, archetype, static=False):
+        """Keep a logged entity path and archetype, and whether it is static."""
         self.logs.append((path, archetype))
+        if static:
+            self.static.append(path)
 
     def of(self, path):
         """Return the archetypes logged under a path."""
@@ -159,3 +162,33 @@ def test_image_visual_colors_angles_cyclically():
     pixels = np.asarray(image.buffer.as_arrow_array()[0].as_py(), dtype=int).reshape(4, 3)
     assert np.abs(pixels[0] - pixels[1]).max() < 20
     assert np.abs(pixels[0] - pixels[3]).max() > 60
+
+
+def _series_color(archetype):
+    """Return the color of logged series lines."""
+    return archetype.colors.as_arrow_array().to_pylist()[0]
+
+
+def test_scalars_visual_gives_states_distinct_colors():
+    """Test that the white and black daisies of Daisyworld get distinct static series colors."""
+    problem, frame = _first_frame(create('daisyworld'))
+    logs = Logs()
+    visual = ScalarsVisual()
+    visual.log(logs, problem.elements[0], frame)
+    visual.log(logs, problem.elements[0], frame)
+    white = [item for item in logs.of('planet/white') if type(item).__name__ == 'SeriesLines']
+    black = [item for item in logs.of('planet/black') if type(item).__name__ == 'SeriesLines']
+    assert len(white) == len(black) == 1
+    assert 'planet/white' in logs.static
+    assert _series_color(white[0]) != _series_color(black[0])
+
+
+def test_scalars_visual_colors_elements_apart():
+    """Test that the first states of two elements get distinct series colors."""
+    problem, frame = _first_frame(create('coupled_pendulums'))
+    logs = Logs()
+    for element in problem.elements:
+        ScalarsVisual().log(logs, element, frame)
+    left = next(item for item in logs.of('left/theta') if type(item).__name__ == 'SeriesLines')
+    right = next(item for item in logs.of('right/theta') if type(item).__name__ == 'SeriesLines')
+    assert _series_color(left) != _series_color(right)
