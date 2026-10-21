@@ -149,6 +149,10 @@ With the sparse product, `sandpile((64, 64))` takes 1.25 s per 1000 grains in it
 relaxation loop would remove and which stays for a later change. `manna_sandpile` relaxes with a drive, which keeps its
 full update, and takes 2.3 s per 1000 grains instead of 5.2 s, the gain coming from the cheaper stability checks.
 
+The budget of the gallery is not met yet: 60000 grains of either sandpile still take longer than 60 s, about 75 s for
+`sandpile` and 140 s for `manna_sandpile`. The follow-up is a compiled relaxation loop, which runs the iterations of
+one grain in Numba without returning to Python between them, and belongs to a later change.
+
 ### Model defaults
 
 `chemical_langevin_equation` scales the Schlögl constants to a volume five times smaller: `c1 = 1.5e-6`,
