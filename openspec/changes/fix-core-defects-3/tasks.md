@@ -58,7 +58,7 @@ task removes the workaround.
 
 ## 7. Laws, analysis, and experiments
 
-- [ ] 7.1 Compile state conditions of `where` and `step` in rate laws into hidden events, and verify the bathtub
+- [x] 7.1 Compile state conditions of `where` and `step` in rate laws into hidden events, and verify the bathtub
   scenario
 - [ ] 7.2 Print the tangent dynamics of `lyapunov_spectrum` with the parameters as an argument, cache the compiled
   functions by source, differentiate `abs` as `sign`, and verify the sweep and Sprott scenarios
@@ -84,12 +84,15 @@ regression test for each fix.
 - [ ] 9.2 Scale default point radii to the visual bounds and brighten default point colors
 - [ ] 9.3 Choose or warn about the default solver of large diffusive fields, profile single scalar SDEs, raise the
   named blow-up error for `LSODA` failures of divergent runs, and check `rayleigh_benard` and `decaying_turbulence`
-- [ ] 9.4 Sanitise observer entity paths, give user paths their own namespace, add `Trajectory.names`, and add a
-  vectorised accessor of agent positions over frames
+- [ ] 9.4 Sanitise observer entity paths, give user paths their own namespace, add `Trajectory.names`, add a
+  vectorised accessor of agent positions over frames, log the auxiliaries and flows of stocks and flows as series, and
+  log the waiting times of `priority_queues`
 - [ ] 9.5 Check `restricted_three_body`, `diffusion_in_a_speckle_field`, `legion`, `faraday_disk`, `obesity`,
   `priority_queues`, and `burridge_knopoff`, and document the dealiasing of `kuramoto_sivashinsky`
 - [ ] 9.6 Print the thumbnail path from `gallery_tools run`, enforce the whole-script budget, accept single-channel
-  images, warn when a thumbnail lacks the series its caption names, and silence the warnings of `fit_power_law`
+  images, warn when a thumbnail lacks the series its caption names, silence the warnings of `fit_power_law`, include
+  the core code in the gallery cache key, write every run's recording to a unique temporary path the scraper is told
+  about, and remove the md5 of every example whose capture failed
 
 ## 10. Gate
 

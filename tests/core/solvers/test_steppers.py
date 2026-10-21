@@ -10,7 +10,7 @@ from scipy.integrate import solve_ivp
 
 from skcomplex.core.base import SolverError, role
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import Element, Interaction, Rate, System, mean
+from skcomplex.core.model import Element, Interaction, Rate, System, mean, step, where
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import EulerMaruyama, Gillespie, Iteration, ScipyODE, resolve_solver
 from skcomplex.models import create, run
@@ -111,14 +111,22 @@ def test_default_solver_leaves_lsoda_for_states_its_dense_matrix_cannot_hold():
         Simulation(_relaxing_group(10_000), dt=0.5, solver=ScipyODE(method='LSODA')).run(until=1)
 
 
+Tub = Element.define(
+    'Tub',
+    states={'water': 20.0},
+    laws=lambda s: [Rate(s.water, 5 * step(s.t, 5) - where(s.water > 0, 5, 0))],
+)
+
+
 def test_default_solver_leaves_lsoda_when_a_state_rests_on_a_discontinuity():
-    """Test that a bathtub resting empty on its drain switch finishes with RK45, and explicit LSODA names the stall."""
+    """Test that a group of tubs resting empty on their drain switch finishes with RK45, and explicit LSODA stalls."""
+    tubs = System(elements=[Tub.group('tubs', 1, water=[20.0])])
     with pytest.warns(UserWarning, match='LSODA stalled'):
-        simulation = Simulation(create('bathtub', water=20.0), dt=1).run(until=6)
+        simulation = Simulation(tubs, dt=1).run(until=6)
     assert simulation.stepper_.method_ == 'RK45'
-    np.testing.assert_allclose(simulation.trajectory_['tub.water'][:5], [20, 15, 10, 5, 0], atol=1e-6)
+    np.testing.assert_allclose(np.ravel(simulation.trajectory_['tubs.water'])[:5], [20, 15, 10, 5, 0], atol=1e-6)
     with pytest.raises(SolverError, match='stalled'):
-        Simulation(create('bathtub', water=20.0), dt=1, solver=ScipyODE(method='LSODA')).run(until=6)
+        Simulation(tubs, dt=1, solver=ScipyODE(method='LSODA')).run(until=6)
 
 
 def test_default_solver_starts_from_rest_with_a_vanishing_drift():

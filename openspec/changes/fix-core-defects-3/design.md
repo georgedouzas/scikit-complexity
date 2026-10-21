@@ -216,10 +216,23 @@ spectrum. A test compares a checkerboard mode against its exact decay for both d
 
 ### Hidden events at state conditions
 
-The compiler collects the conditions of `where` and `step` in rate laws that read states, and gives each one a guard,
-the difference of the two sides of the comparison, as an event without a reset that does not record. The event
-locator of `ScipyODE` and `RK4` restarts the integration at the crossing. Steppers without event support ignore them.
-`trajectory.events` leaves them out.
+The compiler collects the conditions of the laws of single components that read states: every comparison, such as
+the `where(water > 0, ...)` of the bathtub drain, gives the difference of its two sides, and every `sign`, `heaviside`,
+or `unit_step`, such as the escapement `sign(|theta| - theta_c)` of `huygens_clocks`, gives its argument. Sage prints
+`sign` as `sgn`, so both names count. Each distinct condition becomes an event without a reset, `hidden=True`, which
+the event locator crosses like any other event, so `ScipyODE` and `RK4` restart the integration at the switch, but
+which it neither records nor checks for chattering. `trajectory.events` therefore leaves them out. Conditions on time
+alone stay with the breakpoints, and conditions on group members are left out, since a guard has one value.
+
+With the hidden events, `bathtub(water=20)` runs until 6 without the stall warning, and the default `huygens_clocks`
+runs until 20 in 5 s instead of 9 s. A clock started exactly on its switch, `theta = theta_c` at rest, still makes
+`LSODA` crawl, 120 s for 0.3 time units, while `RK45` and `BDF` take 0.2 s. No crossing happens there, since the guard
+starts at zero, so the hidden events cannot help, and the model's default start is off the switch.
+
+Two gaps remain for task 9.3. A true sliding mode on a switch that hidden events do not see, such as
+`w' = 5 - 10 ceil(w / 100)` or a group member with `5 - where(w > 0, 10, 0)`, keeps `LSODA` running for more than ten
+minutes without the stall guard firing. The guard of `fix-core-defects-2` still catches a state that rests on a switch
+of a group member, which its test now uses instead of the bathtub.
 
 ### Remaining items
 

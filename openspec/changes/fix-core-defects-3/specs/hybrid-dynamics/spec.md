@@ -10,3 +10,7 @@ integrators with event location restart at the crossing, and hidden events SHALL
 - **WHEN** `bathtub(water=20.0)` runs until 6 with the default solver
 - **THEN** it finishes without a stall warning, the water stays nonnegative within 1e-6, and the trajectory has no
   events
+
+#### Scenario: Escapement of a clock
+- **WHEN** `huygens_clocks` is compiled
+- **THEN** the escapement `sign(|theta| - theta_c)` of each clock compiles into one hidden event

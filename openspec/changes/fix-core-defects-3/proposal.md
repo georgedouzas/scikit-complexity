@@ -106,8 +106,11 @@ when it does not reproduce:
   vectorised accessor of agent positions over frames.
 - Model checks of `restricted_three_body`, `diffusion_in_a_speckle_field`, `legion`, `faraday_disk`, `obesity`,
   `priority_queues`, and `burridge_knopoff`, and the docstring of `kuramoto_sivashinsky`.
-- Gallery tooling: whole-script budget, single-channel images, a warning for thumbnails without named series, and
-  silenced warnings of `fit_power_law`.
+- Gallery tooling: whole-script budget, single-channel images, a warning for thumbnails without named series,
+  silenced warnings of `fit_power_law`, the core code in the cache key, unique recording paths so concurrent runs of
+  one example do not steal each other's recording, and no md5 left behind by a failed capture.
+- Observer logging of the auxiliaries and flows of stocks and flows, so a view of an auxiliary such as
+  `/hilsa/adult_weight` is not blank, and the waiting times of `priority_queues`.
 
 ## Dropped items
 
