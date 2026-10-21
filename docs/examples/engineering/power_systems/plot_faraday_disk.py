@@ -1,8 +1,9 @@
 """
 # Faraday disk charger
 
-A motor spins up a Faraday disk until the braking torque of the generated current and the friction balance the torque
-of the motor. The disk then turns at a steady speed and drives a steady current into the battery.
+A motor spins up a Faraday disk until the friction balances the torque of the motor. The disk then turns at a steady
+speed, but its voltage stays below that of the battery, so after a first surge the current settles at a small negative
+value: the battery discharges slowly through the disk.
 """
 
 # %%
@@ -28,7 +29,8 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).run(until=50)
 # --------------------------------
 # From rest, the speed and the current should settle on a stable steady state, where the trajectory in the plane of
 # speed and current ends. Over a range of torques the steady speed should grow almost linearly with the torque, as the
-# viscous friction `beta r2 omega` takes up most of it.
+# viscous friction `beta r2 omega` takes up most of it. Above a torque near 9.5 the self-excitation of the coil makes
+# the current oscillate instead, which the sweep stops short of.
 
 torques = np.linspace(3.0, 9.0, 13)
 speeds = [

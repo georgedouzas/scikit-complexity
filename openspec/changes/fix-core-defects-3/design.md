@@ -360,6 +360,15 @@ records the measurement in the proposal's dropped items and closes.
   `epsilon = 0.1` the cycle is about 60 time units, the objects first fire at `t = 51` and `t = 70.5`, never
   together, and the background stays silent. The default becomes 0.1 with a registered `until` of 150, and the
   docstring names the value of the paper. The example passes `epsilon = 0.1` explicitly and is unchanged.
+- `faraday_disk`: the model follows its equations, and its docstring and example were wrong. The generator voltage
+  `a ω` stays below the battery's `a0 = 8` up to `ω = 35`, so at every torque from 2 to 9 the steady current is a
+  small discharge, -0.061 at `M = 2` and -0.040 at the default 4.8, with the speed on the line `(M - alpha) / (β r2)`
+  of slope 3.64. The sign of the current does not change at `M = 2`. Near `M = 9.5` the speed reaches
+  `(R1 + a1) / b = 32`, where the negative resistance `b ω` of the self-exciting coil outweighs `R1 + a1`, and the
+  steady state gives way to an oscillation of the current around zero, of peak to peak 1.5 at `M = 10` and 6.2 at
+  `M = 20`, whose mean braking `b <I²>` bends the speed below the line, 68.6 against 70.9 at `M = 20`. The docstring
+  states the regimes, a test pins them, and the example no longer claims a charging current. Its thumbnail shows the
+  spin-up with the current and the polarization voltage settling at small negative values.
 
 ### Obesity and priority queues
 
