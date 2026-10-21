@@ -3,10 +3,11 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.model import ContinuousSpace, EuclideanSpace, Particle, System
+from skcomplex.core.model import ContinuousSpace, EuclideanSpace, LatticeSpace, Particle, System
 from skcomplex.core.runtime import Frame, Observer, Simulation
 from skcomplex.core.viz import AgentsVisual, ImageVisual, PointsVisual
 from skcomplex.models import create
+from skcomplex.models.physics.statistical_mechanics import XYSpin
 
 
 class Logs:
@@ -145,3 +146,16 @@ def test_points_visual_trail_width_follows_extent():
     logs = Logs()
     PointsVisual(position='x', radius=0.05, states=()).log(logs, problem.elements[0], frame)
     assert _radius(logs.of('bodies/trail')[0]) == pytest.approx(0.5)
+
+
+def test_image_visual_colors_angles_cyclically():
+    """Test that angles just either side of ±π get nearly the same color, as on a cyclic palette."""
+    space = LatticeSpace((2, 2))
+    system = System(elements=[XYSpin.lattice('spins', space, theta=[[-3.1, 3.1], [0.0, 1.5]])])
+    problem, frame = _first_frame(system)
+    logs = Logs()
+    ImageVisual().log(logs, problem.elements[0], frame)
+    image = logs.of('spins/theta')[0]
+    pixels = np.asarray(image.buffer.as_arrow_array()[0].as_py(), dtype=int).reshape(4, 3)
+    assert np.abs(pixels[0] - pixels[1]).max() < 20
+    assert np.abs(pixels[0] - pixels[3]).max() > 60
