@@ -65,13 +65,13 @@ For every task in this section:
 - review it against the caption and record the review in the batch's list;
 - verify that the field's examples pass the budget, checks, and coverage.
 
-- [ ] 5.1 Physics
+- [x] 5.1 Physics
 - [x] 5.2 Chemistry
-- [ ] 5.3 Biology
+- [x] 5.3 Biology
 - [x] 5.4 Earth science
 - [x] 5.5 Economics
 - [ ] 5.6 Social science
-- [ ] 5.7 Engineering
+- [x] 5.7 Engineering
 - [x] 5.8 Mathematics
 - [x] 5.9 Computer science
 
