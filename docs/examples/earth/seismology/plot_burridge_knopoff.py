@@ -8,13 +8,15 @@ sizes separated by long quiet loading.
 
 # %%
 # The model is created by name from the catalog with 20 blocks, the coupling `k_c = 2.5`, and the plate speed 0.01,
-# and runs for 2000 time units, about twenty loading cycles. The blueprint puts the history of the block speeds
+# and runs for 2000 time units, about twenty loading cycles, with the model's registered fixed-step `RK4(dt=0.05)`,
+# since the adaptive integrators stall where blocks stick and slip. The blueprint puts the history of the block speeds
 # first, where blocks caught slipping light up against the stuck ones.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.runtime import Simulation
+from skcomplex.core.solvers import RK4
 from skcomplex.core.viz import RerunObserver, default_blueprint
 from skcomplex.models import create
 
@@ -26,7 +28,7 @@ observer = RerunObserver(
     save_path=f'{MODEL}.rrd',
     blueprint=default_blueprint(system, primary='fault/space_time/v'),
 )
-simulation = Simulation(system, dt=10.0, observers=[observer]).run(until=2000)
+simulation = Simulation(system, dt=10.0, solver=RK4(dt=0.05), observers=[observer]).run(until=2000)
 
 # %%
 # Stick and slip

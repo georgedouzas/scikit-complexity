@@ -369,6 +369,15 @@ records the measurement in the proposal's dropped items and closes.
   `M = 20`, whose mean braking `b <I²>` bends the speed below the line, 68.6 against 70.9 at `M = 20`. The docstring
   states the regimes, a test pins them, and the example no longer claims a charging current. Its thumbnail shows the
   spin-up with the current and the polarization voltage settling at small negative values.
+- `burridge_knopoff` reproduces: 2000 time units in frames of 10 take 23.6 s, and LSODA's stall guard fires at
+  `t = 138` and hands over to RK45. Hidden events cannot help, since the switches `v > 0` and `force < F0` belong to
+  the members of a lattice field, which give no events. RK45 alone takes 20.8 s, BDF fails on a step below the spacing
+  of floats at `t = 85`, and Radau hits the guard of 50000 steps in one frame. A fixed-step `RK4(dt=0.05)`, far below
+  the stability limit `2.8 / sqrt(k_p + 4 k_c) = 0.85`, takes 3.4 s, never moves a block backwards, and gives 75
+  frames with slips against 72 with LSODA and 82 with RK45, with the same spread of sizes, and `dt = 0.02` gives 75
+  again. It becomes the registered solver, the docstring says why, and the example passes it, which cuts its script
+  from 31 s to 3.6 s. The thumbnail still shows the slipping blocks lighting up in the speed history. Per-member
+  hidden events for fields remain a core gap.
 
 ### Obesity and priority queues
 
