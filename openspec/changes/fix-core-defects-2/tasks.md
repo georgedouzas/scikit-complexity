@@ -49,4 +49,4 @@ defect. Every test follows the naming and public-API rules of the constitution.
 
 ## 6. Gate
 
-- [ ] 6.1 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass
+- [x] 6.1 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass

@@ -33,4 +33,4 @@
 
 - [x] 6.1 Document flows, quantities, conservation, system-dynamics blocks, loops, and ledgers in the user guide, and
   verify the documentation test passes
-- [ ] 6.2 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass
+- [x] 6.2 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass
