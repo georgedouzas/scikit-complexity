@@ -217,6 +217,20 @@ locator of `ScipyODE` and `RK4` restarts the integration at the crossing. Steppe
 Each remaining item of the second log is reproduced at the start of its task. A task whose item does not reproduce
 records the measurement in the proposal's dropped items and closes.
 
+### Model checks
+
+- `social_impact(random_state=1)` reaches consensus with the corrected flip rule, so the frozen-minority test runs
+  from seed 2. At the distance exponent 2, four of six starts reach consensus; at exponent 3 all six keep a minority.
+- `light_seeking_robots`: the model is right and its docstring was wrong. In a well of radius 2, the mean light
+  intensity at 40 robots after `t = 50` is 0.164 to 0.174 without delay, 0.150 to 0.160 with delay 2, and 0.127 to
+  0.132 with delay 5 over three seeds, the light avoidance of a positive delay that Mijalkov et al. report. The old
+  test only saw the first five time units, where the delayed robots still read the light of their start.
+- `hypercycles`: a cycle of five or six molecules loses members and settles at a fixed point, with no limit cycle.
+- `bouchaud_mezard_wealth`: the Hill index of `W / <W>` for 2000 agents at `J = sigma = 1` is 2.75 to 2.84, close
+  to `1 + 2 J / sigma^2 = 3`.
+- `living_crystals`: clusters form only with attraction (4.4 contacts per colloid against 0.7) and slowly coarsen,
+  keeping 78 % of their contacts over 40 time units, so they do not keep rearranging.
+
 ## Risks / Trade-offs
 
 - [Hidden events slow systems with many state conditions] → Each condition costs one guard evaluation per step, and
