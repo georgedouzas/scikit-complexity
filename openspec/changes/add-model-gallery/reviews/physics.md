@@ -35,3 +35,7 @@
 | two_mass_spring_damper | quasi-periodic beating of the first mass | spectrum peaks at the normal modes 1 and sqrt(3) | 4.5 s, 251 frames, 201 KB |
 | sitnikov | irregular bobbing of the light body (e = 0.2) | stroboscopic section: invariant curves near the centre, chaotic band outside | 19.0 s, 251 frames, 47 KB |
 | restricted_three_body | precessing rosette around the Earth, Moon aside (custom path view) | path outside the Jacobi forbidden region; C drift below 2e-5 | 0.3 s, 251 frames, 121 KB |
+| oscillator_death | 50 oscillations collapsing to 0 after the coupling switches on | mean amplitude decays at the rate 1 - omega0 above the critical width 1 | 7.6 s, 281 frames, 252 KB |
+| heterogeneous_global_coupling | limit cycles damped to rest after the coupling switches on | decay rates follow the leading eigenvalue inside the stability window | 11.9 s, 201 frames, 203 KB |
+| schrodinger | space-time image of the moving, spreading packet | site probabilities agree with the operator formulation; dephasing lowers purity at trace 1 | 1.6 s, 41 frames, 78 KB |
+| heat_l_shape | temperature surface over the L-shaped plate (camera crops the plate at small size) | nodes on the exact harmonic steady state; error decays exponentially | 0.3 s, 21 frames, 48 KB |
