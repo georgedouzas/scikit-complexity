@@ -1,39 +1,42 @@
-"""Test agent-based models on Mesa: form inference, spaces, populations, reproducibility, and wrapped models."""
+"""Test agent-based models on the Mesa backend: recognition, spaces, populations, reproducibility, and support."""
 
-import time
-
-import mesa
 import networkx as nx
 import numpy as np
 import pytest
 
+import skcomplex.core.model
 from skcomplex.core.base import (
     Form,
     IncompatibleLawsError,
+    LabelError,
     SimulationError,
     SpaceError,
+    TimeKind,
     ValidationError,
     parameter,
     role,
     state,
 )
-from skcomplex.core.compile import compile_system
+from skcomplex.core.compile import compile_system, validate
+from skcomplex.core.compile._compiler import AGENT_RESERVED_NAMES
 from skcomplex.core.model import (
-    AgentType,
     ContinuousSpace,
+    DiscreteTime,
+    Element,
+    Group,
     Interaction,
     LatticeSpace,
-    MesaSystem,
     NetworkSpace,
     Rule,
     System,
+    runs_rules,
 )
-from skcomplex.core.runtime import RealTime, Simulation
-from skcomplex.core.solvers import AgentView
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.solvers import AgentView, MesaStepper
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population
 
 
-class Breeder(AgentType):
+class Breeder(Element):
     """Agent that creates one offspring every step."""
 
     def laws(self, s):
@@ -45,7 +48,7 @@ class Breeder(AgentType):
         agent.create()
 
 
-class Walker(AgentType):
+class Walker(Element):
     """Agent that moves to a random neighbouring cell and counts its moves."""
 
     moves: float = state(0.0)
@@ -61,7 +64,7 @@ class Walker(AgentType):
         agent.moves += 1
 
 
-class Probe(AgentType):
+class Probe(Element):
     """Agent that records how many neighbouring cells and neighbours it has."""
 
     cells: float = state(0.0)
@@ -77,7 +80,7 @@ class Probe(AgentType):
         agent.near = len(agent.neighbors())
 
 
-class Drifter(AgentType):
+class Drifter(Element):
     """Agent in a continuous space that counts the agents within a radius."""
 
     near: float = state(0.0)
@@ -108,52 +111,71 @@ class Culler(Interaction):
             agents[0].remove()
 
 
-class MoneyAgent(mesa.Agent):
-    """Plain Mesa agent of the Boltzmann wealth model."""
+class MoneyAgent(Element):
+    """Agent of the Boltzmann wealth model, which gives the transfer to a random agent when it has wealth."""
 
-    def __init__(self, model):
-        """Start with one unit of wealth."""
-        super().__init__(model)
-        self.wealth = 1
+    wealth: float = state(1.0)
+    transfer: float = parameter(1.0)
 
-    def step(self):
-        """Give the transfer to a random agent when there is wealth to give."""
-        if self.wealth > 0:
-            other = self.model.random.choice(self.model.agents)
-            other.wealth += self.model.transfer
-            self.wealth -= self.model.transfer
+    def laws(self, s):
+        """Return the giving rule."""
+        return [Rule(self.give)]
 
-
-class MoneyModel(mesa.Model):
-    """Plain Mesa Boltzmann wealth model."""
-
-    def __init__(self, n=50, transfer=1, rng=None):
-        """Create the agents."""
-        super().__init__(rng=rng)
-        self.transfer = transfer
-        MoneyAgent.create_agents(self, n)
-
-    def step(self):
-        """Activate the agents in random order."""
-        self.agents.shuffle_do('step')
-
-
-def _gini(model):
-    """Return the Gini coefficient of the wealth of the model's agents."""
-    wealth = np.sort([agent.wealth for agent in model.agents])
-    n = len(wealth)
-    return float((2 * np.arange(1, n + 1) - n - 1) @ wealth / (n * wealth.sum()))
+    def give(self, agent, model):
+        """Give the transfer to a random agent of the group."""
+        if agent.wealth > 0:
+            agents = model.agents(agent.group)
+            other = agents[int(model.rng.integers(len(agents)))]
+            other.wealth += agent.transfer
+            agent.wealth -= agent.transfer
 
 
 def _money_system():
-    """Return the wrapped Mesa Boltzmann wealth model."""
-    return MesaSystem(
-        'economy',
-        model=MoneyModel,
-        parameters={'n': 50, 'transfer': 1},
-        model_reporters={'gini': _gini},
-        agent_reporters={'wealth': 'wealth'},
-    )
+    """Return the Boltzmann wealth model as an ordinary system of 50 agents."""
+    return System('economy', components=[MoneyAgent.group('agents', 50)], time=DiscreteTime())
+
+
+def test_agent_specific_classes_do_not_exist():
+    """Test that agents are ordinary elements, with no agent type or wrapped Mesa system in the core."""
+    assert not hasattr(skcomplex.core.model, 'AgentType')
+    assert not hasattr(skcomplex.core.model, 'MesaSystem')
+
+
+def test_rule_laws_make_elements_agents():
+    """Test that elements and groups with rule laws, and variable groups, run on the agent stepper."""
+    plain = Element.define('Plain', states={'x': 0.0})
+    assert runs_rules(Walker.group('walkers', 3))
+    assert runs_rules(Walker('walker'))
+    assert runs_rules(Group('births', element=plain, size=2, variable=True))
+    assert not runs_rules(plain.group('plain', 2))
+    assert not runs_rules(Population('herd'))
+
+
+class Stall(Element):
+    """Passive agent without laws, whose stock shoppers buy."""
+
+    stock: float = state(3.0)
+
+
+class Shopper(Element):
+    """Agent that buys one unit from the first stall that has stock."""
+
+    def laws(self, s):
+        """Return the buying rule."""
+        return [Rule(self.buy)]
+
+    def buy(self, agent, model):
+        """Buy one unit from the first stall with stock."""
+        stall = model.agents('stalls')[0]
+        if stall.stock > 0:
+            stall.stock -= 1
+
+
+def test_elements_without_laws_are_passive_agents():
+    """Test that a group without laws next to agents with rules is a group of agents that the rules change."""
+    system = System(components=[Stall.group('stalls', 1), Shopper.group('shoppers', 2)])
+    trajectory = Simulation(system, random_state=0).run(until=2).trajectory_
+    assert [trajectory.agents('stalls', frame).values['stock'].tolist() for frame in (1, 2)] == [[1.0], [0.0]]
 
 
 def test_rules_give_agent_form():
@@ -178,15 +200,21 @@ def test_rules_mixed_with_rates_raise_error():
 
 def test_agents_are_born_every_step():
     """Test that one offspring per agent per step gives 10, 20, 40, and 80 agents."""
-    trajectory = Simulation(System(components=[Breeder.group('herd', 10)])).run(until=3).trajectory_
+    trajectory = Simulation(System(components=[Breeder.group('herd', 10, variable=True)])).run(until=3).trajectory_
     assert trajectory['herd.count'].tolist() == [10.0, 20.0, 40.0, 80.0]
     assert len(trajectory.agents('herd', 3)) == 80
+
+
+def test_fixed_group_rejects_births():
+    """Test that a rule creating a member of a group of fixed size raises an error that suggests a variable group."""
+    with pytest.raises(SimulationError, match='variable=True'):
+        Simulation(System(components=[Breeder.group('herd', 10)])).run(until=1)
 
 
 def test_model_rules_remove_agents():
     """Test that an interaction rule removes agents and frames report the agents alive."""
     system = System(
-        components=[Walker.group('walkers', 5)],
+        components=[Walker.group('walkers', 5, variable=True)],
         interactions=[Culler('cull', target='walkers')],
         space=LatticeSpace((5, 5), boundary='fixed'),
     )
@@ -199,7 +227,7 @@ def test_model_rules_remove_agents():
 def test_grid_neighbours(neighborhood, expected):
     """Test that an agent in the middle of a 10 by 10 grid has 8 Moore or 4 von Neumann neighbouring cells."""
     system = System(
-        components=[Probe('probe', location=(5, 5))],
+        components=[Probe.group('probe', 1, location=(5, 5))],
         space=LatticeSpace((10, 10), boundary='fixed', neighborhood=neighborhood),
     )
     snapshot = Simulation(system).run(until=1).trajectory_.agents('probe', 1)
@@ -243,44 +271,46 @@ def test_agent_runs_are_reproducible():
 def test_agent_frames_use_integer_steps():
     """Test that agent-based models reject a non-integer frame duration."""
     with pytest.raises(ValidationError, match='positive integer'):
-        Simulation(System(components=[Breeder.group('herd', 2)]), dt=0.5).run(until=1)
+        Simulation(System(components=[Breeder.group('herd', 2, variable=True)]), dt=0.5).run(until=1)
 
 
-def test_wrapped_mesa_model_reports_gini_and_keeps_wealth():
-    """Test that a wrapped Boltzmann wealth model reports 101 Gini values and keeps its total wealth."""
+def test_boltzmann_wealth_keeps_wealth():
+    """Test that the Boltzmann wealth model as an ordinary system keeps its total wealth and its agents' ids."""
     trajectory = Simulation(_money_system(), random_state=0).run(until=100).trajectory_
-    assert len(trajectory['economy.gini']) == 101
-    totals = {int(trajectory.agents('economy/agents', frame).values['wealth'].sum()) for frame in range(101)}
+    totals = {int(trajectory.agents('agents', frame).values['wealth'].sum()) for frame in range(101)}
     assert totals == {50}
+    assert trajectory.agents('agents', 5).ids.tolist() == list(range(1, 51))
 
 
-def test_wrapped_agent_values_carry_ids():
-    """Test that the trajectory returns one wealth value per agent with matching ids."""
-    snapshot = Simulation(_money_system(), random_state=0).run(until=10).trajectory_.agents('economy/agents', 5)
-    assert snapshot.ids.tolist() == list(range(1, 51))
-    assert len(snapshot.values['wealth']) == 50
+def test_agent_parameter_changes_live():
+    """Test that a parameter update reaches the rules of the agents."""
+    schedule = {'agents.transfer': lambda t: 1.0 if t < 5 else 0.0}
+    trajectory = Simulation(_money_system(), schedule=schedule, random_state=0).run(until=10).trajectory_
+    frames = [trajectory.agents('agents', frame).values['wealth'] for frame in (7, 10)]
+    assert np.array_equal(*frames)
 
 
-def test_wrapped_parameter_changes_live():
-    """Test that a live parameter update sets the attribute of the wrapped model."""
-    simulation = Simulation(_money_system(), clock=RealTime(speed=20.0)).start(until=20)
-    time.sleep(0.3)
-    simulation.update_parameters({'economy.transfer': 2})
-    simulation.wait()
-    assert simulation.stepper_.model_.transfer == 2
-    assert isinstance(simulation.stepper_.model_.transfer, int)
+def test_mesa_declares_its_support():
+    """Test that the Mesa backend declares discrete time, rule laws, and fixed and variable groups."""
+    supports = MesaStepper.supports
+    assert supports.time == {TimeKind.DISCRETE}
+    assert not supports.missing('laws', {Rule.law_kind})
+    assert {'group', 'variable-group'} <= {str(kind) for kind in supports.components}
 
 
-def test_mesa_system_must_be_root():
-    """Test that a wrapped Mesa model nested in another system is rejected."""
-    with pytest.raises(ValidationError, match='root system'):
-        compile_system(System(components=[_money_system()]))
+def test_mesa_validates_systems_against_its_support():
+    """Test that validation reports a system of rate laws and continuous time for the Mesa backend."""
+    system = System(components=[Population('herd')], interactions=[ExponentialGrowth('growth', target='herd')])
+    issues = validate(system, solver='mesa').issues
+    assert [issue.code for issue in issues] == ['solver-unsupported']
+    assert 'rate' in issues[0].message
+    assert validate(_money_system(), solver='mesa').ok
 
 
 SEEN: list[object] = []
 
 
-class Cattle(AgentType):
+class Cattle(Element):
     """Agent that stays where it is and that a census interaction counts."""
 
     def laws(self, s):
@@ -392,12 +422,25 @@ def test_network_distance_counts_hops():
 
 
 def test_agent_view_names_are_reserved():
-    """Test that every public name of the agent view is reserved for the states of agent types."""
+    """Test that every public name of the agent view is reserved for the states of agents."""
     public = {name for name in dir(AgentView) if not name.startswith('_')}
-    assert public <= AgentType.reserved_names
+    assert public <= AGENT_RESERVED_NAMES
 
 
-class Clocked(AgentType):
+def test_agent_state_with_reserved_name_raises_error():
+    """Test that an agent state named like an attribute of the agent view raises a label error at compilation."""
+    Mover = Element.define('Mover', states={'alive': 1.0}, laws=lambda s: [Rule(lambda agent, model: None)])
+    with pytest.raises(LabelError, match='declare the variables alive'):
+        compile_system(System(components=[Mover.group('movers', 2)]))
+
+
+def test_non_agent_state_may_take_agent_view_name():
+    """Test that an element without rule laws keeps states named like attributes of the agent view."""
+    Cell = Element.define('Cell', states={'alive': 1.0})
+    assert compile_system(System(components=[Cell.group('cells', 2)])).states.names == ['cells.alive']
+
+
+class Clocked(Element):
     """Agent that records the model time at every step."""
 
     seen: float = state(-1.0)

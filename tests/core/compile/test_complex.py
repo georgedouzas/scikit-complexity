@@ -13,7 +13,6 @@ from skcomplex.core.backends import LammpsBackend
 from skcomplex.core.base import BackendError, Domain, ValidationError, parameter, state
 from skcomplex.core.compile import Entry, Layout, NumbaBackend, compile_system
 from skcomplex.core.model import (
-    AgentType,
     Call,
     Element,
     Equation,
@@ -369,7 +368,7 @@ def test_lammps_backend_rejects_complex_state():
 def test_mesa_backend_rejects_complex_agent_state():
     """Test that an agent type with a complex state names the state and the Mesa backend."""
 
-    class Walker(AgentType):
+    class Walker(Element):
         z: complex = state(0.0, domain=Domain.COMPLEX)
 
         def laws(self, s):

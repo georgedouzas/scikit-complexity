@@ -23,13 +23,13 @@ from skcomplex.core.analysis import (
     structure_factor,
 )
 from skcomplex.core.base import AnalysisError, Domain, VisualSpec, state
-from skcomplex.core.model import AgentType, ContinuousSpace, LatticeSpace, Law, Rule, Symbols, System
+from skcomplex.core.model import ContinuousSpace, Element, LatticeSpace, Law, Rule, Symbols, System
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import AgentView, ModelView
 from skcomplex.models import run
 
 
-class GridWalker(AgentType):
+class GridWalker(Element):
     """Walker that moves to a random neighbouring cell of a periodic grid at every step."""
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {})
@@ -46,7 +46,7 @@ class GridWalker(AgentType):
         agent.steps += 1
 
 
-class Diffuser(AgentType):
+class Diffuser(Element):
     """Particle that takes a Gaussian step of unit variance per coordinate in a periodic square at every step."""
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {})

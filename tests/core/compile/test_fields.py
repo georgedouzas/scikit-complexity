@@ -9,7 +9,6 @@ import pytest
 from skcomplex.core.base import ValidationError, state
 from skcomplex.core.compile import compile_system
 from skcomplex.core.model import (
-    AgentType,
     Element,
     Field,
     Group,
@@ -135,7 +134,7 @@ def test_too_large_step_warns():
         Simulation(problem, dt=1.0, solver=RK4(dt=0.2)).run(until=1)
 
 
-class Marker(AgentType):
+class Marker(Element):
     """Agent that reads a field at its cell and deposits one unit there every step."""
 
     seen: float = state(default=0.0)

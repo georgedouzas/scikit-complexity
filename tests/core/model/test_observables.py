@@ -7,7 +7,7 @@ import pytest
 from sage.all__sagemath_symbolics import I, exp
 
 from skcomplex.core.base import Domain, RoleError, ValidationError, parameter, state, symbol
-from skcomplex.core.model import AgentType, Element, Interaction, Observable, Rate, Rule, System, mean, total
+from skcomplex.core.model import Element, Interaction, Observable, Rate, Rule, System, mean, total
 from skcomplex.core.runtime import Frame, Simulation
 from skcomplex.core.viz import RerunObserver
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population
@@ -20,7 +20,7 @@ Oscillator = Element.define(
 )
 
 
-class Saver(AgentType):
+class Saver(Element):
     """Agent whose wealth grows by one every step."""
 
     wealth: float = state(1.0)
