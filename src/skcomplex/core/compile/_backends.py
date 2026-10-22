@@ -14,7 +14,7 @@ from sklearn.base import BaseEstimator
 
 from ..base import BackendError, Form, Registry, Supports
 from ._kernels import Indices, Kernel, Reference, add_into, assign_into
-from ._problem import Accelerated, Draws, JumpChannels, Vector, VectorFunction
+from ._problem import Accelerated, Draws, JumpChannels, Vector, VectorFunction, WienerBlock
 from ._reductions import ReductionPass
 
 AUTO_MEMBERS = 1000
@@ -32,7 +32,16 @@ class Lowering:
             The function that returns every Wiener process amplitude, or `None`.
 
         noise_rows:
-            The state index each Wiener process drives.
+            The state index each noise amplitude drives.
+
+        noise_columns:
+            The Wiener process each noise amplitude draws.
+
+        n_processes:
+            The number of Wiener processes.
+
+        noise_blocks:
+            The blocks of correlated processes with their covariance factors.
 
         propensities:
             The function that returns every jump channel rate, or `None`.
@@ -53,6 +62,9 @@ class Lowering:
     drift: VectorFunction | None = None
     diffusion: VectorFunction | None = None
     noise_rows: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
+    noise_columns: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
+    n_processes: int = 0
+    noise_blocks: tuple[WienerBlock, ...] = ()
     propensities: VectorFunction | None = None
     jumps: tuple[JumpChannels, ...] = ()
     update: VectorFunction | None = None

@@ -276,7 +276,7 @@ class ScalarsVisual(Visual):
 
         Returns:
             views:
-                A time series view with the element path as origin.
+                A time series view with the element path as origin, or no view for an element without states.
 
         Examples:
             >>> from skcomplex.core.compile import compile_system
@@ -287,6 +287,8 @@ class ScalarsVisual(Visual):
             >>> type(view).__name__, str(view.origin)
             ('TimeSeriesView', 'prey')
         """
+        if not getattr(element, 'states', True):
+            return []
         return [rrb.TimeSeriesView(origin=element.path, name=element.path)]
 
 

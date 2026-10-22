@@ -41,7 +41,7 @@ from ..base import (
     vector,
     wrap_angle,
 )
-from ..components import Aggregate, Element, Field, Group
+from ..components import Aggregate, Element, Field, Group, Wiener
 from ..interactions import Interaction, Match
 from ..laws import (
     Auxiliary,
@@ -101,7 +101,7 @@ from ._hybrid import (
     state_conditions_of,
 )
 from ._jacobians import ExactJacobian
-from ._kernels import Kernel, Output, PairSearch, Reference, Source
+from ._kernels import Kernel, NoiseProcess, Output, PairSearch, Reference, Source
 from ._lattices import (
     LatticeContext,
     LatticeState,
@@ -182,11 +182,15 @@ AGENT_VIEW_NAMES = frozenset(
 )
 MESA_AGENT_NAMES = frozenset({'position', 'pos', 'cell', 'unique_id', 'model'})
 AGENT_RESERVED_NAMES = AGENT_VIEW_NAMES | MESA_AGENT_NAMES
+type ProcessKey = tuple[str, str, Any]
 
 
 def _renamed(value: Expression, mapping: dict[Expression, Expression]) -> Expression:
-    """Return the renamed symbol of a variable, or a complex value with its real and imaginary symbols renamed."""
-    return mapping[value] if value.operator() is None else value.subs(mapping)
+    """Return the renamed symbol of a variable, or a complex value with its real and imaginary symbols renamed.
+
+    A symbol without a variable, such as the handle of a Wiener process, keeps its name.
+    """
+    return mapping.get(value, value) if value.operator() is None else value.subs(mapping)
 
 
 @dataclass
@@ -294,6 +298,17 @@ class _Declarations:
     initial_parameters: list[Vector] = field(default_factory=list)
     blocks: dict[str, _Block] = field(default_factory=dict)
     ends: dict[bool, int] = field(default_factory=lambda: {True: 0, False: 0})
+    wieners: dict[str, Wiener] = field(default_factory=dict)
+    handles: dict[Expression, tuple[str, int]] = field(default_factory=dict)
+
+    def _declare_wiener(self, block: _Block, wiener: Wiener) -> None:
+        """Add the handle `dW` of a Wiener element to its block and index its symbols by process."""
+        path = block.node.path
+        handle = wiener.declare_handle(path)
+        block.symbols['dW'] = handle
+        self.wieners[path] = wiener
+        for index, item in enumerate(components_of(handle)):
+            self.handles[item] = (path, index)
 
     def _declare(self, block: _Block, variable: str, declaration: Variable, is_state: bool) -> None:
         """Add one variable of a component to its block."""
@@ -393,6 +408,8 @@ class _Declarations:
             self._declare(block, variable, declaration, is_state=True)
         for variable, declaration in declarations_of(node.component_type, VariableKind.PARAMETER).items():
             self._declare(block, variable, declaration, is_state=False)
+        if isinstance(node.component, Wiener):
+            self._declare_wiener(block, node.component)
         self.blocks[node.path] = block
         return block
 
@@ -1185,7 +1202,6 @@ class _Hybrid:
     delays: list[dict[str, Any]] = field(default_factory=list)
     placeholders: dict[tuple[int, str, int, str], Expression] = field(default_factory=dict)
     events: list[tuple[_KernelSpec, Event]] = field(default_factory=list)
-    noisy: set[tuple[str, int]] = field(default_factory=set)
     renewals: list[_Renewal] = field(default_factory=list)
 
 
@@ -1274,30 +1290,149 @@ def _substitute_delays(value: object, spec: _KernelSpec, declarations: _Declarat
     return value.subs(replacements) if replacements else value
 
 
-def _noise_corrections(spec: _KernelSpec, law: Noise, alpha: float, hybrid: _Hybrid) -> list[Law]:
-    """Return the drift corrections `alpha g dg/dx` that turn a noise law of a convention into the Itô form."""
-    if not alpha:
-        return []
-    targets = components_of(law.target)
-    values = (
-        components_of(law.value) if isinstance(law.value, SymbolicVector | list | tuple) else [law.value] * len(targets)
+def _process_key(spec: _KernelSpec, item: object, declarations: _Declarations) -> ProcessKey:
+    """Return the process a label or a handle of a noise law names, as a local label or a Wiener process."""
+    if isinstance(item, str):
+        return ('local', spec.owner, item)
+    found = declarations.handles.get(item) if isinstance(item, Expression) else None
+    if found is None:
+        error_msg = (
+            f'A noise law of {spec.owner} names the process {item!r}, which is not a label or the handle `dW` of a '
+            'Wiener element bound to a role.'
+        )
+        raise ValidationError(error_msg)
+    return ('wiener', *found)
+
+
+def _process_keys(spec: _KernelSpec, law: Noise, declarations: _Declarations) -> list[ProcessKey | None]:
+    """Return the process of every component of the target of a noise law, `None` for an independent process."""
+    count = len(components_of(law.target))
+    process = law.process
+    if process is None:
+        return [None] * count
+    items = list(process) if isinstance(process, tuple) else components_of(process)
+    if len(items) == 1:
+        items = items * count
+    if len(items) != count:
+        error_msg = (
+            f'A noise law of {spec.owner} names {len(items)} processes for a target of {count} components. Name one '
+            'process, or one per component.'
+        )
+        raise ValidationError(error_msg)
+    return [_process_key(spec, item, declarations) for item in items]
+
+
+def _process_covariance(first: object, second: object, wieners: Mapping[str, Wiener]) -> float:
+    """Return the covariance per unit time of the increments of two processes, keys or independent markers."""
+    if not (isinstance(first, tuple) and isinstance(second, tuple) and first[0] == 'wiener' == second[0]):
+        return 1.0 if first == second else 0.0
+    if first[1] != second[1]:
+        return 0.0
+    covariance = wieners[first[1]].covariance
+    if covariance is None:
+        return 1.0 if first[2] == second[2] else 0.0
+    return float(np.asarray(covariance, dtype=float)[first[2], second[2]])
+
+
+@dataclass(frozen=True)
+class _NoiseTerm:
+    """Amplitude of a noise law on one state component, with the process it draws."""
+
+    spec: _KernelSpec
+    law: Noise
+    target: Expression
+    state: tuple[str, int]
+    amplitude: object
+    process: object
+
+
+def _noise_terms(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Declarations) -> list[_NoiseTerm]:
+    """Return every component of every noise law, an independent process standing for itself alone."""
+    terms = []
+    for spec, laws in specs:
+        for law in laws:
+            if not isinstance(law, Noise):
+                continue
+            targets = components_of(law.target)
+            values = (
+                components_of(law.value)
+                if isinstance(law.value, SymbolicVector | list | tuple)
+                else [law.value] * len(targets)
+            )
+            keys = _process_keys(spec, law, declarations)
+            for index, (target, value, key) in enumerate(zip(targets, values, keys, strict=True)):
+                reference = spec.references[target]
+                process = key if key is not None else ('independent', id(law), index)
+                terms.append(_NoiseTerm(spec, law, target, (reference.entry.name, reference.column), value, process))
+    return terms
+
+
+def _reads_state(term: _NoiseTerm, state: tuple[str, int]) -> bool:
+    """Check whether the amplitude of a noise term depends on a state component."""
+    amplitude = SR(term.amplitude)
+    return any(
+        (reference.entry.name, reference.column) == state and not amplitude.diff(item).is_zero()
+        for item in amplitude.variables()
+        if (reference := term.spec.references.get(item)) is not None and reference.is_state
     )
-    corrections: list[Law] = []
-    for target, value in zip(targets, values, strict=True):
-        reference = spec.references[target]
-        key = (reference.entry.name, reference.column)
-        if key in hybrid.noisy:
+
+
+def _noise_correction(term: _NoiseTerm, terms: list[_NoiseTerm], wieners: Mapping[str, Wiener]) -> Law | None:
+    """Return the drift correction `alpha sum C_jl G_kl dG_ij/dx_k` of a noise term of a convention, or `None`."""
+    alpha = NOISE_CONVENTIONS[term.law.convention]
+    if not alpha or not isinstance(term.amplitude, Expression | int | float):
+        return None
+    amplitude = SR(term.amplitude)
+    parts = []
+    for other in terms:
+        covariance = _process_covariance(term.process, other.process, wieners)
+        if not covariance:
+            continue
+        if other.spec is not term.spec:
+            if _reads_state(term, other.state):
+                error_msg = (
+                    f'The {term.law.convention} noise law of {term.spec.owner} depends on {other.state[0]}, which a '
+                    f'noise law of {other.spec.owner} drives through a shared process, so its drift correction is out '
+                    'of scope. Use the Itô convention, or write both laws in one component.'
+                )
+                raise ValidationError(error_msg)
+            continue
+        derivative = amplitude.diff(other.target)
+        if derivative.is_zero():
+            continue
+        if not isinstance(other.amplitude, Expression | int | float):
             error_msg = (
-                f'{reference.entry.name} receives noise from several laws, so its drift correction for the '
-                'Stratonovich or anti-Itô convention is ambiguous. Join the noise into one law.'
+                f'The {term.law.convention} noise law of {term.spec.owner} shares a process with a noise law whose '
+                'amplitude is not symbolic, so its drift correction is unknown. Write the amplitude as an expression.'
             )
             raise ValidationError(error_msg)
-        hybrid.noisy.add(key)
-        if isinstance(value, Expression | int | float):
-            correction = alpha * SR(value) * SR(value).diff(target)
-            if not correction.is_zero():
-                corrections.append(Rate(target, correction))
-    return corrections
+        parts.append(alpha * covariance * SR(other.amplitude) * derivative)
+    if not parts:
+        return None
+    correction = sum(parts[1:], parts[0])
+    return None if correction.is_zero() else Rate(term.target, correction)
+
+
+def _with_noise_corrections(
+    specs: list[tuple[_KernelSpec, list[Law]]],
+    declarations: _Declarations,
+) -> list[tuple[_KernelSpec, list[Law]]]:
+    """Return laws with the drift correction of every noise law of a convention after it, in the Itô form."""
+    terms = _noise_terms(specs, declarations)
+    by_law: dict[int, list[_NoiseTerm]] = defaultdict(list)
+    for term in terms:
+        by_law[id(term.law)].append(term)
+    result = []
+    for spec, laws in specs:
+        corrected: list[Law] = []
+        for law in laws:
+            corrected.append(law)
+            for term in by_law.get(id(law), []):
+                correction = _noise_correction(term, terms, declarations.wieners)
+                if correction is not None:
+                    corrected.append(correction)
+        result.append((spec, corrected))
+    return result
 
 
 def _with_hybrid(
@@ -1327,10 +1462,7 @@ def _with_hybrid(
         elif isinstance(law, Jump):
             result.append(Jump(_substitute_delays(law.rate, spec, declarations, hybrid), law.changes))
         elif isinstance(law, Rate | Noise):
-            rebuilt = replace(law, value=_substitute_delays(law.value, spec, declarations, hybrid))
-            result.append(rebuilt)
-            if isinstance(rebuilt, Noise):
-                result += _noise_corrections(spec, rebuilt, NOISE_CONVENTIONS[rebuilt.convention], hybrid)
+            result.append(replace(law, value=_substitute_delays(law.value, spec, declarations, hybrid)))
         elif isinstance(law, Update | Boundary):
             result.append(type(law)(law.target, _substitute_delays(law.value, spec, declarations, hybrid)))
         else:
@@ -1972,6 +2104,37 @@ def _single_references(spec: _KernelSpec) -> dict[Expression, Reference]:
     }
 
 
+def _covariance_factor(covariance: npt.ArrayLike) -> npt.NDArray[np.float64]:
+    """Return a factor `L` with `L L^T = C` of a covariance, by Cholesky or, for a singular one, by eigenvalues."""
+    matrix = np.asarray(covariance, dtype=float)
+    try:
+        return np.linalg.cholesky(matrix)
+    except np.linalg.LinAlgError:
+        values, vectors = np.linalg.eigh(matrix)
+        return vectors * np.sqrt(np.maximum(values, 0.0))
+
+
+def _noise_process(key: ProcessKey | None, wieners: Mapping[str, Wiener]) -> NoiseProcess | None:
+    """Return the named Wiener process of a process key, with the covariance factor of a Wiener element."""
+    if key is None:
+        return None
+    kind, owner, item = key
+    if kind == 'local':
+        return NoiseProcess(key)
+    wiener = wieners[owner]
+    factor = None if wiener.covariance is None else _covariance_factor(wiener.covariance)
+    return NoiseProcess(owner, item, wiener.dimension, factor)
+
+
+def _law_outputs(spec: _KernelSpec, law: Law, targets: list[Reference], declarations: _Declarations) -> list[Output]:
+    """Return the outputs of a law for its target components, with the named Wiener process of a noise law."""
+    outputs = _outputs_of(law.value, targets, f'{type(law).__name__} law of {spec.owner}')  # type: ignore[arg-type, union-attr]
+    if isinstance(law, Noise) and law.process is not None:
+        for item, key in zip(outputs, _process_keys(spec, law, declarations), strict=True):
+            item.process = _noise_process(key, declarations.wieners)
+    return outputs
+
+
 def _lower_laws(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Declarations) -> _Lowered:
     """Return the kernels of every law kind."""
     states, parameters = Layout(declarations.states), Layout(declarations.parameters)
@@ -1997,7 +2160,7 @@ def _lower_laws(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Decla
             once = _is_once(spec, law)
             if isinstance(law, ASSIGNED_KINDS):
                 _check_assignments(spec, law, targets, assigned[type(law)], once=once)
-            law_outputs = _outputs_of(law.value, targets, f'{type(law).__name__} law of {spec.owner}')  # type: ignore[arg-type]
+            law_outputs = _law_outputs(spec, law, targets, declarations)
             if isinstance(law, FractionalNoise):
                 description = _fractional_description(spec, law)
                 lowered.hurst.update({id(item): (description, law.hurst) for item in law_outputs})
@@ -2505,6 +2668,22 @@ class CensusRecord:
 
         space:
             The nearest space enclosing the component.
+
+        processes:
+            For a noise law, the Wiener process of every target component: `None` for an independent process,
+            `('local', path, label)` for a local label, or `('wiener', path, index)` for a process of a Wiener element.
+
+        driven:
+            For a noise law, the state entry name and column of every target component.
+
+        reads:
+            For a noise law, the state components that the amplitude of every target component depends on.
+
+        members:
+            The number of members the law is evaluated for.
+
+        handles:
+            The handles of Wiener processes that the law uses outside the process of a noise law.
     """
 
     path: str
@@ -2514,6 +2693,64 @@ class CensusRecord:
     vectors: frozenset[str]
     component: ComponentKind
     space: Space | None
+    processes: tuple[ProcessKey | None, ...] = ()
+    driven: tuple[tuple[str, int], ...] = ()
+    reads: tuple[frozenset[tuple[str, int]], ...] = ()
+    members: int = 1
+    handles: tuple[str, ...] = ()
+
+
+def _values_of(law: object) -> list[object]:
+    """Return the values a law holds, without the process of a noise law, flattened into scalars and expressions."""
+    fields_of = getattr(law, '__dataclass_fields__', {})
+    stack = [getattr(law, name) for name in fields_of if name != 'process']
+    found: list[object] = []
+    while stack:
+        value = stack.pop()
+        if isinstance(value, Mapping):
+            stack += [*value.keys(), *value.values()]
+        elif isinstance(value, SymbolicVector | list | tuple):
+            stack += list(value)
+        elif isinstance(value, Call):
+            stack += list(value.arguments)
+        else:
+            found.append(value)
+    return found
+
+
+def _handle_uses(law: object, handles: Mapping[Expression, tuple[str, int]]) -> tuple[str, ...]:
+    """Return the Wiener handles that a law uses outside the process of a noise law."""
+    if not handles:
+        return ()
+    symbols = symbols_of([value for value in _values_of(law) if isinstance(value, Expression)])
+    return tuple(sorted(str(item) for item in symbols if item in handles))
+
+
+def _state_reads(spec: _KernelSpec, value: object) -> frozenset[tuple[str, int]]:
+    """Return the state components that a law value depends on."""
+    if not isinstance(value, Expression):
+        return frozenset()
+    return frozenset(
+        (reference.entry.name, reference.column)
+        for item in value.variables()
+        if (reference := spec.references.get(item)) is not None and reference.is_state
+    )
+
+
+def _noise_census(spec: _KernelSpec, law: object, declarations: _Declarations) -> dict[str, Any]:
+    """Return the processes, driven states, and read states of every target component of a noise law."""
+    if not isinstance(law, Noise):
+        return {}
+    targets = components_of(law.target)
+    values = (
+        components_of(law.value) if isinstance(law.value, SymbolicVector | list | tuple) else [law.value] * len(targets)
+    )
+    references = [spec.references.get(item) for item in targets]
+    return {
+        'processes': tuple(_process_keys(spec, law, declarations)),
+        'driven': tuple((item.entry.name, item.column) for item in references if item is not None),
+        'reads': tuple(_state_reads(spec, value) for value in values),
+    }
 
 
 def _component_kind(node: Node) -> ComponentKind:
@@ -2581,7 +2818,20 @@ def law_census(system: System) -> tuple[list[CensusRecord], list[tuple[str, Skco
                     owner = _law_owner(spec, law, agents)
                     vectors = frozenset(entry.name for entry in targets if _is_vector(entry, elements))
                     kind = _component_kind(elements.get(owner, block).node)
-                    records.append(CensusRecord(block.node.path, owner, law, targets, vectors, kind, block.node.space))
+                    records.append(
+                        CensusRecord(
+                            block.node.path,
+                            owner,
+                            law,
+                            targets,
+                            vectors,
+                            kind,
+                            block.node.space,
+                            members=spec.rows,
+                            handles=_handle_uses(law, declarations.handles),
+                            **_noise_census(spec, law, declarations),
+                        ),
+                    )
         except SkcomplexError as error:
             errors.append((block.node.path, error))
     return records, errors
@@ -2601,6 +2851,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
     specs = _solve_equations([(spec, _with_orders(spec, laws, block, orders)) for spec, laws, block in collected])
     hybrid = _Hybrid()
     specs = [(spec, _with_hybrid(spec, laws, declarations, hybrid)) for spec, laws in specs]
+    specs = _with_noise_corrections(specs, declarations)
     fields = _Fields()
     specs = [(spec, _with_neighbor_reads(spec, laws, declarations, fields)) for spec, laws in specs]
     agents = {block.node.path for block in blocks if block.node.is_agent}

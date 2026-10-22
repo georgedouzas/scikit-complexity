@@ -6,7 +6,7 @@
 from collections.abc import Mapping
 from typing import ClassVar
 
-from ..base import ComponentKind, DomainKind, Form, LawKind, SpaceKind, Supports, TimeKind
+from ..base import ComponentKind, DomainKind, Form, LawKind, NoiseKind, SpaceKind, Supports, TimeKind
 from ..compile._backends import (
     Backend,
     Lowering,
@@ -16,7 +16,7 @@ from ..compile._backends import (
     register_backend,
     with_reductions,
 )
-from ..compile._kernels import Kernel, Reference, jump_channels, noise_rows
+from ..compile._kernels import Kernel, Reference, jump_channels, lower_noise
 from ..compile._problem import Draws
 from ..compile._reductions import ReductionPass
 from ..laws import Boundary, Jump, Noise, Rate, Update
@@ -40,6 +40,7 @@ class NumpyBackend(Backend):
         laws=set(LawKind),
         domains=set(DomainKind),
         components=set(ComponentKind),
+        noise=set(NoiseKind),
     )
 
     name: ClassVar[str] = 'numpy'
@@ -88,7 +89,8 @@ class NumpyBackend(Backend):
             lowering.drift = adding_function(kernels.get(Rate, []), size)
         if form is Form.SDE:
             lowering.diffusion = concatenating_function(kernels.get(Noise, []))
-            lowering.noise_rows = noise_rows(kernels.get(Noise, []))
+            noise = lower_noise(kernels.get(Noise, []))
+            lowering.noise_rows, lowering.noise_columns, lowering.n_processes, lowering.noise_blocks = noise
         if form is Form.JUMP:
             lowering.propensities = concatenating_function(kernels.get(Jump, []))
             lowering.jumps = jump_channels(kernels.get(Jump, []), changes)

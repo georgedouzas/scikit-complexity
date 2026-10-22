@@ -125,6 +125,14 @@ class DomainKind(StrEnum):
     TILING = 'tiling'
 
 
+class NoiseKind(StrEnum):
+    """Structure of the Wiener processes that the noise laws of a system draw."""
+
+    DIAGONAL = 'diagonal'
+    SHARED = 'shared'
+    CORRELATED = 'correlated'
+
+
 VOCABULARY: dict[str, type[StrEnum]] = {
     'time': TimeKind,
     'space': SpaceKind,
@@ -219,10 +227,16 @@ class Supports:
         components:
             The component kinds it holds.
 
+        noise:
+            The structures of Wiener processes it draws: a process per state, processes shared by several states,
+            and correlated processes.
+
     Examples:
-        >>> from skcomplex.core.base import LawKind, Supports
+        >>> from skcomplex.core.base import LawKind, NoiseKind, Supports
         >>> Supports(laws={LawKind.RATE}).missing('laws', {LawKind.RATE, LawKind.NOISE})
         ['noise']
+        >>> Supports(noise={NoiseKind.DIAGONAL}).missing('noise', {NoiseKind.SHARED})
+        ['shared']
     """
 
     time: AbstractSet[TimeKind] = field(default_factory=frozenset)
@@ -230,6 +244,7 @@ class Supports:
     laws: AbstractSet[LawKind] = field(default_factory=frozenset)
     domains: AbstractSet[DomainKind] = field(default_factory=frozenset)
     components: AbstractSet[ComponentKind] = field(default_factory=frozenset)
+    noise: AbstractSet[NoiseKind] = field(default_factory=frozenset)
 
     def __post_init__(self) -> None:
         """Freeze every field into a set of terms."""

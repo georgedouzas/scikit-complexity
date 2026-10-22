@@ -256,6 +256,26 @@ class JumpChannels:
 
 
 @dataclass(frozen=True)
+class WienerBlock:
+    """Correlated Wiener processes of one Wiener element, a contiguous block of the processes of a problem.
+
+    Args:
+        start:
+            The index of the first process of the block.
+
+        size:
+            The number of processes of the block.
+
+        factor:
+            The factor `L` with `L L^T = C` of the covariance `C` of the block.
+    """
+
+    start: int
+    size: int
+    factor: npt.NDArray[np.float64]
+
+
+@dataclass(frozen=True)
 class SampledDraw:
     """Draw from a `scipy.stats` distribution that a stochastic map takes for every member at every step.
 
@@ -533,10 +553,19 @@ class Problem:
             The function `f(t, x, p)` that returns the time derivative or the drift.
 
         diffusion:
-            The function `g(t, x, p)` that returns the amplitude of every independent Wiener process.
+            The function `g(t, x, p)` that returns every noise amplitude, one per state and process it couples.
 
         noise_rows:
-            The state index each Wiener process drives.
+            The state index each amplitude of `diffusion` drives.
+
+        noise_columns:
+            The Wiener process each amplitude of `diffusion` draws, which several amplitudes share for shared noise.
+
+        n_processes:
+            The number of standard normal increments drawn per step.
+
+        noise_blocks:
+            The blocks of correlated processes, whose increments their covariance factor scales.
 
         propensities:
             The function `a(t, x, p)` that returns the rate of every jump channel.
@@ -610,6 +639,9 @@ class Problem:
     drift: VectorFunction | None = field(default=None, repr=False)
     diffusion: VectorFunction | None = field(default=None, repr=False)
     noise_rows: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
+    noise_columns: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
+    n_processes: int = 0
+    noise_blocks: tuple[WienerBlock, ...] = field(default=(), repr=False)
     propensities: VectorFunction | None = field(default=None, repr=False)
     jumps: tuple[JumpChannels, ...] = field(default=(), repr=False)
     update: Callable[..., Vector] | None = field(default=None, repr=False)
@@ -696,6 +728,29 @@ class Problem:
             if element.path == owner and hasattr(space, 'dimensions'):
                 return space.dimensions  # type: ignore[union-attr]
         return None
+
+    def draw_increments(self, rng: np.random.Generator, scale: float) -> Vector:
+        """Return the Wiener increment that every noise amplitude multiplies, drawn for one step.
+
+        The increments of the processes are normal with the standard deviation `scale`, correlated within every block
+        by its covariance factor. Amplitudes that share a process take its increment.
+
+        Args:
+            rng:
+                The random number generator of the run.
+
+            scale:
+                The square root of the step.
+
+        Returns:
+            increments:
+                One increment per noise amplitude, in the order of `noise_rows`.
+        """
+        increments = rng.normal(0.0, scale, size=self.n_processes)
+        for block in self.noise_blocks:
+            part = slice(block.start, block.start + block.size)
+            increments[part] = block.factor @ increments[part]
+        return increments[self.noise_columns]
 
     @property
     def stoichiometry(self) -> Vector:

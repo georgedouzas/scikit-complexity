@@ -25,6 +25,7 @@ from ..base import (
     Expression,
     Form,
     LawKind,
+    NoiseKind,
     SpaceKind,
     Supports,
     TimeKind,
@@ -40,7 +41,7 @@ from ..compile._backends import (
     concatenating_function,
     register_backend,
 )
-from ..compile._kernels import Kernel, Output, Reference, Source, jump_channels, noise_rows
+from ..compile._kernels import Kernel, Output, Reference, Source, jump_channels, lower_noise
 from ..compile._layout import Entry
 from ..compile._printing import SCALAR_DIALECT, print_expressions
 from ..compile._problem import Accelerated, Draws, Vector
@@ -116,7 +117,7 @@ def velocity_verlet(t, x, p, L, until, h, positions, velocities):
 """,
     'euler_maruyama': """
 @njit(cache=CACHE)
-def euler_maruyama(t, x, p, L, until, h, rng, rows):
+def euler_maruyama(t, x, p, L, until, h, rng, rows, columns, processes, starts, sizes, offsets, factors):
     if until <= t:
         return x.copy()
     n_steps = max(1, int(math.ceil((until - t) / h - 1e-12)))
@@ -126,10 +127,18 @@ def euler_maruyama(t, x, p, L, until, h, rng, rows):
     for index in range(n_steps):
         time = t + index * step
         amplitudes = diffusion(time, y, p, L)
-        increments = rng.normal(0.0, scale, amplitudes.size)
+        increments = rng.normal(0.0, scale, processes)
+        for block in range(starts.size):
+            start, size, offset = starts[block], sizes[block], offsets[block]
+            independent = increments[start : start + size].copy()
+            for row in range(size):
+                total = 0.0
+                for column in range(size):
+                    total += factors[offset + row * size + column] * independent[column]
+                increments[start + row] = total
         y = y + drift(time, y, p, L) * step
-        for process in range(amplitudes.size):
-            y[rows[process]] += amplitudes[process] * increments[process]
+        for output in range(amplitudes.size):
+            y[rows[output]] += amplitudes[output] * increments[columns[output]]
         if HAS_BOUNDARY:
             y = boundary(time + step, y, p, L)
     return y
@@ -756,6 +765,7 @@ class NumbaBackend(Backend):
         laws=set(LawKind),
         domains=NUMERIC_DOMAINS | {DomainKind.CATEGORICAL},
         components=set(ComponentKind),
+        noise=set(NoiseKind),
     )
 
     name: ClassVar[str] = 'numba'
@@ -941,7 +951,8 @@ class NumbaBackend(Backend):
             lowering.drift = functions[Rate]
         if form is Form.SDE:
             lowering.diffusion = functions.get(Noise, concatenating_function([]))
-            lowering.noise_rows = noise_rows(used[Noise])
+            noise = lower_noise(used[Noise])
+            lowering.noise_rows, lowering.noise_columns, lowering.n_processes, lowering.noise_blocks = noise
         if form is Form.JUMP:
             lowering.propensities = functions.get(Jump, concatenating_function([]))
             lowering.jumps = jump_channels(used[Jump], changes)
@@ -977,9 +988,9 @@ class NumbaBackend(Backend):
                 ),
             )
         if loop == 'euler_maruyama':
-            rows = lowering.noise_rows.astype(np.int64)
+            noise = _noise_arrays(lowering)
             return Accelerated(
-                euler_maruyama=lambda t, x, p, until, h, rng: function(t, x, p, layout, until, h, rng, rows),
+                euler_maruyama=lambda t, x, p, until, h, rng: function(t, x, p, layout, until, h, rng, *noise),
             )
         if loop == 'gillespie':
             targets, increments = _channel_arrays(lowering)
@@ -990,6 +1001,23 @@ class NumbaBackend(Backend):
             offset, flags = draws.offset, draws.normal
             return Accelerated(iterate=lambda t, x, p, until, rng: function(t, x, p, layout, until, rng, offset, flags))
         return Accelerated(iterate=lambda t, x, p, until: function(t, x, p, layout, until))
+
+
+def _noise_arrays(lowering: Lowering) -> tuple[Any, ...]:
+    """Return the rows, columns, process count, and flattened covariance blocks of the noise of a lowering."""
+    blocks = lowering.noise_blocks
+    sizes = np.asarray([block.size for block in blocks], dtype=np.int64)
+    offsets = np.concatenate([np.zeros(1, dtype=np.int64), np.cumsum(sizes**2)])[:-1].astype(np.int64)
+    factors = np.concatenate([np.zeros(0), *(np.ravel(block.factor) for block in blocks)]).astype(np.float64)
+    return (
+        lowering.noise_rows.astype(np.int64),
+        lowering.noise_columns.astype(np.int64),
+        int(lowering.n_processes),
+        np.asarray([block.start for block in blocks], dtype=np.int64),
+        sizes,
+        offsets,
+        factors,
+    )
 
 
 def _channel_arrays(lowering: Lowering) -> tuple[np.ndarray, np.ndarray]:
