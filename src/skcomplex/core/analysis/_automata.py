@@ -756,7 +756,10 @@ class Subshift:
         return not self.violations(configuration, space).any()
 
     def count(self, space: Sites) -> int:
-        """Return the number of admissible configurations of a space, by backtracking over its sites.
+        """Return the number of admissible configurations of a space, by dynamic programming over its sites.
+
+        The sites are assigned in order, and the counts of completions are shared between assignments that agree on
+        the earlier sites that later patterns read, so a window of a one-dimensional subshift costs linear time.
 
         Args:
             space:
@@ -771,18 +774,30 @@ class Subshift:
         checks: list[list[int]] = [[] for _ in range(space.size)]
         for site in np.flatnonzero(complete):
             checks[int(table[site].max())].append(int(site))
+        needed = [
+            tuple(
+                sorted(
+                    {int(cell) for later in checks[site:] for anchor in later for cell in table[anchor] if cell < site},
+                ),
+            )
+            for site in range(space.size + 1)
+        ]
         values = [0] * space.size
+        memo: dict[tuple[int, tuple[int, ...]], int] = {}
 
         def extend(site: int) -> int:
             """Return the number of admissible completions of the values before a site."""
             if site == space.size:
                 return 1
-            total = 0
-            for value in range(self.states):
-                values[site] = value
-                if all(tuple(values[cell] for cell in table[anchor]) not in forbidden for anchor in checks[site]):
-                    total += extend(site + 1)
-            return total
+            key = (site, tuple(values[cell] for cell in needed[site]))
+            if key not in memo:
+                total = 0
+                for value in range(self.states):
+                    values[site] = value
+                    if all(tuple(values[cell] for cell in table[anchor]) not in forbidden for anchor in checks[site]):
+                        total += extend(site + 1)
+                memo[key] = total
+            return memo[key]
 
         return extend(0)
 
@@ -1005,7 +1020,7 @@ class LinearAutomaton:
                 Whether the matrix is invertible, or whether the polynomial is a monomial.
         """
         if infinite:
-            return len(self.laurent_polynomial().monomials()) == 1
+            return len(self.laurent_polynomial().exponents()) == 1
         return bool(self.matrix().is_invertible())
 
     def is_surjective(self, *, infinite: bool = False) -> bool:
