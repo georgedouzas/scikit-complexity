@@ -19,7 +19,7 @@ from skcomplex.models.computer_science.automata import (
     unbounded_alphabet_automaton,
 )
 from skcomplex.models.computer_science.evolutionary_computation import bit_string_evolution, robby_ga
-from skcomplex.models.computer_science.neural_networks import hopfield
+from skcomplex.models.computer_science.neural_networks import echo_state_network, hopfield
 
 SIZE_NAMES = ('n_nodes', 'n_genes', 'size', 'n')
 CONNECTIVITY_NAMES = ('k', 'K', 'connectivity', 'n_inputs')
@@ -120,6 +120,17 @@ def test_hopfield_recalls_a_stored_pattern_and_lowers_its_energy():
     assert np.all(np.diff(energies) <= 1e-12)
     assert spins[0] @ patterns[0] < 64
     assert spins[-1] @ patterns[0] == 64
+
+
+def test_echo_state_network_forgets_its_initial_state():
+    """Test that two runs of the reservoir from different initial states converge, the echo state property."""
+    system = echo_state_network(100, spectral_radius=0.9)
+    first = Simulation(system).run(until=200).trajectory_['units.r']
+    other = np.random.default_rng(1).uniform(-1.0, 1.0, 100)
+    second = Simulation(system, initial_state={'units.r': other}).run(until=200).trajectory_['units.r']
+    distance = np.linalg.norm(first - second, axis=1)
+    assert distance[-1] < 1e-6 * distance[0]
+    assert np.all(np.diff(distance[::20]) < 0)
 
 
 def test_random_boolean_network_phases():

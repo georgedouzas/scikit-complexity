@@ -13,3 +13,4 @@
 | robby_ga | mean and best score rising from -220 to above 0, then stepping up | mean near -200 at start, near 0 after ~30 generations; best climbs to ~35 | 9.3 s, 291 frames, 166 KB |
 | hopfield | corrupted pattern repaired in one sweep, next to the stored pattern | overlap 0.5 to 1 in one sweep; final overlap falls beyond 0.14 n patterns | 2.4 s, 5 frames, 56 KB |
 | diluted_hopfield | overlap rising from 0.3 and levelling near 0.92 within ~5 updates | overlaps follow the annealed map of Bertin Eq. (6.55) | 2.1 s, 21 frames, 303 KB |
+| echo_state_network | three units in two copies of the reservoir, started apart, whose pairs of lines merge within ~30 steps and then follow the sine input | distance between the copies falls exponentially for spectral radius 0.5 and 0.9, not for 2.0 | 1.4 s, 101 frames, 232 KB |

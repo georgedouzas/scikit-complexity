@@ -11,7 +11,7 @@
 
 ## 2. Library
 
-- [ ] 2.1 Add `echo_state_network` with a curated gallery example and review row, verify the echo state property
+- [x] 2.1 Add `echo_state_network` with a curated gallery example and review row, verify the echo state property
   scenario, and mark its inventory entry implemented
 
 ## 3. Gate
