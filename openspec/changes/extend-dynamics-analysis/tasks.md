@@ -2,9 +2,9 @@
 
 ## 1. Analyses
 
-- [ ] 1.1 Add `cloning` through the steppers, and verify the Poisson counter scenario
-- [ ] 1.2 Add `uncertainty_relation`, and verify the biased random walk scenario
-- [ ] 1.3 Add `dispersion_relation` through the symbolic linearisation, and verify the Turing band scenario
+- [x] 1.1 Add `cloning` through the steppers, and verify the Poisson counter scenario
+- [x] 1.2 Add `uncertainty_relation`, and verify the biased random walk scenario
+- [x] 1.3 Add `dispersion_relation` through the symbolic linearisation, and verify the Turing band scenario
 
 ## 2. Library
 

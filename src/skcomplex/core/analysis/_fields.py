@@ -3,19 +3,28 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import SR
 from scipy import optimize
 
-from ..base import AnalysisError
+from ..base import AnalysisError, VariableKind, declarations_of, symbol
+from ..components import Field
+from ..laws import Rate, Symbols, laplacian
+from ..space import LatticeSpace
+from ..system import System
 from ._kinds import DataKind, analysis
 from ._spatial import correlation_function
 
 type Array = npt.NDArray[np.float64]
 LENGTH_METHODS = ('moment', 'fit')
 DOMAIN_METHODS = ('moment', 'zero')
+OPERATOR_NAMES = ('laplacian', 'partial', 'upwind', 'inverse_laplacian')
+EIGENVALUE = symbol('_eigenvalue_')
 MOMENT_ITERATIONS = 8
 
 
@@ -432,3 +441,169 @@ def number_fluctuations(density: npt.ArrayLike, boxes: npt.ArrayLike | None = No
         deviations.append(counts.std())
     exponent = float(np.polyfit(np.log(means), np.log(deviations), 1)[0])
     return NumberFluctuations(np.asarray(means), np.asarray(deviations), exponent)
+
+
+@dataclass(frozen=True)
+class DispersionRelation:
+    """Growth rate of every Fourier mode of a field model linearised around a uniform state.
+
+    Args:
+        wavenumbers:
+            The wave vector of every mode of the lattice, one row per mode.
+
+        magnitudes:
+            The length of every wave vector.
+
+        growth_rates:
+            The largest real part of the eigenvalues of the linearisation at every mode.
+
+        frequencies:
+            The imaginary part of the eigenvalue with the largest real part at every mode, nonzero for travelling or
+            oscillating modes.
+
+        uniform:
+            The uniform state the model is linearised around, by state name.
+    """
+
+    wavenumbers: Array
+    magnitudes: Array
+    growth_rates: Array
+    frequencies: Array
+    uniform: dict[str, float]
+
+    @property
+    def band(self) -> Array:
+        """Lengths of the wave vectors whose modes grow."""
+        return np.unique(np.round(self.magnitudes[self.growth_rates > 0], 12))
+
+
+def _with_eigenvalue(expression: Any, eigenvalue: Any) -> Any:  # noqa: ANN401
+    """Return an expression with every Laplacian, nested ones included, as a multiplication by its eigenvalue."""
+    operator = expression.operator()
+    if operator is None:
+        return expression
+    if operator == laplacian:
+        return eigenvalue * _with_eigenvalue(expression.operands()[0], eigenvalue)
+    name = getattr(operator, 'name', lambda: '')()
+    if name in OPERATOR_NAMES:
+        error_msg = f'The dispersion relation linearises laplacian only, but a law applies {name}.'
+        raise AnalysisError(error_msg)
+    return operator(*[_with_eigenvalue(item, eigenvalue) for item in expression.operands()])
+
+
+def _laplacian_eigenvalues(field: Field, lattice: LatticeSpace, waves: Array) -> Array:
+    """Return the eigenvalue of the field's Laplacian at every wave vector, for its discretization."""
+    spacings = np.asarray(lattice.spacings, dtype=float)
+    if field.discretization == 'spectral':
+        return -np.sum(waves**2, axis=1)
+    return np.sum((2 * np.cos(waves * spacings) - 2) / spacings**2, axis=1)
+
+
+def _single_field(system: System) -> tuple[Field, LatticeSpace]:
+    """Return the one field of a system and its periodic lattice, or raise an error."""
+    fields = [component for component in system.components if isinstance(component, Field)]
+    if len(fields) != 1 or len(system.components) != 1 or system.interactions or system.systems:
+        error_msg = 'The dispersion relation takes a system of one field, a site group on a lattice.'
+        raise AnalysisError(error_msg)
+    field = fields[0]
+    if not isinstance(field.space, LatticeSpace) or field.space.boundary != 'periodic':
+        error_msg = f'The field {field.label} is not on a periodic lattice, so its modes are not Fourier modes.'
+        raise AnalysisError(error_msg)
+    return field, field.space
+
+
+def _linearised_rates(field: Field) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """Return the rate of every state with its Laplacians as eigenvalues, the state symbols, and the field's values."""
+    states = list(declarations_of(field.element, VariableKind.STATE))
+    member = field.element(field.label)
+    values = {name: getattr(member, name) for name in states} | dict(field.values or {})
+    parameters = {}
+    for name in declarations_of(field.element, VariableKind.PARAMETER):
+        value = values.get(name, getattr(member, name))
+        if np.ndim(value):
+            error_msg = f'The parameter {field.label}.{name} varies over the lattice, so there is no uniform state.'
+            raise AnalysisError(error_msg)
+        parameters[name] = float(value)
+    names = {name: symbol(f'_{name}_') for name in states}
+    rates: dict[str, Any] = {}
+    for law in member.laws(Symbols(**names, **parameters, t=symbol('t'))):
+        target = next((name for name, item in names.items() if getattr(law, 'target', None) is item), None)
+        if not isinstance(law, Rate) or target is None:
+            error_msg = f'The dispersion relation takes rate laws of the states of {field.label}, but got {law!r}.'
+            raise AnalysisError(error_msg)
+        rates[target] = SR(rates.get(target, 0) + _with_eigenvalue(SR(law.value), EIGENVALUE))
+    return {name: rates[name] for name in states if name in rates}, names, values
+
+
+def _fixed_point(rates: dict[str, Any], variables: list[Any]) -> Any:  # noqa: ANN401
+    """Return the function that finds the uniform fixed point of the rates nearest a starting point."""
+    local = [rate.subs({EIGENVALUE: 0}) for rate in rates.values()]
+
+    def residual(point: Array) -> list[float]:
+        substitution = dict(zip(variables, map(float, point), strict=True))
+        return [float(item.subs(substitution)) for item in local]
+
+    return lambda start: [float(item) for item in optimize.fsolve(residual, start)]
+
+
+def _eigenvalue_terms(entry: Any, name: str) -> list[tuple[float, int]]:  # noqa: ANN401
+    """Return the coefficients and powers of the Laplacian eigenvalue in an entry of the linearisation."""
+    try:
+        return [(float(coefficient), int(power)) for coefficient, power in entry.coefficients(EIGENVALUE)]
+    except (TypeError, ValueError) as error:
+        error_msg = f'The linearisation of {name} is not a polynomial in its Laplacians: {entry}.'
+        raise AnalysisError(error_msg) from error
+
+
+def dispersion_relation(system: System, at: Mapping[str, float] | None = None) -> DispersionRelation:
+    """Return the dispersion relation of a field model, the growth rate of every mode of its linearisation.
+
+    The model is one field, a site group on a periodic lattice whose laws are rate laws. The laws are linearised
+    symbolically around a uniform state, and every Laplacian, nested ones included, becomes its eigenvalue on a Fourier
+    mode of the lattice, `Σ (2 cos(k h) - 2) / h²` for finite differences and `-|k|²` for a spectral field. The growth
+    rate of a mode is the largest real part of the eigenvalues of the linearisation, exact for the model's
+    discretization. Without `at`, the uniform state is the fixed point of the laws nearest the mean initial values.
+
+    Args:
+        system:
+            The system of one field.
+
+        at:
+            The uniform state by state name, or `None` for the nearest fixed point.
+
+    Returns:
+        relation:
+            The wave vectors, their lengths, the growth rates and frequencies, and the uniform state.
+
+    Raises:
+        AnalysisError:
+            The system is not one field on a periodic lattice with uniform parameters and rate laws, or its laws apply
+            an operator other than the Laplacian.
+
+    Examples:
+        >>> from skcomplex.core.analysis import dispersion_relation
+        >>> from skcomplex.models.chemistry.pattern_formation import brusselator
+        >>> relation = dispersion_relation(brusselator((64,), b=1.9, Dv=8.0))
+        >>> bool(relation.growth_rates.max() > 0), bool(relation.growth_rates[0] < 0)
+        (True, True)
+    """
+    field, lattice = _single_field(system)
+    rates, names, values = _linearised_rates(field)
+    order = list(rates)
+    variables = [names[name] for name in order]
+    start = [float(np.mean((at or {}).get(name, values.get(name, 0.0)))) for name in order]
+    uniform = start if at is not None else _fixed_point(rates, variables)(start)
+    substitution = dict(zip(variables, uniform, strict=True))
+    axes = [2 * np.pi * np.fft.fftfreq(n, d=h) for n, h in zip(lattice.dimensions, lattice.spacings, strict=True)]
+    waves = np.stack([grid.ravel() for grid in np.meshgrid(*axes, indexing='ij')], axis=1)
+    eigenvalues = _laplacian_eigenvalues(field, lattice, waves)
+    matrices = np.zeros((len(waves), len(order), len(order)))
+    for row, a in enumerate(order):
+        for column, b in enumerate(order):
+            entry = SR(rates[a].diff(names[b]).subs(substitution)).expand()
+            for coefficient, power in _eigenvalue_terms(entry, f'{field.label}.{a}'):
+                matrices[:, row, column] += coefficient * eigenvalues**power
+    spectra = np.linalg.eigvals(matrices)
+    leading = spectra[np.arange(len(waves)), np.argmax(spectra.real, axis=1)]
+    magnitudes = np.linalg.norm(waves, axis=1)
+    return DispersionRelation(waves, magnitudes, leading.real, leading.imag, dict(zip(order, uniform, strict=True)))

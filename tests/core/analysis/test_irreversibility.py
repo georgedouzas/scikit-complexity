@@ -11,8 +11,13 @@ from skcomplex.core.analysis import (
     fluctuation_theorem,
     jump_entropy_production,
     langevin_entropy_production,
+    uncertainty_relation,
 )
 from skcomplex.core.base import AnalysisError
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Jump
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
 
 RING = 2 * np.roll(np.eye(5), 1, axis=1) + np.roll(np.eye(5), -1, axis=1)
 
@@ -64,3 +69,38 @@ def test_entropy_production_rejects_one_way_jumps():
         entropy_production([[0.0, 1.0], [0.0, 0.0]])
     with pytest.raises(AnalysisError, match='Fewer than 3 bins'):
         fluctuation_theorem([1.0, 2.0])
+
+
+def _walker_currents(forward, backward, duration, paths, seed):
+    """Return the net steps of a biased random walk on a ring over a duration, one per path."""
+    Walker = Element.define(
+        'Walker',
+        states={'ahead': 0.0, 'behind': 0.0},
+        laws=lambda s: [Jump(forward, {s.ahead: 1}), Jump(backward, {s.behind: 1})],
+    )
+    system = System(components=[Walker('walker')])
+    currents = []
+    for index in range(paths):
+        trajectory = Simulation(system, dt=duration, random_state=seed + index).run(until=duration).trajectory_
+        currents.append(trajectory['walker.ahead'][-1] - trajectory['walker.behind'][-1])
+    return np.asarray(currents)
+
+
+def test_uncertainty_relation_of_a_biased_random_walk():
+    """Test that the current of a biased walk on a ring has a precision product of at least 2 within its error."""
+    forward, backward, duration = 2.0, 1.0, 10.0
+    currents = _walker_currents(forward, backward, duration, paths=600, seed=0)
+    entropy = (forward - backward) * np.log(forward / backward) * duration
+    relation = uncertainty_relation(currents, entropy, random_state=0)
+    exact = (forward + backward) / (forward - backward) * np.log(forward / backward)
+    assert relation.holds
+    assert relation.product == pytest.approx(exact, abs=3 * relation.error)
+    assert relation.product + 2 * relation.error >= 2
+
+
+def test_uncertainty_relation_rejects_a_current_that_does_not_flow():
+    """Test that a zero mean current and a single path raise errors."""
+    with pytest.raises(AnalysisError, match='zero'):
+        uncertainty_relation([-1.0, 1.0], 1.0)
+    with pytest.raises(AnalysisError, match='at least 2 paths'):
+        uncertainty_relation([1.0], 1.0)

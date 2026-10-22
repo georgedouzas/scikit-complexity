@@ -9,6 +9,7 @@ from scipy.spatial import cKDTree
 from skcomplex.core.analysis import (
     coarse_grain,
     correlation_length,
+    dispersion_relation,
     domain_growth,
     domain_size,
     fields_of,
@@ -17,8 +18,12 @@ from skcomplex.core.analysis import (
     structure_factor,
 )
 from skcomplex.core.base import AnalysisError
+from skcomplex.core.components import Field
 from skcomplex.core.runtime import Simulation
+from skcomplex.core.space import LatticeSpace
+from skcomplex.core.system import System
 from skcomplex.models import create, run
+from skcomplex.models.chemistry.pattern_formation import Brusselator
 
 
 def _exact_correlation_length(temperature: float) -> float:
@@ -148,3 +153,37 @@ def test_structure_factor_and_domain_size_of_stripes():
     assert domain_size(stripes) == pytest.approx(16, rel=0.5)
     with pytest.raises(AnalysisError, match='Unknown method'):
         domain_size(stripes, method='peak')
+
+
+def _brusselator(b, *, discretization='spectral', boundary='periodic'):
+    """Return a one-dimensional Brusselator field at its uniform state `(1, b)`."""
+    values = {'u': 1.0, 'v': b, 'a': 1.0, 'b': b, 'Du': 1.0, 'Dv': 8.0}
+    space = LatticeSpace((128,), spacing=0.5, boundary=boundary)
+    return System(components=[Field('cells', Brusselator, space, values=values, discretization=discretization)])
+
+
+def test_dispersion_relation_finds_the_turing_band():
+    """Test that the Brusselator above its Turing threshold grows on the analytic band within one grid wavenumber."""
+    relation = dispersion_relation(_brusselator(1.9))
+    gap = np.sqrt(6.2**2 - 32)
+    low, high = np.sqrt((6.2 - gap) / 16), np.sqrt((6.2 + gap) / 16)
+    step = 2 * np.pi / (128 * 0.5)
+    assert relation.uniform == pytest.approx({'u': 1.0, 'v': 1.9})
+    assert relation.band.min() == pytest.approx(low, abs=step)
+    assert relation.band.max() == pytest.approx(high, abs=step)
+    assert relation.growth_rates[relation.magnitudes == 0] < 0
+
+
+def test_dispersion_relation_of_finite_differences_and_below_threshold():
+    """Test that finite differences agree with spectral modes at long waves, and that no mode grows below threshold."""
+    spectral = dispersion_relation(_brusselator(1.9))
+    stencil = dispersion_relation(_brusselator(1.9, discretization='finite-difference'))
+    long = spectral.magnitudes < 0.3
+    assert stencil.growth_rates[long] == pytest.approx(spectral.growth_rates[long], abs=1e-2)
+    assert dispersion_relation(_brusselator(1.7)).band.size == 0
+
+
+def test_dispersion_relation_rejects_non_periodic_fields():
+    """Test that a field with walls has no Fourier modes and raises an error."""
+    with pytest.raises(AnalysisError, match='periodic lattice'):
+        dispersion_relation(_brusselator(1.9, boundary='fixed'))

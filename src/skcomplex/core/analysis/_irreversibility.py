@@ -15,6 +15,8 @@ from ._transitions import stationary_distribution, transition_counts
 
 type Array = npt.NDArray[np.float64]
 MIN_PAIRS = 3
+MIN_PATHS = 2
+TUR_BOUND = 2.0
 
 
 @analysis(DataKind.PATH)
@@ -235,3 +237,100 @@ def fluctuation_theorem(entropies: npt.ArrayLike, bins: int = 40) -> Fluctuation
     ratios = np.log(counts[usable] / mirrored[usable])
     slope = float(np.sum(centres[usable] * ratios) / np.sum(centres[usable] ** 2))
     return FluctuationTheorem(centres[usable], ratios, slope)
+
+
+@dataclass(frozen=True)
+class UncertaintyRelation:
+    """Check of the thermodynamic uncertainty relation `Var(J) / ⟨J⟩² · Σ ≥ 2` on samples of a current.
+
+    Args:
+        mean:
+            The mean of the current over the paths.
+
+        variance:
+            The variance of the current over the paths.
+
+        entropy_production:
+            The mean entropy produced along a path, in units of the Boltzmann constant.
+
+        product:
+            The squared relative fluctuation of the current times the entropy production.
+
+        error:
+            The standard error of the product, from bootstrap resamples of the paths.
+
+        holds:
+            Whether the product is at least 2 within two standard errors.
+    """
+
+    mean: float
+    variance: float
+    entropy_production: float
+    product: float
+    error: float
+    holds: bool
+
+
+@analysis(DataKind.ENSEMBLE)
+def uncertainty_relation(
+    currents: npt.ArrayLike,
+    entropy_production: float,
+    *,
+    resamples: int = 200,
+    random_state: int | None = None,
+) -> UncertaintyRelation:
+    """Return the precision of a current against the entropy production, the thermodynamic uncertainty relation.
+
+    For a steady-state current `J` integrated over a duration, the squared relative fluctuation `Var(J) / ⟨J⟩²` is at
+    least `2 / Σ`, where `Σ` is the mean entropy produced over the same duration (Barato and Seifert 2015). The product
+    of the two is therefore at least 2, with equality only near equilibrium.
+
+    Args:
+        currents:
+            The integrated current of every path, all over the same duration.
+
+        entropy_production:
+            The mean entropy produced along a path over that duration.
+
+        resamples:
+            The number of bootstrap resamples of the standard error.
+
+        random_state:
+            The seed of the bootstrap.
+
+    Returns:
+        relation:
+            The mean and variance of the current, the product, its error, and whether the relation holds.
+
+    Raises:
+        AnalysisError:
+            Fewer than 2 paths, a mean current of zero, or a negative entropy production.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.analysis import uncertainty_relation
+        >>> currents = np.random.default_rng(0).normal(10.0, np.sqrt(30.0), 5000)
+        >>> relation = uncertainty_relation(currents, entropy_production=10.0, random_state=0)
+        >>> round(relation.product, 1), relation.holds
+        (3.0, True)
+    """
+    values = np.asarray(currents, dtype=float).ravel()
+    if values.size < MIN_PATHS or entropy_production < 0:
+        error_msg = (
+            f'The uncertainty relation needs at least {MIN_PATHS} paths and a nonnegative entropy production, but got '
+            f'{values.size} paths and {entropy_production}.'
+        )
+        raise AnalysisError(error_msg)
+    mean, variance = float(values.mean()), float(values.var(ddof=1))
+    if mean == 0:
+        error_msg = 'The mean current is zero, so its relative fluctuation is undefined. Measure a current that flows.'
+        raise AnalysisError(error_msg)
+
+    def product_of(sample: Array) -> float:
+        return float(sample.var(ddof=1) / sample.mean() ** 2 * entropy_production)
+
+    rng = np.random.default_rng(random_state)
+    boots = [product_of(values[rng.integers(values.size, size=values.size)]) for _ in range(resamples)]
+    product, error = product_of(values), float(np.std(boots, ddof=1))
+    holds = product + 2 * error >= TUR_BOUND
+    return UncertaintyRelation(mean, variance, float(entropy_production), product, error, holds)
