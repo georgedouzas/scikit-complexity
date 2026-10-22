@@ -10,7 +10,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import Element, EuclideanSpace, Law, Renewal, Symbols, System, draw, uniform
+from ....core.model import ContinuousSpace, Element, Law, Renewal, Symbols, System, draw, uniform
 from ....core.runtime import register_model
 
 
@@ -114,4 +114,4 @@ def trap_model(
         T=T,
         tau0=tau0,
     )
-    return System(components=[walkers], space=EuclideanSpace(2))
+    return System(components=[walkers], space=ContinuousSpace(n_dim=2))

@@ -5,7 +5,7 @@ import rerun.blueprint as rrb
 
 from skcomplex.core.base import ValidationError, VisualSpec, state
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import Element, EuclideanSpace, Field, LatticeSpace, System
+from skcomplex.core.model import ContinuousSpace, Element, Field, LatticeSpace, System
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import (
     AgentsVisual,
@@ -85,7 +85,7 @@ def test_default_blueprint_shows_other_states_of_points_over_whole_run():
         states={'x': state(0.0, vector=True), 'energy': 0.0},
         visual=VisualSpec('points', {'position': 'x'}),
     )
-    blueprint = default_blueprint(System(components=[Walker.group('walkers', 3)], space=EuclideanSpace(2)))
+    blueprint = default_blueprint(System(components=[Walker.group('walkers', 3)], space=ContinuousSpace(n_dim=2)))
     assert [type(view).__name__ for view in _views(blueprint)] == ['Spatial2DView', 'TimeSeriesView']
     assert _whole_run_series(blueprint)
 

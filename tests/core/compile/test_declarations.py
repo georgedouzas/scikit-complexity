@@ -20,9 +20,8 @@ from skcomplex.core.base import (
 )
 from skcomplex.core.compile import law_types, missing_declarations
 from skcomplex.core.model import (
-    EuclideanSpace,
+    ContinuousSpace,
     Field,
-    GridSpace,
     Hamiltonian,
     LatticeSpace,
     Mesh,
@@ -99,10 +98,9 @@ def test_law_requirements():
 @pytest.mark.parametrize(
     ('space', 'kind'),
     [
-        (GridSpace, SpaceKind.LATTICE),
         (LatticeSpace, SpaceKind.LATTICE),
         (NetworkSpace, SpaceKind.NETWORK),
-        (EuclideanSpace, SpaceKind.CONTINUOUS),
+        (ContinuousSpace, SpaceKind.CONTINUOUS),
         (Mesh, SpaceKind.MESH),
     ],
 )

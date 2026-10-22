@@ -12,7 +12,6 @@ from ....core.model import (
     AgentType,
     Element,
     Field,
-    GridSpace,
     LatticeSpace,
     Law,
     Rate,
@@ -361,7 +360,7 @@ def tumour_angiogenesis(
     tissue = Field('tissue', Tissue, LatticeSpace((width, height), boundary='reflecting'))
     return System(
         components=[
-            System('cells', components=groups, space=GridSpace(width, height)),
+            System('cells', components=groups, space=LatticeSpace((width, height), boundary='fixed')),
             System('tissue', components=[tissue]),
         ],
     )

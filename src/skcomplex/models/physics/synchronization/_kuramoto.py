@@ -10,8 +10,8 @@ from sage.all__sagemath_symbolics import cos, sin
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, state
 from ....core.model import (
+    ContinuousSpace,
     Element,
-    EuclideanSpace,
     Interaction,
     Law,
     PairInteraction,
@@ -413,7 +413,7 @@ def nonlocal_ring_chimera(
             ),
             PhaseLag('lag', target='ring', K=weight, alpha=alpha),
         ],
-        space=EuclideanSpace(1),
+        space=ContinuousSpace(n_dim=1),
     )
 
 

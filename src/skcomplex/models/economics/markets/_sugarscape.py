@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.model import AgentType, DiscreteTime, GridSpace, Institution, Law, Phase, Phases, Rule, Symbols, System
+from ....core.model import AgentType, DiscreteTime, Institution, LatticeSpace, Law, Phase, Phases, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -334,6 +334,6 @@ def sugarscape(
     return System(
         components=[patches, foragers],
         interactions=[Census('census', foragers='foragers', phase='growth')],
-        space=GridSpace(width, height, neighborhood='von_neumann'),
+        space=LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann'),
         time=DiscreteTime(schedule=Phases([Phase('foraging'), Phase('growth')])),
     )

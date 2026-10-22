@@ -783,14 +783,13 @@ and every law written for one member runs over all members with array operations
 ```python
 import numpy as np
 
-from skcomplex.core.model import EuclideanSpace, MesaSystem
-from skcomplex.core.model import Particle, ReflectingBox
+from skcomplex.core.model import ContinuousSpace, MesaSystem
+from skcomplex.core.model import Particle
 
 rng = np.random.default_rng(0)
 gas = System(
     components=[Particle.group('gas', 10_000, x=rng.uniform(0, 1, (10_000, 2)), v=rng.normal(0, 1, (10_000, 2)))],
-    interactions=[ReflectingBox('box', target='gas', size=1.0)],
-    space=EuclideanSpace(2),
+    space=ContinuousSpace(1.0, 1.0, boundary='reflecting'),
 )
 trajectory = Simulation(gas, dt=0.01).run(until=1).trajectory_
 print(trajectory['gas.x'].shape)
@@ -989,7 +988,7 @@ side = np.arange(10) * 1.2
 liquid = System(
     components=[Particle.group('atoms', 100, x=np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2))],
     interactions=[LennardJones('lj', first='atoms', second='atoms', cutoff=2.5)],
-    space=EuclideanSpace(2),
+    space=ContinuousSpace(n_dim=2),
 )
 Simulation(liquid, dt=0.05).run(until=1)
 ```
@@ -1339,7 +1338,7 @@ atoms = System(
         LennardJones('lj', first='atoms', second='atoms', cutoff=2.5),
         LangevinThermostat('bath', target='atoms', temperature=0.5, gamma=1.0),
     ],
-    space=EuclideanSpace(2),
+    space=ContinuousSpace(n_dim=2),
 )
 trajectory = Simulation(atoms, solver=LammpsBackend(dt=0.005), dt=0.05, random_state=0).run(until=1).trajectory_
 print(trajectory['atoms.x'].shape)
@@ -1371,7 +1370,7 @@ runs on Mesa, one Mesa step per unit of time, with every agent activated in rand
 
 ```python
 from skcomplex.core.base import Domain, VisualSpec, parameter, state
-from skcomplex.core.model import AgentType, GridSpace, Rule
+from skcomplex.core.model import AgentType, LatticeSpace, Rule
 
 
 class Forager(AgentType):
@@ -1393,7 +1392,7 @@ class Forager(AgentType):
             agent.create(food=agent.food)
 
 
-foragers = System(components=[Forager.group('foragers', 50)], space=GridSpace(30, 30, torus=True))
+foragers = System(components=[Forager.group('foragers', 50)], space=LatticeSpace((30, 30), boundary='periodic'))
 trajectory = Simulation(foragers, random_state=0).run(until=20).trajectory_
 print(trajectory['foragers.count'][-1], len(trajectory.agents('foragers', 20)))
 ```
@@ -1411,7 +1410,7 @@ print(trajectory['foragers.count'][-1], len(trajectory.agents('foragers', 20)))
   `agent.displacement_to(other)` gives the vector to another agent or a location, the shortest one on a torus, and
   `agent.distance_to(other)` its length, or the number of hops on a network. `agent.group` is the path of the agent's
   group and `agent.group_label` its label.
-- `GridSpace` has Moore or von Neumann neighbourhoods and an optional cell capacity, `NetworkSpace` places agents on
+- `LatticeSpace` gives agents Moore or von Neumann neighbourhoods and an optional cell capacity, `NetworkSpace` places agents on
   the nodes of a NetworkX graph, and `ContinuousSpace` finds neighbours within a radius.
 - Frames and trajectories hold every group's agents with their ids, states, and locations, through
   `trajectory.agents(group, frame)`, and the count of every group as the reporter `<group>.count`.
@@ -1454,7 +1453,7 @@ road = System(
             interactions=[Spread('spread', walkers='walkers')],
         ),
     ],
-    space=ContinuousSpace(50.0, 1.0, torus=True),
+    space=ContinuousSpace(50.0, 1.0, boundary='periodic'),
 )
 Simulation(road, random_state=0).run(until=5)
 print(counts)
@@ -1789,14 +1788,14 @@ tree, each element type chooses its visual, and parameters appear under `paramet
 import tempfile
 from pathlib import Path
 
-from skcomplex.core.model import EuclideanSpace
+from skcomplex.core.model import ContinuousSpace
 from skcomplex.core.model import Particle, Spring
 from skcomplex.core.viz import RerunObserver
 
 molecule = System(
     components=[Particle('a', x=[0.0, 0.0, 0.0]), Particle('b', x=[1.5, 0.0, 0.0], v=[0.0, 0.5, 0.0])],
     interactions=[Spring('bond', first='a', second='b', k=4.0, length=1.0)],
-    space=EuclideanSpace(3),
+    space=ContinuousSpace(n_dim=3),
 )
 path = Path(tempfile.mkdtemp()) / 'molecule.rrd'
 Simulation(molecule, dt=0.02, observers=[RerunObserver('molecule', save_path=path)]).run(until=5)
@@ -1902,7 +1901,7 @@ from skcomplex.core.model import HarmonicPotential
 oscillator = System(
     components=[Particle('p', x=1.0)],
     interactions=[HarmonicPotential('trap', target='p', k=4.0)],
-    space=EuclideanSpace(1),
+    space=ContinuousSpace(n_dim=1),
 )
 print(equations_of(oscillator)['p.v[0]'])
 print(solve_symbolically(oscillator, use_initial_state=True)['p.x[0]'])

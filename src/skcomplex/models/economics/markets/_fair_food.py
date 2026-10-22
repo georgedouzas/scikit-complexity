@@ -11,7 +11,7 @@ from ....core.base import Domain, VisualSpec, parameter, state
 from ....core.model import (
     AgentType,
     DiscreteTime,
-    GridSpace,
+    LatticeSpace,
     Law,
     Observable,
     Phase,
@@ -197,6 +197,6 @@ def fair_food(
     )
     return System(
         components=[consumers],
-        space=GridSpace(width, height, torus=True, capacity=1),
+        space=LatticeSpace((width, height), boundary='periodic', capacity=1),
         time=DiscreteTime(schedule=Phases([Phase('shopping', activation='simultaneous')])),
     )

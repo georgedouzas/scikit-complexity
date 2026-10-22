@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.model import ContinuousSpace, EuclideanSpace, LatticeSpace, Particle, System
+from skcomplex.core.model import ContinuousSpace, LatticeSpace, Particle, System
 from skcomplex.core.runtime import Frame, Observer, Simulation
 from skcomplex.core.solvers import AgentSnapshot
 from skcomplex.core.viz import AgentsVisual, ImageVisual, PointsVisual, ScalarsVisual
@@ -96,7 +96,10 @@ def test_image_visual_logs_one_row_as_rgb_image():
 
 def test_points_visual_radius_scales_with_extent():
     """Test that points without a given radius take a share of the extent of the positions."""
-    system = System(components=[Particle.group('bodies', 2, x=[[0.0, 0.0], [100.0, 0.0]])], space=EuclideanSpace(2))
+    system = System(
+        components=[Particle.group('bodies', 2, x=[[0.0, 0.0], [100.0, 0.0]])],
+        space=ContinuousSpace(n_dim=2),
+    )
     problem, frame = _first_frame(system)
     logs = Logs()
     PointsVisual(position='x', states=()).log(logs, problem.elements[0], frame)
@@ -108,7 +111,10 @@ def test_points_visual_radius_scales_with_extent():
 
 def test_points_visual_logs_trail_of_small_groups():
     """Test that a small group logs one line strip per point with its recent positions."""
-    system = System(components=[Particle.group('bodies', 2, v=[[1.0, 0.0], [0.0, 1.0]])], space=EuclideanSpace(2))
+    system = System(
+        components=[Particle.group('bodies', 2, v=[[1.0, 0.0], [0.0, 1.0]])],
+        space=ContinuousSpace(n_dim=2),
+    )
     problem, frames = _frames(system, steps=4)
     visual, logs = PointsVisual(position='x', states=(), trail=3), Logs()
     for frame in frames:
@@ -123,7 +129,7 @@ def test_points_visual_logs_trail_of_small_groups():
 @pytest.mark.parametrize(('count', 'trail'), [(11, 256), (2, 0)])
 def test_points_visual_leaves_out_trail(count, trail):
     """Test that large groups and a trail of 0 positions log no trail."""
-    system = System(components=[Particle.group('bodies', count)], space=EuclideanSpace(3))
+    system = System(components=[Particle.group('bodies', count)], space=ContinuousSpace(n_dim=3))
     problem, frame = _first_frame(system)
     logs = Logs()
     PointsVisual(position='x', states=(), trail=trail).log(logs, problem.elements[0], frame)
@@ -145,7 +151,10 @@ def test_agents_visual_radius_scales_with_continuous_space():
 
 def test_points_visual_trail_width_follows_extent():
     """Test that the trail is a quarter as wide as the extent share, even when a tiny radius is given."""
-    system = System(components=[Particle.group('bodies', 2, x=[[0.0, 0.0], [100.0, 0.0]])], space=EuclideanSpace(2))
+    system = System(
+        components=[Particle.group('bodies', 2, x=[[0.0, 0.0], [100.0, 0.0]])],
+        space=ContinuousSpace(n_dim=2),
+    )
     problem, frame = _first_frame(system)
     logs = Logs()
     PointsVisual(position='x', radius=0.05, states=()).log(logs, problem.elements[0], frame)
@@ -197,7 +206,7 @@ def test_scalars_visual_colors_elements_apart():
 
 def test_points_visual_draws_two_dimensions_with_vertical_axis_up():
     """Test that a 2D position (1, 2) is logged as (1, -2), since Rerun's 2D views point their vertical axis down."""
-    system = System(components=[Particle.group('bodies', 1, x=[[1.0, 2.0]])], space=EuclideanSpace(2))
+    system = System(components=[Particle.group('bodies', 1, x=[[1.0, 2.0]])], space=ContinuousSpace(n_dim=2))
     problem, frame = _first_frame(system)
     logs = Logs()
     PointsVisual(position='x', states=()).log(logs, problem.elements[0], frame)
@@ -222,7 +231,10 @@ def test_agents_visual_widens_color_range_of_equal_start():
 
 def test_points_visual_keeps_given_color_range():
     """Test that a given color range stays fixed and the visual does not overwrite its parameter."""
-    system = System(components=[Particle.group('bodies', 2, v=[[1.0, 0.0], [3.0, 0.0]])], space=EuclideanSpace(2))
+    system = System(
+        components=[Particle.group('bodies', 2, v=[[1.0, 0.0], [3.0, 0.0]])],
+        space=ContinuousSpace(n_dim=2),
+    )
     problem, frame = _first_frame(system)
     visual = PointsVisual(position='x', color_by='v', states=())
     visual.log(Logs(), problem.elements[0], frame)
@@ -272,7 +284,7 @@ def test_agents_visual_draws_continuous_spaces_with_vertical_axis_up():
 def test_colors_start_bright_enough_to_see_on_black():
     """Test that the lowest color of the point scale is not the near-black purple of viridis."""
     problem, frame = _first_frame(
-        System(components=[Particle.group('bodies', 2, v=[[0.0, 0.0], [1.0, 0.0]])], space=EuclideanSpace(2)),
+        System(components=[Particle.group('bodies', 2, v=[[0.0, 0.0], [1.0, 0.0]])], space=ContinuousSpace(n_dim=2)),
     )
     logs = Logs()
     PointsVisual(position='x', color_by='v', states=()).log(logs, problem.elements[0], frame)

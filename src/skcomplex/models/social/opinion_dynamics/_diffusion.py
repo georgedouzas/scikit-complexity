@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, ValidationError, VisualSpec, parameter, role, state
-from ....core.model import AgentType, ContinuousSpace, GridSpace, Interaction, Law, Rule, Symbols, System
+from ....core.model import AgentType, ContinuousSpace, Interaction, LatticeSpace, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -280,7 +280,7 @@ def influentials(
         caring=belief.argmax(axis=1).astype(float),
         influence=weights,
     )
-    return System(components=[people], space=GridSpace(width, height, torus=True, capacity=1))
+    return System(components=[people], space=LatticeSpace((width, height), boundary='periodic', capacity=1))
 
 
 @register_model(
@@ -350,5 +350,5 @@ def threshold_adoption(
     return System(
         components=[people],
         interactions=[Adoption('adoption', target='people', size=size, mode=mode)],
-        space=ContinuousSpace(size, size, torus=True),
+        space=ContinuousSpace(size, size, boundary='periodic'),
     )

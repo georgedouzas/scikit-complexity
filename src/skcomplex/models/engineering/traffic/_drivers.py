@@ -361,4 +361,4 @@ def ring_road_drivers(
         eps=eps,
         speed_limit=speed_limit,
     )
-    return System(components=[drivers], space=ContinuousSpace(length, ROAD_WIDTH, torus=True))
+    return System(components=[drivers], space=ContinuousSpace(length, ROAD_WIDTH, boundary='periodic'))

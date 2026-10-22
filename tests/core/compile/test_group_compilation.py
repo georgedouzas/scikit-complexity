@@ -8,17 +8,17 @@ import pytest
 from skcomplex.core.base import Domain, ValidationError, parameter, role
 from skcomplex.core.compile import compile_system
 from skcomplex.core.model import (
-    EuclideanSpace,
+    Boundary,
+    ContinuousSpace,
     Interaction,
     Jump,
     Noise,
     PairPotential,
     Particle,
-    PeriodicBox,
     Rate,
-    ReflectingBox,
     System,
     Update,
+    mod,
 )
 from skcomplex.models.biology.ecology import Population
 
@@ -97,7 +97,7 @@ def _lennard_jones_gas(n, seed=0):
     return System(
         components=[Particle.group('gas', n, x=grid + rng.normal(0, 0.05, (n, 2)), v=rng.normal(0, 0.5, (n, 2)))],
         interactions=[LennardJones('lj', first='gas', second='gas', cutoff=CUTOFF)],
-        space=EuclideanSpace(2),
+        space=ContinuousSpace(n_dim=2),
     )
 
 
@@ -109,8 +109,7 @@ def test_compile_group_time_does_not_grow_with_size():
         compile_system(
             System(
                 components=[Particle.group('gas', n)],
-                interactions=[ReflectingBox('box', target='gas')],
-                space=EuclideanSpace(2),
+                space=ContinuousSpace(1.0, 1.0, boundary='reflecting'),
             ),
         )
         return time.perf_counter() - start
@@ -121,7 +120,7 @@ def test_compile_group_time_does_not_grow_with_size():
 
 def test_compile_group_names_states_by_group_path():
     """Test that a group state is named by its group path with the group shape."""
-    problem = compile_system(System(components=[Particle.group('gas', 500)], space=EuclideanSpace(2)))
+    problem = compile_system(System(components=[Particle.group('gas', 500)], space=ContinuousSpace(n_dim=2)))
     assert problem.states.entry('gas.x').shape == (500, 2)
     assert problem.equations['gas.x[i, 0]'] == problem.symbols['gas.v'][0]
 
@@ -147,7 +146,7 @@ def test_compile_pair_forces_between_two_groups():
     system = System(
         components=[Particle.group('a', 1, x=[[0.0, 0.0]]), Particle.group('b', 1, x=[[1.5, 0.0]])],
         interactions=[LennardJones('lj', first='a', second='b', cutoff=CUTOFF)],
-        space=EuclideanSpace(2),
+        space=ContinuousSpace(n_dim=2),
     )
     problem = compile_system(system)
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
@@ -161,7 +160,7 @@ def test_compile_pair_forces_use_minimum_image():
     system = System(
         components=[Particle.group('gas', 2, x=[[0.1, 0.5], [9.6, 0.5]])],
         interactions=[LennardJones('lj', first='gas', second='gas', cutoff=CUTOFF, period=10.0)],
-        space=EuclideanSpace(2),
+        space=ContinuousSpace(n_dim=2),
     )
     problem = compile_system(system)
     accelerations = problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'gas.v')
@@ -174,8 +173,7 @@ def test_compile_reflecting_box_keeps_ode_form():
     problem = compile_system(
         System(
             components=[Particle.group('gas', 4)],
-            interactions=[ReflectingBox('box', target='gas')],
-            space=EuclideanSpace(2),
+            space=ContinuousSpace(1.0, 1.0, boundary='reflecting'),
         ),
     )
     assert problem.form.name == 'ODE'
@@ -187,8 +185,7 @@ def test_compile_periodic_box_wraps_positions():
     problem = compile_system(
         System(
             components=[Particle.group('gas', 1, x=[[1.25, 0.5]], v=[[1.0, 0.0]])],
-            interactions=[PeriodicBox('box', target='gas', size=1.0)],
-            space=EuclideanSpace(2),
+            space=ContinuousSpace(1.0, 1.0, boundary='periodic'),
         ),
     )
     state = problem.boundary(0.0, problem.initial_state, problem.initial_parameters)
@@ -253,10 +250,11 @@ def test_compile_update_of_single_element_from_group_raises_error():
 
 def test_compile_boundary_twice_raises_error():
     """Test that a state takes one boundary law."""
+    Wrap = Interaction.define('Wrap', roles=['target'], laws=lambda s: [Boundary(s.target.x[0], mod(s.target.x[0], 1))])
     system = System(
         components=[Particle.group('gas', 2)],
-        interactions=[ReflectingBox('box', target='gas'), PeriodicBox('wrap', target='gas')],
-        space=EuclideanSpace(1),
+        interactions=[Wrap('wrap', target='gas')],
+        space=ContinuousSpace(1.0, boundary='reflecting'),
     )
     with pytest.raises(ValidationError, match='second time'):
         compile_system(system)

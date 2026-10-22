@@ -238,5 +238,5 @@ def binary_collision_flocking(
     return System(
         components=[birds],
         interactions=[collisions],
-        space=ContinuousSpace(size, size, torus=True),
+        space=ContinuousSpace(size, size, boundary='periodic'),
     )

@@ -8,7 +8,7 @@ from typing import ClassVar, cast
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, role, state
-from ....core.model import AgentType, GridSpace, Interaction, Law, Rule, Symbols, System
+from ....core.model import AgentType, Interaction, LatticeSpace, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -259,4 +259,6 @@ def trafficking(
     victim = (np.arange(n_victims + n_free) < n_victims).astype(float)
     women = Traveller.group('women', n_victims + n_free, location=homes, victim=victim)
     day = DailyMovements('day', women='women', premises='premises', n_cities=n_cities)
-    return System(components=[premises, women], interactions=[day], space=GridSpace(width, height))
+    return System(
+        components=[premises, women], interactions=[day], space=LatticeSpace((width, height), boundary='fixed'),
+    )

@@ -6,7 +6,7 @@
 import numpy as np
 
 from ....core.base import state, vector
-from ....core.model import Element, EuclideanSpace, Law, Rate, Symbols, System
+from ....core.model import ContinuousSpace, Element, Law, Rate, Symbols, System
 from ....core.runtime import register_model
 
 
@@ -141,7 +141,7 @@ def lorenz_96(
     """
     values = np.full(n_sites, float(F))
     values[0] += perturbation
-    return System(components=[Lorenz96('ring', x=values, F=F)], space=EuclideanSpace(n_sites))
+    return System(components=[Lorenz96('ring', x=values, F=F)], space=ContinuousSpace(n_dim=n_sites))
 
 
 @register_model(

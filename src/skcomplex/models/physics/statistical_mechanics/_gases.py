@@ -7,13 +7,11 @@ import numpy as np
 
 from ....core.base import VisualSpec
 from ....core.model import (
-    EuclideanSpace,
+    ContinuousSpace,
     Interaction,
     LangevinThermostat,
     LennardJones,
     Particle,
-    PeriodicBox,
-    ReflectingBox,
     System,
 )
 from ....core.runtime import register_model
@@ -85,8 +83,7 @@ def ideal_gas(
     )
     return System(
         components=[molecules],
-        interactions=[ReflectingBox('box', target=label, size=size)],
-        space=EuclideanSpace(n_dim),
+        space=ContinuousSpace(*[size] * n_dim, boundary='reflecting'),
     )
 
 
@@ -142,12 +139,11 @@ def lennard_jones_fluid(
     velocities -= velocities.mean(axis=0)
     interactions: list[Interaction] = [
         LennardJones('lj', first='fluid', second='fluid', cutoff=cutoff, period=size),
-        PeriodicBox('box', target='fluid', size=size),
     ]
     if temperature is not None:
         interactions.append(LangevinThermostat('thermostat', target='fluid', temperature=temperature))
     return System(
         components=[Particle.group('fluid', n_particles, x=positions, v=velocities)],
         interactions=interactions,
-        space=EuclideanSpace(2),
+        space=ContinuousSpace(size, size, boundary='periodic'),
     )

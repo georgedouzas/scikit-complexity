@@ -105,7 +105,7 @@ def test_depot_particles_reach_the_pumped_speed():
 def test_motility_induced_phase_separation_gathers_disks():
     """Test that fast repulsive swimmers gather into clusters without passing through each other."""
     model = motility_induced_phase_separation(200)
-    size = model.interactions[0].size
+    size = model.space.width
     trajectory = Simulation(model, dt=0.5, solver=EulerMaruyama(dt=0.005), random_state=0).run(until=5).trajectory_
     positions = trajectory['swimmers.x']
     assert _mean_neighbors(positions[-1], size, 1.1) > 3 * _mean_neighbors(positions[0], size, 1.1)

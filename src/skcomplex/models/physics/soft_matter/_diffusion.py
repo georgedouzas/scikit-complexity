@@ -14,8 +14,8 @@ from sage.all__sagemath_symbolics import SR, exp, sin, sqrt
 from ....core.base import Domain, VisualSpec, parameter, role, state, vector
 from ....core.model import (
     Boundary,
+    ContinuousSpace,
     Element,
-    EuclideanSpace,
     Interaction,
     LangevinThermostat,
     Law,
@@ -309,7 +309,7 @@ def brownian_motion(
         >>> brownian_motion(10, inertial=False).elements[0].element.__name__
         'BrownianParticle'
     """
-    space = EuclideanSpace(n_dim)
+    space = ContinuousSpace(n_dim=n_dim)
     if not inertial:
         beads = BrownianParticle.group(
             'beads',
@@ -391,7 +391,7 @@ def optical_trap(
         blink_period=blink_period,
         duty=duty,
     )
-    return System(components=[beads], interactions=[trap], space=EuclideanSpace(n_dim))
+    return System(components=[beads], interactions=[trap], space=ContinuousSpace(n_dim=n_dim))
 
 
 @register_model(
@@ -597,4 +597,4 @@ def diffusion_in_a_speckle_field(
     )
     positions = rng.uniform(size / 4, 3 * size / 4, (n_particles, 2))
     beads = BrownianParticle.group('beads', n_particles, x=positions, gamma=1.0, temperature=D)
-    return System(components=[beads], interactions=[speckle], space=EuclideanSpace(2))
+    return System(components=[beads], interactions=[speckle], space=ContinuousSpace(n_dim=2))

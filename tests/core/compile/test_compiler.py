@@ -19,8 +19,8 @@ from skcomplex.core.base import (
 from skcomplex.core.compile import compile_system
 from skcomplex.core.model import (
     ConstantForce,
+    ContinuousSpace,
     Element,
-    EuclideanSpace,
     HarmonicPotential,
     Interaction,
     LatticeSpace,
@@ -154,7 +154,7 @@ def test_compile_system_rates_add_up():
     system = System(
         components=[Particle('p', x=1.0, m=2.0)],
         interactions=[ConstantForce('push', target='p', F=4.0), HarmonicPotential('trap', target='p', k=6.0)],
-        space=EuclideanSpace(1),
+        space=ContinuousSpace(n_dim=1),
     )
     problem = compile_system(system)
     assert problem.drift(0.0, problem.initial_state, problem.initial_parameters).tolist() == [0.0, -1.0]
@@ -165,7 +165,7 @@ def test_compile_system_keeps_oscillator_equations():
     system = System(
         components=[Particle('p')],
         interactions=[HarmonicPotential('trap', target='p')],
-        space=EuclideanSpace(1),
+        space=ContinuousSpace(n_dim=1),
     )
     problem = compile_system(system)
     x, v = problem.state_symbols
@@ -178,7 +178,7 @@ def test_compile_system_keeps_oscillator_equations():
 
 def test_compile_system_vector_state_takes_space_dimension():
     """Test that vector states have one component per dimension."""
-    problem = compile_system(System(components=[Particle('p')], space=EuclideanSpace(2)))
+    problem = compile_system(System(components=[Particle('p')], space=ContinuousSpace(n_dim=2)))
     assert problem.states.component_names == ['p.x[0]', 'p.x[1]', 'p.v[0]', 'p.v[1]']
 
 
@@ -191,14 +191,14 @@ def test_compile_system_vector_state_without_space_raises_error():
 @pytest.mark.parametrize('m', [-2.0, 0.0, 'm'])
 def test_compile_system_value_outside_domain_raises_error(m):
     """Test that a parameter outside its domain is rejected."""
-    system = System(components=[Particle('p', m=m)], space=EuclideanSpace(1))
+    system = System(components=[Particle('p', m=m)], space=ContinuousSpace(n_dim=1))
     with pytest.raises(ValidationError, match=r'p\.m'):
         compile_system(system)
 
 
 def test_compile_system_wrong_shape_raises_error():
     """Test that a vector value of the wrong size is rejected."""
-    system = System(components=[Particle('p', x=[1, 2, 3])], space=EuclideanSpace(2))
+    system = System(components=[Particle('p', x=[1, 2, 3])], space=ContinuousSpace(n_dim=2))
     with pytest.raises(ValidationError, match='shape'):
         compile_system(system)
 

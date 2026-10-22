@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import Domain, parameter
-from skcomplex.core.model import EuclideanSpace, PairPotential, Particle, PeriodicBox, System
+from skcomplex.core.model import ContinuousSpace, PairPotential, Particle, System
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import ScipyODE
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
@@ -63,8 +63,7 @@ def test_periodic_box_wraps_member_with_same_velocity():
     """Test that a member leaving one side reappears at the opposite side with the same velocity."""
     system = System(
         components=[Particle.group('gas', 1, x=[[0.95, 0.5]], v=[[1.0, 0.0]])],
-        interactions=[PeriodicBox('box', target='gas', size=1.0)],
-        space=EuclideanSpace(2),
+        space=ContinuousSpace(1.0, 1.0, boundary='periodic'),
     )
     trajectory = Simulation(system, dt=0.1).run(until=0.2).trajectory_
     assert np.allclose(trajectory['gas.x'][-1], [[0.15, 0.5]])
@@ -77,7 +76,7 @@ def test_pair_interaction_conserves_momentum():
     system = System(
         components=[Particle.group('gas', 200, x=rng.uniform(0, 3, (200, 2)), v=rng.normal(0, 1, (200, 2)))],
         interactions=[SoftSphere('soft', first='gas', second='gas', cutoff=0.2)],
-        space=EuclideanSpace(2),
+        space=ContinuousSpace(n_dim=2),
     )
     trajectory = Simulation(system, solver=ScipyODE(rtol=1e-9, atol=1e-12), dt=0.05).run(until=2).trajectory_
     momentum = trajectory['gas.v'].sum(axis=1)

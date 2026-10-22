@@ -8,12 +8,10 @@ import pytest
 from skcomplex.core.base import symbol
 from skcomplex.core.compile import NUMPY_DIALECT, SCALAR_DIALECT, compile_system, numpy_function, print_expressions
 from skcomplex.core.model import (
+    ContinuousSpace,
     Element,
-    EuclideanSpace,
     Particle,
-    PeriodicBox,
     Rate,
-    ReflectingBox,
     System,
     both,
     either,
@@ -71,8 +69,7 @@ def test_reflecting_box_reverses_crossing_particle():
     """Test that a particle crossing a wall comes back into the box with its velocity reversed."""
     system = System(
         components=[Particle('p', x=[0.9], v=[1.0])],
-        interactions=[ReflectingBox('box', target='p', size=1.0)],
-        space=EuclideanSpace(1),
+        space=ContinuousSpace(1.0, boundary='reflecting'),
     )
     trajectory = Simulation(system, dt=0.2).run(until=0.2).trajectory_
     assert trajectory['p.x'][-1, 0] == pytest.approx(0.9)
@@ -83,8 +80,7 @@ def test_periodic_box_wraps_leaving_particle():
     """Test that a particle leaving through one side enters through the opposite side."""
     system = System(
         components=[Particle('p', x=[0.9], v=[1.0])],
-        interactions=[PeriodicBox('box', target='p', size=1.0)],
-        space=EuclideanSpace(1),
+        space=ContinuousSpace(1.0, boundary='periodic'),
     )
     trajectory = Simulation(system, dt=0.2).run(until=0.2).trajectory_
     assert trajectory['p.x'][-1, 0] == pytest.approx(0.1)
@@ -112,8 +108,7 @@ def test_long_frame_keeps_particle_in_reflecting_box(solver):
     """Test that a frame of duration 5 reflects a particle four times and ends at 0.5 with velocity -1."""
     system = System(
         components=[Particle('p', x=[0.5], v=[1.0])],
-        interactions=[ReflectingBox('box', target='p', size=1.0)],
-        space=EuclideanSpace(1),
+        space=ContinuousSpace(1.0, boundary='reflecting'),
     )
     trajectory = Simulation(system, solver=solver, dt=5.0).run(until=5).trajectory_
     assert trajectory['p.x'][-1, 0] == pytest.approx(0.5, abs=1e-6)

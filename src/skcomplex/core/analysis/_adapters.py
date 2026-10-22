@@ -14,7 +14,7 @@ import numpy.typing as npt
 from ..base import AnalysisError, Categorical, Domain, Form
 from ..compile import Problem, compile_system, observables_of
 from ..experiments import ExperimentResult
-from ..model import ContinuousSpace, GridSpace, NetworkSpace, PeriodicBox, System
+from ..model import ContinuousSpace, LatticeSpace, NetworkSpace, System
 from ..runtime import Trajectory
 from ._kinds import ANALYSES, AnalysisEntry, DataKind
 
@@ -389,7 +389,7 @@ def _space_box(space: object) -> tuple[Array | None, bool]:
     """Return the sides of a continuous or grid space and whether it is periodic."""
     if isinstance(space, ContinuousSpace):
         return np.asarray([space.width, space.height], dtype=float), bool(space.torus)
-    if isinstance(space, GridSpace):
+    if isinstance(space, LatticeSpace):
         return np.asarray([space.width, space.height], dtype=float), bool(space.torus)
     return None, False
 
@@ -441,12 +441,10 @@ def _positions_of(ids: npt.NDArray[np.int64], wanted: npt.NDArray[np.int64]) -> 
 
 
 def _particle_box(trajectory: Trajectory, group: str) -> Array | None:
-    """Return the sides of the periodic box of a particle group, or `None` without one."""
-    for compiled in trajectory.problem.interactions:
-        if isinstance(compiled.interaction, PeriodicBox) and compiled.roles.get('target') == group:
-            size = float(np.asarray(trajectory[f'{compiled.path}.size'])[0])
-            dimensions = trajectory.problem.states.entry(f'{group}.{POSITION_STATE}').shape[-1]
-            return np.full(dimensions, size)
+    """Return the sides of the periodic box a particle group lives in, or `None` without one."""
+    space = getattr(trajectory.problem.system, 'space', None)
+    if isinstance(space, ContinuousSpace) and space.boundary == 'periodic':
+        return np.asarray(space.extent, dtype=float)
     return None
 
 

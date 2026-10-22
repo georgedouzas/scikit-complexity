@@ -40,7 +40,9 @@ simulation = Simulation(system, dt=0.5, observers=[observer], observables=descri
 rates = np.linspace(0.2, 3.0, 15) * first / second
 final_sizes = [
     Simulation(
-        create(MODEL, k_max=30, beta=rate, infected=1e-6), dt=1.0, observables=describe(MODEL).observables_of(system),
+        create(MODEL, k_max=30, beta=rate, infected=1e-6),
+        dt=1.0,
+        observables=describe(MODEL).observables_of(system),
     )
     .run(until=300)
     .trajectory_['recovered'][-1]

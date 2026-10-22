@@ -5,7 +5,7 @@ import pytest
 
 from skcomplex.core.backends import LammpsBackend
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import EuclideanSpace, LangevinThermostat, LennardJones, Particle, SoftSphere, System
+from skcomplex.core.model import ContinuousSpace, LangevinThermostat, LennardJones, Particle, SoftSphere, System
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import EulerMaruyama, VelocityVerlet
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
@@ -16,7 +16,7 @@ def _pair(interaction, distance):
     return System(
         components=[Particle.group('pair', 2, x=[[0.0, 0.0], [distance, 0.0]])],
         interactions=[interaction],
-        space=EuclideanSpace(2),
+        space=ContinuousSpace(n_dim=2),
     )
 
 

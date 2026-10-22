@@ -10,7 +10,7 @@ import numpy.typing as npt
 from scipy import ndimage
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.model import AgentType, GridSpace, Institution, Law, Rule, Symbols, System
+from ....core.model import AgentType, Institution, LatticeSpace, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -245,5 +245,5 @@ def axelrod(
     return System(
         components=[villages],
         interactions=[CultureCensus('census', villages='villages', width=width, height=height)],
-        space=GridSpace(width, height, neighborhood='von_neumann', capacity=1),
+        space=LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann', capacity=1),
     )

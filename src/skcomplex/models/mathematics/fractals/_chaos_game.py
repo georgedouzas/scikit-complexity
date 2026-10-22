@@ -10,7 +10,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR
 
 from ....core.base import Expression, ValidationError, VisualSpec, state, vector
-from ....core.model import Element, EuclideanSpace, Law, Symbols, System, Update, categorical, where
+from ....core.model import ContinuousSpace, Element, Law, Symbols, System, Update, categorical, where
 from ....core.runtime import register_model
 
 type AffineMap = Sequence[float]
@@ -95,7 +95,7 @@ def _system_of(maps: Sequence[AffineMap], weights: Sequence[float], n_points: in
         raise ValidationError(error_msg)
     starts = np.random.default_rng(random_state).random((n_points, 2))  # type: ignore[arg-type,unused-ignore]
     points = ChaosPoint.group('points', n_points, p=starts, maps=tuple(map(tuple, maps)), weights=tuple(weights))
-    return System(components=[points], space=EuclideanSpace(2))
+    return System(components=[points], space=ContinuousSpace(n_dim=2))
 
 
 @register_model(

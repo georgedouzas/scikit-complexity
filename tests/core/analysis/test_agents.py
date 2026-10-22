@@ -23,7 +23,7 @@ from skcomplex.core.analysis import (
     structure_factor,
 )
 from skcomplex.core.base import AnalysisError, Domain, VisualSpec, state
-from skcomplex.core.model import AgentType, ContinuousSpace, GridSpace, Law, Rule, Symbols, System
+from skcomplex.core.model import AgentType, ContinuousSpace, LatticeSpace, Law, Rule, Symbols, System
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import AgentView, ModelView
 from skcomplex.models import run
@@ -208,10 +208,13 @@ def test_coarse_grain_density():
 
 def test_mean_squared_displacement_diffusion_on_two_kinds_of_space():
     """Test that Brownian particles in a periodic box and walkers on a periodic grid diffuse without a plateau."""
-    continuous = System(components=[Diffuser.group('particles', 300)], space=ContinuousSpace(20.0, 20.0, torus=True))
+    continuous = System(
+        components=[Diffuser.group('particles', 300)],
+        space=ContinuousSpace(20.0, 20.0, boundary='periodic'),
+    )
     grid = System(
         components=[GridWalker.group('walkers', 300)],
-        space=GridSpace(20, 20, torus=True, neighborhood='von_neumann'),
+        space=LatticeSpace((20, 20), boundary='periodic', neighborhood='von_neumann'),
     )
     for system in (continuous, grid):
         trajectory = Simulation(system, dt=1, random_state=0).run(until=600).trajectory_

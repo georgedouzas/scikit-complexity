@@ -8,7 +8,7 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import AgentType, GridSpace, Law, Rule, Symbols, System
+from ....core.model import AgentType, LatticeSpace, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -289,5 +289,5 @@ def insider_sabotage(
     supervisors = Supervisor.group('supervisors', n_supervisors)
     return System(
         components=[employees, supervisors],
-        space=GridSpace(size, size, neighborhood='von_neumann', torus=True),
+        space=LatticeSpace((size, size), boundary='periodic', neighborhood='von_neumann'),
     )

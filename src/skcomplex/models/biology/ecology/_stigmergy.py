@@ -9,7 +9,7 @@ from typing import Any, ClassVar
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import AgentType, Element, Field, GridSpace, LatticeSpace, Law, Rate, Rule, Symbols, System
+from ....core.model import AgentType, Element, Field, LatticeSpace, Law, Rate, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -475,7 +475,7 @@ def stigmergic_predator_prey(
             StigmergicPrey.group(PREY, prey, location=prey_cells, emotions=flag, **PREY_TRAITS),
             StigmergicPredator.group(PREDATORS, predators, location=predator_cells, emotions=flag, **PREDATOR_TRAITS),
         ],
-        space=GridSpace(width, height, torus=True),
+        space=LatticeSpace((width, height), boundary='periodic'),
     )
     marks = Field('marks', EmotionMarks, LatticeSpace((width, height)), values={'decay': decay})
     return System(components=[life, System('ground', components=[marks])])

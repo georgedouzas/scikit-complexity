@@ -9,7 +9,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import I, exp, sin
 
 from ....core.base import Domain, Expression, VisualSpec, parameter
-from ....core.model import EuclideanSpace, Law, Observable, PairInteraction, PeriodicBox, Rate, Symbols, System
+from ....core.model import ContinuousSpace, Law, Observable, PairInteraction, Rate, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import EulerMaruyama
 from ._particles import ActiveParticle
@@ -139,7 +139,7 @@ def aligning_active_brownian_particles(
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import aligning_active_brownian_particles
-        >>> aligning_active_brownian_particles(10, gamma=0.5).interactions[1].gamma
+        >>> aligning_active_brownian_particles(10, gamma=0.5).interactions[0].gamma
         0.5
     """
     rng = np.random.default_rng(random_state)
@@ -156,6 +156,6 @@ def aligning_active_brownian_particles(
     alignment = PolarAlignment('align', first='swimmers', second='swimmers', cutoff=d0, period=size, gamma=gamma)
     return System(
         components=[swimmers],
-        interactions=[PeriodicBox('box', target='swimmers', size=size), alignment],
-        space=EuclideanSpace(2),
+        interactions=[alignment],
+        space=ContinuousSpace(size, size, boundary='periodic'),
     )

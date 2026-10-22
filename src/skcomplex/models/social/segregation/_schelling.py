@@ -8,7 +8,7 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import AgentType, GridSpace, Law, Rule, Symbols, System
+from ....core.model import AgentType, LatticeSpace, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -119,4 +119,4 @@ def schelling(
     size = int(width * height * density)
     kinds = (rng.random(size) < minority).astype(float)
     residents = Resident.group('residents', size, kind=kinds, threshold=threshold)
-    return System(components=[residents], space=GridSpace(width, height, capacity=1))
+    return System(components=[residents], space=LatticeSpace((width, height), boundary='fixed', capacity=1))

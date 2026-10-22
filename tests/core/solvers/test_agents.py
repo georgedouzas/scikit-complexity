@@ -21,8 +21,8 @@ from skcomplex.core.compile import compile_system
 from skcomplex.core.model import (
     AgentType,
     ContinuousSpace,
-    GridSpace,
     Interaction,
+    LatticeSpace,
     MesaSystem,
     NetworkSpace,
     Rule,
@@ -158,7 +158,9 @@ def _money_system():
 
 def test_rules_give_agent_form():
     """Test that a system of agent groups with rules compiles to the agent-based form."""
-    problem = compile_system(System(components=[Walker.group('walkers', 3)], space=GridSpace(5, 5)))
+    problem = compile_system(
+        System(components=[Walker.group('walkers', 3)], space=LatticeSpace((5, 5), boundary='fixed')),
+    )
     assert problem.form is Form.AGENT
     assert problem.agents[0].states == ('moves',)
 
@@ -168,7 +170,7 @@ def test_rules_mixed_with_rates_raise_error():
     system = System(
         components=[Walker.group('walkers', 3), Population('herd')],
         interactions=[ExponentialGrowth('growth', target='herd')],
-        space=GridSpace(5, 5),
+        space=LatticeSpace((5, 5), boundary='fixed'),
     )
     with pytest.raises(IncompatibleLawsError, match='rate: herd; rule: walkers'):
         compile_system(system)
@@ -186,7 +188,7 @@ def test_model_rules_remove_agents():
     system = System(
         components=[Walker.group('walkers', 5)],
         interactions=[Culler('cull', target='walkers')],
-        space=GridSpace(5, 5),
+        space=LatticeSpace((5, 5), boundary='fixed'),
     )
     trajectory = Simulation(system, random_state=0).run(until=3).trajectory_
     assert trajectory['walkers.count'].tolist() == [5.0, 4.0, 3.0, 2.0]
@@ -198,7 +200,7 @@ def test_grid_neighbours(neighborhood, expected):
     """Test that an agent in the middle of a 10 by 10 grid has 8 Moore or 4 von Neumann neighbouring cells."""
     system = System(
         components=[Probe('probe', location=(5, 5))],
-        space=GridSpace(10, 10, neighborhood=neighborhood),
+        space=LatticeSpace((10, 10), boundary='fixed', neighborhood=neighborhood),
     )
     snapshot = Simulation(system).run(until=1).trajectory_.agents('probe', 1)
     assert snapshot.values['cells'].tolist() == [expected]
@@ -225,7 +227,10 @@ def test_continuous_neighbours_within_radius():
 def test_agent_runs_are_reproducible():
     """Test that equal random states give equal agent trajectories."""
     runs = [
-        Simulation(System(components=[Walker.group('walkers', 5)], space=GridSpace(10, 10)), random_state=0).run(
+        Simulation(
+            System(components=[Walker.group('walkers', 5)], space=LatticeSpace((10, 10), boundary='fixed')),
+            random_state=0,
+        ).run(
             until=5,
         )
         for _ in range(2)
@@ -357,7 +362,7 @@ def test_rule_reading_unknown_name_raises_error():
 
 def test_rule_reads_grid_dimensions_and_torus():
     """Test that a rule reads the extent and the wrap of a grid."""
-    _, records = _census(space=GridSpace(30, 20, torus=True))
+    _, records = _census(space=LatticeSpace((30, 20), boundary='periodic'))
     assert records[0]['dimensions'] == (30, 20)
     assert records[0]['torus'] is True
 
@@ -372,7 +377,7 @@ def _views(space, locations):
 
 def test_displacement_across_torus_seam():
     """Test that the displacement in a toroidal continuous space is the shortest image across the seam."""
-    first, second = _views(ContinuousSpace(100.0, 1.0, torus=True), [(99.0, 0.5), (1.0, 0.5)])
+    first, second = _views(ContinuousSpace(100.0, 1.0, boundary='periodic'), [(99.0, 0.5), (1.0, 0.5)])
     assert first.displacement_to(second).tolist() == [2.0, 0.0]
     assert first.distance_to(second) == 2.0
     assert first.distance_to((97.0, 0.5)) == 2.0
@@ -419,7 +424,9 @@ def test_rules_read_model_time():
 
 def test_one_agent_takes_one_entry_values():
     """Test that a group of one agent reads a one-entry location and a one-entry value as its own."""
-    system = System(components=[Clocked.group('one', 1, location=[(1, 1)], n=[3.0])], space=GridSpace(5, 5))
+    system = System(
+        components=[Clocked.group('one', 1, location=[(1, 1)], n=[3.0])], space=LatticeSpace((5, 5), boundary='fixed'),
+    )
     snapshot = Simulation(system).run(until=0).trajectory_.agents('one', 0)
     assert snapshot.locations.tolist() == [[1, 1]]
     assert snapshot.values['n'].tolist() == [3.0]

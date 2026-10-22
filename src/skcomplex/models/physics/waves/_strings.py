@@ -10,8 +10,8 @@ from sage.all__sagemath_symbolics import sin
 
 from ....core.base import Domain, Expression, parameter, role, vector
 from ....core.model import (
+    ContinuousSpace,
     Element,
-    EuclideanSpace,
     Field,
     LatticeSpace,
     Particle,
@@ -165,7 +165,7 @@ def spring_chain(
         DrivenAnchor('left_end', target='mass_0', k=k, center=[0.0, 0.0], amplitude=amplitude, omega=omega),
         DrivenAnchor('right_end', target=f'mass_{n_masses - 1}', k=k, center=[length, 0.0]),
     ]
-    return System(components=masses, interactions=[*anchors, *springs], space=EuclideanSpace(2))
+    return System(components=masses, interactions=[*anchors, *springs], space=ContinuousSpace(n_dim=2))
 
 
 @register_model(

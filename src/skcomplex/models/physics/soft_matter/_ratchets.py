@@ -9,7 +9,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import sin
 
 from ....core.base import Domain, parameter, role, vector
-from ....core.model import EuclideanSpace, Interaction, Law, Rate, Symbols, System, mod, series, where
+from ....core.model import ContinuousSpace, Interaction, Law, Rate, Symbols, System, mod, series, where
 from ....core.runtime import register_model
 from ....core.solvers import EulerMaruyama
 from ._diffusion import BrownianParticle
@@ -177,7 +177,7 @@ def tilted_periodic_potential(
         temperature=kT,
     )
     washboard = TiltedWashboard('washboard', target='particles', U0=U0, L=L, f=f)
-    return System(components=[particles], interactions=[washboard], space=EuclideanSpace(1))
+    return System(components=[particles], interactions=[washboard], space=ContinuousSpace(n_dim=1))
 
 
 @register_model(
@@ -261,4 +261,4 @@ def flashing_ratchet(
         asymmetry=asymmetry,
         switches=tuple(float(time) for time in times[times < duration]),
     )
-    return System(components=[particles], interactions=[sawtooth], space=EuclideanSpace(1))
+    return System(components=[particles], interactions=[sawtooth], space=ContinuousSpace(n_dim=1))

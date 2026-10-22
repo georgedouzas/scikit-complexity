@@ -14,7 +14,6 @@ from ....core.model import (
     AgentType,
     Drive,
     Element,
-    GridSpace,
     LatticeSpace,
     Law,
     LocalRule,
@@ -545,4 +544,6 @@ def diffusion_limited_aggregation(
     stuck = np.zeros(n_walkers)
     stuck[0] = 1.0
     walkers = Walker.group('walkers', n_walkers, location=[tuple(map(int, cell)) for cell in cells], stuck=stuck)
-    return System(components=[walkers], space=GridSpace(size, size, torus=True, neighborhood='von_neumann'))
+    return System(
+        components=[walkers], space=LatticeSpace((size, size), boundary='periodic', neighborhood='von_neumann'),
+    )

@@ -6,7 +6,7 @@ from sklearn.base import clone
 
 from skcomplex.core.base import LabelError, ValidationError, state
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import AgentType, Element, EuclideanSpace, Jump, Rate, Symbols, System
+from skcomplex.core.model import AgentType, ContinuousSpace, Element, Jump, Rate, Symbols, System
 from skcomplex.core.runtime import Simulation
 from skcomplex.models.biology.ecology import Population, Predation
 
@@ -41,7 +41,7 @@ def test_symbols_unknown_name_lists_available_names():
 
 def test_system_repr_counts_children():
     """Test that a system shows its label and the number of each child kind."""
-    system = System('meadow', components=[Population('rabbits')], space=EuclideanSpace(2))
+    system = System('meadow', components=[Population('rabbits')], space=ContinuousSpace(n_dim=2))
     assert repr(system) == "System('meadow', components=1, interactions=0)"
 
 
@@ -72,7 +72,7 @@ def _numpy_vector_rate(s):
 def test_numpy_scalar_times_vector_is_rejected():
     """Test that a law value that NumPy built as an array raises a named error that names the state."""
     Moving = Element.define('Moving', states={'v': state(0.0, vector=True)}, laws=_numpy_vector_rate)
-    system = System(components=[Moving('m', v=[1.0, 2.0])], space=EuclideanSpace(2))
+    system = System(components=[Moving('m', v=[1.0, 2.0])], space=ContinuousSpace(n_dim=2))
     with pytest.raises(ValidationError, match=r'rate law of \(v_m.*float'):
         compile_system(system)
 

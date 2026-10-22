@@ -10,8 +10,8 @@ import numpy.typing as npt
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
 from ....core.model import (
+    ContinuousSpace,
     Element,
-    EuclideanSpace,
     Interaction,
     Jump,
     LatticeSpace,
@@ -428,7 +428,7 @@ def dissipative_zero_range(
         Reservoir('injection', sites=['nodes[0]'], entry=nu * np.exp(-beta_ext * epsilon0), exit=nu),
         Reservoir('dissipation', sites=leaves, exit=dissipation),
     ]
-    return System(components=[nodes], interactions=interactions, space=EuclideanSpace(2))
+    return System(components=[nodes], interactions=interactions, space=ContinuousSpace(n_dim=2))
 
 
 @register_model(

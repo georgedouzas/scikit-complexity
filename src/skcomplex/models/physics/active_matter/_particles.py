@@ -11,7 +11,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import cos, sin, sqrt
 
 from ....core.base import Domain, VisualSpec, parameter, state, vector
-from ....core.model import AgentType, ContinuousSpace, Element, EuclideanSpace, Law, Noise, Rate, Rule, Symbols, System
+from ....core.model import AgentType, ContinuousSpace, Element, Law, Noise, Rate, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, EulerMaruyama, ModelView
 
@@ -55,7 +55,7 @@ class ActiveParticle(Element):
     """
 
     visual: ClassVar[VisualSpec] = POINTS
-    x: npt.ArrayLike = state(default=0.0, vector=True)
+    x: npt.ArrayLike = state(default=0.0, vector=True, position=True)
     theta: float = state(default=0.0, domain=Domain.ANGLE)
     speed: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
     D_t: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
@@ -335,7 +335,7 @@ def active_brownian_particles(
     """
     positions, angles = _swimmers(n_particles, size, random_state)
     group = ActiveParticle.group('swimmers', n_particles, x=positions, theta=angles, speed=speed, D_t=D_t, D_r=D_r)
-    return System(components=[group], space=EuclideanSpace(2))
+    return System(components=[group], space=ContinuousSpace(n_dim=2))
 
 
 @register_model(
@@ -400,7 +400,7 @@ def chiral_active_particles(
         D_t=D_t,
         D_r=D_r,
     )
-    return System(components=[group], space=EuclideanSpace(2))
+    return System(components=[group], space=ContinuousSpace(n_dim=2))
 
 
 @register_model(
@@ -454,7 +454,7 @@ def active_ornstein_uhlenbeck_particles(
     positions = rng.uniform(0.0, size, (n_particles, 2))
     propulsion = rng.normal(0.0, math.sqrt(D / tau), (n_particles, 2))
     group = OrnsteinUhlenbeckParticle.group('swimmers', n_particles, x=positions, u=propulsion, tau=tau, D=D, D_t=D_t)
-    return System(components=[group], space=EuclideanSpace(2))
+    return System(components=[group], space=ContinuousSpace(n_dim=2))
 
 
 @register_model(
@@ -510,7 +510,7 @@ def run_and_tumble(
         tumble_rate=tumble_rate,
         width=size,
     )
-    return System(components=[group], space=ContinuousSpace(size, size, torus=True))
+    return System(components=[group], space=ContinuousSpace(size, size, boundary='periodic'))
 
 
 @register_model(
@@ -564,4 +564,4 @@ def depot_brownian_particles(
     """
     velocities = np.random.default_rng(random_state).normal(0.0, 0.01, (n_particles, 2))
     group = DepotParticle.group('walkers', n_particles, v=velocities, gamma=gamma, q=q, c=c, d=d, D=D)
-    return System(components=[group], space=EuclideanSpace(2))
+    return System(components=[group], space=ContinuousSpace(n_dim=2))

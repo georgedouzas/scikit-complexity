@@ -12,7 +12,7 @@ from skcomplex.core.base import BackendError, Domain, SolverError, parameter, ro
 from skcomplex.core.compile import NumbaBackend, NumpyBackend, compile_system
 from skcomplex.core.model import (
     Call,
-    EuclideanSpace,
+    ContinuousSpace,
     HarmonicPotential,
     Interaction,
     Jump,
@@ -20,7 +20,6 @@ from skcomplex.core.model import (
     PairPotential,
     Particle,
     Rate,
-    ReflectingBox,
     System,
     Update,
 )
@@ -123,9 +122,8 @@ def _lennard_jones_gas(n=400, period=None):
         components=[Particle.group('gas', n, x=grid + rng.normal(0, 0.05, (n, 2)), v=rng.normal(0, 1, (n, 2)))],
         interactions=[
             LennardJones('lj', first='gas', second='gas', cutoff=CUTOFF, period=period),
-            ReflectingBox('box', target='gas', size=size),
         ],
-        space=EuclideanSpace(2),
+        space=ContinuousSpace(size, size, boundary='reflecting'),
     )
 
 
@@ -153,7 +151,7 @@ def test_compile_unknown_backend_raises_error():
 
 def test_compile_auto_backend_depends_on_group_size():
     """Test that `auto` picks Numba for 1000 members and NumPy for two single elements."""
-    large = System(components=[Particle.group('gas', 1000)], space=EuclideanSpace(2))
+    large = System(components=[Particle.group('gas', 1000)], space=ContinuousSpace(n_dim=2))
     small = System(components=[Population('a'), Population('b')])
     assert compile_system(large).backend == 'numba'
     assert compile_system(small).backend == 'numpy'
@@ -186,7 +184,7 @@ def test_backends_agree_on_two_groups(numba_backend):
             Particle.group('b', 100, x=rng.uniform(3, 15, (100, 2))),
         ],
         interactions=[LennardJones('lj', first='a', second='b', cutoff=CUTOFF)],
-        space=EuclideanSpace(2),
+        space=ContinuousSpace(n_dim=2),
     )
     reference, compiled = compile_system(system, backend='numpy'), compile_system(system, backend=numba_backend)
     x, p = reference.initial_state, reference.initial_parameters
@@ -206,7 +204,7 @@ def test_numba_pair_forces_conserve_momentum(numba_backend):
     system = System(
         components=[_lennard_jones_gas().elements[0]],
         interactions=[LennardJones('lj', first='gas', second='gas', cutoff=CUTOFF)],
-        space=EuclideanSpace(2),
+        space=ContinuousSpace(n_dim=2),
     )
     problem = compile_system(system, backend=numba_backend)
     accelerations = problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'gas.v')
@@ -348,7 +346,7 @@ def test_velocity_verlet_conserves_energy(backend, numba_backend):
     system = System(
         components=[Particle.group('p', 1, x=[[1.0]], v=[[0.0]])],
         interactions=[HarmonicPotential('trap', target='p')],
-        space=EuclideanSpace(1),
+        space=ContinuousSpace(n_dim=1),
     )
     simulation = Simulation(
         system,

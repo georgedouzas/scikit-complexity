@@ -12,7 +12,6 @@ from ....core.model import (
     AgentType,
     Element,
     Field,
-    GridSpace,
     LatticeSpace,
     Law,
     Rate,
@@ -211,7 +210,7 @@ def pheromone_foraging(
     )
     return System(
         components=[
-            System('colony', components=[ants], space=GridSpace(width, height)),
+            System('colony', components=[ants], space=LatticeSpace((width, height), boundary='fixed')),
             System('ground', components=[pheromone]),
         ],
     )

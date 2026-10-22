@@ -29,13 +29,12 @@ from ..base import (
 from ..compile import CompiledElement, CompiledInteraction, Problem, Vector, compile_system
 from ..model import (
     ConstantForce,
+    ContinuousSpace,
     LangevinThermostat,
     LennardJones,
     LinearDrag,
     PairPotential,
     Particle,
-    PeriodicBox,
-    ReflectingBox,
     Symbols,
     System,
 )
@@ -44,7 +43,7 @@ from ._base import ExternalBackend
 from ._lepton import lepton_expression
 
 LAMMPS_ARGUMENTS = ['-screen', 'none', '-log', 'none', '-nocite']
-NATIVE_INTERACTIONS = (PairPotential, ReflectingBox, PeriodicBox, ConstantForce, LinearDrag, LangevinThermostat)
+NATIVE_INTERACTIONS = (PairPotential, ConstantForce, LinearDrag, LangevinThermostat)
 DIMENSIONS = ('x', 'y', 'z')
 MAX_SEED = 900_000_000
 SUPPORTED_DIMENSIONS = (2, 3)
@@ -139,24 +138,10 @@ def _check_elements(problem: Problem) -> list[str]:
     return unsupported
 
 
-def _check_boxes(problem: Problem) -> list[str]:
-    """Return the box combinations that LAMMPS cannot hold in one simulation box."""
-    periodic = [item for item in problem.interactions if isinstance(item.interaction, PeriodicBox)]
-    reflecting = [item for item in problem.interactions if isinstance(item.interaction, ReflectingBox)]
-    if not periodic:
-        return []
-    unsupported = []
-    if reflecting:
-        unsupported.append('periodic and reflecting boxes in one system')
-    sizes = {float(_parameter(problem, problem.initial_parameters, item.path, 'size')[0]) for item in periodic}
-    targets = {_role_path(item, 'target') for item in periodic}
-    if len(sizes) > 1 or targets != {element.path for element in problem.elements}:
-        unsupported.append('periodic boxes that do not share one size and hold every particle')
-    pairs = [item for item in problem.interactions if isinstance(item.interaction, PairPotential)]
-    for item in pairs:
-        if item.interaction.period not in sizes:
-            unsupported.append(f'pair interaction {item.path}, whose period does not match the periodic box')
-    return unsupported
+def _box(problem: Problem) -> ContinuousSpace | None:
+    """Return the continuous space of a problem when it is a box with walls or joined sides, or `None`."""
+    space = getattr(problem.system, 'space', None)
+    return space if isinstance(space, ContinuousSpace) and space.boundary != 'open' else None
 
 
 class LammpsBackend(ExternalBackend):
@@ -178,13 +163,13 @@ class LammpsBackend(ExternalBackend):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.backends import LammpsBackend
-        >>> from skcomplex.core.model import EuclideanSpace, System
+        >>> from skcomplex.core.model import ContinuousSpace, System
         >>> from skcomplex.core.model import LennardJones, Particle
         >>> from skcomplex.core.runtime import Simulation
         >>> system = System(
         ...     components=[Particle.group('gas', 2, x=[[0.0, 0.0], [1.5, 0.0]])],
         ...     interactions=[LennardJones('lj', first='gas', second='gas', cutoff=2.5)],
-        ...     space=EuclideanSpace(2),
+        ...     space=ContinuousSpace(n_dim=2),
         ... )
         >>> positions = Simulation(system, solver=LammpsBackend(dt=0.005), dt=0.1).run(until=0.5).trajectory_['gas.x']
         >>> bool(positions[-1, 1, 0] - positions[-1, 0, 0] < 1.5)
@@ -220,7 +205,6 @@ class LammpsBackend(ExternalBackend):
         unsupported = _check_elements(problem)
         if unsupported:
             return unsupported + [f'interaction {item.path}' for item in problem.interactions]
-        unsupported += _check_boxes(problem)
         for item in problem.interactions:
             if isinstance(item.interaction, PairPotential):
                 unsupported += self._check_pair(problem, item)
@@ -275,12 +259,11 @@ class LammpsBackend(ExternalBackend):
     def _box_commands(self, problem: Problem, x: Vector) -> list[str]:
         """Return the commands that create the simulation box."""
         atoms = self.atoms_
-        periodic = [item for item in problem.interactions if isinstance(item.interaction, PeriodicBox)]
+        box = _box(problem)
         positions = x[atoms.positions]
-        if periodic:
-            size = float(_parameter(problem, problem.initial_parameters, periodic[0].path, 'size')[0])
-            low, high = np.zeros(atoms.n_dim), np.full(atoms.n_dim, size)
-            boundary = ['p'] * atoms.n_dim
+        if box is not None:
+            low, high = np.zeros(atoms.n_dim), np.asarray(box.extent)
+            boundary = ['p' if box.boundary == 'periodic' else 'f'] * atoms.n_dim
         else:
             cutoffs = [
                 float(_parameter(problem, problem.initial_parameters, item.path, 'cutoff')[0])
@@ -338,14 +321,16 @@ class LammpsBackend(ExternalBackend):
         commands = ['fix nve all nve']
         if atoms.n_dim == SUPPORTED_DIMENSIONS[0]:
             commands.append('fix plane all enforce2d')
+        box = _box(problem)
+        if box is not None and box.boundary == 'reflecting':
+            walls = ' '.join(
+                f'{name}lo 0.0 {name}hi {side}' for name, side in zip(DIMENSIONS, box.extent, strict=False)
+            )
+            commands.append(f'fix walls all wall/reflect {walls}')
         for index, item in enumerate(problem.interactions):
             group = f'group{atoms.types[_role_path(item, "target")]}' if 'target' in item.roles else 'all'
             interaction = item.interaction
-            if isinstance(interaction, ReflectingBox):
-                size = float(_parameter(problem, p, item.path, 'size')[0])
-                walls = ' '.join(f'{name}lo 0.0 {name}hi {size}' for name in DIMENSIONS[: atoms.n_dim])
-                commands.append(f'fix wall{index} {group} wall/reflect {walls}')
-            elif isinstance(interaction, ConstantForce):
+            if isinstance(interaction, ConstantForce):
                 force = list(_parameter(problem, p, item.path, 'F')) + [0.0] * 3
                 commands.append(f'fix force{index} {group} addforce {force[0]} {force[1]} {force[2]}')
             elif isinstance(interaction, LinearDrag):

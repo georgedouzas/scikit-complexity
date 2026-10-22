@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.model import AgentType, GridSpace, Interaction, Law, NetworkSpace, Rule, Symbols, System
+from ....core.model import AgentType, Interaction, LatticeSpace, Law, NetworkSpace, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -406,5 +406,5 @@ def social_impact(
     return System(
         components=[people],
         interactions=[SocialImpact('impact', target='people')],
-        space=GridSpace(width, height, capacity=1),
+        space=LatticeSpace((width, height), boundary='fixed', capacity=1),
     )

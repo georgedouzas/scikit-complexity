@@ -8,7 +8,7 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter
-from ....core.model import AgentType, GridSpace, Law, Rule, Symbols, System
+from ....core.model import AgentType, LatticeSpace, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -200,5 +200,5 @@ def agent_based_lotka_volterra(
                 death=death,
             ),
         ],
-        space=GridSpace(width, height, torus=True),
+        space=LatticeSpace((width, height), boundary='periodic'),
     )

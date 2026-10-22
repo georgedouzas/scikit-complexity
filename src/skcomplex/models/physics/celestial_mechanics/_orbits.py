@@ -12,7 +12,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos
 
 from ....core.base import Domain, ValidationError, VisualSpec, parameter, state
-from ....core.model import Element, EuclideanSpace, Gravity, Particle, Rate, System, derivative
+from ....core.model import ContinuousSpace, Element, Gravity, Particle, Rate, System, derivative
 from ....core.runtime import register_model
 
 FIGURE_EIGHT = {
@@ -114,7 +114,7 @@ def two_body_orbit(
     return System(
         components=[Particle('star', m=mass), Particle('planet', x=[radius, 0.0], v=[0.0, speed], m=1e-6)],
         interactions=[Gravity('gravity', first='star', second='planet', G=G)],
-        space=EuclideanSpace(2),
+        space=ContinuousSpace(n_dim=2),
     )
 
 
@@ -181,7 +181,7 @@ def n_body(
         Gravity(f'gravity_{first}_{second}', first=f'body_{first}', second=f'body_{second}', G=G)
         for first, second in itertools.combinations(range(len(bodies)), 2)
     ]
-    return System(components=bodies, interactions=attractions, space=EuclideanSpace(2))
+    return System(components=bodies, interactions=attractions, space=ContinuousSpace(n_dim=2))
 
 
 @register_model(

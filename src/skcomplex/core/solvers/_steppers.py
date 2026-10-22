@@ -879,14 +879,14 @@ class VelocityVerlet(Stepper):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.core.model import EuclideanSpace, System
+        >>> from skcomplex.core.model import ContinuousSpace, System
         >>> from skcomplex.core.model import ConstantForce, Particle
         >>> from skcomplex.core.solvers import VelocityVerlet
         >>> problem = compile_system(
         ...     System(
         ...         components=[Particle('ball')],
         ...         interactions=[ConstantForce('push', target='ball', F=2.0)],
-        ...         space=EuclideanSpace(1),
+        ...         space=ContinuousSpace(n_dim=1),
         ...     ),
         ... )
         >>> stepper = VelocityVerlet(dt=0.1)

@@ -15,7 +15,7 @@ import rerun.blueprint as rrb
 
 from ..base import Domain, Registry, VisualSpec
 from ..compile import CompiledAgents, CompiledElement, Problem
-from ..model import ContinuousSpace, GridSpace, LatticeSpace, NetworkSpace, Space
+from ..model import ContinuousSpace, LatticeSpace, NetworkSpace, Space
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
 
@@ -549,7 +549,7 @@ class AgentsVisual(Visual):
         """Return the given radius, a radius in cells on grids and networks, or a share of the side of other spaces."""
         if self.radius is not None:
             return float(self.radius)
-        if space is None or isinstance(space, GridSpace | NetworkSpace):
+        if space is None or isinstance(space, LatticeSpace | NetworkSpace):
             return GRID_RADIUS
         if isinstance(space, ContinuousSpace):
             return _radius_of(float(max(space.width, space.height)), len(positions))
@@ -631,7 +631,7 @@ class AgentsVisual(Visual):
             )
             return
         positions = np.asarray(snapshot.locations, dtype=float).reshape(len(snapshot), -1)
-        if isinstance(space, GridSpace):
+        if isinstance(space, LatticeSpace):
             positions = positions + 0.5
         if isinstance(space, ContinuousSpace):
             positions = positions * UPWARD

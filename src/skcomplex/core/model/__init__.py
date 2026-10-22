@@ -86,9 +86,7 @@ from ._particles import (
     LinearDrag,
     PairPotential,
     Particle,
-    PeriodicBox,
     Potential,
-    ReflectingBox,
     SoftSphere,
     Spring,
 )
@@ -119,7 +117,7 @@ from ._rewriting import (
     Turtle,
     Word,
 )
-from ._spaces import Adjacency, ContinuousSpace, EuclideanSpace, GridSpace, NetworkSpace, Space
+from ._spaces import Adjacency, ContinuousSpace, NetworkSpace, Space
 from ._symbols import Symbols
 from ._systems import MesaSystem, System
 from ._time import ContinuousTime, DiscreteTime, Phases, StaticTime, Time
@@ -151,7 +149,6 @@ __all__: list[
     'Emission',
     'Energy',
     'Equation',
-    'EuclideanSpace',
     'Event',
     'Exchange',
     'Extremal',
@@ -161,7 +158,6 @@ __all__: list[
     'FractionalNoise',
     'GraphProduction',
     'Gravity',
-    'GridSpace',
     'Group',
     'Hamiltonian',
     'HarmonicPotential',
@@ -196,7 +192,6 @@ __all__: list[
     'PairPotential',
     'Particle',
     'Patch',
-    'PeriodicBox',
     'Phase',
     'Potential',
     'Production',
@@ -208,7 +203,6 @@ __all__: list[
     'Rate',
     'RationedQueue',
     'Reduction',
-    'ReflectingBox',
     'Relaxation',
     'Renewal',
     'Rewrite',

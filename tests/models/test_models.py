@@ -5,7 +5,7 @@ import pytest
 
 from skcomplex.core.base import Form
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import ConstantForce, EuclideanSpace, Gravity, LinearDrag, Particle, Spring, System
+from skcomplex.core.model import ConstantForce, ContinuousSpace, Gravity, LinearDrag, Particle, Spring, System
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import ScipyODE
 from skcomplex.models.biology.ecology import LogisticGrowth, Mortality, Population, Predation
@@ -20,7 +20,7 @@ def test_particle_constant_acceleration():
     system = System(
         components=[Particle('p', m=2.0)],
         interactions=[ConstantForce('push', target='p', F=[4.0, 0.0, -2.0])],
-        space=EuclideanSpace(3),
+        space=ContinuousSpace(n_dim=3),
     )
     position = Simulation(system, dt=0.5).run(until=2).trajectory_['p.x'][-1]
     assert np.allclose(position, [4.0, 0.0, -2.0])
@@ -31,7 +31,7 @@ def test_spring_conserves_energy():
     system = System(
         components=[Particle('a', x=[0.0, 0.0], v=[0.0, 1.0]), Particle('b', x=[2.0, 0.0], m=2.0)],
         interactions=[Spring('spring', first='a', second='b', k=3.0, length=1.0)],
-        space=EuclideanSpace(2),
+        space=ContinuousSpace(n_dim=2),
     )
     trajectory = Simulation(system, solver=ScipyODE(rtol=1e-10, atol=1e-12), dt=0.1).run(until=5).trajectory_
     kinetic = 0.5 * (trajectory['a.v'] ** 2).sum(axis=1) + 0.5 * 2.0 * (trajectory['b.v'] ** 2).sum(axis=1)
@@ -45,7 +45,7 @@ def test_gravity_keeps_circular_orbit():
     system = System(
         components=[Particle('sun', m=1000.0), Particle('planet', x=[10.0, 0.0], v=[0.0, 10.0], m=1e-6)],
         interactions=[Gravity('gravity', first='sun', second='planet', G=1.0)],
-        space=EuclideanSpace(2),
+        space=ContinuousSpace(n_dim=2),
     )
     trajectory = Simulation(system, solver=ScipyODE(rtol=1e-10, atol=1e-12), dt=0.5).run(until=6).trajectory_
     radius = np.linalg.norm(trajectory['planet.x'] - trajectory['sun.x'], axis=1)
@@ -57,7 +57,7 @@ def test_linear_drag_slows_particle():
     system = System(
         components=[Particle('p', v=1.0)],
         interactions=[LinearDrag('air', target='p', gamma=0.5)],
-        space=EuclideanSpace(1),
+        space=ContinuousSpace(n_dim=1),
     )
     velocity = Simulation(system, dt=0.5).run(until=2).trajectory_['p.v'][-1, 0]
     assert velocity == pytest.approx(np.exp(-1.0), rel=1e-4)

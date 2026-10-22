@@ -6,7 +6,7 @@
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, Expression, parameter, role
-from ....core.model import EuclideanSpace, Particle, Potential, Symbols, System
+from ....core.model import ContinuousSpace, Particle, Potential, Symbols, System
 from ....core.runtime import register_model
 
 
@@ -85,5 +85,5 @@ def particle_in_a_well(x: float = 1.0, v: float = 0.5, *, k: float = 2.0, m: flo
     return System(
         components=[Particle('particle', x=x, v=v, m=m)],
         interactions=[ExponentialWell('well', target='particle', k=k)],
-        space=EuclideanSpace(1),
+        space=ContinuousSpace(n_dim=1),
     )

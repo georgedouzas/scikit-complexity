@@ -9,7 +9,7 @@ import networkx as nx
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import AgentType, GridSpace, Law, NetworkSpace, Rule, Symbols, System
+from ....core.model import AgentType, LatticeSpace, Law, NetworkSpace, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -409,7 +409,7 @@ def agent_based_sir(
         lockdown_length=lockdown_length,
         lockdown_d=lockdown_d,
     )
-    return System(components=[group], space=GridSpace(width, height, neighborhood='von_neumann'))
+    return System(components=[group], space=LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann'))
 
 
 @register_model(
@@ -473,7 +473,7 @@ def random_walker_epidemics(
     if graph is None:
         cells = rng.integers(0, [width, height], size=(walkers, 2))
         locations: list[object] = [tuple(int(item) for item in cell) for cell in cells]
-        space: GridSpace | NetworkSpace = GridSpace(width, height, neighborhood='von_neumann')
+        space: LatticeSpace | NetworkSpace = LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann')
     else:
         nodes = list(nx.nodes(graph))
         locations = [nodes[int(pick)] for pick in rng.integers(0, len(nodes), size=walkers)]

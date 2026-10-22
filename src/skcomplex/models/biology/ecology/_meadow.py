@@ -8,7 +8,7 @@ from typing import Any, ClassVar, cast
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.model import AgentType, GridSpace, Interaction, Law, Rule, Symbols, System
+from ....core.model import AgentType, Interaction, LatticeSpace, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -278,5 +278,5 @@ def meadow_capacity(
             Grazing('grazing', cows='cows', pasture='pasture'),
             Herding('herding', cows='cows', pasture='pasture', threshold=threshold),
         ],
-        space=GridSpace(width, height),
+        space=LatticeSpace((width, height), boundary='fixed'),
     )

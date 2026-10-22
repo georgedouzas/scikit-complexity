@@ -12,7 +12,6 @@ from skcomplex.core.model import (
     AgentType,
     Element,
     Field,
-    GridSpace,
     Group,
     LatticeSpace,
     NetworkSpace,
@@ -156,7 +155,11 @@ def test_agents_read_and_deposit_fields():
     Still = Element.define('Still', states={'u': 0.0}, laws=lambda s: [Rate(s.u, 0 * laplacian(s.u))])
     system = System(
         components=[
-            System('walkers', components=[Marker.group('markers', 1, location=(1, 2))], space=GridSpace(4, 3)),
+            System(
+                'walkers',
+                components=[Marker.group('markers', 1, location=(1, 2))],
+                space=LatticeSpace((4, 3), boundary='fixed'),
+            ),
             System('ground', components=[Field('level', Still, LatticeSpace((4, 3)))]),
         ],
     )

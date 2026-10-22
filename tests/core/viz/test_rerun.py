@@ -13,10 +13,9 @@ from skcomplex.core.compile import compile_system
 from skcomplex.core.model import (
     AgentType,
     ConstantForce,
+    ContinuousSpace,
     Element,
-    EuclideanSpace,
     Field,
-    GridSpace,
     LatticeSpace,
     Particle,
     Rate,
@@ -86,7 +85,7 @@ def test_points_visual_logs_positions(n_dim, archetype):
     system = System(
         components=[Particle('ball')],
         interactions=[ConstantForce('push', target='ball', F=1.0)],
-        space=EuclideanSpace(n_dim),
+        space=ContinuousSpace(n_dim=n_dim),
     )
     simulation = Simulation(system).run(until=0.0)
     recording = LoggedPaths()
@@ -172,7 +171,7 @@ def test_points_colored_by_speed_follow_the_color_scale():
     """Test that faster members get colors further along the color scale."""
     system = System(
         components=[Particle.group('gas', 3, v=[[0.1, 0.0], [1.0, 0.0], [2.0, 0.0]])],
-        space=EuclideanSpace(2),
+        space=ContinuousSpace(n_dim=2),
     )
     simulation = Simulation(system).run(until=0.0)
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
@@ -240,7 +239,7 @@ def test_removed_agents_disappear_from_logs(monkeypatch, tmp_path):
     logged = _agent_logs(
         monkeypatch,
         tmp_path,
-        System(components=[Mortal.group('mortals', 3)], space=GridSpace(5, 5)),
+        System(components=[Mortal.group('mortals', 3)], space=LatticeSpace((5, 5), boundary='fixed')),
         1,
     )
     batches = [archetype for path, archetype in logged if path == 'mortals']

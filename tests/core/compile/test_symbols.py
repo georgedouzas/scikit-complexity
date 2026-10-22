@@ -5,7 +5,7 @@ import sympy  # noqa: TID251  # the test passes a SymPy expression to check that
 
 from skcomplex.core.base import Domain, Expression, SymbolicVector, ValidationError, domain_of, role
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import EuclideanSpace, Interaction, Particle, Rate, System
+from skcomplex.core.model import ContinuousSpace, Interaction, Particle, Rate, System
 from skcomplex.models.biology.ecology import Population
 
 RECEIVED: dict[str, object] = {}
@@ -34,7 +34,11 @@ class SympyGrowth(Interaction):
 
 def test_components_receive_sage_symbols_and_vectors():
     """Test that scalar symbols are Sage expressions with their domains and vector states are Sage vectors."""
-    system = System(components=[Particle('p')], interactions=[Recorder('record', target='p')], space=EuclideanSpace(3))
+    system = System(
+        components=[Particle('p')],
+        interactions=[Recorder('record', target='p')],
+        space=ContinuousSpace(n_dim=3),
+    )
     compile_system(system)
     assert isinstance(RECEIVED['x'], SymbolicVector)
     assert len(RECEIVED['x']) == 3

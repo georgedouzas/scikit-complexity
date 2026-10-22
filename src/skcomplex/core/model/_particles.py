@@ -25,8 +25,7 @@ from ..base import (
     vector,
 )
 from ._components import Element, Interaction, PairInteraction
-from ._functions import either, mod, where
-from ._laws import Boundary, Law, Noise, Rate
+from ._laws import Law, Noise, Rate
 from ._symbols import Symbols
 
 
@@ -63,8 +62,8 @@ class Particle(Element):
     requires: ClassVar[Requires] = Requires(space={SpaceKind.CONTINUOUS})
 
     visual: ClassVar[VisualSpec] = VisualSpec('points', {'position': 'x'})
-    x: npt.ArrayLike = state(default=0.0, vector=True)
-    v: npt.ArrayLike = state(default=0.0, vector=True)
+    x: npt.ArrayLike = state(default=0.0, vector=True, position=True)
+    v: npt.ArrayLike = state(default=0.0, vector=True, velocity_of='x')
     m: float = parameter(default=1.0, domain=Domain.POSITIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
@@ -326,91 +325,6 @@ class Gravity(Potential):
                 The potential energy as a symbolic expression.
         """
         return -s.G * s.first.m * s.second.m / _distance(s.first.x, s.second.x)
-
-
-class ReflectingBox(Interaction):
-    """Box `[0, size]` in every dimension whose walls reflect particles elastically.
-
-    A particle that crosses a wall during a step is mirrored back into the box and the velocity component normal to
-    the wall changes sign.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The path of the particle or particle group.
-
-        size:
-            The side of the box.
-
-    Examples:
-        >>> from skcomplex.core.model import ReflectingBox
-        >>> ReflectingBox('box', target='gas', size=2.0).size
-        2.0
-    """
-
-    target: str = role()
-    size: float = parameter(default=1.0, domain=Domain.POSITIVE)
-
-    def laws(self, s: Symbols) -> list[Law]:
-        """Return the reflection of every position and velocity component at the walls.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        laws: list[Law] = []
-        for position, velocity in zip(s.target.x, s.target.v, strict=True):
-            below, above = position < 0, position > s.size
-            mirrored = where(below, -position, where(above, 2 * s.size - position, position))
-            laws += [
-                Boundary(position, mirrored),
-                Boundary(velocity, where(either(below, above), -velocity, velocity)),
-            ]
-        return laws
-
-
-class PeriodicBox(Interaction):
-    """Box `[0, size)` in every dimension whose opposite sides are joined.
-
-    A particle that leaves through one side reappears at the opposite side with the same velocity.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The path of the particle or particle group.
-
-        size:
-            The side of the box.
-
-    Examples:
-        >>> from skcomplex.core.model import PeriodicBox
-        >>> PeriodicBox('box', target='gas').size
-        1.0
-    """
-
-    target: str = role()
-    size: float = parameter(default=1.0, domain=Domain.POSITIVE)
-
-    def laws(self, s: Symbols) -> list[Law]:
-        """Return the wrap of every position component into the box.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [Boundary(position, mod(position, s.size)) for position in s.target.x]
 
 
 class PairPotential(PairInteraction):

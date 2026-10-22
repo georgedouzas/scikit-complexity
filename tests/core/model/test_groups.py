@@ -8,8 +8,8 @@ from skcomplex.core.base import RoleError, ValidationError, VisualSpec
 from skcomplex.core.compile import compile_system
 from skcomplex.core.model import (
     Boundary,
+    ContinuousSpace,
     Element,
-    EuclideanSpace,
     Group,
     Interaction,
     LatticeSpace,
@@ -41,13 +41,13 @@ def test_group_stores_arguments():
 
 def test_group_position_state_has_member_shape():
     """Test that a group's vector state has one row per member."""
-    system = System(components=[Particle.group('gas', 1000, x=np.zeros((1000, 2)))], space=EuclideanSpace(2))
+    system = System(components=[Particle.group('gas', 1000, x=np.zeros((1000, 2)))], space=ContinuousSpace(n_dim=2))
     assert compile_system(system).states.entry('gas.x').shape == (1000, 2)
 
 
 def test_group_wrong_number_of_values_raises_error():
     """Test that a group with the wrong number of values names the group, variable, and sizes."""
-    system = System(components=[Particle.group('gas', 1000, x=np.zeros((999, 2)))], space=EuclideanSpace(2))
+    system = System(components=[Particle.group('gas', 1000, x=np.zeros((999, 2)))], space=ContinuousSpace(n_dim=2))
     with pytest.raises(ValidationError, match=r'gas\.x .*999 values .* 1000 members'):
         compile_system(system)
 
@@ -142,7 +142,7 @@ def test_pair_interaction_rejects_other_law_kinds():
     system = System(
         components=[Particle.group('gas', 3)],
         interactions=[Attraction('pull', first='gas', second='gas')],
-        space=EuclideanSpace(2),
+        space=ContinuousSpace(n_dim=2),
     )
     with pytest.raises(ValidationError, match='laws other than Rate'):
         compile_system(system)

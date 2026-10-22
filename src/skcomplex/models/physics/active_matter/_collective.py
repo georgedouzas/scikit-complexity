@@ -12,15 +12,14 @@ from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import Domain, VisualSpec, parameter, state
 from ....core.model import (
+    ContinuousSpace,
     Element,
-    EuclideanSpace,
     Field,
     LatticeSpace,
     Law,
     Noise,
     PairInteraction,
     Particle,
-    PeriodicBox,
     Rate,
     Symbols,
     System,
@@ -297,7 +296,7 @@ def _active_disks(
     """Return active Brownian disks in a periodic box, without pair interactions."""
     positions, angles = _disks(n_particles, size, random_state)
     group = ActiveParticle.group('swimmers', n_particles, x=positions, theta=angles, speed=speed, D_t=0.0, D_r=D_r)
-    return System(components=[group], interactions=[PeriodicBox('box', target='swimmers', size=size)])
+    return System(components=[group], space=ContinuousSpace(size, size, boundary='periodic'))
 
 
 @register_model(
@@ -346,13 +345,13 @@ def motility_induced_phase_separation(
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import motility_induced_phase_separation
-        >>> motility_induced_phase_separation(16).interactions[1].k
+        >>> motility_induced_phase_separation(16).interactions[0].k
         50.0
     """
     size = math.sqrt(n_particles * math.pi / 4 / packing_fraction)
     system = _active_disks(n_particles, size, speed, D_r, random_state)
     repulsion = SoftRepulsion('contact', first='swimmers', second='swimmers', cutoff=1.0, period=size, k=k)
-    return System(components=system.elements, interactions=[*system.interactions, repulsion], space=EuclideanSpace(2))
+    return System(components=system.elements, interactions=[*system.interactions, repulsion], space=system.space)
 
 
 @register_model(
@@ -408,7 +407,7 @@ def living_crystals(
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import living_crystals
-        >>> living_crystals(16).interactions[2].v0
+        >>> living_crystals(16).interactions[1].v0
         20.0
     """
     system = _active_disks(n_particles, size, speed, D_r, random_state)
@@ -423,7 +422,7 @@ def living_crystals(
         R=1.0,
     )
     interactions = [*system.interactions, repulsion, attraction]
-    return System(components=system.elements, interactions=interactions, space=EuclideanSpace(2))
+    return System(components=system.elements, interactions=interactions, space=system.space)
 
 
 @register_model(
@@ -486,7 +485,7 @@ def cucker_smale_flocking(
         beta=beta,
         n_agents=n_agents,
     )
-    return System(components=[birds], interactions=[alignment], space=EuclideanSpace(2))
+    return System(components=[birds], interactions=[alignment], space=ContinuousSpace(n_dim=2))
 
 
 @register_model(

@@ -7,7 +7,7 @@ from sage.all__sagemath_symbolics import SR, cos, function, sqrt
 from skcomplex.core.analysis import equations_of, solve_symbolically
 from skcomplex.core.base import AnalysisError, role
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import ConstantForce, EuclideanSpace, HarmonicPotential, Interaction, Particle, Rate, System
+from skcomplex.core.model import ConstantForce, ContinuousSpace, HarmonicPotential, Interaction, Particle, Rate, System
 from skcomplex.core.runtime import Simulation
 from skcomplex.models.biology.ecology import LogisticGrowth, Population
 from skcomplex.models.biology.epidemiology import Compartment, Recovery
@@ -48,7 +48,7 @@ def test_equations_of_jump_process_raises_error():
 
 def test_solve_symbolically_free_particle():
     """Test that a free particle moves linearly with two integration constants."""
-    system = System(components=[Particle('p')], space=EuclideanSpace(1))
+    system = System(components=[Particle('p')], space=ContinuousSpace(n_dim=1))
     solution = solve_symbolically(system)['p.x[0]']
     t = compile_system(system).time
     slope, start = solution.rhs().diff(t), solution.rhs().subs({t: 0})
@@ -63,7 +63,7 @@ def test_solve_symbolically_constant_acceleration():
     system = System(
         components=[Particle('p')],
         interactions=[ConstantForce('push', target='p', F=3.0)],
-        space=EuclideanSpace(1),
+        space=ContinuousSpace(n_dim=1),
     )
     problem = compile_system(system)
     (F,) = problem.symbols['push.F']
@@ -77,7 +77,7 @@ def test_solve_symbolically_harmonic_oscillator():
     system = System(
         components=[Particle('p', x=1.0, v=0.0)],
         interactions=[HarmonicPotential('trap', target='p')],
-        space=EuclideanSpace(1),
+        space=ContinuousSpace(n_dim=1),
     )
     problem = compile_system(system)
     k, m, t = problem.symbols['trap.k'], problem.symbols['p.m'], problem.time
@@ -111,7 +111,7 @@ def test_sage_expression_compiles_like_number():
     system = System(
         components=[Particle('p')],
         interactions=[ConstantForce('push', target='p', F=float(force))],
-        space=EuclideanSpace(1),
+        space=ContinuousSpace(n_dim=1),
     )
 
     class SageForce(Interaction):
@@ -126,7 +126,7 @@ def test_sage_expression_compiles_like_number():
     sage_system = System(
         components=[Particle('p')],
         interactions=[SageForce('push', target='p')],
-        space=EuclideanSpace(1),
+        space=ContinuousSpace(n_dim=1),
     )
     expected = Simulation(system).run(until=1).trajectory_['p.x']
     result = Simulation(sage_system).run(until=1).trajectory_['p.x']

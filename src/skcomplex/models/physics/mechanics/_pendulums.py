@@ -10,9 +10,9 @@ from sage.all__sagemath_symbolics import cos, sign, sin, sqrt
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
 from ....core.model import (
+    ContinuousSpace,
     Element,
     Equation,
-    EuclideanSpace,
     Event,
     HarmonicPotential,
     Interaction,
@@ -583,7 +583,7 @@ def magnetic_pendulum(
             LinearDrag('friction', target='bob', gamma=q),
             *magnets,
         ],
-        space=EuclideanSpace(2),
+        space=ContinuousSpace(n_dim=2),
     )
 
 

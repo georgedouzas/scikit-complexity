@@ -40,7 +40,7 @@ through the conformance suite.
   - phases to the schedule of discrete time.
 - [x] 3.2 Add the time kinds with inference and the synchronous, random-sequential, and phases schedules, and static
   time validated; solving static systems is specified by `add-static-models`.
-- [ ] 3.3 Unify the space kinds across time classes:
+- [x] 3.3 Unify the space kinds across time classes:
   - boundary conditions on the space;
   - hyperedges on networks;
   - agent spaces as the same kinds.

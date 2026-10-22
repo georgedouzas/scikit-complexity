@@ -67,6 +67,13 @@ class Variable:
         history:
             The values of a state before the start, which delayed laws read, a number or a function of time, or `None`
             to keep the initial value before the start.
+
+        position:
+            Whether a vector state is the position of its component in a continuous space, on which the boundary of
+            the space acts.
+
+        velocity_of:
+            The position state whose rate a vector state is, which a reflecting boundary reverses, or `None`.
     """
 
     kind: VariableKind
@@ -82,6 +89,8 @@ class Variable:
     per: str | None = None
     quantity: str | None = None
     history: Any = None
+    position: bool = False
+    velocity_of: str | None = None
 
 
 def _declare_field(default: Any, declaration: Variable) -> Any:
@@ -103,6 +112,8 @@ def state(
     initial: Sequence[Any] = (),
     quantity: str | None = None,
     history: Any = None,
+    position: bool = False,
+    velocity_of: str | None = None,
 ) -> Any:
     """Declare a state variable of an element, with its initial value as default.
 
@@ -137,6 +148,13 @@ def state(
         history:
             The values of the state before the start, which delayed laws read, a number or a function of time, or
             `None` to keep the initial value before the start.
+
+        position:
+            Whether a vector state is the position of its component in a continuous space, on which the boundary of
+            the space acts.
+
+        velocity_of:
+            The position state whose rate a vector state is, which a reflecting boundary of the space reverses.
 
     Returns:
         field:
@@ -173,6 +191,8 @@ def state(
         tuple(initial),
         quantity=quantity,
         history=history,
+        position=position,
+        velocity_of=velocity_of,
     )
     return _declare_field(default, declaration)
 

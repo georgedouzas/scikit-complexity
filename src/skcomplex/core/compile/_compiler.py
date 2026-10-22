@@ -46,6 +46,7 @@ from ..model import (
     Auxiliary,
     Boundary,
     Call,
+    ContinuousSpace,
     Drive,
     Element,
     Emission,
@@ -81,13 +82,16 @@ from ..model import (
     Transition,
     Update,
     count,
+    either,
     has_reductions,
     maximum,
     mean,
     minimum,
+    mod,
     reductions_in,
     total,
     variance,
+    where,
 )
 from ..model._laws import NOISE_CONVENTIONS
 from ._backends import Backend, resolve_backend
@@ -819,6 +823,20 @@ def _settle_rows(spec: _KernelSpec, laws: list[Law]) -> None:
     spec.rows = spec.groups[spec.group] if spec.group is not None else 1
 
 
+def _space_period(node: Node) -> float | None:
+    """Return the side of the periodic box that a pair interaction measures minimum image distances in, or `None`."""
+    space = node.space
+    if not isinstance(space, ContinuousSpace) or space.boundary != 'periodic':
+        return None
+    if len(set(space.extent)) > 1:
+        error_msg = (
+            f'Pair interaction {node.path} lives in the periodic box {space.extent}, whose sides differ. Pair searches '
+            'measure minimum image distances in boxes with equal sides.'
+        )
+        raise ValidationError(error_msg)
+    return space.extent[0]
+
+
 def _pair_spec(block: _Block, elements: dict[str, _Block], time: Expression) -> _KernelSpec:
     """Return the kernel spec of a pair interaction that is evaluated once per pair within its cutoff."""
     node = block.node
@@ -835,7 +853,8 @@ def _pair_spec(block: _Block, elements: dict[str, _Block], time: Expression) -> 
     second_namespace, second_references = second.namespace(Source.SECOND, alias='_pair')
     references.update(first_references)
     references.update(second_references)
-    pairs = PairSearch(first.entries[position], second.entries[position], block.entries['cutoff'], interaction.period)
+    period = interaction.period if interaction.period is not None else _space_period(node)
+    pairs = PairSearch(first.entries[position], second.entries[position], block.entries['cutoff'], period)
     namespace = Symbols(t=time, **vars(parameters), first=first_namespace, second=second_namespace)
     paths: dict[str, str | tuple[str, ...]] = {'first': first.node.path, 'second': second.node.path}
     return _KernelSpec(node.path, namespace, references, 0, pairs, roles=paths)
@@ -2365,6 +2384,38 @@ def _checked_fractional(spec: _KernelSpec, laws: list[Law], declarations: _Decla
     return result
 
 
+def _space_boundary_laws(block: _Block, spec: _KernelSpec) -> list[Law]:
+    """Return the laws by which the boundary of a continuous space acts on the position states of a component.
+
+    A periodic boundary wraps every position component into the box. A reflecting boundary mirrors a position that
+    crossed a wall back into the box and reverses the velocity component across the wall, where the velocity is the
+    state declared as the rate of the position, or the first derivative of a second-order position.
+    """
+    space = block.node.space
+    if _is_interaction(block.node) or not isinstance(space, ContinuousSpace) or space.boundary == 'open':
+        return []
+    declarations = declarations_of(block.node.component_type, VariableKind.STATE)
+    laws: list[Law] = []
+    for name, declaration in declarations.items():
+        if not declaration.position:
+            continue
+        velocity_name = next(
+            (other for other, item in declarations.items() if item.velocity_of == name),
+            f'{name}_d1' if declaration.order > 1 else None,
+        )
+        positions = components_of(getattr(spec.namespace, name))
+        velocities = components_of(getattr(spec.namespace, velocity_name)) if velocity_name else [None] * len(positions)
+        for position, velocity, side in zip(positions, velocities, space.extent, strict=True):
+            if space.boundary == 'periodic':
+                laws.append(Boundary(position, mod(position, side)))
+                continue
+            below, above = position < 0, position > side
+            laws.append(Boundary(position, where(below, -position, where(above, 2 * side - position, position))))
+            if velocity is not None:
+                laws.append(Boundary(velocity, where(either(below, above), -velocity, velocity)))
+    return laws
+
+
 def _collected_laws(
     blocks: list[_Block],
     elements: dict[str, _Block],
@@ -2380,7 +2431,7 @@ def _collected_laws(
         for spec in _specs_of(block, elements, time, observe):
             laws, matrices = markov_laws(
                 spec.owner,
-                _collect_laws(spec, _component_of(block.node), flows),
+                [*_collect_laws(spec, _component_of(block.node), flows), *_space_boundary_laws(block, spec)],
                 spec.references,
             )
             laws = _checked_fractional(spec, laws, declarations)

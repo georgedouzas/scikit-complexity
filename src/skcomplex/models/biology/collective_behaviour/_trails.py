@@ -12,7 +12,6 @@ from ....core.model import (
     AgentType,
     Element,
     Field,
-    GridSpace,
     LatticeSpace,
     Law,
     Rate,
@@ -253,7 +252,7 @@ def active_walkers(
     ground = Field('ground', Ground, LatticeSpace((size, size), boundary='reflecting'), values={'T': T})
     return System(
         components=[
-            System('people', components=[walkers], space=GridSpace(size, size)),
+            System('people', components=[walkers], space=LatticeSpace((size, size), boundary='fixed')),
             System('land', components=[ground]),
         ],
     )

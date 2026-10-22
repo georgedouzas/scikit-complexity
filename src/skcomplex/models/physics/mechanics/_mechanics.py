@@ -9,9 +9,9 @@ from sage.all__sagemath_symbolics import cos, sin
 from ....core.base import Domain, VisualSpec, parameter, state
 from ....core.model import (
     ConstantForce,
+    ContinuousSpace,
     Element,
     Equation,
-    EuclideanSpace,
     Event,
     HarmonicPotential,
     Interaction,
@@ -77,7 +77,7 @@ def projectile(speed: float = 10.0, angle: float = 45.0, *, mass: float = 1.0, d
     return System(
         components=[Particle('ball', x=[0.0, 0.0], v=velocity, m=mass)],
         interactions=interactions,
-        space=EuclideanSpace(2),
+        space=ContinuousSpace(n_dim=2),
     )
 
 
@@ -128,7 +128,7 @@ def harmonic_oscillator(
     return System(
         components=[Particle('mass', x=x, v=v, m=mass)],
         interactions=interactions,
-        space=EuclideanSpace(1),
+        space=ContinuousSpace(n_dim=1),
     )
 
 

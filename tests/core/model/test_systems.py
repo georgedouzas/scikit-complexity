@@ -1,14 +1,19 @@
 """Test systems defined by their components, interactions, space, and time."""
 
+import networkx as nx
 import pytest
 
 from skcomplex.core.base import Domain, ValidationError, parameter, role, state
 from skcomplex.core.compile import validate
 from skcomplex.core.model import (
+    ContinuousSpace,
     ContinuousTime,
     DiscreteTime,
     Element,
     Interaction,
+    LatticeSpace,
+    NetworkSpace,
+    Particle,
     Phase,
     Phases,
     Rate,
@@ -133,3 +138,39 @@ def test_static_time_rejects_dynamic_laws():
     """Test that a static system holding a rate law is reported."""
     system = System(components=[Stock('a')], interactions=[Growth('g', target='a')], time=StaticTime())
     assert [issue.code for issue in validate(system).errors] == ['law-time']
+
+
+def test_periodic_space_wraps_positions_without_box_component():
+    """Test that a particle crossing the side of a periodic space re-enters on the opposite side."""
+    system = System(
+        components=[Particle('p', x=[0.9, 0.5], v=[1.0, 0.0])],
+        space=ContinuousSpace(1.0, 1.0, boundary='periodic'),
+    )
+    trajectory = Simulation(system, dt=0.2).run(until=0.2).trajectory_
+    assert trajectory['p.x'][-1].tolist() == pytest.approx([0.1, 0.5])
+    assert system.interactions == ()
+
+
+def test_continuous_space_checks_its_box():
+    """Test that an unbounded space rejects walls and a box needs one positive side per dimension."""
+    with pytest.raises(ValidationError, match='unbounded'):
+        ContinuousSpace(n_dim=2, boundary='periodic')
+    with pytest.raises(ValidationError, match='positive side'):
+        ContinuousSpace(1.0, -1.0)
+    with pytest.raises(ValidationError, match='boundary'):
+        ContinuousSpace(1.0, boundary='sticky')
+
+
+def test_agents_and_fields_share_one_lattice_kind():
+    """Test that agents and fields both live on lattice spaces, which declare agent neighbourhoods and capacities."""
+    space = LatticeSpace((4, 3), boundary='periodic', neighborhood='von_neumann', capacity=1)
+    assert (space.width, space.height, space.torus, space.capacity) == (4, 3, True, 1)
+    assert str(space.space_kind) == 'lattice'
+
+
+def test_network_hyperedges_hold_nodes_of_the_graph():
+    """Test that a hyperedge needs at least two nodes of the graph."""
+    graph = nx.complete_graph(3)
+    assert NetworkSpace(graph, hyperedges=[(0, 1, 2)]).hyperedges == [(0, 1, 2)]
+    with pytest.raises(ValidationError, match='hyperedge'):
+        NetworkSpace(graph, hyperedges=[(0, 7)])

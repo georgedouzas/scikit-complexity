@@ -11,8 +11,8 @@ from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, state, vector
 from ....core.model import (
+    ContinuousSpace,
     Element,
-    EuclideanSpace,
     FractionalNoise,
     Law,
     Noise,
@@ -330,7 +330,7 @@ def continuous_time_random_walk(
         tau0=tau0,
         sigma=sigma,
     )
-    return System(components=[walkers], space=EuclideanSpace(n_dim))
+    return System(components=[walkers], space=ContinuousSpace(n_dim=n_dim))
 
 
 @register_model(
@@ -392,7 +392,7 @@ def levy_walk(
         tau0=tau0,
         speed=speed,
     )
-    return System(components=[walkers], space=EuclideanSpace(n_dim))
+    return System(components=[walkers], space=ContinuousSpace(n_dim=n_dim))
 
 
 @register_model(
@@ -450,7 +450,7 @@ def annealed_transient_time_motion(
         sigma=sigma,
         gamma=gamma,
     )
-    return System(components=[walkers], space=EuclideanSpace(n_dim))
+    return System(components=[walkers], space=ContinuousSpace(n_dim=n_dim))
 
 
 @register_model(
@@ -494,7 +494,7 @@ def fractional_brownian_motion(
         0.7
     """
     walkers = FractionalWalker.group('walkers', n_walkers, x=np.zeros((n_walkers, n_dim)), D=D, H=H)
-    return System(components=[walkers], space=EuclideanSpace(n_dim))
+    return System(components=[walkers], space=ContinuousSpace(n_dim=n_dim))
 
 
 @register_model(
@@ -538,4 +538,4 @@ def levy_flight(
         1.5
     """
     walkers = LevyFlier.group('walkers', n_walkers, x=np.zeros((n_walkers, n_dim)), mu=mu, l0=l0)
-    return System(components=[walkers], space=EuclideanSpace(n_dim))
+    return System(components=[walkers], space=ContinuousSpace(n_dim=n_dim))

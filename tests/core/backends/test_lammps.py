@@ -13,15 +13,13 @@ from skcomplex.core.base import BackendError, Domain, parameter
 from skcomplex.core.compile import compile_system
 from skcomplex.core.model import (
     ConstantForce,
-    EuclideanSpace,
+    ContinuousSpace,
     HarmonicPotential,
     LangevinThermostat,
     LennardJones,
     LinearDrag,
     PairPotential,
     Particle,
-    PeriodicBox,
-    ReflectingBox,
     System,
     where,
 )
@@ -69,13 +67,13 @@ def _lattice(n, spacing=1.2, offset=0.6):
     return grid * spacing + offset
 
 
-def _lennard_jones_gas(n=100, interactions=(), period=None):
-    """Return a Lennard-Jones gas on a lattice with random velocities."""
+def _lennard_jones_gas(n=100, interactions=(), space=None):
+    """Return a Lennard-Jones gas on a lattice with random velocities, in an open plane or a given space."""
     velocities = np.random.default_rng(0).normal(0, 0.5, (n, 2))
     return System(
         components=[Particle.group('gas', n, x=_lattice(n), v=velocities)],
-        interactions=[LennardJones('lj', first='gas', second='gas', cutoff=CUTOFF, period=period), *interactions],
-        space=EuclideanSpace(2),
+        interactions=[LennardJones('lj', first='gas', second='gas', cutoff=CUTOFF), *interactions],
+        space=space or ContinuousSpace(n_dim=2),
     )
 
 
@@ -121,7 +119,7 @@ def test_lammps_rejects_pair_energy_without_lepton_form():
     system = System(
         components=[Particle.group('gas', 4, x=_lattice(4))],
         interactions=[Hyperbolic('hyperbolic', first='gas', second='gas', cutoff=1.0)],
-        space=EuclideanSpace(2),
+        space=ContinuousSpace(n_dim=2),
     )
     with pytest.raises(BackendError, match='arcsinh has no Lepton'):
         Simulation(system, solver=LammpsBackend()).run(until=0.1)
@@ -129,19 +127,8 @@ def test_lammps_rejects_pair_energy_without_lepton_form():
 
 def test_lammps_rejects_groups_with_different_masses():
     """Test that a group whose members have different masses is reported as unsupported."""
-    system = System(components=[Particle.group('gas', 2, x=_lattice(2), m=[1.0, 2.0])], space=EuclideanSpace(2))
+    system = System(components=[Particle.group('gas', 2, x=_lattice(2), m=[1.0, 2.0])], space=ContinuousSpace(n_dim=2))
     with pytest.raises(BackendError, match='different masses'):
-        Simulation(system, solver=LammpsBackend()).run(until=0.1)
-
-
-def test_lammps_rejects_mixed_boxes():
-    """Test that periodic and reflecting boxes in one system are reported as unsupported."""
-    system = System(
-        components=[Particle.group('a', 4, x=_lattice(4)), Particle.group('b', 4, x=_lattice(4) + 2.0)],
-        interactions=[PeriodicBox('wrap', target='a', size=5.0), ReflectingBox('walls', target='b', size=5.0)],
-        space=EuclideanSpace(2),
-    )
-    with pytest.raises(BackendError, match='periodic and reflecting'):
         Simulation(system, solver=LammpsBackend()).run(until=0.1)
 
 
@@ -150,7 +137,7 @@ def test_lammps_custom_pair_energy_matches_native_forces():
     system = System(
         components=[Particle.group('gas', 100, x=_lattice(100) + np.random.default_rng(1).normal(0, 0.05, (100, 2)))],
         interactions=[Exponential('exp', first='gas', second='gas', cutoff=CUTOFF, eps=2.0)],
-        space=EuclideanSpace(2),
+        space=ContinuousSpace(n_dim=2),
     )
     native = _run(system, VelocityVerlet(dt=1e-4), 1e-4, dt=1e-4)['gas.v'][-1]
     external = _run(system, LammpsBackend(dt=1e-4), 1e-4, dt=1e-4)['gas.v'][-1]
@@ -162,7 +149,7 @@ def test_lammps_conditional_pair_energy_matches_native_forces():
     system = System(
         components=[Particle.group('gas', 100, x=_lattice(100) + np.random.default_rng(1).normal(0, 0.1, (100, 2)))],
         interactions=[Stepwise('contact', first='gas', second='gas', cutoff=CUTOFF)],
-        space=EuclideanSpace(2),
+        space=ContinuousSpace(n_dim=2),
     )
     native = _run(system, VelocityVerlet(dt=1e-4), 1e-4, dt=1e-4)['gas.v'][-1]
     external = _run(system, LammpsBackend(dt=1e-4), 1e-4, dt=1e-4)['gas.v'][-1]
@@ -180,7 +167,7 @@ def test_lammps_short_run_matches_native():
 def test_lammps_periodic_box_matches_native():
     """Test that a periodic Lennard-Jones gas agrees with the native run and stays in the box."""
     size = 12.0
-    system = _lennard_jones_gas(interactions=[PeriodicBox('box', target='gas', size=size)], period=size)
+    system = _lennard_jones_gas(space=ContinuousSpace(size, size, boundary='periodic'))
     native = _run(system, VelocityVerlet(dt=0.002), 0.2)['gas.x']
     external = _run(system, LammpsBackend(dt=0.002), 0.2)['gas.x']
     assert np.allclose(external, native, atol=1e-6)
@@ -250,9 +237,8 @@ def test_lammps_runs_10000_atoms_in_real_time():
         components=[Particle.group('gas', n, x=_lattice(n), v=np.random.default_rng(0).normal(0, 1, (n, 2)))],
         interactions=[
             LennardJones('lj', first='gas', second='gas', cutoff=CUTOFF),
-            ReflectingBox('box', target='gas', size=121.0),
         ],
-        space=EuclideanSpace(2),
+        space=ContinuousSpace(121.0, 121.0, boundary='reflecting'),
     )
     simulation = Simulation(system, solver=LammpsBackend(dt=0.005), dt=0.05, clock=RealTime(speed=1.0), record=False)
     simulation.run(until=5)

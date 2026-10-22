@@ -9,8 +9,8 @@ import pytest
 from skcomplex.core.base import Domain, parameter
 from skcomplex.core.compile import NumbaBackend, compile_system
 from skcomplex.core.model import (
+    ContinuousSpace,
     Element,
-    EuclideanSpace,
     Event,
     Field,
     Interaction,
@@ -18,7 +18,6 @@ from skcomplex.core.model import (
     PairPotential,
     Particle,
     Rate,
-    ReflectingBox,
     System,
     delayed,
     laplacian,
@@ -74,9 +73,8 @@ def test_interacting_gas_of_100000_runs_in_real_time():
         components=[Particle.group('gas', n, x=rng.uniform(0, size, (n, 2)), v=rng.normal(0, 1, (n, 2)))],
         interactions=[
             SoftSphere('soft', first='gas', second='gas', cutoff=1.0),
-            ReflectingBox('box', target='gas', size=size),
         ],
-        space=EuclideanSpace(2),
+        space=ContinuousSpace(size, size, boundary='reflecting'),
     )
     simulation = Simulation(system, solver=VelocityVerlet(dt=0.01), dt=0.01, clock=RealTime(speed=1.0), record=False)
     simulation.run(until=2)

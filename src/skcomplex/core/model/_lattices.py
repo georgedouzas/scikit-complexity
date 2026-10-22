@@ -62,6 +62,13 @@ class LatticeSpace(Space):
         spacing:
             The distance between neighbouring sites, or one distance per dimension.
 
+        neighborhood:
+            The neighbourhood agents on a two-dimensional square lattice query, `'moore'` for the 8 surrounding cells
+            or `'von_neumann'` for the 4 adjacent ones.
+
+        capacity:
+            The largest number of agents in a cell, or `None` for no limit.
+
     Examples:
         >>> from skcomplex.core.model import LatticeSpace
         >>> space = LatticeSpace((10, 20))
@@ -79,12 +86,31 @@ class LatticeSpace(Space):
         boundary: str = 'periodic',
         fill: float = 0.0,
         spacing: float | Sequence[float] = 1.0,
+        neighborhood: str = 'moore',
+        capacity: int | None = None,
     ) -> None:
         self.shape = shape
         self.geometry = geometry
         self.boundary = boundary
         self.fill = fill
         self.spacing = spacing
+        self.neighborhood = neighborhood
+        self.capacity = capacity
+
+    @property
+    def width(self) -> int:
+        """Return the number of sites along the first dimension."""
+        return self.dimensions[0]
+
+    @property
+    def height(self) -> int:
+        """Return the number of sites along the second dimension."""
+        return self.dimensions[1]
+
+    @property
+    def torus(self) -> bool:
+        """Check whether opposite edges are joined."""
+        return self.boundary == 'periodic'
 
     @property
     def dimensions(self) -> tuple[int, ...]:

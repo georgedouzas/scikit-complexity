@@ -12,8 +12,8 @@ from skcomplex.core.model import (
     CallAuction,
     DeferredAcceptance,
     DiscreteTime,
-    GridSpace,
     Institution,
+    LatticeSpace,
     Market,
     Observable,
     Order,
@@ -128,7 +128,7 @@ def test_simultaneous_imitation():
     payoffs[0] = 1.0
     system = System(
         components=[Imitator.group('players', width, location=locations, strategy=payoffs, payoff=payoffs)],
-        space=GridSpace(width, 1, torus=False, neighborhood='von_neumann'),
+        space=LatticeSpace((width, 1), boundary='fixed', neighborhood='von_neumann'),
         time=DiscreteTime(schedule=Phases([Phase('imitation', activation='simultaneous')])),
     )
     trajectory = Simulation(system, random_state=0).run(until=3).trajectory_

@@ -6,7 +6,7 @@
 from sage.all__sagemath_symbolics import cos
 
 from ....core.base import Domain, parameter
-from ....core.model import EuclideanSpace, HarmonicPotential, Interaction, LinearDrag, Particle, Rate, Spring, System
+from ....core.model import ContinuousSpace, HarmonicPotential, Interaction, LinearDrag, Particle, Rate, Spring, System
 from ....core.runtime import register_model
 
 HarmonicForce = Interaction.define(
@@ -114,5 +114,5 @@ def two_mass_spring_damper(
             HarmonicForce('first_force', target='first', F=F1, omega=omega1),
             HarmonicForce('second_force', target='second', F=F2, omega=omega2),
         ],
-        space=EuclideanSpace(1),
+        space=ContinuousSpace(n_dim=1),
     )

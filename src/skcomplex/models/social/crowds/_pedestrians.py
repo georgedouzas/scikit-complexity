@@ -8,7 +8,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, Expression, parameter, role, vector
-from ....core.model import EuclideanSpace, Interaction, Law, PairPotential, Particle, PeriodicBox, Rate, Symbols, System
+from ....core.model import ContinuousSpace, Interaction, Law, PairPotential, Particle, Rate, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import RK4
 
@@ -217,11 +217,14 @@ def social_force(
         interactions += [
             Motivation(f'{label}_drive', target=label, speed=speed, direction=[sign, 0.0]),
             Walls(f'{label}_walls', target=label, width=length),
-            PeriodicBox(f'{label}_box', target=label, size=length),
         ]
     pairs = (('rightward', 'rightward'), ('leftward', 'leftward'), ('rightward', 'leftward'))
     interactions += [
         SocialRepulsion(f'{first}_{second}', first=first, second=second, cutoff=cutoff, period=length)
         for first, second in pairs
     ]
-    return System(components=walkers, interactions=interactions, space=EuclideanSpace(2))
+    return System(
+        components=walkers,
+        interactions=interactions,
+        space=ContinuousSpace(length, length, boundary='periodic'),
+    )

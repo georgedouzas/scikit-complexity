@@ -34,7 +34,7 @@ from ..base import (
     declarations_of,
 )
 from ..compile import CompiledAgents, ObservableEvaluator, Problem, Vector
-from ..model import ContinuousSpace, GridSpace, Group, MesaSystem, NetworkSpace, Phase, Rule, Space
+from ..model import ContinuousSpace, Group, LatticeSpace, MesaSystem, NetworkSpace, Phase, Rule, Space
 from ..model._phases import DEFAULT_PHASE
 from ..model._time import DiscreteTime
 from ._base import Stepper, register_solver
@@ -689,7 +689,7 @@ type MesaSpace = OrthogonalMooreGrid | OrthogonalVonNeumannGrid | Network | Mesa
 
 def _build_space(space: Space | None, model: mesa.Model, n_agents: int) -> MesaSpace | None:
     """Return the Mesa space of a framework space."""
-    if isinstance(space, GridSpace):
+    if isinstance(space, LatticeSpace):
         grid = OrthogonalVonNeumannGrid if space.neighborhood == 'von_neumann' else OrthogonalMooreGrid
         return grid((space.width, space.height), torus=space.torus, capacity=space.capacity, random=model.random)
     if isinstance(space, NetworkSpace):
@@ -796,7 +796,9 @@ class MesaStepper(Stepper):
                 return agent_class
         space = self.problem_.agent_space
         base = (
-            CellAgent if isinstance(space, GridSpace | NetworkSpace) else ContinuousSpaceAgent if space else mesa.Agent
+            CellAgent
+            if isinstance(space, LatticeSpace | NetworkSpace)
+            else ContinuousSpaceAgent if space else mesa.Agent
         )
         stepper = self
         model = self._views[spec.path]

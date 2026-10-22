@@ -7,7 +7,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, parameter, role, state
-from ....core.model import AgentType, GridSpace, Interaction, Law, Rule, Symbols, System
+from ....core.model import AgentType, Interaction, LatticeSpace, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -216,4 +216,6 @@ def stochastic_schelling(
         intercept=intercept,
     )
     moves = BlockMoves('moves', target='dwellers', width=width, height=height, side=side)
-    return System(components=[dwellers], interactions=[moves], space=GridSpace(width, height, capacity=1))
+    return System(
+        components=[dwellers], interactions=[moves], space=LatticeSpace((width, height), boundary='fixed', capacity=1),
+    )
