@@ -30,7 +30,9 @@ library models.
 ## What Changes
 
 - Add network generators in `core.space` as space factories: Erdős-Rényi, Watts-Strogatz, Barabási-Albert,
-  configuration model, stochastic block model, lattices, and complete graphs, seeded from the simulation.
+  configuration model, stochastic block model, lattices, complete graphs, and the spatially embedded Waxman and random
+  geometric graphs, whose node positions laws can read, seeded from the simulation. The spatial generators come from
+  `survey-thin-references`, for the spatial variant of `triadic_percolation`.
 - Let interactions with the binding `'neighbours'` bind an edge group of the same network, so their laws run once per
   edge, read the states of the source and target members and of the edge member, and target any of them. Directed
   networks give each edge its source and target.
