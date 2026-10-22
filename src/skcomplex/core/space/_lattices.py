@@ -12,6 +12,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ..base import (
+    Requires,
     SpaceKind,
 )
 from ._spaces import Space
@@ -263,6 +264,8 @@ class Neighborhood:
         >>> len(Neighborhood.moore(center=True))
         9
     """
+
+    requires: ClassVar[Requires] = Requires(space={SpaceKind.LATTICE})
 
     offsets: tuple[Offset, ...]
 

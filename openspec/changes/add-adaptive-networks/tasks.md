@@ -9,7 +9,7 @@
 
 ## 2. Reductions
 
-- [ ] 2.1 Generalise `neighbors` to network, radius, nearest, and cone neighbourhoods on NumPy and Numba, keeping the
+- [x] 2.1 Generalise `neighbors` to network, radius, nearest, and cone neighbourhoods on NumPy and Numba, keeping the
   lattice case, and verify the Kuramoto and flocking scenarios and the existing lattice tests
 
 ## 3. Topology

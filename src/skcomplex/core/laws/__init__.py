@@ -34,7 +34,6 @@ from ._lattices import (
     Totalistic,
     adjacent,
     neighbor_sum,
-    neighbors,
 )
 from ._laws import (
     Boundary,
@@ -54,12 +53,14 @@ from ._laws import (
     Update,
 )
 from ._moments import moment
+from ._neighbourhoods import NEIGHBOUR_REDUCTIONS, NeighbourReduction, neighbors, neighbourhoods_in
 from ._operators import Dissipator, Generator, LocalOperator, Operator, sparse_matrix
 from ._reductions import Reduction, count, has_reductions, maximum, mean, minimum, reductions_in, total, variance
 from ._rewriting import Affine, GraphProduction, Module, Production, Prototile, RewritingLaw, Substitution
 from ._symbols import Symbols
 
 __all__: list[str] = [
+    'NEIGHBOUR_REDUCTIONS',
     'Affine',
     'Auxiliary',
     'Boundary',
@@ -85,6 +86,7 @@ __all__: list[str] = [
     'LocalRule',
     'Module',
     'Move',
+    'NeighbourReduction',
     'Noise',
     'NumericFunction',
     'Operator',
@@ -136,6 +138,7 @@ __all__: list[str] = [
     'moment',
     'neighbor_sum',
     'neighbors',
+    'neighbourhoods_in',
     'normal',
     'outcome_sums',
     'pulse',

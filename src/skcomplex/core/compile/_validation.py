@@ -46,6 +46,7 @@ from ..interactions import Match
 from ..laws import (
     Auxiliary,
     Boundary,
+    Call,
     Destruction,
     Dissipator,
     Drive,
@@ -71,13 +72,16 @@ from ..laws import (
     Transfer,
     Transition,
     Update,
+    neighbourhoods_in,
     outcome_sums,
 )
-from ..space import LatticeSpace, NetworkSpace, Space
+from ..laws._neighbourhoods import NeighbourReduction
+from ..space import Cone, LatticeSpace, NetworkSpace, Space
 from ..system import Observable, System
 from ._backends import BACKENDS, load_backends
 from ._compiler import CensusRecord, _held_observables, _process_covariance, _with_held_observables, law_census
 from ._layout import Entry
+from ._neighbourhoods import cone_heading, position_state
 from ._observables import with_observables
 from ._quantum import contains_quantum
 from ._rewriting import is_rewriting
@@ -92,6 +96,7 @@ TIME_CLASSES = {
 }
 PROBABILITY_TOLERANCE = 1e-9
 LISTED_ENCOUNTERS = 3
+OWN_NEIGHBOURHOOD = Requires(space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
 
 def _solver_registry() -> Registry:
@@ -490,6 +495,82 @@ def _encounter_issues(records: list[CensusRecord]) -> list[Issue]:
         )
         fix = 'Give outcome probabilities that sum to one over the outcomes of every encounter with a nonzero rate.'
         issues.append(Issue('encounter-probabilities', record.path, message, fix))
+    return issues
+
+
+def _reductions_of(value: object) -> list[NeighbourReduction]:
+    """Return every neighbourhood reduction of a law value, nested ones included."""
+    found = []
+    stack = neighbourhoods_in(value)
+    while stack:
+        reduction = stack.pop()
+        found.append(reduction)
+        stack += neighbourhoods_in(reduction.argument)
+        stack += neighbourhoods_in(reduction.weight) if reduction.weight is not None else []
+    return found
+
+
+def _law_values(law: object) -> list[object]:
+    """Return the values of a law that may hold neighbourhood reductions."""
+    if isinstance(law, Jump):
+        return [law.rate]
+    value = getattr(law, 'value', None)
+    return list(value.arguments) if isinstance(value, Call) else [value]
+
+
+def _space_fix(requires: Requires) -> str:
+    """Return the fix of a neighbourhood that the space does not offer."""
+    if SpaceKind.CONTINUOUS in requires.space:
+        return (
+            'Give the group a continuous space, such as `ContinuousSpace(10.0, 10.0)`, or reduce over the neighbours '
+            'of its network or lattice with `over=None`.'
+        )
+    return (
+        'Give the group a network or lattice space, or reduce over `Radius(r)`, `Nearest(k)`, or `Cone(r, angle)` '
+        'in a continuous space.'
+    )
+
+
+def _neighbourhood_issues(records: list[CensusRecord], system: System) -> list[Issue]:
+    """Return the neighbourhood reductions whose space does not offer them, and the cones without a heading."""
+    nodes = {node.path: node for node in flatten_system(system)}
+    issues = []
+    for record in records:
+        name = f'{type(record.law).__name__} law of {record.path}'
+        space = _space_kind(record.space)
+        for value in _law_values(record.law):
+            for reduction in _reductions_of(value):
+                over = reduction.over
+                requires = OWN_NEIGHBOURHOOD if over is None else over.requires
+                described = 'the neighbours of its space' if over is None else repr(over)
+                if not requires.accepts('space', space):
+                    message = (
+                        f'The {name} reduces over {described}, which needs a {_names(requires.space)} space, but the '
+                        f'component lives on {space}.'
+                    )
+                    issues.append(Issue('law-space', record.path, message, _space_fix(requires)))
+                    continue
+                node = nodes.get(record.owner)
+                if node is None or space is not SpaceKind.CONTINUOUS or over is None:
+                    continue
+                states = declarations_of(node.component_type, VariableKind.STATE)
+                if position_state(states) is None:
+                    message = (
+                        f'The {name} reduces over {over!r}, which measures distances between positions, but '
+                        f'{record.owner} declares no vector position state.'
+                    )
+                    fix = 'Declare the position with `state(vector=True, position=True)`.'
+                    issues.append(Issue('law-domain', record.path, message, fix))
+                    continue
+                if isinstance(over, Cone):
+                    try:
+                        cone_heading(over, states, getattr(record.space, 'n_dim', 0))
+                    except ValidationError as error:
+                        fix = (
+                            "Declare a vector velocity, `state(vector=True, velocity_of='x')`, or name a heading "
+                            "state, such as `Cone(r, angle, heading='theta')`."
+                        )
+                        issues.append(Issue('law-domain', record.path, f'The {name}: {error}', fix))
     return issues
 
 
@@ -934,6 +1015,7 @@ def validate(
     report.issues += _binding_issues(system)
     report.issues += _law_issues(records, _declared_times(system))
     report.issues += _encounter_issues(records)
+    report.issues += _neighbourhood_issues(records, system)
     owners: dict[str, set[LawKind]] = {}
     for record in records:
         owners.setdefault(record.owner, set()).add(record.law.law_kind)

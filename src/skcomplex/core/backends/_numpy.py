@@ -97,7 +97,7 @@ class NumpyBackend(Backend):
             lowering.jumps = jump_channels(kernels.get(Jump, []), changes)
         if form is Form.DISCRETE:
             lowering.update = assigning_function(kernels.get(Update, []))
-        return with_reductions(lowering, reductions)
+        return with_reductions(lowering, reductions, kernels)
 
 
 register_backend(NumpyBackend)

@@ -40,14 +40,17 @@ from ..compile._backends import (
     adding_function,
     assigning_function,
     concatenating_function,
+    reads_reductions,
     register_backend,
 )
 from ..compile._kernels import Kernel, Output, Reference, Source, jump_channels, lower_noise
 from ..compile._layout import Entry
+from ..compile._neighbourhoods import CompiledNeighbourhood, MetricSearch, StaticSearch
 from ..compile._printing import SCALAR_DIALECT, print_expressions
 from ..compile._problem import Accelerated, Draws, Vector
 from ..compile._reductions import CompiledReduction, Read, ReductionPass
 from ..laws import Boundary, Jump, Noise, Rate, Update
+from ..space import Cone, Nearest
 
 DEFAULT_CACHE_DIR = Path.home() / '.cache' / 'skcomplex' / 'kernels'
 FORM_KINDS: dict[Form, list[type]] = {
@@ -73,6 +76,7 @@ import numpy as np
 from numba import njit, prange
 
 from skcomplex.core.backends._numba_cells import build_cells
+from skcomplex.core.backends._numba_neighbours import cone_neighbours, nearest_neighbours, radius_neighbours
 from skcomplex.core.backends._numba_stencils import neighbor_value
 """
 LOOPS = {
@@ -220,6 +224,7 @@ class _Source:
     lines: list[str] = field(default_factory=list)
     slots: dict[str, int] = field(default_factory=dict)
     functions: dict[str, object] = field(default_factory=dict)
+    data: dict[str, np.ndarray] = field(default_factory=dict)
 
     def slot(self, entry: Entry) -> int:
         """Return the layout slot of an entry, whose start is `L[2 * slot]` and rows `L[2 * slot + 1]`.
@@ -234,8 +239,25 @@ class _Source:
         """
         return self.slots.setdefault(entry.name, len(self.slots))
 
+    def data_slot(self, name: str, values: np.ndarray) -> int:
+        """Return the layout slot of integer data appended to the layout, whose offset is `L[2 * slot]`.
+
+        Args:
+            name:
+                The name of the data, unique in the source.
+
+            values:
+                The integers.
+
+        Returns:
+            slot:
+                The slot.
+        """
+        self.data[name] = np.asarray(values, dtype=np.int64)
+        return self.slots.setdefault(name, len(self.slots))
+
     def layout(self, entries: Mapping[str, Entry]) -> np.ndarray:
-        """Return the layout array of starts and rows of every slot.
+        """Return the layout array of starts and rows of every slot, followed by the data of the data slots.
 
         Args:
             entries:
@@ -246,9 +268,14 @@ class _Source:
                 The layout array.
         """
         layout = np.zeros(2 * len(self.slots), dtype=np.int64)
+        offset = layout.size
         for name, slot in self.slots.items():
-            layout[2 * slot], layout[2 * slot + 1] = entries[name].start, entries[name].rows
-        return layout
+            if name in self.data:
+                layout[2 * slot], layout[2 * slot + 1] = offset, self.data[name].size
+                offset += self.data[name].size
+            else:
+                layout[2 * slot], layout[2 * slot + 1] = entries[name].start, entries[name].rows
+        return np.concatenate([layout, *(self.data[name] for name in self.slots if name in self.data)])
 
     def function_name(self, function: object) -> str:
         """Return the global name of a compiled function called from the generated source.
@@ -646,11 +673,140 @@ def _reduction_lines(source: _Source, reduction: CompiledReduction, index: int) 
     return [*lines, f'{INDENT}p[{start}] = {value}']
 
 
+def _search_lines(source: _Source, reduction: CompiledNeighbourhood, index: int) -> list[str]:
+    """Return the lines that find the neighbours of every member, as rows `_ip<k>_` and neighbours `_ix<k>_`."""
+    search = reduction.search
+    if isinstance(search, StaticSearch):
+        rows = source.data_slot(f'__neighbours_{index}_indptr', search.indptr)
+        neighbours = source.data_slot(f'__neighbours_{index}_indices', search.indices)
+        return [
+            f'{INDENT}_ip{index}_ = L[_L{2 * rows}_ : _L{2 * rows}_ + _L{2 * rows + 1}_]',
+            f'{INDENT}_ix{index}_ = L[_L{2 * neighbours}_ : _L{2 * neighbours}_ + _L{2 * neighbours + 1}_]',
+        ]
+    assert isinstance(search, MetricSearch)
+    entry = search.positions
+    start, columns = f'_L{2 * source.slot(entry)}_', entry.columns
+    periods = search.periods if search.periods is not None else (1.0,) * columns
+    periodic = search.periods is not None
+    lines = [
+        (
+            f'{INDENT}_pos{index}_ = x[{start} : {start} + {reduction.size} * {columns}]'
+            f'.reshape(({reduction.size}, {columns}))'
+        ),
+        f'{INDENT}_per{index}_ = np.array([{", ".join(repr(float(item)) for item in periods)}])',
+    ]
+    neighbourhood = search.neighbourhood
+    center = bool(neighbourhood.center)
+    if isinstance(neighbourhood, Nearest):
+        call = f'nearest_neighbours(_pos{index}_, {neighbourhood.k}, _per{index}_, {periodic}, {center})'
+        return [*lines, f'{INDENT}_ip{index}_, _ix{index}_ = {call}']
+    if not isinstance(neighbourhood, Cone):
+        call = f'radius_neighbours(_pos{index}_, {neighbourhood.radius!r}, _per{index}_, {periodic}, {center})'
+        return [*lines, f'{INDENT}_ip{index}_, _ix{index}_ = {call}']
+    heading = search.heading
+    assert heading is not None
+    first = f'_L{2 * source.slot(heading.entry)}_'
+    if heading.angle:
+        lines += [
+            f'{INDENT}_hd{index}_ = np.empty(({reduction.size}, 2))',
+            f'{INDENT}for _i_ in range({reduction.size}):',
+            f'{INDENT * 2}_hd{index}_[_i_, 0] = math.cos(x[{first} + _i_])',
+            f'{INDENT * 2}_hd{index}_[_i_, 1] = math.sin(x[{first} + _i_])',
+        ]
+    else:
+        lines.append(
+            f'{INDENT}_hd{index}_ = x[{first} : {first} + {reduction.size} * {columns}].reshape(({reduction.size}, '
+            f'{columns}))',
+        )
+    cosine = repr(float(np.cos(neighbourhood.angle)))
+    call = (
+        f'cone_neighbours(_pos{index}_, _hd{index}_, {neighbourhood.radius!r}, {cosine}, (_per{index}_, '
+        f'{periodic}), {center})'
+    )
+    return [*lines, f'{INDENT}_ip{index}_, _ix{index}_ = {call}']
+
+
+def _pair_read_code(source: _Source, reduction: CompiledNeighbourhood, item: Expression, index: int) -> str:
+    """Return the code of one symbol of a neighbourhood reduction for the reader `_i_` and the neighbour `_j_`."""
+    pair = reduction.reads[item]
+    read = pair.read
+    vector = 'x' if read.is_state else 'p'
+    assert read.entry is not None
+    start = f'_L{2 * source.slot(read.entry)}_'
+    if pair.side == 'shared':
+        return f'{vector}[{start} + {read.column}]'
+    member = '_i_' if pair.side == 'reader' else '_j_'
+    value = f'{vector}[{start} + {member} * {read.stride} + {read.column}]'
+    if not pair.image:
+        return value
+    search = reduction.search
+    assert isinstance(search, MetricSearch)
+    assert search.periods is not None
+    period = repr(float(search.periods[read.column]))
+    own = f'{vector}[{start} + _i_ * {read.stride} + {read.column}]'
+    del index
+    return f'{own} - (({own} - {value}) - {period} * np.rint(({own} - {value}) / {period}))'
+
+
+def _neighbourhood_lines(source: _Source, reduction: CompiledNeighbourhood, index: int) -> list[str]:
+    """Return the lines that compute a neighbourhood reduction of every member into the extended parameter vector."""
+    lines = _search_lines(source, reduction, index)
+    sides = {item: reduction.reads[item].side for item in reduction.symbols}
+    shared = [item for item in reduction.symbols if sides[item] == 'shared']
+    readers = [item for item in reduction.symbols if sides[item] == 'reader']
+    others = [item for item in reduction.symbols if sides[item] == 'other']
+    lines += [f'{INDENT}{item} = {_pair_read_code(source, reduction, item, index)}' for item in shared]
+    assignments, codes = print_expressions(
+        [reduction.argument, reduction.weight],
+        SCALAR_DIALECT,
+        prefix=f'_n{index}cse',
+    )
+    acc, weights, found = f'_acc{index}_', f'_ws{index}_', f'_found{index}_'
+    kind = reduction.kind
+    if kind in {'max', 'min'}:
+        better = '>' if kind == 'max' else '<'
+        accumulate = [
+            '_v_ = _w_ * _a_',
+            f'if not {found} or _v_ {better} {acc}:',
+            f'{INDENT}{acc} = _v_',
+            f'{INDENT}{found} = True',
+        ]
+        value = f'{acc} if {found} else 0.0'
+    elif kind == 'count':
+        accumulate = [f'{acc} += _w_ * (1.0 if _a_ != 0.0 else 0.0)']
+        value = acc
+    else:
+        accumulate = [f'{acc} += _w_ * _a_', f'{weights} += _w_']
+        count = f'(_ip{index}_[_i_ + 1] - _ip{index}_[_i_])'
+        value = {
+            'sum': acc,
+            'mean': f'{acc} / {count} if {count} > 0 else 0.0',
+            'normalized-mean': f'{acc} / {weights} if {weights} != 0.0 else 0.0',
+        }[kind]
+    target = f'_L{2 * source.slot(reduction.entry)}_'
+    lines += [
+        f'{INDENT}for _i_ in prange({reduction.size}):',
+        *(f'{INDENT * 2}{item} = {_pair_read_code(source, reduction, item, index)}' for item in readers),
+        f'{INDENT * 2}{acc} = 0.0',
+        f'{INDENT * 2}{weights} = 0.0',
+        f'{INDENT * 2}{found} = False',
+        f'{INDENT * 2}for _e_ in range(_ip{index}_[_i_], _ip{index}_[_i_ + 1]):',
+        f'{INDENT * 3}_j_ = _ix{index}_[_e_]',
+        *(f'{INDENT * 3}{item} = {_pair_read_code(source, reduction, item, index)}' for item in others),
+        *(f'{INDENT * 3}{name} = {code}' for name, code in assignments),
+        f'{INDENT * 3}_a_ = {codes[0]}',
+        f'{INDENT * 3}_w_ = {codes[1]}',
+        *(f'{INDENT * 3}{line}' for line in accumulate),
+        f'{INDENT * 2}p[{target} + _i_] = {value}',
+    ]
+    return lines
+
+
 def _reduce_function(source: _Source, reductions: ReductionPass, parallel: bool) -> None:
     """Add the function that returns the parameter vector extended with every reduction, in dependency order."""
     extents = [
         f'_L{2 * source.slot(item.entry)}_ + _L{2 * source.slot(item.entry) + 1}_ * {item.entry.columns}'
-        for item in reductions.reductions
+        for item in reductions.steps
     ]
     size = extents[0] if len(extents) == 1 else f'max({", ".join(extents)})'
     lines = [
@@ -659,8 +815,11 @@ def _reduce_function(source: _Source, reductions: ReductionPass, parallel: bool)
         f'{INDENT}p = np.empty({size})',
         f'{INDENT}p[: p0.size] = p0',
     ]
-    for index, reduction in enumerate(reductions.reductions):
-        lines += _reduction_lines(source, reduction, index)
+    for index, reduction in enumerate(reductions.steps):
+        if isinstance(reduction, CompiledNeighbourhood):
+            lines += _neighbourhood_lines(source, reduction, index)
+        else:
+            lines += _reduction_lines(source, reduction, index)
     lines.append(f'{INDENT}return p')
     source.lines += ['', '', *_hoist_layout(lines)]
 
@@ -673,6 +832,8 @@ def _reductions_compile(reductions: ReductionPass) -> bool:
                 [reduction.argument, reduction.condition if reduction.condition is not None else 1],
                 SCALAR_DIALECT,
             )
+        for neighbourhood in reductions.neighbourhoods:
+            print_expressions([neighbourhood.argument, neighbourhood.weight], SCALAR_DIALECT)
     except ValidationError:
         return False
     return True
@@ -857,7 +1018,7 @@ class NumbaBackend(Backend):
             Update: kernels.get(Update, []) if form is Form.DISCRETE else [],
         }
         reductions = reductions or ReductionPass()
-        reduced = bool(reductions.reductions)
+        reduced = bool(reductions.steps)
         fused = _reductions_compile(reductions)
         compiled = {kind: fused and all(_is_compilable(kernel) for kernel in items) for kind, items in used.items()}
         source = _Source()
@@ -875,7 +1036,7 @@ class NumbaBackend(Backend):
             needed = [*needed, Boundary]
         for kind in needed:
             if compiled[kind]:
-                self._kind(source, used[kind], *plan[kind], form=form, reduced=reduced)
+                self._kind(source, used[kind], *plan[kind], form=form, reduced=reduced and reads_reductions(used[kind]))
         accelerated_loop = {
             Form.ODE: 'rk4',
             Form.SDE: 'euler_maruyama',
@@ -901,6 +1062,16 @@ class NumbaBackend(Backend):
             entries.update({read.entry.name: read.entry for read in item.reads.values() if read.entry is not None})
             if item.members is not None:
                 entries[item.members.name] = item.members
+        for neighbourhood in reductions.neighbourhoods:
+            entries[neighbourhood.entry.name] = neighbourhood.entry
+            entries.update(
+                {pair.read.entry.name: pair.read.entry for pair in neighbourhood.reads.values() if pair.read.entry},
+            )
+            search = neighbourhood.search
+            if isinstance(search, MetricSearch):
+                entries[search.positions.name] = search.positions
+                if search.heading is not None:
+                    entries[search.heading.entry.name] = search.heading.entry
         layout = source.layout(entries)
         loop = accelerated_loop if has_loop else None
         return self._lowering(
@@ -947,7 +1118,12 @@ class NumbaBackend(Backend):
         }
         names = {Rate: 'drift', Noise: 'diffusion', Jump: 'propensities', Update: 'update', Boundary: 'boundary'}
         functions: dict[type, Any] = {
-            kind: bind(names[kind]) if compiled[kind] else reductions.wrap(numpy[kind]()) for kind in needed
+            kind: (
+                bind(names[kind])
+                if compiled[kind]
+                else reductions.wrap(numpy[kind]()) if reads_reductions(used[kind]) else numpy[kind]()
+            )
+            for kind in needed
         }
         lowering = Lowering(boundary=functions.get(Boundary))
         if form in (Form.ODE, Form.FRACTIONAL, Form.SDE):

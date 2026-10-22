@@ -7,7 +7,6 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
-from sage.all__sagemath_symbolics import SR
 from sage.symbolic.function import BuiltinFunction
 
 from ..base import (
@@ -15,9 +14,7 @@ from ..base import (
     LawKind,
     Requires,
     SpaceKind,
-    SymbolicVector,
     TimeKind,
-    vector,
 )
 from ..space._lattices import Neighborhood
 from ..space._spaces import Adjacency
@@ -295,32 +292,6 @@ class _NeighborSum(BuiltinFunction):
 neighbor = _Neighbor()
 adjacent = _Adjacent()
 neighbor_sum = _NeighborSum()
-
-
-def neighbors(state: Expression, neighborhood: Neighborhood) -> SymbolicVector:
-    """Return the values of a lattice state at the offsets of a neighbourhood, for local energies.
-
-    Args:
-        state:
-            The symbol of a lattice state.
-
-        neighborhood:
-            The neighbourhood.
-
-    Returns:
-        values:
-            One symbolic value per offset, in neighbourhood order.
-
-    Examples:
-        >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import neighbors
-        >>> from skcomplex.core.space import Neighborhood
-        >>> spin = symbol('spin')
-        >>> values = neighbors(spin, Neighborhood.von_neumann())
-        >>> len(values), values[0]
-        (4, neighbor(spin, 0))
-    """
-    return vector(neighbor(state, SR(index)) for index in range(len(neighborhood)))
 
 
 @dataclass(frozen=True)
