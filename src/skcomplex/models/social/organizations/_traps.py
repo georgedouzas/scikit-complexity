@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Auxiliary, Element, Flow, Law, Sink, Source, Symbols, System, lookup, smooth, where
+from ....core.model import Auxiliary, Element, Law, Sink, Source, Symbols, System, Transfer, lookup, smooth, where
 from ....core.runtime import register_model
 
 ALLOCATION_TABLE = ((0.0, 0.0), (0.2, 0.05), (0.5, 0.5), (0.8, 0.95), (1.0, 1.0))
@@ -17,10 +17,10 @@ def _contest_laws(s: Symbols) -> list[Law]:
     return [
         success,
         allocation,
-        Flow(Source('budget'), s.a, s.budget * allocation.symbol, label='allocation_a'),
-        Flow(Source('budget'), s.b, s.budget * (1 - allocation.symbol), label='allocation_b'),
-        Flow(s.a, Sink('depreciation'), s.a / s.lifetime, label='depreciation_a'),
-        Flow(s.b, Sink('depreciation'), s.b / s.lifetime, label='depreciation_b'),
+        Transfer(Source('budget'), s.a, s.budget * allocation.symbol, label='allocation_a'),
+        Transfer(Source('budget'), s.b, s.budget * (1 - allocation.symbol), label='allocation_b'),
+        Transfer(s.a, Sink('depreciation'), s.a / s.lifetime, label='depreciation_a'),
+        Transfer(s.b, Sink('depreciation'), s.b / s.lifetime, label='depreciation_b'),
     ]
 
 
@@ -44,9 +44,9 @@ def _burden_laws(s: Symbols) -> list[Law]:
     building = smooth(symptom.symbol, s.solution_delay) / s.build_time
     return [
         symptom,
-        Flow(Source('intervener'), s.intervention, s.fix_rate * symptom.symbol, label='fixing'),
-        Flow(Source('learning'), s.capability, building, label='building'),
-        Flow(s.capability, Sink('atrophy'), s.erosion * s.intervention * s.capability, label='erosion'),
+        Transfer(Source('intervener'), s.intervention, s.fix_rate * symptom.symbol, label='fixing'),
+        Transfer(Source('learning'), s.capability, building, label='building'),
+        Transfer(s.capability, Sink('atrophy'), s.erosion * s.intervention * s.capability, label='erosion'),
     ]
 
 
@@ -76,8 +76,8 @@ def _escalation_laws(s: Symbols) -> list[Law]:
     return [
         desired_a,
         desired_b,
-        Flow(Source('production'), s.a, build_a, label='build_a'),
-        Flow(Source('production'), s.b, build_b, label='build_b'),
+        Transfer(Source('production'), s.a, build_a, label='build_a'),
+        Transfer(Source('production'), s.b, build_b, label='build_b'),
     ]
 
 

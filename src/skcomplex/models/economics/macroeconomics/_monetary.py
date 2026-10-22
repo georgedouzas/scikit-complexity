@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Auxiliary, Element, Flow, Interaction, Law, Sink, Source, Symbols, System, Update
+from ....core.model import Auxiliary, Element, Interaction, Law, Sink, Source, Symbols, System, Transfer, Update
 from ....core.runtime import register_model
 
 Households = Element.define(
@@ -38,13 +38,13 @@ def _circuit(s: Symbols) -> list[Law]:
     return [
         consumption,
         lending,
-        Flow(households.deposits, firms.deposits, consumption.symbol, label='consumption'),
-        Flow(firms.deposits, households.deposits, s.wage_share * firms.sales, label='wages'),
-        Flow(firms.deposits, bank.deposits, s.interest * firms.loans, label='interest'),
-        Flow(bank.deposits, households.deposits, s.payout * bank.deposits, label='dividends'),
-        Flow(firms.deposits, households.deposits, s.distribution * firms.deposits, label='profits'),
-        Flow(Source('lending'), firms.deposits, lending.symbol, label='lending'),
-        Flow(firms.deposits, Sink('repayment'), s.repayment * firms.loans, label='repayments'),
+        Transfer(households.deposits, firms.deposits, consumption.symbol, label='consumption'),
+        Transfer(firms.deposits, households.deposits, s.wage_share * firms.sales, label='wages'),
+        Transfer(firms.deposits, bank.deposits, s.interest * firms.loans, label='interest'),
+        Transfer(bank.deposits, households.deposits, s.payout * bank.deposits, label='dividends'),
+        Transfer(firms.deposits, households.deposits, s.distribution * firms.deposits, label='profits'),
+        Transfer(Source('lending'), firms.deposits, lending.symbol, label='lending'),
+        Transfer(firms.deposits, Sink('repayment'), s.repayment * firms.loans, label='repayments'),
         Update(firms.loans, firms.loans + lending.symbol - s.repayment * firms.loans),
         Update(firms.sales, consumption.symbol),
     ]

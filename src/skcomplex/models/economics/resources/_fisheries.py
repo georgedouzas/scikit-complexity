@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import Domain, Expression, parameter, state
-from ....core.model import Auxiliary, Element, Flow, Law, Sink, Source, Symbols, System, where
+from ....core.model import Auxiliary, Element, Law, Sink, Source, Symbols, System, Transfer, where
 from ....core.runtime import register_model
 
 TONNES_PER_MILLION_KG = 1e3
@@ -37,8 +37,8 @@ def _stage(
     outflow = stock / time
     survival = 1 - sum((share for share, _ in losses), start=0)
     return [
-        Flow(stock, following, survival * outflow, label=label),
-        *(Flow(stock, Sink(sink), share * outflow, label=f'{label}_{sink}') for share, sink in losses),
+        Transfer(stock, following, survival * outflow, label=label),
+        *(Transfer(stock, Sink(sink), share * outflow, label=f'{label}_{sink}') for share, sink in losses),
     ]
 
 
@@ -52,7 +52,7 @@ def _hilsa_laws(s: Symbols) -> list[Law]:
         nests,
         adult_weight,
         juvenile_weight,
-        Flow(Source('spawning'), s.eggs, s.eggs_per_nest * nests.symbol, label='egg_deposition'),
+        Transfer(Source('spawning'), s.eggs, s.eggs_per_nest * nests.symbol, label='egg_deposition'),
         *_stage(s.eggs, s.larvae, s.hatching_time, [(s.egg_loss, 'mortality')], 'hatching'),
         *_stage(s.larvae, s.juveniles, s.larval_time, [(s.larval_loss, 'mortality')], 'juvenile_entering'),
         *_stage(
@@ -65,8 +65,8 @@ def _hilsa_laws(s: Symbols) -> list[Law]:
         *_stage(s.yearlings, s.adults, s.ocean_time, [(s.first_year_loss, 'mortality')], 'maturation'),
         *_stage(s.adults, s.migrants, s.adult_ocean_time, [(s.second_year_loss, 'mortality')], 'adults_entering'),
         *_stage(s.migrants, s.spawners, s.migration_time, [(s.migration_loss, 'mortality')], 'adults_leaving'),
-        Flow(s.spawners, Sink('spent'), spawning, label='spawning'),
-        Flow(s.spawners, Sink('catch'), s.adult_harvest * s.spawners / s.spawning_time, label='adult_catch'),
+        Transfer(s.spawners, Sink('spent'), spawning, label='spawning'),
+        Transfer(s.spawners, Sink('catch'), s.adult_harvest * s.spawners / s.spawning_time, label='adult_catch'),
     ]
 
 

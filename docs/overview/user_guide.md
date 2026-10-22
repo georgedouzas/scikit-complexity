@@ -567,7 +567,7 @@ print(Simulation(coupled, dt=1.0, observables=observables).run(until=20).traject
 ## Stocks and flows
 
 A state tagged with a quantity, `state(..., quantity='water')`, is a stock that changes only through flows. A
-`Flow(source, sink, amount, label=...)` moves an amount of the quantity from one stock to another, or exchanges it with
+`Transfer(source, sink, amount, label=...)` moves an amount of the quantity from one stock to another, or exchanges it with
 the environment through `Source()` and `Sink()`. In a system of rate laws the amount is a rate, in a system of update
 laws it is moved once per step, and with `rate=...` it is the size of a jump with that propensity. Trajectories record
 every flow under `<component path>.<label>`. An `Auxiliary(label, expression)` names an intermediate expression that
@@ -575,12 +575,12 @@ later laws use through `auxiliary.symbol`, and trajectories record it too. `look
 piecewise linear between its points and flat outside them.
 
 ```python
-from skcomplex.core.model import Auxiliary, Flow, Sink, Source, lookup
+from skcomplex.core.model import Auxiliary, Transfer, Sink, Source, lookup
 
 
 def population_laws(s):
     births = Auxiliary('birth_rate', s.b * s.n * lookup(s.n, [(0, 1.0), (100, 1.0), (200, 0.0)]))
-    return [births, Flow(Source(), s.n, births.symbol, label='births'), Flow(s.n, Sink(), s.d * s.n, label='deaths')]
+    return [births, Transfer(Source(), s.n, births.symbol, label='births'), Transfer(s.n, Sink(), s.d * s.n, label='deaths')]
 
 
 People = Element.define(

@@ -161,7 +161,7 @@ dissipator is, and an energy operator generating unitary flow is better named fo
 | Primitive | Meaning | Replaces |
 |---|---|---|
 | `Transfer(amount, source, sink)` | moves a quantity between two states; a pair of opposite rates in continuous time, an atomic update in discrete time; `source` or `sink` may be outside the system | `Flow`, `Source`, `Sink`, `transfer`, the trades of markets |
-| `Invariant(expression, tolerance=)` | a conserved sum, checked at every frame, or enforced by projection when declared so | `Identity`, ledger checks, conserved-quantity checks |
+| `Invariant(label, expression, tolerance=)` | a conserved expression, recorded and checked at every frame; enforcing constraints by projection needs the constraint solvers of `add-static-models` | `Identity`, ledger checks, conserved-quantity checks |
 | `Match(left, right, pairing=..., capacity=...)` | pairs the members of one or two groups each step; `pairing` is a function from the two groups to pairs, and the core ships only uniform random pairing | `Market` protocols, matching in mating, labour, and assignment models |
 | `parameter(adaptive=True)` | a parameter that laws may change; compiled as a state and recorded | `Institution` |
 | `Equation` solved for adaptive parameters | clears an aggregate balance each step | `Walrasian`, `CallAuction` clearing |

@@ -4,14 +4,14 @@
 # License: MIT
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Element, Flow, Law, Symbols, System
+from ....core.model import Element, Law, Symbols, System, Transfer
 from ....core.runtime import register_model
 
 
 def _adoption(s: Symbols) -> list[Law]:
     """Return the adoption flow from potential adopters to adopters, driven by innovation and imitation."""
     market = s.P + s.A
-    return [Flow(s.P, s.A, (s.p + s.q * s.A / market) * s.P, label='adoption')]
+    return [Transfer(s.P, s.A, (s.p + s.q * s.A / market) * s.P, label='adoption')]
 
 
 BassMarket = Element.define(

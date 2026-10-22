@@ -48,7 +48,7 @@ simulation = Simulation(
 ).run(until=200)
 
 # %%
-# Flow balance
+# Transfer balance
 # ------------
 # In a steady state the jobs destroyed, `s (1 - u)` per worker, equal the hires, `f u`, where `f` is the share of
 # searching workers hired in a step. So the unemployment rate should settle at `s / (s + f)`. The job-finding rate is

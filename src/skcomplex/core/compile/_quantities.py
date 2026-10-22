@@ -12,7 +12,7 @@ from ..base import Expression
 
 @dataclass(frozen=True)
 class CompiledFlow:
-    """Flow of a compiled system between two holders.
+    """Transfer of a compiled system between two holders.
 
     Args:
         path:
@@ -129,3 +129,4 @@ class StockFlow:
     boundary: Mapping[str, str] = field(default_factory=dict)
     terms: tuple[LoopTerm, ...] = ()
     discrete: bool = False
+    invariants: Mapping[str, float] = field(default_factory=dict)

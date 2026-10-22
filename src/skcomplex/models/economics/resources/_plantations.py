@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import Domain, Expression, parameter, state
-from ....core.model import Auxiliary, Element, Flow, Law, Rate, Sink, Symbols, System, lookup, where
+from ....core.model import Auxiliary, Element, Law, Rate, Sink, Symbols, System, Transfer, lookup, where
 from ....core.runtime import register_model
 
 PROFITABILITY_EFFECT = (
@@ -96,20 +96,20 @@ def _cocoa_laws(s: Symbols) -> list[Law]:
         cocoa_yield,
         profit,
         profitability,
-        Flow(
+        Transfer(
             s.forest,
             s.area,
             _positive(desired - s.area) / s.adjustment_time * s.forest / (s.forest + s.area),
             label='planting',
         ),
-        Flow(
+        Transfer(
             s.area,
             s.abandoned,
             s.area * lookup(cocoa_yield.symbol, YIELD_EFFECT) * lookup(profit.symbol, PROFIT_EFFECT) / s.abandon_time,
             label='abandonment',
         ),
-        Flow(s.abandoned, s.forest, (1 - conversion) * s.abandoned / s.conversion_time, label='fallow'),
-        Flow(s.abandoned, Sink('oil_palm'), conversion * s.abandoned / s.conversion_time, label='conversion'),
+        Transfer(s.abandoned, s.forest, (1 - conversion) * s.abandoned / s.conversion_time, label='fallow'),
+        Transfer(s.abandoned, Sink('oil_palm'), conversion * s.abandoned / s.conversion_time, label='conversion'),
         Rate(s.shade_removal, unprotected * (FULL_INDEX - s.shade_removal) / s.thinning_time),
         Rate(
             s.insects,

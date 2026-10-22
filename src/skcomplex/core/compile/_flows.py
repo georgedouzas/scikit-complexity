@@ -25,7 +25,7 @@ from ..base import (
     symbol,
     symbols_of,
 )
-from ..model import Auxiliary, Boundary, Event, Flow, Jump, Law, Noise, Rate, Sink, Update
+from ..model import Auxiliary, Boundary, Event, Invariant, Jump, Law, Noise, Rate, Sink, Transfer, Update
 from ..model import Source as Environment
 from ..model._flows import DELAY_ORDERS, MATERIAL_DELAYS
 from ._kernels import Reference
@@ -78,7 +78,7 @@ class _Record:
 
 @dataclass
 class _Born:
-    """Flow of a spec with the amount it moves and its compiled holders."""
+    """Transfer of a spec with the amount it moves and its compiled holders."""
 
     spec: _Spec
     flow: CompiledFlow
@@ -181,6 +181,7 @@ class StockFlowPass:
         self._born: dict[int, _Born] = {}
         self._flows: list[_Born] = []
         self._records: list[_Record] = []
+        self._invariants: dict[str, float] = {}
         self._terms: list[tuple[_Spec, str, str, Expression, dict[Expression, str], str | None, str | None]] = []
 
     def _quantity_of(self, target: object, spec: _Spec) -> tuple[str, str | None]:
@@ -192,7 +193,7 @@ class StockFlowPass:
     def _expand_flow(
         self,
         spec: _Spec,
-        flow: Flow,
+        flow: Transfer,
         label: str,
         mapping: Mapping[Expression, Expression],
         names: dict[Expression, str],
@@ -249,19 +250,23 @@ class StockFlowPass:
         labels: set[str] = set()
         expanded: list[Law] = []
         for index, law in enumerate(laws):
-            if isinstance(law, Auxiliary | Flow):
+            if isinstance(law, Auxiliary | Transfer | Invariant):
                 label = law.label or f'flow_{index}'
                 if label in labels:
                     error_msg = f'{spec.owner} declares two flows or auxiliaries labelled {label!r}. Rename one.'
                     raise LabelError(error_msg)
                 labels.add(label)
-            if isinstance(law, Auxiliary):
+            if isinstance(law, Invariant):
+                path = f'{spec.owner}.{law.label}'
+                self._records.append(_Record(path, SR(_substituted(law.expression, mapping)), spec))
+                self._invariants[path] = law.tolerance
+            elif isinstance(law, Auxiliary):
                 value = SR(_substituted(law.expression, mapping))
                 path = f'{spec.owner}.{law.label}'
                 self._records.append(_Record(path, value, spec))
                 self._terms.append((spec, 'auxiliary', path, SR(law.expression), names, None, None))
                 mapping[law.symbol], names[law.symbol] = value, path
-            elif isinstance(law, Flow):
+            elif isinstance(law, Transfer):
                 expanded.extend(self._expand_flow(spec, law, label, mapping, names))
             else:
                 if isinstance(law, Rate) and isinstance(law.value, Expression) and isinstance(law.target, Expression):
@@ -289,7 +294,7 @@ class StockFlowPass:
             if quantity is not None:
                 error_msg = (
                     f'A {type(law).__name__} law of {spec.owner} changes {name}, which holds the quantity '
-                    f'{quantity!r}, by {value} outside any flow. Move the change into a Flow between holders of '
+                    f'{quantity!r}, by {value} outside any flow. Move the change into a Transfer between holders of '
                     f'{quantity!r} or with Source() or Sink().'
                 )
                 raise ConservationError(error_msg)
@@ -447,6 +452,7 @@ class StockFlowPass:
                 for spec, kind, path, expression, names, source, sink in self._terms
             ),
             discrete=discrete,
+            invariants=dict(self._invariants),
         )
 
 

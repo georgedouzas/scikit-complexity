@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Element, Flow, Interaction, Rate, Sink, Source, System, step, where
+from ....core.model import Element, Interaction, Rate, Sink, Source, System, Transfer, step, where
 from ....core.runtime import register_model
 
 INFLOW_START = 5.0
@@ -17,8 +17,8 @@ Tub = Element.define(
         'outflow': parameter(default=5.0, domain=Domain.NONNEGATIVE),
     },
     laws=lambda s: [
-        Flow(Source(), s.water, s.inflow * step(s.t, INFLOW_START), label='faucet'),
-        Flow(s.water, Sink(), where(s.water > 0, s.outflow, 0), label='drain'),
+        Transfer(Source(), s.water, s.inflow * step(s.t, INFLOW_START), label='faucet'),
+        Transfer(s.water, Sink(), where(s.water > 0, s.outflow, 0), label='drain'),
     ],
 )
 
@@ -29,8 +29,8 @@ Stage = Element.define(
     laws=lambda s: [Rate(s.m, s.feed)],
 )
 
-Transfer = Interaction.define(
-    'Transfer',
+Passage = Interaction.define(
+    'Passage',
     roles=['source', 'target'],
     parameters={'rate': parameter(default=0.5, domain=Domain.NONNEGATIVE)},
     laws=lambda s: [Rate(s.source.m, -s.rate * s.source.m), Rate(s.target.m, s.rate * s.source.m)],
@@ -120,10 +120,10 @@ def cascade_classifier(
     stages = [Stage(f'stage_{index}', feed=feed if index == entry else 0.0) for index in range(1, n_stages + 1)]
     labels = ['fine', *(stage.label for stage in stages), 'coarse']
     interactions = [
-        Transfer(f'up_{index}', source=labels[index], target=labels[index - 1], rate=k)
+        Passage(f'up_{index}', source=labels[index], target=labels[index - 1], rate=k)
         for index in range(1, n_stages + 1)
     ] + [
-        Transfer(f'down_{index}', source=labels[index], target=labels[index + 1], rate=1 - k)
+        Passage(f'down_{index}', source=labels[index], target=labels[index + 1], rate=1 - k)
         for index in range(1, n_stages + 1)
     ]
     return System(components=[Stage('fine'), *stages, Stage('coarse')], interactions=interactions)

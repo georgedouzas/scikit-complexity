@@ -23,7 +23,7 @@ from ._lattices import Drive, Energy, Extremal, LocalRule, Move, Relaxation, Sam
 
 if TYPE_CHECKING:
     from ._fields import Flux
-    from ._flows import Auxiliary, Flow
+    from ._flows import Auxiliary, Transfer
 
 type Target = Expression | SymbolicVector
 NOISE_CONVENTIONS = {'ito': 0.0, 'stratonovich': 0.5, 'anti-ito': 1.0}
@@ -640,6 +640,6 @@ type Law = (
     | Move
     | Sampler
     | Flux
-    | Flow
+    | Transfer
     | Auxiliary
 )

@@ -104,7 +104,7 @@ def test_single_element_bound_with_group_receives_sum():
 
 
 Box = Element.define('Box', states={'n': 0.0})
-Flow = Interaction.define('Flow', roles=['source', 'sink'], laws=lambda s: [Rate(s.sink.n, s.source.n)])
+Transfer = Interaction.define('Transfer', roles=['source', 'sink'], laws=lambda s: [Rate(s.sink.n, s.source.n)])
 Cell = Element.define('Cell', states={'size': 0.0})
 
 
@@ -113,7 +113,7 @@ def test_interaction_reads_two_groups_member_by_member(backend):
     """Test that an interaction bound to two groups of equal size reads row `i` of both together."""
     system = System(
         components=[Box.group('source', 5, n=np.arange(5.0)), Box.group('sink', 5)],
-        interactions=[Flow('flow', source='source', sink='sink')],
+        interactions=[Transfer('flow', source='source', sink='sink')],
     )
     problem = compile_system(system, backend=backend)
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
@@ -125,7 +125,7 @@ def test_interaction_reading_groups_of_different_sizes_raises_error():
     """Test that an interaction reading groups of different sizes member by member names both groups and sizes."""
     system = System(
         components=[Box.group('source', 5), Box.group('sink', 7)],
-        interactions=[Flow('flow', source='source', sink='sink')],
+        interactions=[Transfer('flow', source='source', sink='sink')],
     )
     with pytest.raises(RoleError, match=r"sink of 7 members, source of 5 members.*over 'pairs'"):
         compile_system(system)

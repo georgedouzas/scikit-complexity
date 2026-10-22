@@ -88,19 +88,19 @@ def _check_holder(name: str, holder: object, environment: type) -> None:
 
 
 @dataclass(frozen=True)
-class Flow:
+class Transfer:
     """Movement of an amount of a quantity from a source holder to a sink holder.
 
-    A flow is one outflow of its source and one inflow of its sink. Its amount is a rate in a system of rate laws,
+    A transfer is one outflow of its source and one inflow of its sink. Its amount is a rate in a system of rate laws,
     the amount moved per step in a system of update laws, and the size of every jump when a `rate` is given. The
     trajectory records the amount at every frame under `<component path>.<label>`.
 
     Args:
         source:
-            The symbol of the state the quantity leaves, or `Source()` for the environment.
+            The symbol of the state the quantity leaves, or `Source()` or `None` for the environment.
 
         sink:
-            The symbol of the state the quantity enters, or `Sink()` for the environment.
+            The symbol of the state the quantity enters, or `Sink()` or `None` for the environment.
 
         amount:
             The symbolic amount, a rate, a per-step amount, or a jump size.
@@ -119,9 +119,9 @@ class Flow:
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.model import Flow, Source
+        >>> from skcomplex.core.model import Transfer, Source
         >>> level = symbol('level')
-        >>> Flow(Source(), level, 5, label='faucet').label
+        >>> Transfer(Source(), level, 5, label='faucet').label
         'faucet'
     """
 
@@ -135,7 +135,11 @@ class Flow:
     rate: object = None
 
     def __post_init__(self) -> None:
-        """Check the holders and the amount of the flow."""
+        """Take `None` as the environment, and check the holders and the amount of the transfer."""
+        if self.source is None:
+            object.__setattr__(self, 'source', Source())
+        if self.sink is None:
+            object.__setattr__(self, 'sink', Sink())
         _check_holder('source', self.source, Source)
         _check_holder('sink', self.sink, Sink)
         if isinstance(self.source, Source) and isinstance(self.sink, Sink):
@@ -187,6 +191,44 @@ class Auxiliary:
     def symbol(self) -> Expression:
         """The symbol laws use in place of the expression."""
         return symbol(f'{self.label}__aux')
+
+
+@dataclass(frozen=True)
+class Invariant:
+    """Expression of the states of a component that stays constant during a run, such as a conserved total.
+
+    The trajectory records the expression under `<component path>.<label>`, and every run checks at every frame that it
+    differs from its value at the first frame by no more than the tolerance, raising an error that names the invariant
+    and the first frame that breaks it.
+
+    Args:
+        label:
+            The name of the invariant, unique among the transfers, auxiliaries, and invariants of its component.
+
+        expression:
+            The expression of states and parameters.
+
+        tolerance:
+            The largest change from the first frame that the run accepts.
+
+    Examples:
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import Invariant
+        >>> a, b = symbol('a'), symbol('b')
+        >>> Invariant('total', a + b).tolerance
+        1e-09
+    """
+
+    law_kind: ClassVar[LawKind] = LawKind.INVARIANT
+    requires: ClassVar[Requires] = Requires()
+
+    label: str
+    expression: object
+    tolerance: float = 1e-9
+
+    def __post_init__(self) -> None:
+        """Check the expression of the invariant."""
+        _check_value(self, 'expression', f'expression of the invariant {self.label}')
 
 
 def lookup(value: object, points: Sequence[Sequence[float]]) -> Expression:

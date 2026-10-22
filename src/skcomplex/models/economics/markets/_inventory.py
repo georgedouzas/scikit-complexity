@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Auxiliary, Element, Flow, Law, Sink, Source, Symbols, System, delay3, smooth, step, where
+from ....core.model import Auxiliary, Element, Law, Sink, Source, Symbols, System, Transfer, delay3, smooth, step, where
 from ....core.runtime import register_model
 
 
@@ -20,8 +20,8 @@ def _dealer_laws(s: Symbols) -> list[Law]:
         perceived,
         desired,
         orders,
-        Flow(Source('factory'), s.inventory, delay3(orders.symbol, s.delivery_delay), label='deliveries'),
-        Flow(s.inventory, Sink('customers'), sales, label='sales'),
+        Transfer(Source('factory'), s.inventory, delay3(orders.symbol, s.delivery_delay), label='deliveries'),
+        Transfer(s.inventory, Sink('customers'), sales, label='sales'),
     ]
 
 

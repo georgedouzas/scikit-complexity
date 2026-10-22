@@ -97,3 +97,45 @@ class ConservationMonitor(Observer):
                     'the environment. Change the states that hold it only with flows.'
                 )
                 raise ConservationError(error_msg)
+
+
+class InvariantMonitor(Observer):
+    """Observer that checks at every frame that every invariant of the laws stays within its tolerance.
+
+    Every run attaches one when its problem declares invariants.
+
+    Attributes:
+        initial_:
+            The value of every invariant at the first frame.
+    """
+
+    def on_start(self, problem: Problem) -> None:
+        """Keep the invariants of the problem.
+
+        Args:
+            problem:
+                The compiled problem.
+        """
+        self.invariants_ = dict(problem.stock_flow.invariants) if problem.stock_flow is not None else {}
+        self.initial_: dict[str, float] = {}
+
+    def on_frame(self, frame: Frame) -> None:
+        """Check the invariants of a frame against the first frame.
+
+        Args:
+            frame:
+                The frame.
+
+        Raises:
+            ConservationError:
+                An invariant changed by more than its tolerance.
+        """
+        for path, tolerance in self.invariants_.items():
+            value = float(np.sum(frame.observables[path]))
+            initial = self.initial_.setdefault(path, value)
+            if abs(value - initial) > tolerance:
+                error_msg = (
+                    f'The invariant {path} changed from {initial:.6g} to {value:.6g} at frame {frame.step}, time '
+                    f'{frame.time:.6g}, beyond its tolerance {tolerance:g}.'
+                )
+                raise ConservationError(error_msg)

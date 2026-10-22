@@ -76,6 +76,9 @@ class Variable:
 
         velocity_of:
             The position state whose rate a vector state is, which a reflecting boundary reverses, or `None`.
+
+        adaptive:
+            Whether a state was declared as an adaptive parameter, which laws may change.
     """
 
     kind: VariableKind
@@ -93,6 +96,7 @@ class Variable:
     history: Any = None
     position: bool = False
     velocity_of: str | None = None
+    adaptive: bool = False
 
 
 def _declare_field(default: Any, declaration: Variable) -> Any:
@@ -253,6 +257,7 @@ def parameter(
     domain: AnyDomain = Domain.REAL,
     vector: bool = False,
     per: str | None = None,
+    adaptive: bool = False,
 ) -> Any:
     """Declare a parameter of an element or an interaction.
 
@@ -272,6 +277,11 @@ def parameter(
 
         per:
             The name of a variadic role of the interaction whose entries the parameter holds one value for, or `None`.
+
+        adaptive:
+            Whether laws may change the parameter, such as a policy rate an institution sets. An adaptive parameter of
+            an element is compiled and recorded as a state whose initial value is the one the constructor gets, so
+            laws target it like any state.
 
     Returns:
         field:
@@ -294,6 +304,11 @@ def parameter(
         >>> Regulation('regulation', inputs=['a', 'b'], weights=[1.0, -1.0]).weights
         [1.0, -1.0]
     """
+    if adaptive:
+        if per is not None:
+            error_msg = f'A parameter takes either `adaptive=True` or `per={per!r}`, not both.'
+            raise ValueError(error_msg)
+        return _declare_field(default, Variable(VariableKind.STATE, domain, vector, adaptive=True))
     if vector and per is not None:
         error_msg = f'A parameter takes either `vector=True` or `per={per!r}`, not both.'
         raise ValueError(error_msg)

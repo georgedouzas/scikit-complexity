@@ -62,8 +62,8 @@ class Chamber(Element):
     systole: float = parameter(default=0.3, domain=Domain.POSITIVE)
 
 
-class Flow(Interaction):
-    """Flow of blood from one chamber to another through a resistance, `Q = (P_up - P_down) / R`.
+class Transfer(Interaction):
+    """Transfer of blood from one chamber to another through a resistance, `Q = (P_up - P_down) / R`.
 
     A valve lets blood pass forward only, so the flow is zero when the downstream pressure is higher.
 
@@ -84,8 +84,8 @@ class Flow(Interaction):
             Whether a valve prevents backward flow.
 
     Examples:
-        >>> from skcomplex.models.biology.physiology import Flow
-        >>> Flow('aortic_valve', upstream='ventricle', downstream='arteries', valve=True).valve
+        >>> from skcomplex.models.biology.physiology import Transfer
+        >>> Transfer('aortic_valve', upstream='ventricle', downstream='arteries', valve=True).valve
         True
     """
 
@@ -182,8 +182,8 @@ def cardiovascular(
         systole=systole,
     )
     flows = [
-        Flow('aortic_valve', upstream='ventricle', downstream='arteries', R=0.02, valve=True),
-        Flow('systemic', upstream='arteries', downstream='veins', R=R_systemic),
-        Flow('mitral_valve', upstream='veins', downstream='ventricle', R=0.02, valve=True),
+        Transfer('aortic_valve', upstream='ventricle', downstream='arteries', R=0.02, valve=True),
+        Transfer('systemic', upstream='arteries', downstream='veins', R=R_systemic),
+        Transfer('mitral_valve', upstream='veins', downstream='ventricle', R=0.02, valve=True),
     ]
     return System(components=[ventricle, arteries, veins], interactions=flows)

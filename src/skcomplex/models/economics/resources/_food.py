@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Auxiliary, Element, Flow, Law, Rate, Sink, Source, Symbols, System, lookup
+from ....core.model import Auxiliary, Element, Law, Rate, Sink, Source, Symbols, System, Transfer, lookup
 from ....core.runtime import register_model
 
 INPUT_EFFECT = ((0.0, 0.3), (0.25, 0.45), (0.5, 0.58), (0.75, 0.68), (1.0, 0.75), (1.5, 0.8))
@@ -31,9 +31,9 @@ def _rice_laws(s: Symbols) -> list[Law]:
         production,
         requirement,
         Auxiliary('self_sufficiency', production.symbol / requirement.symbol),
-        Flow(s.available_land, s.rice_area, s.available_land / s.conversion_time, label='development'),
-        Flow(s.rice_area, Sink('urban'), s.discard_rate * s.rice_area, label='discard'),
-        Flow(Source('births'), s.population, s.growth_rate * s.population, label='population_growth'),
+        Transfer(s.available_land, s.rice_area, s.available_land / s.conversion_time, label='development'),
+        Transfer(s.rice_area, Sink('urban'), s.discard_rate * s.rice_area, label='discard'),
+        Transfer(Source('births'), s.population, s.growth_rate * s.population, label='population_growth'),
         Rate(s.potential, s.research * (s.potential_limit - s.potential) / s.research_time),
         Rate(
             s.soil_quality,

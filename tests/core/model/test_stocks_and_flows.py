@@ -15,13 +15,13 @@ from skcomplex.core.model import (
     Auxiliary,
     Boundary,
     Element,
-    Flow,
     Identity,
     Rate,
     Rule,
     Sink,
     Source,
     System,
+    Transfer,
     Update,
     delay1,
     delay3,
@@ -38,13 +38,17 @@ from skcomplex.models import create
 
 def _tub_laws(s):
     """Return a faucet of 5 and a drain proportional to the level."""
-    return [Flow(Source(), s.water, 5.0, label='faucet'), Flow(s.water, Sink(), s.k * s.water, label='drain')]
+    return [Transfer(Source(), s.water, 5.0, label='faucet'), Transfer(s.water, Sink(), s.k * s.water, label='drain')]
 
 
 def _population_laws(s):
     """Return births through an auxiliary and deaths proportional to the population."""
     births = Auxiliary('birth_rate', s.b * s.n)
-    return [births, Flow(Source(), s.n, births.symbol, label='births'), Flow(s.n, Sink(), s.d * s.n, label='deaths')]
+    return [
+        births,
+        Transfer(Source(), s.n, births.symbol, label='births'),
+        Transfer(s.n, Sink(), s.d * s.n, label='deaths'),
+    ]
 
 
 def _leaky_laws(s):
@@ -54,12 +58,16 @@ def _leaky_laws(s):
 
 def _clipped_laws(s):
     """Return an inflow and a boundary law that clips the stock, which destroys the quantity."""
-    return [Flow(Source(), s.water, 1.0, label='faucet'), Boundary(s.water, where(s.water > 2, 2, s.water))]
+    return [Transfer(Source(), s.water, 1.0, label='faucet'), Boundary(s.water, where(s.water > 2, 2, s.water))]
 
 
 def _ledger_laws(s):
     """Return a per-step payment between two holders and an untagged counter updated every step."""
-    return [Flow(s.a, s.b, 0.1 * s.a, label='pay'), Flow(Source(), s.a, 1.0, label='lend'), Update(s.c, s.c + 1)]
+    return [
+        Transfer(s.a, s.b, 0.1 * s.a, label='pay'),
+        Transfer(Source(), s.a, 1.0, label='lend'),
+        Update(s.c, s.c + 1),
+    ]
 
 
 def _fertility_laws(s):
@@ -115,7 +123,7 @@ def test_flow_between_quantities_is_rejected():
     mixed = Element.define(
         'Mixed',
         states={'x': state(1.0, quantity='mass'), 'y': state(0.0, quantity='energy')},
-        laws=lambda s: [Flow(s.x, s.y, s.x)],
+        laws=lambda s: [Transfer(s.x, s.y, s.x)],
     )
     with pytest.raises(ConservationError, match='different quantities'):
         compile_system(System(components=[mixed('m')]))
@@ -124,15 +132,20 @@ def test_flow_between_quantities_is_rejected():
 def test_flow_holders_and_labels_are_checked():
     """Test that flows reject parameters as holders, environment to environment, and duplicate labels."""
     with pytest.raises(ValidationError, match='both of its holders'):
-        Flow(Source(), Sink(), 1.0)
+        Transfer(Source(), Sink(), 1.0)
     twice = Element.define(
         'Twice',
         states={'x': state(1.0)},
-        laws=lambda s: [Flow(Source(), s.x, 1.0, label='f'), Flow(s.x, Sink(), 1.0, label='f')],
+        laws=lambda s: [Transfer(Source(), s.x, 1.0, label='f'), Transfer(s.x, Sink(), 1.0, label='f')],
     )
     with pytest.raises(LabelError, match="'f'"):
         compile_system(System(components=[twice('twice')]))
-    reads = Element.define('Reads', states={'x': state(1.0)}, parameters={'k': 1.0}, laws=lambda s: [Flow(s.k, s.x, 1)])
+    reads = Element.define(
+        'Reads',
+        states={'x': state(1.0)},
+        parameters={'k': 1.0},
+        laws=lambda s: [Transfer(s.k, s.x, 1)],
+    )
     with pytest.raises(ValidationError, match='not a state'):
         compile_system(System(components=[reads('reads')]))
 
@@ -151,7 +164,7 @@ def test_jump_flows_move_their_size_at_random_times():
     jumping = Element.define(
         'Jumping',
         states={'a': state(50.0, quantity='coins'), 'b': state(0.0, quantity='coins')},
-        laws=lambda s: [Flow(s.a, s.b, 1, rate=0.1 * s.a, label='move')],
+        laws=lambda s: [Transfer(s.a, s.b, 1, rate=0.1 * s.a, label='move')],
     )
     trajectory = Simulation(System(components=[jumping('j')]), dt=1, random_state=0).run(10).trajectory_
     assert np.all(trajectory['j.a'] + trajectory['j.b'] == 50.0)

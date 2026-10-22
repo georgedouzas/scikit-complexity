@@ -17,6 +17,7 @@ from ..compile import Backend, Entry, ObservableEvaluator, Problem, Vector, comp
 from ..model import Observable, System
 from ..solvers import AgentState, RewritingState, Stepper, resolve_solver
 from ._clocks import AsFastAsPossible, Clock
+from ._conservation import InvariantMonitor
 from ._frames import Frame
 from ._observers import Observer, Recorder
 from ._trajectories import Trajectory
@@ -186,7 +187,9 @@ class Simulation(BaseEstimator):
         initial_state = self.stepper_.initial_state(self.problem_.initial_state.copy())
         self.clock_ = self.clock if self.clock is not None else AsFastAsPossible()
         self.recorder_ = Recorder() if self.record else None
-        self.observers_ = [*self.observers, *([self.recorder_] if self.recorder_ is not None else [])]
+        invariants = self.problem_.stock_flow is not None and self.problem_.stock_flow.invariants
+        monitors = [InvariantMonitor()] if invariants else []
+        self.observers_ = [*monitors, *self.observers, *([self.recorder_] if self.recorder_ is not None else [])]
         self.time_ = 0.0
         self.state_ = initial_state
         self.parameters_ = self.problem_.initial_parameters.copy()

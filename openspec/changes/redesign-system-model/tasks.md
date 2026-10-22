@@ -55,7 +55,7 @@ through the conformance suite.
 
 - [x] 4.1 Classify every law kind by time semantics. Absorb `Renewal` into `Jump` with a clock, and absorb `Energy`,
   `Move`, and `Sampler` into `Sample` with Metropolis as the only core acceptance.
-- [ ] 4.2 Add `Transfer`, `Invariant`, `Match` with random pairing, and `parameter(adaptive=True)`, and verify their
+- [x] 4.2 Add `Transfer`, `Invariant`, `Match` with random pairing, and `parameter(adaptive=True)`, and verify their
   scenarios.
 - [ ] 4.3 Rename `Hamiltonian` to `Generator`, and keep `Dissipator`.
 - [ ] 4.4 Add the distributed-delay expression and named expressions, which replace the system-dynamics delays and

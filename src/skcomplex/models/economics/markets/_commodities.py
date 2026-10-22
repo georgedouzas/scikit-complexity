@@ -4,7 +4,20 @@
 # License: MIT
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Auxiliary, Element, Flow, Law, Sink, Source, Symbols, System, delay3, lookup, smooth, step
+from ....core.model import (
+    Auxiliary,
+    Element,
+    Law,
+    Sink,
+    Source,
+    Symbols,
+    System,
+    Transfer,
+    delay3,
+    lookup,
+    smooth,
+    step,
+)
 from ....core.runtime import register_model
 
 PRICE_TABLE = ((0.0, 3.0), (0.5, 1.8), (1.0, 1.0), (1.5, 0.65), (2.0, 0.5), (3.0, 0.4))
@@ -28,10 +41,15 @@ def _commodity_laws(s: Symbols) -> list[Law]:
         price,
         expected,
         starts,
-        Flow(Source('producers'), s.inventory, production, label='production'),
-        Flow(s.inventory, Sink('consumers'), demand * relative_price ** (-s.demand_elasticity), label='consumption'),
-        Flow(Source('construction'), s.capacity, delay3(starts.symbol, s.construction_delay), label='completions'),
-        Flow(s.capacity, Sink('retirement'), s.capacity / s.lifetime, label='retirements'),
+        Transfer(Source('producers'), s.inventory, production, label='production'),
+        Transfer(
+            s.inventory,
+            Sink('consumers'),
+            demand * relative_price ** (-s.demand_elasticity),
+            label='consumption',
+        ),
+        Transfer(Source('construction'), s.capacity, delay3(starts.symbol, s.construction_delay), label='completions'),
+        Transfer(s.capacity, Sink('retirement'), s.capacity / s.lifetime, label='retirements'),
     ]
 
 

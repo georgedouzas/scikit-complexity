@@ -9,7 +9,6 @@ from ....core.base import Domain, Expression, parameter, state
 from ....core.model import (
     Auxiliary,
     Element,
-    Flow,
     Interaction,
     Law,
     Rate,
@@ -17,6 +16,7 @@ from ....core.model import (
     Source,
     Symbols,
     System,
+    Transfer,
     delay3,
     step,
     where,
@@ -60,8 +60,8 @@ def _link_laws(s: Symbols) -> list[Law]:
         Rate(s.downstream.supply_line, orders - arrivals),
         Rate(s.upstream.backlog, received),
         Rate(s.upstream.expected, s.upstream.theta * received),
-        Flow(s.upstream.inventory, s.downstream.in_transit, shipments, label='shipments'),
-        Flow(s.downstream.in_transit, s.downstream.inventory, arrivals, label='arrivals'),
+        Transfer(s.upstream.inventory, s.downstream.in_transit, shipments, label='shipments'),
+        Transfer(s.downstream.in_transit, s.downstream.inventory, arrivals, label='arrivals'),
     ]
 
 
@@ -72,7 +72,7 @@ def _customer_laws(s: Symbols) -> list[Law]:
         demand,
         Rate(s.retailer.backlog, demand.symbol),
         Rate(s.retailer.expected, s.retailer.theta * demand.symbol),
-        Flow(s.retailer.inventory, Sink('customers'), _shipments(s.retailer), label='sales'),
+        Transfer(s.retailer.inventory, Sink('customers'), _shipments(s.retailer), label='sales'),
     ]
 
 
@@ -82,8 +82,8 @@ def _brewery_laws(s: Symbols) -> list[Law]:
     completions = delay3(orders, s.production_delay)
     return [
         Rate(s.factory.supply_line, orders - completions),
-        Flow(Source('brewery'), s.factory.in_transit, orders, label='starts'),
-        Flow(s.factory.in_transit, s.factory.inventory, completions, label='completions'),
+        Transfer(Source('brewery'), s.factory.in_transit, orders, label='starts'),
+        Transfer(s.factory.in_transit, s.factory.inventory, completions, label='completions'),
     ]
 
 

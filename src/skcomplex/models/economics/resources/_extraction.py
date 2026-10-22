@@ -6,7 +6,7 @@
 from collections.abc import Sequence
 
 from ....core.base import Domain, Expression, parameter, state
-from ....core.model import Auxiliary, Element, Flow, Law, Sink, Source, Symbols, System, lookup, where
+from ....core.model import Auxiliary, Element, Law, Sink, Source, Symbols, System, Transfer, lookup, where
 from ....core.runtime import register_model
 
 RESOURCE_LEVELS = (0.0, 100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0)
@@ -99,9 +99,9 @@ class OilEconomy(Element):
         return [
             efficiency,
             profit,
-            Flow(s.resource, Sink('market'), extraction, label='extraction'),
-            Flow(Source('investors'), s.capital, investment, label='investment'),
-            Flow(s.capital, Sink('scrap'), s.capital / s.lifetime, label='depreciation'),
+            Transfer(s.resource, Sink('market'), extraction, label='extraction'),
+            Transfer(Source('investors'), s.capital, investment, label='investment'),
+            Transfer(s.capital, Sink('scrap'), s.capital / s.lifetime, label='depreciation'),
         ]
 
 
@@ -175,10 +175,10 @@ class Fishery(Element):
             efficiency,
             price,
             profit,
-            Flow(Source('spawning'), s.resource, regeneration, label='regeneration'),
-            Flow(s.resource, Sink('market'), harvest, label='harvest'),
-            Flow(Source('investors'), s.capital, investment, label='investment'),
-            Flow(s.capital, Sink('scrap'), s.capital / s.lifetime, label='depreciation'),
+            Transfer(Source('spawning'), s.resource, regeneration, label='regeneration'),
+            Transfer(s.resource, Sink('market'), harvest, label='harvest'),
+            Transfer(Source('investors'), s.capital, investment, label='investment'),
+            Transfer(s.capital, Sink('scrap'), s.capital / s.lifetime, label='depreciation'),
         ]
 
 

@@ -4,7 +4,7 @@ from ._components import AgentType, Aggregate, Element, Group, Interaction
 from ._draws import Draw, bernoulli, categorical, draw, draws_in, is_draw, normal, uniform
 from ._ensembles import replicate
 from ._fields import Field, Flux, advection, divergence, gradient, inverse_laplacian, laplacian
-from ._flows import Auxiliary, Flow, Sink, Source, delay1, delay3, lookup, smooth, smooth3
+from ._flows import Auxiliary, Invariant, Sink, Source, Transfer, delay1, delay3, lookup, smooth, smooth3
 from ._functions import (
     both,
     delayed,
@@ -74,6 +74,7 @@ from ._markets import (
     Walrasian,
     total_surplus,
 )
+from ._matching import Match, matches, random_pairing
 from ._meshes import Mesh
 from ._observables import Observable, reduce_values
 from ._operators import Dissipator, Hamiltonian, LocalOperator, Operator
@@ -157,7 +158,6 @@ __all__: list[
     'Exchange',
     'Extremal',
     'Field',
-    'Flow',
     'Flux',
     'FractionalNoise',
     'GraphProduction',
@@ -169,6 +169,7 @@ __all__: list[
     'Identity',
     'Institution',
     'Interaction',
+    'Invariant',
     'Jump',
     'LangevinThermostat',
     'LatticeSpace',
@@ -178,6 +179,7 @@ __all__: list[
     'LocalOperator',
     'LocalRule',
     'Market',
+    'Match',
     'MesaSystem',
     'Mesh',
     'Mode',
@@ -228,6 +230,7 @@ __all__: list[
     'Target',
     'Totalistic',
     'Trade',
+    'Transfer',
     'Transition',
     'Turtle',
     'Update',
@@ -263,6 +266,7 @@ __all__: list[
     'logit_choice',
     'logit_probabilities',
     'lookup',
+    'matches',
     'maximum',
     'mean',
     'memory',
@@ -274,6 +278,7 @@ __all__: list[
     'pulse',
     'pulse_train',
     'ramp',
+    'random_pairing',
     'reduce_values',
     'reductions_in',
     'replicate',

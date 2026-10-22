@@ -55,15 +55,16 @@ from ..model import (
     Event,
     Extremal,
     Field,
-    Flow,
     Flux,
     FractionalNoise,
     Group,
     Interaction,
+    Invariant,
     Jump,
     LatticeSpace,
     Law,
     LocalRule,
+    Match,
     MesaSystem,
     Mesh,
     Move,
@@ -79,6 +80,7 @@ from ..model import (
     Space,
     Symbols,
     System,
+    Transfer,
     Transition,
     Update,
     count,
@@ -169,8 +171,8 @@ CONTINUOUS = frozenset({Rate, Noise})
 ASSIGNED_KINDS = (Update, Boundary)
 MEMBER_REFERENCE = re.compile(r'^(?P<path>.+)\[(?P<index>-?\d+)\]$')
 LATTICE_LAWS = (LocalRule, Drive, Relaxation, Extremal, Energy, Move, Sampler)
-KERNEL_FREE = (*LATTICE_LAWS, Flux, Flow, Auxiliary)
-DECLARED_FREE = (LocalRule, Drive, Relaxation, Extremal, Flux, Flow, Auxiliary)
+KERNEL_FREE = (*LATTICE_LAWS, Flux, Transfer, Auxiliary, Invariant)
+DECLARED_FREE = (LocalRule, Drive, Relaxation, Extremal, Flux, Transfer, Auxiliary, Invariant)
 
 
 def _renamed(value: Expression, mapping: dict[Expression, Expression]) -> Expression:
@@ -878,6 +880,8 @@ def _unpacked(laws: object) -> object:
             unpacked.append(law.renewal)
         elif isinstance(law, Sample):
             unpacked += law.parts
+        elif isinstance(law, Match):
+            unpacked.append(law.rule)
         else:
             unpacked.append(law)
     return unpacked
@@ -890,12 +894,13 @@ def _collect_laws(spec: _KernelSpec, component: object, flows: StockFlowPass, *,
     them. Without `expand`, the laws are kept as declared, as the census of validation reads them.
     """
     declared = component.laws(spec.namespace)  # type: ignore[attr-defined]
-    kinds = (Rate, Noise, Jump, Update, Transition, Emission, Boundary, Rule, Equation, Event, Sample, *DECLARED_FREE)
+    kinds = (Rate, Noise, Jump, Update, Transition, Emission, Boundary, Rule, Equation, Event, Sample, Match)
+    kinds = (*kinds, *DECLARED_FREE)
     if not isinstance(declared, list | tuple) or not all(isinstance(law, kinds) for law in declared):
         error_msg = (
             f'`laws` of {spec.owner} must return a list of Rate, Noise, FractionalNoise, Jump, Update, Transition, '
-            'Emission, Boundary, Rule, Equation, Event, LocalRule, Drive, Relaxation, Extremal, Sample, Flux, Flow, or '
-            'Auxiliary laws.'
+            'Emission, Boundary, Rule, Equation, Event, LocalRule, Drive, Relaxation, Extremal, Sample, Flux, '
+            'Transfer, or Auxiliary laws.'
         )
         raise ValidationError(error_msg)
     if spec.pairs is not None and not all(isinstance(law, Rate) for law in declared):
@@ -2236,10 +2241,12 @@ def _law_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
         law = law.renewal
     if isinstance(law, Sample):
         law = law.energy
+    if isinstance(law, Match):
+        law = law.rule
     if isinstance(law, Rule):
         paths = [path for value in spec.roles.values() for path in ([value] if isinstance(value, str) else value)]
         return next((path for path in paths if path in agents), next(iter(paths), spec.owner))
-    if isinstance(law, Equation | Event | Energy | Sampler | Renewal | Flow | Auxiliary):
+    if isinstance(law, Equation | Event | Energy | Sampler | Renewal | Transfer | Auxiliary | Invariant):
         return _renewal_group(spec, law) if isinstance(law, Renewal) else spec.owner
     if isinstance(law, Relaxation):
         target = next(iter(law.targets), None)
@@ -2557,7 +2564,7 @@ def law_census(system: System) -> tuple[list[CensusRecord], list[tuple[str, Skco
         try:
             for spec in _specs_of(block, elements, declarations.time, observe):
                 for law in _collect_laws(spec, _component_of(block.node), flows, expand=False):
-                    if isinstance(law, Auxiliary):
+                    if isinstance(law, Auxiliary | Invariant):
                         continue
                     target = getattr(law, 'target', None)
                     items = components_of(target) if target is not None else []

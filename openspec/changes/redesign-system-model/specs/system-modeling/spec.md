@@ -140,9 +140,8 @@ the system SHALL be declared with `None`.
 - **THEN** both changes appear in the same frame, and the total wealth is unchanged
 
 ### Requirement: Invariants declare conserved quantities
-An invariant SHALL declare an expression that stays constant within a tolerance. It SHALL be checked at every frame
-with a named error that names the invariant and the frame. When declared enforced, it SHALL be restored by projection
-after each step.
+An invariant SHALL declare an expression that stays constant within a tolerance. It SHALL be recorded and checked at
+every frame of every run, with a named error that names the invariant and the first frame that breaks it.
 
 #### Scenario: Violated invariant
 - **WHEN** a law creates wealth from nothing in a system that declares total wealth invariant

@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Auxiliary, Element, Flow, Law, Rate, Sink, Source, Symbols, System
+from ....core.model import Auxiliary, Element, Law, Rate, Sink, Source, Symbols, System, Transfer
 from ....core.runtime import register_model
 
 
@@ -20,11 +20,11 @@ def _energy_laws(s: Symbols) -> list[Law]:
         gross,
         cost,
         Auxiliary('net_per_capita', net / s.population),
-        Flow(s.reserve, Sink('extraction_work'), cost.symbol, label='energy_cost'),
-        Flow(s.reserve, Sink('society'), net, label='net_energy'),
+        Transfer(s.reserve, Sink('extraction_work'), cost.symbol, label='energy_cost'),
+        Transfer(s.reserve, Sink('society'), net, label='net_energy'),
         Rate(s.capacity, s.reinvestment * net - s.capacity / s.lifetime),
-        Flow(Source('births'), s.population, s.birth_rate * s.population, label='births'),
-        Flow(s.population, Sink('deaths'), s.death_rate * s.population, label='deaths'),
+        Transfer(Source('births'), s.population, s.birth_rate * s.population, label='births'),
+        Transfer(s.population, Sink('deaths'), s.death_rate * s.population, label='deaths'),
     ]
 
 
