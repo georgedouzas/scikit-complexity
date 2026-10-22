@@ -670,6 +670,113 @@ engineering processes, `car_dealer`, `commodity_cycle`, and `beer_game` in marke
 `stock_flow_consistent_economy` in macroeconomics, and `success_to_the_successful`, `shifting_the_burden`, and
 `escalation` in organizations.
 
+## Control
+
+A control input is an adaptive parameter with bounds, `parameter(initial, adaptive=True, bounds=(lower, upper))`. Laws
+read it like a parameter, trajectories record it like a state, and a schedule, an optimal control solver, or a
+feedback controller supplies its value. Without one it keeps its initial value. `validate` reports an initial value
+outside the bounds as an error at the parameter, whose fix names the bounds.
+
+```python
+from skcomplex.core.compile import validate
+
+Heater = Element.define(
+    'Heater',
+    states={'T': 0.0},
+    parameters={'power': parameter(0.0, adaptive=True, bounds=(0, 1))},
+    laws=lambda s: [Rate(s.T, s.power - s.T)],
+)
+room = System(components=[Heater('heater')])
+print([issue.path for issue in validate(System(components=[Heater('heater', power=2.0)])).errors])
+schedule = {'heater.power': lambda t: 1.0 if t >= 1.0 else 0.0}
+heated = Simulation(room, dt=0.5, schedule=schedule).run(until=3).trajectory_
+print(heated['heater.power'])
+```
+
+### Objectives and optimal control
+
+An `Objective(expression, terminal=0, sense='min', label='objective')` law is the cost or the gain of a system. Under
+continuous time the value of a run is the integral of the running value `expression` over the run plus the terminal
+value at its horizon, the time `until` of the run, and trajectories record the running value under
+`<component path>.<label>`. An objective is a constraint law, valid under static and continuous time, so `validate`
+reports one under discrete time.
+
+Two solvers minimise a cost, or maximise a gain, over the bounded adaptive parameters of the system. `Pontryagin()`
+builds the Hamiltonian `H = L + λ · f` of the running cost `L` and the rates `f`, derives the costate equations
+`λ' = -∂H/∂x` and the stationarity condition `∂H/∂u = 0` symbolically, projects the controls onto their bounds, takes
+a bound where `H` is linear in a control, and solves the two-point problem by a forward-backward sweep.
+`Collocation(nodes, scheme)` transcribes the problem with the `'hermite-simpson'` or `'trapezoidal'` scheme and solves
+it with SciPy's `minimize`, with the Jacobians derived symbolically. Collocation handles bang-bang controls, singular
+arcs, and saddle paths on which the sweep diverges. Both solve the problem over the whole run when it starts, and
+`simulation.stepper_.solution_` holds the solution on its grid, its cost, and, for `Pontryagin`, the costates.
+
+```python
+from skcomplex.core.laws import Objective
+from skcomplex.core.solvers import Collocation, Pontryagin
+
+Plant = Element.define(
+    'Plant',
+    states={'x': 1.0},
+    parameters={'u': parameter(0.0, adaptive=True, bounds=(-10, 10))},
+    laws=lambda s: [Rate(s.x, s.u), Objective((s.x**2 + s.u**2) / 2)],
+)
+plant = System(components=[Plant('plant')])
+optimal = Simulation(plant, solver=Pontryagin(), dt=0.1).run(until=1.0)
+print(round(optimal.trajectory_['plant.u'][0], 3), round(optimal.stepper_.solution_.cost, 4))
+transcribed = Simulation(plant, solver=Collocation(nodes=21), dt=0.1).run(until=1.0)
+print(round(transcribed.trajectory_['plant.u'][0], 3))
+```
+
+Every solver declares what it supports, and the optimal control solvers declare continuous time, no space, rate,
+equation, and objective laws, real and angle states, and elements. `Pontryagin` also applies boundary laws after
+every step of its sweep, and `Collocation` keeps the states of nonnegative domains nonnegative instead. `validate`
+reports a system with noise, jumps, or updates run with them, and an objective run with a solver that does not
+optimise, whose fix lists the solvers that do.
+
+| Solver | Laws | Method |
+| --- | --- | --- |
+| `Pontryagin` | rate, equation, objective, boundary | symbolic costates and a forward-backward sweep |
+| `Collocation` | rate, equation, objective | direct transcription solved by SLSQP or trust-constr |
+
+```python
+print([issue.fix for issue in validate(plant, solver='rk4').errors])
+```
+
+### Feedback controllers
+
+Feedback controllers are realizations of the engineering field, in `skcomplex.models.engineering.realizations`, so the
+core holds none. `PID(label, plant=, integrator=, control=, measure=, kp=, ki=, kd=, setpoint=)` sets the control
+input `control` of the plant to `kp e + ki ∫ e dt - kd y'` from the error `e = setpoint - y` of its state `measure`,
+with the integral of the error in an `Integrator` element. `StateFeedback(label, plant=, control=, states=, gain=)` sets
+it to `-K x`. Both set the control after every solver step, as boundary laws, so a fixed-step solver with small steps
+makes them close to continuous controllers. The engineering models `pid_inverted_pendulum` and `lqr_oscillator` use
+them.
+
+### Linear analysis
+
+`linearize(system, controls, outputs, at)` returns the state-space matrices `A`, `B`, `C`, and `D` of a system under
+continuous time near an operating point, from its symbolic Jacobians, with the controls named by their adaptive
+parameters. `controllability(A, B)` and `observability(A, C)` return the ranks of the Kalman matrices, and
+`lqr(A, B, Q, R)` returns the gain of the linear-quadratic regulator from SciPy's solution of the Riccati equation.
+
+```python
+from skcomplex.core.analysis import controllability, linearize, lqr, observability
+
+Cart = Element.define(
+    'Cart',
+    states={'x': 0.0, 'v': 0.0},
+    parameters={'force': parameter(0.0, adaptive=True, bounds=(-1, 1))},
+    laws=lambda s: [Rate(s.x, s.v), Rate(s.v, s.force)],
+)
+model = linearize(System(components=[Cart('cart')]), outputs=['cart.x'])
+print(controllability(model.A, model.B), observability(model.A, model.C))
+print(lqr(model.A, model.B, [[1, 0], [0, 1]], [[1]]).round(3))
+```
+
+The library models with optimal controls are `optimal_harvesting` in resources, `optimal_consumption` in
+macroeconomics, `sir_vaccination` in epidemiology, and `optimal_chemotherapy` and `optimal_immunotherapy` in
+oncology.
+
 ## The model library
 
 The package holds two parts. `skcomplex.core` is the domain-agnostic framework: `base` for the shared leaves such as

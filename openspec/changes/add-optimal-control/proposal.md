@@ -32,7 +32,8 @@ realizations, so they move to `skcomplex.models.engineering.realizations` as ele
   `Pontryagin`, with symbolic costates and a forward-backward sweep, and `Collocation`, a direct transcription solved by
   a nonlinear programming solver. Both declare their `Supports`, and `validate()` reports a system they cannot solve.
 - Add feedback controllers to the library: `PID` and `StateFeedback` in `skcomplex.models.engineering.realizations`,
-  elements whose rate and equation laws read states and set adaptive control parameters during a run.
+  interactions whose rate and boundary laws read states and set adaptive control parameters during a run, with the
+  integral of the PID error in an `Integrator` element.
 - Add linear analysis in `core.analysis`: linearisation to state-space matrices `A, B, C, D` at an operating point,
   controllability and observability ranks, and linear-quadratic regulator gains.
 - Add library models:
