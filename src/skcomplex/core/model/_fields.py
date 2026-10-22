@@ -226,6 +226,8 @@ class Field(Group):
         self.discretization = discretization
         self.symmetry = symmetry
         self.size = space.graph.number_of_nodes() if isinstance(space, NetworkSpace) else space.size
+        self.variable = False
+        self.on = 'sites'
 
     def __repr__(self, N_CHAR_MAX: int = 700) -> str:
         """Return the label, element type, and size."""

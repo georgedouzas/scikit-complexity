@@ -2484,7 +2484,9 @@ def _component_kind(node: Node) -> ComponentKind:
     if node.is_agent:
         return ComponentKind.VARIABLE_GROUP
     if isinstance(node.component, Group):
-        return node.component.component_kind
+        parts = {'sites': ComponentKind.SITE_GROUP, 'edges': ComponentKind.EDGE_GROUP}
+        parts['hyperedges'] = ComponentKind.HYPEREDGE_GROUP
+        return parts.get(node.component.on, node.component.component_kind)
     return ComponentKind.ELEMENT
 
 

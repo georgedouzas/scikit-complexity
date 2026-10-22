@@ -893,7 +893,7 @@ class MesaStepper(Stepper):
         """Create the initial agents of a group with their per-agent or shared initial values."""
         space = self.problem_.agent_space
         network_nodes = list(space.graph.nodes) if isinstance(space, NetworkSpace) else []
-        given = spec.element.values.get('location') if hasattr(spec.element, 'values') else spec.element.location  # type: ignore[union-attr]
+        given = (spec.element.values or {}).get('location') if hasattr(spec.element, 'values') else getattr(spec.element, 'location', None)  # type: ignore[union-attr]
         for index in range(spec.size):
             values = {name: _member_value(value, index, spec.size) for name, value in spec.values.items()}
             location = _member_location(given, index, spec.size)
@@ -985,7 +985,7 @@ class MesaStepper(Stepper):
     def _check_identities(self) -> None:
         """Check the accounting identities that agent types declare, after every step."""
         for spec in self._specs.values():
-            identities = _agent_type(spec).identities
+            identities = getattr(_agent_type(spec), 'identities', ())
             for agent in self.group_agents(spec.path) if identities else ():
                 view = AgentView(agent, self)
                 for identity in identities:

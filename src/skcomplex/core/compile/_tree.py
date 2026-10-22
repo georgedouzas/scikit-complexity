@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import copy
 import dataclasses
 import re
 from dataclasses import dataclass
@@ -13,6 +14,7 @@ import numpy.typing as npt
 
 from ..base import AnyDomain, Domain, LabelError, SpaceError, ValidationError, Variable
 from ..model import AgentType, Element, Group, Interaction, LatticeSpace, MesaSystem, NetworkSpace, Space, System
+from ..model._components import part_count
 
 LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
 MAX_SHOWN_COMPONENTS = 10
@@ -49,7 +51,9 @@ class Node:
     @property
     def is_agent(self) -> bool:
         """Whether the node is an agent type or an agent group."""
-        return isinstance(self.component, Element | Group) and issubclass(self.component_type, AgentType)
+        if isinstance(self.component, Group):
+            return self.component.is_variable
+        return isinstance(self.component, Element) and issubclass(self.component_type, AgentType)
 
     @property
     def component_type(self) -> type[Element] | type[Interaction]:
@@ -112,6 +116,8 @@ def _check_group(group: Group, scope: str) -> None:
     if not (isinstance(group.element, type) and issubclass(group.element, Element)):
         error_msg = f'{where} has element {group.element!r}, which is not an Element subclass.'
         raise ValidationError(error_msg)
+    if group.size is None and group.on is not None:
+        return
     if not (Domain.POSITIVE.contains(group.size) and Domain.INTEGER.contains(group.size)):
         error_msg = f'{where} has size {group.size!r}, which is not a positive integer.'
         raise ValidationError(error_msg)
@@ -125,7 +131,7 @@ def _check_group(group: Group, scope: str) -> None:
         if space.size != group.size:
             error_msg = f'{where} has size {group.size}, but its lattice has {space.size} sites.'
             raise ValidationError(error_msg)
-    if isinstance(space, NetworkSpace) and not issubclass(group.element, AgentType):
+    if isinstance(space, NetworkSpace) and not group.is_variable and group.on in {None, 'sites'}:
         _check_network_lattice(space, group.size, where)
     unknown = set(group.values or {}) - {field.name for field in dataclasses.fields(group.element)} - {'label'}
     if unknown:
@@ -155,6 +161,18 @@ def _check_children(system: System, scope: str) -> None:
             error_msg = f'Label {child.label!r} is used by more than one child of {scope or "the root system"}.'
             raise LabelError(error_msg)
         labels.add(child.label)
+
+
+def _sized(element: Element | Group, space: Space | None) -> Element | Group:
+    """Return a group on parts of the space it inherits with its size counted from them, or the element itself."""
+    if not isinstance(element, Group) or element.size is not None:
+        return element
+    if space is None:
+        error_msg = f'Group {element.label!r} lives on {element.on} but has neither a size nor a space.'
+        raise SpaceError(error_msg)
+    sized = copy.copy(element)
+    sized.size = part_count(space, element.on, element.label)
+    return sized
 
 
 def flatten_system(system: System, scope: str = '', space: Space | None = None) -> list[Node]:
@@ -190,7 +208,7 @@ def flatten_system(system: System, scope: str = '', space: Space | None = None) 
     _check_children(system, scope)
     space = system.space if system.space is not None else space
     nodes = [
-        Node(f'{scope}{element.label}', scope, element, getattr(element, 'space', None) or space)
+        Node(f'{scope}{element.label}', scope, _sized(element, space), getattr(element, 'space', None) or space)
         for element in system.elements
     ]
     nodes += [Node(f'{scope}{interaction.label}', scope, interaction, space) for interaction in system.interactions]

@@ -32,7 +32,8 @@ label SHALL be reported by validation.
 ### Requirement: Groups have a fixed or variable size and live on parts of the space
 A group SHALL hold identical members of one element type as arrays. With `variable=True`, laws SHALL add and remove
 members during a run. With `on='sites'`, `on='edges'`, or `on='hyperedges'`, the group SHALL hold one member per site,
-edge, or hyperedge of the space, and a variable group on edges SHALL change the edges of the space when it changes size.
+edge, or hyperedge of the space, and validation SHALL report a group on edges or hyperedges outside a network space.
+Interactions that read edge states and laws that change the topology are specified by `add-adaptive-networks`.
 
 #### Scenario: Births and deaths
 - **WHEN** a variable group of 10 members has a rule that duplicates a member with probability one each step
@@ -40,11 +41,11 @@ edge, or hyperedge of the space, and a variable group on edges SHALL change the 
 
 #### Scenario: State on edges
 - **WHEN** a group of weights lives on the edges of a network with 30 edges
-- **THEN** it has 30 members, and an interaction over neighbours reads the weight of the edge joining each pair
+- **THEN** it has 30 members, one per edge in the order of the graph's edges
 
-#### Scenario: Rewiring
-- **WHEN** a law removes an edge member and adds another between two unconnected nodes
-- **THEN** the network space has the new edge and not the removed one in the next frame
+#### Scenario: Edges outside a network
+- **WHEN** a group on edges lives in a lattice space
+- **THEN** validation reports that groups on edges need a network space
 
 ### Requirement: State domains cover structured values
 State domains SHALL include real, integer, Boolean, categorical, angle, and complex scalars, vectors of the space's
@@ -62,15 +63,16 @@ graphs, and tilings, and the domain of a state SHALL decide which laws may targe
 ### Requirement: Interactions bind roles with an arity and a binding
 An interaction SHALL declare roles, each binding one component, one member, or a sequence of them. Its binding SHALL
 be one of `'members'`, `'pairs'`, `'neighbours'`, or `'hyperedges'`, so one interaction type covers unary, pairwise,
-neighbourhood, and higher-order couplings. Interactions SHALL hold no state.
+neighbourhood, and higher-order couplings, and validation SHALL report a binding the space does not offer. Laws that
+run once per hyperedge are specified by `add-higher-order-interactions`. Interactions SHALL hold no state.
 
 #### Scenario: Neighbour coupling
 - **WHEN** an interaction with binding `'neighbours'` couples the members of a group on a lattice
 - **THEN** its laws run once per pair of adjacent sites
 
-#### Scenario: Higher-order coupling
-- **WHEN** an interaction with binding `'hyperedges'` couples a group on a network with triangles as hyperedges
-- **THEN** its laws run once per triangle with the three members bound to its roles
+#### Scenario: Hyperedges need a network that has them
+- **WHEN** an interaction with binding `'hyperedges'` couples a group on a lattice
+- **THEN** validation reports that the binding needs a network space with hyperedges
 
 #### Scenario: State on an interaction is rejected
 - **WHEN** an interaction type declares a `state`

@@ -3,13 +3,14 @@
 import networkx as nx
 import pytest
 
-from skcomplex.core.base import Domain, ValidationError, parameter, role, state
-from skcomplex.core.compile import validate
+from skcomplex.core.base import Domain, SpaceError, ValidationError, parameter, role, state
+from skcomplex.core.compile import compile_system, validate
 from skcomplex.core.model import (
     ContinuousSpace,
     ContinuousTime,
     DiscreteTime,
     Element,
+    Group,
     Interaction,
     LatticeSpace,
     NetworkSpace,
@@ -17,6 +18,7 @@ from skcomplex.core.model import (
     Phase,
     Phases,
     Rate,
+    Rule,
     StaticTime,
     System,
     Update,
@@ -174,3 +176,43 @@ def test_network_hyperedges_hold_nodes_of_the_graph():
     assert NetworkSpace(graph, hyperedges=[(0, 1, 2)]).hyperedges == [(0, 1, 2)]
     with pytest.raises(ValidationError, match='hyperedge'):
         NetworkSpace(graph, hyperedges=[(0, 7)])
+
+
+class Cell(Element):
+    """Element whose members divide every step."""
+
+    size: float = state(1.0)
+
+    def laws(self, s):
+        """Return the rule of division."""
+        return [Rule(self.divide)]
+
+    def divide(self, agent, model):
+        """Create one offspring."""
+        agent.create()
+
+
+def test_variable_group_of_elements_grows():
+    """Test that a variable group of 10 dividing members has 20, 40, and 80 after one, two, and three steps."""
+    system = System(components=[Group('cells', element=Cell, size=10, variable=True)])
+    trajectory = Simulation(system).run(until=3).trajectory_
+    assert trajectory['cells.count'].tolist() == [10.0, 20.0, 40.0, 80.0]
+
+
+def test_group_on_edges_has_one_member_per_edge():
+    """Test that a group on the edges of a network with 30 edges holds 30 members, sized from the inherited space."""
+    weights = Group('weights', element=Stock, on='edges')
+    problem = compile_system(System(components=[weights], space=NetworkSpace(nx.cycle_graph(30))))
+    assert problem.states.entry('weights.n').shape == (30,)
+
+
+def test_group_on_edges_outside_a_network_is_reported():
+    """Test that a group on edges in a lattice space is reported with the space it needs."""
+    (issue,) = validate(System(components=[Group('weights', element=Stock, on='edges')], space=LatticeSpace(4))).errors
+    assert 'need a network space' in issue.message
+
+
+def test_unknown_part_is_rejected():
+    """Test that a group on a part other than sites, edges, and hyperedges is rejected."""
+    with pytest.raises(SpaceError, match='faces'):
+        Group('cells', element=Stock, on='faces', space=LatticeSpace(4))

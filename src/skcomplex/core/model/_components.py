@@ -16,6 +16,7 @@ from ..base import (
     Domain,
     LabelError,
     Requires,
+    SpaceError,
     VisualSpec,
     companions_of,
     declaration_of,
@@ -327,13 +328,13 @@ class Element(Component):
                 for name, value in values.items()
             }
             visual = _lattice_visual(cls, visual, 'sites')
-            return Group(label, element=cls, size=len(nodes), values=by_node, visual=visual, space=space)
+            return Group(label, element=cls, size=len(nodes), values=by_node, visual=visual, space=space, on='sites')
         flat = {
             name: np.ravel(value) if np.shape(value) == space.dimensions else value for name, value in values.items()
         }
         default = 'image' if space.geometry == 'square' else 'sites'
         visual = _lattice_visual(cls, visual, default)
-        return Group(label, element=cls, size=space.size, values=flat, visual=visual, space=space)
+        return Group(label, element=cls, size=space.size, values=flat, visual=visual, space=space, on='sites')
 
 
 class AgentType(Element):
@@ -415,6 +416,44 @@ class Aggregate(Element):
     value: float = state(default=0.0)
 
 
+PARTS = ('sites', 'edges', 'hyperedges')
+
+
+def part_count(space: Space, on: str, label: str) -> int:
+    """Return the number of parts of a space a group has one member on.
+
+    Args:
+        space:
+            The space.
+
+        on:
+            `'sites'`, `'edges'`, or `'hyperedges'`.
+
+        label:
+            The label of the group, named in errors.
+
+    Returns:
+        count:
+            The number of sites, edges, or hyperedges.
+
+    Raises:
+        SpaceError:
+            The space does not have the part.
+    """
+    graph = getattr(space, 'graph', None)
+    if on == 'sites' and graph is not None:
+        return int(graph.number_of_nodes())
+    if on == 'sites' and hasattr(space, 'size'):
+        return int(space.size)
+    if on == 'edges' and graph is not None:
+        return int(graph.number_of_edges())
+    if on == 'hyperedges' and getattr(space, 'hyperedges', ()):
+        return len(space.hyperedges)
+    needs = 'a network space with hyperedges' if on == 'hyperedges' else 'a network space' if on == 'edges' else 'sites'
+    error_msg = f'Group {label!r} lives on {on}, which need {needs}, but its space is {space!r}.'
+    raise SpaceError(error_msg)
+
+
 class Group(BaseEstimator):
     """Group of identical elements of one type, whose variables are arrays with one row per member.
 
@@ -441,11 +480,25 @@ class Group(BaseEstimator):
             The space whose sites the members occupy, such as a lattice with one member per site, or `None` for the
             space of the enclosing system.
 
+        variable:
+            Whether laws add and remove members during a run. Groups of agent types are always variable.
+
+        on:
+            The part of the space with one member each, `'sites'`, `'edges'`, or `'hyperedges'`, or `None` for members
+            that are not tied to parts of the space. With a part and no size, the size is the number of parts.
+
+    Raises:
+        SpaceError:
+            The part is unknown, or the space does not have it, such as edges outside a network.
+
     Examples:
-        >>> from skcomplex.core.model import Group
+        >>> import networkx as nx
+        >>> from skcomplex.core.model import Group, NetworkSpace
         >>> from skcomplex.models.biology.ecology import Population
         >>> Group('herds', element=Population, size=3).size
         3
+        >>> Group('weights', element=Population, space=NetworkSpace(nx.cycle_graph(30)), on='edges').size
+        30
     """
 
     component_kind: ClassVar[ComponentKind] = ComponentKind.GROUP
@@ -455,17 +508,29 @@ class Group(BaseEstimator):
         label: str,
         *,
         element: type[Element],
-        size: int,
+        size: int | None = None,
         values: Mapping[str, Any] | None = None,
         visual: VisualSpec | None = None,
         space: Space | None = None,
+        variable: bool = False,
+        on: str | None = None,
     ) -> None:
         self.label = label
         self.element = element
-        self.size = size
+        self.size = size if size is not None or on is None or space is None else part_count(space, on, label)
         self.values = values
         self.visual = visual
         self.space = space
+        self.variable = variable
+        self.on = on
+        if on is not None and on not in PARTS:
+            error_msg = f'Group {label!r} lives on {on!r}. Use one of {", ".join(PARTS)}.'
+            raise SpaceError(error_msg)
+
+    @property
+    def is_variable(self) -> bool:
+        """Check whether laws add and remove members, as for every group of agents."""
+        return self.variable or issubclass(self.element, AgentType)
 
     def __repr__(self, N_CHAR_MAX: int = 700) -> str:
         """Return the label, element type, and size."""
