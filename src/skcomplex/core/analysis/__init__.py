@@ -48,6 +48,10 @@ from ._complexity import (
     sample_entropy,
     spectral_entropy,
 )
+from ._computational_mechanics import (
+    EpsilonMachine,
+    epsilon_machine,
+)
 from ._criticality import (
     AvalancheLaws,
     Avalanches,
@@ -261,6 +265,7 @@ __all__: list[str] = [
     'Ensemble',
     'EnsembleEntropy',
     'EntropyProduction',
+    'EpsilonMachine',
     'Events',
     'ExtremeValueFit',
     'FlowMatrix',
@@ -359,6 +364,7 @@ __all__: list[str] = [
     'entanglement_entropy',
     'entropy_production',
     'entropy_rate',
+    'epsilon_machine',
     'equations_of',
     'event_counts',
     'excess_entropy',

@@ -12,7 +12,7 @@
 
 - [x] 2.1 Add `emergence_criteria` and `closure` on the partitions of `add-emergence-analysis`, and verify the emergent
   parity and closed coarse-graining scenarios
-- [ ] 2.2 Add `epsilon_machine`, and verify the golden mean process scenario
+- [x] 2.2 Add `epsilon_machine`, and verify the golden mean process scenario
 
 ## 3. Gate
 
