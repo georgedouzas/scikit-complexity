@@ -101,3 +101,15 @@ def test_closure_partition_as_function():
     by_labels = closure(micro, [0, 0, 1, 1], history=2)
     by_function = closure(micro, lambda states: states // 2, history=2)
     assert by_function == by_labels
+
+
+def test_emergence_criteria_knn_agrees_with_gaussian():
+    """Test that the nearest-neighbour criteria of a linear Gaussian system agree in sign with the Gaussian ones."""
+    rng = np.random.default_rng(6)
+    slow = np.zeros(2000)
+    for t in range(1, slow.size):
+        slow[t] = 0.95 * slow[t - 1] + rng.normal()
+    noise = 10.0 * rng.normal(size=slow.size)
+    micro = np.column_stack([slow + noise, noise])
+    macro = np.column_stack([micro[:, 0] - micro[:, 1], micro[:, 1]])
+    assert emergence_criteria(micro, macro, estimator='knn').psi > 0.5
