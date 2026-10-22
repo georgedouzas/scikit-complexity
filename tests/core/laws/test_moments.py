@@ -82,7 +82,7 @@ def _system():
     return System(
         components=[Group('wealth', element=Density, on='sites', values={'f': PROFILE})],
         interactions=[Upward('upward', population='wealth')],
-        space=LatticeSpace(CLASSES, boundary='open'),
+        space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
 
@@ -124,7 +124,7 @@ def test_law_reads_a_moment():
     system = System(
         components=[Group('wealth', element=Density, on='sites', values={'f': PROFILE}), Recorder('recorder')],
         interactions=[ReadMean('read', recorder='recorder', population='wealth')],
-        space=LatticeSpace(CLASSES, boundary='open'),
+        space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
     problem = compile_system(system, backend='numpy')
@@ -148,7 +148,7 @@ def test_moment_inside_a_group_law_is_shared():
     system = System(
         components=[Group('wealth', element=Density, on='sites', values={'f': PROFILE})],
         interactions=[Relax('relax', population='wealth')],
-        space=LatticeSpace(CLASSES, boundary='open'),
+        space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
     problem = compile_system(system, backend='numpy')

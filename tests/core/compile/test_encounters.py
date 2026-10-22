@@ -79,7 +79,7 @@ def _wealth_system(table=None, time=None, space=None):
         interactions=[
             _exchange(table if table is not None else _exchange_table(CLASSES))('exchange', population='wealth'),
         ],
-        space=space if space is not None else LatticeSpace(CLASSES, boundary='open'),
+        space=space if space is not None else LatticeSpace(CLASSES, boundary='fixed'),
         time=time if time is not None else ContinuousTime(),
     )
 
@@ -141,7 +141,7 @@ def test_parameter_in_transition_table_is_evaluated():
     system = System(
         components=[Group('wealth', element=Density, on='sites', values={'f': _profile()})],
         interactions=[Biased('bias', population='wealth')],
-        space=LatticeSpace(CLASSES, boundary='open'),
+        space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
     problem = compile_system(system, backend='numpy')
@@ -162,7 +162,7 @@ def test_proliferation_and_destruction_change_the_density():
             Group('signal', element=Density, on='sites', values={'f': np.full(CLASSES, 0.1)}),
         ],
         interactions=[Growth('growth', population='cells', field='signal', mu=0.5, kill=0.2)],
-        space=LatticeSpace(CLASSES, boundary='open'),
+        space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
     problem = compile_system(system, backend='numpy')
@@ -182,7 +182,7 @@ def test_encounter_reads_a_field_on_a_grid_of_another_size():
             Group('signal', element=Density, on='sites', size=3, space=LatticeSpace(3), values={'f': 0.1}),
         ],
         interactions=[Growth('growth', population='signal', field='cells')],
-        space=LatticeSpace(CLASSES, boundary='open'),
+        space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
     problem = compile_system(system, backend='numpy')

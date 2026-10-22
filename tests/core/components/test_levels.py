@@ -47,7 +47,7 @@ def test_agents_bin_into_a_distribution():
     distribution = distribution_from(traders, 'wealth', CLASSES, element=Density, label='wealth')
     assert distribution.on == 'sites'
     assert distribution.size == 9
-    system = System(components=[distribution], space=LatticeSpace(9, boundary='open'), time=ContinuousTime())
+    system = System(components=[distribution], space=LatticeSpace(9, boundary='fixed'), time=ContinuousTime())
     observables = [Observable('density', density, group='wealth'), Observable('mean', mean_class, group='wealth')]
     trajectory = Simulation(system, observables=observables, dt=1.0).run(until=0).trajectory_
     assert trajectory['density'][0] == pytest.approx(1.0)

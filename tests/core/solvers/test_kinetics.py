@@ -79,7 +79,7 @@ def _system(*others):
     return System(
         components=[Group('wealth', element=Density, on='sites', values={'f': _profile()})],
         interactions=[Exchange('exchange', population='wealth'), *others],
-        space=LatticeSpace(CLASSES, boundary='open'),
+        space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
 
@@ -134,7 +134,7 @@ def test_particles_sample_proliferation_and_destruction():
             Group('field', element=Density, on='sites', values={'f': np.full(CLASSES, 1 / CLASSES)}),
         ],
         interactions=[Turnover('turnover', population='wealth', field='field')],
-        space=LatticeSpace(CLASSES, boundary='open'),
+        space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
     simulation = Simulation(system, dt=1.0, solver=ParticleKinetics(n=50_000), random_state=2).run(until=1)
