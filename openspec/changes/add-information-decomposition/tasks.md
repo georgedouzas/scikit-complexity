@@ -4,8 +4,8 @@
 
 - [x] 1.1 Survey `dit` and the Gaussian and nearest-neighbour estimators, record the result, and add `dit` as a runtime
   dependency if it qualifies
-- [ ] 1.2 Add total and dual total correlation, O-information, and its gradients, and verify the XOR and copies scenarios
-- [ ] 1.3 Add `partial_information`, and verify the AND gate scenario
+- [x] 1.2 Add total and dual total correlation, O-information, and its gradients, and verify the XOR and copies scenarios
+- [x] 1.3 Add `partial_information`, and verify the AND gate scenario
 - [ ] 1.4 Add local information measures, and verify the local means scenario
 
 ## 2. Emergence

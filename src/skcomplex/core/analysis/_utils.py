@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 import numpy as np
 import numpy.typing as npt
 
@@ -36,3 +38,18 @@ def real_array(values: npt.ArrayLike, argument: str) -> npt.NDArray[np.float64]:
         )
         raise ValidationError(error_msg)
     return np.asarray(array, dtype=float)
+
+
+def sample_columns(data: npt.ArrayLike) -> npt.NDArray[Any]:
+    """Return data as one row per sample and one column per variable, a series as a single column.
+
+    Args:
+        data:
+            A series, or one row per sample with the variables along the remaining axes.
+
+    Returns:
+        columns:
+            The data as a two-dimensional array.
+    """
+    array = np.asarray(data)
+    return array.reshape(-1, 1) if array.ndim == 1 else array.reshape(array.shape[0], -1)

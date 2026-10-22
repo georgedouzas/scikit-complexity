@@ -163,6 +163,14 @@ from ._markov import (
 )
 from ._mixing import dissimilarity_index, interface_density, like_neighbor_share
 from ._motifs import MotifScores, motif_counts, motif_zscores
+from ._multivariate import (
+    PartialInformation,
+    dual_total_correlation,
+    o_information,
+    o_information_gradients,
+    partial_information,
+    total_correlation,
+)
 from ._networks import (
     Communities,
     NetworkSummary,
@@ -198,6 +206,10 @@ from ._signatures import Signature, signature_analysis
 from ._spatial import Clusters, box_counting_dimension, correlation_function, label_clusters
 from ._stability import Dynamics, Stability, divergence, dynamics_of, fixed_points, jacobian, nullclines, stability
 from ._statistics import PowerLawFit, ccdf, fit_power_law, gini, hill, histogram
+from ._surrogates import (
+    SurrogateTest,
+    surrogate_test,
+)
 from ._symbolic import equations_of, solve_symbolically
 from ._transitions import (
     DetailedBalance,
@@ -253,6 +265,7 @@ __all__: list[str] = [
     'NetworkSummary',
     'NumberFluctuations',
     'OrbitDiagram',
+    'PartialInformation',
     'Pattern',
     'Percolation',
     'PowerLawFit',
@@ -268,6 +281,7 @@ __all__: list[str] = [
     'Stability',
     'StableFit',
     'StructureFactor',
+    'SurrogateTest',
     'Sweep',
     'UlamChain',
     'UncertaintyRelation',
@@ -321,6 +335,7 @@ __all__: list[str] = [
     'divergence',
     'domain_growth',
     'domain_size',
+    'dual_total_correlation',
     'dynamics_of',
     'early_warning',
     'embed',
@@ -389,9 +404,12 @@ __all__: list[str] = [
     'networks_of',
     'nullclines',
     'number_fluctuations',
+    'o_information',
+    'o_information_gradients',
     'orbit_diagram',
     'order_parameter_sweep',
     'ordinal_patterns',
+    'partial_information',
     'path_of',
     'pattern_wavelength',
     'percolation',
@@ -428,8 +446,10 @@ __all__: list[str] = [
     'stroboscopic',
     'structure_factor',
     'summarize_network',
+    'surrogate_test',
     'symbolize',
     'tilted_generating_function',
+    'total_correlation',
     'transfer_entropy',
     'transition_counts',
     'transition_matrix',
