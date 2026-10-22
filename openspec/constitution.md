@@ -247,20 +247,25 @@ to fill in as the project takes shape.
 - LAMMPS: `lammps` is a runtime dependency, with `mpich`, because the LAMMPS wheel links an MPI library it does not
   bundle.
 - Layout: library. The importable package under `src/skcomplex` is distributed to others and holds exactly two
-  packages, `skcomplex.core` and `skcomplex.models`. The core is the domain-agnostic framework, and imports inside it
-  run downward through `base`, `model`, `compile`, `solvers`, `runtime`, `viz`, `experiments`, `analysis`, and
-  `backends`, which translates models into third-party libraries and so sits above them. Importing
-  `skcomplex.core.backends` registers its solver names. The core never imports `skcomplex.models`.
+  packages, `skcomplex.core` and `skcomplex.models`. The core is the domain-agnostic framework. Its modelling packages
+  mirror the definition of a system and import downward through `base`, `space` (space and time), `laws`,
+  `components`, `interactions`, and `system`; its engineering packages then import downward through `compile`,
+  `solvers`, `runtime`, `viz`, `experiments`, `analysis`, and `backends`, which holds every backend, NumPy, Numba,
+  Mesa, and LAMMPS, and so sits above them. Resolving a backend or a solver imports `skcomplex.core.backends`, which
+  registers them. Every core name is a mathematical, modelling, or engineering term, and the core never imports
+  `skcomplex.models`.
 - Model library: `skcomplex.models` is organised by scientific field and subfield, as
   `skcomplex.models.<field>.<subfield>`, and every model registers under the field path `<field>/<subfield>`. Models
-  are examples built only from the public names of the core, and every model package is self-contained, so no model
-  package imports another. A model the core cannot express MUST be recorded as blocked by an OpenSpec change for the
+  are examples built only from the public names of the core. Every model package is self-contained, so no model
+  package imports another, except that the packages of one field may import its shared realizations from
+  `skcomplex.models.<field>.realizations`, such as named potentials or market protocols, which never live in the
+  core. A model the core cannot express MUST be recorded as blocked by an OpenSpec change for the
   missing general capability, never worked around inside the model package. Models exist first to probe the core: a
   survey MUST record the primitives each model exercises and MUST implement models that exercise new primitives or
   combinations before models that repeat covered patterns. A layout test enforces these rules.
 - Surface: the top-level package and `skcomplex.core` re-export nothing, so every public name is imported from the
   subpackage that owns it.
 - Extension points: solvers, visuals, and any other registry in `skcomplex.core.base` accept new entries without changes to
-  existing modules. Base classes users subclass are `Element`, `AgentType`, `Interaction`, `PairInteraction`, `Potential`,
-  `PairPotential`, `Backend`, `Stepper`, `ExternalBackend`, `Clock`, `Observer`, and `Visual`.
-**Version**: 1.5.1 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-21
+  existing modules. Base classes users subclass are `Element`, `Interaction`, `Potential`, `PairPotential`, `Backend`,
+  `Stepper`, `ExternalBackend`, `Clock`, `Observer`, and `Visual`.
+**Version**: 1.6.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-22

@@ -79,7 +79,7 @@ through the conformance suite.
   remove `core.model`, and rewrite the imports of the core, the library, the tests, the examples, and the docs.
 - [x] 6.2 Move the NumPy and Numba backends from `core.compile` and the Mesa backend from `core.solvers` to
   `core.backends`, make the Lepton printer private to the LAMMPS backend, and add the tests of the package layout.
-- [ ] 6.3 Amend the constitution (MINOR): the core layers become the new packages, the base classes users subclass
+- [x] 6.3 Amend the constitution (MINOR): the core layers become the new packages, the base classes users subclass
   drop `AgentType` and `PairInteraction`, and model packages may import the realizations of their own field.
 
 ## 7. Migrate the library
