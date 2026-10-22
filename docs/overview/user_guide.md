@@ -2124,6 +2124,38 @@ sine = delay_embedding(np.sin(np.arange(1000) * 0.1), 2, 15)
 print(round(recurrence_quantification(sine).determinism, 2))
 ```
 
+### Surrogates fitted to data
+
+`fit_dmd`, `fit_sindy`, and `fit_reservoir` fit a model to one or more trajectories or series sampled at a uniform step
+and return it as a `System` of one surrogate element, which `validate` checks and `Simulation` runs like a hand-written
+system. Each result also holds the relative errors of the fit on the training samples and on the end of every series
+held out by `validation`.
+
+- `fit_dmd` fits dynamic mode decomposition with PyDMD and returns the continuous eigenvalues `ln(mu) / dt`, the modes,
+  their amplitudes, and a surrogate under continuous time with the matrix rate law `dg/dt = L g`. A scikit-learn
+  transformer passed as `dictionary`, such as `PolynomialFeatures(2)`, lifts the variables to observables first, which
+  is extended DMD.
+- `fit_sindy` fits sparse identification of nonlinear dynamics with PySINDy and returns the coefficients of the
+  monomials of the variables and a surrogate under continuous time with one symbolic rate law per variable.
+- `fit_reservoir` fits a next-generation reservoir or an echo state network from ReservoirPy with a ridge readout of
+  the increments over one sample. Its surrogate runs under discrete time, one step per sample, holds the memory of the
+  reservoir as states, and starts at the last sample, so a run is the autonomous forecast.
+
+```python
+from skcomplex.core.analysis import Series, fit_dmd, fit_reservoir, fit_sindy
+from skcomplex.core.compile import validate
+
+times = np.arange(0.0, 10.0, 0.01)
+spiral = Series(times, np.exp(-0.1 * times)[:, None] * np.column_stack([np.cos(times), np.sin(times)]), ['x', 'y'])
+decomposition = fit_dmd(spiral)
+print(np.sort(decomposition.eigenvalues.imag).round(3), validate(decomposition.system).ok)
+sparse = fit_sindy(spiral, degree=1, threshold=0.05)
+print(sparse.features, sparse.coefficients.round(2).tolist())
+reservoir = fit_reservoir(spiral)
+run = Simulation(reservoir.system).run(until=50).trajectory_
+print(type(reservoir.system.time).__name__, np.allclose(run['surrogate.x'], reservoir.forecast(50)[:, 0]))
+```
+
 ### Stochastic processes
 
 `first_passage_times`, `hitting_probabilities`, `return_times`, and `laminar_durations` measure passages and returns of
