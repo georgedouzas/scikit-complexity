@@ -23,12 +23,13 @@ class Stepper(BaseEstimator):
     parameters, so parameter changes apply at the next call, and applies the boundary laws of the problem after every
     internal step. Steppers that treat diffusion implicitly set `implicit`, so they do not warn about the stability
     limit of explicit steps. Steppers that fire renewal laws set `renews`, and steppers that integrate fractional noise
-    set `fractional`.
+    set `fractional`. Steppers that also solve other forms list them in `forms`.
     """
 
     supports: ClassVar[Supports]
 
     form: ClassVar[Form]
+    forms: ClassVar[frozenset[Form]] = frozenset()
     implicit: ClassVar[bool] = False
     renews: ClassVar[bool] = False
     fractional: ClassVar[bool] = False
@@ -71,7 +72,7 @@ class Stepper(BaseEstimator):
                 The problem has a form the stepper does not solve, or renewal laws or fractional noise it does not
                 integrate.
         """
-        if problem.form is not self.form:
+        if problem.form is not self.form and problem.form not in self.forms:
             error_msg = (
                 f'{type(self).__name__} solves the {self.form.value} form, but the problem has the '
                 f'{problem.form.value} form.'

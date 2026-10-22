@@ -954,8 +954,8 @@ class _Orders:
             declarations = declarations_of(block.node.component_type, VariableKind.STATE)
             for variable, entry in block.entries.items():
                 declaration = declarations.get(variable)
-                if declaration is not None and declaration.order > 1:
-                    orders[entry.name] = declaration.order
+                if declaration is not None and declaration.derivatives:
+                    orders[entry.name] = declaration.derivatives + 1
                 if declaration is not None and declaration.lags:
                     lags[entry.name] = declaration.lags
         return cls(orders, lags)
@@ -1141,6 +1141,30 @@ def _with_orders(spec: _KernelSpec, laws: list[Law], block: _Block, orders: _Ord
             for item in split_law(law, spec.owner, lambda target: _state_name(spec, target))
         ]
     return result
+
+
+def _fractional_states(blocks: list[_Block], owners: frozenset[str] | None) -> list[tuple[slice, float]]:
+    """Return the indices and the order of every state of a fractional order of the owned components."""
+    found = []
+    for block in blocks:
+        if _is_interaction(block.node) or block.node.is_agent:
+            continue
+        if owners is not None and block.node.path not in owners:
+            continue
+        declarations = declarations_of(block.node.component_type, VariableKind.STATE)
+        for variable, entry in block.entries.items():
+            declaration = declarations.get(variable)
+            if declaration is not None and declaration.is_fractional:
+                found.append((entry.indices, declaration.order))
+    return found
+
+
+def _state_orders(fractional: list[tuple[slice, float]], size: int) -> Vector:
+    """Return the order of every state component, 1 for the states outside the fractional ones."""
+    orders = np.ones(size)
+    for indices, order in fractional:
+        orders[indices] = order
+    return orders
 
 
 def _companions(blocks: list[_Block]) -> dict[str, tuple[str, str, int]]:
@@ -2278,10 +2302,12 @@ def _lower(
         functions['accelerated'] = replace(accelerated, iterate=None)
     functions['backend'] = backend.name
     functions['draws'] = draws
-    main = {Form.ODE: kernels[Rate], Form.SDE: kernels[Rate] + kernels[Noise], Form.JUMP: kernels[Jump]}.get(
-        form,
-        kernels[Update],
-    )
+    main = {
+        Form.ODE: kernels[Rate],
+        Form.FRACTIONAL: kernels[Rate],
+        Form.SDE: kernels[Rate] + kernels[Noise],
+        Form.JUMP: kernels[Jump],
+    }.get(form, kernels[Update])
     equation_kernels = {Form.DISCRETE: kernels[Update], Form.JUMP: []}.get(form, kernels[Rate])
     equations, symbols = _equations_of(equation_kernels, declarations, form)
     functions.update(
@@ -2870,6 +2896,8 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
             raise
         plan = _plan_partitions(system, kinds)
         return _compile_partitions(system, backend, plan)
+    fractional = _fractional_states(blocks, owners)
+    form = Form.FRACTIONAL if form is Form.ODE and fractional else form
     specs, reductions = _with_reductions(specs, hybrid, declarations, drawing.draws.size if drawing.draws else 0)
     lowered = _lower_laws(specs, declarations)
     members = sum(block.node.members or 0 for block in blocks if not block.node.is_agent)
@@ -2963,6 +2991,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         matrices=checked,
         renewals=_compile_renewals(hybrid, declarations.time, owners),
         fractional=_fractional_rows(lowered) if form is Form.SDE else (),
+        orders=_state_orders(fractional, states.size) if form is Form.FRACTIONAL else np.zeros(0),
         stock_flow=stock_flow,
         **functions,  # type: ignore[arg-type]
     )

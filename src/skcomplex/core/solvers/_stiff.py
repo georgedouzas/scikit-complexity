@@ -18,6 +18,7 @@ from ..base import (
     ComponentKind,
     Form,
     LawKind,
+    OrderKind,
     SolverError,
     SpaceKind,
     Supports,
@@ -274,6 +275,7 @@ class _SplitStepper(Stepper):
         laws={LawKind.RATE, LawKind.BOUNDARY, LawKind.TRANSFER},
         domains=NUMERIC_DOMAINS,
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        orders={OrderKind.INTEGER},
     )
 
     form: ClassVar[Form] = Form.ODE
@@ -573,6 +575,7 @@ class SSPRK(Stepper):
         laws={LawKind.RATE, LawKind.BOUNDARY, LawKind.TRANSFER},
         domains=NUMERIC_DOMAINS,
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        orders={OrderKind.INTEGER},
     )
 
     form: ClassVar[Form] = Form.ODE

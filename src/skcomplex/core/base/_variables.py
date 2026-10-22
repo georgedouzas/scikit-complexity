@@ -5,6 +5,7 @@
 
 import copy
 import dataclasses
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
@@ -40,7 +41,8 @@ class Variable:
             Whether the field has one component per dimension of the enclosing space.
 
         order:
-            The order of the highest time derivative that laws give for a state.
+            The order of the highest time derivative that laws give for a state, an integer or a real number in
+            `(0, 1)` for the Caputo derivative of a fractional order.
 
         lags:
             The number of past values a state of a discrete map keeps.
@@ -84,7 +86,7 @@ class Variable:
     kind: VariableKind
     domain: AnyDomain = Domain.REAL
     vector: bool = False
-    order: int = 1
+    order: float = 1
     lags: int = 0
     initial: tuple[Any, ...] = ()
     derivative_of: str | None = None
@@ -97,6 +99,29 @@ class Variable:
     position: bool = False
     velocity_of: str | None = None
     adaptive: bool = False
+
+    @property
+    def is_fractional(self) -> bool:
+        """Whether the order of the state is not an integer, so its rate laws give a Caputo derivative."""
+        return not isinstance(self.order, int)
+
+    @property
+    def derivatives(self) -> int:
+        """Number of companion states that hold the derivatives of orders 1 to `order - 1`."""
+        return 0 if self.is_fractional else int(self.order) - 1
+
+
+def _normalized_order(order: object) -> float:
+    """Return an order as an integer when it has an integer value, or raise an error when it is not positive."""
+    if isinstance(order, bool) or not isinstance(order, int | float | np.integer | np.floating):
+        error_msg = f'order = {order!r} must be a number: an integer of at least 1 or a real number in (0, 1).'
+        raise TypeError(error_msg)
+    if float(order).is_integer():
+        return int(order)
+    if not (math.isfinite(order) and order > 0):
+        error_msg = f'order = {order!r} must be an integer of at least 1 or a real number in (0, 1).'
+        raise ValueError(error_msg)
+    return float(order)
 
 
 def _declare_field(default: Any, declaration: Variable) -> Any:
@@ -113,7 +138,7 @@ def state(
     *,
     domain: AnyDomain = Domain.REAL,
     vector: bool = False,
-    order: int = 1,
+    order: float = 1,
     lags: int = 0,
     initial: Sequence[Any] = (),
     quantity: str | None = None,
@@ -138,7 +163,9 @@ def state(
             Whether the state has one component per dimension of the enclosing space.
 
         order:
-            The order of the highest time derivative that laws give, 1 for first-order equations.
+            The order of the highest time derivative that laws give, 1 for first-order equations, or a real number in
+            `(0, 1)` for the Caputo derivative of a fractional order. An order that is neither is reported by
+            validation.
 
         lags:
             The number of past values the state keeps for difference equations, 0 for none.
@@ -167,9 +194,12 @@ def state(
             A dataclass field that carries the declaration.
 
     Raises:
+        TypeError:
+            The order is not a number.
+
         ValueError:
-            The order is below 1, the lags are negative, both are given, or there are more initial values than
-            companions.
+            The order is not positive, the lags are negative, an order other than 1 and lags are both given, or there
+            are more initial values than companions.
 
     Examples:
         >>> from skcomplex.core.base import Domain, state
@@ -179,14 +209,18 @@ def state(
         >>> Population('rabbits', n=40).n
         40
     """
-    if not (isinstance(order, int) and order >= 1 and isinstance(lags, int) and lags >= 0):
+    order = _normalized_order(order)
+    if not (order > 0 and isinstance(lags, int) and lags >= 0):
         error_msg = f'order = {order!r} must be an integer of at least 1 and lags = {lags!r} a nonnegative integer.'
         raise ValueError(error_msg)
-    if order > 1 and lags:
-        error_msg = 'A state takes either an order above 1 for differential equations or lags for difference equations.'
+    if order != 1 and lags:
+        error_msg = (
+            'A state takes either an order other than 1 for differential equations or lags for difference equations.'
+        )
         raise ValueError(error_msg)
-    if len(initial) > max(order - 1, lags):
-        error_msg = f'{len(initial)} initial values were given for {max(order - 1, lags)} companion states.'
+    companions = max(0 if isinstance(order, float) else order - 1, lags)
+    if len(initial) > companions:
+        error_msg = f'{len(initial)} initial values were given for {companions} companion states.'
         raise ValueError(error_msg)
     declaration = Variable(
         VariableKind.STATE,
@@ -240,7 +274,7 @@ def companions_of(name: str, declaration: Variable, default: Any) -> dict[str, A
     """
     fields = {}
     domain = Domain.COMPLEX if declaration.domain is Domain.COMPLEX else Domain.REAL
-    for index in range(1, declaration.order):
+    for index in range(1, declaration.derivatives + 1):
         value = declaration.initial[index - 1] if index <= len(declaration.initial) else 0.0
         companion = Variable(VariableKind.STATE, domain, declaration.vector, derivative_of=name, index=index)
         fields[f'{name}_d{index}'] = _declare_field(value, companion)

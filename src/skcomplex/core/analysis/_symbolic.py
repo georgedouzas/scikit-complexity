@@ -5,14 +5,41 @@
 
 import re
 from dataclasses import dataclass
+from fractions import Fraction
+from typing import Any
 
 from sage.all__sagemath_symbolics import SR, desolve, desolve_laplace, desolve_system, diff, function
+from sage.symbolic.function_factory import function as formal_function
 
 from ..base import AnalysisError, Expression, Form, components_of, declare_domains
 from ..compile import Problem, compile_system
 from ..system import System
+from ._fractional import mittag_leffler
 
 UNEVALUATED = frozenset({'ilt', 'laplace', 'integrate', 'integral'})
+
+
+def _evaluate_mittag_leffler(
+    self: Any,  # noqa: ANN401
+    alpha: Any,  # noqa: ANN401
+    beta: Any,  # noqa: ANN401
+    z: Any,  # noqa: ANN401
+    *,
+    parent: Any = None,  # noqa: ANN401
+    algorithm: Any = None,  # noqa: ANN401
+) -> Any:  # noqa: ANN401
+    """Return the numeric value of the symbolic Mittag-Leffler function in the field of its arguments."""
+    del self, algorithm
+    if any(isinstance(item, Expression) and not item.is_numeric() for item in (alpha, beta, z)):
+        error_msg = 'The Mittag-Leffler function has a numeric value only at numeric arguments.'
+        raise TypeError(error_msg)
+    value = complex(mittag_leffler(complex(alpha).real, complex(beta).real, complex(z)))
+    result = value.real if value.imag == 0 else value
+    return result if parent is None else parent(result)
+
+
+MITTAG_LEFFLER = formal_function('mittag_leffler', nargs=3, evalf_func=_evaluate_mittag_leffler)
+CAPUTO = formal_function('caputo', nargs=3)
 
 
 @dataclass(frozen=True)
@@ -23,6 +50,12 @@ class _Unknown:
     function: Expression
     order: int
     indices: tuple[int, ...]
+
+
+def _exact(value: float) -> Expression:
+    """Return a number as the exact rational of its shortest decimal form."""
+    fraction = Fraction(repr(value))
+    return SR(fraction.numerator) / fraction.denominator
 
 
 def _components(problem: Problem) -> dict[str, tuple[str, int, int]]:
@@ -41,6 +74,16 @@ def _delayed_functions(problem: Problem, substitution: dict[Expression, Expressi
         lag = SR(delay.delay).subs(substitution)
         delayed[delay.symbol] = SR(delay.state).subs(substitution).subs({problem.time: problem.time - lag})
     return delayed
+
+
+def _left_side(problem: Problem, unknown: _Unknown) -> Expression:
+    """Return the left side of the equation of an unknown: its next value, its highest derivative, or its Caputo one."""
+    if problem.form is Form.DISCRETE:
+        return function(str(problem.equation_symbols[unknown.name]))(problem.time + 1)
+    order = float(problem.orders[unknown.indices[0]]) if problem.orders.size else 1.0
+    if order != 1:
+        return CAPUTO(unknown.function, problem.time, _exact(order))
+    return diff(unknown.function, problem.time, unknown.order)
 
 
 def _written(problem: Problem) -> tuple[dict[str, Expression], list[_Unknown], dict[Expression, Expression]]:
@@ -76,11 +119,7 @@ def _written(problem: Problem) -> tuple[dict[str, Expression], list[_Unknown], d
         entry, column, _ = components[unknown.name]
         source = by_entry[(f'{entry}_d{unknown.order - 1}', column)] if unknown.order > 1 else unknown.name
         right = SR(problem.equations[source]).subs(substitution)
-        if problem.form is Form.DISCRETE:
-            left = function(str(problem.equation_symbols[unknown.name]))(problem.time + 1)
-        else:
-            left = diff(unknown.function, problem.time, unknown.order)
-        equations[unknown.name] = left == right
+        equations[unknown.name] = _left_side(problem, unknown) == right
     return equations, unknowns, substitution
 
 
@@ -190,13 +229,50 @@ def equations_of(system: System) -> dict[str, Expression]:
     return _equations_of_problem(compile_system(system))
 
 
+def _check_solvable(problem: Problem) -> None:
+    """Raise an error when a problem is not of the ODE or fractional form, or has callable laws or groups."""
+    if problem.form not in {Form.ODE, Form.FRACTIONAL}:
+        error_msg = f'Only ODE systems can be solved symbolically, but the system is a {problem.form.value}.'
+        raise AnalysisError(error_msg)
+    if problem.has_callables:
+        error_msg = 'The system has a callable law, which has no symbolic form.'
+        raise AnalysisError(error_msg)
+    if problem.has_group_sums or any(element.members is not None for element in problem.elements):
+        error_msg = 'The system has element groups, which are not solved symbolically. Solve one member as an element.'
+        raise AnalysisError(error_msg)
+
+
+def _fractional_solution(problem: Problem, *, use_initial_state: bool) -> dict[str, Expression]:
+    """Return the solution `x(t) = x(0) E_alpha(c t^alpha)` of one linear fractional relaxation `D^alpha x = c x`."""
+    _, unknowns, _ = _written(problem)
+    unknown = unknowns[0]
+    item = problem.equation_symbols[unknown.name]
+    right = SR(problem.equations[unknown.name])
+    rate = right.diff(item)
+    linear = len(unknowns) == 1 and not rate.has(item) and not rate.has(problem.time)
+    if not (linear and bool((right - rate * item).expand() == 0)):
+        error_msg = (
+            'Only one linear fractional relaxation D^alpha x = c x, with c free of x and t, is solved exactly. '
+            'Simulate the system with a fractional solver instead.'
+        )
+        raise AnalysisError(error_msg)
+    index = unknown.indices[0]
+    order = _exact(float(problem.orders[index]))
+    start = (
+        _exact(float(problem.initial_state[index])) if use_initial_state else unknown.function.subs({problem.time: 0})
+    )
+    return {unknown.name: unknown.function == start * MITTAG_LEFFLER(order, 1, rate * problem.time**order)}
+
+
 def solve_symbolically(system: System, *, use_initial_state: bool = False) -> dict[str, Expression]:
     """Solve the equations of an ODE system exactly as functions of time, with Maxima through Sage.
 
     One equation of order 1 or 2 is solved with `desolve`, one of higher order with `desolve_laplace`, and several with
     `desolve_system` after reduction to first order, which solves linear systems with constant coefficients. A result
     that still contains unevaluated transforms, integrals, or the unknown functions is not a solution, and raises the
-    error. Parameters give Maxima their sign from their domain, or from their value when their domain is real.
+    error. Parameters give Maxima their sign from their domain, or from their value when their domain is real. One
+    linear fractional relaxation `D^alpha x = c x` has the solution `x(0) E_alpha(c t^alpha)`, written with the symbolic
+    function `mittag_leffler(alpha, beta, z)`, whose numeric value comes from `mittag_leffler`.
 
     Args:
         system:
@@ -214,8 +290,8 @@ def solve_symbolically(system: System, *, use_initial_state: bool = False) -> di
 
     Raises:
         AnalysisError:
-            The system is not an ODE, has a callable law or groups, has equations Maxima cannot solve, or needs the
-            sign of a parameter.
+            The system is not an ODE or a linear fractional relaxation, has a callable law or groups, has equations
+            Maxima cannot solve, or needs the sign of a parameter.
 
     Examples:
         >>> from skcomplex.core.analysis import solve_symbolically
@@ -229,15 +305,9 @@ def solve_symbolically(system: System, *, use_initial_state: bool = False) -> di
         n_a(t) == 2*e^(r_g*t)
     """
     problem = compile_system(system)
-    if problem.form is not Form.ODE:
-        error_msg = f'Only ODE systems can be solved symbolically, but the system is a {problem.form.value}.'
-        raise AnalysisError(error_msg)
-    if problem.has_callables:
-        error_msg = 'The system has a callable law, which has no symbolic form.'
-        raise AnalysisError(error_msg)
-    if problem.has_group_sums or any(element.members is not None for element in problem.elements):
-        error_msg = 'The system has element groups, which are not solved symbolically. Solve one member as an element.'
-        raise AnalysisError(error_msg)
+    _check_solvable(problem)
+    if problem.form is Form.FRACTIONAL:
+        return _fractional_solution(problem, use_initial_state=use_initial_state)
     equations, unknowns, _ = _written(problem)
     initial = problem.initial_state
     try:

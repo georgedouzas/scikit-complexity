@@ -110,6 +110,7 @@ from ._fluctuations import (
     kramers_moyal,
     relative_fluctuations,
 )
+from ._fractional import mittag_leffler
 from ._information import (
     active_information_storage,
     block_entropies,
@@ -426,6 +427,7 @@ __all__: list[str] = [
     'mean_first_passage_time',
     'mean_squared_displacement',
     'milling_order',
+    'mittag_leffler',
     'motif_counts',
     'motif_zscores',
     'multiscale_entropy',

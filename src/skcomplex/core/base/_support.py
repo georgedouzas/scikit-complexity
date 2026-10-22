@@ -108,6 +108,13 @@ LAW_CLASSES: dict[LawKind, LawClass] = {
 }
 
 
+class OrderKind(StrEnum):
+    """Kind of order of the time derivative that the rate laws on a state give."""
+
+    INTEGER = 'integer'
+    FRACTIONAL = 'fractional'
+
+
 class DomainKind(StrEnum):
     """Kind of value a state takes, which decides the laws that may target it."""
 
@@ -230,6 +237,8 @@ class Supports:
         noise:
             The structures of Wiener processes it draws: a process per state, processes shared by several states,
             and correlated processes.
+        orders:
+            The kinds of order of the time derivatives of states it integrates, integer or fractional.
 
     Examples:
         >>> from skcomplex.core.base import LawKind, NoiseKind, Supports
@@ -245,6 +254,7 @@ class Supports:
     domains: AbstractSet[DomainKind] = field(default_factory=frozenset)
     components: AbstractSet[ComponentKind] = field(default_factory=frozenset)
     noise: AbstractSet[NoiseKind] = field(default_factory=frozenset)
+    orders: AbstractSet[OrderKind] = field(default_factory=frozenset)
 
     def __post_init__(self) -> None:
         """Freeze every field into a set of terms."""

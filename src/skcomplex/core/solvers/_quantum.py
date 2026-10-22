@@ -11,7 +11,7 @@ import numpy.typing as npt
 import qutip
 import scipy.sparse as sp
 
-from ..base import ComponentKind, DomainKind, Form, LawKind, SolverError, SpaceKind, Supports, TimeKind
+from ..base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SolverError, SpaceKind, Supports, TimeKind
 from ..compile import DEFAULT_MAX_DIMENSION, Problem, QuantumProblem, QuantumTerm, Vector
 from ._base import Stepper, register_solver
 
@@ -56,6 +56,7 @@ class QuantumSolver(Stepper):
         laws={LawKind.GENERATOR, LawKind.DISSIPATOR},
         domains={DomainKind.HILBERT},
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP},
+        orders={OrderKind.INTEGER},
     )
 
     form: ClassVar[Form] = Form.QUANTUM

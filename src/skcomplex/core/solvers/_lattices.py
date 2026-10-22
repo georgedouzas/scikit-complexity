@@ -6,7 +6,7 @@
 import math
 from typing import ClassVar
 
-from ..base import ComponentKind, DomainKind, Form, LawKind, SpaceKind, Supports, TimeKind
+from ..base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind
 from ..compile import CompiledExtremal, CompiledRelaxation, Vector
 from ._base import Stepper, register_solver
 
@@ -35,6 +35,7 @@ class LatticeStepper(Stepper):
         laws={LawKind.LOCAL_RULE, LawKind.UPDATE, LawKind.BOUNDARY},
         domains=set(DomainKind) - {DomainKind.HILBERT},
         components={ComponentKind.GROUP, ComponentKind.SITE_GROUP},
+        orders={OrderKind.INTEGER},
     )
 
     form: ClassVar[Form] = Form.LATTICE
@@ -96,6 +97,7 @@ class MonteCarlo(LatticeStepper):
         laws={LawKind.SAMPLE, LawKind.BOUNDARY},
         domains=set(DomainKind) - {DomainKind.HILBERT},
         components={ComponentKind.GROUP, ComponentKind.SITE_GROUP},
+        orders={OrderKind.INTEGER},
     )
 
     form: ClassVar[Form] = Form.MONTE_CARLO

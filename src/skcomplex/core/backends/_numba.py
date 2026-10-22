@@ -26,6 +26,7 @@ from ..base import (
     Form,
     LawKind,
     NoiseKind,
+    OrderKind,
     SpaceKind,
     Supports,
     TimeKind,
@@ -51,6 +52,7 @@ from ..laws import Boundary, Jump, Noise, Rate, Update
 DEFAULT_CACHE_DIR = Path.home() / '.cache' / 'skcomplex' / 'kernels'
 FORM_KINDS: dict[Form, list[type]] = {
     Form.ODE: [Rate],
+    Form.FRACTIONAL: [Rate],
     Form.SDE: [Rate, Noise],
     Form.JUMP: [Jump],
     Form.DISCRETE: [Update],
@@ -766,6 +768,7 @@ class NumbaBackend(Backend):
         domains=NUMERIC_DOMAINS | {DomainKind.CATEGORICAL},
         components=set(ComponentKind),
         noise=set(NoiseKind),
+        orders=set(OrderKind),
     )
 
     name: ClassVar[str] = 'numba'
@@ -848,7 +851,7 @@ class NumbaBackend(Backend):
         """
         used = {
             Boundary: kernels.get(Boundary, []),
-            Rate: kernels.get(Rate, []) if form in (Form.ODE, Form.SDE) else [],
+            Rate: kernels.get(Rate, []) if form in (Form.ODE, Form.FRACTIONAL, Form.SDE) else [],
             Noise: kernels.get(Noise, []) if form is Form.SDE else [],
             Jump: kernels.get(Jump, []) if form is Form.JUMP else [],
             Update: kernels.get(Update, []) if form is Form.DISCRETE else [],
@@ -878,8 +881,8 @@ class NumbaBackend(Backend):
             Form.SDE: 'euler_maruyama',
             Form.JUMP: 'gillespie',
             Form.DISCRETE: 'iterate' if draws is None else 'iterate_random',
-        }[form]
-        has_loop = all(compiled[kind] for kind in needed)
+        }.get(form, '')
+        has_loop = bool(accelerated_loop) and all(compiled[kind] for kind in needed)
         bounded = 'HAS_BOUNDARY = True\n' if Boundary in needed else NO_BOUNDARY
         loops = (
             [bounded, LOOPS[accelerated_loop], LOOPS['velocity_verlet'] if form is Form.ODE else ''] if has_loop else []
@@ -947,7 +950,7 @@ class NumbaBackend(Backend):
             kind: bind(names[kind]) if compiled[kind] else reductions.wrap(numpy[kind]()) for kind in needed
         }
         lowering = Lowering(boundary=functions.get(Boundary))
-        if form in (Form.ODE, Form.SDE):
+        if form in (Form.ODE, Form.FRACTIONAL, Form.SDE):
             lowering.drift = functions[Rate]
         if form is Form.SDE:
             lowering.diffusion = functions.get(Noise, concatenating_function([]))

@@ -16,6 +16,7 @@ from ..base import (
     Form,
     LawKind,
     NoiseKind,
+    OrderKind,
     SolverError,
     SpaceKind,
     Supports,
@@ -103,6 +104,7 @@ class CoSimulation(Stepper):
             ComponentKind.SYSTEM,
         },
         noise=set(NoiseKind),
+        orders=set(OrderKind),
     )
 
     form: ClassVar[Form] = Form.COUPLED

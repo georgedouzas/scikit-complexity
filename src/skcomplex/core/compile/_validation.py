@@ -22,6 +22,7 @@ from ..base import (
     LabelError,
     LawKind,
     NoiseKind,
+    OrderKind,
     ParameterError,
     Registry,
     Requires,
@@ -38,7 +39,7 @@ from ..base import (
     VariableKind,
     declarations_of,
 )
-from ..components import Wiener
+from ..components import Element, Group, Wiener
 from ..interactions import Match
 from ..laws import (
     Auxiliary,
@@ -698,6 +699,120 @@ def _noise_issues(system: System, records: list[CensusRecord], solver: object, b
     return issues + _noise_support_issues(records, wieners, solver, backend)
 
 
+@dataclass(frozen=True)
+class _FractionalState:
+    """State of a fractional order with the path of its component."""
+
+    path: str
+    name: str
+    order: float
+
+
+def _fractional_states(system: System) -> list[_FractionalState]:
+    """Return every state of a fractional order of the elements and groups of a system."""
+    found = []
+    for node in flatten_system(system):
+        if not isinstance(node.component, Element | Group):
+            continue
+        for name, declaration in declarations_of(node.component_type, VariableKind.STATE).items():
+            if declaration.is_fractional:
+                found.append(_FractionalState(node.path, f'{node.path}.{name}', declaration.order))
+    return found
+
+
+def _fractional_solvers() -> list[str]:
+    """Return the names of the registered solvers that integrate fractional orders, without co-simulation."""
+    return sorted(
+        {
+            name
+            for cls, names in _solver_classes().items()
+            if OrderKind.FRACTIONAL in cls.supports.orders and cls.form is not Form.COUPLED
+            for name in names
+        },
+    )
+
+
+def _stepper_class(solver: object) -> Any:  # noqa: ANN401
+    """Return the class of a solver given by a registered name or an instance, or `None` for an unknown name."""
+    if not isinstance(solver, str):
+        return type(solver)
+    return next((cls for cls, names in _solver_classes().items() if solver in names), None)
+
+
+def _backend_class(backend: object) -> Any:  # noqa: ANN401
+    """Return the class of a backend given by a registered name or an instance, or `None` for `'auto'` or a typo."""
+    if not isinstance(backend, str):
+        return type(backend)
+    return BACKENDS.resolve(backend) if backend in set(BACKENDS) else None
+
+
+def _support_issues(states: list[_FractionalState], solver: object, backend: object) -> list[Issue]:
+    """Return the fractional states that a chosen solver or backend does not integrate."""
+    stepper = _stepper_class(solver) if solver != 'auto' else None
+    engine = _backend_class(backend)
+    issues = []
+    for item in states:
+        if stepper is not None and OrderKind.FRACTIONAL not in stepper.supports.orders:
+            message = f'The solver {stepper.__name__} does not integrate {item.name}, a state of order {item.order}.'
+            fix = f'Use one of the fractional solvers {", ".join(_fractional_solvers())}.'
+            issues.append(Issue('order-unsupported', item.path, message, fix, error=SolverError))
+        if engine is not None and OrderKind.FRACTIONAL not in engine.supports.orders:
+            capable = sorted(
+                str(key) for key in BACKENDS if OrderKind.FRACTIONAL in BACKENDS.resolve(key).supports.orders
+            )
+            message = f'The backend {engine.__name__} does not run {item.name}, a state of order {item.order}.'
+            fix = f'Use one of the backends {", ".join(capable)}.'
+            issues.append(Issue('order-unsupported', item.path, message, fix, error=BackendError))
+    return issues
+
+
+def _fractional_law_issues(states: list[_FractionalState], records: list[CensusRecord]) -> list[Issue]:
+    """Return the laws on fractional states of a kind that no fractional solver runs."""
+    names = {item.name for item in states}
+    capable = [cls for cls in _solver_classes() if Form.FRACTIONAL in {cls.form, *cls.forms}]
+    supported = set().union(*(cls.supports.laws for cls in capable))
+    issues = []
+    for record in records:
+        targets = sorted({entry.name for entry in record.targets} & names)
+        kind = record.law.law_kind
+        if not targets or kind in supported:
+            continue
+        message = (
+            f'The {type(record.law).__name__} law of {record.path} targets {", ".join(targets)}, a state of a '
+            f'fractional order, but no fractional solver runs {kind} laws.'
+        )
+        fix = f'Declare an integer order, or use {_names(supported)} laws on the state.'
+        issues.append(Issue('solver-unsupported', record.path, message, fix, error=SolverError))
+    return issues
+
+
+def _order_issues(system: System, records: list[CensusRecord], *, solver: object, backend: object) -> list[Issue]:
+    """Return the fractional states with an order outside `(0, 1)`, a time that is not continuous, or no support."""
+    states = _fractional_states(system)
+    if not states:
+        return []
+    times = _declared_times(system)
+    issues = []
+    for item in states:
+        if not 0 < item.order < 1:
+            message = (
+                f'The state {item.name} declares the order {item.order}, which is neither an integer nor in (0, 1).'
+            )
+            fix = 'Declare a fractional order in the interval (0, 1), or an integer order of at least 1.'
+            issues.append(Issue('fractional-order', item.path, message, fix))
+        time = times.get(item.path.rpartition('/')[0])
+        if time is not None and time is not TimeKind.CONTINUOUS:
+            message = (
+                f'The state {item.name} has the fractional order {item.order}, but the system declares {time} time.'
+            )
+            fix = 'Declare continuous time, the only time in which fractional derivatives are defined.'
+            issues.append(Issue('fractional-time', item.path, message, fix))
+    issues += _support_issues(states, solver, backend)
+    if solver == 'auto':
+        issues += _fractional_law_issues(states, records)
+    return issues
+
+
 def validate(
     system: System,
     *,
@@ -709,7 +824,9 @@ def validate(
 
     Validation compares the requirements every law declares with the states it targets, the space it lives on, and
     the system's time, checks that one solver runs the laws of every partition, and checks the chosen solver and
-    backend against their declared support. It reports every problem at once, each with its path and fix.
+    backend against their declared support. A state of a fractional order needs an order in `(0, 1)`, continuous time,
+    and a solver and a backend that integrate fractional orders. It reports every problem at once, each with its path
+    and fix.
 
     Args:
         system:
@@ -758,6 +875,7 @@ def validate(
     if solver != 'auto':
         report.issues += _solver_issues(solver, records, system)
     report.issues += _noise_issues(system, records, solver, backend)
+    report.issues += _order_issues(system, records, solver=solver, backend=backend)
     if isinstance(backend, str) and backend != 'auto' and backend not in set(BACKENDS):
         message = f'No backend is registered under {backend!r}.'
         fix = f'Choose one of {_names(BACKENDS)}.'

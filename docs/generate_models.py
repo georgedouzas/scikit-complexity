@@ -20,6 +20,7 @@ INVENTORY = DOCS / 'overview' / 'inventory.toml'
 GALLERY = build_from_environment(DOCS)
 EQUATION_FORMS = {
     'ordinary differential equations',
+    'fractional differential equations',
     'stochastic differential equations',
     'delay differential equations',
     'discrete map',

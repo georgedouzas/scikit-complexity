@@ -22,6 +22,7 @@ from ..base import (
     Form,
     LawKind,
     NoiseKind,
+    OrderKind,
     SolverError,
     SpaceKind,
     Supports,
@@ -228,6 +229,7 @@ class ScipyODE(Stepper):
         laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER},
         domains=NUMERIC_DOMAINS,
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        orders={OrderKind.INTEGER},
     )
 
     form: ClassVar[Form] = Form.ODE
@@ -635,6 +637,7 @@ class RK4(Stepper):
         laws={LawKind.JUMP, LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER},
         domains=NUMERIC_DOMAINS,
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        orders={OrderKind.INTEGER},
     )
 
     form: ClassVar[Form] = Form.ODE
@@ -904,6 +907,7 @@ class VelocityVerlet(Stepper):
         laws={LawKind.RATE, LawKind.EQUATION, LawKind.BOUNDARY},
         domains=NUMERIC_DOMAINS,
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        orders={OrderKind.INTEGER},
     )
 
     form: ClassVar[Form] = Form.ODE
@@ -1016,6 +1020,7 @@ class EulerMaruyama(Stepper):
         domains=NUMERIC_DOMAINS,
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
         noise=set(NoiseKind),
+        orders={OrderKind.INTEGER},
     )
 
     form: ClassVar[Form] = Form.SDE
@@ -1129,6 +1134,7 @@ class Milstein(Stepper):
         domains=NUMERIC_DOMAINS,
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
         noise={NoiseKind.DIAGONAL},
+        orders={OrderKind.INTEGER},
     )
 
     form: ClassVar[Form] = Form.SDE
@@ -1212,6 +1218,7 @@ class Heun(Stepper):
         domains=NUMERIC_DOMAINS,
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
         noise=set(NoiseKind),
+        orders={OrderKind.INTEGER},
     )
 
     form: ClassVar[Form] = Form.SDE
@@ -1282,6 +1289,7 @@ class Gillespie(Stepper):
         laws={LawKind.JUMP, LawKind.BOUNDARY, LawKind.TRANSFER},
         domains=set(DomainKind) - {DomainKind.HILBERT},
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        orders={OrderKind.INTEGER},
     )
 
     form: ClassVar[Form] = Form.JUMP
@@ -1387,6 +1395,7 @@ class Iteration(Stepper):
         laws={LawKind.UPDATE, LawKind.TRANSITION, LawKind.BOUNDARY, LawKind.TRANSFER},
         domains=set(DomainKind) - {DomainKind.HILBERT},
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        orders={OrderKind.INTEGER},
     )
 
     form: ClassVar[Form] = Form.DISCRETE
@@ -1473,6 +1482,7 @@ class RenewalStepper(Stepper):
         domains=set(DomainKind) - {DomainKind.HILBERT},
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
         noise={NoiseKind.DIAGONAL},
+        orders={OrderKind.INTEGER},
     )
 
     form: ClassVar[Form] = Form.RENEWAL

@@ -10,6 +10,7 @@ class Form(Enum):
     """Mathematical form of a compiled system."""
 
     ODE = 'ordinary differential equations'
+    FRACTIONAL = 'fractional differential equations'
     SDE = 'stochastic differential equations'
     JUMP = 'jump process'
     DISCRETE = 'discrete map'

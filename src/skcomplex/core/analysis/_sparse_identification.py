@@ -36,7 +36,9 @@ def _term(symbols: Sequence[Expression], powers: npt.NDArray[np.int_]) -> Expres
 
 
 def _sparse_laws(
-    names: Sequence[str], coefficients: Array, powers: npt.NDArray[np.int_],
+    names: Sequence[str],
+    coefficients: Array,
+    powers: npt.NDArray[np.int_],
 ) -> Callable[[Symbols], list[Law]]:
     """Return the function that gives one rate law per state, a sum of the monomials with nonzero coefficients."""
 

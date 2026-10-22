@@ -9,7 +9,7 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from ..base import ComponentKind, DomainKind, Form, LawKind, SpaceKind, Supports, TimeKind
+from ..base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind
 from ..compile import Problem, Structure, Vector
 from ._base import Stepper, register_solver
 
@@ -58,6 +58,7 @@ class Rewriter(Stepper):
         laws={LawKind.REWRITE},
         domains={DomainKind.SEQUENCE, DomainKind.TILING, DomainKind.GRAPH, DomainKind.REAL, DomainKind.INTEGER},
         components={ComponentKind.ELEMENT, ComponentKind.GROUP},
+        orders={OrderKind.INTEGER},
     )
 
     form: ClassVar[Form] = Form.REWRITING

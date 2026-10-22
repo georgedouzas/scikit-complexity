@@ -6,7 +6,7 @@
 from collections.abc import Mapping
 from typing import ClassVar
 
-from ..base import ComponentKind, DomainKind, Form, LawKind, NoiseKind, SpaceKind, Supports, TimeKind
+from ..base import ComponentKind, DomainKind, Form, LawKind, NoiseKind, OrderKind, SpaceKind, Supports, TimeKind
 from ..compile._backends import (
     Backend,
     Lowering,
@@ -41,6 +41,7 @@ class NumpyBackend(Backend):
         domains=set(DomainKind),
         components=set(ComponentKind),
         noise=set(NoiseKind),
+        orders=set(OrderKind),
     )
 
     name: ClassVar[str] = 'numpy'
@@ -85,7 +86,7 @@ class NumpyBackend(Backend):
         lowering = Lowering()
         if kernels.get(Boundary):
             lowering.boundary = assigning_function(kernels[Boundary])
-        if form in (Form.ODE, Form.SDE):
+        if form in (Form.ODE, Form.FRACTIONAL, Form.SDE):
             lowering.drift = adding_function(kernels.get(Rate, []), size)
         if form is Form.SDE:
             lowering.diffusion = concatenating_function(kernels.get(Noise, []))
