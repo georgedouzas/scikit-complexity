@@ -55,6 +55,7 @@
 | hodgkin_huxley | regular action potentials to +40 mV | mean interspike interval 14.7 ms | 0.5 s, 251 frames, 0.13 MB |
 | integrate_and_fire | sawtooth of charge and reset | f-I curve on the closed form above rheobase 1.5 nA | 1.9 s, 251 frames, 0.08 MB |
 | izhikevich | chattering bursts of spikes | bursts alternate short and long intervals; regular spiking contrast | 1.1 s, 251 frames, 0.09 MB |
+| kinouchi_copelli | excited fraction at sigma = 1 rising in irregular bursts of very different heights | response curves F(r) at sigma = 0.6, 1, 1.4; dynamic range peaks at sigma = 1 (25 dB against 22 and 23 dB at 0.8 and 1.2) | 6.0 s, 281 frames, 1.44 MB |
 | legion | activity field with one object active | objects fire in turns, never together; unstimulated sites silent | 2.4 s, 291 frames, 0.31 MB |
 | polyhomeostatic_neuron | gain and threshold adapt, potential oscillates | mean rate 0.186 vs target 0.2; skewed histogram | 0.3 s, 201 frames, 0.10 MB |
 | theta_neurons | four phases advance and wrap | raster: 48 spikes uncoupled vs 371 coupled | 0.8 s, 101 frames, 0.03 MB |
