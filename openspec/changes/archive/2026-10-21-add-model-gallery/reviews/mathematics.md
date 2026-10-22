@@ -49,3 +49,5 @@
 | fragmentation | fragments of every step sorted by size and laid end to end, ever finer down the rows | fragment count grows by 1.5 per step; mean ln L falls 0.5 and its variance grows ~0.75 per step; size conserved | 0.4 s, 15 frames, 26 KB |
 | weakening_ornstein_uhlenbeck | four particles jittering near 0 with excursions to ±3 | pooled density follows (1 + x²)^-2 out to abs(x) ≈ 5, far above the OU Gaussian | 12.7 s, 251 frames, 195 KB |
 | ageing_random_walk | six walkers drifting downward almost linearly after a few early up steps | mean up steps approach n^(1 / (1 + nu)) for nu = 0.5, 1, 2 | 10.6 s, 300 frames, 85 KB |
+| koopman_slow_manifold | phase plane of 7 orbits bending sharply onto the blue slow-manifold parabola x2 = b x1^2 and running to the origin | Koopman eigenfunctions x1 and x2 - b x1^2 decay as exp(mu t) and exp(lam t), straight lines on a log scale (error 1.5e-6 in tests) | 0.7 s, 201 frames, 0.08 MB |
+| ou_driven_rossler | smeared 3D Rössler band with z spikes of varying height | maxima of x against the noisy control trace the fixed-control bifurcation diagram; the control histogram matches N(0, 0.15^2) | 10.2 s, 241 frames, 0.19 MB |
