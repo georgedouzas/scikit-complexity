@@ -23,7 +23,8 @@ def symbol(name: str, domain: AnyDomain = Domain.REAL) -> Expression:
     """Return the Sage symbol of a name, real, integer, or complex, and record its variable domain.
 
     The symbol is declared real or integer without Maxima, which Sage would otherwise load to record the domain, so
-    compiling stays fast. A symbol of the complex domain is left undeclared, which Sage treats as complex.
+    compiling stays fast. A symbol of the complex domain is left undeclared, which Sage treats as complex. Sage keeps
+    one symbol per name, so a name declared before with another domain is redeclared.
     `declare_domains` gives Maxima the full domains before an exact solution.
 
     Args:
@@ -44,8 +45,12 @@ def symbol(name: str, domain: AnyDomain = Domain.REAL) -> Expression:
         (True, <Domain.POSITIVE: 'positive'>)
         >>> symbol('z', Domain.COMPLEX).is_real()
         False
+        >>> symbol('z').is_real(), symbol('z', Domain.COMPLEX).is_real()
+        (True, False)
     """
     item = SR.symbol(name)
+    for previous in ('integer', 'real'):
+        item.decl_forget(previous)
     if domain.sage_domain != 'complex':
         item.decl_assume('integer' if domain.sage_domain == 'integer' else 'real')
     _DOMAINS[name] = domain
