@@ -85,7 +85,7 @@ through the conformance suite.
 ## 7. Migrate the library
 
 - [x] 7.1 Migrate the models field by field to the new vocabulary, comparing each against the baseline of task 1.3.
-- [ ] 7.2 Migrate the gallery examples and the user guide to the new system definition, and regenerate the inventory
+- [x] 7.2 Migrate the gallery examples and the user guide to the new system definition, and regenerate the inventory
   coverage by category.
 
 ## 8. Pending changes and gate
