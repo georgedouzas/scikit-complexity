@@ -2,9 +2,12 @@
 
 from ._agents import AgentSnapshot, AgentState
 from ._base import SOLVERS, Stepper, register_solver, resolve_solver
+from ._collocation import Collocation
 from ._cosimulation import CoSimulation
 from ._fractional import FractionalEulerMaruyama, fractional_gaussian_noise
 from ._lattices import LatticeStepper, MonteCarlo
+from ._optimal import ControlSolution
+from ._pontryagin import Pontryagin
 from ._quantum import LindbladEvolution, QuantumSolver, QuantumTrajectories, UnitaryEvolution
 from ._rewriting import Rewriter, RewritingState
 from ._steppers import (
@@ -29,6 +32,8 @@ __all__: list[str] = [
     'AgentSnapshot',
     'AgentState',
     'CoSimulation',
+    'Collocation',
+    'ControlSolution',
     'CrankNicolson',
     'EulerMaruyama',
     'FractionalEulerMaruyama',
@@ -40,6 +45,7 @@ __all__: list[str] = [
     'LindbladEvolution',
     'Milstein',
     'MonteCarlo',
+    'Pontryagin',
     'QuantumSolver',
     'QuantumTrajectories',
     'RenewalStepper',

@@ -79,6 +79,9 @@ class Variable:
 
         adaptive:
             Whether a state was declared as an adaptive parameter, which laws may change.
+
+        bounds:
+            The lower and upper bound of an adaptive parameter that is a control input, or `None` for an unbounded one.
     """
 
     kind: VariableKind
@@ -97,6 +100,7 @@ class Variable:
     position: bool = False
     velocity_of: str | None = None
     adaptive: bool = False
+    bounds: tuple[float, float] | None = None
 
 
 def _declare_field(default: Any, declaration: Variable) -> Any:
@@ -106,6 +110,17 @@ def _declare_field(default: Any, declaration: Variable) -> Any:
     if not isinstance(default, int | float | complex | str | bytes | Enum | np.generic | type(None)):
         return dataclasses.field(default_factory=lambda: copy.deepcopy(default), metadata=metadata)
     return dataclasses.field(default=default, metadata=metadata)
+
+
+def _check_bounds(bounds: tuple[float, float], *, adaptive: bool) -> None:
+    """Raise an error for bounds of a parameter that is not adaptive, or whose lower bound is above the upper one."""
+    if not adaptive:
+        error_msg = f'Only an adaptive parameter takes bounds, but bounds={bounds!r} were given. Add `adaptive=True`.'
+        raise ValueError(error_msg)
+    lower, upper = (float(value) for value in bounds)
+    if not lower <= upper:
+        error_msg = f'bounds={bounds!r} must be a pair (lower, upper) with lower at most upper.'
+        raise ValueError(error_msg)
 
 
 def state(
@@ -258,6 +273,7 @@ def parameter(
     vector: bool = False,
     per: str | None = None,
     adaptive: bool = False,
+    bounds: tuple[float, float] | None = None,
 ) -> Any:
     """Declare a parameter of an element or an interaction.
 
@@ -283,13 +299,19 @@ def parameter(
             an element is compiled and recorded as a state whose initial value is the one the constructor gets, so
             laws target it like any state.
 
+        bounds:
+            The lower and upper bound of an adaptive parameter, such as `(0, 1)`, which makes it a control input that a
+            schedule, an optimal control solver, or a controller supplies, or `None` for no bounds. Validation reports
+            an initial value outside the bounds.
+
     Returns:
         field:
             A dataclass field that carries the declaration.
 
     Raises:
         ValueError:
-            The parameter is both a vector and declared per entry of a role.
+            The parameter is both a vector and declared per entry of a role, or has bounds without being adaptive or
+            with a lower bound above the upper one.
 
     Examples:
         >>> from skcomplex.core.base import Domain, parameter, role
@@ -303,12 +325,20 @@ def parameter(
         ...     weights: list[float] = parameter(per='inputs')
         >>> Regulation('regulation', inputs=['a', 'b'], weights=[1.0, -1.0]).weights
         [1.0, -1.0]
+        >>> from skcomplex.core.components import Element
+        >>> class Fishery(Element):
+        ...     effort: float = parameter(0.5, adaptive=True, bounds=(0.0, 1.0))
+        >>> Fishery('fishery').effort
+        0.5
     """
+    if bounds is not None:
+        _check_bounds(bounds, adaptive=adaptive)
     if adaptive:
         if per is not None:
             error_msg = f'A parameter takes either `adaptive=True` or `per={per!r}`, not both.'
             raise ValueError(error_msg)
-        return _declare_field(default, Variable(VariableKind.STATE, domain, vector, adaptive=True))
+        checked = None if bounds is None else (float(bounds[0]), float(bounds[1]))
+        return _declare_field(default, Variable(VariableKind.STATE, domain, vector, adaptive=True, bounds=checked))
     if vector and per is not None:
         error_msg = f'A parameter takes either `vector=True` or `per={per!r}`, not both.'
         raise ValueError(error_msg)

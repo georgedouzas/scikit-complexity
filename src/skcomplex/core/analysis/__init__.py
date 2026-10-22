@@ -152,6 +152,7 @@ from ._large_deviations import (
     reweight,
     tilted_generating_function,
 )
+from ._linearization import StateSpace, controllability, linearize, lqr, observability
 from ._loops import FlowMatrix, Loop, LoopDominance, Loops, conservation, flow_matrix, loop_dominance, loops
 from ._lyapunov import lyapunov_spectrum
 from ._markov import (
@@ -267,6 +268,7 @@ __all__: list[str] = [
     'Spectrum',
     'Stability',
     'StableFit',
+    'StateSpace',
     'StructureFactor',
     'Sweep',
     'UlamChain',
@@ -303,6 +305,7 @@ __all__: list[str] = [
     'compare_with_law',
     'complexity_entropy',
     'conservation',
+    'controllability',
     'correlation_dimension',
     'correlation_function',
     'correlation_information',
@@ -370,8 +373,10 @@ __all__: list[str] = [
     'legendre_transform',
     'lempel_ziv_complexity',
     'like_neighbor_share',
+    'linearize',
     'loop_dominance',
     'loops',
+    'lqr',
     'lyapunov_spectrum',
     'markov_state_model',
     'maxwell_boltzmann_test',
@@ -389,6 +394,7 @@ __all__: list[str] = [
     'networks_of',
     'nullclines',
     'number_fluctuations',
+    'observability',
     'orbit_diagram',
     'order_parameter_sweep',
     'ordinal_patterns',

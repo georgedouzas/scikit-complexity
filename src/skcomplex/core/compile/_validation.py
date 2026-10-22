@@ -8,6 +8,8 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, cast
 
+import numpy as np
+
 from ..base import (
     BackendError,
     Categorical,
@@ -52,6 +54,7 @@ from ..laws import (
     Jump,
     LocalRule,
     Noise,
+    Objective,
     Production,
     Rate,
     Relaxation,
@@ -112,6 +115,7 @@ def law_types() -> tuple[Any, ...]:
         Transfer,
         Auxiliary,
         Invariant,
+        Objective,
         Generator,
         Dissipator,
         Production,
@@ -392,6 +396,26 @@ def _binding_issues(system: System) -> list[Issue]:
     return issues
 
 
+def _bound_issues(system: System) -> list[Issue]:
+    """Return the adaptive parameters whose initial values lie outside their bounds."""
+    issues = []
+    for node in flatten_system(system):
+        for name, declaration in declarations_of(node.component_type, VariableKind.STATE).items():
+            if declaration.bounds is None:
+                continue
+            lower, upper = declaration.bounds
+            value = np.asarray(node.value_of(name), dtype=float)
+            if np.all((value >= lower) & (value <= upper)):
+                continue
+            path = f'{node.path}.{name}'
+            message = (
+                f'The adaptive parameter {path} starts at {value.tolist()}, outside its bounds ({lower}, {upper}).'
+            )
+            fix = f'Give {path} an initial value inside its bounds ({lower}, {upper}).'
+            issues.append(Issue('parameter-bounds', path, message, fix, error=ParameterError))
+    return issues
+
+
 def _law_issues(records: list[CensusRecord], times: dict[str, TimeKind | None]) -> list[Issue]:
     """Return the laws whose targets, space, or time their requirements do not accept."""
     issues = []
@@ -531,6 +555,7 @@ def validate(
         code, fix = FIXES.get(type(failure), ('value', 'Correct the component as the message describes.'))
         report.issues.append(Issue(code, path, str(failure), fix, error=type(failure)))
     report.issues += _binding_issues(system)
+    report.issues += _bound_issues(system)
     report.issues += _law_issues(records, _declared_times(system))
     owners: dict[str, set[LawKind]] = {}
     for record in records:

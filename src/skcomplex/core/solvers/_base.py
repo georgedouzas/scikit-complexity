@@ -10,7 +10,7 @@ from typing import Any, ClassVar
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from ..base import Form, Registry, SolverError, Supports
+from ..base import Form, LawKind, Registry, SolverError, Supports
 from ..compile import EventRecord, ExtremalRecord, Problem, RelaxationRecord, RenewalRecord, Vector, load_backends
 from ._hybrid import EventLocator, History
 from ._renewals import RenewalClock
@@ -35,8 +35,14 @@ class Stepper(BaseEstimator):
     reads_inputs: ClassVar[bool] = False
 
     def _check_capabilities(self, problem: Problem) -> None:
-        """Raise an error when a problem has renewal laws or fractional noise that the stepper does not integrate."""
+        """Raise an error for renewal laws, fractional noise, or objective laws of a problem that the stepper lacks."""
         name = type(self).__name__
+        if problem.objectives and LawKind.OBJECTIVE not in self.supports.laws:
+            error_msg = (
+                f'{name} follows the laws of a system but does not optimise its objective laws. Use an optimal control '
+                'solver, Pontryagin or Collocation.'
+            )
+            raise SolverError(error_msg)
         if problem.renewals and not self.renews:
             error_msg = (
                 f'{name} does not fire renewal laws. Use RK4 for rate laws, EulerMaruyama for noise laws, or '

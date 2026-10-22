@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.base import ParameterError, SimulationError, SolverError, ValidationError, parameter, state
 from skcomplex.core.components import Element
-from skcomplex.core.laws import Rule
+from skcomplex.core.laws import Rate, Rule
 from skcomplex.core.runtime import Observer, RealTime, Simulation
 from skcomplex.core.solvers import Gillespie
 from skcomplex.core.system import System
@@ -277,3 +277,20 @@ def test_initial_state_replaces_the_values_of_components():
     assert trajectory['rabbits.n'][0] == pytest.approx(20.0)
     with pytest.raises(ValidationError, match=r'foxes\.n'):
         Simulation(system, dt=1.0, initial_state={'foxes.n': 1.0}).run(until=1.0)
+
+
+Heater = Element.define(
+    'Heater',
+    states={'T': 0.0},
+    parameters={'power': parameter(0.0, adaptive=True, bounds=(0, 1))},
+    laws=lambda s: [Rate(s.T, s.power - s.T)],
+)
+
+
+def test_simulation_schedules_a_bounded_control():
+    """Test that a scheduled control takes its value at every frame, which laws read and trajectories record."""
+    schedule = {'heater.power': lambda t: 1.0 if t >= 1.0 else 0.0}
+    trajectory = Simulation(System(components=[Heater('heater')]), dt=0.5, schedule=schedule).run(until=3.0).trajectory_
+    np.testing.assert_array_equal(trajectory['heater.power'], [0, 0, 1, 1, 1, 1, 1])
+    assert trajectory['heater.T'][2] == pytest.approx(0.0)
+    assert trajectory['heater.T'][-1] == pytest.approx(1 - np.exp(-2.0), rel=1e-3)

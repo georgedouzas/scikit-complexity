@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 
 type Target = Expression | SymbolicVector
 NOISE_CONVENTIONS = {'ito': 0.0, 'stratonovich': 0.5, 'anti-ito': 1.0}
+SENSES = ('min', 'max')
 type NumericFunction = Callable[[float, Mapping[str, Any]], Any]
 
 
@@ -423,6 +424,57 @@ class Boundary:
 
 
 @dataclass(frozen=True)
+class Objective:
+    """Cost or gain of a system that optimal control solvers minimise or maximise over its controls.
+
+    Under continuous time the value of a run is the integral of the running value `expression` over the run plus the
+    terminal value `terminal` at its horizon, the time `until` of the run. The controls are the bounded adaptive
+    parameters of the system. The trajectory records the running value under `<component path>.<label>`.
+
+    Args:
+        expression:
+            The running value, a symbolic expression of states, controls, parameters, and time.
+
+        terminal:
+            The terminal value at the horizon, a symbolic expression of states and parameters.
+
+        sense:
+            `'min'` for a cost to minimise or `'max'` for a gain to maximise.
+
+        label:
+            The name of the running value in the trajectory, unique among the transfers, auxiliaries, invariants, and
+            objectives of its component.
+
+    Raises:
+        ValidationError:
+            The sense is neither `'min'` nor `'max'`.
+
+    Examples:
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.laws import Objective
+        >>> x, u = symbol('x'), symbol('u')
+        >>> Objective(x**2 + u**2, terminal=x**2).terminal
+        x^2
+    """
+
+    law_kind: ClassVar[LawKind] = LawKind.OBJECTIVE
+    requires: ClassVar[Requires] = Requires(time={TimeKind.STATIC, TimeKind.CONTINUOUS})
+
+    expression: object
+    terminal: object = 0
+    sense: str = 'min'
+    label: str = 'objective'
+
+    def __post_init__(self) -> None:
+        """Check the values and the sense of the objective."""
+        _check_value(self, 'expression', f'running value of the objective {self.label}')
+        _check_value(self, 'terminal', f'terminal value of the objective {self.label}')
+        if self.sense not in SENSES:
+            error_msg = f'Unknown sense {self.sense!r} of the objective {self.label}. Use one of {", ".join(SENSES)}.'
+            raise ValidationError(error_msg)
+
+
+@dataclass(frozen=True)
 class Event:
     """Discrete event: when a guard crosses zero, states take new values, or the run ends.
 
@@ -631,6 +683,7 @@ type Law = (
     | Transition
     | Emission
     | Boundary
+    | Objective
     | Rule
     | Equation
     | Event
