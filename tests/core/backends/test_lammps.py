@@ -12,12 +12,7 @@ from skcomplex.core.backends import LammpsBackend
 from skcomplex.core.base import BackendError, Domain, parameter
 from skcomplex.core.compile import compile_system
 from skcomplex.core.model import (
-    ConstantForce,
     ContinuousSpace,
-    HarmonicPotential,
-    LangevinThermostat,
-    LennardJones,
-    LinearDrag,
     PairPotential,
     Particle,
     System,
@@ -26,6 +21,13 @@ from skcomplex.core.model import (
 from skcomplex.core.runtime import RealTime, Simulation
 from skcomplex.core.solvers import VelocityVerlet
 from skcomplex.models.biology.ecology import LogisticGrowth, Mortality, Population, Predation
+from skcomplex.models.physics.realizations import (
+    ConstantForce,
+    HarmonicPotential,
+    LangevinThermostat,
+    LennardJones,
+    LinearDrag,
+)
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 
 CUTOFF = 2.5

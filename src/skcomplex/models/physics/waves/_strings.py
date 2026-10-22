@@ -17,13 +17,13 @@ from ....core.model import (
     Particle,
     Potential,
     Rate,
-    Spring,
     Symbols,
     System,
     laplacian,
 )
 from ....core.runtime import register_model
 from ....core.solvers import VelocityVerlet
+from ..realizations import Spring
 
 WaveString = Element.define(
     'WaveString',

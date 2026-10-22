@@ -8,20 +8,18 @@ from sage.all__sagemath_symbolics import cos, sin
 
 from ....core.base import Domain, VisualSpec, parameter, state
 from ....core.model import (
-    ConstantForce,
     ContinuousSpace,
     Element,
     Equation,
     Event,
-    HarmonicPotential,
     Interaction,
-    LinearDrag,
     Particle,
     Rate,
     System,
     derivative,
 )
 from ....core.runtime import register_model
+from ..realizations import ConstantForce, HarmonicPotential, LinearDrag
 
 GRAVITY = 9.81
 WALL_POINTS = 200

@@ -62,19 +62,7 @@ from ._memory import memory
 from ._meshes import Mesh
 from ._observables import Observable, reduce_values
 from ._operators import Dissipator, Generator, LocalOperator, Operator
-from ._particles import (
-    ConstantForce,
-    Gravity,
-    HarmonicPotential,
-    LangevinThermostat,
-    LennardJones,
-    LinearDrag,
-    PairPotential,
-    Particle,
-    Potential,
-    SoftSphere,
-    Spring,
-)
+from ._particles import PairPotential, Particle, Potential
 from ._phases import Phase
 from ._quantum import (
     Exchange,
@@ -126,7 +114,6 @@ __all__: list[
     'Auxiliary',
     'Boundary',
     'Call',
-    'ConstantForce',
     'ContinuousSpace',
     'Dissipator',
     'Draw',
@@ -143,18 +130,13 @@ __all__: list[
     'FractionalNoise',
     'Generator',
     'GraphProduction',
-    'Gravity',
     'Group',
-    'HarmonicPotential',
     'HostGraph',
     'Interaction',
     'Invariant',
     'Jump',
-    'LangevinThermostat',
     'LatticeSpace',
     'Law',
-    'LennardJones',
-    'LinearDrag',
     'LocalOperator',
     'LocalRule',
     'Match',
@@ -191,11 +173,9 @@ __all__: list[
     'Sampler',
     'Sink',
     'Site',
-    'SoftSphere',
     'Source',
     'Space',
     'Spin',
-    'Spring',
     'Substitution',
     'Symbols',
     'System',

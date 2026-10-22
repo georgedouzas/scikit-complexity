@@ -13,7 +13,6 @@ from skcomplex.core.compile import NumbaBackend, NumpyBackend, compile_system
 from skcomplex.core.model import (
     Call,
     ContinuousSpace,
-    HarmonicPotential,
     Interaction,
     Jump,
     Noise,
@@ -27,6 +26,7 @@ from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4, EulerMaruyama, Gillespie, Iteration, VelocityVerlet
 from skcomplex.models.biology.ecology import Population
 from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
+from skcomplex.models.physics.realizations import HarmonicPotential
 
 CUTOFF = 2.5
 

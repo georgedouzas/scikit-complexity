@@ -1334,7 +1334,7 @@ integrates them with velocity Verlet.
 
 ```python
 from skcomplex.core.backends import LammpsBackend
-from skcomplex.core.model import LangevinThermostat, LennardJones
+from skcomplex.models.physics.realizations import LangevinThermostat, LennardJones
 
 atoms = System(
     components=[Particle.group('atoms', 100, x=np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2))],
@@ -1794,7 +1794,8 @@ import tempfile
 from pathlib import Path
 
 from skcomplex.core.model import ContinuousSpace
-from skcomplex.core.model import Particle, Spring
+from skcomplex.core.model import Particle
+from skcomplex.models.physics.realizations import Spring
 from skcomplex.core.viz import RerunObserver
 
 molecule = System(
@@ -1901,7 +1902,7 @@ coefficients.
 
 ```python
 from skcomplex.core.analysis import equations_of, solve_symbolically
-from skcomplex.core.model import HarmonicPotential
+from skcomplex.models.physics.realizations import HarmonicPotential
 
 oscillator = System(
     components=[Particle('p', x=1.0)],

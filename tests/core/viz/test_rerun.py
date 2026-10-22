@@ -12,7 +12,6 @@ from skcomplex.core.base import Domain, VisualSpec, state
 from skcomplex.core.compile import compile_system
 from skcomplex.core.model import (
     AgentType,
-    ConstantForce,
     ContinuousSpace,
     Element,
     Field,
@@ -26,6 +25,7 @@ from skcomplex.core.runtime import Frame, Simulation
 from skcomplex.core.viz import ImageVisual, PointsVisual, RerunObserver, ScalarsVisual, Visual, resolve_visual
 from skcomplex.models import create
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population
+from skcomplex.models.physics.realizations import ConstantForce
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 from skcomplex.models.social.opinion_dynamics import voter_model
 from skcomplex.models.social.segregation import schelling

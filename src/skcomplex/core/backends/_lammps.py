@@ -4,6 +4,7 @@
 # License: MIT
 
 import math
+from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import ClassVar
@@ -27,26 +28,109 @@ from ..base import (
     symbol,
 )
 from ..compile import CompiledElement, CompiledInteraction, Problem, Vector, compile_system
-from ..model import (
-    ConstantForce,
-    ContinuousSpace,
-    LangevinThermostat,
-    LennardJones,
-    LinearDrag,
-    PairPotential,
-    Particle,
-    Symbols,
-    System,
-)
+from ..model import ContinuousSpace, Interaction, PairPotential, Particle, Symbols, System
 from ..solvers import SOLVERS, register_solver
 from ._base import ExternalBackend
 from ._lepton import lepton_expression
 
 LAMMPS_ARGUMENTS = ['-screen', 'none', '-log', 'none', '-nocite']
-NATIVE_INTERACTIONS = (PairPotential, ConstantForce, LinearDrag, LangevinThermostat)
 DIMENSIONS = ('x', 'y', 'z')
 MAX_SEED = 900_000_000
 SUPPORTED_DIMENSIONS = (2, 3)
+
+
+@dataclass(frozen=True)
+class LammpsFix:
+    """Values the native fix of an interaction reads when the LAMMPS backend writes its command.
+
+    Args:
+        name:
+            The unique name of the fix.
+
+        group:
+            The LAMMPS group of the atoms the fix acts on.
+
+        value:
+            The function that returns the current value of a parameter of the interaction by name.
+
+        mass:
+            The function that returns the mass of the atoms of the interaction's target.
+
+        seed:
+            The function that draws a random seed.
+    """
+
+    name: str
+    group: str
+    value: Callable[[str], Vector]
+    mass: Callable[[], float]
+    seed: Callable[[], int]
+
+
+type PairArguments = Callable[[Callable[[str], Vector]], str]
+type FixCommand = Callable[[LammpsFix], str]
+
+NATIVE_PAIRS: dict[type[Interaction], tuple[str, PairArguments]] = {}
+NATIVE_FIXES: dict[type[Interaction], FixCommand] = {}
+
+
+def register_lammps_pair(interaction: type[PairPotential], style: str, arguments: PairArguments) -> None:
+    """Register the native LAMMPS pair style of a pair potential, which the backend uses instead of Lepton.
+
+    Args:
+        interaction:
+            The pair potential class.
+
+        style:
+            The LAMMPS pair style, such as `'lj/cut'`.
+
+        arguments:
+            The function of the parameter values that returns the coefficients of `pair_coeff`, without the cutoff,
+            which the backend appends.
+
+    Examples:
+        >>> from skcomplex.core.backends import NATIVE_PAIRS, register_lammps_pair
+        >>> from skcomplex.core.model import PairPotential
+        >>> class Flat(PairPotential):
+        ...     def pair_energy(self, s, r):
+        ...         return 0 * r
+        >>> register_lammps_pair(Flat, 'zero', lambda value: '')
+        >>> NATIVE_PAIRS[Flat][0]
+        'zero'
+    """
+    NATIVE_PAIRS[interaction] = (style, arguments)
+
+
+def register_lammps_fix(interaction: type[Interaction], command: FixCommand) -> None:
+    """Register the native LAMMPS fix of an interaction, which the backend uses instead of `fix external`.
+
+    Args:
+        interaction:
+            The interaction class.
+
+        command:
+            The function of the values of the fix that returns its LAMMPS command.
+
+    Examples:
+        >>> from skcomplex.core.backends import NATIVE_FIXES, register_lammps_fix
+        >>> from skcomplex.core.model import Interaction
+        >>> class Push(Interaction):
+        ...     pass
+        >>> register_lammps_fix(Push, lambda fix: f'fix {fix.name} {fix.group} addforce 1.0 0.0 0.0')
+        >>> Push in NATIVE_FIXES
+        True
+    """
+    NATIVE_FIXES[interaction] = command
+
+
+def _native[T](table: dict[type[Interaction], T], interaction: Interaction) -> T | None:
+    """Return the native translation of an interaction from the nearest registered class, or `None`."""
+    return next((table[cls] for cls in type(interaction).__mro__ if cls in table), None)
+
+
+def _is_native(interaction: Interaction) -> bool:
+    """Check whether LAMMPS runs an interaction natively, as a pair style or a fix."""
+    return isinstance(interaction, PairPotential) or _native(NATIVE_FIXES, interaction) is not None
 
 
 @dataclass
@@ -147,10 +231,11 @@ def _box(problem: Problem) -> ContinuousSpace | None:
 class LammpsBackend(ExternalBackend):
     """Solver that runs particle systems in LAMMPS, with LAMMPS velocity Verlet integration.
 
-    Particle groups become atom types, `LennardJones` becomes `lj/cut`, other pair potentials become Lepton
-    expression potentials, boxes become LAMMPS boundaries and `fix wall/reflect`, `ConstantForce` becomes
-    `fix addforce`, `LinearDrag` becomes `fix viscous`, and `LangevinThermostat` becomes `fix langevin`. Any other
-    interaction that only changes particle velocities runs through `fix external`, evaluated by the framework.
+    Particle groups become atom types, and boxes become LAMMPS boundaries and `fix wall/reflect`. A pair potential
+    becomes the native pair style registered for its class with `register_lammps_pair`, or a Lepton expression
+    potential otherwise. An interaction whose class registers a native fix with `register_lammps_fix` becomes that fix.
+    Any other interaction that only changes particle velocities runs through `fix external`, evaluated by the
+    framework.
 
     Args:
         dt:
@@ -163,8 +248,8 @@ class LammpsBackend(ExternalBackend):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.backends import LammpsBackend
-        >>> from skcomplex.core.model import ContinuousSpace, System
-        >>> from skcomplex.core.model import LennardJones, Particle
+        >>> from skcomplex.core.model import ContinuousSpace, Particle, System
+        >>> from skcomplex.models.physics.realizations import LennardJones
         >>> from skcomplex.core.runtime import Simulation
         >>> system = System(
         ...     components=[Particle.group('gas', 2, x=[[0.0, 0.0], [1.5, 0.0]])],
@@ -215,7 +300,7 @@ class LammpsBackend(ExternalBackend):
 
     def _check_pair(self, problem: Problem, item: CompiledInteraction) -> list[str]:
         """Return a description of a pair interaction whose energy has no Lepton form."""
-        if isinstance(item.interaction, LennardJones):
+        if _native(NATIVE_PAIRS, item.interaction) is not None:
             return []
         try:
             self._pair_expression(problem, problem.initial_parameters, item)
@@ -225,7 +310,7 @@ class LammpsBackend(ExternalBackend):
 
     def _external_paths(self, problem: Problem) -> set[str]:
         """Return the paths of the interactions that run through `fix external`."""
-        return {item.path for item in problem.interactions if not isinstance(item.interaction, NATIVE_INTERACTIONS)}
+        return {item.path for item in problem.interactions if not _is_native(item.interaction)}
 
     def _check_external(self, problem: Problem, external: set[str]) -> list[str]:
         """Return the external interactions whose laws do more than change particle velocities."""
@@ -290,7 +375,7 @@ class LammpsBackend(ExternalBackend):
     def _pair_commands(self, problem: Problem, p: Vector) -> list[str]:
         """Return the commands of the pair style and of the coefficients of every pair interaction."""
         pairs = [item for item in problem.interactions if isinstance(item.interaction, PairPotential)]
-        styles, coefficients, counts = [], [], {'lj/cut': 0, 'lepton': 0}
+        styles, coefficients, counts = [], [], defaultdict(int)
         largest = 1.0
         for item in pairs:
             cutoff = float(_parameter(problem, p, item.path, 'cutoff')[0])
@@ -298,10 +383,12 @@ class LammpsBackend(ExternalBackend):
             first, second = sorted(
                 (self.atoms_.types[_role_path(item, 'first')], self.atoms_.types[_role_path(item, 'second')]),
             )
-            if isinstance(item.interaction, LennardJones):
-                style = 'lj/cut'
-                epsilon, sigma = (float(_parameter(problem, p, item.path, name)[0]) for name in ('epsilon', 'sigma'))
-                arguments = f'{epsilon} {sigma} {cutoff}'
+            native = _native(NATIVE_PAIRS, item.interaction)
+            if native is not None:
+                style, coefficients_of = native
+                arguments = (
+                    f'{coefficients_of(lambda name, path=item.path: _parameter(problem, p, path, name))} {cutoff}'
+                )
             else:
                 style = 'lepton'
                 arguments = f'"{self._pair_expression(problem, p, item)}" {cutoff}'
@@ -328,23 +415,22 @@ class LammpsBackend(ExternalBackend):
             )
             commands.append(f'fix walls all wall/reflect {walls}')
         for index, item in enumerate(problem.interactions):
-            group = f'group{atoms.types[_role_path(item, "target")]}' if 'target' in item.roles else 'all'
-            interaction = item.interaction
-            if isinstance(interaction, ConstantForce):
-                force = list(_parameter(problem, p, item.path, 'F')) + [0.0] * 3
-                commands.append(f'fix force{index} {group} addforce {force[0]} {force[1]} {force[2]}')
-            elif isinstance(interaction, LinearDrag):
-                commands.append(
-                    f'fix drag{index} {group} viscous {float(_parameter(problem, p, item.path, "gamma")[0])}',
-                )
-            elif isinstance(interaction, LangevinThermostat):
-                element = next(element for element in atoms.elements if element.path == _role_path(item, 'target'))
-                temperature, gamma = (
-                    float(_parameter(problem, p, item.path, name)[0]) for name in ('temperature', 'gamma')
-                )
-                seed = int(self.rng_.integers(1, MAX_SEED))
-                damping = _mass(problem, p, element) / gamma
-                commands.append(f'fix bath{index} {group} langevin {temperature} {temperature} {damping} {seed}')
+            command = _native(NATIVE_FIXES, item.interaction)
+            if command is None:
+                continue
+            target = _role_path(item, 'target') if 'target' in item.roles else None
+            fix = LammpsFix(
+                name=f'fix{index}',
+                group=f'group{atoms.types[target]}' if target is not None else 'all',
+                value=lambda name, path=item.path: _parameter(problem, p, path, name),
+                mass=lambda target=target: _mass(
+                    problem,
+                    p,
+                    next(element for element in atoms.elements if element.path == target),
+                ),
+                seed=lambda: int(self.rng_.integers(1, MAX_SEED)),
+            )
+            commands.append(command(fix))
         if self.external_ is not None:
             commands.append('fix external all external pf/callback 1 1')
         return commands

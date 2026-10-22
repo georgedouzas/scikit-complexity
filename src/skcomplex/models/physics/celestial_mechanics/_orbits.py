@@ -12,8 +12,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos
 
 from ....core.base import Domain, ValidationError, VisualSpec, parameter, state
-from ....core.model import ContinuousSpace, Element, Gravity, Particle, Rate, System, derivative
+from ....core.model import ContinuousSpace, Element, Particle, Rate, System, derivative
 from ....core.runtime import register_model
+from ..realizations import Gravity
 
 FIGURE_EIGHT = {
     'G': 1.0,

@@ -9,12 +9,11 @@ from ....core.base import VisualSpec
 from ....core.model import (
     ContinuousSpace,
     Interaction,
-    LangevinThermostat,
-    LennardJones,
     Particle,
     System,
 )
 from ....core.runtime import register_model
+from ..realizations import LangevinThermostat, LennardJones
 
 
 @register_model(

@@ -17,7 +17,6 @@ from ....core.model import (
     ContinuousSpace,
     Element,
     Interaction,
-    LangevinThermostat,
     Law,
     Noise,
     Particle,
@@ -29,6 +28,7 @@ from ....core.model import (
 )
 from ....core.runtime import register_model
 from ....core.solvers import EulerMaruyama
+from ..realizations import LangevinThermostat
 from ._brownian import DoubleWell
 
 type Array = npt.NDArray[np.float64]

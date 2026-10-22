@@ -18,10 +18,8 @@ from skcomplex.core.base import (
 )
 from skcomplex.core.compile import compile_system
 from skcomplex.core.model import (
-    ConstantForce,
     ContinuousSpace,
     Element,
-    HarmonicPotential,
     Interaction,
     LatticeSpace,
     Particle,
@@ -34,6 +32,7 @@ from skcomplex.models.biology.ecology import ExponentialGrowth, LogisticGrowth, 
 from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
 from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion
 from skcomplex.models.economics.markets import Cobweb, Market
+from skcomplex.models.physics.realizations import ConstantForce, HarmonicPotential
 from skcomplex.models.physics.statistical_mechanics import ParticleSite, ZeroRangeHop
 
 

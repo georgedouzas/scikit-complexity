@@ -880,7 +880,8 @@ class VelocityVerlet(Stepper):
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
         >>> from skcomplex.core.model import ContinuousSpace, System
-        >>> from skcomplex.core.model import ConstantForce, Particle
+        >>> from skcomplex.core.model import Particle
+        >>> from skcomplex.models.physics.realizations import ConstantForce
         >>> from skcomplex.core.solvers import VelocityVerlet
         >>> problem = compile_system(
         ...     System(

@@ -14,9 +14,7 @@ from ....core.model import (
     Element,
     Equation,
     Event,
-    HarmonicPotential,
     Interaction,
-    LinearDrag,
     Particle,
     Potential,
     Rate,
@@ -25,6 +23,7 @@ from ....core.model import (
     derivative,
 )
 from ....core.runtime import register_model
+from ..realizations import HarmonicPotential, LinearDrag
 from ._mechanics import Pendulum
 
 
