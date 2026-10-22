@@ -502,8 +502,8 @@ class Book(Interaction):
         EARLIEST.append(min(agent.id for agent in model.agents('sellers')))
 
 
-PAIRS = []
-EARLIEST = []
+PAIRS: list[tuple[int, int]] = []
+EARLIEST: list[int] = []
 
 
 def test_order_book_is_a_pairing_of_the_matching_law():
