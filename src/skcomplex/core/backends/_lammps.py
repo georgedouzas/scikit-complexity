@@ -35,7 +35,7 @@ from ..solvers import SOLVERS, register_solver
 from ..space import ContinuousSpace
 from ..system import System
 from ._base import ExternalBackend
-from ._lepton import lepton_expression
+from ._lammps_lepton import lepton_expression
 
 LAMMPS_ARGUMENTS = ['-screen', 'none', '-log', 'none', '-nocite']
 DIMENSIONS = ('x', 'y', 'z')

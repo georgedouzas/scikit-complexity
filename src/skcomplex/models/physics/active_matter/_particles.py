@@ -10,11 +10,12 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import cos, sin, sqrt
 
+from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, VisualSpec, parameter, state, vector
 from ....core.components import Element
 from ....core.laws import Law, Noise, Rate, Rule, Symbols
 from ....core.runtime import register_model
-from ....core.solvers import AgentView, EulerMaruyama, ModelView
+from ....core.solvers import EulerMaruyama
 from ....core.space import ContinuousSpace
 from ....core.system import System
 

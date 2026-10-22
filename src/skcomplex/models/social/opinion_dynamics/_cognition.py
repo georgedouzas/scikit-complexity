@@ -9,12 +9,12 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
+from ....core.backends import ModelView
 from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.components import Element
 from ....core.interactions import Interaction
 from ....core.laws import Law, Rule, Symbols
 from ....core.runtime import register_model
-from ....core.solvers import ModelView
 from ....core.space import NetworkSpace
 from ....core.system import System
 

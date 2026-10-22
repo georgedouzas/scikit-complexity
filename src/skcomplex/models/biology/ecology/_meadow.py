@@ -7,12 +7,12 @@ from typing import Any, ClassVar, cast
 
 import numpy as np
 
+from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.components import Element
 from ....core.interactions import Interaction
 from ....core.laws import Law, Rule, Symbols
 from ....core.runtime import register_model
-from ....core.solvers import AgentView, ModelView
 from ....core.space import LatticeSpace
 from ....core.system import System
 

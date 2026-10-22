@@ -7,6 +7,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
+from skcomplex.core.backends import AgentView, MesaStepper
 from skcomplex.core.base import (
     Form,
     IncompatibleLawsError,
@@ -25,7 +26,6 @@ from skcomplex.core.components import Element, Group, runs_rules
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Rule
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import AgentView, MesaStepper
 from skcomplex.core.space import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population

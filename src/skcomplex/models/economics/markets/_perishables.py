@@ -7,12 +7,12 @@ import numpy as np
 import numpy.typing as npt
 from scipy.special import expit
 
+from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, parameter, role, state
 from ....core.components import Element
 from ....core.interactions import Interaction
 from ....core.laws import Law, Rule, Symbols
 from ....core.runtime import register_model
-from ....core.solvers import AgentView, ModelView
 from ....core.system import Observable, System
 
 type Array = npt.NDArray[np.float64]

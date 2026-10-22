@@ -300,3 +300,23 @@ def test_no_rule_reads_its_own_label():
 def test_rule_check_finds_planted_reads(source, message):
     """Test that the rule check reports reads by the own label and by group paths that are not roles."""
     assert any(message in item for item in _rule_violations(source, 'planted'))
+
+
+def test_backends_live_in_one_package():
+    """Test that every registered backend, and the Mesa stepper, is defined in a private module of `core.backends`."""
+    from skcomplex.core.backends import MesaStepper  # noqa: PLC0415
+    from skcomplex.core.compile import BACKENDS, Backend  # noqa: PLC0415
+
+    backends = [BACKENDS.resolve(name) for name in BACKENDS]
+    modules = {item.__module__ for item in [*backends, MesaStepper]}
+    assert {'skcomplex.core.backends._numpy', 'skcomplex.core.backends._numba'} <= modules
+    assert all(module.startswith('skcomplex.core.backends._') for module in modules)
+    defined = [
+        f'{path.relative_to(PACKAGE)}: {node.name}'
+        for package in ('compile', 'solvers')
+        for path in sorted((PACKAGE / 'core' / package).rglob('*.py'))
+        for node in ast.parse(path.read_text()).body
+        if isinstance(node, ast.ClassDef) and any(ast.unparse(base) == 'Backend' for base in node.bases)
+    ]
+    assert defined == []
+    assert Backend.__module__ == 'skcomplex.core.compile._backends'

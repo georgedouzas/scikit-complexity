@@ -8,8 +8,9 @@ import numba
 import numpy as np
 import pytest
 
+from skcomplex.core.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.base import BackendError, Domain, SolverError, parameter, role
-from skcomplex.core.compile import NumbaBackend, NumpyBackend, compile_system
+from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Particle
 from skcomplex.core.interactions import Interaction, PairPotential
 from skcomplex.core.laws import Call, Jump, Noise, Rate, Update
@@ -228,7 +229,8 @@ def test_numba_kernels_are_cached_on_disk(tmp_path):
     script = textwrap.dedent(
         f"""
         import time
-        from skcomplex.core.compile import NumbaBackend, compile_system
+        from skcomplex.core.compile import compile_system
+        from skcomplex.core.backends import NumbaBackend
         from skcomplex.models.physics.statistical_mechanics import ideal_gas
         start = time.perf_counter()
         problem = compile_system(ideal_gas(2000, random_state=0), backend=NumbaBackend(cache_dir={str(tmp_path)!r}))
@@ -247,7 +249,8 @@ def test_second_process_loads_kernels_from_cache(tmp_path):
     script = textwrap.dedent(
         f"""
         import sys
-        from skcomplex.core.compile import NumbaBackend, compile_system
+        from skcomplex.core.compile import compile_system
+        from skcomplex.core.backends import NumbaBackend
         from skcomplex.models.physics.statistical_mechanics import ideal_gas
         problem = compile_system(ideal_gas(2000, random_state=0), backend=NumbaBackend(cache_dir={str(tmp_path)!r}))
         problem.drift(0.0, problem.initial_state, problem.initial_parameters)

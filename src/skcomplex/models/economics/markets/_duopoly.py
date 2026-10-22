@@ -7,12 +7,12 @@ from collections.abc import Sequence
 
 import numpy as np
 
+from ....core.backends import ModelView
 from ....core.base import Domain, Expression, parameter, role, state
 from ....core.components import Element
 from ....core.interactions import Interaction
 from ....core.laws import Law, Rule, Symbols
 from ....core.runtime import register_model
-from ....core.solvers import ModelView
 from ....core.system import Observable, System
 
 N_FIRMS = 2
