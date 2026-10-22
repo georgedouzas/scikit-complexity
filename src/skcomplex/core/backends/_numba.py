@@ -38,6 +38,7 @@ from ..compile._backends import (
     adding_function,
     assigning_function,
     concatenating_function,
+    reads_reductions,
     register_backend,
 )
 from ..compile._kernels import Kernel, Output, Reference, Source, jump_channels, noise_rows
@@ -1022,7 +1023,7 @@ class NumbaBackend(Backend):
             needed = [*needed, Boundary]
         for kind in needed:
             if compiled[kind]:
-                self._kind(source, used[kind], *plan[kind], form=form, reduced=reduced)
+                self._kind(source, used[kind], *plan[kind], form=form, reduced=reduced and reads_reductions(used[kind]))
         accelerated_loop = {
             Form.ODE: 'rk4',
             Form.SDE: 'euler_maruyama',
@@ -1104,7 +1105,12 @@ class NumbaBackend(Backend):
         }
         names = {Rate: 'drift', Noise: 'diffusion', Jump: 'propensities', Update: 'update', Boundary: 'boundary'}
         functions: dict[type, Any] = {
-            kind: bind(names[kind]) if compiled[kind] else reductions.wrap(numpy[kind]()) for kind in needed
+            kind: (
+                bind(names[kind])
+                if compiled[kind]
+                else reductions.wrap(numpy[kind]()) if reads_reductions(used[kind]) else numpy[kind]()
+            )
+            for kind in needed
         }
         lowering = Lowering(boundary=functions.get(Boundary))
         if form in (Form.ODE, Form.SDE):

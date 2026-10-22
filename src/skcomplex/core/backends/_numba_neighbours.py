@@ -172,11 +172,17 @@ def _scan(positions: Floats, member: int, reach: float, context: Context, found:
 
 @njit(cache=True, parallel=True)
 def _within(positions: Floats, radius: float, aim: Aim, box: Box, center: bool) -> tuple[Integers, Integers]:
-    """Return the members within a radius, and inside a cone, of every member as CSR rows sorted by member."""
+    """Return the members within a radius, and inside a cone, of every member as CSR rows sorted by member.
+
+    Parallel loops capture arrays and scalars only, so the tuples of the search are built inside them.
+    """
     n_members = positions.shape[0]
-    context = (_grid(positions, radius, box), aim, box)
+    (cells, sides, origin), strides, starts, order = _grid(positions, radius, box)
+    headings, cosine, cone = aim
+    periods, periodic = box
     counts = np.zeros(n_members, dtype=np.int64)
     for member in prange(n_members):
+        context = (((cells, sides, origin), strides, starts, order), (headings, cosine, cone), (periods, periodic))
         counts[member] = _scan(positions, member, radius, context, (np.empty(0, dtype=np.int64), np.empty(0), False))
     indptr = np.zeros(n_members + 1, dtype=np.int64)
     for member in range(n_members):
@@ -184,6 +190,7 @@ def _within(positions: Floats, radius: float, aim: Aim, box: Box, center: bool) 
     indices = np.empty(indptr[n_members], dtype=np.int64)
     for member in prange(n_members):
         start, end = indptr[member], indptr[member + 1]
+        context = (((cells, sides, origin), strides, starts, order), (headings, cosine, cone), (periods, periodic))
         _scan(positions, member, radius, context, (indices[start:end], np.empty(end - start), True))
         if center:
             indices[end - 1] = member
@@ -327,12 +334,14 @@ def nearest_neighbours(
     k = max(0, min(k, n_members - 1))
     box = (periods, periodic)
     side = _side(positions, k, box)
-    context = (_grid(positions, side, box), (np.zeros((1, 1)), 1.0, False), box)
+    (cells, sides, origin), strides, starts, order = _grid(positions, side, box)
+    headings = np.zeros((1, 1))
     extra = 1 if center else 0
     indptr = np.arange(n_members + 1, dtype=np.int64) * (k + extra)
     indices = np.empty(indptr[n_members], dtype=np.int64)
     for member in prange(n_members):
         start, end = indptr[member], indptr[member + 1]
+        context = (((cells, sides, origin), strides, starts, order), (headings, 1.0, False), (periods, periodic))
         if k > 0:
             indices[start : start + k] = _nearest_of(positions, member, k, side, context)
         if center:

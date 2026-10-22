@@ -12,12 +12,20 @@ from typing import ClassVar
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from ..base import BackendError, Form, Registry, Supports
-from ._kernels import Indices, Kernel, Reference, add_into, assign_into
+from ..base import BackendError, Expression, Form, Registry, Supports
+from ..laws import Boundary, Jump, Noise, Rate, Update
+from ._kernels import Indices, Kernel, Reference, Source, add_into, assign_into
 from ._problem import Accelerated, Draws, JumpChannels, Vector, VectorFunction
 from ._reductions import ReductionPass
 
 AUTO_MEMBERS = 1000
+FUNCTION_KINDS: dict[str, type] = {
+    'drift': Rate,
+    'diffusion': Noise,
+    'propensities': Jump,
+    'update': Update,
+    'boundary': Boundary,
+}
 
 
 @dataclass
@@ -185,7 +193,35 @@ def concatenating_function(kernels: list[Kernel]) -> VectorFunction:
     return evaluate
 
 
-def with_reductions(lowering: Lowering, reductions: ReductionPass | None) -> Lowering:
+def _reads_reduction(kernel: Kernel, item: Expression) -> bool:
+    """Check whether a symbol of a kernel reads a reduction, directly or through the operand of a derived read."""
+    reference = kernel.references[item]
+    if reference.source is Source.REDUCED:
+        return True
+    if reference.source is Source.DERIVED:
+        return any(_reads_reduction(kernel, symbol) for symbol in reference.neighbor.symbols)
+    return False
+
+
+def reads_reductions(kernels: list[Kernel]) -> bool:
+    """Check whether the outputs of kernels read reductions, so their function evaluates the reductions first.
+
+    Args:
+        kernels:
+            The kernels of one law kind.
+
+    Returns:
+        reads:
+            Whether an output reads a reduction.
+    """
+    return any(_reads_reduction(kernel, item) for kernel in kernels for item in kernel.arguments)
+
+
+def with_reductions(
+    lowering: Lowering,
+    reductions: ReductionPass | None,
+    kernels: Mapping[type, list[Kernel]] | None = None,
+) -> Lowering:
     """Return a lowering whose functions evaluate the reductions at the state they receive before their kernels.
 
     Args:
@@ -195,14 +231,19 @@ def with_reductions(lowering: Lowering, reductions: ReductionPass | None) -> Low
         reductions:
             The reductions, or `None`.
 
+        kernels:
+            The kernels of every law kind, so that only the functions whose kernels read reductions evaluate them,
+            or `None` for every function.
+
     Returns:
         lowering:
             The functions of the parameter vector.
     """
     if reductions is None or not reductions.steps:
         return lowering
-    for name in ('drift', 'diffusion', 'propensities', 'update', 'boundary'):
-        setattr(lowering, name, reductions.wrap(getattr(lowering, name)))
+    for name, kind in FUNCTION_KINDS.items():
+        if kernels is None or reads_reductions(kernels.get(kind, [])):
+            setattr(lowering, name, reductions.wrap(getattr(lowering, name)))
     return lowering
 
 
