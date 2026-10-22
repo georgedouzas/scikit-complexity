@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 
 from ....core.base import Domain, parameter, state
-from ....core.model import AgentType, DiscreteTime, Law, Observable, Phase, Phases, Rule, Symbols, System
+from ....core.model import DiscreteTime, Element, Law, Observable, Phase, Phases, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 from ..realizations import Institution
@@ -21,7 +21,7 @@ def _bank_of(banks: list[AgentView], index: float) -> AgentView:
     return next(bank for bank in banks if int(bank.index) == int(index))
 
 
-class Depositor(AgentType):
+class Depositor(Element):
     """Customer who pays a share of its deposit to a random customer and repays a share of its loan every step.
 
     A payment moves deposits and as many reserves from the payer's bank to the payee's bank, and a repayment from the
@@ -29,10 +29,7 @@ class Depositor(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         lenders:
             The path of the group of banks.
@@ -120,7 +117,7 @@ class Depositor(AgentType):
         bank.loans -= amount
 
 
-class ReserveBank(AgentType):
+class ReserveBank(Element):
     """Bank that lends its reserves in excess of the required share of its deposits to one of its customers.
 
     The borrower spends the loan at once, and the payee, a random customer, deposits it at its own bank, whose
@@ -128,10 +125,7 @@ class ReserveBank(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         customers:
             The path of the group of customers.

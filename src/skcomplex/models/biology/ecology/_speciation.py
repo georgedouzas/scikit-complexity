@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.model import AgentType, Interaction, Law, Observable, Rule, Symbols, System
+from ....core.model import Element, Interaction, Law, Observable, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import ModelView
 
@@ -21,15 +21,12 @@ def _richness(species: Array) -> float:
     return float(len(np.unique(species)))
 
 
-class Organism(AgentType):
+class Organism(Element):
     """Individual of a neutral community, labelled by its species.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         species:
             The label of the species.

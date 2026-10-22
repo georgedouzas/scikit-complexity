@@ -11,8 +11,8 @@ from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
 from ....core.model import (
-    AgentType,
     ContinuousSpace,
+    Element,
     Interaction,
     Law,
     PairPotential,
@@ -39,7 +39,7 @@ def _limited(velocity: np.ndarray, low: float, high: float) -> np.ndarray:
     return velocity * min(max(speed, low), high) / speed
 
 
-class Boid(AgentType):
+class Boid(Element):
     """Boid of Reynolds, a bird that steers by three rules toward, away from, and along its neighbours.
 
     Every step a boid sees the boids within `radius`. Cohesion steers it toward their center, separation away from
@@ -48,10 +48,7 @@ class Boid(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial position, or one position per boid.
+            The label of the agent or group.
 
         vx:
             The initial horizontal velocity.

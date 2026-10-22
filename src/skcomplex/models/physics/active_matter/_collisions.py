@@ -11,7 +11,7 @@ import numpy.typing as npt
 from scipy.spatial import KDTree
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
-from ....core.model import AgentType, ContinuousSpace, Interaction, Law, Observable, Rule, Symbols, System
+from ....core.model import ContinuousSpace, Element, Interaction, Law, Observable, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -44,15 +44,12 @@ def _collide(headings: Array, pairs: list[tuple[int, int]], sigma: float, rng: n
         headings[first], headings[second] = mean + rng.normal(0.0, sigma, 2)
 
 
-class Flocker(AgentType):
+class Flocker(Element):
     """Self-propelled point particle with a heading `theta`, in a periodic square.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial position, or one position per agent of a group.
+            The label of the agent or group.
 
         theta:
             The initial heading.

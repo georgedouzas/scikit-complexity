@@ -8,7 +8,7 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter
-from ....core.model import AgentType, LatticeSpace, Law, Rule, Symbols, System
+from ....core.model import Element, LatticeSpace, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -21,15 +21,12 @@ def _step(agent: AgentView, model: ModelView) -> None:
     agent.move_to(cells[int(model.rng.integers(len(cells)))])
 
 
-class Prey(AgentType):
+class Prey(Element):
     """Prey that walks at random and gives birth in cells it does not share with other prey.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or `None` for a random cell.
+            The label of the agent or group.
 
         birth:
             The probability of giving birth at every step.
@@ -71,15 +68,12 @@ class Prey(AgentType):
             agent.create()
 
 
-class Predator(AgentType):
+class Predator(Element):
     """Predator that walks at random, eats prey of the group `prey` in its cell, breeds after a meal, and dies.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or `None` for a random cell.
+            The label of the agent or group.
 
         conversion:
             The probability of breeding after eating a prey.
@@ -191,10 +185,11 @@ def agent_based_lotka_volterra(
     locations = [tuple(int(item) for item in cell) for cell in cells]
     return System(
         components=[
-            Prey.group('prey', prey, location=locations[:prey], birth=birth),
+            Prey.group('prey', prey, variable=True, location=locations[:prey], birth=birth),
             Predator.group(
                 'predators',
                 predators,
+                variable=True,
                 location=locations[prey:],
                 conversion=conversion,
                 death=death,

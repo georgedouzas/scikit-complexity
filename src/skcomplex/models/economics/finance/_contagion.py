@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, role, state
-from ....core.model import AgentType, Interaction, Law, Observable, Rule, Symbols, System
+from ....core.model import Element, Interaction, Law, Observable, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -45,15 +45,12 @@ def _value_at_risk(agent: AgentView) -> float:
     return float(agent.h * agent.value)
 
 
-class Bank(AgentType):
+class Bank(Element):
     """Bank of the DebtRank cascade, with its level of distress, its state, and its economic value.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         h:
             The level of distress, between 0 and 1, where 1 is default.

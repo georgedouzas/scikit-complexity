@@ -9,6 +9,20 @@ any other backend. It SHALL build a Mesa model from the system, advance one Mesa
 agents by the schedule of the system's time, with a seed that makes runs reproducible. Each step SHALL advance Mesa's
 clock, so the model time that rules read during the step that produces frame `k` is `k`.
 
+The agents SHALL be the members of variable groups and of the elements and groups whose own laws include rules. In a
+system with rules, the groups whose element type has no laws of its own SHALL be passive agents that rules read and
+change, unless an interaction whose laws are not rules binds them; single elements and groups on the parts of a space
+SHALL never be passive agents. Rules SHALL create and remove members of variable groups only. The states and parameters of
+agents SHALL NOT take the names of the agent view or of the attributes Mesa reads, which compilation reports.
+
+#### Scenario: Passive agents
+- **WHEN** a group of stalls without laws shares a system with shoppers whose rules buy from the stalls
+- **THEN** the stalls are agents that the shoppers' rules read and change
+
+#### Scenario: Fixed groups keep their size
+- **WHEN** a rule creates a member of a group that is not variable
+- **THEN** the run raises an error that suggests declaring the group with `variable=True`
+
 #### Scenario: Reproducible run
 - **WHEN** the same agent system is simulated twice on the Mesa backend with random state 0
 - **THEN** the two trajectories are equal

@@ -9,7 +9,7 @@ import networkx as nx
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import AgentType, LatticeSpace, Law, NetworkSpace, Rule, Symbols, System
+from ....core.model import Element, LatticeSpace, Law, NetworkSpace, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -31,7 +31,7 @@ def _initial_health(size: int, sick: int, rng: np.random.Generator, value: float
     return health
 
 
-class Person(AgentType):
+class Person(Element):
     """Person of the agent-based SIR model, with incubation, mortality, waning immunity, and lockdown.
 
     A person walks to a neighbouring cell with probability `d`, or `lockdown_d` during the lockdown, which lasts
@@ -42,10 +42,7 @@ class Person(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or `None` for a random cell.
+            The label of the agent or group.
 
         health:
             The health state.
@@ -155,7 +152,7 @@ class Person(AgentType):
         self._progress(agent, model)
 
 
-class Walker(AgentType):
+class Walker(Element):
     """Random walker that carries a deadly disease, of Charbonneau's epidemic model.
 
     A living walker moves to a neighbouring cell or node with probability `travel`. A sick walker infects every
@@ -164,10 +161,7 @@ class Walker(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell or node, or `None` for a random one.
+            The label of the agent or group.
 
         health:
             The health state.
@@ -234,7 +228,7 @@ class Walker(AgentType):
             agent.health = DECEASED
 
 
-class Traveller(AgentType):
+class Traveller(Element):
     """Resident of a city at a network node, who infects fellow residents and travels to neighbouring cities.
 
     An infected traveller infects every susceptible traveller of its node with probability `tau`, recovers after
@@ -243,10 +237,7 @@ class Traveller(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial node, or `None` for a random node.
+            The label of the agent or group.
 
         health:
             The health state.

@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import Domain, parameter, role, state
-from ....core.model import AgentType, Aggregate, Element, Interaction, Law, Rate, Rule, Symbols, System
+from ....core.model import Aggregate, Element, Interaction, Law, Rate, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -19,15 +19,12 @@ Stock = Element.define(
 )
 
 
-class Farmer(AgentType):
+class Farmer(Element):
     """Farmer who adds the catch of every step to its wealth, reading the resource from the other partition.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         resource:
             The dotted name of the resource stock.

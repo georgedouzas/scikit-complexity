@@ -7,8 +7,8 @@ import pytest
 
 from skcomplex.core.base import SimulationError, parameter, role, state
 from skcomplex.core.model import (
-    AgentType,
     DiscreteTime,
+    Element,
     Interaction,
     LatticeSpace,
     Match,
@@ -40,7 +40,7 @@ from skcomplex.models.economics.realizations import (
 from skcomplex.models.social.realizations import imitate
 
 
-class Employer(AgentType):
+class Employer(Element):
     """Test helper Employer."""
 
     offer: float = state(0.0)
@@ -54,7 +54,7 @@ class Employer(AgentType):
         agent.offer = model.time + 1.0
 
 
-class Worker(AgentType):
+class Worker(Element):
     """Test helper Worker."""
 
     accepted: float = state(-1.0)
@@ -93,7 +93,7 @@ def test_undeclared_phase_raises():
 def test_phases_keep_unphased_models():
     """Rules without a phase run in the default phase."""
 
-    class Counter(AgentType):
+    class Counter(Element):
         count: float = state(0.0)
 
         def laws(self, s):
@@ -110,7 +110,7 @@ def test_phases_keep_unphased_models():
     assert trajectory.agents('counters', 4).values['count'].tolist() == [4.0, 4.0, 4.0]
 
 
-class Imitator(AgentType):
+class Imitator(Element):
     """Test helper Imitator."""
 
     strategy: float = state(0.0)
@@ -147,11 +147,11 @@ def test_sequential_and_by_type_order():
     """Sequential activation follows creation, and by-type activation follows the listed groups."""
     seen = []
 
-    class First(AgentType):
+    class First(Element):
         def laws(self, s):
             return [Rule(lambda agent, model: seen.append(('first', agent.id)), phase='go')]
 
-    class Second(AgentType):
+    class Second(Element):
         def laws(self, s):
             return [Rule(lambda agent, model: seen.append(('second', agent.id)), phase='go')]
 
@@ -178,7 +178,7 @@ def test_phase_checks_arguments():
         Phase('x', repeat=0)
 
 
-class Trader(AgentType):
+class Trader(Element):
     """Test helper Trader."""
 
     bid: float = state(0.0)
@@ -340,7 +340,7 @@ def test_double_auction_efficiency():
     assert np.nansum(simulation.trajectory_['auction.volume']) == bought.sum()
 
 
-class Shop(AgentType):
+class Shop(Element):
     """Shop whose price grows by a drift and noise, slowed by the interest rate."""
 
     price: float = state(1.0)
@@ -421,7 +421,7 @@ def test_observable_and_set_parameter_by_view():
     assert trajectory['reader.total'][-1] == 8.0
 
 
-class Saver(AgentType):
+class Saver(Element):
     """Test helper Saver."""
 
     remembers = {'money': 3}  # noqa: RUF012
@@ -447,7 +447,7 @@ def test_memory_window():
 def test_memory_of_unremembered_state_raises():
     """Reading the memory of a state the type does not remember raises an error."""
 
-    class Forgetful(AgentType):
+    class Forgetful(Element):
         money: float = state(0.0)
 
         def laws(self, s):
@@ -484,7 +484,7 @@ def test_evolve_operators():
         evolve(genomes, fitness, rng, select='lottery')
 
 
-class LimitTrader(AgentType):
+class LimitTrader(Element):
     """Trader with a limit price on both sides of the book."""
 
     bid: float = state(0.0)

@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import AgentType, ContinuousSpace, Law, Rule, Symbols, System
+from ....core.model import ContinuousSpace, Element, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -60,15 +60,12 @@ def _meal(kind: int, habit: int, rng: np.random.Generator) -> tuple[float, bool]
     return float(calories), bool(calories > (low + high) / 2)
 
 
-class Restaurant(AgentType):
+class Restaurant(Element):
     """Restaurant of the obesity model: a market at 0, a restaurant at 1, or a fast food outlet at 2.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The position, or `None` for a random position.
+            The label of the agent or group.
 
         kind:
             The kind of restaurant.
@@ -90,7 +87,7 @@ class Restaurant(AgentType):
     sold_high: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
 
 
-class Eater(AgentType):
+class Eater(Element):
     """Person of the obesity model, who goes from home to work and back every day and eats near each place.
 
     At home, at work, and at home again the person eats one meal at a random restaurant within `reach`, or at the
@@ -101,10 +98,7 @@ class Eater(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial position, or `None` for a random position.
+            The label of the agent or group.
 
         home:
             The position of the person's home.

@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import ParameterError, SimulationError, SolverError, ValidationError, parameter, state
-from skcomplex.core.model import AgentType, Rule, System
+from skcomplex.core.model import Element, Rule, System
 from skcomplex.core.runtime import Observer, RealTime, Simulation
 from skcomplex.core.solvers import Gillespie
 from skcomplex.models import create
@@ -192,7 +192,7 @@ def test_simulation_parameters_carry_over_runs():
     assert np.all(trajectory['growth.r'] == 0.0)
 
 
-class Saver(AgentType):
+class Saver(Element):
     """Agent that adds its group's rate to its savings every step."""
 
     savings: float = state(0.0)
@@ -273,5 +273,5 @@ def test_initial_state_replaces_the_values_of_components():
     )
     trajectory = Simulation(system, dt=1.0, initial_state={'rabbits.n': 20.0}).run(until=1.0).trajectory_
     assert trajectory['rabbits.n'][0] == pytest.approx(20.0)
-    with pytest.raises(ValidationError, match='foxes.n'):
+    with pytest.raises(ValidationError, match=r'foxes\.n'):
         Simulation(system, dt=1.0, initial_state={'foxes.n': 1.0}).run(until=1.0)

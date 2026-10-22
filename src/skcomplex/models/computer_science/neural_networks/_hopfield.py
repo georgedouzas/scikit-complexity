@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, state
-from ....core.model import AgentType, Law, NetworkSpace, Rule, Symbols, System
+from ....core.model import Element, Law, NetworkSpace, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -24,17 +24,14 @@ def _hebbian_weights(patterns: Array) -> Array:
     return weights
 
 
-class Neuron(AgentType):
+class Neuron(Element):
     """Binary neuron of a Hopfield network, which aligns with the sign of its weighted input when it updates.
 
     The neuron sits on its node of a complete graph and holds the weights of its incoming links, one per node.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial node, or `None` for one neuron per node in node order.
+            The label of the agent or group.
 
         spin:
             The initial state, -1 or 1.

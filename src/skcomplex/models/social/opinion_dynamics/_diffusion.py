@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, ValidationError, VisualSpec, parameter, role, state
-from ....core.model import AgentType, ContinuousSpace, Interaction, LatticeSpace, Law, Rule, Symbols, System
+from ....core.model import ContinuousSpace, Element, Interaction, LatticeSpace, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -30,7 +30,7 @@ def _circles(positions: Array, size: float, reach: float) -> npt.NDArray[np.bool
     return within
 
 
-class Believer(AgentType):
+class Believer(Element):
     """Agent of the belief diffusion model, with the weights it gives to four levels of caring about an issue.
 
     The levels are not caring at all, caring less, caring a bit, and caring passionately. An agent cares at the level
@@ -39,10 +39,7 @@ class Believer(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or `None` for a random cell.
+            The label of the agent or group.
 
         belief:
             The initial weights of the four levels.
@@ -99,15 +96,12 @@ class Believer(AgentType):
         agent.belief, agent.caring = belief, float(np.argmax(belief))
 
 
-class Adopter(AgentType):
+class Adopter(Element):
     """Agent of the threshold adoption model, who adopts an innovation for good.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial position, or `None` for a random position.
+            The label of the agent or group.
 
         adopted:
             Whether the agent starts as an adopter.

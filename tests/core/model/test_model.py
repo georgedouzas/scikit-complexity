@@ -6,7 +6,7 @@ from sklearn.base import clone
 
 from skcomplex.core.base import LabelError, ValidationError, state
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import AgentType, ContinuousSpace, Element, Jump, Rate, Symbols, System
+from skcomplex.core.model import ContinuousSpace, Element, Jump, Rate, Rule, Symbols, System
 from skcomplex.core.runtime import Simulation
 from skcomplex.models.biology.ecology import Population, Predation
 
@@ -47,21 +47,16 @@ def test_system_repr_counts_children():
 
 def test_element_state_named_visual_raises_error():
     """Test that an element type with a state named visual names the state and lists the reserved names."""
-    with pytest.raises(LabelError, match=r"'visual'.*label, visual are reserved"):
+    with pytest.raises(LabelError, match=r"'visual'.*label, remembers, visual are reserved"):
         Element.define('Painted', states={'visual': 0.0})
 
 
-@pytest.mark.parametrize('name', ['location', 'alive'])
+@pytest.mark.parametrize('name', ['location', 'alive', 'position'])
 def test_agent_state_named_like_view_raises_error(name):
-    """Test that an agent type with a state named like an attribute of the agent view raises a label error."""
-    with pytest.raises(LabelError, match=rf"'{name}'.*agents_here.*reserved"):
-        type('Settler', (AgentType,), {'__annotations__': {name: float}, name: state(0.0)})
-
-
-def test_agent_state_named_position_raises_error():
-    """Test that an agent type with a state that Mesa reads, such as position, raises a named error at once."""
-    with pytest.raises(LabelError, match=r"Walker declares the variable 'position'"):
-        type('Walker', (AgentType,), {'__annotations__': {'position': float}, 'position': state(0.0)})
+    """Test that an agent with a state named like an attribute of the agent view or of Mesa raises a label error."""
+    Settler = Element.define('Settler', states={name: 0.0}, laws=lambda s: [Rule(lambda agent, model: None)])
+    with pytest.raises(LabelError, match=rf'settlers declare the variables {name},.*agents_here.*reserved'):
+        compile_system(System(components=[Settler.group('settlers', 2)]))
 
 
 def _numpy_vector_rate(s):

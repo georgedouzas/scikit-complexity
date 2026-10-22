@@ -65,7 +65,6 @@ from ..model import (
     Law,
     LocalRule,
     Match,
-    MesaSystem,
     Mesh,
     Move,
     NetworkSpace,
@@ -173,6 +172,25 @@ MEMBER_REFERENCE = re.compile(r'^(?P<path>.+)\[(?P<index>-?\d+)\]$')
 LATTICE_LAWS = (LocalRule, Drive, Relaxation, Extremal, Energy, Move, Sampler)
 KERNEL_FREE = (*LATTICE_LAWS, Flux, Transfer, Auxiliary, Invariant)
 DECLARED_FREE = (LocalRule, Drive, Relaxation, Extremal, Flux, Transfer, Auxiliary, Invariant)
+AGENT_VIEW_NAMES = frozenset(
+    {
+        'id',
+        'group',
+        'group_label',
+        'location',
+        'alive',
+        'neighbor_cells',
+        'neighbors',
+        'agents_here',
+        'move_to',
+        'remove',
+        'create',
+        'displacement_to',
+        'distance_to',
+    },
+)
+MESA_AGENT_NAMES = frozenset({'position', 'pos', 'cell', 'unique_id', 'model'})
+AGENT_RESERVED_NAMES = AGENT_VIEW_NAMES | MESA_AGENT_NAMES
 
 
 def _renamed(value: Expression, mapping: dict[Expression, Expression]) -> Expression:
@@ -2142,34 +2160,23 @@ def _checked_matrices(
     return tuple(matrices)
 
 
-def _compile_mesa(system: MesaSystem) -> Problem:
-    """Return the agent-based problem of a wrapped Mesa model, whose numeric constructor arguments are parameters."""
-    entries: list[Entry] = []
-    values: list[float] = []
-    for name, value in (system.parameters or {}).items():
-        if isinstance(value, bool) or not Domain.REAL.contains(value) or np.ndim(value):
-            continue
-        entries.append(Entry(f'{system.label}.{name}', len(entries), (), Domain.REAL))
-        values.append(float(value))
-    return Problem(
-        form=Form.AGENT,
-        states=Layout([]),
-        parameters=Layout(entries),
-        initial_state=np.zeros(0),
-        initial_parameters=np.asarray(values, dtype=float),
-        time=symbol('t'),
-        symbols={},
-        equations={},
-        equation_symbols={},
-        has_callables=False,
-        has_group_sums=False,
-        elements=(),
-        system=system,
-    )
+def _check_agent_names(node: Node) -> None:
+    """Raise an error for a state or parameter of an agent named like an attribute of the agent view or of Mesa."""
+    declared = [
+        *declarations_of(node.component_type, VariableKind.STATE),
+        *declarations_of(node.component_type, VariableKind.PARAMETER),
+    ]
+    clashes = sorted(name for name in declared if name in AGENT_RESERVED_NAMES)
+    if clashes:
+        error_msg = (
+            f'Agents of {node.path} declare the variables {", ".join(clashes)}, whose names the agent view or Mesa '
+            f'reserves. Rename them, since {", ".join(sorted(AGENT_RESERVED_NAMES))} are reserved names of agents.'
+        )
+        raise LabelError(error_msg)
 
 
 def _compiled_agents(blocks: list[_Block], specs: list[tuple[_KernelSpec, list[Law]]]) -> tuple[CompiledAgents, ...]:
-    """Return the agent types and groups with their states, initial values, parameters, and rules."""
+    """Return the agent elements and groups with their states, initial values, parameters, and rules."""
     rules = {spec.owner: tuple(law for law in laws if isinstance(law, Rule)) for spec, laws in specs}
     invariants = {
         spec.owner: tuple(law for law in laws if isinstance(law, Invariant) and law.is_member) for spec, laws in specs
@@ -2179,6 +2186,7 @@ def _compiled_agents(blocks: list[_Block], specs: list[tuple[_KernelSpec, list[L
         node = block.node
         if not node.is_agent:
             continue
+        _check_agent_names(node)
         declared = declarations_of(node.component_type, VariableKind.STATE)
         complex_states = [name for name, declaration in declared.items() if declaration.domain is Domain.COMPLEX]
         if complex_states:
@@ -2197,11 +2205,17 @@ def _compiled_agents(blocks: list[_Block], specs: list[tuple[_KernelSpec, list[L
                 values={name: node.value_of(name) for name in states},
                 parameters={name: entry.name for name, entry in block.entries.items()},
                 rules=rules.get(node.path, ()),
-                visual=_visual_of(node),
+                visual=_agent_visual(node),
                 invariants=invariants.get(node.path, ()),
             ),
         )
     return tuple(agents)
+
+
+def _agent_visual(node: Node) -> VisualSpec:
+    """Return the visual of agents, their own or their element type's, and the agents' points without one."""
+    visual = _visual_of(node)
+    return VisualSpec('agents') if visual == VisualSpec() else visual
 
 
 def _agent_space(blocks: list[_Block]) -> Space | None:
@@ -2514,7 +2528,7 @@ class CensusRecord:
 
 def _component_kind(node: Node) -> ComponentKind:
     """Return the kind of the component of a node."""
-    if node.is_agent:
+    if isinstance(node.component, Group) and node.component.variable:
         return ComponentKind.VARIABLE_GROUP
     if isinstance(node.component, Group):
         parts = {'sites': ComponentKind.SITE_GROUP, 'edges': ComponentKind.EDGE_GROUP}
@@ -3165,8 +3179,6 @@ def compile_system(
 
     validate(system, backend=backend, observables=observables).raise_errors()
     system = with_observables(system, observables)
-    if isinstance(system, MesaSystem):
-        return _compile_mesa(system)
     if is_rewriting(system):
         return compile_rewriting(system)
     initial = dict(initial_state or {})

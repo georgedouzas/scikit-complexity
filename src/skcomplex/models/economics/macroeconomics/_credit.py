@@ -9,17 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, parameter, state
-from ....core.model import (
-    AgentType,
-    DiscreteTime,
-    Law,
-    Observable,
-    Phase,
-    Phases,
-    Rule,
-    Symbols,
-    System,
-)
+from ....core.model import DiscreteTime, Element, Law, Observable, Phase, Phases, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 from ..realizations import Market, SampleAndSwitch, Trade
@@ -47,7 +37,7 @@ def _largest_share(lent: Array) -> float:
     return float(lent.max() / total) if total > 0 else float('nan')
 
 
-class Firm(AgentType):
+class Firm(Element):
     """Firm that borrows in proportion to its net worth, invests at a random return, and defaults on negative worth.
 
     Every step the firm asks for `leverage` times its net worth from its bank, invests its net worth and the loan at
@@ -56,10 +46,7 @@ class Firm(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         lenders:
             The path of the group of banks.
@@ -176,7 +163,7 @@ class Firm(AgentType):
         agent.defaulted, agent.partner = 1, -1
 
 
-class Bank(AgentType):
+class Bank(Element):
     """Bank that lends up to a multiple of its equity at a rate that falls with its equity.
 
     The bank asks the rate `alpha * equity ** -alpha` of Delli Gatti et al. (2010), so better capitalised banks lend
@@ -184,10 +171,7 @@ class Bank(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         equity:
             The initial equity.

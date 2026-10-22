@@ -6,12 +6,12 @@
 from typing import ClassVar
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import AgentType, Law, Rule, Symbols, System
+from ....core.model import Element, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
 
-class ReducingBall(AgentType):
+class ReducingBall(Element):
     """Ball that jumps to a random lower state, and restarts from the top state after it reaches state 1.
 
     With probability `lam` the ball jumps uniformly to a state below its own, and otherwise uniformly to any state, so
@@ -19,10 +19,7 @@ class ReducingBall(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            Unused, since balls have no space.
+            The label of the agent or group.
 
         level:
             The initial state, from 1 to `n_states`.
@@ -76,15 +73,12 @@ class ReducingBall(AgentType):
             agent.level = float(model.rng.integers(1, top + 1))
 
 
-class Fragment(AgentType):
+class Fragment(Element):
     """Fragment of integer size that breaks at a uniformly random point into two smaller fragments.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            Unused, since fragments have no space.
+            The label of the agent or group.
 
         length:
             The initial size.
@@ -163,7 +157,14 @@ def sample_space_reducing(n_balls: int = 20, *, n_states: int = 10, lam: float =
     """
     return System(
         components=[
-            ReducingBall.group('balls', n_balls, level=float(n_states), n_states=float(n_states), lam=lam),
+            ReducingBall.group(
+                'balls',
+                n_balls,
+                variable=True,
+                level=float(n_states),
+                n_states=float(n_states),
+                lam=lam,
+            ),
         ],
     )
 
@@ -195,4 +196,4 @@ def fragmentation(size: int = 1000, *, rate: float = 0.5) -> System:
         >>> fragmentation(50).elements[0].size
         1
     """
-    return System(components=[Fragment.group('fragments', 1, length=float(size), rate=rate)])
+    return System(components=[Fragment.group('fragments', 1, variable=True, length=float(size), rate=rate)])

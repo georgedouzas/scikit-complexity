@@ -8,7 +8,7 @@ from typing import Any, ClassVar, cast
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.model import AgentType, Interaction, LatticeSpace, Law, Rule, Symbols, System
+from ....core.model import Element, Interaction, LatticeSpace, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -18,15 +18,12 @@ def _cell(agent: AgentView) -> tuple[int, ...]:
     return tuple(int(item) for item in np.atleast_1d(cast('Any', agent.location)))
 
 
-class Pasture(AgentType):
+class Pasture(Element):
     """Patch of grass that regrows logistically every week, `G' = G + g G (1 - G)`.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The cell of the patch, or one cell per patch of a group.
+            The label of the agent or group.
 
         grass:
             The amount of grass, between 0 and 1.
@@ -71,15 +68,12 @@ class Pasture(AgentType):
         agent.grass += agent.growth * agent.grass * (1 - agent.grass)
 
 
-class Cow(AgentType):
+class Cow(Element):
     """Cow of the meadow, which the grazing and herding interactions feed and move every week.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or one cell per cow of a group.
+            The label of the agent or group.
 
         bite:
             The grass a cow eats in a week.
@@ -271,8 +265,8 @@ def meadow_capacity(
     picks = rng.choice(len(cells), size=cows, replace=False)
     return System(
         components=[
-            Pasture.group('pasture', len(cells), location=cells, growth=growth),
-            Cow.group('cows', cows, location=[cells[int(pick)] for pick in picks], bite=bite),
+            Pasture.group('pasture', len(cells), variable=True, location=cells, growth=growth),
+            Cow.group('cows', cows, variable=True, location=[cells[int(pick)] for pick in picks], bite=bite),
         ],
         interactions=[
             Grazing('grazing', cows='cows', pasture='pasture'),

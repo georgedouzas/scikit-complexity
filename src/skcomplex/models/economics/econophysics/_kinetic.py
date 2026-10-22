@@ -6,20 +6,17 @@
 import numpy as np
 
 from ....core.base import Domain, parameter, role, state
-from ....core.model import AgentType, Interaction, Law, Observable, Rule, Symbols, System
+from ....core.model import Element, Interaction, Law, Observable, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import ModelView
 
 
-class Saver(AgentType):
+class Saver(Element):
     """Agent of the kinetic wealth exchange models, whose wealth changes only in pairwise trades.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         wealth:
             The initial wealth, negative down to the debt limit.

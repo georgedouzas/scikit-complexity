@@ -10,7 +10,7 @@ import numpy.typing as npt
 from scipy import ndimage
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.model import AgentType, Interaction, LatticeSpace, Law, Rule, Symbols, System
+from ....core.model import Element, Interaction, LatticeSpace, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -78,7 +78,7 @@ def largest_region(locations: npt.ArrayLike, cultures: npt.ArrayLike, width: int
     return largest / (width * height)
 
 
-class Village(AgentType):
+class Village(Element):
     """Village of Axelrod's model, with a culture of `F` features of `q` traits each, stored as one integer.
 
     Every step the village picks a random neighbour and, with probability equal to the fraction of features they
@@ -86,10 +86,7 @@ class Village(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The cell of the village.
+            The label of the agent or group.
 
         culture:
             The culture code, the traits of the features as the digits of a number in base `q`.

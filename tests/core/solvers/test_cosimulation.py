@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.base import Form, IncompatibleLawsError, SolverError, ValidationError, parameter, role, state
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import AgentType, Aggregate, Interaction, Rate, Rule, System
+from skcomplex.core.model import Aggregate, Element, Interaction, Rate, Rule, System
 from skcomplex.core.runtime import RealTime, Simulation
 from skcomplex.core.solvers import CoSimulation, ScipyODE
 from skcomplex.models.biology.ecology import ExponentialGrowth, LogisticGrowth, Mortality, Population, Predation
@@ -15,7 +15,7 @@ from skcomplex.models.economics.markets import Cobweb, Market
 from skcomplex.models.economics.resources import harvesting
 
 
-class Breeder(AgentType):
+class Breeder(Element):
     """Agent that creates one offspring every step."""
 
     def laws(self, s):
@@ -27,7 +27,7 @@ class Breeder(AgentType):
         agent.create()
 
 
-class Idle(AgentType):
+class Idle(Element):
     """Agent that keeps its wealth and records the soil it sees."""
 
     wealth: float = state(1.0)
@@ -96,7 +96,7 @@ def _counting_system(agents=3, reduce='count', variable=None):
             System(
                 'village',
                 components=[
-                    Breeder.group('farmers', agents),
+                    Breeder.group('farmers', agents, variable=True),
                     Aggregate('size', group='farmers', reduce=reduce, variable=variable),
                 ],
             ),
@@ -249,7 +249,10 @@ def test_gauss_seidel_reads_already_advanced_values():
     """Test that Gauss-Seidel reads the partitions advanced before and Jacobi reads the start of the interval."""
     village_first = System(
         components=[
-            System('village', components=[Breeder.group('farmers', 3), Aggregate('size', group='farmers')]),
+            System(
+                'village',
+                components=[Breeder.group('farmers', 3, variable=True), Aggregate('size', group='farmers')],
+            ),
             System('land', components=[Population('soil', n=0.0)]),
         ],
         interactions=[Accumulation('accumulate', target='land/soil', source='village/size')],

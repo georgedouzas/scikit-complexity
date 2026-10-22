@@ -12,7 +12,6 @@ from skcomplex.core.analysis import conservation, flow_matrix, loop_dominance, l
 from skcomplex.core.base import ConservationError, LabelError, ValidationError, state
 from skcomplex.core.compile import compile_system
 from skcomplex.core.model import (
-    AgentType,
     Auxiliary,
     Boundary,
     Element,
@@ -241,7 +240,7 @@ def _balance(agent):
     return agent.assets - agent.liabilities - agent.equity
 
 
-class Bank(AgentType):
+class Bank(Element):
     """Bank whose rule lowers its assets alone."""
 
     assets: float = state(10.0)
@@ -257,14 +256,14 @@ class Bank(AgentType):
         agent.assets -= 1.0
 
 
-class Lender(AgentType):
+class Lender(Element):
     """Lender holding claims on firms, positive loans."""
 
     loans: float = state(0.0, quantity='loans')
     money: float = state(0.0, quantity='money')
 
 
-class Borrower(AgentType):
+class Borrower(Element):
     """Firm that owes its loans, a negative holding, and goes bankrupt when its money runs out."""
 
     loans: float = state(0.0, quantity='loans')
@@ -290,7 +289,7 @@ def _credit_system(settles):
     return System(
         components=[
             Lender.group('lenders', 1, loans=10.0, money=4.0),
-            Borrower.group('firms', 2, loans=-5.0, money=0.0, settles=float(settles)),
+            Borrower.group('firms', 2, variable=True, loans=-5.0, money=0.0, settles=float(settles)),
         ],
     )
 

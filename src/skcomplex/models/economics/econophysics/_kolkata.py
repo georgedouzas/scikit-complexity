@@ -8,22 +8,19 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import Domain, parameter, role, state
-from ....core.model import AgentType, Interaction, Law, Rule, Symbols, System
+from ....core.model import Element, Interaction, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
 STRATEGIES = ('random', 'crowd_avoiding')
 
 
-class Diner(AgentType):
+class Diner(Element):
     """Diner of the Kolkata Paise Restaurant problem, who picks a restaurant at random every evening.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         restaurant:
             The restaurant chosen last, from 0 to the number of restaurants minus one.
@@ -82,10 +79,7 @@ class CrowdAvoidingDiner(Diner):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         restaurant:
             The restaurant chosen last, from 0 to the number of restaurants minus one.

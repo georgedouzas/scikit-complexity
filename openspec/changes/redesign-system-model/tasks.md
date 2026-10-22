@@ -70,7 +70,7 @@ through the conformance suite.
   - system-dynamics helpers to `engineering`.
 - [x] 5.2 Add the field-term test and the import-graph test that keep the core application agnostic, and verify that
   both pass.
-- [ ] 5.3 Remove `MesaSystem` and `AgentType`, make Mesa a backend with its declared support, and port the gallery
+- [x] 5.3 Remove `MesaSystem` and `AgentType`, make Mesa a backend with its declared support, and port the gallery
   example that wrapped a Mesa model.
 
 ## 6. Restructure the core packages

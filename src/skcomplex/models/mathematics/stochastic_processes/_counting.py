@@ -6,7 +6,7 @@
 from typing import ClassVar
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import AgentType, Element, Jump, Law, Rule, Symbols, System
+from ....core.model import Element, Jump, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -18,15 +18,12 @@ PoissonCounter = Element.define(
 )
 
 
-class BernoulliTrial(AgentType):
+class BernoulliTrial(Element):
     """Sequence of independent trials, each a success with the same probability.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            Unused, since trials have no space.
+            The label of the agent or group.
 
         outcome:
             The initial outcome, 1 for a success and 0 for a failure.

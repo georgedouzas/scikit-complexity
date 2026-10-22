@@ -8,24 +8,13 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import (
-    AgentType,
-    DiscreteTime,
-    LatticeSpace,
-    Law,
-    Observable,
-    Phase,
-    Phases,
-    Rule,
-    Symbols,
-    System,
-)
+from ....core.model import DiscreteTime, Element, LatticeSpace, Law, Observable, Phase, Phases, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 from ..realizations import logit_choice
 
 
-class Consumer(AgentType):
+class Consumer(Element):
     """Consumer who buys fair-trade or regular food by a logit choice on the utility of each option.
 
     The utility of fair food is `ethics_weight * ethics - price_weight * premium / budget + social_weight * share`,
@@ -34,10 +23,7 @@ class Consumer(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, or `None` for a random empty cell.
+            The label of the agent or group.
 
         fair:
             One when the consumer bought fair food in the last step, zero otherwise.

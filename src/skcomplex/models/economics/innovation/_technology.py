@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, parameter, role, state
-from ....core.model import AgentType, Interaction, Law, Observable, Rule, Symbols, System
+from ....core.model import Element, Interaction, Law, Observable, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -76,12 +76,12 @@ def _design_structure(n_components: int, d: int, rng: np.random.Generator) -> Ar
     return matrix
 
 
-class Component(AgentType):
+class Component(Element):
     """Component of a technology, described by its unit cost.
 
     Args:
         label:
-            The label of the agent type or group.
+            The label of the agent or group.
 
         location:
             The initial location, unused without a space.
@@ -165,17 +165,14 @@ class Redesign(Interaction):
             components[index].cost = float(proposal[index])
 
 
-class Technology(AgentType):
+class Technology(Element):
     """Logic circuit in the pool of technologies, described by the truth table of the function it computes.
 
     Bit `r` of the table is the output on the inputs whose bits form `r`, with the first input as the lowest bit.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         arity:
             The number of inputs.
@@ -366,6 +363,7 @@ def arthur_polak(*, max_components: int = 12, max_inputs: int = 3) -> System:
     technologies = Technology.group(
         'technologies',
         len(primitives),
+        variable=True,
         arity=[float(arity) for arity, _ in primitives],
         table=[float(table) for _, table in primitives],
         cost=[1.0, 0.0, 0.0],

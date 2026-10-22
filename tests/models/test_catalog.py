@@ -9,7 +9,7 @@ from sklearn.base import clone
 
 from skcomplex.core.base import ValidationError
 from skcomplex.core.compile import ObservableEvaluator, compile_system, contains_quantum, observables_of
-from skcomplex.core.model import AgentType, Element, Group, Interaction, Rate, System
+from skcomplex.core.model import Element, Group, Interaction, Rate, System, runs_rules
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
 from skcomplex.models import catalog, create, describe, register_model, run
@@ -185,7 +185,7 @@ def _observed(entry_name):
     found, blocked = [], set()
     for scope, observable in observables_of(system):
         group = groups[scope].get(observable.group) if observable.group is not None else None
-        agents = isinstance(group, Group) and issubclass(group.element, AgentType)
+        agents = isinstance(group, Group) and runs_rules(group)
         if scope in blocked or (
             observable.group is not None and (group is None or agents or not isinstance(observable.reduce, str))
         ):

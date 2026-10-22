@@ -8,7 +8,7 @@ import numpy.typing as npt
 from scipy.special import expit
 
 from ....core.base import Domain, parameter, role, state
-from ....core.model import AgentType, Interaction, Law, Observable, Rule, Symbols, System
+from ....core.model import Element, Interaction, Law, Observable, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -28,15 +28,12 @@ def _first_shop_probabilities(customers: list[AgentView], temperature: float) ->
     return expit(difference / temperature)
 
 
-class Customer(AgentType):
+class Customer(Element):
     """Customer who remembers how satisfied it was with the products of each of two shops.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         s1:
             The satisfaction with the first shop.
@@ -67,15 +64,12 @@ class Customer(AgentType):
         return []
 
 
-class Product(AgentType):
+class Product(Element):
     """Product on the shelf of a shop, which ages from the time it was shelved.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         shop:
             The index of the shop, 0 or 1.
@@ -106,15 +100,12 @@ class Product(AgentType):
         return []
 
 
-class Shop(AgentType):
+class Shop(Element):
     """Shop of perishable goods, described by its share of customers and the mean freshness of its stock.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         share:
             The probability that a customer visits the shop, averaged over the customers.

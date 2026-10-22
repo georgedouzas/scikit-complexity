@@ -8,7 +8,7 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import AgentType, LatticeSpace, Law, Rule, Symbols, System
+from ....core.model import Element, LatticeSpace, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -31,15 +31,12 @@ def _live(agent: AgentView, model: ModelView, reproduction: float) -> None:
         agent.create(energy=agent.energy)
 
 
-class Grass(AgentType):
+class Grass(Element):
     """Grass patch that regrows a fixed number of steps after it is eaten.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The cell of the patch, or one cell per patch of a group.
+            The label of the agent or group.
 
         grown:
             Whether the grass is grown, 1 or 0.
@@ -93,15 +90,12 @@ class Grass(AgentType):
             agent.countdown = agent.regrowth
 
 
-class Sheep(AgentType):
+class Sheep(Element):
     """Sheep that wanders, eats grown grass, reproduces, and dies without energy.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or `None` for a random cell.
+            The label of the agent or group.
 
         energy:
             The initial energy.
@@ -155,15 +149,12 @@ class Sheep(AgentType):
         _live(agent, model, agent.reproduction)
 
 
-class Wolf(AgentType):
+class Wolf(Element):
     """Wolf that wanders, eats a sheep of its cell, reproduces, and dies without energy.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or `None` for a random cell.
+            The label of the agent or group.
 
         energy:
             The initial energy.
@@ -265,8 +256,16 @@ def wolf_sheep(
     cells = [(column, row) for column in range(width) for row in range(height)]
     grown = (rng.random(len(cells)) < GROWN_SHARE).astype(float)
     countdown = np.where(grown > 0, regrowth, rng.uniform(0, regrowth, len(cells)))
-    grass = Grass.group('grass', len(cells), location=cells, grown=grown, countdown=countdown, regrowth=regrowth)
+    grass = Grass.group(
+        'grass',
+        len(cells),
+        variable=True,
+        location=cells,
+        grown=grown,
+        countdown=countdown,
+        regrowth=regrowth,
+    )
     return System(
-        components=[grass, Sheep.group('sheep', sheep), Wolf.group('wolves', wolves)],
+        components=[grass, Sheep.group('sheep', sheep, variable=True), Wolf.group('wolves', wolves, variable=True)],
         space=LatticeSpace((width, height), boundary='periodic'),
     )

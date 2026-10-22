@@ -8,18 +8,7 @@ from typing import ClassVar, cast
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import (
-    AgentType,
-    Element,
-    Field,
-    LatticeSpace,
-    Law,
-    Rate,
-    Rule,
-    Symbols,
-    System,
-    laplacian,
-)
+from ....core.model import Element, Field, LatticeSpace, Law, Rate, Rule, Symbols, System, laplacian
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -84,7 +73,7 @@ class Ground(Element):
         return [Rate(s.G, -s.G / s.T), Rate(s.V, s.D * laplacian(s.V) + (s.G - s.V) / s.tau)]
 
 
-class Walker(AgentType):
+class Walker(Element):
     """Pedestrian who walks toward a goal, drawn to existing trails, and leaves footprints that build them.
 
     The walker heads along the unit vector toward its goal plus `attraction` times the gradient of the trail potential
@@ -94,10 +83,7 @@ class Walker(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or one cell per walker.
+            The label of the agent or group.
 
         goal_x:
             The column of the goal.

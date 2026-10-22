@@ -7,7 +7,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import role, state
-from ....core.model import AgentType, Interaction, Law, Rule, Symbols, System
+from ....core.model import Element, Interaction, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -30,7 +30,7 @@ def _play(speaker: AgentView, hearer: AgentView, own: int, rng: np.random.Genera
     speaker.words, hearer.words = spoken, heard
 
 
-class Namer(AgentType):
+class Namer(Element):
     """Agent of the naming game, with an inventory of the words it knows for one object.
 
     The inventory is an indicator vector over the lexicon, with one slot per agent for the word that agent invents
@@ -38,10 +38,7 @@ class Namer(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         words:
             The initial inventory, 1 for every known word and 0 otherwise.

@@ -12,11 +12,33 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..base import AnyDomain, Domain, LabelError, SpaceError, ValidationError, Variable
-from ..model import AgentType, Element, Group, Interaction, LatticeSpace, MesaSystem, NetworkSpace, Space, System
+from ..base import (
+    AnyDomain,
+    Domain,
+    LabelError,
+    SpaceError,
+    ValidationError,
+    Variable,
+    VariableKind,
+    declarations_of,
+)
+from ..model import (
+    Element,
+    Group,
+    Interaction,
+    LatticeSpace,
+    Match,
+    NetworkSpace,
+    Rule,
+    Space,
+    System,
+    probe_laws,
+    runs_rules,
+)
 from ..model._components import part_count
 
 LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
+MEMBER_SUFFIX = re.compile(r'\[-?\d+\]$')
 MAX_SHOWN_COMPONENTS = 10
 
 
@@ -36,12 +58,16 @@ class Node:
 
         space:
             The nearest enclosing space.
+
+        agent:
+            Whether the component runs on the agent stepper, as `agent_paths` decides.
     """
 
     path: str
     scope: str
     component: Element | Group | Interaction
     space: Space | None
+    agent: bool = False
 
     @property
     def members(self) -> int | None:
@@ -50,10 +76,8 @@ class Node:
 
     @property
     def is_agent(self) -> bool:
-        """Whether the node is an agent type or an agent group."""
-        if isinstance(self.component, Group):
-            return self.component.is_variable
-        return isinstance(self.component, Element) and issubclass(self.component_type, AgentType)
+        """Whether the node is an agent element or an agent group, which runs on the agent stepper."""
+        return self.agent
 
     @property
     def component_type(self) -> type[Element] | type[Interaction]:
@@ -131,7 +155,7 @@ def _check_group(group: Group, scope: str) -> None:
         if space.size != group.size:
             error_msg = f'{where} has size {group.size}, but its lattice has {space.size} sites.'
             raise ValidationError(error_msg)
-    if isinstance(space, NetworkSpace) and not group.is_variable and group.on in {None, 'sites'}:
+    if isinstance(space, NetworkSpace) and not group.variable and group.on in {None, 'sites'}:
         _check_network_lattice(space, group.size, where)
     unknown = set(group.values or {}) - {field.name for field in dataclasses.fields(group.element)} - {'label'}
     if unknown:
@@ -175,8 +199,74 @@ def _sized(element: Element | Group, space: Space | None) -> Element | Group:
     return sized
 
 
+def _is_passive(component: object) -> bool:
+    """Check whether a component is a group off the parts of the space whose element type has no laws of its own."""
+    return isinstance(component, Group) and component.on is None and probe_laws(component) == []
+
+
+def _bound_paths(node: Node) -> set[str]:
+    """Return the paths of the components the roles of an interaction bind, without member indices."""
+    paths = set()
+    for name in declarations_of(type(node.component), VariableKind.ROLE):
+        value = getattr(node.component, name)
+        for item in [value] if isinstance(value, str) else value or ():
+            paths.add(MEMBER_SUFFIX.sub('', f'{node.scope}{item}'))
+    return paths
+
+
+def agent_paths(nodes: list[Node]) -> set[str]:
+    """Return the paths of the elements and groups of a system tree that run on the agent stepper.
+
+    An agent is a member of a variable group, or of an element or group whose own laws include a `Rule`. When the tree
+    holds rules, of components or of interactions, the groups whose element type has no laws of its own are agents
+    too, as passive agents that rules read and change, unless an interaction whose laws are not all rules or matchings
+    binds them through a role. Single elements, such as aggregates, and groups on the sites, edges, or hyperedges of a
+    space are never passive agents.
+
+    Args:
+        nodes:
+            The nodes of the tree.
+
+    Returns:
+        paths:
+            The paths of the agent elements and groups.
+    """
+    agents = {node.path for node in nodes if runs_rules(node.component)}
+    passive = [node for node in nodes if node.path not in agents and _is_passive(node.component)]
+    if not passive:
+        return agents
+    interactions = [(node, probe_laws(node.component)) for node in nodes if isinstance(node.component, Interaction)]
+    has_rules = bool(agents) or any(any(isinstance(law, Rule) for law in laws or ()) for _, laws in interactions)
+    if not has_rules:
+        return agents
+    bound = {
+        path
+        for node, laws in interactions
+        if laws is None or not all(isinstance(law, Rule | Match) for law in laws)
+        for path in _bound_paths(node)
+    }
+    return agents | {node.path for node in passive if node.path not in bound}
+
+
+def _flatten(system: System, scope: str, space: Space | None) -> list[Node]:
+    """Return the nodes of a system tree in tree order, before the agents are recognized."""
+    if not isinstance(system, System):
+        error_msg = f'{system!r} is not an instance of System.'
+        raise ValidationError(error_msg)
+    _check_children(system, scope)
+    space = system.space if system.space is not None else space
+    nodes = [
+        Node(f'{scope}{element.label}', scope, _sized(element, space), getattr(element, 'space', None) or space)
+        for element in system.elements
+    ]
+    nodes += [Node(f'{scope}{interaction.label}', scope, interaction, space) for interaction in system.interactions]
+    for child in system.systems:
+        nodes += _flatten(child, f'{scope}{child.label}/', space)
+    return nodes
+
+
 def flatten_system(system: System, scope: str = '', space: Space | None = None) -> list[Node]:
-    """Return the elements and interactions of a system tree with their paths.
+    """Return the elements and interactions of a system tree with their paths, and which of them are agents.
 
     Args:
         system:
@@ -190,7 +280,7 @@ def flatten_system(system: System, scope: str = '', space: Space | None = None) 
 
     Returns:
         nodes:
-            The elements and interactions, in tree order.
+            The elements and interactions, in tree order, with the agents that `agent_paths` recognizes.
 
     Raises:
         ValidationError:
@@ -199,22 +289,9 @@ def flatten_system(system: System, scope: str = '', space: Space | None = None) 
         LabelError:
             A label is not valid or is duplicated among siblings.
     """
-    if not isinstance(system, System):
-        error_msg = f'{system!r} is not an instance of System.'
-        raise ValidationError(error_msg)
-    if isinstance(system, MesaSystem):
-        error_msg = f'{system!r} in {scope or "the root system"} can only be compiled as the root system.'
-        raise ValidationError(error_msg)
-    _check_children(system, scope)
-    space = system.space if system.space is not None else space
-    nodes = [
-        Node(f'{scope}{element.label}', scope, _sized(element, space), getattr(element, 'space', None) or space)
-        for element in system.elements
-    ]
-    nodes += [Node(f'{scope}{interaction.label}', scope, interaction, space) for interaction in system.interactions]
-    for child in system.systems:
-        nodes += flatten_system(child, f'{scope}{child.label}/', space)
-    return nodes
+    nodes = _flatten(system, scope, space)
+    agents = agent_paths(nodes)
+    return [dataclasses.replace(node, agent=node.path in agents) for node in nodes]
 
 
 def shape_of(name: str, declaration: Variable, space: Space | None) -> tuple[int, ...]:

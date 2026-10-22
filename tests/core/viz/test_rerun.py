@@ -10,17 +10,7 @@ from sage.all__sagemath_symbolics import I
 
 from skcomplex.core.base import Domain, VisualSpec, state
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import (
-    AgentType,
-    ContinuousSpace,
-    Element,
-    Field,
-    LatticeSpace,
-    Particle,
-    Rate,
-    Rule,
-    System,
-)
+from skcomplex.core.model import ContinuousSpace, Element, Field, LatticeSpace, Particle, Rate, Rule, System
 from skcomplex.core.runtime import Frame, Simulation
 from skcomplex.core.viz import ImageVisual, PointsVisual, RerunObserver, ScalarsVisual, Visual, resolve_visual
 from skcomplex.models import create
@@ -224,7 +214,7 @@ def test_voter_network_logs_graph_with_opinion_colors(monkeypatch, tmp_path):
 def test_removed_agents_disappear_from_logs(monkeypatch, tmp_path):
     """Test that an agent removed between frames is absent from the next batch."""
 
-    class Mortal(AgentType):
+    class Mortal(Element):
         """Agent that removes itself when its id is 1."""
 
         def laws(self, s):
@@ -239,7 +229,7 @@ def test_removed_agents_disappear_from_logs(monkeypatch, tmp_path):
     logged = _agent_logs(
         monkeypatch,
         tmp_path,
-        System(components=[Mortal.group('mortals', 3)], space=LatticeSpace((5, 5), boundary='fixed')),
+        System(components=[Mortal.group('mortals', 3, variable=True)], space=LatticeSpace((5, 5), boundary='fixed')),
         1,
     )
     batches = [archetype for path, archetype in logged if path == 'mortals']

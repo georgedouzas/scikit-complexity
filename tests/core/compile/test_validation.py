@@ -6,7 +6,7 @@ import pytest
 
 from skcomplex.core.base import Domain, ValidationError, parameter, role, state
 from skcomplex.core.compile import Issue, ValidationReport, ValidationWarning, validate
-from skcomplex.core.model import AgentType, Element, Interaction, Rate, Rule, System, Update
+from skcomplex.core.model import Element, Interaction, Rate, Rule, System, Update
 
 
 class Stock(Element):
@@ -58,7 +58,7 @@ class Drift(Interaction):
         return [Rate(s.target.view, 1)]
 
 
-class Ant(AgentType):
+class Ant(Element):
     """Agent that counts its steps."""
 
     steps: float = state(0.0)
@@ -110,7 +110,7 @@ def test_law_with_the_wrong_domain_suggests_laws():
 
 def test_unsupported_solver_lists_capable_solvers():
     """Test that a variable group validated with RK4 reports the unsupported components and capable solvers."""
-    report = validate(System(components=[Ant.group('ants', 3)]), solver='rk4')
+    report = validate(System(components=[Ant.group('ants', 3, variable=True)]), solver='rk4')
     issue = next(issue for issue in report.errors if 'components' in issue.message)
     assert issue.code == 'solver-unsupported'
     assert 'variable-group' in issue.message

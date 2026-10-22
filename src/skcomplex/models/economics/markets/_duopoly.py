@@ -8,7 +8,7 @@ from collections.abc import Sequence
 import numpy as np
 
 from ....core.base import Domain, Expression, parameter, role, state
-from ....core.model import AgentType, Interaction, Law, Observable, Rule, Symbols, System
+from ....core.model import Element, Interaction, Law, Observable, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import ModelView
 
@@ -20,15 +20,12 @@ def _price(s: Symbols) -> Expression:
     return s.market.a - s.market.b * s.total
 
 
-class Duopolist(AgentType):
+class Duopolist(Element):
     """Firm of a Cournot duopoly, described by its output and its constant marginal cost.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         output:
             The initial output.

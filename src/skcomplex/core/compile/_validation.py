@@ -51,7 +51,6 @@ from ..model import (
     LatticeSpace,
     LocalRule,
     Match,
-    MesaSystem,
     NetworkSpace,
     Noise,
     Observable,
@@ -455,6 +454,7 @@ def _solver_issues(solver: object, records: list[CensusRecord], system: System) 
     else:
         stepper = type(solver)
     needs = {
+        'time': {kind for kind in _declared_times(system).values() if kind is not None},
         'laws': {record.law.law_kind for record in records},
         'domains': {
             domain_kind(entry, vector=entry.name in record.vectors) for record in records for entry in record.targets
@@ -513,8 +513,6 @@ def validate(
         >>> [issue.code for issue in validate(create('lotka_volterra'), solver='gillespie').issues]
         ['solver-unsupported']
     """
-    if isinstance(system, MesaSystem):
-        return ValidationReport()
     report = ValidationReport(_structure_issues(system))
     if report.issues or is_rewriting(system) or contains_quantum(system):
         return report

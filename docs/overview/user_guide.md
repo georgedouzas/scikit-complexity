@@ -629,19 +629,19 @@ print(dominance.loops[int(dominance.dominant[-1])].polarity)
 
 Agents move conserved quantities between each other inside rules. `transfer(source, sink, amount, state)` moves an
 amount between two agents at once, so a negative holding is an amount owed and total holdings stay constant. An agent
-type returns an `Invariant(label, function)` among its laws for every expression of its states that must keep its first
+returns an `Invariant(label, function)` among its laws for every expression of its states that must keep its first
 value, and the stepper checks it for every agent after every step. Removing an agent that still holds a tagged state
 raises `ConservationError` until its holdings are settled with transfers.
 
 ```python
-from skcomplex.core.model import AgentType, Invariant, Rule, transfer
+from skcomplex.core.model import Element, Invariant, Rule, transfer
 
 
 def net_worth(agent):
     return agent.cash + agent.claims - agent.equity
 
 
-class Trader(AgentType):
+class Trader(Element):
     cash: float = state(10.0, quantity='money')
     claims: float = state(0.0, quantity='claims')
     equity: float = state(10.0)
@@ -783,8 +783,7 @@ and every law written for one member runs over all members with array operations
 ```python
 import numpy as np
 
-from skcomplex.core.model import ContinuousSpace, MesaSystem
-from skcomplex.core.model import Particle
+from skcomplex.core.model import ContinuousSpace, Particle
 
 rng = np.random.default_rng(0)
 gas = System(
@@ -796,8 +795,8 @@ print(trajectory['gas.x'].shape)
 ```
 
 - The label and the size of a group are given by position, `Particle.group('gas', 10_000, ...)`, so a state named
-  `size` takes per-member values by keyword. States and parameters cannot be named `label` or `visual`, and those of
-  agent types cannot take the names of the agent view, such as `location` or `alive`.
+  `size` takes per-member values by keyword. States and parameters cannot be named `label`, `visual`, or `remembers`,
+  and those of agents cannot take the names of the agent view, such as `location` or `alive`.
 - A value is an array whose first dimension is the size of the group, or one value shared by every member.
 - An interaction whose role binds to a group applies to every member. A single element bound next to the group
   receives the sum over the members, unless its law reads the group only through reductions.
@@ -1369,16 +1368,21 @@ Importing `skcomplex.core.backends` also registers the solver name `'lammps'`.
 
 ## Agent-based models
 
-Agents follow rules written as code. An `AgentType` declares the states every agent holds and the parameters its group
-shares, and returns `Rule` laws whose functions take the agent and the model. A system with rules is agent-based and
-runs on Mesa, one Mesa step per unit of time, with every agent activated in random order.
+Agents are ordinary elements whose laws are rules written as code. An `Element` declares the states every agent holds
+and the parameters its group shares, and returns `Rule` laws whose functions take the agent and the model. An element
+or a group whose laws include rules is an agent, and so is every member of a variable group. In a system with rules, a
+group whose element type has no laws is a group of passive agents that rules read and change, unless an interaction
+whose laws are not rules binds it. A system with rules is
+agent-based, runs in discrete time, and runs on the Mesa backend, one Mesa step per unit of time, with every agent
+activated in random order. Mesa declares what it runs like any solver, so `validate(system, solver='mesa')` reports
+the laws, spaces, and times it does not support.
 
 ```python
 from skcomplex.core.base import Domain, VisualSpec, parameter, state
-from skcomplex.core.model import AgentType, LatticeSpace, Rule
+from skcomplex.core.model import Element, LatticeSpace, Rule
 
 
-class Forager(AgentType):
+class Forager(Element):
     visual = VisualSpec('agents', {'color_by': 'food'})
     food: float = state(5.0)
     hunger: float = parameter(1.0, domain=Domain.NONNEGATIVE)
@@ -1397,14 +1401,19 @@ class Forager(AgentType):
             agent.create(food=agent.food)
 
 
-foragers = System(components=[Forager.group('foragers', 50)], space=LatticeSpace((30, 30), boundary='periodic'))
+foragers = System(
+    components=[Forager.group('foragers', 50, variable=True)],
+    space=LatticeSpace((30, 30), boundary='periodic'),
+)
 trajectory = Simulation(foragers, random_state=0).run(until=20).trajectory_
 print(trajectory['foragers.count'][-1], len(trajectory.agents('foragers', 20)))
 ```
 
 - An agent reads and sets its states as attributes and reads its group's parameters, which change live like any
   parameter. `neighbors`, `neighbor_cells`, `agents_here`, `move_to`, `create`, and `remove` act on its place and its
-  population.
+  population. Only the members of a group declared `variable=True` are created and removed during a run.
+- `Element.group(label, size, location=...)` places the agents at cell coordinates, network nodes, or positions, one
+  per agent or one shared, and agents without a location take random places.
 - The model gives the random generator `model.rng`, the other agents with `model.agents(name)` and
   `model.count(name)`, and empty cells.
 - Every rule receives the model view scoped to the interaction or agent group that owns it. `model.parameter('name')`
@@ -1426,7 +1435,7 @@ print(trajectory['foragers.count'][-1], len(trajectory.agents('foragers', 20)))
 from skcomplex.core.model import ContinuousSpace
 
 
-class Walker(AgentType):
+class Walker(Element):
     def laws(self, s):
         return [Rule(self.step)]
 
@@ -1485,8 +1494,8 @@ agents learn from their past.
   `model.set_parameter(name, value)`. Rules see the change at once, and the trajectory records it.
 - Components declare the values they publish in the class variable `reports` and publish them with
   `model.report(name, value)`. `model.storage` keeps private values of a component across the steps of a run.
-- Learning blocks: `memory(agent, state, window)` returns the past values of the states that an agent type lists in
-  its class variable `remembers`. `heuristics` has adaptive, trend-following, anchoring, and fundamentalist forecasts.
+- Learning blocks: `memory(agent, state, window)` returns the past values of the states that the element type of an
+  agent lists in its class variable `remembers`. `heuristics` has adaptive, trend-following, anchoring, and fundamentalist forecasts.
   `logit_choice` picks a strategy by past performance, `imitate` copies the best neighbour, and `evolve` breeds the
   next generation of strategies with the model's random stream.
 
@@ -1495,7 +1504,7 @@ from skcomplex.core.model import DiscreteTime, Phase, Phases
 from skcomplex.models.economics.realizations import CallAuction, Institution, Market
 
 
-class Trader(AgentType):
+class Trader(Element):
     value: float = state(0.0)
     bid: float = state(0.0)
     ask: float = state(0.0)
@@ -1538,43 +1547,29 @@ trajectory = Simulation(auction, random_state=0).run(until=5).trajectory_
 print(trajectory['auction.price'][1:], trajectory['clerk.traded'][-1], trajectory['clerk.fee'][-1])
 ```
 
-### Existing Mesa models
+### Porting Mesa models
 
-`MesaSystem` runs any Mesa model with the framework's runtime, Rerun visualization, and live parameters, without
-changing its code. Numeric constructor arguments become parameters, model reporters become reporters, and agent
-reporters become agent states.
+A Mesa model is ported to a system: its agent class becomes an element whose step is a `Rule`, its agent attributes
+become states, and its model attributes become parameters, which then change live, are validated, and are recorded
+like those of any system. Mesa still runs the steps, as the backend of agent systems.
 
 ```python
-import mesa
+from skcomplex.core.model import DiscreteTime
 
 
-class Coin(mesa.Agent):
-    def __init__(self, model):
-        super().__init__(model)
-        self.heads = 0
+class Coin(Element):
+    heads: float = state(0.0)
+    bias: float = parameter(0.5)
 
-    def step(self):
-        self.heads += int(self.model.random.random() < self.model.bias)
+    def laws(self, s):
+        return [Rule(self.flip)]
 
-
-class Coins(mesa.Model):
-    def __init__(self, n=10, bias=0.5, rng=None):
-        super().__init__(rng=rng)
-        self.bias = bias
-        Coin.create_agents(self, n)
-
-    def step(self):
-        self.agents.do('step')
+    def flip(self, agent, model):
+        agent.heads += float(model.rng.random() < agent.bias)
 
 
-coins = MesaSystem(
-    'coins',
-    model=Coins,
-    parameters={'n': 10, 'bias': 0.5},
-    model_reporters={'heads': lambda model: sum(agent.heads for agent in model.agents)},
-    agent_reporters={'heads': 'heads'},
-)
-print(Simulation(coins, random_state=0).run(until=10).trajectory_['coins.heads'][-1])
+coins = System('coins', components=[Coin.group('coins', 10)], time=DiscreteTime())
+print(Simulation(coins, random_state=0).run(until=10).trajectory_.agents('coins', 10).values['heads'].sum())
 ```
 
 ## Rewriting systems

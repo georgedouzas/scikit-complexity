@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.model import AgentType, DiscreteTime, LatticeSpace, Law, Phase, Phases, Rule, Symbols, System
+from ....core.model import DiscreteTime, Element, LatticeSpace, Law, Phase, Phases, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 from ..realizations import Institution
@@ -49,12 +49,12 @@ def landscape(width: int, height: int) -> Array:
     return np.sum([distance < bound * scale for bound in BOUNDS], axis=0).astype(float)
 
 
-class Patch(AgentType):
+class Patch(Element):
     """Cell of the landscape whose sugar grows back by a fixed amount a step up to its capacity.
 
     Args:
         label:
-            The label of the agent type or group.
+            The label of the agent or group.
 
         location:
             The cell of the patch.
@@ -105,7 +105,7 @@ class Patch(AgentType):
         agent.sugar = min(agent.capacity, agent.sugar + agent.growback)
 
 
-class Forager(AgentType):
+class Forager(Element):
     """Agent that moves to the richest free cell in sight, harvests its sugar, burns its metabolism, and may starve.
 
     A forager sees `vision` cells along each of the four lattice directions and moves to the free cell with the most
@@ -114,10 +114,7 @@ class Forager(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or `None` for a random cell.
+            The label of the agent or group.
 
         patches:
             The path of the group of patches.
@@ -327,6 +324,7 @@ def sugarscape(
     foragers = Forager.group(
         'foragers',
         len(occupied),
+        variable=True,
         location=[cells[index] for index in occupied],
         sugar=rng.uniform(low_sugar, high_sugar, len(occupied)),
         vision=rng.integers(1, max_vision + 1, len(occupied)).astype(float),

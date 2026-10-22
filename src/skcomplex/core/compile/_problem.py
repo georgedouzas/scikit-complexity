@@ -162,14 +162,14 @@ class CompiledElement:
 
 @dataclass(frozen=True)
 class CompiledAgents:
-    """Agent type or agent group of an agent-based problem, whose states live in the Mesa model.
+    """Agent element or agent group of an agent-based problem, whose states live in the Mesa model.
 
     Args:
         path:
             The slash-separated path of the agents in the system tree.
 
         element:
-            The agent type instance or the agent group.
+            The agent element or the agent group.
 
         size:
             The initial number of agents.
@@ -470,7 +470,7 @@ class Problem:
             The system the problem was compiled from.
 
         agents:
-            The agent types and groups of an agent-based problem.
+            The agent elements and groups of an agent-based problem.
 
         model_rules:
             The rules of interactions of an agent-based problem, with the path of their interaction.

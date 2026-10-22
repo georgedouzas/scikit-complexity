@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, parameter, role, state
-from ....core.model import AgentType, Interaction, Law, Rule, Symbols, System
+from ....core.model import Element, Interaction, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -43,15 +43,12 @@ def strategy_table(code: float, memory: int) -> Bits:
     return np.random.default_rng(int(code)).integers(0, 2, 2**memory)
 
 
-class Speculator(AgentType):
+class Speculator(Element):
     """Agent of the minority game, who holds two strategies and plays the one with the higher virtual score.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         first:
             The code of the first strategy.

@@ -10,20 +10,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos, exp, sin, sqrt
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, state
-from ....core.model import (
-    AgentType,
-    Boundary,
-    ContinuousSpace,
-    Element,
-    Law,
-    Noise,
-    Rate,
-    Rule,
-    Symbols,
-    System,
-    delayed,
-    where,
-)
+from ....core.model import Boundary, ContinuousSpace, Element, Law, Noise, Rate, Rule, Symbols, System, delayed, where
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -133,7 +120,7 @@ class LightSensitiveRobot(Element):
         ]
 
 
-class SwarmRobot(AgentType):
+class SwarmRobot(Element):
     """Robot of the swarmtaxis algorithm, which keeps in radio contact with the swarm and avoids its neighbours.
 
     Every step the robot counts the robots within its radio range. When it loses a connection and has fewer than
@@ -145,10 +132,7 @@ class SwarmRobot(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial position.
+            The label of the agent or group.
 
         heading:
             The direction of motion.

@@ -8,20 +8,17 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.model import AgentType, Interaction, Law, Rule, Symbols, System
+from ....core.model import Element, Interaction, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import ModelView
 
 
-class Task(AgentType):
+class Task(Element):
     """Task of the Barabási priority queue, with a priority, an age, and the waiting time when it was last executed.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         priority:
             The priority, uniform on 0 to 1 for a new task.

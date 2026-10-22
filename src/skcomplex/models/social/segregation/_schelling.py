@@ -8,20 +8,17 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import AgentType, LatticeSpace, Law, Rule, Symbols, System
+from ....core.model import Element, LatticeSpace, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
 
-class Resident(AgentType):
+class Resident(Element):
     """Resident of the Schelling model, who moves to an empty cell while too few neighbours share its kind.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, or `None` for a random empty cell.
+            The label of the agent or group.
 
         kind:
             The kind of the resident, 0 or 1.

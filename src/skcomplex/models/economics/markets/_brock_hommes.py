@@ -8,16 +8,7 @@ from typing import Any, ClassVar
 import numpy as np
 
 from ....core.base import Domain, parameter, role, state
-from ....core.model import (
-    AgentType,
-    DiscreteTime,
-    Law,
-    Phase,
-    Phases,
-    Rule,
-    Symbols,
-    System,
-)
+from ....core.model import DiscreteTime, Element, Law, Phase, Phases, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 from ..realizations import Institution, heuristics, logit_choice
@@ -25,7 +16,7 @@ from ..realizations import Institution, heuristics, logit_choice
 PREDICTORS = ('fundamentalist', 'trend')
 
 
-class Speculator(AgentType):
+class Speculator(Element):
     """Trader who chooses a forecasting heuristic by a logit choice on the last realised fitness of every heuristic.
 
     The heuristic is 0 for the fundamentalist and 1 for the trend chaser, and the fitnesses are the reporters of the
@@ -33,10 +24,7 @@ class Speculator(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         predictor:
             The index of the heuristic in use.

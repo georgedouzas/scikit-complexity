@@ -1,6 +1,6 @@
 """Describe models as elements, interactions, laws, spaces, and systems."""
 
-from ._components import AgentType, Aggregate, Element, Group, Interaction
+from ._components import Aggregate, Element, Group, Interaction, probe_laws, runs_rules
 from ._draws import Draw, bernoulli, categorical, draw, draws_in, is_draw, normal, uniform
 from ._ensembles import replicate
 from ._fields import Field, Flux, advection, divergence, gradient, inverse_laplacian, laplacian
@@ -89,7 +89,7 @@ from ._rewriting import (
 )
 from ._spaces import Adjacency, ContinuousSpace, NetworkSpace, Space
 from ._symbols import Symbols
-from ._systems import MesaSystem, System
+from ._systems import System
 from ._time import ContinuousTime, DiscreteTime, Phases, StaticTime, Time
 
 __all__: list[
@@ -102,7 +102,6 @@ __all__: list[
 ] = [
     'Adjacency',
     'Affine',
-    'AgentType',
     'Aggregate',
     'Auxiliary',
     'Boundary',
@@ -132,7 +131,6 @@ __all__: list[
     'LocalOperator',
     'LocalRule',
     'Match',
-    'MesaSystem',
     'Mesh',
     'Module',
     'Move',
@@ -206,6 +204,7 @@ __all__: list[
     'neighbors',
     'neighbour_pairs',
     'normal',
+    'probe_laws',
     'pulse',
     'pulse_train',
     'ramp',
@@ -213,6 +212,7 @@ __all__: list[
     'reduce_values',
     'reductions_in',
     'replicate',
+    'runs_rules',
     'series',
     'shift_arguments',
     'shift_member',

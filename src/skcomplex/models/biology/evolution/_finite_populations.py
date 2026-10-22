@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.model import AgentType, Interaction, Law, Rule, Symbols, System
+from ....core.model import Element, Interaction, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -56,12 +56,12 @@ def _mutate(genome: int, length: int, probability: float, rng: np.random.Generat
     return int(genome ^ sum(1 << int(locus) for locus in flips))
 
 
-class Individual(AgentType):
+class Individual(Element):
     """Individual of a finite population, with an integer trait or genome.
 
     Args:
         label:
-            The label of the agent type or group.
+            The label of the agent or group.
 
         trait:
             The trait, a type index or the bits of a genome.
@@ -314,7 +314,7 @@ class AdaptiveClimbing(Interaction):
             individual.fitness = _random_fitness(best, self.seed)
 
 
-class Climber(AgentType):
+class Climber(Element):
     """Agent that walks an NK fitness landscape, flipping one random bit of its genome when that raises its fitness.
 
     The fitness of a genome of `n` bits is the mean of the contributions of its bits, each a random function of the bit
@@ -322,7 +322,7 @@ class Climber(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
+            The label of the agent or group.
 
         genome:
             The bits of the genome.
@@ -428,7 +428,9 @@ def moran_process(
     traits = np.zeros(size)
     traits[:mutants] = 1.0
     return System(
-        components=[Individual.group('population', size, trait=traits, fitness=(1 + selection) ** traits)],
+        components=[
+            Individual.group('population', size, variable=True, trait=traits, fitness=(1 + selection) ** traits),
+        ],
         interactions=[MoranStep('moran', population='population', selection=selection, mutation=mutation)],
     )
 
@@ -502,7 +504,10 @@ def tangled_nature(
         seed=seed,
     )
     visual = VisualSpec('traits', {'color_by': 'trait', 'shown': ('distinct',)})
-    return System(components=[Individual.group(ORGANISMS, organisms, trait=genome, visual=visual)], interactions=[step])
+    return System(
+        components=[Individual.group(ORGANISMS, organisms, variable=True, trait=genome, visual=visual)],
+        interactions=[step],
+    )
 
 
 @register_model(
@@ -552,6 +557,7 @@ def adaptive_climbing(
             Individual.group(
                 'population',
                 size,
+                variable=True,
                 trait=0.0,
                 fitness=fitness,
                 visual=VisualSpec('agents', {'color_by': 'fitness'}),
@@ -610,6 +616,7 @@ def nk_landscape(
     group = Climber.group(
         'climbers',
         climbers,
+        variable=True,
         genome=genomes.astype(float),
         fitness=np.asarray(fitness),
         n=float(n),
