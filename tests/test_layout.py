@@ -170,10 +170,8 @@ def test_realizations_of_the_own_field_import():
         found = _violations(path)
     finally:
         path.unlink()
-    assert found == [
-        'skcomplex.models.physics.mechanics._planted_realizations: imports the model package '
-        'skcomplex.models.economics.realizations',
-    ]
+    expected = 'skcomplex.models.physics.mechanics._planted_realizations: imports the model package '
+    assert found == [f'{expected}skcomplex.models.economics.realizations']
 
 
 def test_package_respects_layout():
