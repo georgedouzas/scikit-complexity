@@ -91,4 +91,4 @@ through the conformance suite.
 ## 8. Pending changes and gate
 
 - [x] 8.1 Rebase the artifacts of the 26 pending changes onto the new vocabulary, and validate every one of them.
-- [ ] 8.2 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass.
+- [x] 8.2 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass.
