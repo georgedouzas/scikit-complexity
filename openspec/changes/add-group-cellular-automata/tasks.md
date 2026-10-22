@@ -34,7 +34,7 @@
 - [x] 3.3 Add `grigorchuk_automaton` under `computer_science/automata`, move its inventory entry from out of scope to
   this change and then to implemented with its vocabulary tags, and verify the Grigorchuk automaton scenario and the
   inventory check
-- [ ] 3.4 Add the gallery example of `grigorchuk_automaton` with its Rerun thumbnail and the ball growth plot, and
+- [x] 3.4 Add the gallery example of `grigorchuk_automaton` with its Rerun thumbnail and the ball growth plot, and
   verify the Grigorchuk gallery plot scenario and the gallery budget and coverage checks
 
 ## 4. Documentation and gate
