@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Sequence
 from typing import Any, ClassVar
 
 from sklearn.base import BaseEstimator
@@ -101,57 +101,3 @@ class System(BaseEstimator):
         """Return the label and the number of components and interactions."""
         label = '' if self.label == 'system' else f'{self.label!r}, '
         return f'System({label}components={len(self.components)}, interactions={len(self.interactions)})'
-
-
-class MesaSystem(System):
-    """Existing Mesa model wrapped as a system, so it runs with the framework's runtime and visualization.
-
-    The model is built as `model(**parameters, rng=seed)` and stepped once per unit of time. Its declared parameters
-    change live through `Simulation.update_parameters`, which sets the model attribute of the same name.
-
-    Args:
-        label:
-            The label of the system, which prefixes its parameter and reporter names.
-
-        model:
-            The Mesa model class.
-
-        parameters:
-            The constructor arguments of the model, which are also its live parameters.
-
-        model_reporters:
-            A mapping from reporter name to a function of the model that returns a number.
-
-        agent_reporters:
-            A mapping from variable name to an agent attribute name or a function of an agent.
-
-        agents:
-            The label of the group that holds the model's agents.
-
-    Examples:
-        >>> import mesa
-        >>> from skcomplex.core.model import MesaSystem
-        >>> MesaSystem('market', model=mesa.Model).agents
-        'agents'
-    """
-
-    def __init__(
-        self,
-        label: str = 'system',
-        *,
-        model: type,
-        parameters: Mapping[str, Any] | None = None,
-        model_reporters: Mapping[str, Callable[[Any], float]] | None = None,
-        agent_reporters: Mapping[str, str | Callable[[Any], float]] | None = None,
-        agents: str = 'agents',
-    ) -> None:
-        super().__init__(label)
-        self.model = model
-        self.parameters = parameters
-        self.model_reporters = model_reporters
-        self.agent_reporters = agent_reporters
-        self.agents = agents
-
-    def __repr__(self, N_CHAR_MAX: int = 700) -> str:
-        """Return the label and the wrapped model class."""
-        return f'MesaSystem({self.label!r}, model={self.model.__name__})'

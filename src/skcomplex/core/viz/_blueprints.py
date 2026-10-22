@@ -12,7 +12,7 @@ import rerun.blueprint as rrb
 
 from ..base import ValidationError
 from ..compile import CompiledAgents, CompiledElement, Problem, compile_system, observables_of
-from ..model import MesaSystem, Observable, System
+from ..model import Observable, System
 from ._traits import agents_visual_of
 from ._visuals import PointsVisual, ScalarsVisual, resolve_visual
 
@@ -170,7 +170,7 @@ def _summary_views(problem: Problem, *, parameters: bool) -> list[rrb.View]:
     paths += [f'{renewal.label}.renewals' for item in problems for renewal in item.renewals]
     if paths:
         views.append(_series_view([rrb.TimeSeriesView(origin=f'/{path}') for path in paths], 'observables'))
-    if problem.agents or isinstance(system, MesaSystem):
+    if problem.agents:
         views.append(_series_view([rrb.TimeSeriesView(origin='/reporters')], 'reporters'))
     if parameters and problem.parameters.names:
         views.append(_series_view([rrb.TimeSeriesView(origin='/parameters')], 'parameters'))

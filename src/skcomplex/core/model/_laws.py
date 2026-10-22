@@ -550,10 +550,11 @@ class Renewal:
 
 @dataclass(frozen=True)
 class Rule:
-    """Behaviour written as code, run once per step for every agent of an agent type, or once per step for a model.
+    """Behaviour written as code, run once per step for every member of an agent group, or once per step for a model.
 
-    A rule of an agent type receives the agent and the model, `function(agent, model)`. A rule of an interaction
-    receives the model alone, `function(model)`. A system with rules is agent-based and runs on Mesa.
+    An element whose laws include rules is an agent, alone or in a group. A rule of an element receives the agent and
+    the model, `function(agent, model)`. A rule of an interaction receives the model alone, `function(model)`. A system
+    with rules is agent-based, needs discrete time, and runs on the Mesa backend.
 
     Args:
         function:

@@ -1,10 +1,9 @@
-"""Run agent-based problems and wrapped Mesa models on Mesa, one Mesa step per unit of time."""
+"""Run agent-based problems on the Mesa backend, one Mesa step per unit of time."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 import dataclasses
-import inspect
 import math
 from collections import deque
 from collections.abc import Callable, Mapping, Sequence
@@ -34,7 +33,7 @@ from ..base import (
     declarations_of,
 )
 from ..compile import CompiledAgents, ObservableEvaluator, Problem, Vector
-from ..model import ContinuousSpace, Group, LatticeSpace, MesaSystem, NetworkSpace, Phase, Rule, Space
+from ..model import ContinuousSpace, Group, LatticeSpace, NetworkSpace, Phase, Rule, Space
 from ..model._phases import DEFAULT_PHASE
 from ..model._time import DiscreteTime
 from ._base import Stepper, register_solver
@@ -103,7 +102,7 @@ def _location_of(agent: mesa.Agent) -> object:
 
 
 def _agent_type(spec: CompiledAgents) -> Any:  # noqa: ANN401
-    """Return the agent type of a compiled agent group."""
+    """Return the element type of a compiled agent element or group."""
     return spec.element.element if isinstance(spec.element, Group) else type(spec.element)
 
 
@@ -337,11 +336,15 @@ class ModelView:
                 The cell coordinates, network node, or position, or `None` for a random place.
 
             **values:
-                The initial values of states, with the agent type's defaults for the others.
+                The initial values of states, with the element type's defaults for the others.
 
         Returns:
             agent:
                 The new agent.
+
+        Raises:
+            SimulationError:
+                The group is not variable, so its size cannot change.
         """
         return AgentView(self._stepper.create_agent(group, location, values), self._stepper)
 
@@ -380,7 +383,7 @@ class ModelView:
         if full not in self._stepper.reports_:
             error_msg = (
                 f'{self._owner or "The model"} reports {name!r}, which it does not declare. List it in the class '
-                'variable `reports` of the interaction or agent type.'
+                'variable `reports` of the interaction or element type.'
             )
             raise SimulationError(error_msg)
         self._stepper.reports_[full] = float(value)
@@ -631,8 +634,12 @@ class AgentView:
             ConservationError:
                 A state tagged with a quantity is not zero, so removing the agent would destroy it. Settle the
                 holdings with transfers first.
+
+            SimulationError:
+                The agent's group is not variable, so its size cannot change.
         """
         spec = self._stepper.spec_of(self._agent)
+        _check_variable(spec, 'remove')
         declared = declarations_of(_agent_type(spec), VariableKind.STATE)
         held = {
             name: value
@@ -660,11 +667,15 @@ class AgentView:
                 The location of the new agent, or `None` for the agent's location.
 
             **values:
-                The initial values of states, with the agent type's defaults for the others.
+                The initial values of states, with the element type's defaults for the others.
 
         Returns:
             agent:
                 The new agent.
+
+        Raises:
+            SimulationError:
+                The group is not variable, so its size cannot change.
         """
         stepper = self._stepper
         target = stepper.resolve_group(group, self.group) if group is not None else self.group
@@ -701,10 +712,15 @@ def _build_space(space: Space | None, model: mesa.Model, n_agents: int) -> MesaS
 
 
 class MesaStepper(Stepper):
-    """Stepper of agent-based problems and wrapped Mesa models, one Mesa step per unit of time.
+    """Mesa backend of agent-based problems, one Mesa step per unit of time.
 
-    Every step advances Mesa's clock by one, activates all agents in random order, and each agent runs the rules of its
-    type in declaration order. Interaction rules run once after the agents. A wrapped Mesa model runs its own `step`.
+    The agents are the members of the elements and groups whose laws include `Rule` laws, and of the variable groups.
+    Every step advances Mesa's clock by one, activates all agents in random order, or by the phases of the system's
+    discrete time, and each agent runs the rules of its element type in declaration order. Interaction rules run once
+    after the agents. Rules add and remove members of variable groups only. The class variable `supports` declares
+    what the backend runs, which validation checks systems against: discrete time, no space or a lattice, network, or
+    continuous space, rule, boundary, transfer, matching, and invariant laws, and elements and fixed and variable
+    groups with any domain but Hilbert spaces.
 
     Attributes:
         model_:
@@ -712,9 +728,9 @@ class MesaStepper(Stepper):
 
     Examples:
         >>> from skcomplex.core.base import state
-        >>> from skcomplex.core.model import AgentType, Rule, System
+        >>> from skcomplex.core.model import Element, Rule, System
         >>> from skcomplex.core.runtime import Simulation
-        >>> class Counter(AgentType):
+        >>> class Counter(Element):
         ...     count: float = state(0.0)
         ...
         ...     def laws(self, s):
@@ -729,7 +745,7 @@ class MesaStepper(Stepper):
 
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.DISCRETE},
-        space=set(SpaceKind),
+        space={SpaceKind.NONE, SpaceKind.LATTICE, SpaceKind.NETWORK, SpaceKind.CONTINUOUS},
         laws={LawKind.RULE, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.MATCH, LawKind.INVARIANT},
         domains=set(DomainKind) - {DomainKind.HILBERT},
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.VARIABLE_GROUP, ComponentKind.SYSTEM},
@@ -742,7 +758,7 @@ class MesaStepper(Stepper):
         return int(self.rng_.integers(0, MAX_SEED))
 
     def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
-        """Build the Mesa model of an agent-based problem or of a wrapped Mesa model.
+        """Build the Mesa model of an agent-based problem.
 
         Args:
             problem:
@@ -768,9 +784,7 @@ class MesaStepper(Stepper):
         self._state: Vector = problem.initial_state
         self._evaluator: ObservableEvaluator | None = None
         self._invariant_values: dict[tuple[int, str, str], float] = {}
-        if isinstance(problem.system, MesaSystem):
-            self._build_wrapped(problem.system)
-            return
+        self._populating = True
         self._specs = {spec.path: spec for spec in problem.agents}
         self._classes: dict[type, CompiledAgents] = {}
         self.model_ = _AgentModel(self._run_rules, self._seed())
@@ -789,6 +803,7 @@ class MesaStepper(Stepper):
                 self.reports_[f'{path}.{name}'] = math.nan
         for spec in problem.agents:
             self._populate(spec)
+        self._populating = False
         self._check_invariants()
 
     def _agent_class(self, spec: CompiledAgents) -> type:
@@ -867,7 +882,7 @@ class MesaStepper(Stepper):
                 The location, or `None` for a random place.
 
             values:
-                The initial values of states, with the agent type's defaults for the others.
+                The initial values of states, with the element type's defaults for the others.
 
         Returns:
             agent:
@@ -875,9 +890,11 @@ class MesaStepper(Stepper):
 
         Raises:
             SimulationError:
-                The group does not exist.
+                The group does not exist, or it is not variable, so its size cannot change.
         """
         spec = self._specs[self.resolve_group(group)]
+        if not self._populating:
+            _check_variable(spec, 'create')
         agent_class = self._agent_class(spec)
         agent = (
             agent_class(self.space_, self.model_)
@@ -895,27 +912,13 @@ class MesaStepper(Stepper):
         """Create the initial agents of a group with their per-agent or shared initial values."""
         space = self.problem_.agent_space
         network_nodes = list(space.graph.nodes) if isinstance(space, NetworkSpace) else []
-        element = spec.element
-        given = (
-            (element.values or {}).get('location') if hasattr(element, 'values') else getattr(element, 'location', None)
-        )
+        given = spec.element.location if isinstance(spec.element, Group) else None
         for index in range(spec.size):
             values = {name: _member_value(value, index, spec.size) for name, value in spec.values.items()}
             location = _member_location(given, index, spec.size)
             if location is None and spec.size <= len(network_nodes):
                 location = network_nodes[index]
             self.create_agent(spec.path, location, values)
-
-    def _build_wrapped(self, system: MesaSystem) -> None:
-        """Build a wrapped Mesa model from its constructor arguments and a seed."""
-        arguments = dict(system.parameters or {})
-        for name, value in arguments.items():
-            entry = f'{system.label}.{name}'
-            if entry in self.problem_.parameters:
-                arguments[name] = _typed_like(value, self.problem_.parameters.read(self.parameters_, entry))
-        accepted = inspect.signature(system.model).parameters
-        seed_name = 'rng' if 'rng' in accepted else 'seed'
-        self.model_ = system.model(**arguments, **{seed_name: self._seed()})
 
     def spec_of(self, agent: mesa.Agent) -> CompiledAgents:
         """Return the group of a Mesa agent created by the stepper.
@@ -962,15 +965,8 @@ class MesaStepper(Stepper):
         return []
 
     def _push_parameters(self, p: Vector) -> None:
-        """Make new parameter values visible to the rules or set them on a wrapped model."""
+        """Make new parameter values visible to the rules."""
         self.parameters_ = p.copy()
-        system = self.problem_.system
-        if isinstance(system, MesaSystem):
-            for name in system.parameters or {}:
-                entry = f'{system.label}.{name}'
-                if entry in self.problem_.parameters:
-                    value = self.problem_.parameters.read(p, entry)
-                    setattr(self.model_, name, _typed_like(getattr(self.model_, name, value), value))
 
     def _run_rules(self) -> None:
         """Run the phases of a step, or activate the agents in random order and run the model rules once."""
@@ -1035,7 +1031,7 @@ class MesaStepper(Stepper):
                 rule.function(model)
 
     def _remember(self) -> None:
-        """Record the states that agent types remember, at the end of a step."""
+        """Record the states that the element types of agents remember, at the end of a step."""
         remembering = {}
         for spec in self.problem_.agents:
             agent_type = spec.element.element if isinstance(spec.element, Group) else type(spec.element)
@@ -1123,9 +1119,6 @@ class MesaStepper(Stepper):
             state:
                 The agents and reporters.
         """
-        system = self.problem_.system
-        if isinstance(system, MesaSystem):
-            return _wrapped_snapshot(system, self.model_)
         groups = {}
         for spec in self.problem_.agents:
             agents = self.group_agents(spec.path)
@@ -1174,19 +1167,16 @@ def _snapshot_of(agents: list[mesa.Agent], reporters: Mapping[str, Callable[[mes
     return AgentSnapshot(ids, values, np.asarray(locations) if has_locations else None)
 
 
-def _wrapped_snapshot(system: MesaSystem, model: mesa.Model) -> AgentState:
-    """Return the agents and reporters of a wrapped Mesa model."""
-    reporters = {
-        name: (lambda agent, attribute=reporter: getattr(agent, attribute)) if isinstance(reporter, str) else reporter
-        for name, reporter in (system.agent_reporters or {}).items()
-    }
-    path = f'{system.label}/{system.agents}'
-    snapshot = _snapshot_of(list(model.agents), reporters)
-    values = {
-        f'{system.label}.{name}': float(reporter(model)) for name, reporter in (system.model_reporters or {}).items()
-    }
-    values[f'{path}.count'] = float(len(snapshot))
-    return AgentState({path: snapshot}, values)
+def _check_variable(spec: CompiledAgents, action: str) -> None:
+    """Raise an error when a rule changes the size of an agent element or of a group that is not variable."""
+    if isinstance(spec.element, Group) and spec.element.variable:
+        return
+    error_msg = (
+        f'A rule tries to {action} an agent of {spec.path}, whose size is fixed. Declare the group with '
+        '`variable=True`, such as `Element.group(label, size, variable=True)`, for its members to be created and '
+        'removed during a run.'
+    )
+    raise SimulationError(error_msg)
 
 
 def _member_value(value: object, index: int, size: int) -> object:
@@ -1209,16 +1199,10 @@ def _member_location(location: object, index: int, size: int) -> object:
 
 
 def _shared_default(element_type: type, name: str) -> object:
-    """Return the default of a state of an agent type."""
+    """Return the default of a state of an element type."""
     field = next(field for field in dataclasses.fields(element_type) if field.name == name)
     factory = field.default_factory
     return factory() if callable(factory) else field.default
-
-
-def _typed_like(reference: object, value: object) -> object:
-    """Return a value with the integer type of a reference value when the reference is an integer."""
-    number = float(np.ravel(np.asarray(value, dtype=float))[0])
-    return round(number) if isinstance(reference, int) and not isinstance(reference, bool) else number
 
 
 register_solver('mesa', MesaStepper, default=True)

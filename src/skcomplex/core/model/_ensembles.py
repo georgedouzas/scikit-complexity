@@ -10,13 +10,13 @@ import numpy as np
 import numpy.typing as npt
 
 from ..base import ValidationError
-from ._components import AgentType, Element, Group
+from ._components import Element, Group, runs_rules
 from ._systems import System
 
 
 def _check_plain(system: System) -> None:
     """Raise an error unless a system holds single elements alone."""
-    plain = all(isinstance(item, Element) and not isinstance(item, AgentType) for item in system.elements)
+    plain = all(isinstance(item, Element) and not runs_rules(item) for item in system.elements)
     if system.interactions or system.systems or not plain:
         error_msg = (
             f'Only systems of plain single elements replicate, but {system.label!r} has interactions, child systems, '

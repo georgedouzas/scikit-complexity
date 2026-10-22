@@ -21,33 +21,16 @@ from ..base import (
     VisualSpec,
     companions_of,
     declaration_of,
+    declarations_of,
     parameter,
     role,
     state,
+    symbol,
 )
 from ._lattices import LatticeSpace
-from ._laws import Law
+from ._laws import Law, Rule
 from ._spaces import NetworkSpace, Space
 from ._symbols import Symbols
-
-AGENT_VIEW_NAMES = frozenset(
-    {
-        'id',
-        'group',
-        'group_label',
-        'location',
-        'alive',
-        'neighbor_cells',
-        'neighbors',
-        'agents_here',
-        'move_to',
-        'remove',
-        'create',
-        'displacement_to',
-        'distance_to',
-    },
-)
-MESA_AGENT_NAMES = frozenset({'position', 'pos', 'cell', 'unique_id', 'model'})
 
 
 def _check_reserved(cls: type, reserved: frozenset[str]) -> None:
@@ -166,6 +149,13 @@ class Element(Component):
     Subclasses declare their states with `state` and their parameters with `parameter`, and can override `laws` to
     return their intrinsic dynamics. The class variable `visual` names how the state is drawn.
 
+    An element whose laws include `Rule` laws, alone or in a group, is an agent: under discrete time it runs on the
+    agent stepper, whose rules receive every member as an agent with its states as attributes. Its states then hold
+    any value, not only numbers. The class variable `remembers` maps state names to the number of past values the
+    stepper keeps of them, which `memory` returns. A member is removed only when its states tagged with a quantity are
+    settled to zero, and its states and parameters cannot take the names of the agent view, such as `location` or
+    `alive`, or of the attributes Mesa reads, such as `position` or `model`.
+
     Args:
         label:
             The label of the element, unique among the children of its system.
@@ -182,8 +172,9 @@ class Element(Component):
     component_kind: ClassVar[ComponentKind] = ComponentKind.ELEMENT
     requires: ClassVar[Requires] = Requires()
 
-    reserved_names: ClassVar[frozenset[str]] = frozenset({'label', 'visual'})
+    reserved_names: ClassVar[frozenset[str]] = frozenset({'label', 'visual', 'remembers'})
     visual: ClassVar[VisualSpec] = VisualSpec()
+    remembers: ClassVar[Mapping[str, int]] = {}
 
     @classmethod
     def define(
@@ -247,6 +238,8 @@ class Element(Component):
         /,
         *,
         visual: VisualSpec | None = None,
+        variable: bool = False,
+        location: object = None,
         **values: object,
     ) -> 'Group':
         """Return a group of identical members of this element type.
@@ -263,6 +256,13 @@ class Element(Component):
             visual:
                 The visual of the group, or `None` to use the visual of the element type.
 
+            variable:
+                Whether laws add and remove members during a run, such as the births and deaths of agents.
+
+            location:
+                The initial places of agents in the space: cell coordinates, a network node, or a position, one per
+                member or one shared by every member, or `None` for random places.
+
             **values:
                 Per-member arrays whose first dimension is `size`, or values shared by every member.
 
@@ -275,7 +275,7 @@ class Element(Component):
             >>> Population.group('herds', 3, n=[10, 20, 30])
             Group('herds', element=Population, size=3)
         """
-        return Group(label, element=cls, size=size, values=values, visual=visual)
+        return Group(label, element=cls, size=size, values=values, visual=visual, variable=variable, location=location)
 
     @classmethod
     def lattice(
@@ -335,50 +335,6 @@ class Element(Component):
         default = 'image' if space.geometry == 'square' else 'sites'
         visual = _lattice_visual(cls, visual, default)
         return Group(label, element=cls, size=space.size, values=flat, visual=visual, space=space, on='sites')
-
-
-class AgentType(Element):
-    """Base class of agents, whose behaviour is a list of rules and whose groups change size during a run.
-
-    States are attributes of every agent and parameters are shared by every agent of a group. `laws` returns `Rule`
-    laws whose functions take the agent and the model, and `Invariant` laws whose functions of the agent the stepper
-    checks after every step. States tagged with a quantity must be settled to zero with transfers before an agent is
-    removed. Agent groups are created with `group` like any element group.
-    States and parameters cannot take the names of the attributes and methods of the agent views rules receive, or
-    the names `position`, `pos`, `cell`, `unique_id`, and `model` that Mesa reads from agents. The class variable
-    `remembers` maps state names to the number of past values the stepper keeps of them, which `memory` returns.
-
-    Args:
-        label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, cell coordinates, a network node, or a position, or one location per agent of a
-            group, or `None` for random places.
-
-    Examples:
-        >>> from skcomplex.core.base import state
-        >>> from skcomplex.core.model import AgentType, Rule
-        >>> class Walker(AgentType):
-        ...     steps: float = state(0.0)
-        ...
-        ...     def laws(self, s):
-        ...         return [Rule(self.walk)]
-        ...
-        ...     def walk(self, agent, model):
-        ...         agent.steps += 1
-        >>> Walker.group('walkers', 5)
-        Group('walkers', element=Walker, size=5)
-    """
-
-    component_kind: ClassVar[ComponentKind] = ComponentKind.VARIABLE_GROUP
-
-    reserved_names: ClassVar[frozenset[str]] = frozenset(
-        {'label', 'visual', 'remembers', *AGENT_VIEW_NAMES, *MESA_AGENT_NAMES},
-    )
-    visual: ClassVar[VisualSpec] = VisualSpec('agents')
-    remembers: ClassVar[Mapping[str, int]] = {}
-    location: object = None
 
 
 class Aggregate(Element):
@@ -460,6 +416,83 @@ def part_count(space: Space, on: str, label: str) -> int:
     raise SpaceError(error_msg)
 
 
+class _FreeSymbols(Symbols):
+    """Namespace that returns a free symbol for every name, so laws can be listed before the states are declared."""
+
+    def __getattr__(self, name: str) -> Any:  # noqa: ANN401
+        """Return a free symbol of the name."""
+        if name.startswith('__'):
+            raise AttributeError(name)
+        return symbol(name)
+
+
+def probe_laws(component: object) -> list[Law] | None:
+    """Return the laws of a component for a namespace of free symbols, before its states are declared.
+
+    A group returns the laws of a representative member, and an interaction reads one namespace of free symbols per
+    role. Laws that cannot be written with free symbols, such as laws that index a vector state, are not listed.
+
+    Args:
+        component:
+            The element, group, or interaction.
+
+    Returns:
+        laws:
+            The laws, or `None` when they cannot be listed.
+
+    Examples:
+        >>> from skcomplex.core.model import Element, Rule, probe_laws
+        >>> Walker = Element.define('Walker', laws=lambda s: [Rule(lambda agent, model: None)])
+        >>> [type(law).__name__ for law in probe_laws(Walker('walker'))]
+        ['Rule']
+    """
+    if isinstance(component, Group):
+        component_type: type = component.element
+    elif isinstance(component, Component):
+        component_type = type(component)
+    else:
+        return None
+    if component_type.laws is Component.laws:
+        return []
+    roles = declarations_of(component_type, VariableKind.ROLE) if isinstance(component, Interaction) else {}
+    try:
+        member = (
+            component.element(component.label, **(component.values or {}))
+            if isinstance(component, Group)
+            else component
+        )
+        return list(member.laws(_FreeSymbols(**{name: _FreeSymbols() for name in roles})))
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def runs_rules(component: object) -> bool:
+    """Check whether a component runs rules of its own: a variable group, or an element or group with rule laws.
+
+    Such a component is an agent. The compiler also makes agents of the groups whose element type has no laws of its
+    own in a system with rules, unless an interaction whose laws are not rules binds them.
+
+    Args:
+        component:
+            The element, group, interaction, or system.
+
+    Returns:
+        runs_rules:
+            Whether the component is a variable group, or an element or group whose own laws include a `Rule`.
+
+    Examples:
+        >>> from skcomplex.core.model import Element, Rule, runs_rules
+        >>> Walker = Element.define('Walker', laws=lambda s: [Rule(lambda agent, model: None)])
+        >>> runs_rules(Walker('walker')), runs_rules(Element.define('Plain')('plain'))
+        (True, False)
+    """
+    if isinstance(component, Group) and component.variable:
+        return True
+    if not isinstance(component, Element | Group):
+        return False
+    return any(isinstance(law, Rule) for law in probe_laws(component) or [])
+
+
 class Group(BaseEstimator):
     """Group of identical elements of one type, whose variables are arrays with one row per member.
 
@@ -487,11 +520,15 @@ class Group(BaseEstimator):
             space of the enclosing system.
 
         variable:
-            Whether laws add and remove members during a run. Groups of agent types are always variable.
+            Whether laws add and remove members during a run, such as the births and deaths of agents.
 
         on:
             The part of the space with one member each, `'sites'`, `'edges'`, or `'hyperedges'`, or `None` for members
             that are not tied to parts of the space. With a part and no size, the size is the number of parts.
+
+        location:
+            The initial places of agents in the space: cell coordinates, a network node, or a position, one per member
+            or one shared by every member, or `None` for random places. Only the agent stepper reads it.
 
     Raises:
         SpaceError:
@@ -520,6 +557,7 @@ class Group(BaseEstimator):
         space: Space | None = None,
         variable: bool = False,
         on: str | None = None,
+        location: object = None,
     ) -> None:
         self.label = label
         self.element = element
@@ -529,14 +567,10 @@ class Group(BaseEstimator):
         self.space = space
         self.variable = variable
         self.on = on
+        self.location = location
         if on is not None and on not in PARTS:
             error_msg = f'Group {label!r} lives on {on!r}. Use one of {", ".join(PARTS)}.'
             raise SpaceError(error_msg)
-
-    @property
-    def is_variable(self) -> bool:
-        """Check whether laws add and remove members, as for every group of agents."""
-        return self.variable or issubclass(self.element, AgentType)
 
     def __repr__(self, N_CHAR_MAX: int = 700) -> str:
         """Return the label, element type, and size."""
