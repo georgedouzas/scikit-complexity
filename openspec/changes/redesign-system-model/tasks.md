@@ -68,7 +68,7 @@ through the conformance suite.
   - potentials, boxes, thermostats, quantum species, and sandpile and extremal rules to `physics`;
   - turtles, tilings, substitutions, and rule codes to `mathematics`;
   - system-dynamics helpers to `engineering`.
-- [ ] 5.2 Add the field-term test and the import-graph test that keep the core application agnostic, and verify that
+- [x] 5.2 Add the field-term test and the import-graph test that keep the core application agnostic, and verify that
   both pass.
 - [ ] 5.3 Remove `MesaSystem` and `AgentType`, make Mesa a backend with its declared support, and port the gallery
   example that wrapped a Mesa model.
