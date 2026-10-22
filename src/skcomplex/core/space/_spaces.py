@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.base import BaseEstimator
 
-from ..base import SpaceKind, ValidationError
+from ..base import Requires, SpaceKind, ValidationError
 
 
 class Space(BaseEstimator):
@@ -41,6 +41,8 @@ class Adjacency:
         >>> Adjacency(center=True).center
         True
     """
+
+    requires: ClassVar[Requires] = Requires(space={SpaceKind.NETWORK})
 
     center: bool = False
 
