@@ -8,9 +8,10 @@ from typing import Any
 import numpy as np
 
 from ....core.base import Domain, parameter, state
-from ....core.model import AgentType, DiscreteTime, Institution, Law, Observable, Phase, Phases, Rule, Symbols, System
+from ....core.model import AgentType, DiscreteTime, Law, Observable, Phase, Phases, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ..realizations import Institution
 
 TOLERANCE = 1e-9
 

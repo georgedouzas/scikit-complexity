@@ -730,7 +730,7 @@ class MesaStepper(Stepper):
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.DISCRETE},
         space=set(SpaceKind),
-        laws={LawKind.RULE, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.MATCH},
+        laws={LawKind.RULE, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.MATCH, LawKind.INVARIANT},
         domains=set(DomainKind) - {DomainKind.HILBERT},
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.VARIABLE_GROUP, ComponentKind.SYSTEM},
     )
@@ -767,6 +767,7 @@ class MesaStepper(Stepper):
         self._live: Vector | None = None
         self._state: Vector = problem.initial_state
         self._evaluator: ObservableEvaluator | None = None
+        self._invariant_values: dict[tuple[int, str, str], float] = {}
         if isinstance(problem.system, MesaSystem):
             self._build_wrapped(problem.system)
             return
@@ -788,6 +789,7 @@ class MesaStepper(Stepper):
                 self.reports_[f'{path}.{name}'] = math.nan
         for spec in problem.agents:
             self._populate(spec)
+        self._check_invariants()
 
     def _agent_class(self, spec: CompiledAgents) -> type:
         """Return the Mesa agent class of a group, created on first use."""
@@ -983,16 +985,17 @@ class MesaStepper(Stepper):
                     self._run_phase(phase)
             self.round_ = 0
         self._remember()
-        self._check_identities()
+        self._check_invariants()
 
-    def _check_identities(self) -> None:
-        """Check the accounting identities that agent types declare, after every step."""
+    def _check_invariants(self) -> None:
+        """Check the invariants of every agent against their values when the agent was first checked."""
         for spec in self._specs.values():
-            identities = getattr(_agent_type(spec), 'identities', ())
-            for agent in self.group_agents(spec.path) if identities else ():
+            for agent in self.group_agents(spec.path) if spec.invariants else ():
                 view = AgentView(agent, self)
-                for identity in identities:
-                    identity.check(view, f'agent {view.id} of {spec.path}')
+                for invariant in spec.invariants:
+                    key = (agent.unique_id, spec.path, invariant.label)
+                    first = self._invariant_values.setdefault(key, float(invariant.expression(view)))
+                    invariant.check(view, first, f'agent {view.id} of {spec.path}')
 
     def _ordered_agents(self, phase: Phase) -> list[mesa.Agent]:
         """Return the agents of a phase in the order of its activation policy."""

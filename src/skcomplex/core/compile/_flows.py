@@ -250,6 +250,9 @@ class StockFlowPass:
         labels: set[str] = set()
         expanded: list[Law] = []
         for index, law in enumerate(laws):
+            if isinstance(law, Invariant) and law.is_member:
+                expanded.append(law)
+                continue
             if isinstance(law, Auxiliary | Transfer | Invariant):
                 label = law.label or f'flow_{index}'
                 if label in labels:

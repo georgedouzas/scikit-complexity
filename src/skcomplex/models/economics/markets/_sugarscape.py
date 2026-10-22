@@ -9,9 +9,10 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.model import AgentType, DiscreteTime, Institution, LatticeSpace, Law, Phase, Phases, Rule, Symbols, System
+from ....core.model import AgentType, DiscreteTime, LatticeSpace, Law, Phase, Phases, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ..realizations import Institution
 
 type Array = npt.NDArray[np.float64]
 

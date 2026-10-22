@@ -5,34 +5,39 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.base import SimulationError, parameter, state
+from skcomplex.core.base import SimulationError, parameter, role, state
 from skcomplex.core.model import (
     AgentType,
-    BilateralSearch,
-    CallAuction,
-    DeferredAcceptance,
     DiscreteTime,
-    Institution,
+    Interaction,
     LatticeSpace,
-    Market,
+    Match,
     Observable,
-    Order,
-    OrderBook,
     Phase,
     Phases,
-    RationedQueue,
     Rule,
-    SampleAndSwitch,
     System,
-    Walrasian,
-    evolve,
-    heuristics,
-    imitate,
-    logit_choice,
-    logit_probabilities,
+    matches,
     memory,
 )
 from skcomplex.core.runtime import Simulation
+from skcomplex.models.economics.realizations import (
+    BilateralSearch,
+    CallAuction,
+    DeferredAcceptance,
+    Institution,
+    Market,
+    Order,
+    OrderBook,
+    RationedQueue,
+    SampleAndSwitch,
+    Walrasian,
+    evolve,
+    heuristics,
+    logit_choice,
+    logit_probabilities,
+)
+from skcomplex.models.social.realizations import imitate
 
 
 class Employer(AgentType):
@@ -477,3 +482,47 @@ def test_evolve_operators():
     assert real.shape == (6, 3)
     with pytest.raises(ValueError, match='selection'):
         evolve(genomes, fitness, rng, select='lottery')
+
+
+class LimitTrader(AgentType):
+    """Trader with a limit price on both sides of the book."""
+
+    bid: float = state(0.0)
+    ask: float = state(math.inf)
+
+    def laws(self, s):
+        """Return no rules."""
+        return []
+
+
+class Book(Interaction):
+    """Interaction that pairs buyers with sellers by an order book and records the pairs."""
+
+    buyers: str = role()
+    sellers: str = role()
+
+    def laws(self, s):
+        """Return the matching and the rule that records it."""
+        return [Match('buyers', 'sellers', pairing=OrderBook(arrival='sequential'), label='trades'), Rule(self.record)]
+
+    def record(self, model):
+        """Record the ids of the buyer and seller of every pair, and the id of the earliest seller."""
+        PAIRS.extend((buyer.id, seller.id) for buyer, seller in matches(model, 'trades'))
+        EARLIEST.append(min(agent.id for agent in model.agents('sellers')))
+
+
+PAIRS = []
+EARLIEST = []
+
+
+def test_order_book_is_a_pairing_of_the_matching_law():
+    """Of two same-price sell orders, the earlier one trades first when the order book pairs a matching law."""
+    PAIRS.clear()
+    EARLIEST.clear()
+    system = System(
+        components=[LimitTrader.group('buyers', 1, bid=10.0), LimitTrader.group('sellers', 2, ask=10.0)],
+        interactions=[Book('book', buyers='buyers', sellers='sellers')],
+    )
+    Simulation(system).run(1)
+    assert len(PAIRS) == 1
+    assert PAIRS[0][1] == EARLIEST[0]

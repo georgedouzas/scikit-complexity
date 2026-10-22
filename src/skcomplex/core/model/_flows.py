@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import pickle  # nosec B403: pickles the invariant's function to check that it pickles, and never loads
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -12,10 +13,12 @@ from sage.all__sagemath_symbolics import SR
 from sage.symbolic.function import BuiltinFunction
 
 from ..base import (
+    ConservationError,
     DomainKind,
     Expression,
     LawKind,
     Requires,
+    SymbolicVector,
     ValidationError,
     symbol,
 )
@@ -199,14 +202,15 @@ class Invariant:
 
     The trajectory records the expression under `<component path>.<label>`, and every run checks at every frame that it
     differs from its value at the first frame by no more than the tolerance, raising an error that names the invariant
-    and the first frame that breaks it.
+    and the first frame that breaks it. A group of agents declares an invariant of each member as a module-level
+    function of the member, which the agent stepper checks after every step against the member's first value.
 
     Args:
         label:
             The name of the invariant, unique among the transfers, auxiliaries, and invariants of its component.
 
         expression:
-            The expression of states and parameters.
+            The expression of states and parameters, or a module-level function of a member of an agent group.
 
         tolerance:
             The largest change from the first frame that the run accepts.
@@ -228,7 +232,92 @@ class Invariant:
 
     def __post_init__(self) -> None:
         """Check the expression of the invariant."""
-        _check_value(self, 'expression', f'expression of the invariant {self.label}')
+        if not self.is_member:
+            _check_value(self, 'expression', f'expression of the invariant {self.label}')
+            return
+        try:
+            pickle.dumps(self.expression)
+        except (pickle.PicklingError, AttributeError, TypeError) as error:
+            error_msg = (
+                f'The function of the invariant {self.label!r} cannot be pickled: {error}. Use a module-level function.'
+            )
+            raise ValidationError(error_msg) from error
+
+    @property
+    def is_member(self) -> bool:
+        """Whether the invariant is a function of each member of an agent group."""
+        return callable(self.expression) and not isinstance(self.expression, Expression | SymbolicVector)
+
+    def check(self, member: Any, first: float, name: str) -> None:  # noqa: ANN401
+        """Raise an error when the invariant of a member moved from its first value by more than the tolerance.
+
+        Args:
+            member:
+                The member, as rules receive it.
+
+            first:
+                The value of the invariant when the member was first checked.
+
+            name:
+                The name of the member in the message, such as its group and id.
+
+        Raises:
+            ConservationError:
+                The invariant changed by more than the tolerance.
+        """
+        difference = float(self.expression(member)) - first
+        if abs(difference) > self.tolerance:
+            error_msg = (
+                f'The invariant {self.label!r} of {name} does not hold: it changed by {difference:.6g}. Change '
+                'the states it reads with transfers, or change all of them in the same rule.'
+            )
+            raise ConservationError(error_msg)
+
+
+def transfer(source: Any, sink: Any, amount: float, state: str, sink_state: str | None = None) -> None:  # noqa: ANN401
+    """Move an amount of a quantity from one agent to another at once, inside a rule.
+
+    It is the imperative form of `Transfer` for agent rules. Both holdings change together, so the total of the quantity
+    over all agents is unchanged, and a negative holding is an amount the agent owes.
+
+    Args:
+        source:
+            The agent the amount leaves, as the rule receives it.
+
+        sink:
+            The agent the amount enters.
+
+        amount:
+            The amount moved, negative to move it the other way.
+
+        state:
+            The state of the source that holds the quantity.
+
+        sink_state:
+            The state of the sink that holds the quantity, or `None` for `state`.
+
+    Raises:
+        ValidationError:
+            An agent has no such state.
+
+    Examples:
+        >>> from types import SimpleNamespace
+        >>> from skcomplex.core.model import transfer
+        >>> first, second = SimpleNamespace(level=10.0), SimpleNamespace(level=0.0)
+        >>> transfer(first, second, 4.0, 'level')
+        >>> first.level, second.level
+        (6.0, 4.0)
+    """
+    target = state if sink_state is None else sink_state
+    for agent, name in ((source, state), (sink, target)):
+        if not hasattr(agent, name):
+            error_msg = f'The transfer of {amount} reads the state {name!r}, which the agent {agent!r} does not have.'
+            raise ValidationError(error_msg)
+    if source is sink and state == target:
+        return
+    source_value, sink_value = getattr(source, state), getattr(sink, target)
+    setattr(source, state, source_value - amount)
+    setattr(sink, target, sink_value + amount)
 
 
 def lookup(value: object, points: Sequence[Sequence[float]]) -> Expression:

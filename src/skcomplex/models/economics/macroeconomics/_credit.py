@@ -13,18 +13,16 @@ from ....core.model import (
     AgentType,
     DiscreteTime,
     Law,
-    Market,
     Observable,
     Phase,
     Phases,
     Rule,
-    SampleAndSwitch,
     Symbols,
     System,
-    Trade,
 )
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ..realizations import Market, SampleAndSwitch, Trade
 
 type Array = npt.NDArray[np.float64]
 

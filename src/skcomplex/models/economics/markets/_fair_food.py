@@ -19,10 +19,10 @@ from ....core.model import (
     Rule,
     Symbols,
     System,
-    logit_choice,
 )
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ..realizations import logit_choice
 
 
 class Consumer(AgentType):

@@ -1,4 +1,4 @@
-"""Learning blocks of agent rules: memories, forecasting heuristics, logit choice, imitation, and evolution."""
+"""Learning blocks of agent rules: forecasting heuristics, logit choice, and evolution."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,42 +15,6 @@ type Array = npt.NDArray[np.float64]
 type Score = str | Callable[[Any], float]
 
 SELECTIONS = ('tournament', 'roulette', 'truncation')
-
-
-def memory(agent: Any, state: str, window: int | None = None) -> Array:  # noqa: ANN401
-    """Return the past values of a state of an agent, recorded at the end of every step, the last one last.
-
-    The stepper records the states that the agent type lists in its class variable `remembers`, which maps each state
-    to the number of values kept.
-
-    Args:
-        agent:
-            The agent view a rule receives.
-
-        state:
-            The name of a remembered state.
-
-        window:
-            The number of last values, or `None` for every kept value.
-
-    Returns:
-        values:
-            The values, an empty array before the first step.
-
-    Raises:
-        KeyError:
-            The agent type does not remember the state.
-    """
-    mesa_agent = object.__getattribute__(agent, '_agent')
-    stepper = object.__getattribute__(agent, '_stepper')
-    element = stepper.spec_of(mesa_agent).element
-    agent_type = getattr(element, 'element', type(element))
-    if state not in (getattr(agent_type, 'remembers', None) or {}):
-        error_msg = f'{agent_type.__name__} does not remember {state!r}. List it in the class variable `remembers`.'
-        raise KeyError(error_msg)
-    values = list(getattr(mesa_agent, 'memories_', {}).get(state, ()))
-    values = values if window is None else values[len(values) - min(window, len(values)) :]
-    return np.asarray(values, dtype=float)
 
 
 def _adaptive(history: Sequence[float], previous: float, weight: float = 0.65) -> float:
@@ -86,7 +50,7 @@ heuristics.__doc__ = """Forecasting heuristics of Anufriev and Hommes, functions
 - `fundamental(history, fundamental, reversion)` gives `F + v (x(t) - F)`.
 
 Examples:
-    >>> from skcomplex.core.model import heuristics
+    >>> from skcomplex.models.economics.realizations import heuristics
     >>> heuristics.trend([1.0, 2.0], strength=0.5)
     2.5
 """
@@ -107,7 +71,7 @@ def logit_probabilities(utilities: npt.ArrayLike, intensity: float) -> Array:
             One probability per option.
 
     Examples:
-        >>> from skcomplex.core.model import logit_probabilities
+        >>> from skcomplex.models.economics.realizations import logit_probabilities
         >>> logit_probabilities([0.0, 0.0], 1.0).tolist()
         [0.5, 0.5]
     """
@@ -137,53 +101,12 @@ def logit_choice(utilities: npt.ArrayLike, intensity: float, rng: np.random.Gene
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.model import logit_choice
+        >>> from skcomplex.models.economics.realizations import logit_choice
         >>> logit_choice([0.0, 100.0], 10.0, np.random.default_rng(0))
         1
     """
     probabilities = logit_probabilities(utilities, intensity)
     return int(rng.choice(len(probabilities), p=probabilities))
-
-
-def _scorer(score: Score) -> Callable[[Any], float]:
-    """Return a function of an agent from a state name or a function."""
-    if isinstance(score, str):
-        return lambda agent: float(getattr(agent, score))
-    return score
-
-
-def imitate(agent: Any, neighbors: Sequence[Any], score: Score, states: str | Sequence[str]) -> Any:  # noqa: ANN401
-    """Copy states of the neighbour with the best score when it scores better than the agent.
-
-    In a simultaneous phase the agent reads its neighbours' states from the start of the phase.
-
-    Args:
-        agent:
-            The agent view.
-
-        neighbors:
-            The neighbouring agent views.
-
-        score:
-            The state name or the function of an agent that scores it, such as its payoff.
-
-        states:
-            The name or names of the states copied, such as the strategy.
-
-    Returns:
-        model:
-            The imitated neighbour, or the agent itself when no neighbour scores better.
-    """
-    scorer = _scorer(score)
-    best, best_score = agent, scorer(agent)
-    for neighbor in neighbors:
-        value = scorer(neighbor)
-        if value > best_score:
-            best, best_score = neighbor, value
-    if best is not agent:
-        for name in [states] if isinstance(states, str) else states:
-            setattr(agent, name, getattr(best, name))
-    return best
 
 
 def _select(fitness: Array, count: int, select: str, rng: np.random.Generator, size: int) -> npt.NDArray[np.intp]:
@@ -258,7 +181,7 @@ def evolve(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.model import evolve
+        >>> from skcomplex.models.economics.realizations import evolve
         >>> genomes = np.array([[0, 0, 0, 0], [1, 1, 1, 1]])
         >>> evolve(genomes, [0.0, 1.0], np.random.default_rng(0), select='truncation', mutation=0.0).tolist()
         [[1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0]]

@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ..base import Expression, Form, SymbolicVector, VisualSpec, real_components_of
-from ..model import Element, Group, Interaction, Rule, Space, System
+from ..model import Element, Group, Interaction, Invariant, Rule, Space, System
 from ._hybrid import Breakpoints, CompiledEvent, Delay
 from ._lattices import LatticeStep, lattice_shape
 from ._layout import Layout
@@ -188,6 +188,9 @@ class CompiledAgents:
 
         visual:
             The visual that draws the agents.
+
+        invariants:
+            The invariants of every agent, functions of the agent the stepper checks after every step.
     """
 
     path: str
@@ -198,6 +201,7 @@ class CompiledAgents:
     parameters: Mapping[str, str]
     rules: tuple[Rule, ...]
     visual: VisualSpec
+    invariants: tuple[Invariant, ...] = ()
 
 
 @dataclass(frozen=True)

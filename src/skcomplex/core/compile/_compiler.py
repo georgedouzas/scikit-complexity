@@ -2171,6 +2171,9 @@ def _compile_mesa(system: MesaSystem) -> Problem:
 def _compiled_agents(blocks: list[_Block], specs: list[tuple[_KernelSpec, list[Law]]]) -> tuple[CompiledAgents, ...]:
     """Return the agent types and groups with their states, initial values, parameters, and rules."""
     rules = {spec.owner: tuple(law for law in laws if isinstance(law, Rule)) for spec, laws in specs}
+    invariants = {
+        spec.owner: tuple(law for law in laws if isinstance(law, Invariant) and law.is_member) for spec, laws in specs
+    }
     agents = []
     for block in blocks:
         node = block.node
@@ -2195,6 +2198,7 @@ def _compiled_agents(blocks: list[_Block], specs: list[tuple[_KernelSpec, list[L
                 parameters={name: entry.name for name, entry in block.entries.items()},
                 rules=rules.get(node.path, ()),
                 visual=_visual_of(node),
+                invariants=invariants.get(node.path, ()),
             ),
         )
     return tuple(agents)
@@ -2602,7 +2606,8 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
     kinds: dict[str, set[type]] = defaultdict(set)
     for spec, laws in specs:
         for law in laws:
-            kinds[_law_owner(spec, law, agents)].add(_kind(law))
+            if not (isinstance(law, Invariant) and law.is_member):
+                kinds[_law_owner(spec, law, agents)].add(_kind(law))
     try:
         form = _infer_form(kinds.values())
     except IncompatibleLawsError:

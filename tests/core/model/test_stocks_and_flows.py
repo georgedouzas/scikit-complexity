@@ -16,7 +16,7 @@ from skcomplex.core.model import (
     Auxiliary,
     Boundary,
     Element,
-    Identity,
+    Invariant,
     Rate,
     Rule,
     Sink,
@@ -247,11 +247,10 @@ class Bank(AgentType):
     assets: float = state(10.0)
     liabilities: float = state(8.0)
     equity: float = state(2.0)
-    identities = (Identity('assets == liabilities + equity', _balance),)
 
     def laws(self, s):
-        """Return the rule that loses assets."""
-        return [Rule(self.lose)]
+        """Return the rule that loses assets and the invariant of the balance."""
+        return [Rule(self.lose), Invariant('assets == liabilities + equity', _balance)]
 
     def lose(self, agent, model):
         """Lower the assets by 1."""
@@ -296,8 +295,8 @@ def _credit_system(settles):
     )
 
 
-def test_identity_violation_names_the_bank_the_identity_and_the_difference():
-    """Test that lowering assets alone breaks the balance-sheet identity after the step."""
+def test_member_invariant_violation_names_the_agent_the_invariant_and_the_change():
+    """Test that lowering assets alone breaks the invariant of every member after the step."""
     with pytest.raises(ConservationError, match=r"'assets == liabilities \+ equity' of agent \d+ of banks.*-1"):
         Simulation(System(components=[Bank.group('banks', 1)])).run(2)
 
@@ -326,10 +325,10 @@ def test_transfer_moves_between_states_and_checks_names():
         transfer(lender, borrower, 1.0, 'cash')
 
 
-def test_identity_rejects_lambdas_and_pickles_with_functions():
-    """Test that identities take module-level functions, which pickle."""
+def test_member_invariant_rejects_lambdas_and_pickles_with_functions():
+    """Test that invariants of members take module-level functions, which pickle."""
     with pytest.raises(ValidationError, match='cannot be pickled'):
-        Identity('lambda', lambda agent: 0.0)
-    data = pickle.dumps(Identity('equity', attrgetter('equity')))
-    identity = pickle.loads(data)  # noqa: S301  # nosec B301: loads only what it dumped
-    assert identity.label == 'equity'
+        Invariant('lambda', lambda agent: 0.0)
+    data = pickle.dumps(Invariant('equity', attrgetter('equity')))
+    invariant = pickle.loads(data)  # noqa: S301  # nosec B301: loads only what it dumped
+    assert invariant.label == 'equity'

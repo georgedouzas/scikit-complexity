@@ -10,21 +10,17 @@ import numpy as np
 from ....core.base import Domain, parameter, state
 from ....core.model import (
     AgentType,
-    CallAuction,
     DiscreteTime,
-    Institution,
     Law,
-    Market,
-    OrderBook,
     Phase,
     Phases,
     Rule,
     Symbols,
     System,
-    Trade,
 )
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ..realizations import CallAuction, Institution, Market, OrderBook, Trade
 
 PROTOCOLS = ('order_book', 'call_auction')
 

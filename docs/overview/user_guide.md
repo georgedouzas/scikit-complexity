@@ -627,14 +627,14 @@ dominance = loop_dominance(trajectory)
 print(dominance.loops[int(dominance.dominant[-1])].polarity)
 ```
 
-Agents keep balance sheets with ledgers. `transfer(source, sink, amount, state)` in a rule moves an amount between two
-agents at once, so debts are negative holdings and total holdings stay constant. An agent type lists its balance-sheet
-identities in the class variable `identities`, each an `Identity(label, residual)` whose residual must stay zero after
-every step, and removing an agent that still holds a tagged state raises `ConservationError` until its holdings are
-settled with transfers.
+Agents move conserved quantities between each other inside rules. `transfer(source, sink, amount, state)` moves an
+amount between two agents at once, so a negative holding is an amount owed and total holdings stay constant. An agent
+type returns an `Invariant(label, function)` among its laws for every expression of its states that must keep its first
+value, and the stepper checks it for every agent after every step. Removing an agent that still holds a tagged state
+raises `ConservationError` until its holdings are settled with transfers.
 
 ```python
-from skcomplex.core.model import AgentType, Identity, Rule, transfer
+from skcomplex.core.model import AgentType, Invariant, Rule, transfer
 
 
 def net_worth(agent):
@@ -645,10 +645,9 @@ class Trader(AgentType):
     cash: float = state(10.0, quantity='money')
     claims: float = state(0.0, quantity='claims')
     equity: float = state(10.0)
-    identities = (Identity('cash + claims == equity', net_worth),)
 
     def laws(self, s):
-        return [Rule(self.lend)]
+        return [Rule(self.lend), Invariant('cash + claims == equity', net_worth)]
 
     def lend(self, agent, model):
         borrower = model.agents('traders')[0]
@@ -1491,7 +1490,8 @@ agents learn from their past.
   next generation of strategies with the model's random stream.
 
 ```python
-from skcomplex.core.model import CallAuction, DiscreteTime, Institution, Market, Phase, Phases
+from skcomplex.core.model import DiscreteTime, Phase, Phases
+from skcomplex.models.economics.realizations import CallAuction, Institution, Market
 
 
 class Trader(AgentType):

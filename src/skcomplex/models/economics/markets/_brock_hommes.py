@@ -11,18 +11,16 @@ from ....core.base import Domain, parameter, role, state
 from ....core.model import (
     AgentType,
     DiscreteTime,
-    Institution,
     Law,
     Phase,
     Phases,
     Rule,
     Symbols,
     System,
-    heuristics,
-    logit_choice,
 )
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ..realizations import Institution, heuristics, logit_choice
 
 PREDICTORS = ('fundamentalist', 'trend')
 

@@ -10,7 +10,7 @@ import numpy.typing as npt
 from scipy import ndimage
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.model import AgentType, Institution, LatticeSpace, Law, Rule, Symbols, System
+from ....core.model import AgentType, Interaction, LatticeSpace, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -147,7 +147,7 @@ class Village(AgentType):
             agent.culture += float((int(other[feature]) - int(own[feature])) * traits**feature)
 
 
-class CultureCensus(Institution):
+class CultureCensus(Interaction):
     """Census of the cultures of the villages, which reports the share of the largest cultural region.
 
     Args:
@@ -176,6 +176,20 @@ class CultureCensus(Institution):
     villages: str = role()
     width: int = 10
     height: int = 10
+    phase: str | None = None
+
+    def laws(self, s: Symbols) -> list[Law]:
+        """Return the rule of the census in its phase.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return [Rule(self.act, phase=self.phase)]
 
     def act(self, model: ModelView) -> None:
         """Report the share of the largest region and the number of distinct cultures.

@@ -7,17 +7,16 @@ import heapq
 import itertools
 import math
 import warnings
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, field
+from types import SimpleNamespace
 from typing import Any, ClassVar
 
 import numpy as np
 from matching.games import HospitalResident
 
-from ..base import role
-from ._components import Interaction
-from ._laws import Law, Rule
-from ._symbols import Symbols
+from ....core.base import role
+from ....core.model import Interaction, Law, Rule, Symbols
 
 type Preference = Callable[[Any, Any], float]
 
@@ -78,6 +77,10 @@ class Trade:
     quantity: float
     price: float
 
+    def __iter__(self) -> Iterator[Any]:
+        """Return the buyer and the seller, so a trade is a pair of the matching law."""
+        return iter((self.buyer, self.seller))
+
 
 def _book(trades: list[Trade], buyer: Order, seller: Order, price: float) -> None:
     """Record a trade of the largest quantity both sides can trade at a price and update both orders."""
@@ -110,8 +113,47 @@ class Protocol:
     """Base class of market protocols, which match buyers with sellers and return the trades.
 
     Subclasses implement `match(buyers, sellers, model)`, which receives the orders of the participants with something
-    to trade and returns trades whose quantities respect the orders' quantities and budgets.
+    to trade and returns trades whose quantities respect the orders' quantities and budgets. A protocol is also a
+    pairing of the core's matching law: called with the buyers and sellers, it reads their orders from the states
+    `bid`, `demand`, and `money` of buyers and `ask` and `supply` of sellers, and returns the trades, which unpack as
+    pairs of buyer and seller.
     """
+
+    def __call__(
+        self,
+        left: Sequence[Any],
+        right: Sequence[Any],
+        rng: np.random.Generator,
+        capacity: int,
+    ) -> list[Trade]:
+        """Return the trades between buyers and sellers, as a pairing of the matching law.
+
+        Args:
+            left:
+                The buyers.
+
+            right:
+                The sellers.
+
+            rng:
+                The random generator.
+
+            capacity:
+                The largest number of trades of every participant, which protocols do not limit.
+
+        Returns:
+            trades:
+                The trades.
+        """
+        buyers = [
+            Order(agent, _read(agent, 'bid', math.inf), _read(agent, 'demand', 1.0), _read(agent, 'money', math.inf))
+            for agent in left
+        ]
+        sellers = [Order(agent, _read(agent, 'ask', 0.0), _read(agent, 'supply', 1.0)) for agent in right]
+        buyers = [order for order in buyers if order.quantity > 0]
+        sellers = [order for order in sellers if order.quantity > 0]
+        model = SimpleNamespace(rng=rng, storage={})
+        return self.match(buyers, sellers, model) if buyers and sellers else []
 
     def match(self, buyers: list[Order], sellers: list[Order], model: Any) -> list[Trade]:  # noqa: ANN401
         """Return the trades between buyers and sellers.
@@ -148,7 +190,7 @@ class BilateralSearch(Protocol):
             The price of a trade, `'midpoint'`, `'bid'`, or `'ask'`.
 
     Examples:
-        >>> from skcomplex.core.model import BilateralSearch
+        >>> from skcomplex.models.economics.realizations import BilateralSearch
         >>> BilateralSearch(tries=3).tries
         3
     """
@@ -195,7 +237,7 @@ class SampleAndSwitch(Protocol):
             The name of the buyer state that holds the id of its partner.
 
     Examples:
-        >>> from skcomplex.core.model import SampleAndSwitch
+        >>> from skcomplex.models.economics.realizations import SampleAndSwitch
         >>> SampleAndSwitch(sample=2, intensity=4.0).intensity
         4.0
     """
@@ -240,7 +282,7 @@ class RationedQueue(Protocol):
             The order of the queue, `'random'`, `'bid'`, or `'sequential'`.
 
     Examples:
-        >>> from skcomplex.core.model import RationedQueue
+        >>> from skcomplex.models.economics.realizations import RationedQueue
         >>> RationedQueue(order='bid').order
         'bid'
     """
@@ -309,7 +351,7 @@ class Walrasian(Protocol):
             The relative excess demand at which the adjustment stops.
 
     Examples:
-        >>> from skcomplex.core.model import Walrasian
+        >>> from skcomplex.models.economics.realizations import Walrasian
         >>> Walrasian(adjustment=0.05).iterations
         500
     """
@@ -371,7 +413,7 @@ class OrderBook(Protocol):
             The order of arrival, `'random'` or `'sequential'`.
 
     Examples:
-        >>> from skcomplex.core.model import OrderBook
+        >>> from skcomplex.models.economics.realizations import OrderBook
         >>> OrderBook().arrival
         'random'
     """
@@ -420,7 +462,7 @@ class CallAuction(Protocol):
     price is the midpoint of the last paired bid and ask, and every paired buyer and seller trades at it.
 
     Examples:
-        >>> from skcomplex.core.model import CallAuction
+        >>> from skcomplex.models.economics.realizations import CallAuction
         >>> CallAuction()
         CallAuction()
     """
@@ -487,7 +529,7 @@ class DeferredAcceptance(Protocol):
             The price of a match, `'ask'`, `'bid'`, or `'midpoint'`.
 
     Examples:
-        >>> from skcomplex.core.model import DeferredAcceptance
+        >>> from skcomplex.models.economics.realizations import DeferredAcceptance
         >>> DeferredAcceptance(pricing='bid').pricing
         'bid'
     """
@@ -617,7 +659,7 @@ class Market(Interaction):
             A function of every trade and the model view, run after the transfers, or `None`.
 
     Examples:
-        >>> from skcomplex.core.model import Market, OrderBook
+        >>> from skcomplex.models.economics.realizations import Market, OrderBook
         >>> Market('exchange', buyers='traders', sellers='traders', protocol=OrderBook()).reports
         ('price', 'volume', 'unmatched')
     """
@@ -736,7 +778,7 @@ def total_surplus(trades: Sequence[Trade], value: Callable[[Any], float], cost: 
             The total surplus.
 
     Examples:
-        >>> from skcomplex.core.model import Trade, total_surplus
+        >>> from skcomplex.models.economics.realizations import Trade, total_surplus
         >>> total_surplus([Trade('b', 's', 2.0, 5.0)], lambda buyer: 7.0, lambda seller: 4.0)
         6.0
     """

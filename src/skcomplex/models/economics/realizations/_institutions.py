@@ -6,9 +6,7 @@
 from collections.abc import Callable
 from typing import Any
 
-from ._components import Interaction
-from ._laws import Law, Rule
-from ._symbols import Symbols
+from ....core.model import Interaction, Law, Rule, Symbols
 
 
 class Institution(Interaction):
@@ -31,7 +29,7 @@ class Institution(Interaction):
             The phase the institution acts in, or `None` for the default phase.
 
     Examples:
-        >>> from skcomplex.core.model import Institution
+        >>> from skcomplex.models.economics.realizations import Institution
         >>> Institution('regulator', rule=lambda model: None).phase is None
         True
     """
