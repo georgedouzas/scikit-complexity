@@ -479,7 +479,7 @@ class Site(Element):
 class Exchange(Interaction):
     """Base class of interactions between the neighbouring members of a quantum group on a lattice or a network.
 
-    Subclasses return `Hamiltonian` and `Dissipator` laws from `laws`, written once for a bond, where `s.first` and
+    Subclasses return `Generator` and `Dissipator` laws from `laws`, written once for a bond, where `s.first` and
     `s.second` are the namespaces of its two members. The compiled system adds the laws of every bond of the space of
     the group, each pair of neighbours once.
 
@@ -491,10 +491,10 @@ class Exchange(Interaction):
             The path of the quantum group.
 
     Examples:
-        >>> from skcomplex.core.model import Exchange, Hamiltonian
+        >>> from skcomplex.core.model import Exchange, Generator
         >>> class Ising(Exchange):
         ...     def laws(self, s):
-        ...         return [Hamiltonian(s.first.z * s.second.z)]
+        ...         return [Generator(s.first.z * s.second.z)]
         >>> Ising('coupling', target='chain').target
         'chain'
     """

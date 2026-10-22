@@ -4,7 +4,19 @@
 # License: MIT
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Auxiliary, Element, Law, Sink, Source, Symbols, System, Transfer, lookup, smooth, where
+from ....core.model import (
+    Auxiliary,
+    Element,
+    Law,
+    Sink,
+    Source,
+    Symbols,
+    System,
+    Transfer,
+    distributed_delay,
+    lookup,
+    where,
+)
 from ....core.runtime import register_model
 
 ALLOCATION_TABLE = ((0.0, 0.0), (0.2, 0.05), (0.5, 0.5), (0.8, 0.95), (1.0, 1.0))
@@ -41,7 +53,7 @@ Contest = Element.define(
 def _burden_laws(s: Symbols) -> list[Law]:
     """Return the laws of a problem that a quick fix relieves while it erodes the capability of a fundamental one."""
     symptom = Auxiliary('symptom', s.desired - s.capability - s.intervention)
-    building = smooth(symptom.symbol, s.solution_delay) / s.build_time
+    building = distributed_delay(symptom.symbol, conserved=False, time=s.solution_delay) / s.build_time
     return [
         symptom,
         Transfer(Source('intervener'), s.intervention, s.fix_rate * symptom.symbol, label='fixing'),
@@ -69,8 +81,14 @@ Burden = Element.define(
 
 def _escalation_laws(s: Symbols) -> list[Law]:
     """Return the laws of two parties that each build their stock up to a margin above their view of the other's."""
-    desired_a = Auxiliary('desired_a', (1 + s.margin) * smooth(s.b, s.perception_delay))
-    desired_b = Auxiliary('desired_b', (1 + s.margin) * smooth(s.a, s.perception_delay))
+    desired_a = Auxiliary(
+        'desired_a',
+        (1 + s.margin) * distributed_delay(s.b, conserved=False, time=s.perception_delay),
+    )
+    desired_b = Auxiliary(
+        'desired_b',
+        (1 + s.margin) * distributed_delay(s.a, conserved=False, time=s.perception_delay),
+    )
     build_a = where(desired_a.symbol > s.a, desired_a.symbol - s.a, 0) / s.adjustment_time
     build_b = where(desired_b.symbol > s.b, desired_b.symbol - s.b, 0) / s.adjustment_time
     return [

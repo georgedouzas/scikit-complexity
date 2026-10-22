@@ -9,7 +9,7 @@ from ....core.base import Domain, ValidationError, parameter, role
 from ....core.model import (
     Dissipator,
     Exchange,
-    Hamiltonian,
+    Generator,
     Interaction,
     LatticeSpace,
     Operator,
@@ -98,7 +98,7 @@ class XXZExchange(Exchange):
                 The Hamiltonian of the bond.
         """
         first, second = s.first, s.second
-        return [Hamiltonian(s.J * (first.x * second.x + first.y * second.y + s.delta * first.z * second.z))]
+        return [Generator(s.J * (first.x * second.x + first.y * second.y + s.delta * first.z * second.z))]
 
 
 class ZeemanField(Interaction):
@@ -134,7 +134,7 @@ class ZeemanField(Interaction):
             laws:
                 The field Hamiltonian.
         """
-        return [Hamiltonian(-s.h * sum((member.z for member in s.target), start=Operator({})))]
+        return [Generator(-s.h * sum((member.z for member in s.target), start=Operator({})))]
 
 
 class Dephasing(Interaction):

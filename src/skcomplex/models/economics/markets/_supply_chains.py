@@ -17,7 +17,7 @@ from ....core.model import (
     Symbols,
     System,
     Transfer,
-    delay3,
+    distributed_delay,
     step,
     where,
 )
@@ -54,8 +54,8 @@ def _link_laws(s: Symbols) -> list[Law]:
     """Return the laws of a link, the mail of orders upstream and the shipping of beer downstream."""
     orders = _orders(s.downstream)
     shipments = _shipments(s.upstream)
-    received = delay3(orders, s.mail_delay)
-    arrivals = delay3(shipments, s.shipping_delay)
+    received = distributed_delay(orders, order=3, time=s.mail_delay)
+    arrivals = distributed_delay(shipments, order=3, time=s.shipping_delay)
     return [
         Rate(s.downstream.supply_line, orders - arrivals),
         Rate(s.upstream.backlog, received),
@@ -79,7 +79,7 @@ def _customer_laws(s: Symbols) -> list[Law]:
 def _brewery_laws(s: Symbols) -> list[Law]:
     """Return the laws of the brewery, which brews the orders of the factory over the production delay."""
     orders = _orders(s.factory)
-    completions = delay3(orders, s.production_delay)
+    completions = distributed_delay(orders, order=3, time=s.production_delay)
     return [
         Rate(s.factory.supply_line, orders - completions),
         Transfer(Source('brewery'), s.factory.in_transit, orders, label='starts'),

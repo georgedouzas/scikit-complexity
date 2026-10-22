@@ -23,8 +23,8 @@ from skcomplex.core.model import (
     ContinuousTime,
     DiscreteTime,
     Element,
+    Generator,
     Group,
-    Hamiltonian,
     Interaction,
     LatticeSpace,
     NetworkSpace,
@@ -252,7 +252,7 @@ class TwoLevel(Element):
 
     def laws(self, s):
         """Return the generator of the rotation about `x`."""
-        return [Hamiltonian(s.x / 2)]
+        return [Generator(s.x / 2)]
 
 
 def test_element_with_hilbert_state_runs_unitary_dynamics():

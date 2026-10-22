@@ -261,8 +261,8 @@ def hamiltonian_of(system: System | QuantumProblem) -> Operator:
 
     Examples:
         >>> from skcomplex.core.analysis import hamiltonian_of
-        >>> from skcomplex.core.model import Hamiltonian, Qubit, System
-        >>> Driven = Qubit.define('Driven', parameters={'omega': 1.0}, laws=lambda s: [Hamiltonian(s.omega / 2 * s.z)])
+        >>> from skcomplex.core.model import Generator, Qubit, System
+        >>> Driven = Qubit.define('Driven', parameters={'omega': 1.0}, laws=lambda s: [Generator(s.omega / 2 * s.z)])
         >>> hamiltonian_of(System(components=[Driven('q')]))
         1/2*omega_q*q.z
     """

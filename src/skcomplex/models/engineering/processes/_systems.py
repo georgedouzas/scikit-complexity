@@ -18,13 +18,12 @@ from ....core.model import (
     Symbols,
     System,
     Transfer,
-    delay3,
     lookup,
-    smooth,
     step,
     where,
 )
 from ....core.runtime import register_model
+from ._delays import delay3, smooth
 
 MONTHS_PER_YEAR = 12.0
 DAYS_PER_YEAR = 365.0

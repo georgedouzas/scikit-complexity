@@ -30,8 +30,8 @@ from ..base import (
 )
 from ..model import (
     Dissipator,
+    Generator,
     Group,
-    Hamiltonian,
     Interaction,
     LatticeSpace,
     Observable,
@@ -620,7 +620,7 @@ def _role_namespace(
 def _collect_laws(laws: _Laws, owner: str, items: Iterable[Any]) -> None:
     """Add the Hamiltonian and dissipator laws of a component, rejecting every other law."""
     for law in items:
-        if isinstance(law, Hamiltonian):
+        if isinstance(law, Generator):
             laws.hamiltonians.append((owner, law.operator))
         elif isinstance(law, Dissipator):
             laws.dissipators.append((owner, law.operator, law.rate))

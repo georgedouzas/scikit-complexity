@@ -4,7 +4,7 @@ from ._components import AgentType, Aggregate, Element, Group, Interaction
 from ._draws import Draw, bernoulli, categorical, draw, draws_in, is_draw, normal, uniform
 from ._ensembles import replicate
 from ._fields import Field, Flux, advection, divergence, gradient, inverse_laplacian, laplacian
-from ._flows import Auxiliary, Invariant, Sink, Source, Transfer, delay1, delay3, lookup, smooth, smooth3
+from ._flows import Auxiliary, Invariant, Sink, Source, Transfer, distributed_delay, lookup
 from ._functions import (
     both,
     delayed,
@@ -77,7 +77,7 @@ from ._markets import (
 from ._matching import Match, matches, random_pairing
 from ._meshes import Mesh
 from ._observables import Observable, reduce_values
-from ._operators import Dissipator, Hamiltonian, LocalOperator, Operator
+from ._operators import Dissipator, Generator, LocalOperator, Operator
 from ._particles import (
     ConstantForce,
     Gravity,
@@ -160,10 +160,10 @@ __all__: list[
     'Field',
     'Flux',
     'FractionalNoise',
+    'Generator',
     'GraphProduction',
     'Gravity',
     'Group',
-    'Hamiltonian',
     'HarmonicPotential',
     'HostGraph',
     'Identity',
@@ -243,10 +243,9 @@ __all__: list[
     'both',
     'categorical',
     'count',
-    'delay1',
-    'delay3',
     'delayed',
     'derivative',
+    'distributed_delay',
     'divergence',
     'draw',
     'draws_in',
@@ -285,8 +284,6 @@ __all__: list[
     'series',
     'shift_arguments',
     'shift_member',
-    'smooth',
-    'smooth3',
     'step',
     'structure_of',
     'total',

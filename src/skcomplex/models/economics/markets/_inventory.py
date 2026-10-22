@@ -4,7 +4,19 @@
 # License: MIT
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Auxiliary, Element, Law, Sink, Source, Symbols, System, Transfer, delay3, smooth, step, where
+from ....core.model import (
+    Auxiliary,
+    Element,
+    Law,
+    Sink,
+    Source,
+    Symbols,
+    System,
+    Transfer,
+    distributed_delay,
+    step,
+    where,
+)
 from ....core.runtime import register_model
 
 
@@ -12,7 +24,7 @@ def _dealer_laws(s: Symbols) -> list[Law]:
     """Return the laws of the car dealership."""
     demand = s.demand + step(s.t, s.step_time, s.demand_step)
     sales = where(s.inventory < demand, s.inventory, demand)
-    perceived = Auxiliary('perceived', smooth(sales, s.perception_delay))
+    perceived = Auxiliary('perceived', distributed_delay(sales, conserved=False, time=s.perception_delay))
     desired = Auxiliary('desired_inventory', s.coverage * perceived.symbol)
     gap_orders = perceived.symbol + (desired.symbol - s.inventory) / s.response_delay
     orders = Auxiliary('orders', where(gap_orders > 0, gap_orders, 0))
@@ -20,7 +32,12 @@ def _dealer_laws(s: Symbols) -> list[Law]:
         perceived,
         desired,
         orders,
-        Transfer(Source('factory'), s.inventory, delay3(orders.symbol, s.delivery_delay), label='deliveries'),
+        Transfer(
+            Source('factory'),
+            s.inventory,
+            distributed_delay(orders.symbol, order=3, time=s.delivery_delay),
+            label='deliveries',
+        ),
         Transfer(s.inventory, Sink('customers'), sales, label='sales'),
     ]
 

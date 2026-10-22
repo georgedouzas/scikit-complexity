@@ -10,7 +10,7 @@ from skcomplex.core.compile import compile_system
 from skcomplex.core.model import (
     Dissipator,
     Exchange,
-    Hamiltonian,
+    Generator,
     LatticeSpace,
     QuantumSystem,
     Qubit,
@@ -24,11 +24,11 @@ from skcomplex.core.solvers import LindbladEvolution, QuantumTrajectories, Unita
 OMEGA = 2.0
 GAMMA = 0.5
 
-Rabi = Qubit.define('Rabi', parameters={'omega': OMEGA}, laws=lambda s: [Hamiltonian(s.omega / 2 * s.x)])
+Rabi = Qubit.define('Rabi', parameters={'omega': OMEGA}, laws=lambda s: [Generator(s.omega / 2 * s.x)])
 Decaying = Qubit.define('Decaying', parameters={'gamma': GAMMA}, laws=lambda s: [Dissipator(s.minus, s.gamma)])
 Dephased = Qubit.define(
     'Dephased',
-    laws=lambda s: [Hamiltonian(s.x), Dissipator(s.z, 0.3)],
+    laws=lambda s: [Generator(s.x), Dissipator(s.z, 0.3)],
 )
 
 
@@ -40,7 +40,7 @@ class XXZ(Exchange):
     def laws(self, s):
         """Return the exchange of one bond."""
         a, b = s.first, s.second
-        return [Hamiltonian(a.x * b.x + a.y * b.y + s.delta * a.z * b.z)]
+        return [Generator(a.x * b.x + a.y * b.y + s.delta * a.z * b.z)]
 
 
 def total_z(s):

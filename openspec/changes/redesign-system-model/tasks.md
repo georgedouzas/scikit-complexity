@@ -57,8 +57,8 @@ through the conformance suite.
   `Move`, and `Sampler` into `Sample` with Metropolis as the only core acceptance.
 - [x] 4.2 Add `Transfer`, `Invariant`, `Match` with random pairing, and `parameter(adaptive=True)`, and verify their
   scenarios.
-- [ ] 4.3 Rename `Hamiltonian` to `Generator`, and keep `Dissipator`.
-- [ ] 4.4 Add the distributed-delay expression and named expressions, which replace the system-dynamics delays and
+- [x] 4.3 Rename `Hamiltonian` to `Generator`, and keep `Dissipator`.
+- [x] 4.4 Add the distributed-delay expression and named expressions, which replace the system-dynamics delays and
   auxiliaries.
 
 ## 5. Move realizations to the library

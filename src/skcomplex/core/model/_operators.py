@@ -225,7 +225,7 @@ class Operator:
 
 
 @dataclass(frozen=True)
-class Hamiltonian:
+class Generator:
     """Law that adds an operator to the Hamiltonian of a quantum system, with `ħ = 1`.
 
     Args:
@@ -238,10 +238,10 @@ class Hamiltonian:
 
     Examples:
         >>> import qutip
-        >>> from skcomplex.core.model import Hamiltonian, LocalOperator, Operator
+        >>> from skcomplex.core.model import Generator, LocalOperator, Operator
         >>> z = LocalOperator('z', qutip.sigmaz(), hermitian=True)
-        >>> Hamiltonian(Operator({(('q', z),): 0.5}))
-        Hamiltonian(operator=0.5*q.z)
+        >>> Generator(Operator({(('q', z),): 0.5}))
+        Generator(operator=0.5*q.z)
     """
 
     law_kind: ClassVar[LawKind] = LawKind.GENERATOR
@@ -253,7 +253,7 @@ class Hamiltonian:
         """Check that the law holds an operator."""
         if not isinstance(self.operator, Operator):
             error_msg = (
-                f'A Hamiltonian takes an operator built from local operators, such as `s.z`, but got {self.operator!r}.'
+                f'A Generator takes an operator built from local operators, such as `s.z`, but got {self.operator!r}.'
             )
             raise ValidationError(error_msg)
 

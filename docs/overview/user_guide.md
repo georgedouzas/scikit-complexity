@@ -609,10 +609,11 @@ monitored = Simulation(crowd, dt=1.0, observers=[ConservationMonitor()]).run(unt
 print(flow_matrix(monitored, -1).values.sum(axis=1))
 ```
 
-`delay1(inflow, time)` and `delay3(inflow, time)` are material delays, one or three hidden stocks in series whose
-outflow they return, and `smooth(value, time)` and `smooth3(value, time)` are information smoothings. They add hidden
-stocks `<component path>.<kind>_<index>` to rate laws of single elements and interactions, starting in equilibrium with
-their input.
+`distributed_delay(value, time, order, conserved=True)` is a material delay of any order, hidden stocks in series whose
+outflow it returns, and with `conserved=False` an information smoothing. It adds hidden stocks
+`<component path>.<kind>_delay<order>_<index>` to rate laws of single elements and interactions, starting in
+equilibrium with their input. The system-dynamics names `delay1`, `delay3`, `smooth`, and `smooth3` are its
+realizations in `skcomplex.models.engineering.processes`.
 
 `loops(system)` derives the signed dependency graph of states, auxiliaries, and flows from the laws, and lists its
 feedback loops with their polarity, and `loop_dominance(trajectory)` ranks the loops by their gains at every frame.
@@ -1699,7 +1700,7 @@ state of every subsystem is a basis label, an index, or a vector.
 ### Operators and laws
 
 Laws receive the local operators of their subsystems, which combine by sums, products, numbers, and symbolic
-coefficients of parameters and time into an `Operator`. `Hamiltonian(operator)` adds to the Hamiltonian, with
+coefficients of parameters and time into an `Operator`. `Generator(operator)` adds to the Hamiltonian, with
 `ħ = 1`, and `Dissipator(operator, rate)` adds a Lindblad dissipator, which makes the system open. An `Exchange`
 interaction is written once for a bond, with `s.first` and `s.second`, and acts on every pair of neighbours of the
 space of its group. Compiling checks that the Hamiltonian is Hermitian and that the dimension stays within the
@@ -1711,7 +1712,7 @@ from operator import attrgetter
 import numpy as np
 
 from skcomplex.core.base import parameter
-from skcomplex.core.model import Exchange, Hamiltonian, LatticeSpace, QuantumSystem, Spin, expectation
+from skcomplex.core.model import Exchange, Generator, LatticeSpace, QuantumSystem, Spin, expectation
 from skcomplex.core.runtime import Simulation
 
 
@@ -1720,7 +1721,7 @@ class Coupling(Exchange):
 
     def laws(self, s):
         a, b = s.first, s.second
-        return [Hamiltonian(s.J * (a.x * b.x + a.y * b.y + a.z * b.z))]
+        return [Generator(s.J * (a.x * b.x + a.y * b.y + a.z * b.z))]
 
 
 chain = QuantumSystem(

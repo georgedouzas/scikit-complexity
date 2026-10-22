@@ -13,9 +13,8 @@ from ....core.model import (
     Symbols,
     System,
     Transfer,
-    delay3,
+    distributed_delay,
     lookup,
-    smooth,
     step,
 )
 from ....core.runtime import register_model
@@ -30,7 +29,7 @@ def _commodity_laws(s: Symbols) -> list[Law]:
     coverage = Auxiliary('coverage', s.inventory / demand)
     price = Auxiliary('price', s.reference_price * lookup(coverage.symbol / s.desired_coverage, PRICE_TABLE))
     relative_price = price.symbol / s.reference_price
-    expected = Auxiliary('expected_price', smooth(price.symbol, s.expectation_time))
+    expected = Auxiliary('expected_price', distributed_delay(price.symbol, conserved=False, time=s.expectation_time))
     production = s.capacity * relative_price**s.supply_elasticity
     starts = Auxiliary(
         'capacity_orders',
@@ -48,7 +47,12 @@ def _commodity_laws(s: Symbols) -> list[Law]:
             demand * relative_price ** (-s.demand_elasticity),
             label='consumption',
         ),
-        Transfer(Source('construction'), s.capacity, delay3(starts.symbol, s.construction_delay), label='completions'),
+        Transfer(
+            Source('construction'),
+            s.capacity,
+            distributed_delay(starts.symbol, order=3, time=s.construction_delay),
+            label='completions',
+        ),
         Transfer(s.capacity, Sink('retirement'), s.capacity / s.lifetime, label='retirements'),
     ]
 

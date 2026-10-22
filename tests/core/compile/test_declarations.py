@@ -22,7 +22,7 @@ from skcomplex.core.compile import law_types, missing_declarations
 from skcomplex.core.model import (
     ContinuousSpace,
     Field,
-    Hamiltonian,
+    Generator,
     LatticeSpace,
     Mesh,
     NetworkSpace,
@@ -77,7 +77,7 @@ def test_missing_solver_declaration_is_named(monkeypatch):
         (Update, LawKind.UPDATE, LawClass.DISCRETE),
         (Rule, LawKind.RULE, LawClass.DISCRETE),
         (Sampler, LawKind.SAMPLE, LawClass.DISCRETE),
-        (Hamiltonian, LawKind.GENERATOR, LawClass.CONTINUOUS),
+        (Generator, LawKind.GENERATOR, LawClass.CONTINUOUS),
     ],
 )
 def test_law_kinds_and_classes(law, kind, law_class):

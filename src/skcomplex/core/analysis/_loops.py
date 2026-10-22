@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import SR
 from ..base import AnalysisError, ConservationError, Expression, symbols_of
 from ..compile import LoopTerm, Problem, StockFlow, compile_system, numpy_function
 from ..model import System
-from ..model._flows import DELAY_ORDERS
+from ..model._flows import delay_parts
 from ..runtime import Trajectory
 
 POLARITIES = {1: 'reinforcing', -1: 'balancing', 0: 'neutral'}
@@ -119,7 +119,7 @@ def _without_delays(expression: Expression) -> Expression:
     calls = {
         item: item.operands()[0]
         for item in _operations(expression)
-        if getattr(item.operator(), 'name', lambda: '')() in DELAY_ORDERS
+        if delay_parts(getattr(item.operator(), 'name', lambda: '')()) is not None
     }
     return _without_delays(SR(expression).subs(calls)) if calls else SR(expression)
 

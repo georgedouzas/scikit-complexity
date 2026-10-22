@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, ClassVar
@@ -21,8 +22,7 @@ from ..base import (
 from ._functions import series
 from ._laws import _check_value, _is_number
 
-DELAY_ORDERS = {'delay1': 1, 'delay3': 3, 'smooth': 1, 'smooth3': 3}
-MATERIAL_DELAYS = frozenset({'delay1', 'delay3'})
+DELAY_NAME = re.compile(r'^(?P<kind>material|smoothing)_delay(?P<order>[1-9][0-9]*)$')
 
 
 class _DelayFunction(BuiltinFunction):
@@ -261,107 +261,69 @@ def lookup(value: object, points: Sequence[Sequence[float]]) -> Expression:
     return series(SR(value), [x for x, _ in table], [y for _, y in table])
 
 
-def _delay(name: str, value: object, time: object) -> Expression:
-    """Return the call of a delay function after checking the delay time."""
+DELAY_FUNCTIONS: dict[str, _DelayFunction] = {}
+
+
+def delay_parts(name: str) -> tuple[bool, int] | None:
+    """Return whether a delay function conserves its input, and its order, from its name, or `None` for no delay.
+
+    Args:
+        name:
+            The name of a function.
+
+    Returns:
+        parts:
+            Whether the delay is material, and its order.
+    """
+    match = DELAY_NAME.match(name)
+    return None if match is None else (match['kind'] == 'material', int(match['order']))
+
+
+def distributed_delay(value: object, time: object, order: int = 1, *, conserved: bool = True) -> Expression:
+    """Return the output of a distributed delay of a value: hidden stages in series, each with a share of the time.
+
+    A conserved delay passes its input through the stages like a material, so its output is the outflow of the last
+    stage, `stage / (time / order)`, and its response to a pulse is the Erlang distribution of the order with the mean
+    `time`. A delay that does not conserve its input smooths it, each stage adjusting to the previous one at
+    `gap / (time / order)`, and its output starts at the value. The compiler adds the stages as hidden stocks.
+
+    Args:
+        value:
+            The symbolic input.
+
+        time:
+            The mean delay time, a positive number or an expression of parameters.
+
+        order:
+            The number of stages.
+
+        conserved:
+            Whether the delay conserves its input, as a material delay, or smooths it, as an information delay.
+
+    Returns:
+        output:
+            The symbolic output.
+
+    Raises:
+        ValueError:
+            The order is not a positive integer, or the delay time is a number that is not positive.
+
+    Examples:
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import distributed_delay
+        >>> distributed_delay(symbol('orders'), 4, order=3)
+        material_delay3(orders, 4)
+        >>> distributed_delay(symbol('sales'), 2, conserved=False)
+        smoothing_delay1(sales, 2)
+    """
+    if isinstance(order, bool) or not isinstance(order, int) or order < 1:
+        error_msg = f'A distributed delay has a positive integer order, but got {order!r}.'
+        raise ValueError(error_msg)
+    name = f'{"material" if conserved else "smoothing"}_delay{order}'
     if _is_number(time) and float(time) <= 0:  # type: ignore[arg-type]
         error_msg = f'The delay time of {name} must be positive, but got {time}.'
         raise ValueError(error_msg)
+    if name not in DELAY_FUNCTIONS:
+        DELAY_FUNCTIONS[name] = _DelayFunction(name)
     function: Any = DELAY_FUNCTIONS[name]
     return function(value, time)
-
-
-def delay1(value: object, time: object) -> Expression:
-    """Return the outflow of a first-order material delay of an inflow, one hidden stock emptied at `stock / time`.
-
-    Args:
-        value:
-            The symbolic inflow.
-
-        time:
-            The average delay time, a number or an expression of parameters.
-
-    Returns:
-        output:
-            The symbolic outflow, which the compiler replaces by the hidden stock over the delay time.
-
-    Examples:
-        >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.model import delay1
-        >>> delay1(symbol('orders'), 4)
-        delay1(orders, 4)
-    """
-    return _delay('delay1', value, time)
-
-
-def delay3(value: object, time: object) -> Expression:
-    """Return the outflow of a third-order material delay, three hidden stocks in series each with a third of the time.
-
-    The response to a step is the Erlang distribution of order 3 with the mean `time`.
-
-    Args:
-        value:
-            The symbolic inflow.
-
-        time:
-            The average delay time, a number or an expression of parameters.
-
-    Returns:
-        output:
-            The symbolic outflow.
-
-    Examples:
-        >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.model import delay3
-        >>> delay3(symbol('shipments'), 6)
-        delay3(shipments, 6)
-    """
-    return _delay('delay3', value, time)
-
-
-def smooth(value: object, time: object) -> Expression:
-    """Return the first-order information smoothing of a value, a hidden stock that adjusts at `gap / time`.
-
-    Args:
-        value:
-            The symbolic value.
-
-        time:
-            The smoothing time, a number or an expression of parameters.
-
-    Returns:
-        output:
-            The symbolic smoothed value, which starts at the value.
-
-    Examples:
-        >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.model import smooth
-        >>> smooth(symbol('sales'), 2)
-        smooth(sales, 2)
-    """
-    return _delay('smooth', value, time)
-
-
-def smooth3(value: object, time: object) -> Expression:
-    """Return the third-order information smoothing of a value, three smoothings each with a third of the time.
-
-    Args:
-        value:
-            The symbolic value.
-
-        time:
-            The smoothing time, a number or an expression of parameters.
-
-    Returns:
-        output:
-            The symbolic smoothed value, which starts at the value.
-
-    Examples:
-        >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.model import smooth3
-        >>> smooth3(symbol('sales'), 3)
-        smooth3(sales, 3)
-    """
-    return _delay('smooth3', value, time)
-
-
-DELAY_FUNCTIONS = {name: _DelayFunction(name) for name in DELAY_ORDERS}

@@ -11,7 +11,7 @@ from skcomplex.core.compile import ObservableEvaluator, QuantumProblem, compile_
 from skcomplex.core.model import (
     Dissipator,
     Exchange,
-    Hamiltonian,
+    Generator,
     LatticeSpace,
     Mode,
     QuantumSystem,
@@ -32,11 +32,11 @@ class Heisenberg(Exchange):
     def laws(self, s):
         """Return the exchange of one bond."""
         a, b = s.first, s.second
-        return [Hamiltonian(s.J * (a.x * b.x + a.y * b.y + a.z * b.z))]
+        return [Generator(s.J * (a.x * b.x + a.y * b.y + a.z * b.z))]
 
 
-Plus = Qubit.define('Plus', laws=lambda s: [Hamiltonian(s.plus)])
-Foreign = Qubit.define('Foreign', laws=lambda s: [Hamiltonian(symbol('n_rabbits') * s.z)])
+Plus = Qubit.define('Plus', laws=lambda s: [Generator(s.plus)])
+Foreign = Qubit.define('Foreign', laws=lambda s: [Generator(symbol('n_rabbits') * s.z)])
 Classical = Qubit.define('Classical', laws=lambda s: [Rate(symbol('x'), 1)])
 Decaying = Qubit.define('Decaying', parameters={'gamma': 0.5}, laws=lambda s: [Dissipator(s.minus, s.gamma)])
 Negative = Qubit.define('Negative', laws=lambda s: [Dissipator(s.minus, -1.0)])
@@ -85,7 +85,7 @@ def test_compile_system_counts_one_exchange_term_per_bond():
 
 def test_compile_system_folds_constant_hamiltonians():
     """Test that a Hamiltonian with numeric coefficients folds to one constant matrix."""
-    system = System(components=[Qubit.define('Fixed', laws=lambda s: [Hamiltonian(0.5 * s.z + s.x)])('q')])
+    system = System(components=[Qubit.define('Fixed', laws=lambda s: [Generator(0.5 * s.z + s.x)])('q')])
     problem = compile_system(system)
     assert len(problem.hamiltonian) == 1
     assert problem.hamiltonian[0].function is None

@@ -27,7 +27,7 @@ from ..base import (
 )
 from ..model import Auxiliary, Boundary, Event, Invariant, Jump, Law, Noise, Rate, Sink, Transfer, Update
 from ..model import Source as Environment
-from ..model._flows import DELAY_ORDERS, MATERIAL_DELAYS
+from ..model._flows import delay_parts
 from ._kernels import Reference
 from ._kernels import Source as Read
 from ._layout import Entry
@@ -117,7 +117,7 @@ def _delay_calls(expression: object) -> list[Expression]:
         if item.operator() is None:
             continue
         name = getattr(item.operator(), 'name', lambda: '')()
-        if name in DELAY_ORDERS and not _delay_calls(item.operands()[0]):
+        if delay_parts(name) is not None and not _delay_calls(item.operands()[0]):
             found.append(item)
         stack.extend(item.operands())
     return found
@@ -144,7 +144,7 @@ def _initial(item: Expression, spec: _Spec, declarations: _Declared) -> float:
 def _delay_laws(kind: str, stages: list[Expression], value: Expression, time: Expression) -> list[Law]:
     """Return the rate laws of the hidden stocks of a delay or a smoothing."""
     each = time / len(stages)
-    if kind in MATERIAL_DELAYS:
+    if delay_parts(kind)[0]:
         inflows = [value, *(stage / each for stage in stages[:-1])]
         return [Rate(stage, inflow - stage / each) for stage, inflow in zip(stages, inflows, strict=True)]
     inputs = [value, *stages[:-1]]
@@ -386,11 +386,11 @@ class StockFlowPass:
             call = calls[0]
             kind = str(call.operator().name())
             value, time = call.operands()
-            order = DELAY_ORDERS[kind]
+            material, order = delay_parts(kind)
             owner = re.sub(r'[^0-9A-Za-z]', '_', spec.owner)
             stages = [symbol(f'_{kind}_{counter}_{owner}_{index}') for index in range(order)]
             start = _initial(value, spec, declarations)
-            each = _initial(SR(time), spec, declarations) / order if kind in MATERIAL_DELAYS else 1.0
+            each = _initial(SR(time), spec, declarations) / order if material else 1.0
             entry = declarations.declare_state(
                 f'{spec.owner}.{kind}_{counter}',
                 np.full(order, start * each),
@@ -399,7 +399,7 @@ class StockFlowPass:
             )
             for column, stage in enumerate(stages):
                 spec.references[stage] = Reference(entry, True, column, Read.SINGLE)
-            output = stages[-1] / (time / order) if kind in MATERIAL_DELAYS else stages[-1]
+            output = stages[-1] / (time / order) if material else stages[-1]
             mapping = {call: output}
             laws[:] = [_with_auxiliaries(law, mapping) for law in laws]
             laws.extend(_delay_laws(kind, stages, value, time))

@@ -197,9 +197,9 @@ class UnitaryEvolution(QuantumSolver):
         >>> import numpy as np
         >>> from skcomplex.core.solvers import UnitaryEvolution
         >>> from skcomplex.core.runtime import Simulation
-        >>> from skcomplex.core.model import Hamiltonian, Qubit, System, expectation
+        >>> from skcomplex.core.model import Generator, Qubit, System, expectation
         >>> from operator import attrgetter
-        >>> Rabi = Qubit.define('Rabi', laws=lambda s: [Hamiltonian(s.x / 2)])
+        >>> Rabi = Qubit.define('Rabi', laws=lambda s: [Generator(s.x / 2)])
         >>> system = System(components=[Rabi('q')])
         >>> z = [expectation('z', attrgetter('q.z'))]
         >>> simulation = Simulation(system, solver=UnitaryEvolution(), dt=np.pi, observables=z).run(until=np.pi)

@@ -12,7 +12,7 @@ from ....core.model import (
     Dissipator,
     Element,
     Field,
-    Hamiltonian,
+    Generator,
     Interaction,
     LatticeSpace,
     QuantumSystem,
@@ -75,7 +75,7 @@ class LatticeHamiltonian(Interaction):
             laws:
                 The Hamiltonian.
         """
-        return [Hamiltonian(-s.D * s.target.laplacian + s.target.diagonal(self.potential))]
+        return [Generator(-s.D * s.target.laplacian + s.target.diagonal(self.potential))]
 
 
 class PositionDephasing(Interaction):

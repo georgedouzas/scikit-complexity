@@ -1,5 +1,6 @@
 """Test flows of conserved quantities, auxiliaries, lookups, delays, loop analysis, and agent ledgers."""
 
+import functools
 import pickle  # nosec B403: round-trips the pickles the tests themselves make
 from operator import attrgetter
 
@@ -23,11 +24,8 @@ from skcomplex.core.model import (
     System,
     Transfer,
     Update,
-    delay1,
-    delay3,
+    distributed_delay,
     lookup,
-    smooth,
-    smooth3,
     step,
     transfer,
     where,
@@ -94,7 +92,8 @@ Fertility = Element.define('Fertility', states={'food': state(-1.0)}, laws=_fert
 
 def _delayed(kind):
     """Return an element whose output stock integrates a delay of a unit step at time 1 with delay time 6."""
-    function = {'delay1': delay1, 'delay3': delay3, 'smooth': smooth, 'smooth3': smooth3}[kind]
+    conserved, order = kind.startswith('material'), int(kind[-1])
+    function = functools.partial(distributed_delay, order=order, conserved=conserved)
     return Element.define(
         f'Delayed_{kind}',
         states={'out': state(0.0)},
@@ -183,20 +182,20 @@ def test_table_function_interpolates_and_stays_flat():
 
 def test_third_order_delay_follows_the_erlang_step_response():
     """Test that the output of a third-order delay of a step reaches half the step 5.35 after it."""
-    trajectory = Simulation(System(components=[_delayed('delay3')('d')]), dt=0.01).run(14).trajectory_
+    trajectory = Simulation(System(components=[_delayed('material_delay3')('d')]), dt=0.01).run(14).trajectory_
     times = np.asarray(trajectory.times)
-    output = trajectory['d.delay3_0'][:, 2] / 2.0
+    output = trajectory['d.material_delay3_0'][:, 2] / 2.0
     assert times[np.argmax(output >= 0.5)] - 1.0 == pytest.approx(stats.gamma(3, scale=2).median(), abs=0.02)
     assert stats.gamma(3, scale=2).median() == pytest.approx(5.35, abs=0.01)
 
 
-@pytest.mark.parametrize(('kind', 'stages'), [('delay1', 1), ('smooth', 1), ('smooth3', 3)])
+@pytest.mark.parametrize(('kind', 'stages'), [('material_delay1', 1), ('smoothing_delay1', 1), ('smoothing_delay3', 3)])
 def test_delays_and_smoothings_add_hidden_stocks(kind, stages):
     """Test that delays and smoothings add one hidden stock per stage that tends to the step."""
     trajectory = Simulation(System(components=[_delayed(kind)('d')]), dt=1).run(80).trajectory_
     hidden = np.atleast_2d(trajectory[f'd.{kind}_0'].T).T
     assert hidden.shape[1] == stages
-    level = 6.0 / stages if kind == 'delay1' else 1.0
+    level = 6.0 / stages if kind == 'material_delay1' else 1.0
     assert hidden[-1, -1] == pytest.approx(level, rel=1e-3)
 
 

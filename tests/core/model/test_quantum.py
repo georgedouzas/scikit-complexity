@@ -9,7 +9,7 @@ from skcomplex.core.base import ValidationError, symbol
 from skcomplex.core.model import (
     Dissipator,
     Exchange,
-    Hamiltonian,
+    Generator,
     LatticeSpace,
     LocalOperator,
     Mode,
@@ -114,8 +114,8 @@ def test_operator_adjoint_reverses_and_conjugates():
 def test_laws_reject_values_that_are_not_operators():
     """Test that the quantum laws check their operator and rate."""
     q = _namespace(Qubit('q'), 'q')
-    with pytest.raises(ValidationError, match='Hamiltonian takes'):
-        Hamiltonian(1.0)
+    with pytest.raises(ValidationError, match='Generator takes'):
+        Generator(1.0)
     with pytest.raises(ValidationError, match='Dissipator takes'):
         Dissipator('q')
     with pytest.raises(ValidationError, match='rate'):
