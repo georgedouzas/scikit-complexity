@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -11,17 +11,14 @@ import numpy as np
 import numpy.typing as npt
 
 from ..base import HilbertFamily, HilbertSpace, ValidationError, VariableKind, declarations_of
-from ._components import Element, Group, Interaction
+from ._components import Element, Group
 from ._lattices import LatticeSpace
 from ._laws import Law
 from ._observables import Observable
 from ._operators import LocalOperator, Operator, sparse_matrix
 from ._spaces import NetworkSpace, Space
 from ._symbols import Symbols
-from ._systems import System
-from ._time import Time
 
-DEFAULT_MAX_DIMENSION = 2**20
 NORM_TOLERANCE = 1e-8
 DIGEST_SIZE = 8
 
@@ -300,56 +297,3 @@ def view_of(component: Element | Group) -> QuantumView:
         for name, value in (component.values or {}).items()
     }
     return QuantumView(component.element(component.label, **values))
-
-
-class QuantumSystem(System):
-    """System of quantum elements with a whole-system initial state and a limit on the dimension of its space.
-
-    Args:
-        label:
-            The label of the system.
-
-        components:
-            The quantum elements and groups, and nested systems.
-
-        interactions:
-            The interactions, such as `Exchange` subclasses.
-
-        space:
-            The space of groups that have none of their own.
-
-        time:
-            The time of the system, `ContinuousTime` or `None` to infer it.
-
-        initial:
-            The initial state of the whole system, a vector, a density matrix, `'ground'` for the lowest eigenstate of
-            the Hamiltonian at the initial parameters, or `None` for the product of the initial states of the elements.
-
-        max_dimension:
-            The largest dimension of the Hilbert space the system compiles to.
-
-    Examples:
-        >>> from skcomplex.core.model import QuantumSystem
-        >>> from skcomplex.models.physics.realizations import Qubit
-        >>> QuantumSystem(components=[Qubit('q')], initial='ground').max_dimension
-        1048576
-    """
-
-    def __init__(
-        self,
-        label: str = 'system',
-        *,
-        components: Sequence[Element | Group | System] = (),
-        interactions: Sequence[Interaction] = (),
-        space: Space | None = None,
-        time: Time | None = None,
-        initial: object = None,
-        max_dimension: int = DEFAULT_MAX_DIMENSION,
-    ) -> None:
-        super().__init__(label, components=components, interactions=interactions, space=space, time=time)
-        self.initial = initial
-        self.max_dimension = max_dimension
-
-    def __repr__(self, N_CHAR_MAX: int = 700) -> str:
-        """Return the label and the number of children of each kind."""
-        return super().__repr__(N_CHAR_MAX).replace('System(', 'QuantumSystem(', 1)

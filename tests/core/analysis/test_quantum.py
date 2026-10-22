@@ -13,7 +13,7 @@ from skcomplex.core.analysis import (
 )
 from skcomplex.core.base import AnalysisError, ParameterError
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import QuantumSystem, System
+from skcomplex.core.model import System
 from skcomplex.core.runtime import Simulation
 from skcomplex.models import create, describe
 from skcomplex.models.biology.ecology import Population
@@ -53,8 +53,11 @@ def test_ground_state_is_stationary():
     system = create('quantum_heisenberg', n_sites=6, initial='ground')
     energy, state = ground_state(system)
     assert state.shape == (64,)
-    observables = describe('quantum_heisenberg').observables_of(system)
-    trajectory = Simulation(system, dt=0.5, observables=observables).run(until=3.0).trajectory_
+    entry = describe('quantum_heisenberg')
+    initial = entry.initial_state_of(n_sites=6, initial='ground')
+    assert initial == {'quantum_heisenberg.state': 'ground'}
+    simulation = Simulation(system, dt=0.5, observables=entry.observables_of(system), initial_state=initial)
+    trajectory = simulation.run(until=3.0).trajectory_
     assert np.ptp(trajectory['energy']) < 1e-8
     assert np.ptp(trajectory['sz'], axis=0).max() < 1e-8
     assert trajectory['energy'][0] == pytest.approx(energy)
@@ -63,8 +66,8 @@ def test_ground_state_is_stationary():
 def test_entanglement_entropy_of_a_singlet_is_log_two():
     """Test that one spin of the singlet has the entropy ln 2, and the pair has none."""
     singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
-    system = QuantumSystem(components=[Spin.group('pair', 2)], initial=singlet)
-    trajectory = Simulation(system, dt=1.0).run(until=1.0).trajectory_
+    system = System(components=[Spin.group('pair', 2)])
+    trajectory = Simulation(system, dt=1.0, initial_state={'system.state': singlet}).run(until=1.0).trajectory_
     assert np.allclose(entanglement_entropy(trajectory, ['pair[0]']), np.log(2), atol=1e-12)
     assert np.allclose(entanglement_entropy(trajectory, ['pair']), 0, atol=1e-10)
     with pytest.raises(AnalysisError, match='not a subsystem'):

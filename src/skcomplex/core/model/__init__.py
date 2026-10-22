@@ -64,7 +64,6 @@ from ._operators import Dissipator, Generator, LocalOperator, Operator, sparse_m
 from ._particles import PairPotential, Particle, Potential
 from ._phases import Phase
 from ._quantum import (
-    QuantumSystem,
     QuantumView,
     expectation,
     hilbert_state,
@@ -152,7 +151,6 @@ __all__: list[
     'Potential',
     'Production',
     'Prototile',
-    'QuantumSystem',
     'QuantumView',
     'Rate',
     'Reduction',

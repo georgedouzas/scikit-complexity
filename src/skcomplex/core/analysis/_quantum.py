@@ -215,12 +215,12 @@ def entanglement_entropy(trajectory: Trajectory, subsystems: Sequence[str]) -> n
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import entanglement_entropy
-        >>> from skcomplex.core.model import QuantumSystem
-        >>> from skcomplex.models.physics.realizations import Spin
+        >>> from skcomplex.core.model import System
         >>> from skcomplex.core.runtime import Simulation
+        >>> from skcomplex.models.physics.realizations import Spin
         >>> singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
-        >>> system = QuantumSystem(components=[Spin.group('pair', 2)], initial=singlet)
-        >>> trajectory = Simulation(system, dt=1.0).run(until=1.0).trajectory_
+        >>> system = System(components=[Spin.group('pair', 2)])
+        >>> trajectory = Simulation(system, dt=1.0, initial_state={'system.state': singlet}).run(until=1.0).trajectory_
         >>> bool(np.allclose(entanglement_entropy(trajectory, ['pair[0]']), np.log(2)))
         True
     """

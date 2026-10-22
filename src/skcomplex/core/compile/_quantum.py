@@ -36,7 +36,6 @@ from ..model import (
     LatticeSpace,
     Observable,
     Operator,
-    QuantumSystem,
     QuantumView,
     Symbols,
     System,
@@ -59,6 +58,8 @@ SAMPLE_TIME = 0.37
 REAL_TOLERANCE = 1e-10
 
 type Getter = Callable[[float, Vector, Vector, Mapping[str, Any]], Any]
+
+DEFAULT_MAX_DIMENSION = 2**20
 
 
 @dataclass(frozen=True)
@@ -154,9 +155,8 @@ def _check_classical(nodes: list[Node]) -> None:
             raise ValidationError(error_msg)
 
 
-def _check_dimension(system: System, nodes: list[Node], dimensions: list[int]) -> None:
-    """Raise an error when the dimension of the Hilbert space exceeds the limit of the system."""
-    limit = getattr(system, 'max_dimension', QuantumSystem().max_dimension)
+def _check_dimension(nodes: list[Node], dimensions: list[int], limit: int) -> None:
+    """Raise an error when the dimension of the Hilbert space exceeds the limit of the solver."""
     total = math.prod(dimensions)
     if total <= limit:
         return
@@ -167,7 +167,7 @@ def _check_dimension(system: System, nodes: list[Node], dimensions: list[int]) -
             parts.append(f'{node.path} of dimension {math.prod(element.dimension for _, element in members)}')
     error_msg = (
         f'The Hilbert space of {", ".join(parts)} has dimension {total}, above the limit max_dimension = {limit}. Use '
-        'fewer or smaller subsystems, or raise max_dimension of a QuantumSystem.'
+        'fewer or smaller subsystems, or raise max_dimension of the quantum solver.'
     )
     raise HilbertSpaceError(error_msg)
 
@@ -704,11 +704,11 @@ def _dissipator_terms(laws: _Laws, lowering: _Lowering, p: Vector) -> tuple[tupl
 
 def _system_initial(
     system: System,
+    initial: object,
     product: npt.NDArray[np.complex128],
     ground: Callable[[], npt.NDArray[np.complex128]],
 ) -> npt.NDArray[np.complex128]:
-    """Return the initial state of the whole system, the product of the elements' states unless the system sets one."""
-    initial = getattr(system, 'initial', None)
+    """Return the initial state of the whole system, the product of the elements' states unless one is given."""
     if initial is None:
         return product
     if isinstance(initial, str):
@@ -796,8 +796,9 @@ def _element_laws(
     return members
 
 
-def _stored_state(
+def _stored_state(  # noqa: PLR0917
     system: System,
+    initial: object,
     subsystems: Mapping[str, _Subsystem],
     hamiltonian: tuple[QuantumTerm, ...],
     p: Vector,
@@ -813,7 +814,7 @@ def _stored_state(
         matrix = _matrix_at(hamiltonian, 0.0, p, size)
         return np.asarray(qutip.Qobj(matrix).groundstate(sparse=size > DENSE_LIMIT)[1].full().ravel())
 
-    state = _system_initial(system, product, ground)
+    state = _system_initial(system, initial, product, ground)
     return np.outer(state, state.conj()) if is_open and state.ndim == 1 else state
 
 
@@ -850,12 +851,24 @@ def contains_quantum(system: System) -> bool:
     return any(contains_quantum(child) for child in system.systems)
 
 
-def compile_quantum(system: System) -> QuantumProblem:
+def compile_quantum(
+    system: System,
+    *,
+    initial: object = None,
+    max_dimension: int = DEFAULT_MAX_DIMENSION,
+) -> QuantumProblem:
     """Compile a system of quantum elements into a problem of the quantum form.
 
     Args:
         system:
             The system.
+
+        initial:
+            The initial state of the whole system, a vector, a density matrix, `'ground'` for the lowest eigenstate of
+            the Hamiltonian at the initial parameters, or `None` for the product of the initial states of the elements.
+
+        max_dimension:
+            The largest dimension of the Hilbert space, the limit of the quantum solver.
 
     Returns:
         problem:
@@ -866,7 +879,7 @@ def compile_quantum(system: System) -> QuantumProblem:
             The system holds classical elements or laws other than Hamiltonians and dissipators.
 
         HilbertSpaceError:
-            The dimension of the Hilbert space exceeds the limit of the system.
+            The dimension of the Hilbert space exceeds the limit.
 
         ValidationError:
             A coefficient reads a symbol other than parameters and time, the Hamiltonian is not Hermitian, a rate is
@@ -878,7 +891,7 @@ def compile_quantum(system: System) -> QuantumProblem:
     quantum = [node for node in nodes if _is_quantum_node(node)]
     subsystems, spaces = _subsystems_of(quantum)
     dimensions = tuple(item.element.dimension for item in subsystems.values())
-    _check_dimension(system, nodes, list(dimensions))
+    _check_dimension(nodes, list(dimensions), max_dimension)
     entries, values, symbols = _parameters(nodes)
     p = np.concatenate(values) if values else np.zeros(0)
     lowering = _Lowering(time, subsystems, dimensions, _arguments_of(entries, symbols), spaces)
@@ -892,7 +905,7 @@ def compile_quantum(system: System) -> QuantumProblem:
     total = functools.reduce(Operator.__add__, [item for _, item in laws.hamiltonians], Operator({}))
     hamiltonian = lowering.terms(total, 'the Hamiltonian')
     dissipators = _dissipator_terms(laws, lowering, p)
-    state = _stored_state(system, subsystems, hamiltonian, p, bool(dissipators))
+    state = _stored_state(system, initial, subsystems, hamiltonian, p, bool(dissipators))
     pure = state.ndim == 1
     state_entry = Entry(f'{system.label}.state', 0, state.shape, Domain.COMPLEX, None, is_complex=True)
     elements = tuple(_compiled_element(node) for node in quantum)

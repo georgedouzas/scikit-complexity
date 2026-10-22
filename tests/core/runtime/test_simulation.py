@@ -263,3 +263,15 @@ def test_trajectory_gives_agent_locations_over_frames():
     locations = trajectory.agent_locations('flock')
     assert len(locations) == len(trajectory)
     np.testing.assert_allclose(locations[-1], trajectory.agents('flock', len(trajectory) - 1).locations)
+
+
+def test_initial_state_replaces_the_values_of_components():
+    """Test that a simulation starts from given initial values by state name and rejects unknown names."""
+    system = System(
+        components=[Population('rabbits', n=10)],
+        interactions=[ExponentialGrowth('growth', target='rabbits', r=0.0)],
+    )
+    trajectory = Simulation(system, dt=1.0, initial_state={'rabbits.n': 20.0}).run(until=1.0).trajectory_
+    assert trajectory['rabbits.n'][0] == pytest.approx(20.0)
+    with pytest.raises(ValidationError, match='foxes.n'):
+        Simulation(system, dt=1.0, initial_state={'foxes.n': 1.0}).run(until=1.0)

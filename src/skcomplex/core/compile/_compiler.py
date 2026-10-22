@@ -7,7 +7,7 @@ import copy
 import itertools
 import re
 from collections import Counter, defaultdict
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from functools import cached_property
 from typing import Any, cast
@@ -140,7 +140,7 @@ from ._problem import (
     VectorFunction,
 )
 from ._quantities import StockFlow
-from ._quantum import compile_quantum, contains_quantum
+from ._quantum import DEFAULT_MAX_DIMENSION, compile_quantum, contains_quantum
 from ._reductions import CompiledReduction, Read, ReductionPass
 from ._renewals import CompiledRenewal, compile_renewal
 from ._rewriting import compile_rewriting, is_rewriting
@@ -3089,6 +3089,9 @@ def compile_system(
     system: System,
     backend: str | Backend = 'auto',
     observables: Sequence[Observable] = (),
+    *,
+    solver: object = 'auto',
+    initial_state: Mapping[str, object] | None = None,
 ) -> Problem:
     """Compile a system into a problem of the form its law kinds determine.
 
@@ -3106,6 +3109,15 @@ def compile_system(
         observables:
             The observables to compute at every frame, labelled by their path from the root, such as
             `village/mean_wealth` for an observable of the nested system `village`.
+
+        solver:
+            The solver the problem runs on, `'auto'` or a solver instance, whose limits compiling checks, such as the
+            largest dimension of a Hilbert space.
+
+        initial_state:
+            Initial values that replace those of the components, by the dotted name of the state, such as
+            `{'rabbits.n': 20}`. The whole state of a quantum system is `<system label>.state`, which takes a vector, a
+            density matrix, or `'ground'` for the lowest eigenstate of the Hamiltonian at the initial parameters.
 
     Returns:
         problem:
@@ -3157,12 +3169,58 @@ def compile_system(
         return _compile_mesa(system)
     if is_rewriting(system):
         return compile_rewriting(system)
+    initial = dict(initial_state or {})
     if contains_quantum(system):
-        return compile_quantum(system)
+        whole = f'{system.label}.state'
+        _check_initial_names(set(initial) - {whole}, [whole])
+        limit = getattr(solver, 'max_dimension', DEFAULT_MAX_DIMENSION)
+        return compile_quantum(system, initial=initial.get(whole), max_dimension=limit)
     system, held = _with_held_observables(system, _held_observables(system))
     problem = _compile(system, backend, None)
     _check_held_reads(problem, held)
-    return problem
+    return with_initial_state(problem, initial)
+
+
+def _check_initial_names(unknown: set[str], names: Sequence[str]) -> None:
+    """Raise an error for initial values of states the problem does not have."""
+    if unknown:
+        error_msg = (
+            f'The initial state names {", ".join(sorted(unknown))}, which are not states of the system. Use the dotted '
+            f'names of states, such as {", ".join(list(names)[:3])}.'
+        )
+        raise ValidationError(error_msg)
+
+
+def with_initial_state(problem: Problem, initial_state: Mapping[str, object]) -> Problem:
+    """Return a problem whose initial state takes given values of some states.
+
+    Args:
+        problem:
+            The compiled problem.
+
+        initial_state:
+            The initial values by dotted state name.
+
+    Returns:
+        problem:
+            The problem with the new initial state, or the same problem when no value is given.
+
+    Raises:
+        ValidationError:
+            A name is not a state of the problem, or a value has the wrong shape.
+    """
+    if not initial_state:
+        return problem
+    _check_initial_names(set(initial_state) - set(problem.states.names), problem.states.names)
+    state = problem.initial_state.copy()
+    for name, value in initial_state.items():
+        entry = problem.states.entry(name)
+        try:
+            state[entry.indices] = entry.encode(value)
+        except ValueError as error:
+            error_msg = f'The initial value of {name} does not fit its shape {entry.shape}: {error}'
+            raise ValidationError(error_msg) from error
+    return replace(problem, initial_state=state)
 
 
 def partition_system(system: System, backend: str | Backend = 'auto') -> Problem:

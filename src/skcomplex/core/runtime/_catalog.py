@@ -16,7 +16,7 @@ from ._simulations import Simulation
 
 type Factory = Callable[..., System]
 
-RUN_SETTINGS = ('until', 'dt', 'solver', 'backend', 'clock', 'random_state', 'checked')
+RUN_SETTINGS = ('until', 'dt', 'solver', 'backend', 'clock', 'random_state', 'checked', 'initial_state')
 
 
 @dataclass(frozen=True)
@@ -47,6 +47,10 @@ class ModelEntry:
 
         observables:
             A function of the model's system that returns its standard observables, or `None` for none.
+
+        initial_state:
+            A function of the factory's arguments that returns the initial values `run` gives the simulation, by dotted
+            state name, or `None` for the components' own.
     """
 
     name: str
@@ -57,6 +61,22 @@ class ModelEntry:
     references: tuple[str, ...] = ()
     defaults: Mapping[str, Any] = dataclasses.field(default_factory=dict)
     observables: Callable[[System], Sequence[Observable]] | None = dataclasses.field(default=None, repr=False)
+    initial_state: Callable[..., Mapping[str, Any] | None] | None = dataclasses.field(default=None, repr=False)
+
+    def initial_state_of(self, **parameters: Any) -> dict[str, Any]:  # noqa: ANN401
+        """Return the initial values `run` gives the simulation for arguments of the factory.
+
+        Args:
+            **parameters:
+                Arguments of the factory that replace its defaults.
+
+        Returns:
+            initial_state:
+                The initial values by dotted state name, empty for the components' own.
+        """
+        if self.initial_state is None:
+            return {}
+        return dict(self.initial_state(**{**self.parameters, **parameters}) or {})
 
     def observables_of(self, system: System) -> list[Observable]:
         """Return the standard observables of a system of the model, which `run` records.
@@ -101,6 +121,7 @@ def register_model(
     references: Sequence[str] = (),
     defaults: Mapping[str, Any] | None = None,
     observables: Callable[[System], Sequence[Observable]] | None = None,
+    initial_state: Callable[..., Mapping[str, Any] | None] | None = None,
 ) -> Callable[[Factory], Factory]:
     """Return a decorator that registers a factory as a ready-made model.
 
@@ -125,6 +146,10 @@ def register_model(
 
         observables:
             A function of the model's system that returns its standard observables, which `run` records, or `None`.
+
+        initial_state:
+            A function of the factory's arguments that returns the initial values `run` gives the simulation, by dotted
+            state name, or `None`.
 
     Returns:
         decorator:
@@ -173,6 +198,7 @@ def register_model(
             tuple(references),
             dict(defaults or {}),
             observables,
+            initial_state,
         )
         MODELS.register(entry.name, entry)
         return factory
@@ -279,4 +305,6 @@ def run(name: str, *, settings: Mapping[str, Any] | None = None, **parameters: A
     chosen = {'random_state': 0, **entry.defaults, **(settings or {})}
     until = chosen.pop('until', 10.0)
     system = create(name, **parameters)
-    return Simulation(system, observables=entry.observables_of(system), **chosen).run(until=until)
+    initial = {**entry.initial_state_of(**parameters), **dict(chosen.pop('initial_state', None) or {})}
+    simulation = Simulation(system, observables=entry.observables_of(system), initial_state=initial, **chosen)
+    return simulation.run(until=until)

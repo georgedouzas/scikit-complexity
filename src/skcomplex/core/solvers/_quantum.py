@@ -12,7 +12,7 @@ import qutip
 import scipy.sparse as sp
 
 from ..base import ComponentKind, DomainKind, Form, LawKind, SolverError, SpaceKind, Supports, TimeKind
-from ..compile import Problem, QuantumProblem, QuantumTerm, Vector
+from ..compile import DEFAULT_MAX_DIMENSION, Problem, QuantumProblem, QuantumTerm, Vector
 from ._base import Stepper, register_solver
 
 MAX_SEED = 2**32
@@ -45,6 +45,9 @@ class QuantumSolver(Stepper):
 
         nsteps:
             The largest number of internal steps between two frames.
+
+        max_dimension:
+            The largest dimension of the Hilbert space the solver accepts, which compiling checks.
     """
 
     supports: ClassVar[Supports] = Supports(
@@ -57,10 +60,17 @@ class QuantumSolver(Stepper):
 
     form: ClassVar[Form] = Form.QUANTUM
 
-    def __init__(self, atol: float = 1e-12, rtol: float = 1e-10, nsteps: int = 100_000) -> None:
+    def __init__(
+        self,
+        atol: float = 1e-12,
+        rtol: float = 1e-10,
+        nsteps: int = 100_000,
+        max_dimension: int = DEFAULT_MAX_DIMENSION,
+    ) -> None:
         self.atol = atol
         self.rtol = rtol
         self.nsteps = nsteps
+        self.max_dimension = max_dimension
 
     def _operator(self, terms: Sequence[QuantumTerm], p: Vector) -> qutip.Qobj | qutip.QobjEvo:
         """Return the QuTiP operator of terms, constant or as a function of time, at fixed parameters."""

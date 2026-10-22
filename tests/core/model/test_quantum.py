@@ -13,7 +13,6 @@ from skcomplex.core.model import (
     LocalOperator,
     NetworkSpace,
     Operator,
-    QuantumSystem,
     QuantumView,
     Symbols,
     expectation,
@@ -152,8 +151,4 @@ def test_lattice_group_keeps_the_expectation_visual():
     """Test that a lattice of quantum elements is drawn by its expectations."""
     assert Spin.lattice('chain', LatticeSpace(3)).visual.kind == 'expectations'
 
-
-def test_quantum_system_repr_names_the_class():
-    """Test that a quantum system prints as one."""
-    assert repr(QuantumSystem(components=[Qubit('q')])) == 'QuantumSystem(components=1, interactions=0)'
     assert isinstance(Operator({}), Operator)

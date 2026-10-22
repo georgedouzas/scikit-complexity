@@ -15,7 +15,6 @@ from ....core.model import (
     Generator,
     Interaction,
     LatticeSpace,
-    QuantumSystem,
     Rate,
     Symbols,
     System,
@@ -199,7 +198,7 @@ def schrodinger(
         interactions: list[Interaction] = [LatticeHamiltonian('kinetic', target='packet', D=D, potential=potential)]
         if gamma > 0:
             interactions.append(PositionDephasing('dephasing', target='packet', gamma=gamma))
-        return QuantumSystem(
+        return System(
             'schrodinger',
             components=[Site('packet', space=space, initial=amplitudes)],
             interactions=interactions,

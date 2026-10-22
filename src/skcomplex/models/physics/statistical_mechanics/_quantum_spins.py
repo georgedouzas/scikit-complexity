@@ -11,8 +11,8 @@ from ....core.model import (
     Interaction,
     LatticeSpace,
     Operator,
-    QuantumSystem,
     Symbols,
+    System,
     expectation,
 )
 from ....core.runtime import register_model
@@ -179,6 +179,7 @@ class Dephasing(Interaction):
     tags=('quantum', 'spins', 'lattice', 'magnetism', 'open system'),
     references=('Heisenberg 1928', 'Mihailović et al. 2023'),
     defaults={'until': 8.0, 'dt': 0.05},
+    initial_state=lambda initial, **_: {'quantum_heisenberg.state': 'ground'} if initial == 'ground' else None,
     observables=lambda system: [
         expectation('sz', local_magnetization, group='chain'),
         expectation('magnetization', total_magnetization),
@@ -193,7 +194,7 @@ def quantum_heisenberg(
     gamma: float = 0.0,
     boundary: str = 'periodic',
     initial: str = 'flip',
-) -> QuantumSystem:
+) -> System:
     """Return a chain of spins one half with the XXZ Hamiltonian, a field, and optional dephasing.
 
     The Hamiltonian is `J Σ (S^x_i S^x_j + S^y_i S^y_j + Δ S^z_i S^z_j) - h Σ S^z_i` over neighbouring pairs, with
@@ -223,7 +224,8 @@ def quantum_heisenberg(
 
         initial:
             `'flip'` for one flipped spin at site `n_sites // 2`, `'neel'` for alternating spins, `'domain_wall'` for
-            the left half up and the right half down, or `'ground'` for the ground state.
+            the left half up and the right half down, or `'ground'` for the ground state, which `run` gives the
+            simulation as `initial_state={'quantum_heisenberg.state': 'ground'}`.
 
     Returns:
         system:
@@ -253,9 +255,4 @@ def quantum_heisenberg(
     ]
     if gamma > 0:
         interactions.append(Dephasing('dephasing', target='chain', gamma=gamma))
-    return QuantumSystem(
-        'quantum_heisenberg',
-        components=[chain],
-        interactions=interactions,
-        initial='ground' if initial == 'ground' else None,
-    )
+    return System('quantum_heisenberg', components=[chain], interactions=interactions)

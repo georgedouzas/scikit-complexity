@@ -1705,7 +1705,8 @@ coefficients of parameters and time into an `Operator`. `Generator(operator)` ad
 `ħ = 1`, and `Dissipator(operator, rate)` adds a Lindblad dissipator, which makes the system open. An interaction
 with the binding `over = 'neighbours'` is written once for a bond, with `s.first` and `s.second`, and acts on every pair
 of neighbours of the space of the group its one role binds. Compiling checks that the Hamiltonian is Hermitian and that the dimension stays within the
-`max_dimension` of a `QuantumSystem`, which also takes a whole-system initial state such as `'ground'`.
+`max_dimension` of the quantum solver. A whole-system initial state, such as an entangled vector or `'ground'`, is
+given to the simulation as `initial_state={'<system label>.state': value}`.
 
 ```python
 from operator import attrgetter
@@ -1715,7 +1716,7 @@ import numpy as np
 from typing import ClassVar
 
 from skcomplex.core.base import parameter, role
-from skcomplex.core.model import Generator, Interaction, LatticeSpace, QuantumSystem, expectation
+from skcomplex.core.model import Generator, Interaction, LatticeSpace, System, expectation
 from skcomplex.core.runtime import Simulation
 from skcomplex.models.physics.realizations import Spin
 
@@ -1730,7 +1731,7 @@ class Coupling(Interaction):
         return [Generator(s.J * (a.x * b.x + a.y * b.y + a.z * b.z))]
 
 
-chain = QuantumSystem(
+chain = System(
     components=[Spin.lattice('chain', LatticeSpace(6), initial=['up', 'down'] * 3)],
     interactions=[Coupling('coupling', target='chain')],
 )

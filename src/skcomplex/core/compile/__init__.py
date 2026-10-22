@@ -1,7 +1,7 @@
 """Compile systems into problems of one mathematical form with fast numeric functions."""
 
 from ._backends import BACKENDS, Backend, Lowering, NumpyBackend, register_backend, resolve_backend
-from ._compiler import CensusRecord, compile_system, law_census, partition_system
+from ._compiler import CensusRecord, compile_system, law_census, partition_system, with_initial_state
 from ._fields import mesh_laplacian, spectral_multiplier
 from ._hybrid import Breakpoints, CompiledEvent, Delay, EventRecord
 from ._lattices import (
@@ -36,7 +36,7 @@ from ._problem import (
     VectorFunction,
 )
 from ._quantities import CompiledFlow, LoopTerm, Recorded, StockFlow
-from ._quantum import QuantumProblem, QuantumTerm
+from ._quantum import DEFAULT_MAX_DIMENSION, QuantumProblem, QuantumTerm, contains_quantum
 from ._rewriting import CompiledGraph, CompiledPatch, compile_rewriting
 from ._structures import GraphStructure, PatchStructure, Structure, WordStructure
 from ._validation import (
@@ -50,20 +50,15 @@ from ._validation import (
 )
 from ._words import CompiledWord
 
-__all__: list[
-    'CensusRecord',
-    'Issue',
-    'ValidationReport',
-    'ValidationWarning',
-    'law_census',
-    'str',
-] = [
+__all__: list[str] = [
     'BACKENDS',
+    'DEFAULT_MAX_DIMENSION',
     'NUMPY_DIALECT',
     'SCALAR_DIALECT',
     'Accelerated',
     'Backend',
     'Breakpoints',
+    'CensusRecord',
     'CompiledAgents',
     'CompiledDrive',
     'CompiledElement',
@@ -85,6 +80,7 @@ __all__: list[
     'ExtremalRecord',
     'FractionalRows',
     'GraphStructure',
+    'Issue',
     'JumpChannels',
     'LatticeState',
     'LatticeStep',
@@ -106,12 +102,16 @@ __all__: list[
     'RenewalRecord',
     'StockFlow',
     'Structure',
+    'ValidationReport',
+    'ValidationWarning',
     'Vector',
     'VectorFunction',
     'WordStructure',
     'compile_rewriting',
     'compile_system',
+    'contains_quantum',
     'domain_kind',
+    'law_census',
     'law_types',
     'mesh_laplacian',
     'missing_declarations',
@@ -123,5 +123,6 @@ __all__: list[
     'resolve_backend',
     'spectral_multiplier',
     'validate',
+    'with_initial_state',
     'with_observables',
 ]

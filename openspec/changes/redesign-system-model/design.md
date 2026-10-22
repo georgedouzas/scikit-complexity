@@ -242,6 +242,9 @@ realizations:
   stepper runs; lowering them to `Update` with member selection is left to a later change, since it would rewrite the
   lattice compiler without changing what a model can say.
 - `Particle`, `Potential`, and `PairPotential` are the general forms the named forces build on.
+- `QuantumSystem` is removed, because a system holds only components, interactions, space, and time. Its whole-system
+  initial state is a simulation's `initial_state`, by dotted state name, which classical systems use too, and its
+  `max_dimension` is an argument of the quantum solvers.
 - Backends that run a realization natively read it from registries the realization fills, such as
   `register_lammps_pair`, so no backend names a realization.
 

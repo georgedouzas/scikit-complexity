@@ -13,7 +13,16 @@ import numpy.typing as npt
 from sklearn.base import BaseEstimator
 
 from ..base import Domain, Form, ParameterError, SimulationError, ValidationError
-from ..compile import Backend, Entry, ObservableEvaluator, Problem, Vector, compile_system, validate
+from ..compile import (
+    Backend,
+    Entry,
+    ObservableEvaluator,
+    Problem,
+    Vector,
+    compile_system,
+    validate,
+    with_initial_state,
+)
 from ..model import Observable, System
 from ..solvers import AgentState, RewritingState, Stepper, resolve_solver
 from ._clocks import AsFastAsPossible, Clock
@@ -91,6 +100,11 @@ class Simulation(BaseEstimator):
             The observables to compute and record at every frame, labelled by their path from the root, such as
             `village/mean_wealth` for an observable of the nested system `village`.
 
+        initial_state:
+            Initial values that replace those of the components, by dotted state name, such as `{'rabbits.n': 20}`.
+            The whole state of a quantum system is `<system label>.state`, which takes a vector, a density matrix, or
+            `'ground'` for the ground state.
+
     Attributes:
         problem_:
             The compiled problem.
@@ -134,6 +148,7 @@ class Simulation(BaseEstimator):
         checked: bool = False,
         schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,
         observables: Sequence[Observable] = (),
+        initial_state: Mapping[str, object] | None = None,
     ) -> None:
         self.system = system
         self.solver = solver
@@ -146,6 +161,7 @@ class Simulation(BaseEstimator):
         self.checked = checked
         self.schedule = schedule
         self.observables = observables
+        self.initial_state = initial_state
 
     def _check_dt(self, problem: Problem, until: float) -> float:
         """Return the time between frames of a run until a time, after validating it for the problem's form."""
@@ -173,10 +189,11 @@ class Simulation(BaseEstimator):
         previous = self._previous_parameters()
         if not isinstance(self.system, Problem):
             validate(self.system, solver=self.solver, backend=self.backend, observables=self.observables).raise_errors()
+        initial = dict(self.initial_state or {})
         self.problem_ = (
-            self.system
+            with_initial_state(self.system, initial)
             if isinstance(self.system, Problem)
-            else compile_system(self.system, self.backend, self.observables)
+            else compile_system(self.system, self.backend, self.observables, solver=self.solver, initial_state=initial)
         )
         self._prepared_system = self.system
         self.dt_ = self._check_dt(self.problem_, until)

@@ -13,7 +13,6 @@ from skcomplex.core.model import (
     Generator,
     Interaction,
     LatticeSpace,
-    QuantumSystem,
     System,
     expectation,
 )
@@ -58,7 +57,7 @@ MAGNETIZATION = [expectation('magnetization', total_z)]
 def _chain(n_sites, **values):
     """Return a Heisenberg chain from a Néel state."""
     labels = ['up', 'down'] * (n_sites // 2)
-    return QuantumSystem(
+    return System(
         components=[Spin.lattice('chain', LatticeSpace(n_sites), initial=labels)],
         interactions=[XXZ('xxz', target='chain', **values)],
     )
@@ -120,7 +119,7 @@ def test_quantum_trajectories_are_reproducible():
 
 def test_quantum_trajectories_average_to_the_master_equation():
     """Test that 500 trajectories average to the Lindblad decay within three standard errors."""
-    system = QuantumSystem(components=[Decaying('q')])
+    system = System(components=[Decaying('q')])
     problem = compile_system(system, observables=Z)
     rng = np.random.default_rng(0)
     values = np.array(
