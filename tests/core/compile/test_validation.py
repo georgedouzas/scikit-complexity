@@ -4,11 +4,14 @@ import importlib.util
 
 import pytest
 
-from skcomplex.core.base import Domain, ValidationError, parameter, role, state
+from skcomplex.core.backends import NumpyBackend
+from skcomplex.core.base import Domain, OrderKind, Supports, ValidationError, parameter, role, state
 from skcomplex.core.compile import Issue, ValidationReport, ValidationWarning, validate
 from skcomplex.core.components import Element
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Rate, Rule, Update
+from skcomplex.core.laws import Noise, Rate, Rule, Update
+from skcomplex.core.solvers import GrunwaldLetnikov
+from skcomplex.core.space import DiscreteTime
 from skcomplex.core.system import System
 
 
@@ -172,3 +175,88 @@ def test_report_raises_every_error():
     assert '2 error(s)' in str(error.value)
     assert 'growth: The role is unbound. Bind it. [role]' in str(error.value)
     assert '[law-domain]' in str(error.value)
+
+
+class Relaxing(Element):
+    """Element whose state relaxes with a Caputo derivative of order 0.6."""
+
+    x: float = state(1.0, order=0.6)
+
+    def laws(self, s):
+        """Return the relaxation rate."""
+        return [Rate(s.x, -s.x)]
+
+
+class Overordered(Element):
+    """Element whose state declares an order outside the fractional interval."""
+
+    x: float = state(1.0, order=1.5)
+
+
+class Remembering(Element):
+    """Element with a state of a fractional order and no laws."""
+
+    x: float = state(1.0, order=0.5)
+
+
+class Shaken(Element):
+    """Element whose fractional state is driven by noise."""
+
+    x: float = state(1.0, order=0.6)
+
+    def laws(self, s):
+        """Return the noise on the state."""
+        return [Noise(s.x, 0.1)]
+
+
+def test_validate_fractional_state_with_rk4_names_fractional_solvers():
+    """Test that a fractional state with the solver rk4 gives one error naming the state and the fractional solvers."""
+    report = validate(System(components=[Relaxing('r')]), solver='rk4')
+    assert [issue.code for issue in report.errors] == ['order-unsupported']
+    assert 'r.x' in report.errors[0].message
+    assert 'fractional-abm, grunwald-letnikov, l1' in report.errors[0].fix
+
+
+def test_validate_order_out_of_range_names_interval():
+    """Test that a state of order 1.5 gives one error naming the state and the interval of fractional orders."""
+    report = validate(System(components=[Overordered('a')]))
+    assert [issue.code for issue in report.errors] == ['fractional-order']
+    assert 'a.x' in report.errors[0].message
+    assert '(0, 1)' in report.errors[0].fix
+
+
+def test_validate_fractional_state_under_discrete_time_suggests_continuous_time():
+    """Test that a fractional state in a system of discrete time gives one error suggesting continuous time."""
+    report = validate(System(components=[Remembering('a')], time=DiscreteTime()))
+    assert [issue.code for issue in report.errors] == ['fractional-time']
+    assert 'a.x' in report.errors[0].message
+    assert 'continuous time' in report.errors[0].fix
+
+
+def test_validate_fractional_state_with_backend_without_orders():
+    """Test that a backend that declares no fractional orders is reported for a fractional state."""
+
+    class IntegerBackend(NumpyBackend):
+        """NumPy backend that integrates integer orders alone."""
+
+        supports = Supports(orders={OrderKind.INTEGER})
+
+    report = validate(System(components=[Relaxing('r')]), backend=IntegerBackend())
+    assert [issue.code for issue in report.errors] == ['order-unsupported']
+    assert 'numba, numpy' in report.errors[0].fix
+    assert validate(System(components=[Relaxing('r')]), backend='numba').ok
+
+
+def test_validate_noise_on_fractional_state_is_unsupported():
+    """Test that a noise law on a fractional state is reported, since no fractional solver runs noise laws."""
+    report = validate(System(components=[Shaken('a')]))
+    assert [issue.code for issue in report.errors] == ['solver-unsupported']
+    assert 'a.x' in report.errors[0].message
+
+
+def test_validate_fractional_state_with_fractional_solver():
+    """Test that a fractional state with a fractional solver and default settings is valid."""
+    system = System(components=[Relaxing('r')])
+    assert validate(system).ok
+    assert validate(system, solver='l1').ok
+    assert validate(system, solver=GrunwaldLetnikov()).ok

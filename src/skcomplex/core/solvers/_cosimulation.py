@@ -15,6 +15,7 @@ from ..base import (
     DomainKind,
     Form,
     LawKind,
+    OrderKind,
     SolverError,
     SpaceKind,
     Supports,
@@ -101,6 +102,7 @@ class CoSimulation(Stepper):
             ComponentKind.SITE_GROUP,
             ComponentKind.SYSTEM,
         },
+        orders=set(OrderKind),
     )
 
     form: ClassVar[Form] = Form.COUPLED

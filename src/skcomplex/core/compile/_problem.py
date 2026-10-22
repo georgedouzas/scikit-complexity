@@ -562,6 +562,10 @@ class Problem:
         fractional:
             The noise rows that fractional noise laws drive, with their Hurst indices.
 
+        orders:
+            The order of the Caputo derivative that the drift gives for every state component of a problem of the
+            fractional form, 1 for the ordinary states, and empty for the other forms.
+
         stock_flow:
             The quantities, flows, auxiliaries, and feedback terms of the system, or `None` for partitioned and Mesa
             problems.
@@ -618,6 +622,7 @@ class Problem:
     matrices: tuple[MarkovMatrix, ...] = field(default=(), repr=False)
     renewals: tuple[RenewalProcess, ...] = field(default=(), repr=False)
     fractional: tuple[FractionalRows, ...] = field(default=(), repr=False)
+    orders: Vector = field(default_factory=lambda: np.zeros(0), repr=False)
 
     stock_flow: StockFlow | None = field(default=None, repr=False)
     backend: str = 'numpy'

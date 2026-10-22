@@ -23,6 +23,7 @@ from ..base import (
     DomainKind,
     Form,
     LawKind,
+    OrderKind,
     SimulationError,
     SpaceError,
     SpaceKind,
@@ -713,6 +714,7 @@ class MesaStepper(Stepper):
         laws={LawKind.RULE, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.MATCH, LawKind.INVARIANT},
         domains=set(DomainKind) - {DomainKind.HILBERT},
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.VARIABLE_GROUP, ComponentKind.SYSTEM},
+        orders={OrderKind.INTEGER},
     )
 
     form: ClassVar[Form] = Form.AGENT
