@@ -254,7 +254,10 @@ class Collocation(OptimalControlSolver):
         lower, upper = control_problem.bounds
         initial = x0[control_problem.indices]
         guess_controls = np.tile(np.clip(x0[control_problem.control_indices], lower, upper), (points.size, 1))
-        guess_states = np.maximum(self._integrate(initial, guess_controls, points, p), control_problem.lower)
+        with np.errstate(all='ignore'):
+            guess_states = np.maximum(self._integrate(initial, guess_controls, points, p), control_problem.lower)
+        if not np.all(np.isfinite(guess_states)):
+            guess_states = np.tile(initial, (points.size, 1))
         coefficients = (states, rates)
         constraint: dict[str, Any] = {
             'type': 'eq',

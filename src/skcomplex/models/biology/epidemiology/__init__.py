@@ -6,6 +6,7 @@ from ._factories import sir, sirs, sis
 from ._networks import DegreeClass, Subpopulation, heterogeneous_mean_field_sis, metapopulation
 from ._outbreaks import ImmunizingDegreeClass, heterogeneous_mean_field_sir
 from ._recurrent import EpidemicCenter, Visits, delayed_sirs
+from ._vaccination import VaccinatedPopulation, sir_vaccination
 
 __all__: list[str] = [
     'Compartment',
@@ -18,6 +19,7 @@ __all__: list[str] = [
     'Recovery',
     'Subpopulation',
     'Traveller',
+    'VaccinatedPopulation',
     'Visits',
     'Walker',
     'agent_based_sir',
@@ -28,6 +30,7 @@ __all__: list[str] = [
     'network_sir',
     'random_walker_epidemics',
     'sir',
+    'sir_vaccination',
     'sirs',
     'sis',
 ]

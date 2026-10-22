@@ -14,6 +14,8 @@ from ..compile import Vector
 from ._base import register_solver
 from ._optimal import ControlSolution, GridFunction, OptimalControlSolver, _ControlProblem
 
+MIN_RELAXATION = 1e-3
+
 CONTROL_SUPPORT = Supports(
     time={TimeKind.CONTINUOUS},
     space={SpaceKind.NONE},
@@ -60,15 +62,16 @@ class Pontryagin(OptimalControlSolver):
     derives the costate equations `λ' = -∂H/∂x` with `λ(T) = ∂φ/∂x` at the horizon `T` for the terminal cost `φ`. The
     controls solve `∂H/∂u = 0`, projected onto their bounds, or take the bound that minimises `H` where `H` is linear
     in them. A forward-backward sweep integrates the states forward and the costates backward with fourth-order
-    Runge-Kutta steps on a grid, and relaxes the controls towards their update until they converge. An objective to
-    maximise is minimised with its sign changed. The solution holds the costates.
+    Runge-Kutta steps on a grid, and relaxes the controls towards their update until they converge. The weight of the
+    update halves whenever the distance of the controls to their update stops falling, which breaks the cycles of the
+    sweep. An objective to maximise is minimised with its sign changed. The solution holds the costates.
 
     Args:
         nodes:
             The number of times of the grid, from the start to the horizon.
 
         relaxation:
-            The weight of the update of the controls at every sweep, between 0 and 1.
+            The initial weight of the update of the controls at every sweep, between 0 and 1.
 
         tolerance:
             The largest relative change of the states, costates, and controls between sweeps at convergence.
@@ -82,7 +85,7 @@ class Pontryagin(OptimalControlSolver):
 
     Raises:
         SolverError:
-            The sweep does not converge, or the stationarity condition has no unique explicit solution.
+            The sweep diverges or does not converge, or the stationarity condition has no unique explicit solution.
 
     Examples:
         >>> from skcomplex.core.base import parameter
@@ -188,7 +191,7 @@ class Pontryagin(OptimalControlSolver):
 
         Raises:
             SolverError:
-                The sweep does not converge within the largest number of sweeps.
+                The sweep diverges or does not converge within the largest number of sweeps.
         """
         control_problem = self.control_problem_
         times = np.linspace(0.0, horizon, self.nodes)
@@ -198,11 +201,22 @@ class Pontryagin(OptimalControlSolver):
         initial = x0[control_problem.indices]
         states = self._integrate(initial, controls, times, p)
         costates = self._costates(times, states, controls, p)
+        weight, distance = self.relaxation, np.inf
         for iteration in range(1, self.max_iterations + 1):
             update = self._update(times, states, controls, costates, p)
-            new_controls = (1 - self.relaxation) * controls + self.relaxation * update
+            gap = float(np.abs(update - controls).sum())
+            if gap >= distance:
+                weight = max(weight / 2, MIN_RELAXATION)
+            distance = gap
+            new_controls = (1 - weight) * controls + weight * update
             new_states = self._integrate(initial, new_controls, times, p)
             new_costates = self._costates(times, new_states, new_controls, p)
+            if not (np.all(np.isfinite(new_states)) and np.all(np.isfinite(new_costates))):
+                error_msg = (
+                    f'The forward-backward sweep diverged at sweep {iteration}, as it does near unstable saddle paths. '
+                    'Lower the relaxation, shorten the horizon, or use the Collocation solver.'
+                )
+                raise SolverError(error_msg)
             pairs = [(new_controls, controls), (new_states, states), (new_costates, costates)]
             controls, states, costates = new_controls, new_states, new_costates
             if _converged(self.tolerance, pairs):

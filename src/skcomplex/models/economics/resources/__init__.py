@@ -4,12 +4,14 @@ from ._extraction import Fishery, OilEconomy, fishery_capital, oil_economy
 from ._fisheries import hilsa_fishery
 from ._food import food_security
 from ._harvesting import Farmer, Harvest, Stock, harvesting
+from ._optimal_harvesting import HarvestedResource, optimal_harvesting
 from ._plantations import cocoa
 
 __all__: list[str] = [
     'Farmer',
     'Fishery',
     'Harvest',
+    'HarvestedResource',
     'OilEconomy',
     'Stock',
     'cocoa',
@@ -18,4 +20,5 @@ __all__: list[str] = [
     'harvesting',
     'hilsa_fishery',
     'oil_economy',
+    'optimal_harvesting',
 ]

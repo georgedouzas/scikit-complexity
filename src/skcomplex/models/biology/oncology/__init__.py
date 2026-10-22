@@ -91,6 +91,7 @@ from ._immunotherapy import (
     kirschner_panetta,
     tumour_immune_suppression,
 )
+from ._optimal_therapy import OptimalChemotherapy, OptimalImmunotherapy, optimal_chemotherapy, optimal_immunotherapy
 from ._radiotherapy import IrradiatedTumour, RadiationCompetition, lq_radiosensitizer, radiotherapy_competition
 from ._stem_cells import (
     BoneMarrowBlood,
@@ -132,6 +133,8 @@ __all__: list[str] = [
     'MultidrugResistance',
     'OncolyticVirus',
     'OncolyticVirusDendritic',
+    'OptimalChemotherapy',
+    'OptimalImmunotherapy',
     'PiecewiseLinearProstate',
     'PowerLawGrowth',
     'RadiationCompetition',
@@ -182,6 +185,8 @@ __all__: list[str] = [
     'norton_simon',
     'oncolytic_virus',
     'oncolytic_virus_dendritic',
+    'optimal_chemotherapy',
+    'optimal_immunotherapy',
     'piecewise_linear_ias',
     'power_law_growth',
     'prostate_androgen_receptor',
