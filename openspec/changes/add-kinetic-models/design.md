@@ -114,3 +114,8 @@ in those packages.
   space, but the core has no product of a network and an activity lattice. Should a distribution on a network be a
   site group on a two-dimensional lattice indexed by node and activity, with encounters reading the network's
   adjacency from a separate parameter; a nested system per node; or should a product space kind be added?
+
+  Resolved for this change with the simplest option. `evacuation` holds its crowd as a site group on a
+  two-dimensional lattice indexed by room and speed class, with one last row of sites for the outside, and its walking
+  encounters build their tables from the network of rooms. The network is a balanced tree given by numeric
+  parameters, since interaction parameters hold numbers only. A product space kind stays open for a later change.
