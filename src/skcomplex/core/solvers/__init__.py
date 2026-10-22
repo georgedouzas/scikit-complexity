@@ -5,6 +5,7 @@ from ._base import SOLVERS, Stepper, register_solver, resolve_solver
 from ._caputo import FractionalABM, GrunwaldLetnikov, L1Scheme
 from ._cosimulation import CoSimulation
 from ._fractional import FractionalEulerMaruyama, fractional_gaussian_noise
+from ._kinetics import ParticleKinetics
 from ._lattices import LatticeStepper, MonteCarlo
 from ._quantum import LindbladEvolution, QuantumSolver, QuantumTrajectories, UnitaryEvolution
 from ._rewriting import Rewriter, RewritingState
@@ -44,6 +45,7 @@ __all__: list[str] = [
     'LindbladEvolution',
     'Milstein',
     'MonteCarlo',
+    'ParticleKinetics',
     'QuantumSolver',
     'QuantumTrajectories',
     'RenewalStepper',

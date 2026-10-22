@@ -163,9 +163,10 @@ def _weights_symbol(weights: object) -> Expression:
     if weights is None:
         return SR(0)
     matrix = scipy.sparse.csr_array(weights) if scipy.sparse.issparse(weights) else np.asarray(weights, dtype=float)
-    if matrix.ndim != 2:  # noqa: PLR2004
+    if matrix.ndim not in {1, 2}:
         error_msg = (
-            f'The weights of a reduction are a matrix with one row per reading member, not of shape {matrix.shape}.'
+            'The weights of a reduction are a matrix with one row per reading member, or one row that every reading '
+            f'member shares, not of shape {matrix.shape}.'
         )
         raise ValidationError(error_msg)
     if scipy.sparse.issparse(matrix):
@@ -210,7 +211,8 @@ def total(
 
         weights:
             A constant matrix, a NumPy array or a SciPy sparse matrix, with one row per reading member and one column
-            per reduced member, or `None`.
+            per reduced member, a vector with one weight per reduced member that every reading member shares, or
+            `None`.
 
     Returns:
         reduction:

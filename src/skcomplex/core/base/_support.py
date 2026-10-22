@@ -79,6 +79,7 @@ class LawKind(StrEnum):
     BOUNDARY = 'boundary'
     INVARIANT = 'invariant'
     OBJECTIVE = 'objective'
+    ENCOUNTER = 'encounter'
 
     @property
     def law_class(self) -> LawClass:
@@ -105,6 +106,7 @@ LAW_CLASSES: dict[LawKind, LawClass] = {
     LawKind.BOUNDARY: LawClass.CONSTRAINT,
     LawKind.INVARIANT: LawClass.CONSTRAINT,
     LawKind.OBJECTIVE: LawClass.CONSTRAINT,
+    LawKind.ENCOUNTER: LawClass.CONTINUOUS,
 }
 
 

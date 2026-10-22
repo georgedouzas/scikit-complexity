@@ -189,7 +189,11 @@ def has_complex(value: object) -> bool:
     """
     if isinstance(value, Expression):
         return bool(value.has(I))
-    if isinstance(value, SymbolicVector | list | tuple | np.ndarray):
+    if isinstance(value, np.ndarray) and value.dtype != object:
+        return bool(np.iscomplexobj(value) and np.any(value.imag != 0))
+    if isinstance(value, np.ndarray):
+        return any(has_complex(item) for item in value.ravel())
+    if isinstance(value, SymbolicVector | list | tuple):
         return any(has_complex(item) for item in np.ravel(np.asarray(list(value), dtype=object)))
     if isinstance(value, numbers.Complex) and not isinstance(value, numbers.Real):
         return complex(value).imag != 0

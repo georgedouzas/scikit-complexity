@@ -921,7 +921,9 @@ evaluated once per evaluation, before the member laws, at a cost linear in the s
 - `where` selects the members with a condition on the reduced member, such as `count(where=s.x > 0.5)`. The reductions
   of no selected member are 0.
 - `weights` gives `total` and `mean` a constant matrix, a NumPy array or a SciPy sparse matrix, with one row per
-  reading member and one column per reduced member, so member `i` reads `sum_j W_ij a_j`, such as a payoff matrix.
+  reading member and one column per reduced member, so member `i` reads `sum_j W_ij a_j`, such as a payoff matrix. A
+  vector with one weight per reduced member is a row that every reading member shares, such as the activities of a
+  moment.
 - `over` names the group by its namespace, such as `over=s.neurons`, when the expression reads no symbol of it.
 - A reduction reads one group, and an argument that reads two groups raises an error. Reductions nest, so the mean
   fitness `total(s.x * total(s.x, weights=A))` of replicator dynamics evaluates the inner reduction first.
@@ -1273,6 +1275,197 @@ their edges logged once. The library has `elementary_automaton`, `game_of_life`,
 `graph_ising`, `potts`, `xy`, `fhp_lattice_gas`, and `bak_sneppen`, each in the subfield of its science, such as
 `skcomplex.models.computer_science.automata` for `game_of_life` and `skcomplex.models.physics.statistical_mechanics`
 for `ising`.
+
+## Kinetic models of active particles
+
+The kinetic theory of active particles of Bellomo et al. describes a population by the distribution of its members
+over an activity variable, such as wealth, an opinion, or the progression of a tumour cell. Encounters between
+particles change the distribution, and its moments give the macroscopic quantities.
+
+### Distributions as site groups
+
+A distribution over `n` activity values is a group on the sites of a lattice of `n` sites, one member per activity,
+`Group(label, element=E, size=n, on='sites')`. The element declares one real state, the density at the member's
+activity, and the activity values are an array that the laws and the moments receive. No distribution component is
+needed, and a population of several functional subsystems is several such groups.
+
+```python
+from skcomplex.core.base import Domain, parameter, role, state
+from skcomplex.core.components import Element, Group
+from skcomplex.core.space import ContinuousTime, LatticeSpace
+
+
+class WealthDensity(Element):
+    f: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+
+
+classes = np.linspace(0.0, 1.0, 9)
+profile = np.exp(-((classes - 0.5) ** 2) / 0.05)
+wealth = Group('wealth', element=WealthDensity, size=9, on='sites', values={'f': profile / profile.sum()})
+```
+
+### Encounters
+
+`Encounter(candidate, field, rate, transition, test=None)` declares that a candidate particle at activity `h` meets a
+field particle at activity `k` at the rate `eta[h, k]`, and ends at activity `i` with the probability `A[h, k, i]`. An
+interaction returns it with roles bound to the candidate and field groups, and the compiler derives the gain and loss
+equations
+
+`df_i/dt = sum_hk eta[h, k] A[h, k, i] f_h g_k - f_i sum_k eta[i, k] g_k`
+
+without any hand derivation. The candidate moves into the `test` group when it is given, such as a cell that mutates
+into another subsystem.
+
+- `Proliferation(candidate, field, rate, outcomes=None, test=None)` creates a particle at the rate `mu[h, k]` without
+  removing the candidate, at the candidate's activity or at an activity drawn from `outcomes`.
+- `Destruction(candidate, field, rate)` removes the candidate at the rate `mu[h, k]`.
+- Rates and probabilities are numbers or parameter expressions, scalars or arrays. Only the nonzero probabilities
+  enter the lowering, as sparse contractions on NumPy and one fused loop on Numba.
+- The three laws are of the law kind `encounter` of the continuous class. They need continuous time, a lattice space,
+  and real states, and validation reports a law whose system lacks them, with the fix to declare them.
+- Validation reports the encounters whose probabilities do not sum to one over the outcomes, with the candidate and
+  field activities and the sum, before compilation.
+- A system with encounters has no exact Jacobian, so implicit solvers estimate it by finite differences.
+
+```python
+from skcomplex.core.compile import validate
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Encounter
+
+
+def exchange_table(cooperation, competition):
+    table = np.zeros((9, 9, 9))
+    for candidate in range(9):
+        for field in range(9):
+            gap = int(np.sign(field - candidate))
+            for outcome, probability in ((candidate + gap, cooperation), (candidate - gap, competition)):
+                if gap and 0 <= outcome < 9:
+                    table[candidate, field, outcome] += probability
+            table[candidate, field, candidate] += 1 - table[candidate, field].sum()
+    return table
+
+
+class Exchange(Interaction):
+    population: str = role()
+    eta: float = parameter(default=1.0)
+
+    def laws(self, s):
+        return [Encounter(s.population.f, s.population.f, s.eta, exchange_table(0.2, 0.3))]
+
+
+economy = System(
+    components=[wealth],
+    interactions=[Exchange('exchange', population='wealth')],
+    space=LatticeSpace(9, boundary='fixed'),
+    time=ContinuousTime(),
+)
+densities = Simulation(economy, dt=10.0).run(until=100).trajectory_['wealth.f']
+print(densities.sum(axis=1)[[0, -1]].round(12), densities[-1].round(3))
+print(validate(economy).ok)
+```
+
+### External actions
+
+External actions need no primitive of their own.
+
+- A micro-scale action, such as a welfare policy that acts on the transitions of the wealth classes, is an encounter
+  whose field role binds a group with fixed states, a group no law changes.
+- A macro-scale action, such as a recruitment of security forces proportional to the mean criminality, is a `Rate` law
+  that reads the moments of a distribution.
+
+```python
+class Policy(Interaction):
+    population: str = role()
+    government: str = role()
+    tax: float = parameter(default=0.2)
+
+    def laws(self, s):
+        rates, table = np.zeros((9, 1)), np.zeros((9, 1, 9))
+        for candidate in range(9):
+            outcome = candidate + 1 if candidate < 3 else candidate - 1 if candidate >= 6 else candidate
+            rates[candidate, 0] = float(outcome != candidate)
+            table[candidate, 0, outcome] = 1.0
+        return [Encounter(s.population.f, s.government.f, rates * s.tax, table)]
+
+
+welfare = System(
+    components=[wealth, WealthDensity.group('government', 1, f=1.0)],
+    interactions=[Exchange('exchange', population='wealth'), Policy('policy', population='wealth', government='government')],
+    space=LatticeSpace(9, boundary='fixed'),
+    time=ContinuousTime(),
+)
+print(Simulation(welfare, dt=10.0).run(until=100).trajectory_['wealth.f'][-1].round(3))
+```
+
+### Moments
+
+`moment(expression, order, coordinates)` is the reduction `sum_j c_j^r f_j` over the members of a group, with the
+coordinate `c_j` of every member, such as its activity. The order-0 moment is the density. `normalized=True` divides by
+the density, so the normalized order-1 moment is the mean activity, and `central=True` takes the moment about the mean,
+so the central order-2 moment is the variance. Moments are expressions of `total` with a shared row of weights, a
+vector with one weight per reduced member, so laws read them and observables record them. An observable of a group
+receives the namespace of one member, and its function must be defined at module level so that it pickles.
+
+```python
+from skcomplex.core.laws import moment
+
+
+def mean_wealth(s):
+    return moment(s.f, 1, classes, normalized=True)
+
+
+def wealth_variance(s):
+    return moment(s.f, 2, classes, central=True)
+
+
+observables = [
+    Observable('mean_wealth', mean_wealth, group='wealth'),
+    Observable('wealth_variance', wealth_variance, group='wealth'),
+]
+trajectory = Simulation(economy, dt=10.0, observables=observables).run(until=100).trajectory_
+print(trajectory['mean_wealth'][-1].round(3), trajectory['wealth_variance'][[0, -1]].round(3))
+```
+
+### The particle solver
+
+`ParticleKinetics(n, dt)` runs the same declarations by direct simulation Monte Carlo. It holds every density as counts
+of particles of one mass, with `n` particles for the largest initial density. In every step a candidate particle
+encounters with the probability `1 - exp(-lambda_h dt)`, where `lambda_h = sum_k eta[h, k] g_k`, and picks its field
+activity and outcome in proportion to `eta[h, k] A[h, k, i] g_k`. A proliferation adds a Poisson number of particles
+and a destruction removes a binomial number. The state holds the empirical densities, so trajectories match the ODE
+form, and the error against the ODE solution falls as one over the square root of `n`. The solver supports continuous
+time, lattice spaces, site groups, and encounter laws only, so validation reports a rate law with it and lists the
+solvers that run it.
+
+```python
+from skcomplex.core.solvers import ParticleKinetics
+
+sampled = Simulation(economy, dt=10.0, solver=ParticleKinetics(n=20_000), random_state=0).run(until=100)
+print(np.abs(sampled.trajectory_['wealth.f'][-1] - densities[-1]).sum().round(2))
+print(validate(welfare, solver=ParticleKinetics()).ok)
+```
+
+### Levels
+
+`distribution_from(group, state, activities, element=E)` bins the values of a state of a group's members, from their
+initial values or from a frame of a trajectory, into a distribution site group, every member counting at the nearest
+activity, so the density is 1. `members_from(distribution, element, n, activities=...)` draws the members of a
+variable group from a distribution. A model can then run one level in a partition of a co-simulation and feed another
+level its moments.
+
+```python
+from skcomplex.core.components import distribution_from, members_from
+
+Trader = Element.define('Trader', states={'w': 0.0})
+traders = members_from(densities[-1], Trader, 1000, activities=classes, random_state=0)
+binned = distribution_from(traders, 'w', classes, element=WealthDensity, label='wealth')
+print(binned.values['f'].sum(), round(float(binned.values['f'] @ classes), 3), round(traders.values['w'].mean(), 3))
+```
+
+The library has `kinetic_wealth_welfare` in `skcomplex.models.economics.econophysics`, `immune_competition` in
+`skcomplex.models.biology.oncology`, `kinetic_opinion` in `skcomplex.models.social.opinion_dynamics`, and `evacuation`
+and `criminality` in `skcomplex.models.social.crowds`. `evacuation` holds a crowd on a network of rooms as a site group
+on a two-dimensional lattice indexed by room and speed class, whose walking encounters read the doors of the building.
 
 ## Fields
 

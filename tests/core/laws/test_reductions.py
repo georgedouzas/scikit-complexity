@@ -70,12 +70,12 @@ def test_count_takes_no_expression():
     ('call', 'match'),
     [
         (lambda x: maximum(x, over='group'), 'namespace'),
-        (lambda x: total(x, weights=np.ones(3)), 'matrix'),
+        (lambda x: total(x, weights=np.ones((3, 3, 3))), 'matrix'),
     ],
-    ids=['group name', 'vector weights'],
+    ids=['group name', 'tensor weights'],
 )
 def test_malformed_reductions_are_rejected(call, match):
-    """Test that a group given by name and weights that are not a matrix raise errors."""
+    """Test that a group given by name and weights that are neither a matrix nor a shared row raise errors."""
     with pytest.raises(ValidationError, match=match):
         call(symbol('x'))
 

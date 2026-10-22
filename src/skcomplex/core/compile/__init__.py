@@ -2,6 +2,7 @@
 
 from ._backends import BACKENDS, Backend, Lowering, load_backends, register_backend, resolve_backend
 from ._compiler import CensusRecord, compile_system, law_census, partition_system, with_initial_state
+from ._contractions import CompiledEncounter, TableValues
 from ._fields import mesh_laplacian, spectral_multiplier
 from ._hybrid import Breakpoints, CompiledEvent, Delay, EventRecord
 from ._lattices import (
@@ -61,6 +62,7 @@ __all__: list[str] = [
     'CompiledAgents',
     'CompiledDrive',
     'CompiledElement',
+    'CompiledEncounter',
     'CompiledEvent',
     'CompiledExtremal',
     'CompiledFlow',
@@ -99,6 +101,7 @@ __all__: list[str] = [
     'RenewalRecord',
     'StockFlow',
     'Structure',
+    'TableValues',
     'ValidationReport',
     'ValidationWarning',
     'Vector',
