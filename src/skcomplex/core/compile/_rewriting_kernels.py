@@ -1,4 +1,4 @@
-"""Compile the stack walks of string rewriting: bracket-aware contexts and the turtle."""
+"""Compile the stack walks of string rewriting: bracket-aware contexts and the walk of a word geometry."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -90,14 +90,14 @@ def _rotate(vector: npt.NDArray[np.float64], axis: npt.NDArray[np.float64], angl
 
 
 @njit(cache=True)
-def turtle_walk(  # noqa: C901
+def walk_word(  # noqa: C901
     actions: npt.NDArray[np.int64],
     values: npt.NDArray[np.float64],
     step: float,
     angle: float,
     heading: float,
 ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.int64]]:
-    """Return the segments of shape `(k, 2, 3)` and the branch depths that a turtle draws walking a word.
+    """Return the segments of shape `(k, 2, 3)` and the branch depths drawn walking a word.
 
     Each module has an action and a value, its first parameter or NaN, which overrides the step or the angle.
     """

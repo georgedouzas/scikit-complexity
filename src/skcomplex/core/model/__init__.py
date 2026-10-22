@@ -85,7 +85,6 @@ from ._rewriting import (
     Rewriting,
     RewritingLaw,
     Substitution,
-    Turtle,
     Word,
     structure_of,
 )
@@ -174,7 +173,6 @@ __all__: list[
     'Totalistic',
     'Transfer',
     'Transition',
-    'Turtle',
     'Update',
     'Word',
     'adjacent',
