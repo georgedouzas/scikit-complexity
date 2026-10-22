@@ -4,16 +4,16 @@
 
 ### Requirement: Elman simple recurrent network
 The library SHALL provide Elman's simple recurrent network (Gros 2015 §10.5.1, Eq. 10.18, and Elman 1990) as a
-registered factory that returns a learning system. Its inner model SHALL be the discrete map
-`s(t) = σ(A s(t-1) + D x(t) + b)`, `y(t) = σ(W s(t) + c)` in symbolic laws with matrix parameters. Its loss SHALL be
-the squared error of predicting the next input, by default on Elman's temporal XOR stream.
+registered factory of a system under discrete time in epochs. It SHALL nest the discrete map
+`s(t) = σ(A s(t-1) + D x(t) + b)`, `y(t) = σ(W s(t) + c)` with adaptive matrix parameters, and train it with a
+gradient-step law on the squared error of predicting the next input, by default on Elman's temporal XOR stream.
 
 #### Scenario: Temporal XOR
 - **WHEN** `run('elman_network', settings={'until': 200, 'random_state': 0})` trains 4 hidden units with Adam on a
   stream of 3000 bits
 - **THEN** after 200 epochs the metric `xor_error`, the mean squared error of the predictions of every third bit, is
-  below 0.05, the metric `random_error` of the predictions of the other bits stays above 0.2, and `elman/loss` at the
-  last frame is below its value at frame 0
+  below 0.05, the metric `random_error` of the predictions of the other bits stays above 0.2, and
+  `elman/training/loss` at the last frame is below its value at frame 0
 
 #### Scenario: Elman's original rule
 - **WHEN** `elman_network` is created with `truncation=1`

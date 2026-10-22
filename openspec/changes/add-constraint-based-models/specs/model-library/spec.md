@@ -105,6 +105,77 @@ seeded noise, and it SHALL accept user networks and measurements. It SHALL run w
 - **WHEN** `carbon_13_mfa` simulates glutamate with the true fluxes and the tracer of Antoniewicz et al. (2007)
 - **THEN** the distribution is `[0.3464, 0.2695, 0.2708, 0.0807, 0.0286, 0.0039]` within 5e-5
 
+### Requirement: Static analyses come with an optional extra
+With the extra `metabolism` installed, the biology realizations of the library, `skcomplex.models.biology.realizations`,
+SHALL analyse a network with:
+- flux variability;
+- parsimonious fluxes;
+- single and double deletions of processes or switches;
+- MoMA and ROOM in their linear and quadratic or mixed-integer forms;
+- synthetic lethal pairs.
+
+Results SHALL be indexed by process or switch name.
+
+#### Scenario: Flux variability at the optimum
+- **WHEN** flux variability runs on the E. coli core model at 100% of the optimum
+- **THEN** the range of the biomass flux is 0.8739 within 1e-4 at both ends
+
+#### Scenario: Parity with the core solve
+- **WHEN** the E. coli core model is solved by the core and by the extra's analysis path
+- **THEN** the growth agrees within 1e-7, and the parsimonious total flux agrees with the core's lexicographic total
+  flux within 1e-6
+
+#### Scenario: Adjustment after a knock-out
+- **WHEN** the `pgi` gene (b4025) is knocked out against the wild-type solution
+- **THEN** FBA gives growth 0.8632 within 1e-3, and MoMA and ROOM give positive growth below it
+
+### Requirement: Strain designs are computed with the extra
+With the extra installed, the biology realizations SHALL compute OptKnock, RobustKnock, OptCouple, and minimal cut set designs with
+a maximum number of interventions. It SHALL return each design as sets of process or switch names.
+
+#### Scenario: Growth-coupled succinate
+- **WHEN** OptKnock designs succinate production in the E. coli core model with at most 3 knock-outs and growth of at
+  least 0.1
+- **THEN** a returned design, at maximal growth, secretes at least 9 mmol/gDW/h of succinate at its minimum, where the
+  wild type secretes none
+
+### Requirement: Flux scanning runs in the default install
+The biology realizations SHALL scan fluxes with enforced objective flux (FSEOF). It SHALL enforce a target flux at increasing
+levels, and report the processes whose absolute flux rises monotonically with it, without the optional extra.
+
+#### Scenario: Scan toward a product
+- **WHEN** FSEOF scans the succinate exchange of the E. coli core model in 10 steps
+- **THEN** the reported processes carry a flux that rises with every step, and the growth falls from its optimum
+
+### Requirement: Communities are modelled jointly and with trade-offs
+The library SHALL:
+- join member networks into one network with a shared compartment and an abundance-weighted growth objective, through
+  the general `join_networks` of `skcomplex.core.analysis`;
+- compute SteadyCom with one common growth rate in the biology realizations, without the optional extra;
+- compute MICOM's cooperative trade-off in the biology realizations, with the extra.
+
+#### Scenario: Identical members
+- **WHEN** two copies of the E. coli core model share one medium whose uptake allows each of them a glucose uptake of 10
+- **THEN** joint FBA gives each member growth 0.8739 within 1e-4, and SteadyCom gives the common rate 0.8739 within
+  1e-4 with abundances that sum to 1
+
+#### Scenario: Trade-off at full community growth
+- **WHEN** the cooperative trade-off runs at fraction 1
+- **THEN** the community growth equals the joint FBA optimum within 1e-5
+
+### Requirement: Models import and export standard formats
+With the extra installed, the biology realizations SHALL read SBML and BiGG JSON files and BiGG identifiers into networks, keeping
+the identifiers of reactions, metabolites, and genes, the bounds, the objective, and the gene rules. It SHALL write
+networks back to both formats.
+
+#### Scenario: Bundled E. coli core
+- **WHEN** a user reads the bundled E. coli core model and solves it in the core
+- **THEN** aerobic growth is 0.8739 within 1e-4, and with oxygen uptake bounded at 0 it is 0.2117 within 1e-4
+
+#### Scenario: Round trip
+- **WHEN** a network is written to SBML and to JSON and read back
+- **THEN** both copies have the same matrix, bounds, rules, and optimum as the original
+
 ### Requirement: Constraint-based models have gallery examples
 Each model of this change SHALL have a gallery example at `docs/examples/biology/<subfield>/plot_<name>.py` that runs
 within the gallery budget. It SHALL show its Rerun primary view as the thumbnail and at least one analysis plot from

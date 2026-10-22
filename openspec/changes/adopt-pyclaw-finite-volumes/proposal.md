@@ -15,11 +15,19 @@ source build with meson and gfortran, or the conda-forge package. PyClaw therefo
 in-house scheme stays as the fallback. The audit also found that 78% of the in-house time goes to `np.linalg.eigvals` of
 the flux Jacobian and 14% to `np.take` with a Python range, so the fallback's hot path is fixed too.
 
+**Rebased on `redesign-system-model`.** The redesign covers none of this change's purpose. It gathers every backend in
+`skcomplex.core.backends`, requires every solver and backend to declare its support, and reports an unavailable
+optional backend through validation, with a fix that names the installation extra. This change keeps its scope: the
+PyClaw backend lives in `core.backends` with its Riemann lowering as a private module, it and the finite-volume solver
+declare `Supports`, the missing extra and the unsupported items become validation issues raised before compilation,
+and finite-volume fields are site groups on a lattice.
+
 ## What Changes
 
 - Add an optional `clawpack` extra that installs `clawpack>=5.14.0`, and keep it out of the default install.
-- Add a PyClaw backend that runs the conservation laws of lattice finite-volume fields. It lowers every field's symbolic
-  `Flux` laws to a PyClaw Riemann solver:
+- Add a PyClaw backend that runs the conservation laws of lattice finite-volume fields, groups on the sites of a
+  lattice with the finite-volume discretization. It declares its support, continuous time, lattice spaces, site
+  groups, real states, and rate laws, and lowers every field's symbolic `Flux` laws to a PyClaw Riemann solver:
   - known fluxes, such as linear advection, Burgers, shallow water in one and two dimensions, and the Euler equations,
     map to PyClaw's shipped Fortran solvers, with their parameters passed through `problem_data`;
   - other fluxes of up to three states get a generated Roe-type f-wave solver from a Sage eigen-decomposition of the
@@ -29,10 +37,11 @@ the flux Jacobian and 14% to `np.take` with a Python range, so the fallback's ho
   extrapolation, fixed edges and mixed boundaries per state become custom ghost-cell fills.
 - Step frames with `evolve_to_time`, apply rate laws on the same states as sources through `step_source`, and pass
   live parameter changes to `problem_data` before the next frame.
-- Add a finite-volume solver that picks the PyClaw backend when the extra is installed and the field is supported, and
-  the in-house scheme otherwise. It records which path it took. Library finite-volume models default to it.
-- Raise a named error that names the `clawpack` extra and the conda-forge package when a user asks for the PyClaw
-  backend without it.
+- Add a finite-volume solver, with its `Supports` declaration, that picks the PyClaw backend when the extra is
+  installed and the field is supported, and the in-house scheme otherwise. It records which path it took. Library
+  finite-volume models default to it.
+- Report, through validation, an issue whose fix names the `clawpack` extra and the conda-forge package when a user
+  asks for the PyClaw backend without it, and an issue per item the backend cannot run.
 - Fix the in-house hot path: wave speeds come from closed-form or symbolic eigenvalues compiled once, with the numerical
   eigenvalues kept only where no closed form exists, and the reconstruction slices arrays instead of calling `np.take`.
 
@@ -51,8 +60,10 @@ None.
 
 ## Impact
 
-- `skcomplex.core.backends` gains `PyClawBackend` and `FiniteVolumeSolver`, and a private module that lowers `Flux`
-  laws to Riemann solvers. `clawpack` is imported lazily, with a suppression that names the optional extra.
+- `skcomplex.core.backends` gains `PyClawBackend`, with its `Supports` declaration, and a private module that lowers
+  `Flux` laws to Riemann solvers. `skcomplex.core.solvers` gains `FiniteVolumeSolver`, with its `Supports`
+  declaration. `clawpack` is imported lazily, with a suppression that names the optional extra, and validation's
+  availability check reports it when missing.
 - `skcomplex.core.compile` compiles the symbolic eigenvalues and eigenvectors of the flux Jacobians once, and
   `FiniteVolume` uses them in `_speed` and slices in `rates`.
 - `pyproject.toml` gains the `clawpack` extra and the deptry entry for the optional import. CI gains a job on macOS

@@ -4,10 +4,9 @@
 
 ### Requirement: Lattice gauge model samples the Wilson action
 The library SHALL provide `lattice_gauge_fields` in `physics/waves`, after Schwichtenberg (2020 §2.1, §4.4), as one
-registered factory. With its default Monte Carlo dynamics, it SHALL sample the Wilson action of compact link variables
-in U(1), Z_N, or SU(2) on a periodic lattice of two to four dimensions, with one sweep per unit of time, so `run`
-returns the Markov chain and the trajectory holds one configuration per recorded sweep. It SHALL record the mean
-plaquette as an observable.
+registered factory. With its default Monte Carlo dynamics, it SHALL return a system under discrete time that samples
+the Wilson action of U(1), Z_N, or SU(2) link variables on the cell complex of a periodic lattice of two to four
+dimensions, one sweep per unit of time. Its catalog entry SHALL declare the mean plaquette as a standard observable.
 
 #### Scenario: Plaquette against the exact result
 - **WHEN** `lattice_gauge_fields` runs with its defaults, U(1) on a periodic 32 × 32 lattice by heat-bath at β = 2,
@@ -19,14 +18,37 @@ plaquette as an observable.
 - **THEN** the mean plaquette series equals the series of the untransformed run within 1e-12
 
 ### Requirement: Lattice gauge model evolves Maxwell fields
-With Hamiltonian dynamics, `lattice_gauge_fields` SHALL evolve a lattice Maxwell potential and electric field on links
-in real time from optional static charges, so the trajectory holds the fields at physical times. It SHALL record the
-Gauss law residual and the field energy as observables.
+With Hamiltonian dynamics, `lattice_gauge_fields` SHALL return a system under continuous time that evolves a lattice
+Maxwell potential and electric field on links in real time from optional static charges on sites, so the trajectory
+holds the fields at physical times. Its catalog entry SHALL declare the Gauss law residual and the field energy as
+standard observables.
 
 #### Scenario: Maxwell dynamics conserve the Gauss law
 - **WHEN** `lattice_gauge_fields` runs with Hamiltonian dynamics and a static charge pair on a periodic 32 × 32 lattice
 - **THEN** the Gauss law residual stays below 1e-10 at every frame, and the total field energy changes by less than
   1e-3 relative error
+
+### Requirement: Gauge realizations live in the lattice gauge package
+The package `skcomplex.models.physics.waves` SHALL hold the Wilson action as an energy of the core's `Sample` law and
+the gauge transformation, one group element per site, and none of them SHALL be a name of `skcomplex.core`.
+
+#### Scenario: Wilson action outside the core
+- **WHEN** the field-term test of the core runs after this change
+- **THEN** no public name of `skcomplex.core` contains `wilson`, `gauge`, or `polyakov`
+
+### Requirement: Gauge observables are measured from trajectories
+The package `skcomplex.models.physics.waves` SHALL measure the mean plaquette, Wilson loops of given extents, Polyakov
+loops along the time axis, the topological charge of a U(1) link field over any closed oriented surface of a complex,
+and the Gauss law residual of an electric link state against a site charge.
+
+#### Scenario: Invariance of loops
+- **WHEN** a random gauge transformation is applied to an SU(2) configuration
+- **THEN** the mean plaquette and the 2 × 2 Wilson loop are unchanged within 1e-12, and the energy of the Wilson action
+  is unchanged
+
+#### Scenario: Integer charge
+- **WHEN** the topological charge of any U(1) configuration on a periodic 2D lattice is computed
+- **THEN** it equals an integer within 1e-9
 
 ### Requirement: Gauge link field example in the gallery
 The gallery SHALL hold the example `docs/examples/physics/waves/plot_lattice_gauge_fields.py`. Its Rerun thumbnail
@@ -41,8 +63,9 @@ figure SHALL plot the mean plaquette measured from runs at several values of β 
 
 ### Requirement: Gauge network agents
 The library SHALL provide `gauge_network_agents` in `social/opinion_dynamics`, after Mihaylov and Cacciatori (2025, arXiv
-2509.01581): agents with internal U(1) phases on the nodes of a network whose edges carry connections, relaxing towards
-their neighbours' parallel-transported phases, so frustrated loops prevent global agreement.
+2509.01581): a site group of agents with internal U(1) phases on a network cell complex, and an edge group of
+connections, the agents relaxing towards their neighbours' parallel-transported phases, so frustrated loops prevent
+global agreement. The package SHALL define its own alignment energy and read the core's frustration measure.
 
 #### Scenario: Frustration blocks agreement
 - **WHEN** `gauge_network_agents` runs on a ring of 12 agents with a flat connection and with a total flux of pi around
@@ -51,7 +74,8 @@ their neighbours' parallel-transported phases, so frustrated loops prevent globa
 
 ### Requirement: Link field models are recorded in the model inventory
 Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
-inventory, and a model the inventory records as pending this change SHALL register under the name of its entry.
+inventory, tagged with its time kind, space kind, component kinds, bindings, law classes, and domains, and a model the
+inventory records as pending this change SHALL register under the name of its entry.
 
 #### Scenario: Inventory models registered
 - **WHEN** the change is applied and the inventory check runs

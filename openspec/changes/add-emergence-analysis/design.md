@@ -7,6 +7,10 @@ grids (`coarse_grain`), measures avalanches and branching ratios (`criticality-a
 transfer entropy (`complexity-measures`). It has no measure of emergence across scales and no diagnostic of ergodicity
 breaking, and the papers added to `references/papers` define both precisely.
 
+This design is rebased on `redesign-system-model`. The measures are analysis functions over trajectories and transition
+matrices and add no primitive, solver, or backend. The probe model uses the redesigned vocabulary, and its learning
+rule is a realization in the model package, since learning heuristics such as logit choice moved out of the core.
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -50,11 +54,14 @@ and its ensemble distribution follows Lesmana et al. All three read trajectories
 
 ### EvoSK as a probe
 
-`evolutionary_sk_game` is a group of `N` agents with a quenched symmetric Gaussian coupling matrix, a per-agent
-incentive updated by memory-weighted reinforcement, softmax actions at a per-agent temperature, and extremal replacement
-of the least fit with a temperature redrawn uniformly. Every part is an existing primitive: group reductions with
-weights, draws, and `Extremal`. Its inventory priority is `core` because no implemented model combines learning and
-extremal selection on a frustrated landscape.
+`evolutionary_sk_game` is a fixed `Group` of `N` elements under `DiscreteTime()` in no space, with a quenched
+symmetric Gaussian coupling matrix, a per-agent incentive updated by memory-weighted reinforcement, softmax actions at a
+per-agent temperature, and extremal replacement of the least fit with a temperature redrawn uniformly. Every part is an
+existing core primitive: group reductions with weights, draws, `Update` laws, and `Extremal`. The softmax choice is a
+learning heuristic, so the model package defines it over draws, instead of importing the learning helpers of
+`skcomplex.models.economics` or `skcomplex.models.social`, which are other fields' realizations. Its inventory entry
+is tagged with discrete time, no space, a group, the members binding, and discrete laws. Its priority is `core` because
+no implemented model combines learning and extremal selection on a frustrated landscape.
 
 ## Risks / Trade-offs
 

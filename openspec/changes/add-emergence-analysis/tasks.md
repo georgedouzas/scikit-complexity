@@ -21,8 +21,9 @@ the naming and public-API rules of the constitution.
 
 ## 3. Library
 
-- [ ] 3.1 Add `evolutionary_sk_game` to `skcomplex.models.physics.criticality` on the group, draw, and extremal-update
-  primitives, and verify the self-organisation scenario and the conformance suite
+- [ ] 3.1 Add `evolutionary_sk_game` to `skcomplex.models.physics.criticality` on the core's group, draw, update, and
+  extremal primitives under discrete time, with its softmax choice in the model package, and verify the
+  self-organisation scenario and the conformance suite
 - [ ] 3.2 Add its curated gallery example with a review row, and mark its inventory entry implemented
 
 ## 4. Documentation and gate

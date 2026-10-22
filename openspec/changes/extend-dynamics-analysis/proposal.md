@@ -11,15 +11,20 @@ relation of a field model, which the toolkit computes only for single equations 
 models exercise existing primitives in combinations no implemented model has. te Vrugt and Wittkowski (2024, arXiv
 2405.15751) map active matter onto the pending changes and add the nonreciprocal Vicsek model.
 
+**Rebased on `redesign-system-model`.** The redesign covers none of these analyses, so the scope is unchanged. Only the
+vocabulary changes: a field model is a site group on a lattice, `Group(on='sites')`, with rate laws, and the probe
+models are written as systems of components, interactions, space, and time. The change adds no primitive, solver, or
+backend.
+
 ## What Changes
 
 - Add a cloning sampler of rare trajectories for jump processes and stochastic dynamics, with the scaled cumulant
   generating function it estimates.
 - Add the thermodynamic uncertainty relation check of a current: its precision against the entropy production.
-- Add the dispersion relation of a field model: the growth rate of each wavenumber of its linearisation around a
-  uniform state.
+- Add the dispersion relation of a field model, a site group on a lattice with rate laws: the growth rate of each
+  wavenumber of its linearisation around a uniform state.
 - Add the probe models `kinouchi_copelli`, `nonreciprocal_cahn_hilliard`, `nonreciprocal_vicsek`, and
-  `tipping_cascade_network`.
+  `tipping_cascade_network`, each built from core primitives in the redesigned vocabulary.
 
 ## Capabilities
 

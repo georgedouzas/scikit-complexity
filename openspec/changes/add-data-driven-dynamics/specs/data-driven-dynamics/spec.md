@@ -20,6 +20,19 @@ The analysis SHALL fit SINDy to trajectories and return symbolic laws the compil
 - **WHEN** SINDy is fitted to a noise-free `lorenz` trajectory with a polynomial library of degree 2
 - **THEN** it recovers the seven nonzero terms of the Lorenz system with coefficients within 1%
 
+### Requirement: Surrogates are systems
+Every fitted surrogate SHALL be a `System` of one element with ordinary laws and a declared time, continuous for mode
+decomposition and SINDy and discrete for reservoirs, and it SHALL validate and run through `Simulation` like a
+hand-written system.
+
+#### Scenario: Surrogate validated
+- **WHEN** a SINDy surrogate fitted to `lorenz` is validated
+- **THEN** the report has no error, its time is continuous, and the automatic solver is an ODE solver
+
+#### Scenario: Reservoir under discrete time
+- **WHEN** a reservoir surrogate is simulated
+- **THEN** its system declares discrete time, and each step applies the readout once
+
 ### Requirement: Reservoir surrogates
 The analysis SHALL fit echo state networks and next-generation reservoirs to trajectories and return surrogates that forecast autonomously.
 

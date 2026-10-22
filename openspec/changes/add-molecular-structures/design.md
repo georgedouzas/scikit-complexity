@@ -2,16 +2,22 @@
 
 ## Context
 
-The parts of the framework that this change builds on:
-- `LatticeSpace` holds categorical or real states per site, and `Move` and `Sampler` give Monte Carlo moves with
-  Metropolis, Glauber, and heat-bath acceptance at a live temperature. `Energy` is local: it reads a site and its
-  neighbourhood, and its change is derived symbolically. The stepper is `MonteCarlo`, and the form is
-  `Form.MONTE_CARLO`.
+The parts of the framework that this change builds on, after `redesign-system-model`:
+- A system is `System(label, components=, interactions=, space=, time=)`. A `Group(on='sites')` on a `LatticeSpace`
+  holds categorical or real states per site.
+- The `Sample` law, in the discrete class, holds an energy, a move, and an acceptance: Metropolis by default, with
+  Glauber and heat-bath as the general alternatives, at a live temperature. Its energy is local: it reads a site and its
+  neighbourhood, and its change is derived symbolically. The internal form is `Form.MONTE_CARLO` with the `MonteCarlo`
+  stepper, under `DiscreteTime()`.
 - `Drive` changes a whole lattice state through a Python function, and `Call` and `NumericFunction` evaluate functions
   inside laws, on NumPy from Python and on Numba when the function is compiled.
-- Observables are recorded per frame in trajectories, and `Trajectory.lattice` returns a lattice state per frame.
+- Every primitive declares `Requires`, every solver and backend `Supports`, and `validate()` reports misuse as issues
+  with a code, path, message, and fix before compilation.
+- Observables are given to simulations and catalog entries and recorded per frame in trajectories, and
+  `Trajectory.lattice` returns a lattice state per frame.
 - `skcomplex.core.analysis` already has `kl_divergence`, `shannon_entropy`, and `as_graph` on NetworkX.
 - `PointsVisual` draws group positions, and `ImageVisual` draws lattices.
+- `core.backends` holds only execution backends, and specific realizations live in `skcomplex.models.<field>`.
 
 What is missing is a score of a whole row of a lattice, the geometry that turns internal coordinates into positions,
 structure files, and sequence-to-structure maps. Raman (2021 §13.2–13.3) and Konieczny et al. (2023 §1.3.1, §3.7.1)
@@ -25,8 +31,9 @@ or a replay once a row can be scored as a whole.
 - Fit the three models into the existing System, Simulation, and Trajectory interface without a new runtime: walks
   and folding are Monte Carlo time, and ensembles are replayed one member per frame.
 - Keep the core domain-agnostic. A sequence is a categorical row over any alphabet, a chain is any polymer with
-  internal coordinates, and a score is any function of a row. RNA folding and protein files are adapters in the
-  backends.
+  internal coordinates, and a score is any function of a row. RNA folding, protein files, the protein backbone,
+  hydrophobicity, and genotype-phenotype analyses are realizations in `skcomplex.models.biology`.
+- Declare the requirements of every new core primitive, so validation reports misuse before compilation.
 - Take parsing, internal coordinates, superposition, hydrophobicity scales, RNA folding, and trajectory formats from
   mature libraries, and keep only the adapters in the codebase.
 - Keep the default install under licences compatible with MIT, with ViennaRNA and MDTraj behind extras.
@@ -89,62 +96,96 @@ None of the three models integrates an equation, and each keeps its own meaning 
 
 | Model | What a unit of time is | Form | What `run` returns | What the trajectory holds |
 |---|---|---|---|---|
-| `rna_neutral_networks` | one proposed point mutation per walker | Monte Carlo with a global score | a `Simulation` whose last frame holds the walkers' sequences | per frame, the sequences as a `(walkers, length)` lattice, and observables for structure index, free energy, base-pair distance, Hamming distance, and, every `measure_every` frames, robustness and evolvability |
-| `fuzzy_oil_drop`, replay | one member of the ensemble | discrete map driven by a replay law | a `Simulation` that has replayed the ensemble | per frame, the effective-atom positions and observables for `T`, `O`, `R`, the divergences, `RD`, and `K` |
+| `rna_neutral_networks` | one proposed point mutation per walker | Monte Carlo with a global score | a `Simulation` whose last frame holds the walkers' sequences | per frame, the sequences as a `(walkers, length)` lattice, and the catalog entry's observables for structure index, free energy, base-pair distance, Hamming distance, and, every `measure_every` frames, robustness and evolvability |
+| `fuzzy_oil_drop`, replay | one member of the ensemble | discrete map driven by a replay law | a `Simulation` that has replayed the ensemble | per frame, the effective-atom positions and the catalog entry's observables for `T`, `O`, `R`, the divergences, `RD`, and `K` |
 | `fuzzy_oil_drop`, folding | one sweep of dihedral moves | Monte Carlo with a global score | a `Simulation` at the last conformation | per frame, the dihedral angles, positions, `RD`, and radius of gyration |
 | `early_stage_folding_intermediate` | one heat-bath sweep of ellipse cells | Monte Carlo | a `Simulation` at the last sampled conformation | per frame, the cell, the dihedral angles, the positions, the angles between peptide bond planes, and the radius of gyration |
 
 A replay is not forced onto a time axis. The member index becomes the frame index, which is what the viewer and the
 analysis plots step through. Static results, such as the native projection of the early-stage model or the neutral
 network of a toy map, are analysis functions that the examples call on the model's inputs or on its trajectory, not
-frames.
+frames. Every model runs under `DiscreteTime()`.
+
+### Where each piece lives
+
+| Piece | Home | Reason |
+|---|---|---|
+| `Chain` with the bead geometry | `core.components` | any polymer with internal coordinates |
+| global scores, temperature zero, the `'mutation'` move kind | `core.laws`, in `Sample` | the redesign's sampling law, extended |
+| the replay law | `core.laws` | any ensemble replayed one member per step |
+| radius of gyration, end-to-end distance, superposed RMSD | `core.analysis` | geometry of any point chain |
+| `ChainVisual` | `core.viz` | draws any chain |
+| `MissingExtraError` | `core.base` | a general error |
+| `Structure`, `read_structure`, `write_structure`, `read_trajectory`, effective atoms, hydrophobicity scales, the protein backbone geometry, backbone dihedral and peptide plane angles, the fuzzy oil drop | `skcomplex.models.biology.realizations` | molecular biology; shared by the two `systems_biology` models |
+| `GenotypeMap`, `rna_fold`, `rna_layout`, the neutral network analyses | the `biology/evolution` model package | used only by `rna_neutral_networks` |
 
 ### Sequences
 
-A sequence is a categorical lattice state on a lattice of shape `(copies, length)`. The `Categorical` domain already
-names the letters. The alphabet is the domain's labels, and the core ships no biological alphabet. The models declare
-`ACGU` and the twenty amino acids themselves. `Move` gains the kind `'mutation'`, which draws a different value
-uniformly. Strings convert through the domain's labels, and a letter outside them raises `ValidationError`.
+A sequence is a categorical state of a `Group(on='sites')` on a `LatticeSpace` of shape `(copies, length)`. The
+`Categorical` domain already names the letters. The alphabet is the domain's labels, and the core ships no biological
+alphabet. The models declare `ACGU` and the twenty amino acids themselves. `Sample` gains the move kind `'mutation'`,
+which draws a different value uniformly. Strings convert through the domain's labels, and a letter outside them raises
+`ValidationError`.
 
 ### Chains and internal coordinates
 
-`Chain` is an element on a one-dimensional lattice. Its site states are bond lengths, bond angles, and dihedral angles.
-Its positions are a derived vector state that the stepper recomputes after an accepted move and the visuals read. Two
-geometries are built in:
-- a generic bead chain, rebuilt by the natural extension reference frame on NumPy and Numba, for polymer physics;
-- a protein backbone, whose `phi`, `psi`, and `omega` per residue are written into Biopython's `IC_Chain` and rebuilt
-  with `internal_to_atom_coordinates`. Bond lengths and angles stay at the values Biopython reads or its defaults.
+`Chain` is a site group on a one-dimensional `LatticeSpace`. Its site states are bond lengths, bond angles, and
+dihedral angles. Its positions are a derived vector state that the stepper recomputes after an accepted move and the
+visuals read. The core builds in one geometry, a generic bead chain rebuilt by the natural extension reference frame
+on NumPy and Numba, and takes any other geometry as an object that maps internal coordinates to positions. The
+protein backbone is such a geometry, in `skcomplex.models.biology.realizations`: its `phi`, `psi`, and `omega` per
+residue are written into Biopython's `IC_Chain` and rebuilt with `internal_to_atom_coordinates`. Bond lengths and angles
+stay at the values Biopython reads or its defaults.
 
 The NeRF of the bead chain is about twenty lines of vector algebra, which Biopython does not expose for arbitrary beads.
 It is kept in house for that reason and checked against Biopython on a backbone.
 
+`Chain` declares `Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE}, domains={DomainKind.REAL,
+DomainKind.ANGLE})`. `validate()` reports a chain on a lattice of more than one dimension, or outside a lattice, with
+the fix of a one-dimensional `LatticeSpace`.
+
 ### Global scores
 
-`Score` is a law of a lattice group: a `NumericFunction` of the whole row and the component's parameters that returns
-one number. The stepper proposes a move on a row, evaluates the score of the proposed row, and accepts by
-`Sampler(kind='metropolis')` on the difference. `Sampler` accepts a temperature of zero, which accepts only
-non-increasing scores. Neutral walks use the score `0` on the target phenotype and `1` off it, and adaptive walks use
-the base-pair distance. Each row has its own random draws from the simulation's stream, so rows are independent copies.
-`proposals` sets the number of moves per row and unit of time, 1 for walks, and the row length for sweeps.
+`Sample(score=...)` takes, in place of a local energy, a `NumericFunction` of the whole row of a lattice group and the
+component's parameters that returns one number. The stepper proposes a move on a row, evaluates the score of the
+proposed row, and accepts by the Metropolis acceptance of `Sample` on the difference. The acceptance takes a
+temperature of zero, which accepts only non-increasing scores. Neutral walks use the score `0` on the target phenotype
+and `1` off it, and adaptive walks use the base-pair distance. Each row has its own random draws from the simulation's
+stream, so rows are independent copies. `proposals` sets the number of moves per row and unit of time, 1 for walks, and
+the row length for sweeps. The score of every row is recorded in the trajectory.
 
 A score that wraps a Python function, such as an RNA fold, runs on the NumPy backend. A score whose function is
 Numba-compiled, such as the bead-chain energy or the fuzzy oil drop distributions, runs inside the Numba Monte Carlo
 kernel. The temperature is a parameter symbol, so it is a Sage expression lowered like any other parameter and changes
-live. A system that mixes a local `Energy` and a `Score` on one lattice state is rejected with
-`IncompatibleLawsError`, since one acceptance step cannot combine a symbolic local difference with an opaque global one.
+live.
+
+`Sample` keeps `LawKind.SAMPLE` and its requirements, `Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE})`.
+`validate()` reports:
+- a `Sample` that gives both an energy and a score, or a local energy and a score on one lattice state, since one
+  acceptance step cannot combine a symbolic local difference with an opaque global one; the fix names the two laws;
+- a score of an uncompiled Python function with the Numba backend, with the fix of the NumPy backend or a
+  Numba-compiled function. The NumPy and Numba backends extend their `Supports` declarations accordingly.
+
+### Replay
+
+The replay law is a whole-state law of the discrete class, lowered like `Drive`, whose function returns member `k` of an
+ensemble at step `k`. It sets a chain's positions and holds the last member after the end. It declares
+`Requires(time={TimeKind.DISCRETE})`, and validation reports it under another time. The bundled structures it replays
+by default live in the `fuzzy_oil_drop` model package.
 
 ### Sequence-to-structure maps
 
-`GenotypeMap` wraps a function from a sequence string to a phenotype key and a mapping of named numbers, with an LRU
-cache whose size is a parameter and whose hits and misses it reports. `rna_fold` in the backends is the ViennaRNA map:
-it calls `RNA.fold_compound` with a model of a given temperature, returns the dot-bracket structure, the free energy,
-and, with a target, `RNA.bp_distance`. `rna_layout` returns plane coordinates from `RNA.simple_xy_coordinates` and the
-base pairs from `RNA.ptable`. Any Python function is a map, so a user can map digital circuits or Boolean networks to
-their functions, as Raman's Table 13.1 lists.
+`GenotypeMap`, in the `biology/evolution` model package, wraps a function from a sequence string to a phenotype key and
+a mapping of named numbers, with an LRU cache whose size is a parameter and whose hits and misses it reports.
+`rna_fold` is the ViennaRNA map: it calls `RNA.fold_compound` with a model of a given temperature, returns the
+dot-bracket structure, the free energy, and, with a target, `RNA.bp_distance`. `rna_layout` returns plane coordinates
+from `RNA.simple_xy_coordinates` and the base pairs from `RNA.ptable`. Any Python function is a map, so a user can map
+digital circuits or Boolean networks to their functions, as Raman's Table 13.1 lists.
 
 ### Neutral network analyses
 
-`neutral_network(map, alphabet, length)` enumerates all sequences when `len(alphabet) ** length` is at most 2**20, and
+These live in the `biology/evolution` model package beside the maps. `neutral_network(map, alphabet, length)`
+enumerates all sequences when `len(alphabet) ** length` is at most 2**20, and
 otherwise takes sequences sampled by neutral walks, and returns a NetworkX graph with point-mutation edges.
 `genotype_robustness`, `genotype_evolvability`, `phenotype_robustness`, and `phenotype_evolvability` follow Wagner's
 definitions as Raman (2021 §13.3) states them, with each neighbour equally likely. They count neighbours through the
@@ -152,19 +193,19 @@ map, so the memo makes repeated neighbourhoods free.
 
 ### Structures, ensembles, and replay
 
-`Structure` holds the models of an ensemble as arrays: coordinates of shape `(models, atoms, 3)`, and atom names,
-residue names and numbers, and chain identifiers. `read_structure` reads PDB and mmCIF with Biopython, and
-`write_structure` writes them with `PDBIO` and `MMCIFIO`. `effective_atoms` averages the atoms of each residue.
-`read_trajectory` reads molecular dynamics formats with MDTraj and returns a `Structure` with one model per frame.
+These live in `skcomplex.models.biology.realizations`. `Structure` holds the models of an ensemble as arrays:
+coordinates of shape `(models, atoms, 3)`, and atom names, residue names and numbers, and chain identifiers.
+`read_structure` reads PDB and mmCIF with Biopython, and `write_structure` writes them with `PDBIO` and `MMCIFIO`.
+`effective_atoms` averages the atoms of each residue. `read_trajectory` reads molecular dynamics formats with MDTraj
+and returns a `Structure` with one model per frame.
 
-`Replay` is a whole-state law, a `Drive` whose function returns member `k` at step `k`. It sets a chain's positions and
-holds the last member after the end. The bundled structures are the PDB entries 1L2Y (Trp-cage, NMR, 38 models), 1UBQ
+The replay law of the core replays a `Structure`'s models. The bundled structures are the PDB entries 1L2Y (Trp-cage, NMR, 38 models), 1UBQ
 (ubiquitin), and 5PTI (BPTI), stored as gzipped mmCIF in the model package. PDB data is CC0, so it can ship with an
 MIT package, and the tests never reach the network.
 
 ### Fuzzy oil drop
 
-`fuzzy_oil_drop_profile(structure, scale, cutoff=9.0)` follows Konieczny et al. (2023) Eqs. 1.1–1.6:
+`fuzzy_oil_drop_profile(structure, scale, cutoff=9.0)`, in `skcomplex.models.biology.realizations`, follows Konieczny et al. (2023) Eqs. 1.1–1.6:
 - The effective atoms are centred and rotated onto their principal axes. Each `σ` is a third of the largest absolute
   coordinate along its axis, so the drop holds the molecule within three standard deviations. The book leaves `σ`
   unstated, and the docstring records this choice.
@@ -190,7 +231,7 @@ The projection of a native pair is the nearest point of the path in the periodic
 parameter and refining with SciPy's bounded minimiser. The path is divided into cells, 72 by default (5° of the
 parameter). The probabilities of each amino acid over the cells come from the projected native angles of the bundled
 structures, with add-one smoothing. They are computed once when the model is created. Sampling uses
-`Sampler(kind='heat-bath')` over the cells, with a site energy of `−T log p(cell | amino acid)` so that heat-bath draws
+`Sample` with heat-bath acceptance over the cells, with a site energy of `−T log p(cell | amino acid)` so that heat-bath draws
 follow the probabilities at any temperature `T`.
 
 ### Visuals
@@ -198,13 +239,13 @@ follow the probabilities at any temperature `T`.
 `ChainVisual` logs a chain's positions as `Points3D` or `Points2D` under `<chain>/sites`, with the bonds as one
 `LineStrips3D` or `LineStrips2D` under `<chain>/bonds` and optional pairs under `<chain>/pairs`. Points are coloured by
 a site value with a range fixed at construction, so frames compare. Sequence lattices use the existing `ImageVisual`
-with a categorical colormap. Scores and observables stream as scalars, as they do already. `default_blueprint` puts the
+with a categorical colormap. Scores and the simulation's observables stream as scalars, as they do already. `default_blueprint` puts the
 chain view first, so it is the gallery thumbnail.
 
 ### Library models and gallery examples
 
-- `rna_neutral_networks` (`biology/evolution`) declares the population lattice, the mutation move, and a neutral or
-  adaptive score through `rna_fold`. Its example streams the target layout coloured by mutation counts, then plots
+- `rna_neutral_networks` (`biology/evolution`) declares the population lattice and a `Sample` with the mutation move
+  and a neutral or adaptive score through `rna_fold`. Its example streams the target layout coloured by mutation counts, then plots
   robustness against evolvability, and the size of the sampled neutral network against the walk length.
 - `fuzzy_oil_drop` (`biology/systems_biology`) replays 1L2Y by default. Its example plots `T`, `O`, and `R` per residue
   for model 1, and `RD` and `K` per model.
@@ -233,3 +274,18 @@ two take under a second for their default sizes. The inventory entries move from
 
 Additive. Install the extras where RNA folding or MD trajectories are needed. Rollback removes the new names and the
 extras, and returns the three inventory entries to out of scope.
+
+## Open Questions
+
+- **Sequences as lattice rows or as the sequence domain.** The redesign added a sequence state domain over an alphabet,
+  used by rewrite laws. This change keeps fixed-length sequences as categorical rows of a lattice site group, which
+  gives vectorised per-site moves and the existing lattice kernels. Whether fixed-length sequences should instead use
+  the sequence domain, with `Sample` targeting it, needs a product decision.
+- **Biopython as a runtime dependency.** After the rebase, Biopython is used only by `skcomplex.models.biology`, not by
+  the core. The project's rule keeps a library the core uses as a runtime dependency and allows extras only for
+  model-only dependencies. Whether Biopython stays a runtime dependency, as this change first decided, or moves to an
+  extra like ViennaRNA and MDTraj needs a product decision.
+- **General sequence maps in the core.** `GenotypeMap` and the neutral network, robustness, and evolvability analyses
+  apply to any map from sequences to keys, such as circuits or Boolean networks, but are named for biology. This
+  change places them in the `biology/evolution` package under their current names; promoting them to the core under
+  neutral names would be a new design.

@@ -8,26 +8,31 @@ calculus and objective time derivatives to them, and couple them to incompressib
 ## ADDED Requirements
 
 ### Requirement: Tensor states keep their symmetry
-The modelling layer SHALL declare states of rank 1 or 2 on fields, with a symmetry of `'symmetric'`, `'antisymmetric'`,
-or `'symmetric-traceless'` for rank 2. The framework SHALL store only the independent components and SHALL give the
-laws the full vector or matrix, with every dependent entry written in terms of the independent ones.
+States of site groups on a lattice SHALL take the tensor domain of rank 1 or 2, with a symmetry of `'symmetric'`,
+`'antisymmetric'`, or `'traceless'` (symmetric and traceless) for rank 2. The framework SHALL store only the
+independent components and SHALL give the laws the full vector or matrix, with every dependent entry written in terms
+of the independent ones.
 
 #### Scenario: Symmetric traceless tensor in two dimensions
-- **WHEN** a user declares a symmetric traceless state `Q` on a 2D lattice of 32 × 32 sites
-- **THEN** the field stores 2 components per site, and the trace of `Q` in the laws simplifies to exactly 0
+- **WHEN** a user declares a symmetric traceless state `Q` in a site group on a 2D lattice of 32 × 32 sites
+- **THEN** the group stores 2 components per site, and the trace of `Q` in the laws simplifies to exactly 0
 
 #### Scenario: Symmetric traceless tensor in three dimensions
-- **WHEN** a user declares a symmetric traceless state `Q` on a 3D lattice
-- **THEN** the field stores 5 components per site, and `Q[1, 0]` is the same symbol as `Q[0, 1]`
+- **WHEN** a user declares a symmetric traceless state `Q` in a site group on a 3D lattice
+- **THEN** the group stores 5 components per site, and `Q[1, 0]` is the same symbol as `Q[0, 1]`
 
 #### Scenario: Law that breaks the symmetry
 - **WHEN** a rate law on a symmetric traceless state has a right-hand side whose trace is not zero
-- **THEN** compiling raises a named error that names the state and the trace
+- **THEN** validation reports an issue with the code `tensor-symmetry` that names the law, the state, and the trace
+
+#### Scenario: Tensor state on a network
+- **WHEN** a group on the sites of a network space declares a tensor state with a rate law
+- **THEN** validation reports an issue with the code `law-space` that suggests a lattice space
 
 ### Requirement: Tensor calculus acts on fields
 Laws SHALL use the gradient of a vector, the divergence of a vector or a rank-2 tensor, the Laplacian of a vector or a
 tensor, the strain-rate and vorticity tensors of a velocity, and the products, transposes, traces, and contractions of
-tensor expressions. Every operator SHALL keep its result symbolic and SHALL lower to the field's discretization.
+tensor expressions. Every operator SHALL keep its result symbolic and SHALL lower to the discretization of its site group.
 
 #### Scenario: Divergence of a tensor
 - **WHEN** the divergence of the tensor `sin(x) I` is evaluated spectrally on a periodic 2D lattice of 64 × 64 sites
@@ -40,7 +45,7 @@ tensor expressions. Every operator SHALL keep its result symbolic and SHALL lowe
   velocity gradient
 
 ### Requirement: Objective derivatives transport tensors with the flow
-The modelling layer SHALL provide the co-rotational derivative of a tensor or a vector with a flow-alignment parameter,
+The law layer SHALL provide the co-rotational derivative of a tensor or a vector with a flow-alignment parameter,
 which advects it, rotates it with the vorticity, and aligns it with the strain rate, and the upper-convected
 derivative of a rank-2 tensor.
 
@@ -54,9 +59,9 @@ derivative of a rank-2 tensor.
 - **THEN** its principal axis rotates at the angular velocity `ω / 2` within 1e-6 relative error
 
 ### Requirement: Incompressible velocities come from force densities
-The modelling layer SHALL give a divergence-free velocity from a force density, in two and three dimensions, as the
+The law layer SHALL give a divergence-free velocity from a force density, in two and three dimensions, as the
 overdamped Stokes velocity with a viscosity and an optional substrate friction, and as the projection of a velocity rate
-onto divergence-free fields for inertial flow. The velocity SHALL be usable in any law of the same field.
+onto divergence-free fields for inertial flow. The velocity SHALL be usable in any law of the same site group.
 
 #### Scenario: Divergence-free Stokes velocity
 - **WHEN** the Stokes velocity of a random smooth force density is evaluated spectrally on a periodic 3D lattice
@@ -85,11 +90,24 @@ symmetry.
 - **THEN** the analysis finds exactly two defects at their sites within one lattice spacing, with charges `+1/2` and
   `-1/2`
 
-### Requirement: Director fields stream to Rerun
+### Requirement: Axis fields stream to Rerun
 Vector fields and the principal axes of tensor fields SHALL stream to Rerun as arrows or as headless line segments
 over an image of a scalar, such as the scalar order.
 
 #### Scenario: Nematic in the viewer
-- **WHEN** a simulation of a symmetric traceless field streams to Rerun with the director visual
+- **WHEN** a simulation of a symmetric traceless state streams to Rerun with the axis visual
 - **THEN** the viewer shows one segment per sampled site, along the principal axis, over an image of the scalar order,
   updated every frame
+
+### Requirement: Solvers and backends declare tensor support
+The solvers and backends that run tensor states SHALL declare the tensor domain in their support, and the tensor
+operators SHALL declare the lattice space and the vector and tensor domains they require, so validation reports an
+unsupported combination before compilation.
+
+#### Scenario: Solver without tensor support
+- **WHEN** a system with a rate law on a tensor state is validated with a solver that does not declare the tensor domain
+- **THEN** the report holds an error with the code `solver-unsupported` that lists the solvers that support tensors
+
+#### Scenario: Tensor operator on a scalar
+- **WHEN** a law applies `tensor_divergence` to a scalar state
+- **THEN** validation reports an issue with the code `law-domain` that names the operator and the state

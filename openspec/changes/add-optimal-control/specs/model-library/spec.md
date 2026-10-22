@@ -10,6 +10,19 @@ pendulum, and a linear-quadratic regulated oscillator as registered factories.
 - **WHEN** the SIR vaccination problem is solved with a bounded vaccination rate and a cost on infections
 - **THEN** the optimally controlled epidemic peak is lower than the uncontrolled one
 
+### Requirement: Feedback controllers are engineering realizations
+The library SHALL provide PID and state-feedback controllers in `skcomplex.models.engineering.realizations`, as elements
+whose laws read states and set bounded adaptive parameters during a run, so their internal states are part of the
+compiled system and the core holds no controller.
+
+#### Scenario: Inverted pendulum
+- **WHEN** a cart with an inverted pendulum runs from a tilt of 0.1 radians with a tuned PID controller
+- **THEN** the angle returns within 0.01 radians of upright within 5 seconds
+
+#### Scenario: No controller in the core
+- **WHEN** the field-term and import-graph tests of the core run
+- **THEN** they pass, and the controllers are importable only from the engineering realizations
+
 ### Requirement: Optimal control models are recorded in the model inventory
 Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
 inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A

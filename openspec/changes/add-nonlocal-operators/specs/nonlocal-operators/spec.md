@@ -9,7 +9,7 @@ all symbolic in the laws and lowered for every discretization that supports them
 ## ADDED Requirements
 
 ### Requirement: Fields convolve with kernels
-Laws of fields on lattices SHALL convolve an expression of the field's states with a kernel written as a symbolic
+Laws of fields, groups on the sites of a lattice, SHALL convolve an expression of the field's states with a kernel written as a symbolic
 function of the displacement, whose free symbols are the displacement and parameters of the model. The convolution
 SHALL approximate the integral over the domain by the sum over sites weighted by the cell volume, and a kernel MAY
 declare a radius beyond which it is zero.
@@ -21,7 +21,7 @@ declare a radius beyond which it is zero.
 
 #### Scenario: Kernel that reads a state
 - **WHEN** a kernel's expression contains a state of the field
-- **THEN** compiling raises a validation error that names the law and the state
+- **THEN** validation reports an issue whose path is the law and whose message names the state, before compilation
 
 ### Requirement: Convolutions respect the lattice edges
 On periodic lattices a convolution SHALL wrap around. At fixed or zero-flux edges the integral SHALL cover the lattice
@@ -72,7 +72,7 @@ SHALL equal the inverse Laplacian.
 
 #### Scenario: Negative screening
 - **WHEN** a law inverts with a screening whose square can be negative, or that depends on a state
-- **THEN** compiling raises a validation error that names the law and the screening
+- **THEN** validation reports an issue whose path is the law and whose message names the screening
 
 ### Requirement: Inversion runs on every discretization
 The inversion SHALL be available on spectral fields, on finite-difference fields on lattices with periodic,
@@ -102,10 +102,16 @@ SHALL combine into one multiplier.
 - **THEN** the gradient converges at second order to the exact gradient of the solution
 
 ### Requirement: Unsupported combinations fail clearly
-Compiling SHALL raise a validation error that names the law and the operator when a nonlocal operator is used where
-it has no meaning: a convolution or a shifted read on a network or a mesh, a spectral convolution or inversion on a
-lattice without periodic edges, or an operator whose operand reads fields of more than one space.
+Each nonlocal operator SHALL declare the space kinds it requires: a lattice for convolutions and shifted reads, and a
+lattice, network, or mesh for inversions. Validation SHALL report, before compilation and with the law's path, the
+operator, and a fix, every use where an operator has no meaning: a convolution or a shifted read on a network or a mesh,
+a spectral convolution or inversion on a lattice without periodic edges, or an operator whose operand reads groups of
+more than one space.
 
 #### Scenario: Convolution on a network
-- **WHEN** a law of a field on a network convolves a state with a kernel
-- **THEN** compiling raises a validation error that names the law and says the convolution needs a lattice
+- **WHEN** a law of a site group on a network convolves a state with a kernel
+- **THEN** validation reports an issue that names the law and says the convolution needs a lattice space
+
+#### Scenario: All misuses at once
+- **WHEN** one system convolves on a network and inverts with a negative screening in two laws
+- **THEN** `Simulation` raises one `ValidationError` that lists both issues, each with its law's path

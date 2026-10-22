@@ -18,7 +18,8 @@ one increment, and so SHALL the components of a vector target that names one pro
 ### Requirement: Wiener elements declare correlated processes
 A Wiener element SHALL declare a number of Wiener processes and an optional constant covariance matrix, the identity
 by default. Noise laws of any component SHALL name its processes through a role, and group laws that name one SHALL
-share it across all members. A covariance that is not square, symmetric, or positive semidefinite SHALL be rejected.
+share it across all members. Wiener elements SHALL be components of `skcomplex.core.components`, and their
+validation is specified by `system-validation`.
 
 #### Scenario: Covariance reproduced
 - **WHEN** two states with zero drift take unit noise from the two processes of a Wiener element with covariance
@@ -28,11 +29,3 @@ share it across all members. A covariance that is not square, symmetric, or posi
 #### Scenario: Perfect correlation
 - **WHEN** a Wiener element has covariance `[[1, 1], [1, 1]]` and its two processes drive two states with unit noise
 - **THEN** the system compiles, and the two states stay equal at every frame
-
-#### Scenario: Invalid covariance
-- **WHEN** a Wiener element of dimension 2 has covariance `[[1, 2], [2, 1]]`
-- **THEN** compiling raises a named error that names the element and its negative eigenvalue
-
-#### Scenario: Process used as a value
-- **WHEN** a rate law uses a Wiener element's process handle inside its expression
-- **THEN** compiling raises a named error that names the law and says the handle is only a noise law's process

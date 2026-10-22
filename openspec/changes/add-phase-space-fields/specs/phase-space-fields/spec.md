@@ -9,8 +9,10 @@ collide them in velocity, and read their velocity moments as fields over positio
 
 ### Requirement: Phase spaces are products of position and velocity axes
 The modelling layer SHALL define phase spaces as the product of a position lattice and one or more velocity axes, each
-a uniform grid over a bounded interval, or orientation axes, each a periodic grid of angles. A field over a phase space
-SHALL hold one value per point of the product, and its laws SHALL be written for one point.
+a uniform grid over a bounded interval, or orientation axes, each a periodic grid of angles. A phase space SHALL be a
+lattice space, so a group on its sites, a phase-space field, SHALL hold one value per point of the product, and its
+laws SHALL be written for one point. Validation SHALL report a phase space larger than the declared size limit, with
+the size it would take.
 
 #### Scenario: Size of a phase space
 - **WHEN** a user creates a field over a periodic position lattice of 64 sites and a velocity axis of 128 points on
@@ -46,7 +48,8 @@ position axes and on velocity axes whose edges carry no inflow.
 - **THEN** the field does not change
 
 ### Requirement: Velocity moments are fields over position
-Laws and observables SHALL read the moments of a phase-space field over its velocity or orientation axes: the density,
+Laws, and the observables of simulations and catalog entries, SHALL read the moments of a phase-space field over its
+velocity or orientation axes as reductions: the density,
 the mean velocity or polarization, and the temperature or second angular moment. A moment SHALL be a field over the
 position lattice, computed by a quadrature over the velocity axes that is exact for the discrete conservation laws.
 
@@ -123,3 +126,22 @@ plane, and their moments SHALL stream as images or series over the position latt
 - **WHEN** a Vlasov-Poisson two-stream model streams to Rerun
 - **THEN** the viewer shows the position-velocity image of the field and the density over position, both updating
   every frame
+
+### Requirement: Phase-space laws declare their requirements
+The collision laws SHALL be of the law kind `rate` and SHALL declare that they require continuous time, a lattice
+space, and real states. Validation SHALL report a collision law or transport operator whose group lies on a lattice
+without the axes it needs, with the law's path and a fix.
+
+#### Scenario: Missing velocity axis
+- **WHEN** a BGK law targets a site group on a position lattice with no velocity axis
+- **THEN** validation reports an issue whose path is the law and whose fix declares a `PhaseSpace` with a
+  `VelocityAxis`
+
+### Requirement: Phase-space steppers declare their support
+The semi-Lagrangian and Strang splitting steppers SHALL declare that they support continuous time, lattice spaces, site
+groups, real states, and the law kinds they advance. Validation SHALL report either stepper chosen for a system it does
+not support.
+
+#### Scenario: Unsupported stepper
+- **WHEN** a system whose site groups live on a plain lattice is validated with the semi-Lagrangian stepper
+- **THEN** validation reports that the stepper needs a phase space and lists the steppers that support the system

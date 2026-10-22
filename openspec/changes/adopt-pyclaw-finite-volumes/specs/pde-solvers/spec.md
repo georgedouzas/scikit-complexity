@@ -21,6 +21,14 @@ optional extra is installed and supports the field, and in the in-house scheme o
 
 ## ADDED Requirements
 
+### Requirement: The finite-volume solver declares its support
+The finite-volume solver SHALL declare that it supports continuous time, lattice spaces, site groups, real states, and
+rate laws, so validation reports a system it cannot run before compilation.
+
+#### Scenario: Finite volumes on a network
+- **WHEN** a system whose site group lives on a network space is validated with the finite-volume solver
+- **THEN** the report says that the solver needs a lattice space and lists the solvers that support the system
+
 ### Requirement: Wave speeds use closed-form eigenvalues
 The in-house finite-volume scheme SHALL compute wave speeds from eigenvalues of the flux Jacobians derived once in
 closed form, and SHALL use numerical eigenvalues only for Jacobians without one.

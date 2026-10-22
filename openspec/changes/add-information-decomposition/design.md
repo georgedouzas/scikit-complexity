@@ -4,6 +4,10 @@
 
 Entropies and transfer entropy go through `antropy` and the project's estimators, and `add-emergence-analysis` adds partition coarse-graining and effective information. The new measures build on both.
 
+This design is rebased on `redesign-system-model`. The measures live in `skcomplex.core.analysis` and read trajectories
+through the existing adapters, whose observables come from simulations and catalog entries after the redesign. They add
+no primitive, solver, or backend, so they need no requirement or support declaration.
+
 ## Goals / Non-Goals
 
 **Goals:**

@@ -4,6 +4,10 @@
 
 Trajectories expose states as arrays through the adapters, and the compiler accepts symbolic laws. A fitted model is useful only if it runs through the same interface as a hand-written one.
 
+This design is rebased on `redesign-system-model`: a system is its components, interactions, space, and time, and
+`Simulation` validates it before choosing a solver and backend. Surrogates are plain systems in that vocabulary, so they
+need no declaration of their own.
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -21,7 +25,12 @@ PySINDy (maintained by the Brunton and Kutz groups) returns sparse symbolic mode
 
 ### Surrogates as elements
 
-A linear surrogate becomes an element with a matrix rate law, a SINDy surrogate an element with the found laws, and a reservoir surrogate an element whose update calls the trained readout through a numeric function.
+A linear surrogate becomes an element with a matrix `Rate` law, and a SINDy surrogate an element with the found `Rate`
+laws, each in a `System` with `ContinuousTime()`. A reservoir surrogate becomes an element whose `Update` law calls the
+trained readout through a numeric function, in a `System` with `DiscreteTime()`. Each surrogate system has no space and
+no interactions, and it validates and selects its solver and backend like any system. A surrogate fitted to discrete
+samples of a continuous system keeps continuous time, and its sampling step is a parameter of the forecast, not of the
+system.
 
 ## Risks / Trade-offs
 

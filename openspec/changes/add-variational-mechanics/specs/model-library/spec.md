@@ -4,10 +4,12 @@
 
 ### Requirement: Mechanics models
 The library SHALL provide simple, double, and coupled pendulums, the Kepler problem, the restricted three-body problem,
-the Chirikov standard map, and Hénon-Heiles as registered factories built from Hamiltonians or Lagrangians.
+and Hénon-Heiles as registered factories built from canonical or variational interactions under continuous time, and
+the Chirikov standard map as a symplectic map under discrete time. Their catalog entries SHALL pass the relative drift
+of the energy as an observable.
 
 #### Scenario: Kepler orbit
-- **WHEN** the Kepler problem runs for ten periods of a bound orbit with the Yoshida stepper
+- **WHEN** the Kepler problem runs for ten periods of a bound orbit with the Yoshida solver
 - **THEN** the orbit closes on itself within 1e-6 relative error and the energy drift stays below 1e-8
 
 ### Requirement: Variational mechanics models are recorded in the model inventory

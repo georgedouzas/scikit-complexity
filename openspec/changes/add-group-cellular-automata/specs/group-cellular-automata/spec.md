@@ -9,8 +9,9 @@ and subshifts, and measure their information content.
 ## ADDED Requirements
 
 ### Requirement: Automata run on Cayley graphs of groups
-Local rules SHALL run on Cayley graphs of finitely presented groups, built on finite quotients or on finite balls, with
-memory sets given as group elements.
+`LocalRule` laws on site groups SHALL run under discrete time on group spaces, the Cayley graphs of finitely presented
+groups built on finite quotients or on finite balls, with memory sets given as group elements. A group space SHALL be a
+space of the lattice kind, so the solvers and backends that declare lattice support run it.
 
 #### Scenario: Free group majority
 - **WHEN** the majority automaton on the free group with two generators runs on a ball of radius 6
@@ -20,6 +21,31 @@ memory sets given as group elements.
 #### Scenario: Orientation is kept
 - **WHEN** a rule copies the value at the generator `a` on the Heisenberg group
 - **THEN** each cell takes the value of `g a`, not of `a g`
+
+### Requirement: Group spaces declare what they offer
+A group space SHALL declare the lattice options it does not offer, a regular geometry and an image layout, and
+validation SHALL report every law, schedule, or visual that needs them, and a ball above the site limit, each as an
+issue with its path and a fix, before any group is built.
+
+#### Scenario: Unsupported schedule
+- **WHEN** a sampling law with the checkerboard schedule runs on a group space
+- **THEN** validation reports one issue whose path is the law and whose fix names the synchronous and random-sequential
+  schedules
+
+#### Scenario: Site limit
+- **WHEN** a group space asks for a ball of the free group of rank 3 of radius 12
+- **THEN** validation reports that the ball exceeds the site limit and names the largest radius that fits, without
+  calling GAP
+
+### Requirement: Named groups live in the automata models
+The core SHALL provide only the general constructors of finitely presented, automaton, permutation, and matrix groups.
+Named groups, such as the free, Heisenberg, lamplighter, Baumslag-Solitar, and Grigorchuk groups, SHALL be realizations
+in `skcomplex.models.computer_science.automata`.
+
+#### Scenario: Grigorchuk group from the library
+- **WHEN** a user imports `grigorchuk_group` from `skcomplex.models.computer_science.automata`
+- **THEN** it returns an automaton group built by the core's `automaton_group`, and no public name of `skcomplex.core`
+  names a specific group
 
 ### Requirement: Groups are given by other presentations
 Group spaces SHALL be built from automaton groups given by a Mealy automaton as a wreath recursion, and from permutation

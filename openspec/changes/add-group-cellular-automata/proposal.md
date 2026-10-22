@@ -19,11 +19,22 @@ Lindgren (2024 ch. 4) adds the information-theoretic study of automata, and *The
 change generalises the universe to finitely generated groups, given by finite presentations, by Mealy automata, or as
 permutation or matrix groups, and adds the automata theory the books develop.
 
+**Rebased on `redesign-system-model`.** The redesign settled the vocabulary this change builds on: local rules are the
+`LocalRule` law with `Table`, `Totalistic`, and `OuterTotalistic` lookups, a lattice is a `LatticeSpace` of kind
+`SpaceKind.LATTICE` with an ordered neighbourhood, cell states are a `Group(on='sites')`, the step is
+`DiscreteTime()`, observables belong to catalog entries, and rule codes live in the automata models rather than the
+core. It does not cover group universes. This change still adds the group space, as a lattice-kind space in
+`core.space` with its declarations and validation, the general group constructors, and the automata theory in
+`core.analysis`; the named groups (free, Heisenberg, lamplighter, Baumslag-Solitar, Grigorchuk) are realizations and go
+to the automata model package instead of the core.
+
 ## What Changes
 
 - Add group spaces: Cayley graphs of finitely presented groups, given by generators and relations, built on finite
-  quotients or on balls of a given radius. They include free groups, the Heisenberg group, lamplighter groups, Baumslag-Solitar
-  groups, and finite groups. Memory sets are given as group elements, so neighbourhoods keep their orientation.
+  quotients or on balls of a given radius. The automata models build free groups, the Heisenberg group, lamplighter
+  groups, Baumslag-Solitar groups, and finite groups from the general constructors. Memory sets are given as group
+  elements, so neighbourhoods keep their orientation. A group space is a lattice-kind space, so the solvers and backends
+  that declare lattice support run it, and validation reports what it cannot offer.
 - Add group spaces of finitely generated groups given by other presentations, whose balls are built by solving the word
   problem of the presentation instead of applying relators:
   - automaton (self-similar) groups given by a Mealy automaton, as wreath recursions of their action on a rooted tree,
@@ -32,7 +43,10 @@ permutation or matrix groups, and adds the automata theory the books develop.
 - Build every group from GAP through `passagemath-gap`, with its packages AutomGrp and FR for automaton groups, in an
   optional `groups` extra, because GAP is licensed under GPL-2.0-or-later and the project is MIT.
 - Stream group spaces to Rerun as Cayley graphs, with node colours from the cell states.
-- Run local rules from `add-lattice-dynamics` on group spaces, with the same rule forms and schedules.
+- Run `LocalRule` laws on site groups of group spaces under `DiscreteTime`, with the same rule forms and schedules as
+  on a `LatticeSpace`.
+- Declare the requirements of group spaces and report through validation the lattice options a group space does not
+  offer, such as the checkerboard schedule of a square lattice and image streaming.
 - Add automata theory on finite universes:
   - checks of injectivity, surjectivity, and pre-injectivity on periodic configurations;
   - searches for Garden of Eden patterns and for mutually erasable pairs;
@@ -66,13 +80,16 @@ permutation or matrix groups, and adds the automata theory the books develop.
 
 ## Impact
 
-- `skcomplex.core.model` gains `GroupSpace`, the group constructors `finitely_presented_group`, `automaton_group`,
-  `permutation_group`, `matrix_group`, and `grigorchuk_group`, and `Subshift`, and a new module `skcomplex.core.analysis.automata` gains
-  `is_injective`, `is_surjective`, `is_pre_injective`, `garden_of_eden`, `inverse`, `compose`, `LinearAutomaton`,
-  `configuration_entropy`, and `difference_pattern`.
+- `skcomplex.core.space` gains `GroupSpace` and the general group constructors `finitely_presented_group`,
+  `automaton_group`, `permutation_group`, and `matrix_group`. A new module `skcomplex.core.analysis.automata` gains
+  `Subshift`, `is_injective`, `is_surjective`, `is_pre_injective`, `garden_of_eden`, `inverse`, `compose`,
+  `LinearAutomaton`, `configuration_entropy`, and `difference_pattern`.
+- `skcomplex.models.computer_science.automata` gains the named groups `free_group`, `heisenberg`, `lamplighter`,
+  `baumslag_solitar`, and `grigorchuk_group` as realizations over the general constructors, next to its rule codes.
 - `skcomplex.core.viz` gains a Cayley graph visual for group spaces.
 - `pyproject.toml` gains the optional extra `groups = ["passagemath-groups>=10.8.13", "passagemath-gap>=10.8.13"]`,
   and building a group space without it raises an error that names the extra. NumPy remains the only requirement of
   running a rule once the space is built.
 - `docs/overview/inventory.toml` moves `grigorchuk_automaton` from out of scope to pending this change.
-- Depends on `add-lattice-dynamics` for local rules and on `add-analysis-toolkit` for block entropies.
+- Depends on `redesign-system-model` for `LocalRule`, site groups, the space declarations, and validation, and on
+  `add-analysis-toolkit` for block entropies.

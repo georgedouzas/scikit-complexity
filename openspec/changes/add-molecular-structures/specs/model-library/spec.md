@@ -5,8 +5,9 @@
 ### Requirement: RNA neutral networks model
 The library SHALL provide `rna_neutral_networks` in `biology/evolution` (Raman 2021 §13.2–13.3): walkers, one RNA
 sequence each, propose one point mutation per unit of time, accepted when the fold keeps the target in the neutral
-regime, or when the base-pair distance to the target does not grow in the adaptive regime. It SHALL record each
-walker's structure, free energy, distances, robustness, and evolvability. It needs the extra `rna`.
+regime, or when the base-pair distance to the target does not grow in the adaptive regime. Its catalog entry SHALL
+declare observables of each walker's structure, free energy, distances, robustness, and evolvability. It needs the
+extra `rna`.
 
 #### Scenario: Neutral walk keeps the fold
 - **WHEN** `rna_neutral_networks` runs with its defaults, 8 walkers of length 30 starting on the sequence
@@ -25,8 +26,8 @@ walker's structure, free energy, distances, robustness, and evolvability. It nee
 ### Requirement: Fuzzy oil drop model
 The library SHALL provide `fuzzy_oil_drop` in `biology/systems_biology` (Konieczny et al. 2023 §1.3.1, Eqs. 1.1–1.9).
 By default it replays the bundled NMR ensemble of the Trp-cage 1L2Y, one model per frame. As an option it folds a chain
-from an extended start by Monte Carlo on its dihedral angles with `RD` and a clash penalty as the score. Either way it
-SHALL record `T`, `O`, `R`, the divergences, `RD`, and `K` per frame, in the default install.
+from an extended start by Monte Carlo on its dihedral angles with `RD` and a clash penalty as the score. Its catalog
+entry SHALL declare `T`, `O`, `R`, the divergences, `RD`, and `K` as observables, in the default install.
 
 #### Scenario: Ensemble of the Trp-cage
 - **WHEN** `fuzzy_oil_drop` runs with its defaults

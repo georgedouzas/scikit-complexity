@@ -15,6 +15,12 @@ models in the inventory need more than that:
 These are general field operators, convolution, shifted reads, and screened Poisson inversion, so they belong in the
 core, and the constitution requires them to be built on a mature library rather than recoded.
 
+**Rebased on `redesign-system-model`.** The redesign covers none of these operators. It replaces `Field` with a group
+on the sites of a lattice, network, or mesh, keeps differential operators as expressions, moves observables to
+simulations and catalog entries, and reports misuse through validation before compilation. This change keeps its scope;
+only names change, the operators join `core.laws` beside `laplacian`, and their invalid uses are reported by
+`validate()` from declared requirements instead of being raised by the compiler.
+
 ## What Changes
 
 - Add convolution of a field expression with a kernel, `convolve(expression, kernel)`, where the kernel is a symbolic
@@ -29,6 +35,8 @@ core, and the constitution requires them to be built on a mature library rather 
   screening, so it now also works outside spectral fields.
 - Let the stencil operators read the value of a nonlocal operator at neighbouring sites, so `gradient` and `advection`
   apply to an inverted streamfunction on a finite-difference field.
+- Declare what each operator requires of the space and the discretization, and report every invalid use through
+  validation, with the law's path and a fix.
 - Add library models: the Amari neural field, the quasi-geostrophic double gyre, and the gas-kinetic-based non-local
   traffic model.
 
@@ -45,10 +53,12 @@ core, and the constitution requires them to be built on a mature library rather 
 
 ## Impact
 
-- `skcomplex.core.model` gains `convolve`, `shifted`, and `inverse_helmholtz`, and `inverse_laplacian` is kept as the
-  zero-screening case.
+- `skcomplex.core.laws` gains `convolve`, `displacement`, `shifted`, and `inverse_helmholtz`, each with its `Requires`
+  declaration, and `inverse_laplacian` is kept as the zero-screening case. `skcomplex.core.system` validation gains the
+  issues for their invalid uses.
 - `skcomplex.core.compile` gains the adapter that lowers these operators to SciPy (`scipy.signal`, `scipy.fft`,
-  `scipy.ndimage`, `scipy.sparse.linalg`) and to scikit-fem matrices on meshes. No new runtime dependency.
+  `scipy.ndimage`, `scipy.sparse.linalg`) and to scikit-fem matrices on meshes, used by the NumPy backend in
+  `skcomplex.core.backends`. No new runtime dependency.
 - `skcomplex.models.biology.neuroscience`, `skcomplex.models.earth.oceanography`, and
   `skcomplex.models.engineering.traffic` gain one model each, and the inventory in `organize-model-library` moves them
   from `B:add-nonlocal-operators` to implemented.

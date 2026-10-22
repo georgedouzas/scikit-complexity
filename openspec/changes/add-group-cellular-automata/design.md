@@ -2,8 +2,12 @@
 
 ## Context
 
-`add-lattice-dynamics` defines lattices, ordered neighbourhoods, local rules, and vectorised stencils. A Cayley graph
-of a finite quotient is a lattice whose neighbours are given by right multiplication by the memory set. Sage handles
+After `redesign-system-model`, a cellular automaton is a `System` under `DiscreteTime()` on a `LatticeSpace`, whose
+cells are a `Group(on='sites')` of an element with a categorical state and a `LocalRule` law, and the lattice stepper
+lowers the rule to a vectorised stencil over the space's neighbour table. The lattice kind of space declares ordered
+neighbourhoods, and the solvers and backends declare their support for it. Rule codes live in
+`skcomplex.models.computer_science.automata`. A Cayley graph of a finite quotient is a lattice whose neighbours are
+given by right multiplication by the memory set. Sage handles
 finitely presented groups, permutation groups, matrix groups, and group algebras through libgap, the GAP library that
 `passagemath-gap` ships.
 
@@ -34,22 +38,39 @@ enumerating words and identifying the ones that act alike, not by rewriting with
 
 ### Group spaces
 
-`GroupSpace(group, quotient=None, ball=None)` takes a Sage finitely presented group or a named constructor such as
-`free_group(2)` or `heisenberg()`. With a finite quotient, given as a homomorphism to a permutation group or as a
+`GroupSpace(group, quotient=None, ball=None)` lives in `skcomplex.core.space` and takes a group from one of the general
+constructors below, or a Sage finitely presented group. Named groups such as `free_group(2)` or `heisenberg()` are
+realizations in `skcomplex.models.computer_science.automata`, built on `finitely_presented_group`. With a finite quotient, given as a homomorphism to a permutation group or as a
 normal subgroup of finite index, sites are the quotient's elements. With a ball, sites are the words up to the given
 length, reduced by Knuth-Bendix or coset enumeration where Sage supports it, and sites on the edge use a fixed fill.
 The neighbour table maps each site and memory element `s` to the site `g s`, and becomes the index array of the stencil
 lowering.
 
+### Declarations and validation
+
+`GroupSpace` is a space of kind `SpaceKind.LATTICE`: its sites are cells with an ordered neighbourhood, the memory set,
+which is what the lattice kind promises, and the Cayley graph of `Z^d` is the square lattice. So `LocalRule`,
+`Sample`, and the other laws that require a lattice run on it, and the NumPy and Numba backends that declare lattice
+support run it without a new declaration. It declares the options of the lattice kind that it lacks, a regular
+geometry and an image layout, and validation reports a law or visual that needs them:
+- a `Sample` or rule schedule `'checkerboard'` on a group space is reported as `schedule-unsupported`, whose fix names
+  the synchronous and random-sequential schedules, since a Cayley graph need not be bipartite;
+- an image visual on a group space is reported as `visual-unsupported`, whose fix names the Cayley graph visual;
+- a ball whose radius would exceed the site limit is reported as `space-too-large` with the limit and the size of the
+  last ball that fits, before GAP is called.
+
+Groups on edges or hyperedges remain valid only on network spaces, as `redesign-system-model` specifies.
+
 ### Groups given by other presentations
 
-A group is given to `GroupSpace` by one of the constructors in `skcomplex.core.model`:
+A group is given to `GroupSpace` by one of the general constructors in `skcomplex.core.space`:
 
 - `finitely_presented_group(generators, relators)`, the case above.
 - `automaton_group(recursion)` takes a Mealy automaton as a wreath recursion, written as the mapping from each state to
   its sections and its permutation of the alphabet, such as
   `{'a': ((None, None), (1, 0)), 'b': (('a', 'c'), None), 'c': (('a', 'd'), None), 'd': ((None, 'b'), None)}`, where
-  `None` is the identity. `grigorchuk_group()` returns this group with generators `a, b, c, d`.
+  `None` is the identity. The realization `grigorchuk_group()` of the automata models returns this group with
+  generators `a, b, c, d`.
 - `permutation_group(generators)` takes permutations as integer arrays of images.
 - `matrix_group(generators, ring)` takes square integer matrices and the ring `ZZ` or `GF(p)`.
 
@@ -109,8 +130,11 @@ each step.
 ### Grigorchuk model
 
 `grigorchuk_automaton` registers under `computer_science/automata` with the sources of its inventory entry (CC 6.9).
-It runs the majority automaton with the memory set `{1, a, b, c, d}` on a ball of radius 8, 271 sites, from a random
-configuration with a fixed seed and a fixed fill outside the ball. Its gallery example streams the Cayley ball to
+It is a `System` under `DiscreteTime()` whose space is a `GroupSpace` of the library's `grigorchuk_group()`, and whose
+cells are a site group with a `LocalRule` majority law. It runs the majority automaton with the memory set
+`{1, a, b, c, d}` on a ball of radius 8, 271 sites, from a random configuration with a fixed seed and a fixed fill
+outside the ball. Its catalog entry declares the cell states and the density of ones as observables. The other group
+automata models are built the same way from the named groups of the automata package. Its gallery example streams the Cayley ball to
 Rerun with node colours by state, which is the thumbnail, and plots the ball sizes for radii 0 to 10 from
 `ball_sizes()` on logarithmic axes, against the exponential `5^n` and the free group's `1 + 2 (3^n - 1)`, to show
 growth that is faster than any polynomial and slower than any exponential: the local log-log slope rises while
@@ -126,13 +150,14 @@ composition is the identity.
 
 ### Linear automata
 
-`LinearAutomaton(group, field, coefficients)` represents `Σ a_s s` in the group algebra `K[G]`. Invertibility,
+`LinearAutomaton(group, field, coefficients)`, in `skcomplex.core.analysis.automata`, represents `Σ a_s s` in the group algebra `K[G]`. Invertibility,
 surjectivity, and pre-injectivity follow from the algebra on finite quotients and, for `Z^d`, from Laurent polynomial
 arithmetic over the field.
 
 ### Subshifts
 
-`Subshift(alphabet, forbidden_patterns)` checks configurations, counts admissible patterns in windows, and samples
+`Subshift(alphabet, forbidden_patterns)` lives in `skcomplex.core.analysis.automata` with the theory checks, since it
+describes a set of configurations rather than a law of a system. It checks configurations, counts admissible patterns in windows, and samples
 admissible configurations by Markov chain moves that respect the constraints.
 
 ### Information

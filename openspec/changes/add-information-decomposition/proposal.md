@@ -10,6 +10,10 @@ et al. (2023, arXiv 2312.16815) survey causal emergence and give the integrated-
 predicts itself as well as the micro level does, tested with computational mechanics. The analysis toolkit has entropies,
 mutual and transfer information, and `add-emergence-analysis` adds effective information, but none of these measures.
 
+**Rebased on `redesign-system-model`.** The redesign covers none of these measures, and this change adds no system
+primitive, solver, or backend, so its scope is unchanged. The measures read trajectories, whose observables are now
+given to `Simulation(observables=...)` or declared by catalog entries rather than by systems; nothing else changes.
+
 ## What Changes
 
 - Add total correlation, dual total correlation, O-information, and the O-information gradients of each variable.

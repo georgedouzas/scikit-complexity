@@ -5,7 +5,8 @@
 ### Requirement: Evolutionary Sherrington-Kirkpatrick game
 The library SHALL provide `evolutionary_sk_game` in `physics/criticality`, after Lesmana et al. (2026, arXiv
 2604.15669): learning agents on a Sherrington-Kirkpatrick landscape with Bak-Sneppen replacement of the least fit,
-built from the core's group, draw, and extremal-update primitives.
+built from the core's group, draw, update, and extremal primitives under discrete time, with its softmax choice
+defined in its model package rather than imported from another field's realizations.
 
 #### Scenario: Rules of the game
 - **WHEN** a user reads the factory of `evolutionary_sk_game`
@@ -29,5 +30,5 @@ change until it is implemented.
 
 #### Scenario: Entry of the evolutionary game
 - **WHEN** a contributor reads the inventory entry of `evolutionary_sk_game`
-- **THEN** it cites arXiv 2604.15669, lists the groups, reductions, draws, and extremal-update primitives, and has
-  priority `core`
+- **THEN** it cites arXiv 2604.15669, is tagged with discrete time, no space, a group, the members binding, and the
+  discrete law class, and has priority `core`

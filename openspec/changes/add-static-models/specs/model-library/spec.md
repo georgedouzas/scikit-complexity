@@ -4,8 +4,10 @@
 
 ### Requirement: Static, sampled, and search models
 The library SHALL provide models that are solved, sampled, enumerated, or optimised as registered factories. They
-SHALL run through `create` and `run` with default sweeps or iteration counts, stream to Rerun, and have a gallery
-example with a Rerun thumbnail and an analysis plot.
+SHALL run through `create` and `run` with default sweeps or iteration counts and the observables their catalog entries
+declare, stream to Rerun, and have a gallery example with a Rerun thumbnail and an analysis plot. The Boltzmann
+reductions they use SHALL live in `skcomplex.models.physics.realizations`, and the learning dynamics of games in
+`skcomplex.models.economics.realizations`.
 
 #### Scenario: Fractionation
 - **WHEN** `lq_cell_survival` evaluates 30 fractions of 2 Gy with `alpha/beta = 10`

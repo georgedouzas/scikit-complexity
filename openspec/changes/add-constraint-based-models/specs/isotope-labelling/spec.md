@@ -84,7 +84,7 @@ distribution with the number of measurements minus the number of free fluxes as 
 - **THEN** its profile interval reaches a bound of the process, and the result marks it as not identifiable
 
 ### Requirement: Estimation runs as a simulation
-A labelling experiment SHALL compile to an estimation problem whose run records one frame per accepted iteration of the
+A labelling experiment SHALL be a system under static time that compiles to an estimation problem whose run records one frame per accepted iteration of the
 fit, in the order of its starts, and a last frame with the best estimate. Each frame SHALL record the fluxes, the
 residual sum of squares, the start, and the simulated distributions. The last frame SHALL also record the intervals
 and the test.

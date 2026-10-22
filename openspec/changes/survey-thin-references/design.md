@@ -2,7 +2,8 @@
 
 ## Context
 
-The inventory records 525 models with their primitives and priorities. Citation counts per source show which books
+The inventory records 537 entries, each tagged after `redesign-system-model` with its time kind, space kind, component
+kinds, interaction bindings, and law classes, and with its priority. Citation counts per source show which books
 were mined: Bertin is cited 109 times, while eight books are cited four times or fewer.
 
 ## Goals / Non-Goals
@@ -18,15 +19,18 @@ were mined: Bertin is cited 109 times, while eight books are cited four times or
 
 ### Survey record
 
-The design records, per source, each chapter or section read, the models found, and the primitives each exercises,
-using the inventory vocabulary. A section with no model is recorded as such, with a reason such as "conceptual" or
+The design records, per source, each chapter or section read, the models found, and the tags of each in the system
+vocabulary: time kind, space kind, component kinds, interaction bindings, and law classes. A section with no model is recorded as such, with a reason such as "conceptual" or
 "covered by an existing entry".
 
 ### Priorities
 
-New entries take the inventory's rule: `core` when they exercise a primitive or a combination of primitives that no
-implemented model exercises, or need a missing primitive, and `example` when they repeat a covered pattern. Entries that
-need a missing primitive are blocked on the change that adds it; if no change adds it, the survey proposes one.
+New entries take the inventory's rule: `core` when they exercise a category or a combination of categories that no
+implemented model exercises, or do not map to the vocabulary, and `example` when they repeat a covered pattern. An entry
+that does not map is blocked on the change that adds the general primitive it needs; if no change adds it, the survey
+proposes one. A field-specific need, such as a named potential, a pairing algorithm, or a learning heuristic, is not a
+missing primitive: the entry maps to the general primitive, and the realization is part of implementing the model in
+`skcomplex.models.<field>`.
 
 ## Risks / Trade-offs
 
