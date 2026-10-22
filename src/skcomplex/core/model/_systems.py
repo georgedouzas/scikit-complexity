@@ -1,4 +1,4 @@
-"""Define systems, which compose elements, interactions, and subsystems."""
+"""Define systems, which compose components and interactions on a space, in a time."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,58 +10,59 @@ from sklearn.base import BaseEstimator
 
 from ..base import ComponentKind
 from ._components import Element, Group, Interaction
-from ._observables import Observable
-from ._phases import Phase
 from ._spaces import Space
+from ._time import Time
+
+LEGACY_ARGUMENTS = {
+    'elements': 'Pass elements and groups in `components`.',
+    'systems': 'Pass nested systems in `components`.',
+    'observables': 'Pass observables to `Simulation(observables=...)`, or declare them on the catalog entry.',
+    'history': 'Declare the history on the delayed state with `state(history=...)`.',
+    'noise': 'Give the convention to each noise law with `Noise(..., convention=...)`.',
+    'phases': 'Declare the phases as the schedule of the time, `DiscreteTime(schedule=Phases([...]))`.',
+}
 
 
 class System(BaseEstimator):
-    """Composition of elements, interactions, and child systems.
+    """Composition of components and the interactions between them, on a space, in a time.
 
-    An interaction refers to elements by their path relative to the system that holds the interaction, so
-    `forest/foxes` names the element `foxes` of the child system `forest`.
+    A system is defined by its components, its interactions, its space, and its time, and by nothing about how it
+    runs. Components are elements, groups, and nested systems, so systems nest to any depth. An interaction refers to a
+    component by its path relative to the system that holds the interaction, so `forest/foxes` names the element
+    `foxes` of the nested system `forest`.
 
     Args:
         label:
-            The label of the system. It names the system when it is the child of another one.
+            The label of the system. It names the system when it is nested in another one.
 
-        elements:
-            The elements and element groups of the system.
+        components:
+            The elements, groups, and nested systems.
 
         interactions:
-            The interactions of the system.
-
-        systems:
-            The child systems.
+            The interactions between the components.
 
         space:
-            The space that gives vector states their dimension. Child systems without a space use it too.
+            The substrate the components live on, which gives vector states their dimension. Nested systems without a
+            space use it too.
 
-        observables:
-            The observables of the system, computed at every frame.
+        time:
+            The time the system evolves in, `ContinuousTime`, `DiscreteTime` with its schedule, or `StaticTime`, or
+            `None` to infer it from the laws.
 
-        history:
-            The values of states before the start, which delayed laws read, as a mapping from dotted state path to a
-            number or a function of time. States without a history keep their initial value before the start.
-
-        noise:
-            The stochastic convention of noise laws, `'ito'`, `'stratonovich'`, or `'anti-ito'`. The compiler adds the
-            drift correction of the convention, so every solver integrates the Itô form.
-
-        phases:
-            The phases every step of the agents runs in order, each with its rules and activation policy. Rules
-            without a phase run in the phase `'default'`, first unless a phase of that name is listed. Without phases
-            a step activates every agent in random order and then runs the model rules.
+    Raises:
+        TypeError:
+            An argument of the former signature is given, such as `elements` or `observables`. The message names the
+            argument's new home.
 
     Examples:
         >>> from skcomplex.core.model import System
         >>> from skcomplex.models.biology.ecology import LogisticGrowth, Population
         >>> system = System(
-        ...     elements=[Population('rabbits', n=10)],
+        ...     components=[Population('rabbits', n=10)],
         ...     interactions=[LogisticGrowth('growth', target='rabbits', r=1.0, K=100)],
         ... )
         >>> system
-        System(elements=1, interactions=1, systems=0)
+        System(components=1, interactions=1)
     """
 
     component_kind: ClassVar[ComponentKind] = ComponentKind.SYSTEM
@@ -70,32 +71,36 @@ class System(BaseEstimator):
         self,
         label: str = 'system',
         *,
-        elements: Sequence[Element | Group] = (),
+        components: Sequence['Element | Group | System'] = (),
         interactions: Sequence[Interaction] = (),
-        systems: Sequence['System'] = (),
         space: Space | None = None,
-        observables: Sequence[Observable] = (),
-        history: Mapping[str, Any] | None = None,
-        noise: str = 'ito',
-        phases: Sequence[Phase] = (),
+        time: Time | None = None,
+        **legacy: Any,  # noqa: ANN401
     ) -> None:
+        if legacy:
+            homes = ' '.join(LEGACY_ARGUMENTS.get(name, f'`{name}` is not an argument of System.') for name in legacy)
+            error_msg = f'System got the arguments {", ".join(map(repr, legacy))}, which it no longer takes. {homes}'
+            raise TypeError(error_msg)
         self.label = label
-        self.elements = elements
+        self.components = components
         self.interactions = interactions
-        self.systems = systems
         self.space = space
-        self.observables = observables
-        self.history = history
-        self.noise = noise
-        self.phases = phases
+        self.time = time
+
+    @property
+    def elements(self) -> tuple['Element | Group', ...]:
+        """Return the elements and groups among the components, in order."""
+        return tuple(component for component in self.components if not isinstance(component, System))
+
+    @property
+    def systems(self) -> tuple['System', ...]:
+        """Return the nested systems among the components, in order."""
+        return tuple(component for component in self.components if isinstance(component, System))
 
     def __repr__(self, N_CHAR_MAX: int = 700) -> str:
-        """Return the label and the number of children of each kind."""
+        """Return the label and the number of components and interactions."""
         label = '' if self.label == 'system' else f'{self.label!r}, '
-        return (
-            f'System({label}elements={len(self.elements)}, interactions={len(self.interactions)}, '
-            f'systems={len(self.systems)})'
-        )
+        return f'System({label}components={len(self.components)}, interactions={len(self.interactions)})'
 
 
 class MesaSystem(System):

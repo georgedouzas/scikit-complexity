@@ -4,7 +4,7 @@
 # License: MIT
 
 import warnings
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 
 from ..base import (
@@ -47,6 +47,7 @@ from ..model import (
     MesaSystem,
     Move,
     Noise,
+    Observable,
     Production,
     Rate,
     Relaxation,
@@ -62,6 +63,7 @@ from ..model import (
 from ._backends import BACKENDS
 from ._compiler import CensusRecord, _held_observables, _with_held_observables, law_census
 from ._layout import Entry
+from ._observables import with_observables
 from ._quantum import contains_quantum
 from ._rewriting import is_rewriting
 from ._tree import flatten_system
@@ -334,10 +336,20 @@ def _structure_issues(system: System) -> list[Issue]:
     return []
 
 
-def _law_issues(records: list[CensusRecord], time: TimeKind | None) -> list[Issue]:
+def _declared_times(system: System, scope: str = '', inherited: TimeKind | None = None) -> dict[str, TimeKind | None]:
+    """Return the declared time of every system of a tree by path, a nested system inheriting its parent's."""
+    time = system.time.kind if getattr(system, 'time', None) is not None else inherited
+    times = {scope: time}
+    for child in system.systems:
+        times.update(_declared_times(child, f'{scope}/{child.label}' if scope else child.label, time))
+    return times
+
+
+def _law_issues(records: list[CensusRecord], times: dict[str, TimeKind | None]) -> list[Issue]:
     """Return the laws whose targets, space, or time their requirements do not accept."""
     issues = []
     for record in records:
+        time = times.get(record.path.rpartition('/')[0])
         law, requires = record.law, record.law.requires
         name = f'{type(law).__name__} law of {record.path}'
         for entry in record.targets:
@@ -355,7 +367,10 @@ def _law_issues(records: list[CensusRecord], time: TimeKind | None) -> list[Issu
             issues.append(Issue('law-space', record.path, message, 'Give the system a space of a supported kind.'))
         if time is not None and not requires.accepts('time', time):
             message = f'The {name} is a {law.law_kind.law_class} law, which needs {_names(requires.time)} time.'
-            fix = f'Declare {_names(requires.time)} time, or use a law of {time} time.'
+            kinds = {
+                str(item.law_kind) for item in law_types() if item.requires.time and item.requires.accepts('time', time)
+            }
+            fix = f'Declare {_names(requires.time)} time, or use a law of {time} time: {_names(kinds)}.'
             issues.append(Issue('law-time', record.path, message, fix))
     return issues
 
@@ -416,7 +431,13 @@ def _solver_issues(solver: object, records: list[CensusRecord], system: System) 
     return issues
 
 
-def validate(system: System, *, solver: object = 'auto', backend: object = 'auto') -> ValidationReport:
+def validate(
+    system: System,
+    *,
+    solver: object = 'auto',
+    backend: object = 'auto',
+    observables: Sequence[Observable] = (),
+) -> ValidationReport:
     """Return every problem of a system, of its solver, and of its backend, before compilation.
 
     Validation compares the requirements every law declares with the states it targets, the space it lives on, and
@@ -432,6 +453,9 @@ def validate(system: System, *, solver: object = 'auto', backend: object = 'auto
 
         backend:
             `'auto'`, a registered backend name, or a backend instance.
+
+        observables:
+            The observables of the run, labelled by their path from the root, which roles may bind to.
 
     Returns:
         report:
@@ -450,12 +474,17 @@ def validate(system: System, *, solver: object = 'auto', backend: object = 'auto
     report = ValidationReport(_structure_issues(system))
     if report.issues or is_rewriting(system) or contains_quantum(system):
         return report
-    held, _ = _with_held_observables(system, _held_observables(system))
+    try:
+        observed = with_observables(system, observables)
+    except ValidationError as error:
+        report.issues.append(Issue('observable-path', system.label, str(error), 'Label observables by their path.'))
+        return report
+    held, _ = _with_held_observables(observed, _held_observables(observed))
     records, errors = law_census(held)
     for path, error in errors:
         code, fix = FIXES.get(type(error), ('value', 'Correct the component as the message describes.'))
         report.issues.append(Issue(code, path, str(error), fix, error=type(error)))
-    report.issues += _law_issues(records, getattr(system, 'time', None))
+    report.issues += _law_issues(records, _declared_times(system))
     owners: dict[str, set[LawKind]] = {}
     for record in records:
         owners.setdefault(record.owner, set()).add(record.law.law_kind)

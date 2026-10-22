@@ -18,7 +18,7 @@ from skcomplex.models.economics.markets import Cobweb, Market
 def test_particle_constant_acceleration():
     """Test that a constant force displaces a particle by `F * t**2 / (2 * m)`."""
     system = System(
-        elements=[Particle('p', m=2.0)],
+        components=[Particle('p', m=2.0)],
         interactions=[ConstantForce('push', target='p', F=[4.0, 0.0, -2.0])],
         space=EuclideanSpace(3),
     )
@@ -29,7 +29,7 @@ def test_particle_constant_acceleration():
 def test_spring_conserves_energy():
     """Test that two particles joined by a spring keep their total energy."""
     system = System(
-        elements=[Particle('a', x=[0.0, 0.0], v=[0.0, 1.0]), Particle('b', x=[2.0, 0.0], m=2.0)],
+        components=[Particle('a', x=[0.0, 0.0], v=[0.0, 1.0]), Particle('b', x=[2.0, 0.0], m=2.0)],
         interactions=[Spring('spring', first='a', second='b', k=3.0, length=1.0)],
         space=EuclideanSpace(2),
     )
@@ -43,7 +43,7 @@ def test_spring_conserves_energy():
 def test_gravity_keeps_circular_orbit():
     """Test that a light body on a circular orbit keeps its radius."""
     system = System(
-        elements=[Particle('sun', m=1000.0), Particle('planet', x=[10.0, 0.0], v=[0.0, 10.0], m=1e-6)],
+        components=[Particle('sun', m=1000.0), Particle('planet', x=[10.0, 0.0], v=[0.0, 10.0], m=1e-6)],
         interactions=[Gravity('gravity', first='sun', second='planet', G=1.0)],
         space=EuclideanSpace(2),
     )
@@ -55,7 +55,7 @@ def test_gravity_keeps_circular_orbit():
 def test_linear_drag_slows_particle():
     """Test that drag decays the velocity exponentially."""
     system = System(
-        elements=[Particle('p', v=1.0)],
+        components=[Particle('p', v=1.0)],
         interactions=[LinearDrag('air', target='p', gamma=0.5)],
         space=EuclideanSpace(1),
     )
@@ -65,14 +65,14 @@ def test_linear_drag_slows_particle():
 
 def test_logistic_growth_saturates():
     """Test that logistic growth approaches the carrying capacity."""
-    system = System(elements=[Population('p', n=5)], interactions=[LogisticGrowth('g', target='p', r=1.0, K=200)])
+    system = System(components=[Population('p', n=5)], interactions=[LogisticGrowth('g', target='p', r=1.0, K=200)])
     assert Simulation(system, dt=1.0).run(until=30).trajectory_['p.n'][-1] == pytest.approx(200, rel=1e-3)
 
 
 def test_lotka_volterra_oscillates():
     """Test that predators and prey cycle without dying out."""
     system = System(
-        elements=[Population('rabbits', n=40), Population('foxes', n=9)],
+        components=[Population('rabbits', n=40), Population('foxes', n=9)],
         interactions=[
             LogisticGrowth('growth', target='rabbits', r=1.1, K=1e6),
             Predation('hunt', predator='foxes', prey='rabbits', a=0.4, b=0.1),
@@ -88,7 +88,7 @@ def test_lotka_volterra_oscillates():
 def test_epidemic_stochastic_mode_is_jump_process():
     """Test that stochastic infection and recovery give integer counts of a jump process."""
     system = System(
-        elements=[Compartment('S', n=990), Compartment('I', n=10), Compartment('R')],
+        components=[Compartment('S', n=990), Compartment('I', n=10), Compartment('R')],
         interactions=[
             Infection('infection', susceptible='S', infected='I', beta=0.0005, stochastic=True),
             Recovery('recovery', infected='I', recovered='R', gamma=0.1, stochastic=True),
@@ -104,7 +104,7 @@ def test_epidemic_stochastic_mode_is_jump_process():
 def test_epidemic_deterministic_mode_conserves_population():
     """Test that the deterministic SIR model keeps the total population."""
     system = System(
-        elements=[Compartment('S', n=990), Compartment('I', n=10), Compartment('R')],
+        components=[Compartment('S', n=990), Compartment('I', n=10), Compartment('R')],
         interactions=[
             Infection('infection', susceptible='S', infected='I', beta=0.0005),
             Recovery('recovery', infected='I', recovered='R', gamma=0.1),
@@ -118,7 +118,7 @@ def test_solow_reaches_steady_state():
     """Test that Solow capital approaches `(s / delta) ** (1 / (1 - alpha))`."""
     s, alpha, delta = 0.3, 0.4, 0.1
     system = System(
-        elements=[Economy('country', k=1.0)],
+        components=[Economy('country', k=1.0)],
         interactions=[SolowGrowth('solow', target='country', s=s, alpha=alpha, delta=delta)],
     )
     capital = Simulation(system, dt=10.0).run(until=300).trajectory_['country.k'][-1]
@@ -128,7 +128,7 @@ def test_solow_reaches_steady_state():
 def test_cobweb_converges_to_equilibrium():
     """Test that a cobweb market with `d < b` converges to `(a - c) / (b + d)`."""
     a, b, c, d = 10.0, 2.0, 1.0, 1.0
-    system = System(elements=[Market('m', price=1.0)], interactions=[Cobweb('c', target='m', a=a, b=b, c=c, d=d)])
+    system = System(components=[Market('m', price=1.0)], interactions=[Cobweb('c', target='m', a=a, b=b, c=c, d=d)])
     price = Simulation(system).run(until=60).trajectory_['m.price'][-1]
     assert price == pytest.approx((a - c) / (b + d))
 
@@ -136,7 +136,7 @@ def test_cobweb_converges_to_equilibrium():
 def test_asset_price_stays_positive_and_reproducible():
     """Test that geometric Brownian motion stays positive and is reproducible."""
     system = System(
-        elements=[Asset('stock', price=100.0)],
+        components=[Asset('stock', price=100.0)],
         interactions=[GeometricBrownianMotion('gbm', target='stock', mu=0.05, sigma=0.2)],
     )
     first = Simulation(system, dt=0.1, random_state=7).run(until=5).trajectory_['stock.price']

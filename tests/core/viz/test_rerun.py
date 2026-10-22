@@ -55,7 +55,7 @@ def _run(system, observer, until=1.0, dt=0.1):
 def test_rerun_observer_saves_recording(tmp_path):
     """Test that a recording file is written."""
     path = tmp_path / 'run.rrd'
-    system = System(elements=[Population('a')], interactions=[ExponentialGrowth('g', target='a')])
+    system = System(components=[Population('a')], interactions=[ExponentialGrowth('g', target='a')])
     _run(system, RerunObserver('test', save_path=path))
     assert path.exists()
     assert path.stat().st_size > 0
@@ -64,7 +64,7 @@ def test_rerun_observer_saves_recording(tmp_path):
 def test_rerun_observer_interval_thins_frames(tmp_path):
     """Test that only every n-th frame is logged."""
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', interval=10)
-    system = System(elements=[Population('a')])
+    system = System(components=[Population('a')])
     _run(system, observer, until=0.99, dt=0.01)
     assert observer.logged_frames_ == 10
 
@@ -72,7 +72,7 @@ def test_rerun_observer_interval_thins_frames(tmp_path):
 def test_scalars_visual_logs_nested_paths():
     """Test that scalar states are logged under the element path."""
     recording = LoggedPaths()
-    system = System(systems=[System('meadow', elements=[Population('rabbits')])])
+    system = System(components=[System('meadow', components=[Population('rabbits')])])
     simulation = Simulation(system).run(until=0.0)
     element = simulation.problem_.elements[0]
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
@@ -84,7 +84,7 @@ def test_scalars_visual_logs_nested_paths():
 def test_points_visual_logs_positions(n_dim, archetype):
     """Test that positions are logged as points of their dimension."""
     system = System(
-        elements=[Particle('ball')],
+        components=[Particle('ball')],
         interactions=[ConstantForce('push', target='ball', F=1.0)],
         space=EuclideanSpace(n_dim),
     )
@@ -107,7 +107,7 @@ def test_rerun_observer_logs_parameters(monkeypatch, tmp_path):
         return original(self, path, *args, **kwargs)
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
-    system = System(elements=[Population('a')], interactions=[ExponentialGrowth('g', target='a')])
+    system = System(components=[Population('a')], interactions=[ExponentialGrowth('g', target='a')])
     _run(system, RerunObserver('test', save_path=tmp_path / 'run.rrd'), until=0.2)
     assert logged.count('parameters/g.r') == 3
     assert logged.count('a/n') == 3
@@ -121,7 +121,7 @@ def test_rerun_observer_spawns_viewer_next_to_interpreter(monkeypatch, tmp_path)
     calls = []
     monkeypatch.setattr(rr, 'spawn', lambda **kwargs: calls.append(kwargs))
     observer = RerunObserver('test', spawn=True)
-    _run(System(elements=[Population('a')]), observer, until=0.0)
+    _run(System(components=[Population('a')]), observer, until=0.0)
     assert calls[0]['executable_path'] == str(viewer)
     assert calls[0]['recording'] is observer.recording_
 
@@ -131,7 +131,7 @@ def test_rerun_observer_spawns_viewer_from_path(monkeypatch, tmp_path):
     monkeypatch.setattr(sys, 'executable', str(tmp_path / 'python'))
     calls = []
     monkeypatch.setattr(rr, 'spawn', lambda **kwargs: calls.append(kwargs))
-    _run(System(elements=[Population('a')]), RerunObserver('test', spawn=True), until=0.0)
+    _run(System(components=[Population('a')]), RerunObserver('test', spawn=True), until=0.0)
     assert calls[0]['executable_path'] is None
 
 
@@ -171,7 +171,7 @@ def test_group_is_logged_as_one_batch(monkeypatch, tmp_path):
 def test_points_colored_by_speed_follow_the_color_scale():
     """Test that faster members get colors further along the color scale."""
     system = System(
-        elements=[Particle.group('gas', 3, v=[[0.1, 0.0], [1.0, 0.0], [2.0, 0.0]])],
+        components=[Particle.group('gas', 3, v=[[0.1, 0.0], [1.0, 0.0], [2.0, 0.0]])],
         space=EuclideanSpace(2),
     )
     simulation = Simulation(system).run(until=0.0)
@@ -237,7 +237,12 @@ def test_removed_agents_disappear_from_logs(monkeypatch, tmp_path):
             if agent.id == 1:
                 agent.remove()
 
-    logged = _agent_logs(monkeypatch, tmp_path, System(elements=[Mortal.group('mortals', 3)], space=GridSpace(5, 5)), 1)
+    logged = _agent_logs(
+        monkeypatch,
+        tmp_path,
+        System(components=[Mortal.group('mortals', 3)], space=GridSpace(5, 5)),
+        1,
+    )
     batches = [archetype for path, archetype in logged if path == 'mortals']
     labels = [archetype.labels.as_arrow_array().to_pylist() for archetype in batches]
     assert '1' in labels[0]
@@ -272,7 +277,7 @@ def _logged(monkeypatch, tmp_path, system):
 def test_complex_field_logs_modulus_and_phase_images(monkeypatch, tmp_path):
     """Test that a complex field at `medium` logs a modulus and a phase image for every logged frame."""
     values = {'z': np.exp(1j * np.linspace(-np.pi, np.pi, 64)).reshape(8, 8)}
-    system = System(elements=[Field('medium', Turning, LatticeSpace((8, 8)), values=values)])
+    system = System(components=[Field('medium', Turning, LatticeSpace((8, 8)), values=values)])
     logged = _logged(monkeypatch, tmp_path, system)
     assert logged.count(('medium/z/modulus', 'Image')) == 3
     assert logged.count(('medium/z/phase', 'Image')) == 3
@@ -281,14 +286,14 @@ def test_complex_field_logs_modulus_and_phase_images(monkeypatch, tmp_path):
 
 def test_complex_scalar_logs_real_and_imaginary_series(monkeypatch, tmp_path):
     """Test that a complex state of a single element logs its real and imaginary parts as series."""
-    logged = _logged(monkeypatch, tmp_path, System(elements=[Turning('osc')]))
+    logged = _logged(monkeypatch, tmp_path, System(components=[Turning('osc')]))
     assert logged.count(('osc/z/real', 'Scalars')) == 3
     assert logged.count(('osc/z/imag', 'Scalars')) == 3
 
 
 def test_complex_field_has_modulus_and_phase_views():
     """Test that an image visual shows the modulus and the phase of a complex field in two views."""
-    problem = compile_system(System(elements=[Field('medium', Turning, LatticeSpace((4, 4)))]))
+    problem = compile_system(System(components=[Field('medium', Turning, LatticeSpace((4, 4)))]))
     views = ImageVisual().views(problem.elements[0], problem)
     assert [str(view.origin) for view in views] == ['medium/z/modulus', 'medium/z/phase']
 

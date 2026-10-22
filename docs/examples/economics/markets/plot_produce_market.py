@@ -18,14 +18,19 @@ import numpy as np
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'produce_market'
 N_SHOPPERS, N_STALLS, N_KINDS, MEAN_LIST = 1000, 9, 12, 4.5
 
 system = create(MODEL, n_shoppers=N_SHOPPERS, n_stalls=N_STALLS, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer], random_state=0).run(until=N_STALLS)
+simulation = Simulation(
+    system,
+    observers=[observer],
+    random_state=0,
+    observables=describe(MODEL).observables_of(system),
+).run(until=N_STALLS)
 
 # %%
 # Items left on the lists
@@ -52,7 +57,11 @@ def expected_left(trajectory):
 fig, (left, spent) = plt.subplots(1, 2, figsize=(10, 4))
 for index, stocked in enumerate((3, 6, 9)):
     system = create(MODEL, n_shoppers=N_SHOPPERS, n_stalls=N_STALLS, n_items_stocked=stocked, random_state=0)
-    trajectory = Simulation(system, random_state=0).run(until=N_STALLS).trajectory_
+    trajectory = (
+        Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system))
+        .run(until=N_STALLS)
+        .trajectory_
+    )
     color = f'C{index}'
     left.semilogy(steps, trajectory['items_left'], 'o', color=color, label=f'{stocked} kinds per stall')
     left.semilogy(steps, MEAN_LIST * (1 - stocked / N_KINDS) ** steps, '--', color=color, lw=0.8)

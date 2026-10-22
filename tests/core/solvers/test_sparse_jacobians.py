@@ -95,7 +95,7 @@ def test_lsoda_receives_half_bandwidths():
 def test_lsoda_without_narrow_band_receives_nothing():
     """Test that LSODA receives no bandwidths when periodic edges make the band as wide as the line."""
     system = System(
-        elements=[
+        components=[
             Field(
                 'line',
                 FisherKPP,
@@ -113,7 +113,7 @@ def test_lsoda_without_narrow_band_receives_nothing():
 def test_dense_pattern_is_not_passed():
     """Test that a pattern denser than one half is not passed."""
     Member = Element.define('Mixed', states={'x': 0.0}, laws=lambda s: [Rate(s.x, -s.x + 0.1 * total(s.x))])
-    problem = compile_system(System(elements=[Member.group('group', 10, x=np.arange(10.0))]))
+    problem = compile_system(System(components=[Member.group('group', 10, x=np.arange(10.0))]))
     _, stepper = _advance(problem, method='BDF')
     assert stepper.jacobian_options_ == {}
     assert stepper.jacobian_pattern_ is None
@@ -147,7 +147,7 @@ def _callable_rate(t, values):
 def test_exact_option_with_callable_law_raises_on_initialize():
     """Test that asking for the exact Jacobian of a callable law raises when initializing."""
     Decay = Element.define('Decay', states={'u': 0.0}, laws=lambda s: [Rate(s.u, _callable_rate)])
-    problem = compile_system(System(elements=[Field('line', Decay, LatticeSpace(10))]))
+    problem = compile_system(System(components=[Field('line', Decay, LatticeSpace(10))]))
     with pytest.raises(ValidationError, match="jacobian='auto'"):
         ScipyODE(method='BDF', jacobian='exact').initialize(problem, np.random.default_rng(0))
 
@@ -176,7 +176,7 @@ def _event_time(size, jacobian):
     space = LatticeSpace(size, spacing=0.05)
     field = Field('line', FisherKPP, space, boundary={'u': 'zero-flux'}, values={'u': initial})
     simulation = Simulation(
-        System(elements=[field], interactions=[Threshold('threshold', line='line', level=1.5 * initial.sum())]),
+        System(components=[field], interactions=[Threshold('threshold', line='line', level=1.5 * initial.sum())]),
         solver=ScipyODE(method='BDF', jacobian=jacobian),
         dt=1.0,
     )
@@ -202,7 +202,7 @@ def _hutchinson(size, jacobian):
         boundary={'u': 'zero-flux'},
         values={'u': initial, 'r': 1.2},
     )
-    simulation = Simulation(System(elements=[field]), solver=ScipyODE(method='BDF', jacobian=jacobian), dt=1.0)
+    simulation = Simulation(System(components=[field]), solver=ScipyODE(method='BDF', jacobian=jacobian), dt=1.0)
     return simulation.run(until=4).trajectory_.states[-1]
 
 

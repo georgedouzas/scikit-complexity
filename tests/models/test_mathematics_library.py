@@ -9,6 +9,7 @@ from scipy import stats
 
 from skcomplex.core.analysis import lyapunov_spectrum
 from skcomplex.core.runtime import Simulation
+from skcomplex.models import describe
 from skcomplex.models.mathematics.dynamical_systems import (
     baker_map,
     cat_map,
@@ -47,9 +48,10 @@ GOLDEN_MEAN = (math.sqrt(5) - 1) / 2
 CRITICAL_KICK = 0.971635
 
 
-def _run(system, until, dt=1, random_state=0):
+def _run(system, until, dt=1, random_state=0, observables=()):
     """Return the trajectory of a system run with a frame duration and a random state."""
-    return Simulation(system, dt=dt, random_state=random_state).run(until=until).trajectory_
+    simulation = Simulation(system, dt=dt, random_state=random_state, observables=observables)
+    return simulation.run(until=until).trajectory_
 
 
 def _momentum_range(K, theta, iterations):
@@ -246,7 +248,11 @@ def test_mandelbrot_is_symmetric_about_real_axis():
 
 def test_network_structure_analysis_of_a_generated_network():
     """Test that a planted partition of 4 blocks of 100 nodes is recorded with its measures and its blocks found."""
-    trajectory = _run(network_structure_analysis(null_samples=5), 1)
+    trajectory = _run(
+        built := network_structure_analysis(null_samples=5),
+        1,
+        observables=describe('network_structure_analysis').observables_of(built),
+    )
     assert trajectory.agents('nodes', 0).ids.size == 400
     for name in ('clustering', 'path_length', 'assortativity', 'modularity', 'triangle_zscore'):
         assert np.isfinite(trajectory[name][-1])
@@ -257,10 +263,13 @@ def test_network_structure_analysis_of_a_generated_network():
 def test_network_structure_analysis_of_a_given_graph():
     """Test that Zachary's karate club gives the NetworkX clustering and path length and at least two communities."""
     graph = nx.karate_club_graph()
-    trajectory = _run(network_structure_analysis(graph, reference='club', null_samples=0), 1)
+    trajectory = _run(
+        built := network_structure_analysis(graph, reference='club', null_samples=0),
+        1,
+        observables=describe('network_structure_analysis').observables_of(built),
+    )
     assert trajectory['clustering'][-1] == pytest.approx(nx.average_clustering(graph), abs=1e-12)
     assert trajectory['path_length'][-1] == pytest.approx(nx.average_shortest_path_length(graph), abs=1e-12)
     assert len(np.unique(trajectory.agents('nodes', 0).values['community'])) >= 2
     assert trajectory['modularity'][-1] > 0.35
-    with pytest.raises(KeyError, match='triangle_zscore'):
-        trajectory['triangle_zscore']
+    assert trajectory['triangle_zscore'][-1] == 0.0

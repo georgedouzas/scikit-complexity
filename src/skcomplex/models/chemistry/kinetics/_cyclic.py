@@ -105,4 +105,4 @@ def cyclic_cellular_automaton(
     """
     levels = np.random.default_rng(random_state).integers(0, n, size=tuple(shape)).astype(float)
     space = LatticeSpace(tuple(shape))
-    return System(elements=[CyclicCell.lattice('cells', space, level=levels, n=n, threshold=threshold)])
+    return System(components=[CyclicCell.lattice('cells', space, level=levels, n=n, threshold=threshold)])

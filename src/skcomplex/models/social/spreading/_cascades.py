@@ -114,4 +114,4 @@ def watts_cascades(
     active = np.zeros(size)
     active[rng.choice(size, seeds, replace=False)] = 1.0
     nodes = ThresholdNode.group('nodes', size, active=active, threshold=threshold)
-    return System(elements=[nodes], space=NetworkSpace(graph))
+    return System(components=[nodes], space=NetworkSpace(graph))

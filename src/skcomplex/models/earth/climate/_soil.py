@@ -53,4 +53,4 @@ def soil_temperature(x: float = 0.3, y: float = 0.1, *, r: float = 3.8, epsilon:
         >>> soil_temperature(r=2.5).elements[0].r
         2.5
     """
-    return System(elements=[SoilTemperature('soil', x=x, y=y, r=r, epsilon=epsilon)])
+    return System(components=[SoilTemperature('soil', x=x, y=y, r=r, epsilon=epsilon)])

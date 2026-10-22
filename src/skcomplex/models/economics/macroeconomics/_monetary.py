@@ -153,7 +153,7 @@ def stock_flow_consistent_economy(
         ['households', 'firms', 'bank']
     """
     return System(
-        elements=[
+        components=[
             Households('households', deposits=household_deposits),
             Firms('firms', deposits=firm_deposits, loans=loans, sales=sales),
             MonetaryBank('bank', deposits=bank_deposits),

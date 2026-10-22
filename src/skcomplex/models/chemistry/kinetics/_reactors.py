@@ -125,7 +125,7 @@ def catalyst_pellet(c: float = 1.0, *, h: float = 0.1, k: float = 10.0, K: float
         >>> catalyst_pellet(k=5.0).elements[0].k
         5.0
     """
-    return System(elements=[CatalystPellet('pellet', c=c, h=h, k=k, K=K)])
+    return System(components=[CatalystPellet('pellet', c=c, h=h, k=k, K=K)])
 
 
 @register_model(
@@ -200,4 +200,4 @@ def pulsed_electrochemical_reactor(
         period=period,
         width=width,
     )
-    return System(elements=[electrode])
+    return System(components=[electrode])

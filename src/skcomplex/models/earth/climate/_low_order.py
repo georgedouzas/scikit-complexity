@@ -100,7 +100,7 @@ def lorenz_84(
         >>> lorenz_84(G=1.25).elements[0].G
         1.25
     """
-    return System(elements=[Lorenz84('atmosphere', x=x, y=y, z=z, a=a, b=b, F=F, G=G)])
+    return System(components=[Lorenz84('atmosphere', x=x, y=y, z=z, a=a, b=b, F=F, G=G)])
 
 
 @register_model(
@@ -141,7 +141,7 @@ def lorenz_96(
     """
     values = np.full(n_sites, float(F))
     values[0] += perturbation
-    return System(elements=[Lorenz96('ring', x=values, F=F)], space=EuclideanSpace(n_sites))
+    return System(components=[Lorenz96('ring', x=values, F=F)], space=EuclideanSpace(n_sites))
 
 
 @register_model(
@@ -193,4 +193,4 @@ def geodynamo(
         >>> geodynamo(mu=0.12).elements[0].mu
         0.12
     """
-    return System(elements=[Geodynamo('dynamo', Q=Q, D=D, V=V, mu=mu, nu=nu, Gamma=Gamma)])
+    return System(components=[Geodynamo('dynamo', Q=Q, D=D, V=V, mu=mu, nu=nu, Gamma=Gamma)])

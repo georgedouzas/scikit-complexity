@@ -89,6 +89,7 @@ from ..model import (
     total,
     variance,
 )
+from ..model._laws import NOISE_CONVENTIONS
 from ._backends import Backend, resolve_backend
 from ._complex import modulus_form, split_law
 from ._fields import DiffusiveLimit, FieldLowering, has_operators
@@ -118,7 +119,7 @@ from ._lattices import (
 from ._layout import Entry, Layout
 from ._lowering import symbolic_components
 from ._members import MemberShifts
-from ._observables import _join, _tree, observables_of
+from ._observables import _join, _tree, observables_of, with_observables
 from ._printing import numpy_function
 from ._problem import (
     Accelerated,
@@ -1093,9 +1094,6 @@ def _companions(blocks: list[_Block]) -> dict[str, tuple[str, str, int]]:
     return companions
 
 
-NOISE_CONVENTIONS = {'ito': 0.0, 'stratonovich': 0.5, 'anti-ito': 1.0}
-
-
 @dataclass(frozen=True)
 class _Renewal:
     """Renewal law of a component with its label, the group it renews, and the hidden state that counts it."""
@@ -1257,7 +1255,6 @@ def _with_hybrid(
     laws: list[Law],
     declarations: _Declarations,
     hybrid: _Hybrid,
-    alpha: float,
 ) -> list[Law]:
     """Return laws with delays substituted and noise corrected, keeping events aside and declaring renewal counts."""
     result: list[Law] = []
@@ -1283,7 +1280,7 @@ def _with_hybrid(
             rebuilt = replace(law, value=_substitute_delays(law.value, spec, declarations, hybrid))
             result.append(rebuilt)
             if isinstance(rebuilt, Noise):
-                result += _noise_corrections(spec, rebuilt, alpha, hybrid)
+                result += _noise_corrections(spec, rebuilt, NOISE_CONVENTIONS[law.convention], hybrid)
         elif isinstance(law, Update | Boundary):
             result.append(type(law)(law.target, _substitute_delays(law.value, spec, declarations, hybrid)))
         else:
@@ -2512,12 +2509,8 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
     checked = _checked_matrices(markov, declarations)
     orders = _Orders.of(blocks)
     specs = _solve_equations([(spec, _with_orders(spec, laws, block, orders)) for spec, laws, block in collected])
-    noise = getattr(system, 'noise', 'ito')
-    if noise not in NOISE_CONVENTIONS:
-        error_msg = f'Unknown noise convention {noise!r}. Use one of {", ".join(NOISE_CONVENTIONS)}.'
-        raise ValidationError(error_msg)
     hybrid = _Hybrid()
-    specs = [(spec, _with_hybrid(spec, laws, declarations, hybrid, NOISE_CONVENTIONS[noise])) for spec, laws in specs]
+    specs = [(spec, _with_hybrid(spec, laws, declarations, hybrid)) for spec, laws in specs]
     fields = _Fields()
     specs = [(spec, _with_neighbor_reads(spec, laws, declarations, fields)) for spec, laws in specs]
     agents = {block.node.path for block in blocks if block.node.is_agent}
@@ -2618,7 +2611,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         reductions=reductions.reductions,
         jacobian=jacobian,
         breakpoints=_breakpoints(specs, hybrid, declarations.time),
-        history=_history(system, states),
+        history=_history(blocks),
         lattice=_compile_lattice(specs, declarations, fused),
         stable_step=min(fields.limits, default=None),
         diffusive_limits=tuple(fields.volume_limits),
@@ -2889,16 +2882,17 @@ def _with_volumes(drift: Any, volumes: tuple[FiniteVolume, ...]) -> Any:  # noqa
     return conserved
 
 
-def _history(system: System, states: Layout) -> dict[str, Any]:
-    """Return the declared history of a system after checking that it names states."""
-    history = dict(getattr(system, 'history', None) or {})
-    unknown = [name for name in history if name not in states]
-    if unknown:
-        error_msg = (
-            f'The history names {", ".join(map(repr, unknown))}, which are not states. Available states are: '
-            f'{", ".join(states.names)}.'
-        )
-        raise ValidationError(error_msg)
+def _history(blocks: list[_Block]) -> dict[str, Any]:
+    """Return the history every state declares, by the name of its layout entry."""
+    history = {}
+    for block in blocks:
+        if _is_interaction(block.node) or block.node.is_agent:
+            continue
+        declarations = declarations_of(block.node.component_type, VariableKind.STATE)
+        for variable, entry in block.entries.items():
+            declaration = declarations.get(variable)
+            if declaration is not None and declaration.history is not None:
+                history[entry.name] = declaration.history
     return history
 
 
@@ -2961,8 +2955,7 @@ def _with_held_observables(system: System, read: set[str], scope: str = '') -> t
     if not held:
         return system, held
     copied = copy.copy(system)
-    copied.elements = [*system.elements, *aggregates]
-    copied.systems = children
+    copied.components = [*system.elements, *aggregates, *children]
     return copied, held
 
 
@@ -3005,7 +2998,11 @@ def _check_held_reads(problem: Problem, held: list[str]) -> None:
             raise ValidationError(error_msg)
 
 
-def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
+def compile_system(
+    system: System,
+    backend: str | Backend = 'auto',
+    observables: Sequence[Observable] = (),
+) -> Problem:
     """Compile a system into a problem of the form its law kinds determine.
 
     Elements and groups are compiled once each, whatever the size of a group. Laws written for one member are
@@ -3018,6 +3015,10 @@ def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
         backend:
             `'auto'`, a registered backend name such as `'numpy'` or `'numba'`, or a backend instance. `'auto'` picks
             Numba for systems whose groups hold at least 1000 members in total and NumPy otherwise.
+
+        observables:
+            The observables to compute at every frame, labelled by their path from the root, such as
+            `village/mean_wealth` for an observable of the nested system `village`.
 
     Returns:
         problem:
@@ -3052,7 +3053,7 @@ def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> problem = compile_system(
         ...     System(
-        ...         elements=[Population('rabbits', n=10)],
+        ...         components=[Population('rabbits', n=10)],
         ...         interactions=[ExponentialGrowth('growth', target='rabbits', r=0.5)],
         ...     ),
         ... )
@@ -3063,7 +3064,8 @@ def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
     """
     from ._validation import validate  # noqa: PLC0415  # validation reads the compiler's census
 
-    validate(system, backend=backend).raise_errors()
+    validate(system, backend=backend, observables=observables).raise_errors()
+    system = with_observables(system, observables)
     if isinstance(system, MesaSystem):
         return _compile_mesa(system)
     if is_rewriting(system):
@@ -3102,9 +3104,9 @@ def partition_system(system: System, backend: str | Backend = 'auto') -> Problem
         >>> from skcomplex.core.model import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> system = System(
-        ...     systems=[
-        ...         System('a', elements=[Population('x')], interactions=[ExponentialGrowth('g', target='x')]),
-        ...         System('b', elements=[Population('y')], interactions=[ExponentialGrowth('g', target='y')]),
+        ...     components=[
+        ...         System('a', components=[Population('x')], interactions=[ExponentialGrowth('g', target='x')]),
+        ...         System('b', components=[Population('y')], interactions=[ExponentialGrowth('g', target='y')]),
         ...     ],
         ... )
         >>> [partition.name for partition in partition_system(system).partitions]

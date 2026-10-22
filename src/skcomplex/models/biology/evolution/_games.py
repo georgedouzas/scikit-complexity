@@ -167,7 +167,7 @@ def replicator_dynamics(
     shares = [1 / strategies] * strategies if x is None else list(x)
     population = Strategy.group('population', strategies, x=shares)
     replication = Replication('replication', population='population', payoff=matrix)
-    return System(elements=[population], interactions=[replication])
+    return System(components=[population], interactions=[replication])
 
 
 @register_model(
@@ -203,4 +203,4 @@ def rock_paper_scissors(
         100
     """
     strategies = np.random.default_rng(random_state).integers(0, STRATEGIES, size=tuple(shape)).astype(float)
-    return System(elements=[CyclicSpecies.lattice('lattice', LatticeSpace(tuple(shape)), strategy=strategies)])
+    return System(components=[CyclicSpecies.lattice('lattice', LatticeSpace(tuple(shape)), strategy=strategies)])

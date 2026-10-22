@@ -200,8 +200,9 @@ class UnitaryEvolution(QuantumSolver):
         >>> from skcomplex.core.model import Hamiltonian, Qubit, System, expectation
         >>> from operator import attrgetter
         >>> Rabi = Qubit.define('Rabi', laws=lambda s: [Hamiltonian(s.x / 2)])
-        >>> system = System(elements=[Rabi('q')], observables=[expectation('z', attrgetter('q.z'))])
-        >>> simulation = Simulation(system, solver=UnitaryEvolution(), dt=np.pi).run(until=np.pi)
+        >>> system = System(components=[Rabi('q')])
+        >>> z = [expectation('z', attrgetter('q.z'))]
+        >>> simulation = Simulation(system, solver=UnitaryEvolution(), dt=np.pi, observables=z).run(until=np.pi)
         >>> float(round(simulation.trajectory_['z'][-1], 6))
         -1.0
     """
@@ -240,8 +241,9 @@ class LindbladEvolution(QuantumSolver):
         >>> from skcomplex.core.model import Dissipator, Qubit, System, expectation
         >>> from operator import attrgetter
         >>> Decaying = Qubit.define('Decaying', laws=lambda s: [Dissipator(s.minus, 0.5)])
-        >>> system = System(elements=[Decaying('q')], observables=[expectation('z', attrgetter('q.z'))])
-        >>> simulation = Simulation(system, solver=LindbladEvolution(), dt=1.0).run(until=2.0)
+        >>> system = System(components=[Decaying('q')])
+        >>> z = [expectation('z', attrgetter('q.z'))]
+        >>> simulation = Simulation(system, solver=LindbladEvolution(), dt=1.0, observables=z).run(until=2.0)
         >>> bool(abs((1 + simulation.trajectory_['z'][-1]) / 2 - np.exp(-1.0)) < 1e-6)
         True
     """
@@ -282,8 +284,10 @@ class QuantumTrajectories(QuantumSolver):
         >>> from skcomplex.core.model import Dissipator, Qubit, System, expectation
         >>> from operator import attrgetter
         >>> Decaying = Qubit.define('Decaying', laws=lambda s: [Dissipator(s.minus, 1.0)])
-        >>> system = System(elements=[Decaying('q')], observables=[expectation('z', attrgetter('q.z'))])
-        >>> simulation = Simulation(system, solver=QuantumTrajectories(), dt=1.0, random_state=0).run(until=20.0)
+        >>> system = System(components=[Decaying('q')])
+        >>> z = [expectation('z', attrgetter('q.z'))]
+        >>> simulation = Simulation(system, solver=QuantumTrajectories(), dt=1.0, random_state=0, observables=z)
+        >>> simulation = simulation.run(until=20.0)
         >>> float(simulation.trajectory_['z'][-1])
         -1.0
     """

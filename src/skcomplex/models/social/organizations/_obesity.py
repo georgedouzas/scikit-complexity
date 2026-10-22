@@ -289,4 +289,4 @@ def obesity(
         location=rng.uniform(0, size, (n_places, 2)),
         kind=rng.integers(0, 3, n_places).astype(float),
     )
-    return System(elements=[people, restaurants], space=ContinuousSpace(size, size))
+    return System(components=[people, restaurants], space=ContinuousSpace(size, size))

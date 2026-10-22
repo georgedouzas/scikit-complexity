@@ -14,7 +14,7 @@ from skcomplex.models.physics.statistical_mechanics import ideal_gas
 def _pushed_gas(n=500):
     """Return a group pushed by a constant force, whose velocity change depends on the mass."""
     return System(
-        elements=[Particle.group('gas', n)],
+        components=[Particle.group('gas', n)],
         interactions=[ConstantForce('push', target='gas', F=[1.0, 0.0])],
         space=EuclideanSpace(2),
     )

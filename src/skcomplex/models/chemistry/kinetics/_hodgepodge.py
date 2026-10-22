@@ -131,4 +131,4 @@ def hodgepodge(
     """
     levels = np.random.default_rng(random_state).integers(0, int(n) + 1, size=tuple(shape)).astype(float)
     space = LatticeSpace(tuple(shape))
-    return System(elements=[HodgepodgeCell.lattice('cells', space, level=levels, n=n, k1=k1, k2=k2, g=g)])
+    return System(components=[HodgepodgeCell.lattice('cells', space, level=levels, n=n, k1=k1, k2=k2, g=g)])

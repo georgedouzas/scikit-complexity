@@ -158,5 +158,5 @@ def test_lattice_group_keeps_the_expectation_visual():
 
 def test_quantum_system_repr_names_the_class():
     """Test that a quantum system prints as one."""
-    assert repr(QuantumSystem(elements=[Qubit('q')])) == 'QuantumSystem(elements=1, interactions=0, systems=0)'
+    assert repr(QuantumSystem(components=[Qubit('q')])) == 'QuantumSystem(components=1, interactions=0)'
     assert isinstance(Operator({}), Operator)

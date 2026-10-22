@@ -254,4 +254,4 @@ def beer_game(
         step_time=step_time,
     )
     brewery = Brewery('brewery', factory='factory', production_delay=production_delay)
-    return System(elements=echelons, interactions=[*links, customers, brewery])
+    return System(components=echelons, interactions=[*links, customers, brewery])

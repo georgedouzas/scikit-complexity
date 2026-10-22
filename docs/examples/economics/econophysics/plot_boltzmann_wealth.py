@@ -25,7 +25,7 @@ MODEL = 'boltzmann_wealth'
 STEPS = 200
 
 system = create(MODEL, n_agents=300)
-system.set_params(observables=[Observable('gini', group='traders', variable='wealth', reduce=gini)])
+observables = [Observable('gini', group='traders', variable='wealth', reduce=gini)]
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
     rrb.TimeSeriesView(origin='/gini', name='Gini coefficient', axis_x=rrb.TimeAxis(view_range=whole_run)),
@@ -34,7 +34,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, observers=[observer], random_state=0).run(until=STEPS)
+simulation = Simulation(system, observers=[observer], random_state=0, observables=observables).run(until=STEPS)
 
 # %%
 # Stationary distribution of wealth

@@ -18,14 +18,19 @@ import numpy as np
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'neutral_biodiversity'
 SIZE, NU = 200, 0.01
 
 system = create(MODEL, individuals=SIZE, nu=NU, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, observers=[observer], random_state=0).run(until=1000)
+simulation = Simulation(
+    system,
+    observers=[observer],
+    random_state=0,
+    observables=describe(MODEL).observables_of(system),
+).run(until=1000)
 
 # %%
 # Number and abundances of species

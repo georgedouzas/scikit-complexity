@@ -315,7 +315,7 @@ def double_pendulum(
         2.0
     """
     return System(
-        elements=[
+        components=[
             DoublePendulum(
                 'pendulum',
                 theta1=theta1,
@@ -390,7 +390,7 @@ def coupled_pendulums(
         2.0
     """
     return System(
-        elements=[
+        components=[
             Pendulum('left', theta=theta1, m=m1, l=l1, g=g),
             Pendulum('right', theta=theta2, m=m2, l=l2, g=g),
         ],
@@ -451,7 +451,7 @@ def cart_pendulum(
         >>> cart_pendulum(m1=5.0).elements[0].m1
         5.0
     """
-    return System(elements=[CartPendulum('cart', y=y, theta=theta, m1=m1, m2=m2, l=l, g=g, F=F)])
+    return System(components=[CartPendulum('cart', y=y, theta=theta, m1=m1, m2=m2, l=l, g=g, F=F)])
 
 
 @register_model(
@@ -507,7 +507,7 @@ def parametric_pendulum(
         0.5
     """
     return System(
-        elements=[
+        components=[
             ParametricPendulum('swing', theta=theta, theta_d1=omega, g=g, l=l, epsilon=epsilon, Omega=Omega, c=c),
         ],
     )
@@ -577,7 +577,7 @@ def magnetic_pendulum(
         for index, angle in enumerate(angles)
     ]
     return System(
-        elements=[Particle('bob', x=[x, y], v=[0.0, 0.0])],
+        components=[Particle('bob', x=[x, y], v=[0.0, 0.0])],
         interactions=[
             HarmonicPotential('string', target='bob', k=omega**2),
             LinearDrag('friction', target='bob', gamma=q),
@@ -636,7 +636,7 @@ def ballistic_pendulum(
         >>> ballistic_pendulum(distance=2.0).elements[0].x
         -2.0
     """
-    return System(elements=[BallisticPendulum('pendulum', x=-distance, x_d1=speed, m=m, M=M, l=l, g=g)])
+    return System(components=[BallisticPendulum('pendulum', x=-distance, x_d1=speed, m=m, M=M, l=l, g=g)])
 
 
 @register_model(
@@ -725,4 +725,4 @@ def huygens_clocks(
         SupportSpring(f'spring_{index}', first=f'clock_{index}', second=f'clock_{index + 1}', k=k)
         for index in range(n_clocks - 1)
     ]
-    return System(elements=clocks, interactions=springs)
+    return System(components=clocks, interactions=springs)

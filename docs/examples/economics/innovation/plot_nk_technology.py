@@ -18,14 +18,19 @@ import numpy as np
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'nk_technology'
 N_COMPONENTS, STEPS, SEEDS = 20, 3000, 8
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 system = create(MODEL, n_components=N_COMPONENTS, d=2, random_state=0)
-simulation = Simulation(system, observers=[observer], random_state=0).run(until=250)
+simulation = Simulation(
+    system,
+    observers=[observer],
+    random_state=0,
+    observables=describe(MODEL).observables_of(system),
+).run(until=250)
 
 # %%
 # Wright's law
@@ -40,7 +45,11 @@ measured = []
 for index, d in enumerate((1, 2, 3)):
     costs = np.mean(
         [
-            Simulation(create(MODEL, n_components=N_COMPONENTS, d=d, random_state=seed), random_state=seed)
+            Simulation(
+                create(MODEL, n_components=N_COMPONENTS, d=d, random_state=seed),
+                random_state=seed,
+                observables=describe(MODEL).observables_of(system),
+            )
             .run(until=STEPS)
             .trajectory_['total_cost']
             for seed in range(SEEDS)

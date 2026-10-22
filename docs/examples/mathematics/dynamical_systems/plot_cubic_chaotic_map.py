@@ -15,7 +15,7 @@ import rerun.blueprint as rrb
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'cubic_chaotic_map'
 
@@ -28,7 +28,9 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).run(until=250)
+simulation = Simulation(system, dt=1, observers=[observer], observables=describe(MODEL).observables_of(system)).run(
+    until=250,
+)
 
 # %%
 # Diffusion of the chaotic walk and the density of the map

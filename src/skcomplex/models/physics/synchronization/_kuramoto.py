@@ -203,7 +203,7 @@ def delayed_kuramoto(
         for target in range(n_oscillators)
         if source != target
     ]
-    return System(elements=elements, interactions=interactions)
+    return System(components=elements, interactions=interactions)
 
 
 @register_model(
@@ -211,6 +211,7 @@ def delayed_kuramoto(
     tags=('synchronization', 'oscillators', 'phase', 'mean field'),
     references=('Kuramoto 1984', 'Datseris and Parlitz 2022', 'Gros 2015', 'Jensen 2023'),
     defaults={'until': 50.0, 'dt': 0.5},
+    observables=lambda system: _order_parameter('order', 'oscillators'),
 )
 def kuramoto(n_oscillators: int = 50, *, K: float = 4.0, sigma: float = 1.0, seed: int = 0) -> System:
     """Return Kuramoto oscillators coupled all to all, `theta_i' = omega_i + (K / N) sum_j sin(theta_j - theta_i)`.
@@ -253,9 +254,8 @@ def kuramoto(n_oscillators: int = 50, *, K: float = 4.0, sigma: float = 1.0, see
     )
     coupling = MeanFieldCoupling('coupling', target='oscillators', source='oscillators', K=K)
     return System(
-        elements=[oscillators],
+        components=[oscillators],
         interactions=[coupling],
-        observables=_order_parameter('order', 'oscillators'),
     )
 
 
@@ -264,6 +264,7 @@ def kuramoto(n_oscillators: int = 50, *, K: float = 4.0, sigma: float = 1.0, see
     tags=('synchronization', 'oscillators', 'phase', 'chimera'),
     references=('Abrams et al. 2008', 'Jensen 2023'),
     defaults={'until': 100.0, 'dt': 1.0},
+    observables=lambda system: [*_order_parameter('first_order', 'first'), *_order_parameter('second_order', 'second')],
 )
 def kuramoto_sakaguchi_chimera(
     n_oscillators: int = 32,
@@ -338,9 +339,8 @@ def kuramoto_sakaguchi_chimera(
         for source in ('first', 'second')
     ]
     return System(
-        elements=populations,
+        components=populations,
         interactions=interactions,
-        observables=[*_order_parameter('first_order', 'first'), *_order_parameter('second_order', 'second')],
     )
 
 
@@ -349,6 +349,7 @@ def kuramoto_sakaguchi_chimera(
     tags=('synchronization', 'oscillators', 'phase', 'chimera', 'nonlocal coupling'),
     references=('Kuramoto and Battogtokh 2002', 'Datseris and Parlitz 2022'),
     defaults={'until': 100.0, 'dt': 1.0},
+    observables=lambda system: _order_parameter('order', 'ring'),
 )
 def nonlocal_ring_chimera(
     n_oscillators: int = 100,
@@ -399,7 +400,7 @@ def nonlocal_ring_chimera(
         visual=VisualSpec('phase_ring', {'phase': 'theta', 'position': 'x'}),
     )
     return System(
-        elements=[ring],
+        components=[ring],
         interactions=[
             PhaseCoupling(
                 'coupling',
@@ -412,7 +413,6 @@ def nonlocal_ring_chimera(
             ),
             PhaseLag('lag', target='ring', K=weight, alpha=alpha),
         ],
-        observables=_order_parameter('order', 'ring'),
         space=EuclideanSpace(1),
     )
 
@@ -458,4 +458,4 @@ def ott_antonsen(
         >>> ott_antonsen(K=3.0).elements[0].K
         3.0
     """
-    return System(elements=[MeanFieldAmplitude('field', x=r, y=0.0, K=K, Delta=Delta, omega=omega)])
+    return System(components=[MeanFieldAmplitude('field', x=r, y=0.0, K=K, Delta=Delta, omega=omega)])

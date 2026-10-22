@@ -8,7 +8,7 @@ import math
 from sage.all__sagemath_symbolics import cos, sqrt
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Boundary, Element, Noise, Rate, System
+from ....core.model import Boundary, Element, Law, Noise, Rate, Symbols, System
 from ....core.runtime import register_model
 
 DoubleWell = Element.define(
@@ -66,23 +66,59 @@ def stochastic_resonance(
         >>> stochastic_resonance(D=0.2).elements[0].D
         0.2
     """
-    return System(elements=[DoubleWell('particle', x=x, amplitude=amplitude, frequency=frequency, D=D)])
+    return System(components=[DoubleWell('particle', x=x, amplitude=amplitude, frequency=frequency, D=D)])
 
 
-WallParticle = Element.define(
-    'WallParticle',
-    states={'z': state(default=1.0, domain=Domain.NONNEGATIVE)},
-    parameters={
-        'D0': parameter(default=1.0, domain=Domain.POSITIVE),
-        'a': parameter(default=1.0, domain=Domain.POSITIVE),
-        'drift': 0.2,
-    },
-    laws=lambda s: [
-        Rate(s.z, -s.drift * s.z * abs(s.z) / (s.z**2 + s.a**2)),
-        Noise(s.z, sqrt(2 * s.D0) * s.z / sqrt(s.z**2 + s.a**2)),
-        Boundary(s.z, abs(s.z)),
-    ],
-)
+class WallParticle(Element):
+    """Brownian particle whose diffusion slows near a wall, with multiplicative noise of a chosen convention.
+
+    Args:
+        label:
+            The label of the particle.
+
+        z:
+            The distance from the wall.
+
+        D0:
+            The diffusion coefficient far from the wall.
+
+        a:
+            The distance over which the wall slows diffusion.
+
+        drift:
+            The settling velocity far from the wall.
+
+        convention:
+            The convention of the noise, `'ito'`, `'stratonovich'`, or `'anti-ito'`.
+
+    Examples:
+        >>> from skcomplex.models.physics.soft_matter import WallParticle
+        >>> WallParticle('bead').convention
+        'anti-ito'
+    """
+
+    z: float = state(default=1.0, domain=Domain.NONNEGATIVE)
+    D0: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    a: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    drift: float = parameter(default=0.2)
+    convention: str = 'anti-ito'
+
+    def laws(self, s: Symbols) -> list[Law]:
+        """Return the settling drift, the hindered noise, and the reflection at the wall.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return [
+            Rate(s.z, -s.drift * s.z * abs(s.z) / (s.z**2 + s.a**2)),
+            Noise(s.z, sqrt(2 * s.D0) * s.z / sqrt(s.z**2 + s.a**2), convention=self.convention),
+            Boundary(s.z, abs(s.z)),
+        ]
 
 
 @register_model(
@@ -97,7 +133,7 @@ def brownian_near_wall(
     D0: float = 1.0,
     a: float = 1.0,
     drift: float = 0.2,
-    noise: str = 'anti-ito',
+    convention: str = 'anti-ito',
 ) -> System:
     """Return a Brownian particle whose diffusion slows near a wall, `D(z) = D0 z² / (z² + a²)`, as it settles on it.
 
@@ -119,7 +155,7 @@ def brownian_near_wall(
         drift:
             The settling velocity far from the wall.
 
-        noise:
+        convention:
             The convention of the noise, `'ito'`, `'stratonovich'`, or `'anti-ito'`.
 
     Returns:
@@ -128,7 +164,8 @@ def brownian_near_wall(
 
     Examples:
         >>> from skcomplex.models.physics.soft_matter import brownian_near_wall
-        >>> brownian_near_wall(noise='ito').noise
+        >>> brownian_near_wall(convention='ito').components[0].convention
         'ito'
     """
-    return System(elements=[WallParticle('particle', z=z, D0=D0, a=a, drift=drift)], noise=noise)
+    particle = WallParticle('particle', z=z, D0=D0, a=a, drift=drift, convention=convention)
+    return System(components=[particle])

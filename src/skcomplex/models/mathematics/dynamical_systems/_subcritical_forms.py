@@ -85,4 +85,4 @@ def subcritical_hopf_form(
         >>> subcritical_hopf_form(alpha=0.1).elements[0].alpha
         0.1
     """
-    return System(elements=[SubcriticalHopf('form', x=x, y=y, alpha=alpha, omega=omega, q=q, gamma=gamma, s=s)])
+    return System(components=[SubcriticalHopf('form', x=x, y=y, alpha=alpha, omega=omega, q=q, gamma=gamma, s=s)])

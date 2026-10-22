@@ -56,11 +56,17 @@ def _output(s: Symbols) -> Expression:
     return s.home.demand + s.home.government + s.home.X - s.home.M
 
 
+def _trade_observables(system: System) -> list[Observable]:
+    """Return the trade balance, the real exchange rate, and the output."""
+    return [Observable('balance', _balance), Observable('real_rate', _real_rate), Observable('output', _output)]
+
+
 @register_model(
     field='economics/macroeconomics',
     tags=('international trade', 'exchange rate', 'discrete map'),
     references=('Hamill and Gilbert 2016',),
     defaults={'until': 2, 'dt': 1},
+    observables=_trade_observables,
 )
 def exchange_rates(
     exports: float = 32.0,
@@ -145,5 +151,4 @@ def exchange_rates(
         demand=demand,
         government=government,
     )
-    observables = [Observable('balance', _balance), Observable('real_rate', _real_rate), Observable('output', _output)]
-    return System(elements=[home], observables=observables)
+    return System(components=[home])

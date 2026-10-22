@@ -144,7 +144,7 @@ def saltzman_glaciation(
         >>> saltzman_glaciation(nu=0.5).elements[0].nu
         0.5
     """
-    return System(elements=[SaltzmanMaasch('climate', x=x, y=y, z=z, p=p, q=q, r=r, s=s, u=u, nu=nu)])
+    return System(components=[SaltzmanMaasch('climate', x=x, y=y, z=z, p=p, q=q, r=r, s=s, u=u, nu=nu)])
 
 
 @register_model(
@@ -191,7 +191,7 @@ def carbon_cycle(
         >>> carbon_cycle(nu=0.1).elements[0].nu
         0.1
     """
-    return System(elements=[CarbonCycle('ocean', c=c, w=w, c_x=c_x, nu=nu)])
+    return System(components=[CarbonCycle('ocean', c=c, w=w, c_x=c_x, nu=nu)])
 
 
 @register_model(
@@ -246,5 +246,5 @@ def van_der_pol_ice_ages(
         0.4
     """
     return System(
-        elements=[VanDerPolIceAges('climate', x=x, y=y, alpha=alpha, beta=beta, gamma=gamma, tau=tau)],
+        components=[VanDerPolIceAges('climate', x=x, y=y, alpha=alpha, beta=beta, gamma=gamma, tau=tau)],
     )

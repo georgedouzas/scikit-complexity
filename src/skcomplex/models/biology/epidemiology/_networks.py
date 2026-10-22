@@ -170,7 +170,7 @@ def heterogeneous_mean_field_sis(
     degrees = np.arange(k_min, k_max + 1, dtype=float)
     weights = degrees**-exponent / np.sum(degrees**-exponent)
     classes = DegreeClass.group('network', len(degrees), rho=rho, lam=lam, k=degrees, P=weights)
-    return System(elements=[classes])
+    return System(components=[classes])
 
 
 @register_model(
@@ -234,4 +234,4 @@ def metapopulation(
         'gamma': gamma,
         'D': D,
     }
-    return System(elements=[Field('cities', Subpopulation, NetworkSpace(graph), values=values)])
+    return System(components=[Field('cities', Subpopulation, NetworkSpace(graph), values=values)])

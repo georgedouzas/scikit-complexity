@@ -112,7 +112,7 @@ def two_body_orbit(
     """
     speed = float(np.sqrt(G * mass * (1 + eccentricity) / radius))
     return System(
-        elements=[Particle('star', m=mass), Particle('planet', x=[radius, 0.0], v=[0.0, speed], m=1e-6)],
+        components=[Particle('star', m=mass), Particle('planet', x=[radius, 0.0], v=[0.0, speed], m=1e-6)],
         interactions=[Gravity('gravity', first='star', second='planet', G=G)],
         space=EuclideanSpace(2),
     )
@@ -181,7 +181,7 @@ def n_body(
         Gravity(f'gravity_{first}_{second}', first=f'body_{first}', second=f'body_{second}', G=G)
         for first, second in itertools.combinations(range(len(bodies)), 2)
     ]
-    return System(elements=bodies, interactions=attractions, space=EuclideanSpace(2))
+    return System(components=bodies, interactions=attractions, space=EuclideanSpace(2))
 
 
 @register_model(
@@ -235,7 +235,7 @@ def restricted_three_body(
         >>> restricted_three_body(mu=0.1).elements[0].mu
         0.1
     """
-    return System(elements=[RotatingFrameBody('body', x=x, y=y, x_d1=vx, y_d1=vy, mu=mu)])
+    return System(components=[RotatingFrameBody('body', x=x, y=y, x_d1=vx, y_d1=vy, mu=mu)])
 
 
 SitnikovBody = Element.define(
@@ -279,4 +279,4 @@ def sitnikov(z: float = 0.5, vz: float = 0.0, *, e: float = 0.0) -> System:
         >>> sitnikov(e=0.1).elements[0].e
         0.1
     """
-    return System(elements=[SitnikovBody('body', z=z, z_d1=vz, e=e)])
+    return System(components=[SitnikovBody('body', z=z, z_d1=vz, e=e)])

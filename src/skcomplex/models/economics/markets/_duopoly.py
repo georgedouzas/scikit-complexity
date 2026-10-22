@@ -124,6 +124,10 @@ class CournotAdjustment(Interaction):
     tags=('market', 'oligopoly', 'agents'),
     references=('Hamill and Gilbert 2016', 'Cournot 1838'),
     defaults={'until': 30},
+    observables=lambda system: [
+        Observable('total', group='firms', reduce='sum', variable='output'),
+        Observable('price', _price),
+    ],
 )
 def cournot_duopoly(
     outputs: Sequence[float] = (100.0, 100.0),
@@ -165,10 +169,6 @@ def cournot_duopoly(
     """
     firms = Duopolist.group('firms', N_FIRMS, output=list(outputs), cost=list(costs))
     return System(
-        elements=[firms],
+        components=[firms],
         interactions=[CournotAdjustment('market', firms='firms', a=a, b=b, error=error)],
-        observables=[
-            Observable('total', group='firms', reduce='sum', variable='output'),
-            Observable('price', _price),
-        ],
     )

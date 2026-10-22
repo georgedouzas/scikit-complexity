@@ -348,6 +348,10 @@ def car_wash(
         balk=float(balk),
     )
     return System(
-        elements=[Washer.group('workers', n_workers), Car.group('cars', n_cars, work=wash_work), Till.group('till', 1)],
+        components=[
+            Washer.group('workers', n_workers),
+            Car.group('cars', n_cars, work=wash_work),
+            Till.group('till', 1),
+        ],
         interactions=[operation],
     )

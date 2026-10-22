@@ -76,4 +76,4 @@ def riccati_prices(
         -0.2
     """
     market = QuadraticSupplyMarket('market', P=price, k=k, beta=beta, lam=lam, delta=delta, alpha=alpha, gamma=gamma)
-    return System(elements=[market])
+    return System(components=[market])

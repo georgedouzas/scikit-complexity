@@ -147,7 +147,7 @@ def harvesting(farmers: int = 10, *, effort: float = 0.05, r: float = 1.0, K: fl
         >>> [subsystem.label for subsystem in harvesting().systems]
         ['land', 'village']
     """
-    land = System('land', elements=[Stock('stock', n=K, r=r, K=K)])
-    village = System('village', elements=[Farmer.group('farmers', farmers), Aggregate('size', group='farmers')])
+    land = System('land', components=[Stock('stock', n=K, r=r, K=K)])
+    village = System('village', components=[Farmer.group('farmers', farmers), Aggregate('size', group='farmers')])
     harvest = Harvest('harvest', resource='land/stock', harvesters='village/size', effort=effort)
-    return System(systems=[land, village], interactions=[harvest])
+    return System(components=[land, village], interactions=[harvest])

@@ -83,6 +83,10 @@ class PolarAlignment(PairInteraction):
     tags=('active matter', 'sde', 'flocking', 'alignment', 'pair interaction'),
     references=('Bertin 2021', 'Peruani, Deutsch, and Bär 2008', 'Chaté 2020'),
     defaults={'until': 100.0, 'dt': 1.0, 'solver': EulerMaruyama(dt=0.05)},
+    observables=lambda system: [
+        Observable('mean_heading', _heading, group='swimmers'),
+        Observable('polarization', _polarization),
+    ],
 )
 def aligning_active_brownian_particles(
     n_particles: int = 200,
@@ -151,8 +155,7 @@ def aligning_active_brownian_particles(
     )
     alignment = PolarAlignment('align', first='swimmers', second='swimmers', cutoff=d0, period=size, gamma=gamma)
     return System(
-        elements=[swimmers],
+        components=[swimmers],
         interactions=[PeriodicBox('box', target='swimmers', size=size), alignment],
-        observables=[Observable('mean_heading', _heading, group='swimmers'), Observable('polarization', _polarization)],
         space=EuclideanSpace(2),
     )

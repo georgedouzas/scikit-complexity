@@ -7,6 +7,7 @@ import pytest
 
 from skcomplex.core.base import ValidationError
 from skcomplex.core.runtime import Simulation
+from skcomplex.models import describe
 from skcomplex.models.mathematics.dynamical_systems import (
     cubic_chaotic_map,
     doubling_map,
@@ -59,7 +60,15 @@ def test_doubling_map_iterates_fractions_exactly():
 
 def test_cubic_chaotic_map_walk_diffuses():
     """Test that the chaotic walk has no drift, a linear mean square displacement, and anticorrelated steps."""
-    trajectory = Simulation(cubic_chaotic_map(1000), dt=1).run(until=1000).trajectory_
+    trajectory = (
+        Simulation(
+            built := cubic_chaotic_map(1000),
+            dt=1,
+            observables=describe('cubic_chaotic_map').observables_of(built),
+        )
+        .run(until=1000)
+        .trajectory_
+    )
     times = np.asarray(trajectory.times)
     square = np.asarray(trajectory['square_displacement'])
     slope, _ = np.polyfit(times[100:], square[100:], 1)
@@ -72,8 +81,24 @@ def test_cubic_chaotic_map_walk_diffuses():
 
 def test_cubic_chaotic_map_settles_below_chaos():
     """Test that the map settles on the fixed point 1/2 for λ = 5 and on a period-two cycle for λ = 10."""
-    fixed = Simulation(cubic_chaotic_map(3, lam=5.0), dt=1).run(until=400).trajectory_['walkers.x']
-    cycle = Simulation(cubic_chaotic_map(3, lam=10.0), dt=1).run(until=400).trajectory_['walkers.x']
+    fixed = (
+        Simulation(
+            built := cubic_chaotic_map(3, lam=5.0),
+            dt=1,
+            observables=describe('cubic_chaotic_map').observables_of(built),
+        )
+        .run(until=400)
+        .trajectory_['walkers.x']
+    )
+    cycle = (
+        Simulation(
+            built := cubic_chaotic_map(3, lam=10.0),
+            dt=1,
+            observables=describe('cubic_chaotic_map').observables_of(built),
+        )
+        .run(until=400)
+        .trajectory_['walkers.x']
+    )
     assert np.allclose(fixed[-1], 0.5)
     assert np.allclose(cycle[-1], cycle[-3])
     assert np.all(np.abs(cycle[-1] - cycle[-2]) > 0.1)
@@ -108,12 +133,28 @@ def test_subcritical_hopf_form_shows_hysteresis():
 
 def test_oscillator_death_follows_lorentzian_threshold():
     """Test that oscillations die at the rate `ω0 - 1` above the critical width 1 and persist below it."""
-    dying = Simulation(oscillator_death(100, K=3.0, width=1.5), dt=0.5).run(until=20).trajectory_
+    dying = (
+        Simulation(
+            built := oscillator_death(100, K=3.0, width=1.5),
+            dt=0.5,
+            observables=describe('oscillator_death').observables_of(built),
+        )
+        .run(until=20)
+        .trajectory_
+    )
     amplitude = np.asarray(dying['amplitude'])
     rate = _decay_rate(np.asarray(dying.times), amplitude, start=8.0)
     assert amplitude[-1] < 1e-3
     assert rate == pytest.approx(1 - 1.5, rel=0.1)
-    living = Simulation(oscillator_death(100, K=3.0, width=0.5), dt=0.5).run(until=20).trajectory_
+    living = (
+        Simulation(
+            built := oscillator_death(100, K=3.0, width=0.5),
+            dt=0.5,
+            observables=describe('oscillator_death').observables_of(built),
+        )
+        .run(until=20)
+        .trajectory_
+    )
     assert living['amplitude'][-1] > 0.3
 
 
@@ -122,8 +163,18 @@ def test_oscillator_death_follows_quartic_threshold():
     critical = (1 + math.sqrt(2 * 2.0 - 1)) / math.sqrt(2)
     above = oscillator_death(100, K=2.0, width=1.2 * critical, distribution='quartic')
     below = oscillator_death(100, K=2.0, width=0.8 * critical, distribution='quartic')
-    assert Simulation(above, dt=0.5).run(until=40).trajectory_['amplitude'][-1] < 1e-3
-    assert Simulation(below, dt=0.5).run(until=40).trajectory_['amplitude'][-1] > 0.3
+    assert (
+        Simulation(above, dt=0.5, observables=describe('oscillator_death').observables_of(above))
+        .run(until=40)
+        .trajectory_['amplitude'][-1]
+        < 1e-3
+    )
+    assert (
+        Simulation(below, dt=0.5, observables=describe('oscillator_death').observables_of(below))
+        .run(until=40)
+        .trajectory_['amplitude'][-1]
+        > 0.3
+    )
 
 
 def test_oscillator_death_rejects_unknown_distribution():
@@ -135,7 +186,13 @@ def test_oscillator_death_rejects_unknown_distribution():
 def test_heterogeneous_global_coupling_restabilizes_fixed_point():
     """Test that intermediate coupling kills the oscillations, while weak and very strong coupling do not."""
     amplitudes = {
-        k: Simulation(heterogeneous_global_coupling(100, k=k), dt=0.5).run(until=60).trajectory_['amplitude'][-1]
+        k: Simulation(
+            built := heterogeneous_global_coupling(100, k=k),
+            dt=0.5,
+            observables=describe('heterogeneous_global_coupling').observables_of(built),
+        )
+        .run(until=60)
+        .trajectory_['amplitude'][-1]
         for k in (0.0, 2.0, 15.0)
     }
     assert amplitudes[0.0] > 0.1
@@ -150,7 +207,11 @@ def test_heterogeneous_global_coupling_decays_as_order_parameters_predict():
     nu, variance = complex(0.1, 2.0), float(np.var(taus))
     roots = [nu - 2.0 + sign * np.sqrt(4.0 + variance * nu**2) for sign in (1, -1)]
     predicted = max(root.real for root in roots)
-    trajectory = Simulation(system, dt=0.5).run(until=60).trajectory_
+    trajectory = (
+        Simulation(system, dt=0.5, observables=describe('heterogeneous_global_coupling').observables_of(system))
+        .run(until=60)
+        .trajectory_
+    )
     rate = _decay_rate(np.asarray(trajectory.times), np.asarray(trajectory['amplitude']), start=20.0)
     assert predicted < 0
     assert rate == pytest.approx(predicted, rel=0.15)

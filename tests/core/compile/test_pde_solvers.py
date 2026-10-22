@@ -34,7 +34,7 @@ def _diffused(discretization):
     initial = np.sin(3 * positions) + 0.5 * np.cos(5 * positions)
     exact = np.exp(-9 * 0.1) * np.sin(3 * positions) + 0.5 * np.exp(-25 * 0.1) * np.cos(5 * positions)
     rod = Field('rod', Heat, LatticeSpace(n, spacing=spacing), values={'u': initial}, discretization=discretization)
-    values = Simulation(System(elements=[rod]), dt=0.1, solver=CrankNicolson(dt=1e-4)).run(until=0.1).state_
+    values = Simulation(System(components=[rod]), dt=0.1, solver=CrankNicolson(dt=1e-4)).run(until=0.1).state_
     return np.abs(values - exact).max()
 
 
@@ -96,7 +96,7 @@ def test_steppers_need_linear_terms():
     with pytest.raises(SolverError, match='no linear terms'):
         Simulation(logistic_growth(), solver=IMEXEuler()).run(until=1)
     with pytest.raises(SolverError, match='spectral'):
-        Simulation(System(elements=[Field('rod', Heat, LatticeSpace(8))]), dt=1, solver=ETDRK4()).run(until=1)
+        Simulation(System(components=[Field('rod', Heat, LatticeSpace(8))]), dt=1, solver=ETDRK4()).run(until=1)
 
 
 def test_burgers_shock_is_conservative():
@@ -123,7 +123,7 @@ def test_numerical_fluxes_conserve(riemann):
         values={'u': initial},
         discretization='finite-volume',
     )
-    values = Simulation(System(elements=[line]), dt=2.0, solver=SSPRK()).run(until=2.0).state_
+    values = Simulation(System(components=[line]), dt=2.0, solver=SSPRK()).run(until=2.0).state_
     assert values.sum() == pytest.approx(initial.sum(), rel=1e-12)
     assert initial.min() - 1e-12 <= values.min() <= values.max() <= initial.max() + 1e-12
 
@@ -139,7 +139,7 @@ def test_fluxes_need_finite_volume_field():
     """Test that flux laws on a finite-difference field are rejected."""
     Shock = Element.define('Shock', states={'u': 0.0}, laws=lambda s: [Flux(s.u, s.u**2 / 2)])
     with pytest.raises(ValidationError, match='finite-volume'):
-        compile_system(System(elements=[Field('line', Shock, LatticeSpace(10))]))
+        compile_system(System(components=[Field('line', Shock, LatticeSpace(10))]))
 
 
 def test_l_shaped_steady_state_converges_at_second_order():
@@ -202,14 +202,14 @@ def test_symmetry_needs_periodic_lattice():
     """Test that parities on a lattice with fixed edges are rejected."""
     rod = Field('rod', Heat, LatticeSpace(8, boundary='fixed'), symmetry={'u': ('odd',)})
     with pytest.raises(ValidationError, match='periodic lattice'):
-        compile_system(System(elements=[rod]))
+        compile_system(System(components=[rod]))
 
 
 def test_poisson_needs_spectral_field():
     """Test that solving a Poisson equation on a finite-difference field is rejected."""
     Potential = Element.define('Potential', states={'u': 0.0}, laws=lambda s: [Rate(s.u, inverse_laplacian(s.u))])
     with pytest.raises(ValidationError, match='spectral field'):
-        compile_system(System(elements=[Field('rod', Potential, LatticeSpace(8))]))
+        compile_system(System(components=[Field('rod', Potential, LatticeSpace(8))]))
 
 
 def test_swift_hohenberg_rolls():
@@ -253,6 +253,6 @@ def test_viscous_burgers_respects_diffusive_limit():
     field = Field('line', Viscous, space, values={'u': initial}, discretization='finite-volume')
     with warnings.catch_warnings():
         warnings.simplefilter('error')
-        values = Simulation(System(elements=[field]), solver=SSPRK(), dt=0.05).run(until=0.5).trajectory_['line.u']
+        values = Simulation(System(components=[field]), solver=SSPRK(), dt=0.05).run(until=0.5).trajectory_['line.u']
     assert values.min() >= initial.min() - 1e-12
     assert values.max() <= initial.max() + 1e-12

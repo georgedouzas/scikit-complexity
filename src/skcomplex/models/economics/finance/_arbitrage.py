@@ -84,4 +84,4 @@ def arbitrage_traders(
     values = {'rho': rho, 'D': D, 'A_x': A_x, 'E': E, 'A_t': A_t}
     line = LatticeSpace(n_sites, spacing=spacing, boundary='periodic')
     market = Field('market', ArbitrageDensity, line, values=values)
-    return System(elements=[market])
+    return System(components=[market])

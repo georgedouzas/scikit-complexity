@@ -136,7 +136,7 @@ def langevin_traffic(
         D1=D1,
         road_length=length,
     )
-    return System(elements=[cars], interactions=[driving])
+    return System(components=[cars], interactions=[driving])
 
 
 @register_model(
@@ -217,4 +217,4 @@ def traffic_density_equation(
     }
     space = LatticeSpace(n, spacing=length / n)
     road = Field('road', TrafficMoments, space, values=values)
-    return System(elements=[road])
+    return System(components=[road])

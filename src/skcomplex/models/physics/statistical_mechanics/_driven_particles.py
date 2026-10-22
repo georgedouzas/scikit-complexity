@@ -351,7 +351,7 @@ def zero_range_process(
     """
     occupations = _scatter(round(density * n_sites), n_sites, random_state)
     sites = ParticleSite.lattice('sites', LatticeSpace(n_sites), n=occupations)
-    return System(elements=[sites], interactions=[ZeroRangeHops('hops', sites='sites', p=p, q=q, b=b)])
+    return System(components=[sites], interactions=[ZeroRangeHops('hops', sites='sites', p=p, q=q, b=b)])
 
 
 @register_model(
@@ -428,7 +428,7 @@ def dissipative_zero_range(
         Reservoir('injection', sites=['nodes[0]'], entry=nu * np.exp(-beta_ext * epsilon0), exit=nu),
         Reservoir('dissipation', sites=leaves, exit=dissipation),
     ]
-    return System(elements=[nodes], interactions=interactions, space=EuclideanSpace(2))
+    return System(components=[nodes], interactions=interactions, space=EuclideanSpace(2))
 
 
 @register_model(
@@ -493,4 +493,4 @@ def asep(
         Reservoir('entry', sites=['lane[0]'], entry=alpha, exclusion=True),
         Reservoir('exit', sites=[f'lane[{n_sites - 1}]'], exit=gamma, exclusion=True),
     ]
-    return System(elements=[lane], interactions=interactions)
+    return System(components=[lane], interactions=interactions)

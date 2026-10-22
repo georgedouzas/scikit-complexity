@@ -15,13 +15,15 @@ import matplotlib.pyplot as plt
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'angiogenesis_immunotherapy'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.5, observers=[observer]).run(until=150)
+simulation = Simulation(system, dt=0.5, observers=[observer], observables=describe(MODEL).observables_of(system)).run(
+    until=150,
+)
 
 # %%
 # Each drug alone and both together
@@ -37,7 +39,7 @@ arms = {
 }
 fig, (tumour, toxicity) = plt.subplots(1, 2, figsize=(10, 4))
 for name, arm in arms.items():
-    trajectory = Simulation(arm, dt=0.5).run(until=150).trajectory_
+    trajectory = Simulation(arm, dt=0.5, observables=describe(MODEL).observables_of(arm)).run(until=150).trajectory_
     tumour.plot(trajectory.times, trajectory['tumour.A'], label=name)
 combined = simulation.trajectory_
 tumour.plot(combined.times, combined['tumour.A'], label='combination', color='black')

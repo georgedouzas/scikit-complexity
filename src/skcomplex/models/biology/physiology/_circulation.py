@@ -186,4 +186,4 @@ def cardiovascular(
         Flow('systemic', upstream='arteries', downstream='veins', R=R_systemic),
         Flow('mitral_valve', upstream='veins', downstream='ventricle', R=0.02, valve=True),
     ]
-    return System(elements=[ventricle, arteries, veins], interactions=flows)
+    return System(components=[ventricle, arteries, veins], interactions=flows)

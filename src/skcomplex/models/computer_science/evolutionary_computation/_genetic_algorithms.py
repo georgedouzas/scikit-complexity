@@ -262,6 +262,6 @@ def robby_ga(
     actions = rng.integers(0, N_ACTIONS, size=(n_strategies, N_SITUATIONS))
     scores = evolution.score(actions, rng)
     return System(
-        elements=[Strategy.group('strategies', n_strategies, actions=actions, score=scores)],
+        components=[Strategy.group('strategies', n_strategies, actions=actions, score=scores)],
         interactions=[evolution],
     )

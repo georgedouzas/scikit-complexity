@@ -309,7 +309,7 @@ def charbonneau_traffic(
         safe_distance=safe_distance,
         speed_limit=speed_limit,
     )
-    return System(elements=[cars], interactions=[CarelessBraking('braking', cars='cars', probability=probability)])
+    return System(components=[cars], interactions=[CarelessBraking('braking', cars='cars', probability=probability)])
 
 
 @register_model(
@@ -361,4 +361,4 @@ def ring_road_drivers(
         eps=eps,
         speed_limit=speed_limit,
     )
-    return System(elements=[drivers], space=ContinuousSpace(length, ROAD_WIDTH, torus=True))
+    return System(components=[drivers], space=ContinuousSpace(length, ROAD_WIDTH, torus=True))

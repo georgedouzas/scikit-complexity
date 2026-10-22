@@ -15,14 +15,16 @@ import numpy as np
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver, default_blueprint
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'winfree'
 
 system = create(MODEL, n_oscillators=50, K=0.5, spread=0.1, seed=0)
-blueprint = default_blueprint(system, primary='observables')
+blueprint = default_blueprint(system, primary='observables', observables=describe(MODEL).observables_of(system))
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=0.25, observers=[observer]).run(until=50)
+simulation = Simulation(system, dt=0.25, observers=[observer], observables=describe(MODEL).observables_of(system)).run(
+    until=50,
+)
 
 # %%
 # Incoherence, locking, and death
@@ -34,7 +36,8 @@ simulation = Simulation(system, dt=0.25, observers=[observer]).run(until=50)
 couplings = np.linspace(0.0, 1.5, 31)
 means, spreads = [], []
 for coupling in couplings:
-    run = Simulation(create(MODEL, n_oscillators=50, K=coupling, spread=0.1, seed=0), dt=0.25).run(until=200)
+    model_system = create(MODEL, n_oscillators=50, K=coupling, spread=0.1, seed=0)
+    run = Simulation(model_system, dt=0.25, observables=describe(MODEL).observables_of(model_system)).run(until=200)
     times, phases = np.asarray(run.trajectory_.times), np.asarray(run.trajectory_['oscillators.theta'])
     late = times >= 100
     frequencies = (phases[late][-1] - phases[late][0]) / (times[late][-1] - times[late][0])

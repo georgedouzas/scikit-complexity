@@ -481,7 +481,7 @@ def phosphorylation_oscillator(
         K2=K,
         K3=K,
     )
-    return System(elements=[loop])
+    return System(components=[loop])
 
 
 @register_model(
@@ -574,7 +574,7 @@ def biochemical_systems_theory(
     else:
         error_msg = f'Unknown form {form!r}. Use s-system or gma.'
         raise ValidationError(error_msg)
-    return System(elements=species, interactions=[rates])
+    return System(components=species, interactions=[rates])
 
 
 @register_model(
@@ -649,4 +649,4 @@ def goodwin_oscillator(
         Synthesis(f'synthesis_{target}', source=source, target=target, k=k)
         for source, target in itertools.pairwise(labels)
     ]
-    return System(elements=stages, interactions=[repression, *syntheses])
+    return System(components=stages, interactions=[repression, *syntheses])

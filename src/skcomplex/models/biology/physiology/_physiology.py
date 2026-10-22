@@ -72,7 +72,7 @@ def fitzhugh_nagumo(
     v[:, : columns // 2] = 1.0
     values = {'u': u, 'v': v, 'D': D, 'a': a, 'b': b, 'epsilon': epsilon}
     space = LatticeSpace((rows, columns), boundary='reflecting')
-    return System(elements=[Field('medium', FitzHughNagumo, space, values=values)])
+    return System(components=[Field('medium', FitzHughNagumo, space, values=values)])
 
 
 MackeyGlass = Element.define(
@@ -126,4 +126,4 @@ def mackey_glass(
         >>> mackey_glass(tau=6.0).elements[0].tau
         6.0
     """
-    return System(elements=[MackeyGlass('cells', x=x, beta=beta, gamma=gamma, n=n, tau=tau)])
+    return System(components=[MackeyGlass('cells', x=x, beta=beta, gamma=gamma, n=n, tau=tau)])

@@ -21,7 +21,7 @@ from skcomplex.core.analysis import ccdf, fit_power_law
 from skcomplex.core.model import Observable
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'toy_firm_investment'
 N_FIRMS, STEPS = 1000, 250
@@ -33,9 +33,8 @@ def top_share(capital):
 
 
 system = create(MODEL, n_firms=N_FIRMS, random_state=0)
-system.set_params(
-    observables=[*system.observables, Observable('top_share', group='firms', variable='K', reduce=top_share)],
-)
+top = Observable('top_share', group='firms', variable='K', reduce=top_share)
+observables = [*describe(MODEL).observables_of(system), top]
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
     rrb.TimeSeriesView(
@@ -48,7 +47,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, observers=[observer], random_state=0).run(until=STEPS)
+simulation = Simulation(system, observers=[observer], random_state=0, observables=observables).run(until=STEPS)
 
 # %%
 # Firm sizes and concentration

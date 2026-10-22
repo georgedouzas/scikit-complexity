@@ -70,7 +70,7 @@ def test_functions_lower_to_numpy_and_numba():
 def test_reflecting_box_reverses_crossing_particle():
     """Test that a particle crossing a wall comes back into the box with its velocity reversed."""
     system = System(
-        elements=[Particle('p', x=[0.9], v=[1.0])],
+        components=[Particle('p', x=[0.9], v=[1.0])],
         interactions=[ReflectingBox('box', target='p', size=1.0)],
         space=EuclideanSpace(1),
     )
@@ -82,7 +82,7 @@ def test_reflecting_box_reverses_crossing_particle():
 def test_periodic_box_wraps_leaving_particle():
     """Test that a particle leaving through one side enters through the opposite side."""
     system = System(
-        elements=[Particle('p', x=[0.9], v=[1.0])],
+        components=[Particle('p', x=[0.9], v=[1.0])],
         interactions=[PeriodicBox('box', target='p', size=1.0)],
         space=EuclideanSpace(1),
     )
@@ -111,7 +111,7 @@ def test_where_branch_not_chosen_raises_no_warning():
 def test_long_frame_keeps_particle_in_reflecting_box(solver):
     """Test that a frame of duration 5 reflects a particle four times and ends at 0.5 with velocity -1."""
     system = System(
-        elements=[Particle('p', x=[0.5], v=[1.0])],
+        components=[Particle('p', x=[0.5], v=[1.0])],
         interactions=[ReflectingBox('box', target='p', size=1.0)],
         space=EuclideanSpace(1),
     )
@@ -123,7 +123,7 @@ def test_long_frame_keeps_particle_in_reflecting_box(solver):
 def _driven_by(data):
     """Return a system whose one rate reads a series input."""
     driven = Element.define('Driven', states={'y': 0.0}, laws=lambda s: [Rate(s.y, data(s.t))])
-    return System(elements=[driven('d')])
+    return System(components=[driven('d')])
 
 
 @pytest.mark.parametrize('backend', ['numpy', 'numba'])

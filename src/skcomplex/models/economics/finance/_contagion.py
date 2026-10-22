@@ -149,6 +149,7 @@ class DebtRankCascade(Interaction):
     tags=('systemic risk', 'network', 'contagion', 'agents'),
     references=('Thurner et al. 2018', 'Battiston et al. 2012'),
     defaults={'until': 10},
+    observables=lambda system: [Observable('value_at_risk', _value_at_risk, group='banks', reduce='sum')],
 )
 def debtrank(
     liabilities: Sequence[Sequence[float]] | None = None,
@@ -207,7 +208,6 @@ def debtrank(
     status = np.where(h > 0, DISTRESSED, UNDISTRESSED).astype(float)
     banks = Bank.group('banks', size, h=h, status=status, value=_economic_values(matrix))
     return System(
-        elements=[banks],
+        components=[banks],
         interactions=[DebtRankCascade('cascade', banks='banks', impact=_impact(matrix, capitals).tolist())],
-        observables=[Observable('value_at_risk', _value_at_risk, group='banks', reduce='sum')],
     )

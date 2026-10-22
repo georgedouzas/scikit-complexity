@@ -16,7 +16,7 @@ import numpy as np
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'oscillator_death'
 
@@ -29,7 +29,13 @@ def coupling_at(time):
     return 0.0 if time < 5.0 else 3.0
 
 
-simulation = Simulation(system, dt=0.05, observers=[observer], schedule={'coupling.K': coupling_at}).run(until=14)
+simulation = Simulation(
+    system,
+    dt=0.05,
+    observers=[observer],
+    schedule={'coupling.K': coupling_at},
+    observables=describe(MODEL).observables_of(system),
+).run(until=14)
 
 # %%
 # Decay rate against the width of the frequencies
@@ -41,7 +47,8 @@ simulation = Simulation(system, dt=0.05, observers=[observer], schedule={'coupli
 widths = [0.5, 1.25, 1.5, 2.0]
 fig, ax = plt.subplots(figsize=(6, 4))
 for width in widths:
-    run = Simulation(create(MODEL, n_oscillators=100, K=3.0, width=width), dt=0.1).run(until=20)
+    model_system = create(MODEL, n_oscillators=100, K=3.0, width=width)
+    run = Simulation(model_system, dt=0.1, observables=describe(MODEL).observables_of(model_system)).run(until=20)
     times, amplitude = np.asarray(run.trajectory_.times), np.asarray(run.trajectory_['amplitude'])
     line = ax.semilogy(times, amplitude, label=f'ω0 = {width}')[0]
     if width > 1:

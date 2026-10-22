@@ -48,7 +48,7 @@ def _escape_field(shape: Sequence[int], z: object, c: object, radius: float) -> 
     """Return the field of the quadratic map over a lattice from the initial points and the constants."""
     space = LatticeSpace(tuple(int(item) for item in shape))
     values = {'z': z, 'c': c, 'radius': radius}
-    return System(elements=[Field('plane', QuadraticMap, space, values=values, visual=ESCAPE_IMAGE)])
+    return System(components=[Field('plane', QuadraticMap, space, values=values, visual=ESCAPE_IMAGE)])
 
 
 @register_model(

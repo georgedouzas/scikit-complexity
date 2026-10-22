@@ -285,7 +285,7 @@ def sandpile(shape: Sequence[int] = (50, 50), *, random_state: int | np.random.G
     """
     heights = np.random.default_rng(random_state).integers(0, 4, size=tuple(shape)).astype(float)
     space = LatticeSpace(tuple(shape), boundary='fixed')
-    return System(elements=[SandpileCell.lattice('pile', space, height=heights)])
+    return System(components=[SandpileCell.lattice('pile', space, height=heights)])
 
 
 @register_model(
@@ -318,7 +318,7 @@ def manna_sandpile(shape: Sequence[int] = (32, 32), *, random_state: int | np.ra
     """
     heights = np.random.default_rng(random_state).integers(0, MANNA_THRESHOLD, size=tuple(shape)).astype(float)
     space = LatticeSpace(tuple(shape), boundary='fixed')
-    return System(elements=[MannaCell.lattice('pile', space, height=heights)])
+    return System(components=[MannaCell.lattice('pile', space, height=heights)])
 
 
 @register_model(
@@ -364,7 +364,7 @@ def forest_fire(
     """
     cover = (np.random.default_rng(random_state).random(tuple(shape)) < density).astype(float)
     space = LatticeSpace(tuple(shape))
-    return System(elements=[Forest.lattice('forest', space, cover=cover, growth=growth, lightning=lightning)])
+    return System(components=[Forest.lattice('forest', space, cover=cover, growth=growth, lightning=lightning)])
 
 
 @register_model(
@@ -438,4 +438,4 @@ def hexagonal_forest_fire(
         lightning=lightning,
         neighbors='triangular' if graph is None else 'graph',
     )
-    return System(elements=[forest])
+    return System(components=[forest])

@@ -18,13 +18,19 @@ import numpy as np
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'origin_fixation_walk'
 
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=10.0, observers=[observer], random_state=0).run(until=640)
+simulation = Simulation(
+    system,
+    dt=10.0,
+    observers=[observer],
+    random_state=0,
+    observables=describe(MODEL).observables_of(system),
+).run(until=640)
 
 # %%
 # Climbing and the stationary law
@@ -42,7 +48,11 @@ stationary = 1.0
 for _ in range(100):
     stationary = 1 + np.sum(fields * np.tanh(99 * fields / stationary))
 small = create(MODEL, loci=4, N=10.0, mu=1.0, field=0.1, coupling=0.3, random_state=1)
-alleles = Simulation(small, dt=1.0, random_state=0).run(until=5000).trajectory_['genome.s'][100:]
+alleles = (
+    Simulation(small, dt=1.0, random_state=0, observables=describe(MODEL).observables_of(small))
+    .run(until=5000)
+    .trajectory_['genome.s'][100:]
+)
 visited = np.bincount(((alleles > 0) * 2 ** np.arange(4)).sum(axis=1).astype(int), minlength=16)
 genomes = np.array([[2 * bit - 1 for bit in reversed(bits)] for bits in itertools.product((0, 1), repeat=4)])
 couplings = small.interactions[0].couplings

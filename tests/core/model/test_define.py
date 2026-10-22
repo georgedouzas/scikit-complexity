@@ -46,8 +46,8 @@ class GrowthClass(Interaction):
 
 def test_defined_types_match_classes():
     """Test that a defined model simulates exactly like the same model written with classes."""
-    defined = System(elements=[Stock('a', n=2.0)], interactions=[Growth('g', target='a', r=0.3)])
-    written = System(elements=[StockClass('a', n=2.0)], interactions=[GrowthClass('g', target='a', r=0.3)])
+    defined = System(components=[Stock('a', n=2.0)], interactions=[Growth('g', target='a', r=0.3)])
+    written = System(components=[StockClass('a', n=2.0)], interactions=[GrowthClass('g', target='a', r=0.3)])
     first = Simulation(defined, dt=0.5).run(until=2).trajectory_.states
     second = Simulation(written, dt=0.5).run(until=2).trajectory_.states
     assert np.array_equal(first, second)
@@ -66,7 +66,7 @@ def test_defined_types_declare_fields():
 def test_defined_types_form_groups():
     """Test that a group of 100 members of a defined type compiles once and exposes its parameters."""
     system = System(
-        elements=[Stock.group('herd', 100, n=np.linspace(1, 2, 100))],
+        components=[Stock.group('herd', 100, n=np.linspace(1, 2, 100))],
         interactions=[Growth('g', target='herd')],
     )
     trajectory = Simulation(system, dt=1).run(until=1).trajectory_
@@ -79,7 +79,7 @@ def test_defined_types_clone_and_pickle():
     """Test that instances of defined types clone and pickle with their values."""
     growth = Growth('g', target='a', r=0.7)
     assert clone(growth).get_params() == growth.get_params()
-    data = pickle.dumps(System(elements=[Stock('a', n=3.0)], interactions=[growth]))
+    data = pickle.dumps(System(components=[Stock('a', n=3.0)], interactions=[growth]))
     restored = pickle.loads(data)  # noqa: S301  # nosec B301: loads data the test just dumped
     assert restored.elements[0].n == 3.0
     assert restored.interactions[0].r == 0.7
@@ -87,5 +87,5 @@ def test_defined_types_clone_and_pickle():
 
 def test_laws_function_receives_component():
     """Test that a laws function with two arguments receives the component and the namespace."""
-    trajectory = Simulation(System(elements=[Decaying('a', n=1.0)]), dt=1).run(until=1).trajectory_
+    trajectory = Simulation(System(components=[Decaying('a', n=1.0)]), dt=1).run(until=1).trajectory_
     assert np.isclose(trajectory['a.n'][-1], np.exp(-0.2), rtol=1e-3)

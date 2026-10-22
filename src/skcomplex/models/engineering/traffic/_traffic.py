@@ -129,4 +129,4 @@ def nagel_schreckenberg(
     velocity = np.full(length, -1.0)
     velocity[rng.choice(length, size=round(density * length), replace=False)] = 0.0
     road = Road.lattice('road', LatticeSpace(length), velocity=velocity, slowdown=slowdown, vmax=vmax)
-    return System(elements=[road])
+    return System(components=[road])

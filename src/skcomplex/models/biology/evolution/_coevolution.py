@@ -129,4 +129,4 @@ def bak_sneppen(
         updates=count if updates is None else updates,
         neighbors='ring' if graph is None else 'graph',
     )
-    return System(elements=[species])
+    return System(components=[species])

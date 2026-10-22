@@ -43,7 +43,7 @@ def exponential_growth(n: float = 10.0, r: float = 0.1) -> System:
         0.2
     """
     return System(
-        elements=[Population('population', n=n)],
+        components=[Population('population', n=n)],
         interactions=[ExponentialGrowth('growth', target='population', r=r)],
     )
 
@@ -77,7 +77,7 @@ def logistic_growth(n: float = 10.0, r: float = 1.0, K: float = 100.0) -> System
         500.0
     """
     return System(
-        elements=[Population('population', n=n)],
+        components=[Population('population', n=n)],
         interactions=[LogisticGrowth('growth', target='population', r=r, K=K)],
     )
 
@@ -127,7 +127,7 @@ def varying_capacity_logistic(
         0.2
     """
     return System(
-        elements=[Population('population', n=n)],
+        components=[Population('population', n=n)],
         interactions=[
             SeasonalLogisticGrowth('growth', target='population', r=r, K=K, amplitude=amplitude, period=period),
         ],
@@ -168,7 +168,7 @@ def hutchinson(n: float = 50.0, *, r: float = 1.0, K: float = 100.0, tau: float 
         1.0
     """
     return System(
-        elements=[Population('population', n=n)],
+        components=[Population('population', n=n)],
         interactions=[DelayedLogisticGrowth('growth', target='population', r=r, K=K, tau=tau)],
     )
 
@@ -228,7 +228,7 @@ def lotka_volterra(
         else LogisticGrowth('growth', target='prey', r=r, K=K)
     )
     return System(
-        elements=[Population('prey', n=prey), Population('predators', n=predators)],
+        components=[Population('prey', n=prey), Population('predators', n=predators)],
         interactions=[
             growth,
             Predation('predation', predator='predators', prey='prey', a=a, b=b),
@@ -271,4 +271,4 @@ def fibonacci_rabbits(pairs: float = 1.0, previous: float = 0.0) -> System:
         >>> fibonacci_rabbits().elements[0].pairs
         1.0
     """
-    return System(elements=[Rabbits('rabbits', pairs=pairs, pairs_lag1=previous)])
+    return System(components=[Rabbits('rabbits', pairs=pairs, pairs_lag1=previous)])

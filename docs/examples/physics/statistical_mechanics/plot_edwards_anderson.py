@@ -16,13 +16,19 @@ import numpy as np
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'edwards_anderson'
 
 system = create(MODEL, size=48, temperature=0.5)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=5, observers=[observer], random_state=0).run(until=1000)
+simulation = Simulation(
+    system,
+    dt=5,
+    observers=[observer],
+    random_state=0,
+    observables=describe(MODEL).observables_of(system),
+).run(until=1000)
 
 # %%
 # Energy, magnetization, and freezing against temperature
@@ -39,7 +45,11 @@ for temperature in temperatures:
     sample = create(MODEL, size=32, temperature=temperature)
     values = sample.elements[0].values
     right, down = (values[name].reshape(32, 32) for name in ('J_right', 'J_down'))
-    trajectory = Simulation(sample, dt=10, random_state=0).run(until=2000).trajectory_
+    trajectory = (
+        Simulation(sample, dt=10, random_state=0, observables=describe(MODEL).observables_of(sample))
+        .run(until=2000)
+        .trajectory_
+    )
     spins = trajectory.lattice('spins.spin')[-50:]
     bonds = spins * right * np.roll(spins, -1, axis=-1) + spins * down * np.roll(spins, -1, axis=-2)
     energies.append(-bonds.sum(axis=(1, 2)).mean() / 32**2)

@@ -87,4 +87,4 @@ def friedmann_expansion(
         omega_matter=omega_matter,
         omega_lambda=omega_lambda,
     )
-    return System(elements=[universe])
+    return System(components=[universe])

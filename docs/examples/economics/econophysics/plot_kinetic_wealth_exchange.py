@@ -19,7 +19,7 @@ from scipy import stats
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'kinetic_wealth_exchange'
 STEPS = 150
@@ -32,7 +32,13 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL, n_agents=500), observers=[observer], random_state=0).run(until=STEPS)
+model_system = create(MODEL, n_agents=500)
+simulation = Simulation(
+    model_system,
+    observers=[observer],
+    random_state=0,
+    observables=describe(MODEL).observables_of(model_system),
+).run(until=STEPS)
 
 # %%
 # Stationary distributions
@@ -45,7 +51,12 @@ simulation = Simulation(create(MODEL, n_agents=500), observers=[observer], rando
 
 def final_wealth(**options):
     """Return the final wealth of every agent of a run."""
-    trajectory = Simulation(create(MODEL, n_agents=500, **options), random_state=0).run(until=STEPS).trajectory_
+    model_system = create(MODEL, n_agents=500, **options)
+    trajectory = (
+        Simulation(model_system, random_state=0, observables=describe(MODEL).observables_of(model_system))
+        .run(until=STEPS)
+        .trajectory_
+    )
     return trajectory.agents('traders', STEPS).values['wealth']
 
 

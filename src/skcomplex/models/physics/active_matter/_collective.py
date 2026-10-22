@@ -297,7 +297,7 @@ def _active_disks(
     """Return active Brownian disks in a periodic box, without pair interactions."""
     positions, angles = _disks(n_particles, size, random_state)
     group = ActiveParticle.group('swimmers', n_particles, x=positions, theta=angles, speed=speed, D_t=0.0, D_r=D_r)
-    return System(elements=[group], interactions=[PeriodicBox('box', target='swimmers', size=size)])
+    return System(components=[group], interactions=[PeriodicBox('box', target='swimmers', size=size)])
 
 
 @register_model(
@@ -352,7 +352,7 @@ def motility_induced_phase_separation(
     size = math.sqrt(n_particles * math.pi / 4 / packing_fraction)
     system = _active_disks(n_particles, size, speed, D_r, random_state)
     repulsion = SoftRepulsion('contact', first='swimmers', second='swimmers', cutoff=1.0, period=size, k=k)
-    return System(elements=system.elements, interactions=[*system.interactions, repulsion], space=EuclideanSpace(2))
+    return System(components=system.elements, interactions=[*system.interactions, repulsion], space=EuclideanSpace(2))
 
 
 @register_model(
@@ -423,7 +423,7 @@ def living_crystals(
         R=1.0,
     )
     interactions = [*system.interactions, repulsion, attraction]
-    return System(elements=system.elements, interactions=interactions, space=EuclideanSpace(2))
+    return System(components=system.elements, interactions=interactions, space=EuclideanSpace(2))
 
 
 @register_model(
@@ -486,7 +486,7 @@ def cucker_smale_flocking(
         beta=beta,
         n_agents=n_agents,
     )
-    return System(elements=[birds], interactions=[alignment], space=EuclideanSpace(2))
+    return System(components=[birds], interactions=[alignment], space=EuclideanSpace(2))
 
 
 @register_model(
@@ -562,4 +562,4 @@ def toner_tu(
     }
     parameters = {'a': a, 'rho_c': rho_c, 'beta': beta, 'lam': lam, 'sigma': sigma, 'D': D}
     space = LatticeSpace(shape, spacing=spacing)
-    return System(elements=[Field('flock', PolarFluid, space, values={**values, **parameters})])
+    return System(components=[Field('flock', PolarFluid, space, values={**values, **parameters})])

@@ -16,13 +16,19 @@ import numpy as np
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'mattis_spin_glass'
 
 system = create(MODEL, size=48, temperature=1.5)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=2, observers=[observer], random_state=0).run(until=400)
+simulation = Simulation(
+    system,
+    dt=2,
+    observers=[observer],
+    random_state=0,
+    observables=describe(MODEL).observables_of(system),
+).run(until=400)
 
 # %%
 # Hidden order and the gauge transformation
@@ -37,7 +43,13 @@ pattern = system.elements[0].values['pattern'].reshape(lattice.shape)
 temperatures = np.linspace(1.0, 3.5, 11)
 overlaps, magnetizations = [], []
 for temperature in temperatures:
-    trajectory = Simulation(create(MODEL, size=32, temperature=temperature), dt=10, random_state=0).run(until=1000)
+    model_system = create(MODEL, size=32, temperature=temperature)
+    trajectory = Simulation(
+        model_system,
+        dt=10,
+        random_state=0,
+        observables=describe(MODEL).observables_of(model_system),
+    ).run(until=1000)
     overlaps.append(np.abs(trajectory.trajectory_['overlap'][-30:]).mean())
     magnetizations.append(np.abs(trajectory.trajectory_['magnetization'][-30:]).mean())
 critical = 2 / np.log(1 + np.sqrt(2))

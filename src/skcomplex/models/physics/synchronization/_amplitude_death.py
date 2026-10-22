@@ -93,6 +93,12 @@ def _spread_on_circle(size: int, random_state: int | np.random.Generator | None)
     tags=('synchronization', 'oscillators', 'amplitude death', 'mean field', 'ode'),
     references=('Ermentrout 1990', 'Mirollo and Strogatz 1990', 'Bertin 2021'),
     defaults={'until': 20.0, 'dt': 0.2},
+    observables=lambda system: [
+        Observable('amplitude', _amplitude, group='oscillators'),
+        Observable('X', group='oscillators', variable='x'),
+        Observable('Y', group='oscillators', variable='y'),
+        Observable('order', _order),
+    ],
 )
 def oscillator_death(
     n_oscillators: int = 100,
@@ -145,14 +151,8 @@ def oscillator_death(
     x, y = _spread_on_circle(n_oscillators, random_state)
     oscillators = StuartLandau.group('oscillators', n_oscillators, x=x, y=y, beta=1.0, omega=omegas, tau=1.0)
     return System(
-        elements=[oscillators],
+        components=[oscillators],
         interactions=[GlobalCoupling('coupling', target='oscillators', source='oscillators', K=K)],
-        observables=[
-            Observable('amplitude', _amplitude, group='oscillators'),
-            Observable('X', group='oscillators', variable='x'),
-            Observable('Y', group='oscillators', variable='y'),
-            Observable('order', _order),
-        ],
     )
 
 
@@ -161,6 +161,13 @@ def oscillator_death(
     tags=('synchronization', 'oscillators', 'amplitude death', 'mean field', 'heterogeneity', 'ode'),
     references=("De Monte, d'Ovidio, and Mosekilde 2003", 'Bertin 2021'),
     defaults={'until': 40.0, 'dt': 0.2},
+    observables=lambda system: [
+        Observable('amplitude', _amplitude, group='systems'),
+        Observable('X', group='systems', variable='x'),
+        Observable('Y', group='systems', variable='y'),
+        Observable('V', _time_scale_deviation_x, group='systems'),
+        Observable('W', _time_scale_deviation_y, group='systems'),
+    ],
 )
 def heterogeneous_global_coupling(
     n_systems: int = 100,
@@ -215,13 +222,6 @@ def heterogeneous_global_coupling(
     radius = math.sqrt(abs(beta))
     systems = StuartLandau.group('systems', n_systems, x=radius * x, y=radius * y, beta=beta, omega=gamma, tau=taus)
     return System(
-        elements=[systems],
+        components=[systems],
         interactions=[GlobalCoupling('coupling', target='systems', source='systems', K=k)],
-        observables=[
-            Observable('amplitude', _amplitude, group='systems'),
-            Observable('X', group='systems', variable='x'),
-            Observable('Y', group='systems', variable='y'),
-            Observable('V', _time_scale_deviation_x, group='systems'),
-            Observable('W', _time_scale_deviation_y, group='systems'),
-        ],
     )

@@ -131,11 +131,27 @@ def _reference(graph: nx.Graph, attribute: str | None) -> list[object] | None:
     return [values[node] for node in graph.nodes()] if len(values) == graph.number_of_nodes() else None
 
 
+def _structure_observables(system: System) -> list[Observable]:
+    """Return the clustering, path length, assortativity, modularity, agreement, and triangle z-score.
+
+    The agreement is 0 without a reference partition, and the triangle z-score is 0 without null samples.
+    """
+    return [
+        Observable('clustering', group='nodes', variable='clustering', reduce='mean'),
+        Observable('path_length', _path_length),
+        Observable('assortativity', _assortativity),
+        Observable('modularity', _modularity),
+        Observable('agreement', _agreement),
+        Observable('triangle_zscore', _triangle_zscore),
+    ]
+
+
 @register_model(
     field='mathematics/networks',
     tags=('network', 'centrality', 'communities', 'motifs', 'assortativity'),
     references=('Newman 2010', 'Milo et al. 2002', 'Blondel et al. 2008', 'Bertin 2021'),
     defaults={'until': 1, 'dt': 1},
+    observables=_structure_observables,
 )
 def network_structure_analysis(
     graph: nx.Graph | None = None,
@@ -205,14 +221,4 @@ def network_structure_analysis(
         agreement=0.0 if found.agreement is None else found.agreement,
         triangle_zscore=zscore,
     )
-    observables = [
-        Observable('clustering', group='nodes', variable='clustering', reduce='mean'),
-        Observable('path_length', _path_length),
-        Observable('assortativity', _assortativity),
-        Observable('modularity', _modularity),
-    ]
-    if found.agreement is not None:
-        observables.append(Observable('agreement', _agreement))
-    if null_samples:
-        observables.append(Observable('triangle_zscore', _triangle_zscore))
-    return System(elements=[group, measures], space=NetworkSpace(network), observables=observables)
+    return System(components=[group, measures], space=NetworkSpace(network))

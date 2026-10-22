@@ -223,7 +223,7 @@ def eigen_quasispecies(classes: int = 12, *, u: float = 0.3, sigma: float = 0.5)
         Mutation(f'mutation_{target}', target=target, source=source, master='master', last=target == labels[-1])
         for source, target in itertools.pairwise(labels)
     ]
-    return System(elements=elements, interactions=interactions)
+    return System(components=elements, interactions=interactions)
 
 
 @register_model(
@@ -291,4 +291,4 @@ def hypercycles(
         omega=omega,
         topology=tuple(tuple(float(value) for value in row) for row in links),
     )
-    return System(elements=[soup], interactions=[catalysis])
+    return System(components=[soup], interactions=[catalysis])

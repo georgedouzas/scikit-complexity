@@ -11,11 +11,13 @@ from ....core.base import Domain, parameter, state
 from ....core.model import (
     AgentType,
     CallAuction,
+    DiscreteTime,
     Institution,
     Law,
     Market,
     OrderBook,
     Phase,
+    Phases,
     Rule,
     Symbols,
     System,
@@ -323,7 +325,7 @@ def double_auction(
         on_trade=_book_profit,
     )
     return System(
-        elements=[buyers, sellers],
+        components=[buyers, sellers],
         interactions=[market, AuctionLedger('ledger', phase='close')],
-        phases=[Phase('trade', repeat=rounds), Phase('close')],
+        time=DiscreteTime(schedule=Phases([Phase('trade', repeat=rounds), Phase('close')])),
     )

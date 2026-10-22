@@ -51,7 +51,7 @@ class Growth(Rewriting):
 
 def _system(element, *rules):
     """Return a system of one rewritten element and its fixed rules."""
-    return System(elements=[element], interactions=[Rewrite('rules', target=element.label, rules=list(rules))])
+    return System(components=[element], interactions=[Rewrite('rules', target=element.label, rules=list(rules))])
 
 
 def _fibonacci():
@@ -144,7 +144,7 @@ def test_context_takes_precedence():
 def test_parametric_growth():
     """Test parametric productions with a condition and successor parameters of a system parameter."""
     word = Word('plant', axiom=[Module('A', 1.0)], alphabet={'A': 1, 'F': 1})
-    system = System(elements=[word], interactions=[Growth('growth', target='plant')])
+    system = System(components=[word], interactions=[Growth('growth', target='plant')])
     simulation = Simulation(system).run(until=6)
     trajectory = simulation.trajectory_
     assert str(trajectory.structure('plant', 5)) == 'F(1) F(0.5) F(0.25) F(0.125) A(0.0625)'
@@ -156,7 +156,7 @@ def test_parametric_growth():
 def test_parameter_change_between_generations():
     """Test that a production parameter changed by a schedule applies from the next generation."""
     word = Word('plant', axiom=[Module('A', 1.0)], alphabet={'A': 1, 'F': 1})
-    system = System(elements=[word], interactions=[Growth('growth', target='plant')])
+    system = System(components=[word], interactions=[Growth('growth', target='plant')])
     trajectory = Simulation(system, schedule={'growth.R': lambda t: 0.25}).run(until=1).trajectory_
     assert str(trajectory.structure('plant', 1)) == 'F(1) A(0.25)'
 
@@ -193,9 +193,9 @@ def test_malformed_systems():
             _system(Word('word', axiom=[Module('A', 1.0)]), Production(Module('A', X), [Module('A', X * symbol('q'))])),
         )
     with pytest.raises(IncompatibleLawsError, match='takes no part in rewriting'):
-        compile_system(System(elements=[Word('word', axiom='A'), Population('rabbits')]))
+        compile_system(System(components=[Word('word', axiom='A'), Population('rabbits')]))
     with pytest.raises(RoleError, match='which is not a word'):
-        compile_system(System(elements=[Word('word', axiom='A')], interactions=[Rewrite('rules', target='other')]))
+        compile_system(System(components=[Word('word', axiom='A')], interactions=[Rewrite('rules', target='other')]))
     with pytest.raises(RewritingError, match='rewritten by Production laws'):
         compile_system(_system(Word('word', axiom='A'), Substitution('A', [])))
 
@@ -215,7 +215,7 @@ def test_koch_curve_length():
 
 def test_branches_return():
     """Test that a popped branch returns the turtle to where the branch began."""
-    curve = Simulation(System(elements=[Word('plant', axiom='F[+F]F', turtle=Turtle())])).run(0).trajectory_
+    curve = Simulation(System(components=[Word('plant', axiom='F[+F]F', turtle=Turtle())])).run(0).trajectory_
     segments = curve.structure('plant', 0).segments()
     assert len(segments) == 3
     assert np.allclose(segments[2, 0], segments[1, 0])
@@ -226,7 +226,7 @@ def test_branches_return():
 def test_three_dimensional_turtle():
     """Test that pitching up and rolling move the turtle out of the plane."""
     turtle = Turtle(angle=90.0, dimension=3)
-    curve = Simulation(System(elements=[Word('plant', axiom='F&F/+F', turtle=turtle)])).run(0).trajectory_
+    curve = Simulation(System(components=[Word('plant', axiom='F&F/+F', turtle=turtle)])).run(0).trajectory_
     segments = curve.structure('plant', 0).segments()
     assert segments.shape == (3, 2, 3)
     assert np.allclose(segments[1, 1], [1, 0, -1])
@@ -236,7 +236,7 @@ def test_three_dimensional_turtle():
 def test_module_parameters_override_the_turtle():
     """Test that a module's first parameter overrides the step of a move and the angle of a turn."""
     word = Word('plant', axiom=[Module('F', 2.0), Module('+', 90.0), Module('F', 1.0)], turtle=Turtle(angle=10.0))
-    segments = Simulation(System(elements=[word])).run(0).trajectory_.structure('plant', 0).segments()
+    segments = Simulation(System(components=[word])).run(0).trajectory_.structure('plant', 0).segments()
     assert np.allclose(segments[1], [[2, 0], [2, 1]])
 
 

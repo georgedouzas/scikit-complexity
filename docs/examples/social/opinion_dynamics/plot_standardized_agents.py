@@ -19,7 +19,7 @@ import numpy as np
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'standardized_agents'
 K, J, H = 10.0, 1.0, 50
@@ -35,7 +35,13 @@ def temperature_at(time):
 system = create(MODEL, agents=100, K=K, J=J, H=H, T=LOW, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=12)
 schedule = {'standardization.T': temperature_at}
-simulation = Simulation(system, observers=[observer], schedule=schedule, random_state=0).run(until=END)
+simulation = Simulation(
+    system,
+    observers=[observer],
+    schedule=schedule,
+    random_state=0,
+    observables=describe(MODEL).observables_of(system),
+).run(until=END)
 
 # %%
 # Order parameters against the temperature

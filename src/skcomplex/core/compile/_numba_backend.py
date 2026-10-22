@@ -742,7 +742,7 @@ class NumbaBackend(Backend):
         >>> from skcomplex.core.model import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> system = System(
-        ...     elements=[Population.group('herds', 2, n=[1.0, 2.0])],
+        ...     components=[Population.group('herds', 2, n=[1.0, 2.0])],
         ...     interactions=[ExponentialGrowth('growth', target='herds', r=3.0)],
         ... )
         >>> problem = compile_system(system, backend='numba')

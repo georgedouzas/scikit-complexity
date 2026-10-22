@@ -96,6 +96,6 @@ def geometric_brownian_motion(price: float = 100.0, *, mu: float = 0.05, sigma: 
         0.3
     """
     return System(
-        elements=[Asset('asset', price=price)],
+        components=[Asset('asset', price=price)],
         interactions=[GeometricBrownianMotion('gbm', target='asset', mu=mu, sigma=sigma)],
     )

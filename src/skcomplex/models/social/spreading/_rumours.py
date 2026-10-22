@@ -112,7 +112,7 @@ def maki_thompson(n_people: int = 1000, *, spread: float = 1.0, stifle: float = 
         [99, 1, 0]
     """
     return System(
-        elements=[Listeners('ignorants', n=n_people - 1), Listeners('spreaders', n=1), Listeners('stiflers', n=0)],
+        components=[Listeners('ignorants', n=n_people - 1), Listeners('spreaders', n=1), Listeners('stiflers', n=0)],
         interactions=[
             RumourContacts(
                 'contacts',

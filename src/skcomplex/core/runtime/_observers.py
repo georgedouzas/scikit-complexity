@@ -45,7 +45,7 @@ class Recorder(Observer):
         >>> from skcomplex.models.biology.ecology import Population
         >>> from skcomplex.core.runtime import Recorder, Simulation
         >>> recorder = Recorder()
-        >>> _ = Simulation(System(elements=[Population('a')]), dt=1, observers=[recorder]).run(until=2)
+        >>> _ = Simulation(System(components=[Population('a')]), dt=1, observers=[recorder]).run(until=2)
         >>> len(recorder.trajectory)
         3
     """

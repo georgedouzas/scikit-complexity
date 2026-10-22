@@ -776,7 +776,7 @@ def de_pillis_radunskaya(
         >>> de_pillis_radunskaya(u=1.0).elements[0].u
         1.0
     """
-    return System(elements=[TumourImmuneChemotherapy('patient', E=E, A=A, N=N, u=u, s=s, r1=r1, a2=a2)])
+    return System(components=[TumourImmuneChemotherapy('patient', E=E, A=A, N=N, u=u, s=s, r1=r1, a2=a2)])
 
 
 @register_model(
@@ -829,7 +829,7 @@ def multidrug_resistance(
         >>> multidrug_resistance(u2=0.0).elements[0].u2
         0.0
     """
-    return System(elements=[MultidrugResistance('tumour', S=S, r=r, u1=u1, u2=u2, u3=u3)])
+    return System(components=[MultidrugResistance('tumour', S=S, r=r, u1=u1, u2=u2, u3=u3)])
 
 
 @register_model(
@@ -909,7 +909,7 @@ def drug_resistance_switching(
         r2=r2,
         r3=r3,
     )
-    return System(elements=[tumour])
+    return System(components=[tumour])
 
 
 @register_model(
@@ -961,7 +961,7 @@ def delayed_resting_hunting_chemotherapy(
         >>> delayed_resting_hunting_chemotherapy(tau=10.0).elements[0].tau
         10.0
     """
-    return System(elements=[RestingHuntingChemotherapy('patient', E=E, Q=Q, A=A, u=u, tau=tau, a=a)])
+    return System(components=[RestingHuntingChemotherapy('patient', E=E, Q=Q, A=A, u=u, tau=tau, a=a)])
 
 
 @register_model(
@@ -1021,4 +1021,4 @@ def delayed_metastasis(
         >>> delayed_metastasis(up=650.0).elements[0].up
         650.0
     """
-    return System(elements=[MetastasisChemotherapy('patient', Np=Np, Ap=Ap, Ns=Ns, As=As, up=up, us=us, tau=tau)])
+    return System(components=[MetastasisChemotherapy('patient', Np=Np, Ap=Ap, Ns=Ns, As=As, up=up, us=us, tau=tau)])

@@ -155,11 +155,17 @@ class MattisSpin(BondSpin):
     pattern: float = state(default=1.0, domain=Domain.INTEGER)
 
 
+def _magnetization_observables(system: System) -> list[Observable]:
+    """Return the magnetization of the spins."""
+    return [Observable('magnetization', group='spins', variable='spin')]
+
+
 @register_model(
     field='physics/statistical_mechanics',
     tags=('spin glass', 'disorder', 'lattice', 'Monte Carlo', 'spins'),
     references=('Edwards and Anderson 1975', 'Bertin 2021', 'Binder and Young 1986'),
     defaults={'until': 500, 'dt': 5},
+    observables=_magnetization_observables,
 )
 def edwards_anderson(
     size: int | Sequence[int] = 48,
@@ -229,7 +235,15 @@ def edwards_anderson(
         temperature=temperature,
         **_bond_states(right, down),
     )
-    return System(elements=[group], observables=[Observable('magnetization', group='spins', variable='spin')])
+    return System(components=[group])
+
+
+def _pattern_observables(system: System) -> list[Observable]:
+    """Return the magnetization of the spins and their overlap with the pattern."""
+    return [
+        Observable('magnetization', group='spins', variable='spin'),
+        Observable('overlap', _overlap, group='spins'),
+    ]
 
 
 @register_model(
@@ -237,6 +251,7 @@ def edwards_anderson(
     tags=('spin glass', 'disorder', 'lattice', 'Monte Carlo', 'spins'),
     references=('Mattis 1976', 'Bertin 2021'),
     defaults={'until': 300, 'dt': 2},
+    observables=_pattern_observables,
 )
 def mattis_spin_glass(
     size: int | Sequence[int] = 48,
@@ -297,8 +312,4 @@ def mattis_spin_glass(
         temperature=temperature,
         **_bond_states(right, down),
     )
-    observables = [
-        Observable('magnetization', group='spins', variable='spin'),
-        Observable('overlap', _overlap, group='spins'),
-    ]
-    return System(elements=[group], observables=observables)
+    return System(components=[group])

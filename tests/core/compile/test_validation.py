@@ -79,7 +79,7 @@ def _codes(report):
 
 def test_valid_system_has_no_issues():
     """Test that a system of stocks with growth validates without issues."""
-    system = System(elements=[Stock('rabbits')], interactions=[Growth('growth', target='rabbits')])
+    system = System(components=[Stock('rabbits')], interactions=[Growth('growth', target='rabbits')])
     report = validate(system)
     assert report.ok
     assert report.issues == []
@@ -88,7 +88,7 @@ def test_valid_system_has_no_issues():
 def test_several_errors_are_reported_at_once():
     """Test that an unbound role, a vector state without a space, and a rate on a categorical state are all reported."""
     system = System(
-        elements=[Stock('rabbits'), Walker('walker'), Opinion('voter')],
+        components=[Stock('rabbits'), Walker('walker'), Opinion('voter')],
         interactions=[Growth('growth', target='foxes'), Drift('drift', target='voter')],
     )
     report = validate(system)
@@ -99,7 +99,7 @@ def test_several_errors_are_reported_at_once():
 
 def test_law_with_the_wrong_domain_suggests_laws():
     """Test that a rate law on a categorical state names the state and suggests jump or transition laws."""
-    report = validate(System(elements=[Opinion('voter')], interactions=[Drift('drift', target='voter')]))
+    report = validate(System(components=[Opinion('voter')], interactions=[Drift('drift', target='voter')]))
     (issue,) = report.errors
     assert issue.code == 'law-domain'
     assert 'voter.view' in issue.message
@@ -110,7 +110,7 @@ def test_law_with_the_wrong_domain_suggests_laws():
 
 def test_unsupported_solver_lists_capable_solvers():
     """Test that a variable group validated with RK4 reports the unsupported components and capable solvers."""
-    report = validate(System(elements=[Ant.group('ants', 3)]), solver='rk4')
+    report = validate(System(components=[Ant.group('ants', 3)]), solver='rk4')
     issue = next(issue for issue in report.errors if 'components' in issue.message)
     assert issue.code == 'solver-unsupported'
     assert 'variable-group' in issue.message
@@ -120,7 +120,7 @@ def test_unsupported_solver_lists_capable_solvers():
 @pytest.mark.skipif(importlib.util.find_spec('lammps') is not None, reason='LAMMPS is installed')
 def test_unavailable_solver_names_the_extra():
     """Test that choosing LAMMPS without it installed reports one error whose fix names the installation extra."""
-    report = validate(System(elements=[Stock('rabbits')]), solver='lammps')
+    report = validate(System(components=[Stock('rabbits')]), solver='lammps')
     (issue,) = report.errors
     assert issue.code == 'solver-unavailable'
     assert '`lammps` extra' in issue.fix
@@ -128,7 +128,7 @@ def test_unavailable_solver_names_the_extra():
 
 def test_unknown_backend_is_reported():
     """Test that an unregistered backend is reported with the registered ones."""
-    report = validate(System(elements=[Stock('rabbits')]), backend='fortran')
+    report = validate(System(components=[Stock('rabbits')]), backend='fortran')
     (issue,) = report.errors
     assert issue.code == 'backend-unknown'
     assert 'numpy' in issue.fix
@@ -136,7 +136,7 @@ def test_unknown_backend_is_reported():
 
 def test_mixed_laws_suggest_partitions():
     """Test that rates and updates in one system without children are reported with both components."""
-    system = System(elements=[Stock('rabbits'), Counter('clock')], interactions=[Growth('growth', target='rabbits')])
+    system = System(components=[Stock('rabbits'), Counter('clock')], interactions=[Growth('growth', target='rabbits')])
     (issue,) = validate(system).errors
     assert issue.code == 'laws-mixed'
     assert 'rate: rabbits' in issue.message
@@ -147,9 +147,9 @@ def test_mixed_laws_suggest_partitions():
 def test_mixed_laws_in_nested_systems_are_valid():
     """Test that rates and updates in sibling nested systems validate as coupled partitions."""
     system = System(
-        systems=[
-            System('meadow', elements=[Stock('rabbits')], interactions=[Growth('growth', target='rabbits')]),
-            System('clock', elements=[Counter('counter')]),
+        components=[
+            System('meadow', components=[Stock('rabbits')], interactions=[Growth('growth', target='rabbits')]),
+            System('clock', components=[Counter('counter')]),
         ],
     )
     assert validate(system).ok

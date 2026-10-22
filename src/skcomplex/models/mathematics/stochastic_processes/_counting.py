@@ -100,7 +100,7 @@ def bernoulli_process(n_sequences: int = 20, *, p: float = 0.5) -> System:
         >>> bernoulli_process(3).elements[0].size
         3
     """
-    return System(elements=[BernoulliTrial.group('trials', n_sequences, p=p)])
+    return System(components=[BernoulliTrial.group('trials', n_sequences, p=p)])
 
 
 @register_model(
@@ -128,4 +128,4 @@ def poisson_process(n_processes: int = 20, *, rate: float = 1.0) -> System:
         >>> poisson_process(5).elements[0].size
         5
     """
-    return System(elements=[PoissonCounter.group('counters', n_processes, rate=rate)])
+    return System(components=[PoissonCounter.group('counters', n_processes, rate=rate)])

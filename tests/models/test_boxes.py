@@ -62,7 +62,7 @@ def test_ideal_gas_initial_temperature_and_momentum():
 def test_periodic_box_wraps_member_with_same_velocity():
     """Test that a member leaving one side reappears at the opposite side with the same velocity."""
     system = System(
-        elements=[Particle.group('gas', 1, x=[[0.95, 0.5]], v=[[1.0, 0.0]])],
+        components=[Particle.group('gas', 1, x=[[0.95, 0.5]], v=[[1.0, 0.0]])],
         interactions=[PeriodicBox('box', target='gas', size=1.0)],
         space=EuclideanSpace(2),
     )
@@ -75,7 +75,7 @@ def test_pair_interaction_conserves_momentum():
     """Test that soft-sphere collisions inside an isolated group keep the total momentum."""
     rng = np.random.default_rng(0)
     system = System(
-        elements=[Particle.group('gas', 200, x=rng.uniform(0, 3, (200, 2)), v=rng.normal(0, 1, (200, 2)))],
+        components=[Particle.group('gas', 200, x=rng.uniform(0, 3, (200, 2)), v=rng.normal(0, 1, (200, 2)))],
         interactions=[SoftSphere('soft', first='gas', second='gas', cutoff=0.2)],
         space=EuclideanSpace(2),
     )

@@ -127,11 +127,24 @@ class Substitution(Interaction):
         ]
 
 
+def _walk_observables(system: System) -> list[Observable]:
+    """Return the shares of the fields and the couplings in the fitness, and the fitness of the genome."""
+    couplings = system.interactions[0].couplings
+    loci = system.components[0].size
+    matrix = np.zeros((loci, loci)) if couplings is None else np.asarray(couplings)
+    return [
+        Observable('field_share', _field_share, group='genome', reduce='sum'),
+        Observable('coupling_share', group='genome', variable='s', reduce=partial(_coupling_share, couplings=matrix)),
+        Observable('fitness', _genome_fitness),
+    ]
+
+
 @register_model(
     field='biology/evolution',
     tags=('population genetics', 'fitness landscape', 'jump process', 'fixation', 'strong selection weak mutation'),
     references=('Bertin 2021', 'Sella and Hirsh 2005', 'Drossel 2001'),
     defaults={'until': 640.0, 'dt': 10.0},
+    observables=_walk_observables,
 )
 def origin_fixation_walk(
     loci: int = 96,
@@ -191,16 +204,6 @@ def origin_fixation_walk(
     couplings = matrix if coupling else None
     genome = Locus.lattice('genome', LatticeSpace(loci), s=-np.ones(loci), h=fields)
     return System(
-        elements=[genome],
+        components=[genome],
         interactions=[Substitution('substitution', genome='genome', N=N, mu=mu, F0=F0, couplings=couplings)],
-        observables=[
-            Observable('field_share', _field_share, group='genome', reduce='sum'),
-            Observable(
-                'coupling_share',
-                group='genome',
-                variable='s',
-                reduce=partial(_coupling_share, couplings=matrix),
-            ),
-            Observable('fitness', _genome_fitness),
-        ],
     )

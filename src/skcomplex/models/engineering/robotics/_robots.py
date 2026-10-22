@@ -344,7 +344,7 @@ def light_seeking_robots(
         R=R,
         delay=delay,
     )
-    return System(elements=[robots])
+    return System(components=[robots])
 
 
 @register_model(
@@ -422,4 +422,4 @@ def swarmtaxis(
         beacon_y=size / 2,
         arena=size,
     )
-    return System(elements=[robots], space=ContinuousSpace(size, size))
+    return System(components=[robots], space=ContinuousSpace(size, size))

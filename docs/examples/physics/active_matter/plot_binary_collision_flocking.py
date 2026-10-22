@@ -20,7 +20,7 @@ from scipy.optimize import brentq
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'binary_collision_flocking'
 
@@ -39,7 +39,13 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, sigma=0.3, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).run(until=200)
+simulation = Simulation(
+    system,
+    dt=1,
+    observers=[observer],
+    random_state=0,
+    observables=describe(MODEL).observables_of(system),
+).run(until=200)
 
 # %%
 # The order-disorder transition in noise
@@ -60,7 +66,10 @@ threshold = brentq(lambda sigma: threshold_density(sigma) - 1.0, 0.05, 0.89)
 noises = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0])
 polarizations = []
 for sigma in noises:
-    run = Simulation(create(MODEL, sigma=float(sigma), random_state=1), dt=1, random_state=1).run(until=150)
+    model_system = create(MODEL, sigma=float(sigma), random_state=1)
+    run = Simulation(model_system, dt=1, random_state=1, observables=describe(MODEL).observables_of(model_system)).run(
+        until=150,
+    )
     polarizations.append(np.mean(run.trajectory_['polarization'][75:]))
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(simulation.trajectory_.times, simulation.trajectory_['polarization'])

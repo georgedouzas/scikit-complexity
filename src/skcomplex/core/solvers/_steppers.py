@@ -212,7 +212,7 @@ class ScipyODE(Stepper):
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> from skcomplex.core.solvers import ScipyODE
         >>> problem = compile_system(
-        ...     System(elements=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1)]),
+        ...     System(components=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1)]),
         ... )
         >>> stepper = ScipyODE(rtol=1e-8)
         >>> stepper.initialize(problem, np.random.default_rng(0))
@@ -620,7 +620,7 @@ class RK4(Stepper):
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> from skcomplex.core.solvers import RK4
         >>> problem = compile_system(
-        ...     System(elements=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1)]),
+        ...     System(components=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1)]),
         ... )
         >>> stepper = RK4(dt=0.001)
         >>> stepper.initialize(problem, np.random.default_rng(0))
@@ -884,7 +884,7 @@ class VelocityVerlet(Stepper):
         >>> from skcomplex.core.solvers import VelocityVerlet
         >>> problem = compile_system(
         ...     System(
-        ...         elements=[Particle('ball')],
+        ...         components=[Particle('ball')],
         ...         interactions=[ConstantForce('push', target='ball', F=2.0)],
         ...         space=EuclideanSpace(1),
         ...     ),
@@ -988,7 +988,7 @@ class EulerMaruyama(Stepper):
         >>> from skcomplex.core.solvers import EulerMaruyama
         >>> problem = compile_system(
         ...     System(
-        ...         elements=[Asset('stock', price=100)],
+        ...         components=[Asset('stock', price=100)],
         ...         interactions=[GeometricBrownianMotion('gbm', target='stock', mu=0.05, sigma=0.2)],
         ...     ),
         ... )
@@ -1260,7 +1260,7 @@ class Gillespie(Stepper):
         >>> from skcomplex.core.solvers import Gillespie
         >>> problem = compile_system(
         ...     System(
-        ...         elements=[Compartment('I', n=10), Compartment('R', n=0)],
+        ...         components=[Compartment('I', n=10), Compartment('R', n=0)],
         ...         interactions=[Recovery('rec', infected='I', recovered='R', gamma=1.0, stochastic=True)],
         ...     ),
         ... )
@@ -1367,7 +1367,7 @@ class Iteration(Stepper):
         >>> from skcomplex.models.economics.markets import Cobweb, Market
         >>> from skcomplex.core.solvers import Iteration
         >>> problem = compile_system(
-        ...     System(elements=[Market('m', price=1)], interactions=[Cobweb('c', target='m', a=10, b=2, c=1, d=1)]),
+        ...     System(components=[Market('m', price=1)], interactions=[Cobweb('c', target='m', a=10, b=2, c=1, d=1)]),
         ... )
         >>> stepper = Iteration()
         >>> stepper.initialize(problem, np.random.default_rng(0))
@@ -1450,7 +1450,7 @@ class RenewalStepper(Stepper):
         ...     states={'n': 0.0},
         ...     laws=lambda s: [Renewal(draw('wait', 'expon'), {s.n: s.n + 1})],
         ... )
-        >>> problem = compile_system(System(elements=[Counter.group('counters', 3)]))
+        >>> problem = compile_system(System(components=[Counter.group('counters', 3)]))
         >>> stepper = RenewalStepper()
         >>> stepper.initialize(problem, np.random.default_rng(0))
         >>> state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 100.0)

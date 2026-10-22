@@ -147,4 +147,4 @@ def bonabeau_hierarchies(
         eta=eta,
         relaxation=relaxation,
     )
-    return System(elements=[contenders], space=GridSpace(width, height, torus=True, capacity=1))
+    return System(components=[contenders], space=GridSpace(width, height, torus=True, capacity=1))

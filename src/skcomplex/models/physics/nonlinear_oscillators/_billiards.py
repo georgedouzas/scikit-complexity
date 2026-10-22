@@ -154,9 +154,9 @@ def billiards(
     """
     if shape == 'sinai':
         table = SinaiBilliard('particle', x=x, y=y, vx=vx, vy=vy, size=size, radius=disc_radius)
-        return System(elements=[table])
+        return System(components=[table])
     if shape == 'mushroom':
         table = MushroomBilliard('particle', x=x, y=y, vx=vx, vy=vy, radius=cap_radius, width=width, height=height)
-        return System(elements=[table])
+        return System(components=[table])
     error_msg = f'Unknown billiard shape {shape!r}. Use one of {", ".join(SHAPES)}.'
     raise ValidationError(error_msg)

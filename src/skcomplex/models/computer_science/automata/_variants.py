@@ -204,7 +204,7 @@ def highlife(
     born, survive = _parse_life_rule(rule)
     values = _random_cells(shape, density, random_state) if initial is None else np.asarray(initial, dtype=float)
     space = LatticeSpace(tuple(shape))
-    return System(elements=[LifeCell.lattice('cells', space, alive=values, born=born, survive=survive)])
+    return System(components=[LifeCell.lattice('cells', space, alive=values, born=born, survive=survive)])
 
 
 @register_model(
@@ -250,7 +250,7 @@ def noisy_automata(
     """
     values = _random_cells((size,), density, random_state)
     space = LatticeSpace(size)
-    return System(elements=[NoisyElementaryCell.lattice('cells', space, alive=values, noise=noise, rule=rule)])
+    return System(components=[NoisyElementaryCell.lattice('cells', space, alive=values, noise=noise, rule=rule)])
 
 
 @register_model(
@@ -286,7 +286,7 @@ def diffusion_automaton(shape: Sequence[int] = (50, 50), *, r: float = 0.1, widt
     level = np.zeros(tuple(shape))
     rows, columns = (shape[0] - width) // 2, (shape[1] - width) // 2
     level[rows : rows + width, columns : columns + width] = 1.0
-    return System(elements=[DiffusionCell.lattice('cells', LatticeSpace(tuple(shape)), level=level, r=r)])
+    return System(components=[DiffusionCell.lattice('cells', LatticeSpace(tuple(shape)), level=level, r=r)])
 
 
 @register_model(
@@ -316,4 +316,4 @@ def unbounded_alphabet_automaton(size: int = 101) -> System:
     """
     value = np.zeros(size)
     value[size // 2] = 1.0
-    return System(elements=[PascalCell.lattice('cells', LatticeSpace(size), value=value)])
+    return System(components=[PascalCell.lattice('cells', LatticeSpace(size), value=value)])

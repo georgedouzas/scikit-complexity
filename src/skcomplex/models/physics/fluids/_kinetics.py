@@ -146,7 +146,7 @@ def wave_breaking(n: int = 200, *, k0: float = 1.0, amplitude: float = 0.5, g: f
     centers = (np.arange(n) + 0.5) * spacing
     values = {'k': k0 * (1 + amplitude * np.sin(centers)), 'g': g}
     space = LatticeSpace(n, spacing=spacing)
-    return System(elements=[Field('train', WaveNumber, space, values=values, discretization='finite-volume')])
+    return System(components=[Field('train', WaveNumber, space, values=values, discretization='finite-volume')])
 
 
 @register_model(
@@ -194,4 +194,4 @@ def discrete_velocity_boltzmann(
     pulse = np.exp(-((centers - length / 2) ** 2))
     values = {'f_plus': 0.5 + pulse, 'f_minus': np.full(n, 0.5), 'c': c, 'kappa': kappa}
     space = LatticeSpace(n, spacing=spacing)
-    return System(elements=[Field('gas', CarlemanGas, space, values=values, discretization='finite-volume')])
+    return System(components=[Field('gas', CarlemanGas, space, values=values, discretization='finite-volume')])

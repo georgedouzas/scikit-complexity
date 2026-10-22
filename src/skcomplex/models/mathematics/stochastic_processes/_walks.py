@@ -158,7 +158,7 @@ def random_walk(n_walkers: int = 100, *, rate: float = 1.0, bias: float = 0.5) -
         >>> random_walk(20).elements[0].size
         20
     """
-    return System(elements=[RandomWalker.group('walkers', n_walkers, rate=rate, bias=bias)])
+    return System(components=[RandomWalker.group('walkers', n_walkers, rate=rate, bias=bias)])
 
 
 @register_model(
@@ -202,7 +202,7 @@ def weakening_ornstein_uhlenbeck(
         >>> weakening_ornstein_uhlenbeck(10).elements[0].size
         10
     """
-    return System(elements=[WeakeningParticle.group('particles', n_particles, k=k, ell=ell, D=D)])
+    return System(components=[WeakeningParticle.group('particles', n_particles, k=k, ell=ell, D=D)])
 
 
 @register_model(
@@ -236,7 +236,7 @@ def ageing_random_walk(n_walkers: int = 50, *, p: float = 0.5, nu: float = 1.0) 
         >>> ageing_random_walk(5).elements[0].size
         5
     """
-    return System(elements=[AgeingWalker.group('walkers', n_walkers, p=p, nu=nu)])
+    return System(components=[AgeingWalker.group('walkers', n_walkers, p=p, nu=nu)])
 
 
 @register_model(
@@ -277,7 +277,7 @@ def persistent_random_walk(
         10
     """
     directions = np.random.default_rng(random_state).choice([-1.0, 1.0], size=n_walkers)
-    return System(elements=[PersistentWalker.group('walkers', n_walkers, d=directions, persistence=persistence)])
+    return System(components=[PersistentWalker.group('walkers', n_walkers, d=directions, persistence=persistence)])
 
 
 @register_model(
@@ -313,4 +313,4 @@ def random_walk_with_memory(n_walkers: int = 2000, *, alpha: float = 0.5, sigma:
         >>> random_walk_with_memory(10).elements[0].size
         10
     """
-    return System(elements=[MemoryWalker.group('walkers', n_walkers, alpha=alpha, sigma=sigma)])
+    return System(components=[MemoryWalker.group('walkers', n_walkers, alpha=alpha, sigma=sigma)])

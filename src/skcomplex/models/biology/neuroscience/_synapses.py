@@ -170,4 +170,4 @@ def adaptrode(
         period=period,
         stop=stop,
     )
-    return System(elements=[synapse])
+    return System(components=[synapse])

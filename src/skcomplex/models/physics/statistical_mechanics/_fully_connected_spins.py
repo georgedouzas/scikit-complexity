@@ -92,6 +92,7 @@ class FullyConnectedSpin(Element):
     tags=('mean field', 'phase transition', 'spins', 'jump process'),
     references=('Bertin 2021', 'Glauber 1963'),
     defaults={'until': 30.0, 'dt': 0.1},
+    observables=lambda system: [_magnetization()],
 )
 def curie_weiss(
     n_spins: int = 500,
@@ -146,7 +147,7 @@ def curie_weiss(
         h=h,
         temperature=temperature,
     )
-    return System(elements=[group], observables=[_magnetization()])
+    return System(components=[group])
 
 
 @register_model(
@@ -154,6 +155,7 @@ def curie_weiss(
     tags=('spin glass', 'disorder', 'mean field', 'spins', 'jump process'),
     references=('Sherrington and Kirkpatrick 1975', 'Bertin 2021', 'Mezard, Parisi, and Virasoro 1987'),
     defaults={'until': 50.0, 'dt': 0.5},
+    observables=lambda system: [_magnetization()],
 )
 def sherrington_kirkpatrick(
     n_spins: int = 200,
@@ -209,4 +211,4 @@ def sherrington_kirkpatrick(
         temperature=temperature,
         couplings=upper + upper.T,
     )
-    return System(elements=[group], observables=[_magnetization()])
+    return System(components=[group])

@@ -11,6 +11,7 @@ from skcomplex.core.compile import compile_system
 from skcomplex.core.model import Element, Interaction, Rate, System
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4, SSPRK, EulerMaruyama, ScipyODE
+from skcomplex.models import describe
 from skcomplex.models.engineering.circuits import (
     chua,
     impulsive_circuits,
@@ -139,7 +140,7 @@ def _per_car(system, interaction):
         )
         for index in range(n_cars)
     ]
-    return System(elements=elements, interactions=interactions)
+    return System(components=elements, interactions=interactions)
 
 
 def test_ring_roads_hold_one_group_of_cars():
@@ -284,7 +285,15 @@ def test_impulsive_circuit_kicks_the_rate():
 
 def test_vibration_energy_harvester_steady_response():
     """Test that the sprung mass settles on the amplitude of the linear response, and the voltage follows the stroke."""
-    trajectory = Simulation(vibration_energy_harvester(), dt=0.01).run(until=30).trajectory_
+    trajectory = (
+        Simulation(
+            built := vibration_energy_harvester(),
+            dt=0.01,
+            observables=describe('vibration_energy_harvester').observables_of(built),
+        )
+        .run(until=30)
+        .trajectory_
+    )
     m1, m2, k1, k2, b, A, omega = 40.0, 400.0, 2.0e5, 2.0e4, 1500.0, 0.01, 9.42
     stiffness = np.array(
         [
@@ -322,7 +331,16 @@ def test_pendulum_swing_up_reaches_the_top():
 
 def test_satellite_transfer_time():
     """Test that the transfer from the periapsis reaches the final energy after about 9.81."""
-    trajectory = Simulation(satellite_transfer(), dt=0.05, solver=RK4(dt=0.005)).run(until=15).trajectory_
+    trajectory = (
+        Simulation(
+            built := satellite_transfer(),
+            dt=0.05,
+            solver=RK4(dt=0.005),
+            observables=describe('satellite_transfer').observables_of(built),
+        )
+        .run(until=15)
+        .trajectory_
+    )
     energy = trajectory['energy']
     assert energy[0] == pytest.approx(-0.7, abs=1e-3)
     assert trajectory.times[np.argmax(energy >= -0.2)] == pytest.approx(9.81, abs=0.1)

@@ -53,8 +53,13 @@ def test_budyko_sellers_has_ice_caps_and_a_snowball():
 
 def test_daisyworld_regulates_temperature():
     """Test that white and black daisies coexist and bring the temperature closer to their optimum than bare ground."""
-    planet = _run(daisyworld(), until=100.0, dt=1.0)
-    bare = _run(daisyworld(white=0.0, black=0.0), until=1.0, dt=1.0)
+    planet = _run(built := daisyworld(), until=100.0, dt=1.0, observables=describe('daisyworld').observables_of(built))
+    bare = _run(
+        built := daisyworld(white=0.0, black=0.0),
+        until=1.0,
+        dt=1.0,
+        observables=describe('daisyworld').observables_of(built),
+    )
     assert planet['planet.white'][-1] > 0.1
     assert planet['planet.black'][-1] > 0.1
     assert abs(planet['temperature'][-1] - 295.5) < abs(bare['temperature'][-1] - 295.5) - 3.0

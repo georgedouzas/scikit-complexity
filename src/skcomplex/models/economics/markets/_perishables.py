@@ -239,6 +239,7 @@ class PerishableTrade(Interaction):
     tags=('agents', 'discrete choice', 'symmetry breaking', 'phase transition', 'retail'),
     references=('Bertin 2021', 'Bouchaud 2013'),
     defaults={'until': 300},
+    observables=lambda system: [Observable('m', group='shops', variable='share', reduce=_asymmetry)],
 )
 def perishable_goods_duopoly(
     customers: int = 200,
@@ -299,11 +300,10 @@ def perishable_goods_duopoly(
         tau_a=tau_a,
     )
     return System(
-        elements=[
+        components=[
             Customer.group('customers', customers, s1=satisfaction[0], s2=satisfaction[1]),
             Product.group('products', N_SHOPS * shelf, shop=np.repeat(np.arange(N_SHOPS), shelf).astype(float)),
             Shop.group('shops', N_SHOPS),
         ],
         interactions=[trade],
-        observables=[Observable('m', group='shops', variable='share', reduce=_asymmetry)],
     )

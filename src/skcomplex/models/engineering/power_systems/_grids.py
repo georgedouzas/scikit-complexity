@@ -98,4 +98,4 @@ def power_grid(
         interactions.append(
             TransmissionLine(f'line_{first}_{second}', first=f'node_{first}', second=f'node_{second}', K=K),
         )
-    return System(elements=elements, interactions=interactions)
+    return System(components=elements, interactions=interactions)

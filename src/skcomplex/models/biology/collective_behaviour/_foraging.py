@@ -210,8 +210,8 @@ def pheromone_foraging(
         values={'D': D, 'evaporation': evaporation},
     )
     return System(
-        systems=[
-            System('colony', elements=[ants], space=GridSpace(width, height)),
-            System('ground', elements=[pheromone]),
+        components=[
+            System('colony', components=[ants], space=GridSpace(width, height)),
+            System('ground', components=[pheromone]),
         ],
     )

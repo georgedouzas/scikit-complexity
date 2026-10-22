@@ -18,14 +18,19 @@ import numpy as np
 from skcomplex.core.analysis import ccdf
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'multiplicative_process'
 N_FIRMS, MU, SIGMA, FLOOR, STEPS = 2000, 1.0, 0.2, 0.3, 250
 
 system = create(MODEL, n_firms=N_FIRMS, mu=MU, sigma=SIGMA, c=FLOOR)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer], random_state=0).run(until=STEPS)
+simulation = Simulation(
+    system,
+    observers=[observer],
+    random_state=0,
+    observables=describe(MODEL).observables_of(system),
+).run(until=STEPS)
 
 # %%
 # Pareto tail of the relative sizes

@@ -83,7 +83,7 @@ def particle_in_a_well(x: float = 1.0, v: float = 0.5, *, k: float = 2.0, m: flo
         3.0
     """
     return System(
-        elements=[Particle('particle', x=x, v=v, m=m)],
+        components=[Particle('particle', x=x, v=v, m=m)],
         interactions=[ExponentialWell('well', target='particle', k=k)],
         space=EuclideanSpace(1),
     )

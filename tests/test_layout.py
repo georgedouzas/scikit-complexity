@@ -197,7 +197,7 @@ def test_core_works_without_models():
             'from skcomplex.core.model import Element, Rate, System',
             'from skcomplex.core.runtime import Simulation',
             "Decay = Element.define('Decay', states={'n': 1.0}, laws=lambda s: [Rate(s.n, -s.n)])",
-            "system = System(elements=[Decay('a')])",
+            "system = System(components=[Decay('a')])",
             'Simulation(system, dt=0.1).run(until=1)',
             'equations_of(system)',
             "assert not any(name.startswith('skcomplex.models') for name in sys.modules), 'models imported'",

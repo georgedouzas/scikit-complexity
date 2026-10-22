@@ -17,12 +17,18 @@ import numpy as np
 from skcomplex.core.analysis import ccdf, degrees, motif_zscores, networks_of
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'network_structure_analysis'
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(create(MODEL, null_samples=0, random_state=0), dt=1, observers=[observer]).run(until=1)
+model_system = create(MODEL, null_samples=0, random_state=0)
+simulation = Simulation(
+    model_system,
+    dt=1,
+    observers=[observer],
+    observables=describe(MODEL).observables_of(model_system),
+).run(until=1)
 trajectory = simulation.trajectory_
 
 # %%

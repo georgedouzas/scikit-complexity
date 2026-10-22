@@ -227,7 +227,7 @@ def majority_rule(
         100
     """
     values = _random_cells(shape, density, random_state)
-    return System(elements=[MajorityVoter.lattice('voters', LatticeSpace(tuple(shape)), opinion=values)])
+    return System(components=[MajorityVoter.lattice('voters', LatticeSpace(tuple(shape)), opinion=values)])
 
 
 @register_model(
@@ -268,7 +268,7 @@ def voter_model(
     graph = nx.watts_strogatz_graph(50, 4, 0.0) if graph is None else graph
     size = nx.number_of_nodes(graph)
     opinions = (rng.random(size) < share).astype(float)
-    return System(elements=[Voter.group('voters', size, opinion=opinions)], space=NetworkSpace(graph))
+    return System(components=[Voter.group('voters', size, opinion=opinions)], space=NetworkSpace(graph))
 
 
 @register_model(
@@ -324,4 +324,4 @@ def voter_variants(
         contrarian=(rng.random(size) < contrarians).astype(float),
         threshold=threshold,
     )
-    return System(elements=[voters], space=NetworkSpace(graph))
+    return System(components=[voters], space=NetworkSpace(graph))

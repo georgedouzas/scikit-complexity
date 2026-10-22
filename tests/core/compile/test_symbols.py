@@ -34,7 +34,7 @@ class SympyGrowth(Interaction):
 
 def test_components_receive_sage_symbols_and_vectors():
     """Test that scalar symbols are Sage expressions with their domains and vector states are Sage vectors."""
-    system = System(elements=[Particle('p')], interactions=[Recorder('record', target='p')], space=EuclideanSpace(3))
+    system = System(components=[Particle('p')], interactions=[Recorder('record', target='p')], space=EuclideanSpace(3))
     compile_system(system)
     assert isinstance(RECEIVED['x'], SymbolicVector)
     assert len(RECEIVED['x']) == 3
@@ -45,6 +45,6 @@ def test_components_receive_sage_symbols_and_vectors():
 
 def test_sympy_rate_is_rejected():
     """Test that a SymPy rate raises a validation error that names the law, the interaction, and Sage."""
-    system = System(elements=[Population('herd')], interactions=[SympyGrowth('growth', target='herd')])
+    system = System(components=[Population('herd')], interactions=[SympyGrowth('growth', target='herd')])
     with pytest.raises(ValidationError, match=r'Rate law of growth has the SymPy value .*Sage'):
         compile_system(system)

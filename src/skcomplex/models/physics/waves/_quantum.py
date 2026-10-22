@@ -201,7 +201,7 @@ def schrodinger(
             interactions.append(PositionDephasing('dephasing', target='packet', gamma=gamma))
         return QuantumSystem(
             'schrodinger',
-            elements=[Site('packet', space=space, initial=amplitudes)],
+            components=[Site('packet', space=space, initial=amplitudes)],
             interactions=interactions,
         )
     packet = Field(
@@ -211,4 +211,4 @@ def schrodinger(
         values={'u': psi.real, 'w': psi.imag, 'D': D, 'V': potential},
         discretization='spectral',
     )
-    return System(elements=[packet])
+    return System(components=[packet])

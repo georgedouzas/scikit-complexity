@@ -212,7 +212,7 @@ def test_inventory_check_names_primitive_problems(entry, message):
 
 
 def test_inventory_entries_map_to_the_system_vocabulary():
-    """Test that every implemented and pending entry maps to the time, space, components, bindings, laws, and domains."""
+    """Test that every implemented and pending entry maps to the time, space, components, laws, and the rest."""
     _, entries = _load()
     assert _system_problems(entries, _system_vocabulary()) == []
 
@@ -222,8 +222,10 @@ def test_inventory_entries_map_to_the_system_vocabulary():
     [
         (
             {'time': ['continuous'], 'laws': ['telepathy']},
-            'model names the laws term telepathy, which the vocabulary does not define; '
-            'specify the general primitive it needs',
+            (
+                'model names the laws term telepathy, which the vocabulary does not define; '
+                'specify the general primitive it needs'
+            ),
         ),
         ({'time': [], 'laws': ['rate']}, 'model records no time'),
         ({'time': ['continuous']}, 'model records no laws'),

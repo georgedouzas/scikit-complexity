@@ -64,7 +64,7 @@ def _finite_differences(problem, x, p, step=1e-6):
 def test_jacobian_against_finite_differences(laws):
     """Test that the exact Jacobian equals central finite differences and that its pattern covers every entry."""
     Member = Element.define('Member', states={'x': 0.0, 'y': 0.0}, laws=laws)
-    system = System(elements=[Member.group('group', 20, x=RNG.normal(size=20), y=RNG.normal(size=20))])
+    system = System(components=[Member.group('group', 20, x=RNG.normal(size=20), y=RNG.normal(size=20))])
     problem = compile_system(system)
     x, p = problem.initial_state, problem.initial_parameters
     exact = problem.jacobian(0.0, x, p).toarray()
@@ -84,7 +84,7 @@ def test_jacobian_of_pair_sums_is_not_derived():
 def test_pattern_is_omitted_above_the_limit():
     """Test that the pattern of a dense block above the size limit is omitted."""
     Member = Element.define('Wide', states={'x': 0.0}, laws=lambda s: [Rate(s.x, total(s.x))])
-    problem = compile_system(System(elements=[Member.group('group', 3000)]))
+    problem = compile_system(System(components=[Member.group('group', 3000)]))
     assert problem.jacobian.pattern() is None
 
 
@@ -105,13 +105,13 @@ def _reactive_mesh(refine=2):
         boundary={'u': ('fixed', 0.5)},
         discretization='finite-element',
     )
-    return System(elements=[plate])
+    return System(components=[plate])
 
 
 def _fisher_line(size, boundary):
     """Return Fisher-KPP on a line with an edge condition."""
     space = LatticeSpace(size, spacing=0.25)
-    return System(elements=[Field('line', FisherKPP, space, boundary={'u': boundary})])
+    return System(components=[Field('line', FisherKPP, space, boundary={'u': boundary})])
 
 
 @pytest.mark.parametrize(('boundary', 'entries'), [('zero-flux', 2998), ('periodic', 3000)])
@@ -197,7 +197,7 @@ def _callable_rate(t, values):
 def test_exact_jacobian_of_callable_law_raises():
     """Test that the exact Jacobian of a callable law raises an error naming the law and the automatic option."""
     Decay = Element.define('Decay', states={'u': 0.0}, laws=lambda s: [Rate(s.u, _callable_rate)])
-    problem = compile_system(System(elements=[Field('line', Decay, LatticeSpace(10))]))
+    problem = compile_system(System(components=[Field('line', Decay, LatticeSpace(10))]))
     with pytest.raises(ValidationError, match=r"line.*jacobian='auto'"):
         problem.jacobian.validate()
     assert problem.jacobian.pattern().toarray().all()

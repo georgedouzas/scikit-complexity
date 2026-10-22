@@ -14,7 +14,7 @@ from skcomplex.models.physics.statistical_mechanics import ideal_gas
 def _pair(interaction, distance):
     """Return a system of two particles at a distance with one pair interaction."""
     return System(
-        elements=[Particle.group('pair', 2, x=[[0.0, 0.0], [distance, 0.0]])],
+        components=[Particle.group('pair', 2, x=[[0.0, 0.0], [distance, 0.0]])],
         interactions=[interaction],
         space=EuclideanSpace(2),
     )
@@ -53,7 +53,7 @@ def test_langevin_thermostat_reaches_its_temperature(solver, dt):
     """Test that a gas at temperature 0.5 under a thermostat at 2 approaches 2 within 5 percent."""
     gas = ideal_gas(2000, kT=0.5, size=40.0, random_state=0)
     system = System(
-        elements=gas.elements,
+        components=gas.elements,
         interactions=[*gas.interactions, LangevinThermostat('bath', target='gas', temperature=2.0, gamma=1.0)],
         space=gas.space,
     )

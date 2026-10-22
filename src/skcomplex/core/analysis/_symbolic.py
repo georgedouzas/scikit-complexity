@@ -181,7 +181,7 @@ def equations_of(system: System) -> dict[str, Expression]:
         >>> from skcomplex.core.model import System
         >>> from skcomplex.models.biology.ecology import LogisticGrowth, Population
         >>> system = System(
-        ...     elements=[Population('rabbits', n=10)],
+        ...     components=[Population('rabbits', n=10)],
         ...     interactions=[LogisticGrowth('growth', target='rabbits', r=1.0, K=100)],
         ... )
         >>> equations_of(system)['rabbits.n']
@@ -222,7 +222,7 @@ def solve_symbolically(system: System, *, use_initial_state: bool = False) -> di
         >>> from skcomplex.core.model import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> system = System(
-        ...     elements=[Population('a', n=2)],
+        ...     components=[Population('a', n=2)],
         ...     interactions=[ExponentialGrowth('g', target='a', r=0.5)],
         ... )
         >>> solve_symbolically(system, use_initial_state=True)['a.n']

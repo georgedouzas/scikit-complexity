@@ -85,4 +85,4 @@ def polya_urn(n_urns: int = 10, *, red: int = 1, blue: int = 1, added: int = 1) 
         >>> polya_urn(3).elements[0].size
         3
     """
-    return System(elements=[PolyaUrn.group('urns', n_urns, red=float(red), blue=float(blue), added=added)])
+    return System(components=[PolyaUrn.group('urns', n_urns, red=float(red), blue=float(blue), added=added)])

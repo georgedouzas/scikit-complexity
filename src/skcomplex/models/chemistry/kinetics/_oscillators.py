@@ -78,7 +78,7 @@ def brusselator_ode(u: float = 1.0, v: float = 1.0, *, a: float = 1.0, b: float 
         >>> brusselator_ode(b=1.5).elements[0].b
         1.5
     """
-    return System(elements=[BrusselatorReaction('reactor', u=u, v=v, a=a, b=b)])
+    return System(components=[BrusselatorReaction('reactor', u=u, v=v, a=a, b=b)])
 
 
 @register_model(
@@ -134,7 +134,7 @@ def oregonator(
         >>> oregonator(f=0.8).elements[0].f
         0.8
     """
-    return System(elements=[Oregonator('reactor', x=x, y=y, z=z, epsilon=epsilon, delta=delta, q=q, f=f)])
+    return System(components=[Oregonator('reactor', x=x, y=y, z=z, epsilon=epsilon, delta=delta, q=q, f=f)])
 
 
 @register_model(
@@ -171,4 +171,4 @@ def cubic_autocatalysis(a: float = 0.5, b: float = 0.5, *, F: float = 0.04, k: f
         >>> cubic_autocatalysis(k=0.06).elements[0].k
         0.06
     """
-    return System(elements=[CubicAutocatalysis('reactor', a=a, b=b, F=F, k=k)])
+    return System(components=[CubicAutocatalysis('reactor', a=a, b=b, F=F, k=k)])

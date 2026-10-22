@@ -133,4 +133,4 @@ def hopfield(
     size = stored.shape[1]
     spins = np.where(rng.random(size) < noise, -stored[0], stored[0])
     neurons = Neuron.group('neurons', size, spin=spins, weights=_hebbian_weights(stored))
-    return System(elements=[neurons], space=NetworkSpace(nx.complete_graph(size)))
+    return System(components=[neurons], space=NetworkSpace(nx.complete_graph(size)))

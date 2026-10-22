@@ -69,7 +69,7 @@ def bathtub(water: float = 50.0, *, inflow: float = 5.0, outflow: float = 5.0) -
         >>> bathtub(water=20.0).elements[0].water
         20.0
     """
-    return System(elements=[Tub('tub', water=water, inflow=inflow, outflow=outflow)])
+    return System(components=[Tub('tub', water=water, inflow=inflow, outflow=outflow)])
 
 
 @register_model(
@@ -126,4 +126,4 @@ def cascade_classifier(
         Transfer(f'down_{index}', source=labels[index], target=labels[index + 1], rate=1 - k)
         for index in range(1, n_stages + 1)
     ]
-    return System(elements=[Stage('fine'), *stages, Stage('coarse')], interactions=interactions)
+    return System(components=[Stage('fine'), *stages, Stage('coarse')], interactions=interactions)

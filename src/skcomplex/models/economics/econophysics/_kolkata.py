@@ -230,4 +230,4 @@ def kolkata_restaurant(
     choices = np.random.default_rng(random_state).integers(n_restaurants, size=n_agents).astype(float)
     diners = diner.group('diners', n_agents, restaurant=choices, restaurants=float(n_restaurants))
     restaurants = Restaurants('restaurants', diners='diners', n_restaurants=n_restaurants)
-    return System(elements=[diners], interactions=[restaurants])
+    return System(components=[diners], interactions=[restaurants])

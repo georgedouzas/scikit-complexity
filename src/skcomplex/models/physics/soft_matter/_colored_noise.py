@@ -77,4 +77,4 @@ def colored_noise_langevin(
     """
     noise = np.random.default_rng(random_state).normal(0.0, math.sqrt(D / tau), n_particles)
     particles = ColoredNoiseParticle.group('particles', n_particles, xi=noise, gamma=gamma, D=D, tau=tau)
-    return System(elements=[particles])
+    return System(components=[particles])

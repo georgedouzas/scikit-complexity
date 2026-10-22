@@ -622,7 +622,7 @@ def stem_cell_differentiation(
         start=start,
         duration=duration,
     )
-    return System(elements=[tissue])
+    return System(components=[tissue])
 
 
 @register_model(
@@ -672,7 +672,7 @@ def bone_marrow_blood_leukaemia(
         >>> bone_marrow_blood_leukaemia(tau1=144.0).elements[0].tau1
         144.0
     """
-    return System(elements=[BoneMarrowBlood('patient', m1=m1, m3=m3, tau1=tau1, tau2=tau2)])
+    return System(components=[BoneMarrowBlood('patient', m1=m1, m3=m3, tau1=tau1, tau2=tau2)])
 
 
 @register_model(
@@ -736,4 +736,4 @@ def leukaemia_stem_cells(
         0.5
     """
     niche = LeukaemiaStemCells('niche', NS=NS, AS=AS, r1=r1, m1=m1, d1=d1, r4=r4, m3=m3, d4=d4)
-    return System(elements=[niche])
+    return System(components=[niche])

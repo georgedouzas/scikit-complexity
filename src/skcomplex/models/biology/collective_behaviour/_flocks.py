@@ -319,7 +319,7 @@ def boids(
         width=size,
         height=size,
     )
-    return System(elements=[flock], space=ContinuousSpace(size, size, torus=True))
+    return System(components=[flock], space=ContinuousSpace(size, size, torus=True))
 
 
 @register_model(
@@ -392,4 +392,4 @@ def bird_swarm(
         l_r=l_r,
     )
     flight = SelfPropulsion('flight', target='birds', alpha=alpha, beta=beta)
-    return System(elements=[birds], interactions=[potential, flight], space=EuclideanSpace(2))
+    return System(components=[birds], interactions=[potential, flight], space=EuclideanSpace(2))

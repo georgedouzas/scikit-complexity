@@ -61,5 +61,5 @@ def fisher_kpp(
     u = (np.arange(length) < front * length).astype(float)
     space = LatticeSpace(length, spacing=spacing)
     return System(
-        elements=[Field('line', FisherKPP, space, boundary={'u': 'zero-flux'}, values={'u': u, 'D': D, 'r': r})],
+        components=[Field('line', FisherKPP, space, boundary={'u': 'zero-flux'}, values={'u': u, 'D': D, 'r': r})],
     )

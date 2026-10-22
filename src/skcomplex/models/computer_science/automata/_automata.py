@@ -189,7 +189,7 @@ def elementary_automaton(rule: int = 30, *, size: int = 101, initial: Sequence[f
     values = np.zeros(size) if initial is None else np.asarray(initial, dtype=float)
     if initial is None:
         values[size // 2] = 1.0
-    return System(elements=[ElementaryCell.lattice('cells', LatticeSpace(size), alive=values, rule=rule)])
+    return System(components=[ElementaryCell.lattice('cells', LatticeSpace(size), alive=values, rule=rule)])
 
 
 @register_model(
@@ -240,7 +240,7 @@ def game_of_life(
     values = _random_cells(shape, density, random_state) if initial is None else np.asarray(initial, dtype=float)
     space = LatticeSpace(tuple(shape))
     return System(
-        elements=[LifeCell.lattice('cells', space, alive=values, born=tuple(born), survive=tuple(survive))],
+        components=[LifeCell.lattice('cells', space, alive=values, born=tuple(born), survive=tuple(survive))],
     )
 
 
@@ -271,4 +271,4 @@ def langtons_ant(shape: Sequence[int] = (80, 80), *, heading: int = 0) -> System
     """
     ant = np.full(tuple(shape), -1.0)
     ant[shape[0] // 2, shape[1] // 2] = heading
-    return System(elements=[AntCell.lattice('cells', LatticeSpace(tuple(shape)), ant=ant)])
+    return System(components=[AntCell.lattice('cells', LatticeSpace(tuple(shape)), ant=ant)])

@@ -171,7 +171,7 @@ def rotating_swing(
         1.0
     """
     return System(
-        elements=[
+        components=[
             RotatingSwing(
                 'swing',
                 phi_d1=omega,
@@ -232,7 +232,7 @@ def rotating_balls_on_rods(
     """
     momentum = m * omega * r**2 * math.sin(beta) ** 2
     return System(
-        elements=[
+        components=[
             RotatingBall('right', theta=0.0, m=m, r=r, beta=beta, H=momentum),
             RotatingBall('left', theta=math.pi, m=m, r=r, beta=beta, H=momentum),
         ],
@@ -303,7 +303,7 @@ def gimballed_gyroscope(
         10.0
     """
     return System(
-        elements=[
+        components=[
             Gyroscope('gyroscope', beta=beta, gamma_d1=spin, A=A, C=C, A1=A1, B1=B1, C1=C1, A2=A2, torque=torque),
         ],
     )

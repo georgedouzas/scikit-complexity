@@ -68,4 +68,4 @@ def bass_diffusion(market: float = 1000.0, *, adopters: float = 0.0, p: float = 
         >>> bass_diffusion(market=500.0, adopters=10.0).elements[0].P
         490.0
     """
-    return System(elements=[BassMarket('market', P=market - adopters, A=adopters, p=p, q=q)])
+    return System(components=[BassMarket('market', P=market - adopters, A=adopters, p=p, q=q)])

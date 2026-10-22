@@ -95,4 +95,4 @@ def replicate(system: System, size: int, values: Mapping[str, npt.ArrayLike] | N
         )
         for element in system.elements
     ]
-    return System(system.label, elements=groups, space=system.space, observables=system.observables, noise=system.noise)
+    return System(system.label, components=groups, space=system.space, time=system.time)

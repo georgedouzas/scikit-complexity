@@ -258,7 +258,7 @@ def spatial_prisoners_dilemma(
         noise=noise,
         imitation=imitation,
     )
-    return System(elements=[players])
+    return System(components=[players])
 
 
 @register_model(
@@ -310,4 +310,4 @@ def public_goods_game(
         synergy=synergy,
         noise=noise,
     )
-    return System(elements=[players])
+    return System(components=[players])

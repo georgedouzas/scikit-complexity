@@ -97,7 +97,7 @@ def _delayed(kind):
 
 def test_bathtub_approaches_the_balance_of_its_flows_and_records_them():
     """Test that the stock approaches inflow / k = 10, with both flows recorded and the inflow accumulated."""
-    trajectory = Simulation(System(elements=[Tub('tub')]), dt=1).run(30).trajectory_
+    trajectory = Simulation(System(components=[Tub('tub')]), dt=1).run(30).trajectory_
     assert trajectory['tub.water'][-1] == pytest.approx(10.0, rel=1e-3)
     assert trajectory['tub.faucet'][-1] == pytest.approx(5.0)
     assert trajectory['tub.drain'][-1] == pytest.approx(5.0, rel=1e-3)
@@ -107,7 +107,7 @@ def test_bathtub_approaches_the_balance_of_its_flows_and_records_them():
 def test_undeclared_change_names_the_state_and_the_quantity():
     """Test that a rate law on a state tagged money raises a conservation error naming both."""
     with pytest.raises(ConservationError, match=r"leaky\.money.*'money'"):
-        compile_system(System(elements=[Leaky('leaky')]))
+        compile_system(System(components=[Leaky('leaky')]))
 
 
 def test_flow_between_quantities_is_rejected():
@@ -118,7 +118,7 @@ def test_flow_between_quantities_is_rejected():
         laws=lambda s: [Flow(s.x, s.y, s.x)],
     )
     with pytest.raises(ConservationError, match='different quantities'):
-        compile_system(System(elements=[mixed('m')]))
+        compile_system(System(components=[mixed('m')]))
 
 
 def test_flow_holders_and_labels_are_checked():
@@ -131,15 +131,15 @@ def test_flow_holders_and_labels_are_checked():
         laws=lambda s: [Flow(Source(), s.x, 1.0, label='f'), Flow(s.x, Sink(), 1.0, label='f')],
     )
     with pytest.raises(LabelError, match="'f'"):
-        compile_system(System(elements=[twice('twice')]))
+        compile_system(System(components=[twice('twice')]))
     reads = Element.define('Reads', states={'x': state(1.0)}, parameters={'k': 1.0}, laws=lambda s: [Flow(s.k, s.x, 1)])
     with pytest.raises(ValidationError, match='not a state'):
-        compile_system(System(elements=[reads('reads')]))
+        compile_system(System(components=[reads('reads')]))
 
 
 def test_discrete_flows_are_per_step_and_join_the_updates():
     """Test that in a discrete map a flow moves its amount once per step and money changes only by lending."""
-    trajectory = Simulation(System(elements=[Ledger('ledger')]), dt=1).run(5).trajectory_
+    trajectory = Simulation(System(components=[Ledger('ledger')]), dt=1).run(5).trajectory_
     assert trajectory['ledger.a'].tolist() == pytest.approx([10.0] * 6)
     assert trajectory['ledger.b'].tolist() == pytest.approx([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
     assert trajectory['__boundary.money'][-1] == pytest.approx(5.0)
@@ -153,14 +153,14 @@ def test_jump_flows_move_their_size_at_random_times():
         states={'a': state(50.0, quantity='coins'), 'b': state(0.0, quantity='coins')},
         laws=lambda s: [Flow(s.a, s.b, 1, rate=0.1 * s.a, label='move')],
     )
-    trajectory = Simulation(System(elements=[jumping('j')]), dt=1, random_state=0).run(10).trajectory_
+    trajectory = Simulation(System(components=[jumping('j')]), dt=1, random_state=0).run(10).trajectory_
     assert np.all(trajectory['j.a'] + trajectory['j.b'] == 50.0)
     assert trajectory['j.b'][-1] > 0
 
 
 def test_table_function_interpolates_and_stays_flat():
     """Test that the fertility auxiliary interpolates the table linearly and holds its ends."""
-    trajectory = Simulation(System(elements=[Fertility('f')]), dt=0.5).run(4).trajectory_
+    trajectory = Simulation(System(components=[Fertility('f')]), dt=0.5).run(4).trajectory_
     food = trajectory['f.food']
     expected = np.interp(food, [0, 1, 2], [0.0, 2.0, 3.0])
     assert trajectory['f.fertility'] == pytest.approx(expected)
@@ -170,7 +170,7 @@ def test_table_function_interpolates_and_stays_flat():
 
 def test_third_order_delay_follows_the_erlang_step_response():
     """Test that the output of a third-order delay of a step reaches half the step 5.35 after it."""
-    trajectory = Simulation(System(elements=[_delayed('delay3')('d')]), dt=0.01).run(14).trajectory_
+    trajectory = Simulation(System(components=[_delayed('delay3')('d')]), dt=0.01).run(14).trajectory_
     times = np.asarray(trajectory.times)
     output = trajectory['d.delay3_0'][:, 2] / 2.0
     assert times[np.argmax(output >= 0.5)] - 1.0 == pytest.approx(stats.gamma(3, scale=2).median(), abs=0.02)
@@ -180,7 +180,7 @@ def test_third_order_delay_follows_the_erlang_step_response():
 @pytest.mark.parametrize(('kind', 'stages'), [('delay1', 1), ('smooth', 1), ('smooth3', 3)])
 def test_delays_and_smoothings_add_hidden_stocks(kind, stages):
     """Test that delays and smoothings add one hidden stock per stage that tends to the step."""
-    trajectory = Simulation(System(elements=[_delayed(kind)('d')]), dt=1).run(80).trajectory_
+    trajectory = Simulation(System(components=[_delayed(kind)('d')]), dt=1).run(80).trajectory_
     hidden = np.atleast_2d(trajectory[f'd.{kind}_0'].T).T
     assert hidden.shape[1] == stages
     level = 6.0 / stages if kind == 'delay1' else 1.0
@@ -189,7 +189,7 @@ def test_delays_and_smoothings_add_hidden_stocks(kind, stages):
 
 def test_population_has_one_reinforcing_and_one_balancing_loop():
     """Test that births close a reinforcing loop and deaths a balancing loop, and births dominate."""
-    system = System(elements=[Population('pop')])
+    system = System(components=[Population('pop')])
     found = {loop.nodes: loop.polarity for loop in loops(system).loops}
     assert found == {('pop.n', 'pop.deaths'): 'balancing', ('pop.n', 'pop.birth_rate', 'pop.births'): 'reinforcing'}
     trajectory = Simulation(system, dt=1).run(5).trajectory_
@@ -200,14 +200,14 @@ def test_population_has_one_reinforcing_and_one_balancing_loop():
 
 def test_conservation_returns_the_boundary_flows():
     """Test that the net inflow of people is births minus deaths."""
-    boundary = conservation(System(elements=[Population('pop')]))
+    boundary = conservation(System(components=[Population('pop')]))
     assert str(boundary['people']) == 'b_pop*n_pop - d_pop*n_pop'
 
 
 def test_monitor_detects_drift_beyond_the_flows():
     """Test that clipping a stock with a boundary law destroys water, which the monitor reports."""
     with pytest.raises(ConservationError, match="'water' drifted"):
-        Simulation(System(elements=[Clipped('c')]), dt=1, observers=[ConservationMonitor()]).run(5)
+        Simulation(System(components=[Clipped('c')]), dt=1, observers=[ConservationMonitor()]).run(5)
 
 
 def test_closed_economy_changes_money_only_by_lending_and_repayment():
@@ -277,7 +277,7 @@ class Borrower(AgentType):
 def _credit_system(settles):
     """Return a lender and two bankrupt borrowers that each owe 5."""
     return System(
-        elements=[
+        components=[
             Lender.group('lenders', 1, loans=10.0, money=4.0),
             Borrower.group('firms', 2, loans=-5.0, money=0.0, settles=float(settles)),
         ],
@@ -287,7 +287,7 @@ def _credit_system(settles):
 def test_identity_violation_names_the_bank_the_identity_and_the_difference():
     """Test that lowering assets alone breaks the balance-sheet identity after the step."""
     with pytest.raises(ConservationError, match=r"'assets == liabilities \+ equity' of agent \d+ of banks.*-1"):
-        Simulation(System(elements=[Bank.group('banks', 1)])).run(2)
+        Simulation(System(components=[Bank.group('banks', 1)])).run(2)
 
 
 def test_bankrupt_firm_writes_off_its_debt_against_its_lender():

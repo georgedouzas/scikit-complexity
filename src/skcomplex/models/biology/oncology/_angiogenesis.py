@@ -360,8 +360,8 @@ def tumour_angiogenesis(
     ]
     tissue = Field('tissue', Tissue, LatticeSpace((width, height), boundary='reflecting'))
     return System(
-        systems=[
-            System('cells', elements=groups, space=GridSpace(width, height)),
-            System('tissue', elements=[tissue]),
+        components=[
+            System('cells', components=groups, space=GridSpace(width, height)),
+            System('tissue', components=[tissue]),
         ],
     )

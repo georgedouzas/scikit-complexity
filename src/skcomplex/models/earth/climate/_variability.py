@@ -54,7 +54,7 @@ def hasselmann(T: float = 0.0, *, lam: float = 0.5, sigma: float = 0.3) -> Syste
         >>> hasselmann(lam=0.1).elements[0].lam
         0.1
     """
-    return System(elements=[ClimateAnomaly('ocean', T=T, lam=lam, sigma=sigma)])
+    return System(components=[ClimateAnomaly('ocean', T=T, lam=lam, sigma=sigma)])
 
 
 @register_model(
@@ -90,4 +90,4 @@ def enso(T: float = 0.1, *, alpha: float = 0.75, delta: float = 6.0) -> System:
         >>> enso(delta=4.0).elements[0].delta
         4.0
     """
-    return System(elements=[DelayedOscillator('pacific', T=T, alpha=alpha, delta=delta)])
+    return System(components=[DelayedOscillator('pacific', T=T, alpha=alpha, delta=delta)])

@@ -9,7 +9,20 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, parameter, state
-from ....core.model import AgentType, Law, Market, Observable, Phase, Rule, SampleAndSwitch, Symbols, System, Trade
+from ....core.model import (
+    AgentType,
+    DiscreteTime,
+    Law,
+    Market,
+    Observable,
+    Phase,
+    Phases,
+    Rule,
+    SampleAndSwitch,
+    Symbols,
+    System,
+    Trade,
+)
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -307,11 +320,26 @@ class CreditMarket(Market):
         model.report('spread', spread)
 
 
+def _credit_observables(system: System) -> list[Observable]:
+    """Return the concentration, equity, worth, returns, injections, defaults, and losses of the credit market."""
+    return [
+        Observable('herfindahl', group='banks', variable='lent', reduce=_herfindahl),
+        Observable('largest_share', group='banks', variable='lent', reduce=_largest_share),
+        Observable('bank_equity', group='banks', variable='equity', reduce='sum'),
+        Observable('firm_worth', group='firms', variable='net_worth', reduce='sum'),
+        Observable('returns', group='firms', variable='gross_return', reduce='sum'),
+        Observable('injected', group='firms', variable='injected', reduce='sum'),
+        Observable('defaults', group='firms', variable='defaulted', reduce='sum'),
+        Observable('bad_debt', group='banks', variable='losses', reduce='sum'),
+    ]
+
+
 @register_model(
     field='economics/macroeconomics',
     tags=('credit', 'banks', 'agents', 'market', 'network'),
     references=('Caiani et al. 2016 ch. 2', 'Delli Gatti et al. 2010'),
     defaults={'until': 100},
+    observables=_credit_observables,
 )
 def credit_networks(
     firms: int = 100,
@@ -411,19 +439,8 @@ def credit_networks(
         goods=None,
         on_trade=_lend,
     )
-    observables = [
-        Observable('herfindahl', group='banks', variable='lent', reduce=_herfindahl),
-        Observable('largest_share', group='banks', variable='lent', reduce=_largest_share),
-        Observable('bank_equity', group='banks', variable='equity', reduce='sum'),
-        Observable('firm_worth', group='firms', variable='net_worth', reduce='sum'),
-        Observable('returns', group='firms', variable='gross_return', reduce='sum'),
-        Observable('injected', group='firms', variable='injected', reduce='sum'),
-        Observable('defaults', group='firms', variable='defaulted', reduce='sum'),
-        Observable('bad_debt', group='banks', variable='losses', reduce='sum'),
-    ]
     return System(
-        elements=[borrowers, lenders],
+        components=[borrowers, lenders],
         interactions=[market],
-        observables=observables,
-        phases=[Phase('plan'), Phase('credit'), Phase('settle')],
+        time=DiscreteTime(schedule=Phases([Phase('plan'), Phase('credit'), Phase('settle')])),
     )

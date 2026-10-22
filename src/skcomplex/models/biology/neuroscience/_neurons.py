@@ -91,7 +91,7 @@ def integrate_and_fire(
         13.86
     """
     return System(
-        elements=[
+        components=[
             LeakyIntegrateAndFire(
                 'neuron',
                 v=v,
@@ -158,4 +158,4 @@ def izhikevich(
         >>> izhikevich(d=2.0).elements[0].d
         2.0
     """
-    return System(elements=[Izhikevich('neuron', v=v, u=b * v if u is None else u, a=a, b=b, c=c, d=d, I=I)])
+    return System(components=[Izhikevich('neuron', v=v, u=b * v if u is None else u, a=a, b=b, c=c, d=d, I=I)])

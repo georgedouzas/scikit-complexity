@@ -18,7 +18,7 @@ import rerun.blueprint as rrb
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'fractional_reserve_banking'
 BASE = 1000.0
@@ -37,7 +37,12 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
 system = create(MODEL, base_money=BASE, ratio=0.1, new_ratio=0.2, change_at=150.0, random_state=0)
-simulation = Simulation(system, observers=[observer], random_state=0).run(until=300)
+simulation = Simulation(
+    system,
+    observers=[observer],
+    random_state=0,
+    observables=describe(MODEL).observables_of(system),
+).run(until=300)
 
 # %%
 # The money multiplier

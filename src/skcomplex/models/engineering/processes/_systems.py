@@ -308,7 +308,7 @@ def rice_milling(
         outturn=outturn,
         expansion_time=expansion_time,
     )
-    return System(elements=[mill])
+    return System(components=[mill])
 
 
 @register_model(
@@ -378,7 +378,7 @@ def solid_waste(
         composting_share=composting_share,
         landfill_capacity=landfill_capacity,
     )
-    return System(elements=[city])
+    return System(components=[city])
 
 
 @register_model(
@@ -445,7 +445,7 @@ def food_relief(
         cover=cover,
         stock_time=stock_time,
     )
-    return System(elements=[relief])
+    return System(components=[relief])
 
 
 @register_model(
@@ -515,4 +515,4 @@ def irrigation(
         canal_loss=canal_loss,
         pump_capacity=pump_capacity,
     )
-    return System(elements=[scheme])
+    return System(components=[scheme])

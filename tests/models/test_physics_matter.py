@@ -184,7 +184,7 @@ def test_kramers_escape_rate():
 @pytest.mark.parametrize(('noise', 'left'), [('ito', 0.75), ('stratonovich', np.log(2) / np.log(3)), ('anti-ito', 0.5)])
 def test_multiplicative_noise_conventions_give_their_stationary_densities(noise, left):
     """Test that the fraction in the low-noise half follows the stationary density of each convention."""
-    model = multiplicative_noise(500, s0=1.0, ds=1.0, L=10.0, noise=noise)
+    model = multiplicative_noise(500, s0=1.0, ds=1.0, L=10.0, convention=noise)
     trajectory = Simulation(model, dt=0.05, solver=EulerMaruyama(dt=0.01), random_state=0).run(until=400).trajectory_
     positions = trajectory['particles.x'][2000:]
     assert (positions < 5).mean() == pytest.approx(left, abs=0.03)

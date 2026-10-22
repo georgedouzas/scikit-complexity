@@ -208,4 +208,4 @@ def cocoa(
         insect_growth=insect_growth,
         subsidy=subsidy,
     )
-    return System(elements=[plantation])
+    return System(components=[plantation])

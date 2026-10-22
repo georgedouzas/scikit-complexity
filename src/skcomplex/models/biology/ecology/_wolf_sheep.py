@@ -267,6 +267,6 @@ def wolf_sheep(
     countdown = np.where(grown > 0, regrowth, rng.uniform(0, regrowth, len(cells)))
     grass = Grass.group('grass', len(cells), location=cells, grown=grown, countdown=countdown, regrowth=regrowth)
     return System(
-        elements=[grass, Sheep.group('sheep', sheep), Wolf.group('wolves', wolves)],
+        components=[grass, Sheep.group('sheep', sheep), Wolf.group('wolves', wolves)],
         space=GridSpace(width, height, torus=True),
     )

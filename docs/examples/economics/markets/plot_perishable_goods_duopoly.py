@@ -18,7 +18,7 @@ from scipy.optimize import brentq
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'perishable_goods_duopoly'
 CONTROL = 1.0
@@ -26,7 +26,12 @@ CRITICAL = CONTROL / (1 + CONTROL) ** 2
 
 system = create(MODEL, customers=200, stock=0.5, tau_a=1.0, T=0.1, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, observers=[observer], random_state=0).run(until=300)
+simulation = Simulation(
+    system,
+    observers=[observer],
+    random_state=0,
+    observables=describe(MODEL).observables_of(system),
+).run(until=300)
 
 # %%
 # Symmetry breaking against the temperature
@@ -52,7 +57,10 @@ def mean_field_asymmetry(temperature):
 temperatures = np.linspace(0.3, 1.6, 8) * CRITICAL
 asymmetries = []
 for temperature in temperatures:
-    run = Simulation(create(MODEL, T=temperature, random_state=1), random_state=1).run(until=400)
+    model_system = create(MODEL, T=temperature, random_state=1)
+    run = Simulation(model_system, random_state=1, observables=describe(MODEL).observables_of(model_system)).run(
+        until=400,
+    )
     asymmetries.append(np.abs(run.trajectory_['m'][-100:]).mean())
 grid = np.linspace(0.2, 1.7, 200) * CRITICAL
 

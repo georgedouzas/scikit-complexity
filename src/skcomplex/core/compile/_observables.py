@@ -3,7 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Iterator, Mapping
+import copy
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -60,6 +61,65 @@ def _renewal_counter(counts: npt.NDArray[np.intp]) -> Getter:
 def _join(scope: str, path: str) -> str:
     """Return a path relative to a system as a path from the root."""
     return f'{scope}/{path}' if scope else path
+
+
+def with_observables(system: System, observables: Sequence[Observable]) -> System:
+    """Return a copy of a system tree that declares observables in the systems their labels name.
+
+    An observable whose label is a path, such as `village/mean_wealth`, belongs to the nested system `village`, and
+    reads the symbols of that system as an observable of it. The system itself is left unchanged.
+
+    Args:
+        system:
+            The root system.
+
+        observables:
+            The observables, labelled by their path from the root.
+
+    Returns:
+        system:
+            The system itself without observables, or a copy of the tree whose systems hold them.
+
+    Raises:
+        ValidationError:
+            A label names a nested system that does not exist.
+    """
+    if not observables:
+        return system
+    by_scope: dict[str, list[Observable]] = {}
+    for observable in observables:
+        scope, _, label = observable.label.rpartition('/')
+        local = copy.copy(observable)
+        local.label = label
+        by_scope.setdefault(scope, []).append(local)
+    paths = {''} | set(_system_paths(system))
+    unknown = sorted(set(by_scope) - paths)
+    if unknown:
+        error_msg = (
+            f'The observables name the nested systems {", ".join(unknown)}, which do not exist. Label an observable '
+            'by its path from the root, such as `village/mean_wealth`.'
+        )
+        raise ValidationError(error_msg)
+    return _attached(system, by_scope, '')
+
+
+def _system_paths(system: System, scope: str = '') -> Iterator[str]:
+    """Yield the path of every nested system."""
+    for child in system.systems:
+        path = _join(scope, child.label)
+        yield path
+        yield from _system_paths(child, path)
+
+
+def _attached(system: System, by_scope: dict[str, list[Observable]], scope: str) -> System:
+    """Return a copy of a system that holds the observables of its scope, with its nested systems attached."""
+    copied = copy.copy(system)
+    copied.components = [
+        _attached(component, by_scope, _join(scope, component.label)) if isinstance(component, System) else component
+        for component in system.components
+    ]
+    copied.observables = [*getattr(system, 'observables', ()), *by_scope.get(scope, ())]
+    return copied
 
 
 def observables_of(system: System, scope: str = '') -> Iterator[tuple[str, Observable]]:
@@ -215,11 +275,9 @@ class ObservableEvaluator:
         >>> from skcomplex.core.compile import ObservableEvaluator, compile_system
         >>> from skcomplex.core.model import Observable, System
         >>> from skcomplex.models.biology.ecology import Population
-        >>> system = System(
-        ...     elements=[Population.group('herd', 2, n=[2.0, 6.0])],
-        ...     observables=[Observable('total', group='herd', reduce='sum', variable='n')],
-        ... )
-        >>> problem = compile_system(system)
+        >>> system = System(components=[Population.group('herd', 2, n=[2.0, 6.0])])
+        >>> total = Observable('total', group='herd', reduce='sum', variable='n')
+        >>> problem = compile_system(system, observables=[total])
         >>> ObservableEvaluator(problem).evaluate(0.0, problem.initial_state, problem.initial_parameters)
         {'total': 8.0}
     """

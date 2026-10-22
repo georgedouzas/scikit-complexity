@@ -224,4 +224,4 @@ def social_force(
         SocialRepulsion(f'{first}_{second}', first=first, second=second, cutoff=cutoff, period=length)
         for first, second in pairs
     ]
-    return System(elements=walkers, interactions=interactions, space=EuclideanSpace(2))
+    return System(components=walkers, interactions=interactions, space=EuclideanSpace(2))

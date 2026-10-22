@@ -120,7 +120,7 @@ def _lennard_jones_gas(n=400, period=None):
     grid = np.stack(np.meshgrid(np.arange(side), np.arange(side)), axis=-1).reshape(-1, 2)[:n] * 1.2 + 0.5
     size = side * 1.2 + 1.0
     return System(
-        elements=[Particle.group('gas', n, x=grid + rng.normal(0, 0.05, (n, 2)), v=rng.normal(0, 1, (n, 2)))],
+        components=[Particle.group('gas', n, x=grid + rng.normal(0, 0.05, (n, 2)), v=rng.normal(0, 1, (n, 2)))],
         interactions=[
             LennardJones('lj', first='gas', second='gas', cutoff=CUTOFF, period=period),
             ReflectingBox('box', target='gas', size=size),
@@ -131,13 +131,13 @@ def _lennard_jones_gas(n=400, period=None):
 
 def _herds(interaction, n=5):
     """Return a group of populations with one interaction."""
-    return System(elements=[Population.group('herds', n, n=np.linspace(1.0, 50.0, n))], interactions=[interaction])
+    return System(components=[Population.group('herds', n, n=np.linspace(1.0, 50.0, n))], interactions=[interaction])
 
 
 def _epidemic():
     """Return a stochastic epidemic over a group of towns."""
     return System(
-        elements=[Compartment('S', n=990), Compartment('I', n=10), Compartment('R')],
+        components=[Compartment('S', n=990), Compartment('I', n=10), Compartment('R')],
         interactions=[
             Infection('infection', susceptible='S', infected='I', beta=0.0005, stochastic=True),
             Recovery('recovery', infected='I', recovered='R', gamma=0.1, stochastic=True),
@@ -148,13 +148,13 @@ def _epidemic():
 def test_compile_unknown_backend_raises_error():
     """Test that an unknown backend names the registered ones."""
     with pytest.raises(BackendError, match='numba, numpy'):
-        compile_system(System(elements=[Population('a')]), backend='gpu')
+        compile_system(System(components=[Population('a')]), backend='gpu')
 
 
 def test_compile_auto_backend_depends_on_group_size():
     """Test that `auto` picks Numba for 1000 members and NumPy for two single elements."""
-    large = System(elements=[Particle.group('gas', 1000)], space=EuclideanSpace(2))
-    small = System(elements=[Population('a'), Population('b')])
+    large = System(components=[Particle.group('gas', 1000)], space=EuclideanSpace(2))
+    small = System(components=[Population('a'), Population('b')])
     assert compile_system(large).backend == 'numba'
     assert compile_system(small).backend == 'numpy'
 
@@ -181,7 +181,7 @@ def test_backends_agree_on_two_groups(numba_backend):
     """Test that pair forces between two groups agree between backends."""
     rng = np.random.default_rng(1)
     system = System(
-        elements=[
+        components=[
             Particle.group('a', 150, x=rng.uniform(0, 12, (150, 2))),
             Particle.group('b', 100, x=rng.uniform(3, 15, (100, 2))),
         ],
@@ -204,7 +204,7 @@ def test_backends_agree_on_discrete_update(numba_backend):
 def test_numba_pair_forces_conserve_momentum(numba_backend):
     """Test that compiled pair forces keep the total momentum of an isolated group."""
     system = System(
-        elements=[_lennard_jones_gas().elements[0]],
+        components=[_lennard_jones_gas().elements[0]],
         interactions=[LennardJones('lj', first='gas', second='gas', cutoff=CUTOFF)],
         space=EuclideanSpace(2),
     )
@@ -289,7 +289,7 @@ def test_rk4_matches_exponential(backend, numba_backend):
             return [Rate(s.target.n, s.target.n)]
 
     problem = compile_system(
-        System(elements=[Population.group('a', 2, n=1.0)], interactions=[Growth('g', target='a')]),
+        System(components=[Population.group('a', 2, n=1.0)], interactions=[Growth('g', target='a')]),
         backend=numba_backend if backend == 'numba' else backend,
     )
     stepper = RK4(dt=0.001)
@@ -346,7 +346,7 @@ def test_compiled_iteration_matches_numpy(numba_backend):
 def test_velocity_verlet_conserves_energy(backend, numba_backend):
     """Test that velocity Verlet keeps the energy of an oscillator within 1e-3 over 1000 time units."""
     system = System(
-        elements=[Particle.group('p', 1, x=[[1.0]], v=[[0.0]])],
+        components=[Particle.group('p', 1, x=[[1.0]], v=[[0.0]])],
         interactions=[HarmonicPotential('trap', target='p')],
         space=EuclideanSpace(1),
     )

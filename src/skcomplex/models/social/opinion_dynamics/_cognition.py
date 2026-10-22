@@ -189,7 +189,7 @@ def cognitive_consistency(
     valences = signs[:, None] * np.array(POSITIVE)
     thinkers = Thinker.group('thinkers', size, valences=valences, attitude=valences[:, 1], decay=decay)
     return System(
-        elements=[thinkers],
+        components=[thinkers],
         interactions=[Conversations('talks', target='thinkers')],
         space=NetworkSpace(graph),
     )

@@ -158,7 +158,7 @@ Phase = Element.define(
     parameters={'omega': parameter(2.0)},
     laws=lambda s: [Rate(s.z, I * s.omega * s.z)],
 )
-z = Simulation(System(elements=[Phase('osc')]), dt=0.5).run(until=10).trajectory_['osc.z']
+z = Simulation(System(components=[Phase('osc')]), dt=0.5).run(until=10).trajectory_['osc.z']
 assert z.dtype == np.complex128 and np.allclose(np.abs(z), 1.0, atol=1e-4)
 ```
 
@@ -207,9 +207,9 @@ from skcomplex.core.model import System
 from skcomplex.models.biology.ecology import Population, Predation
 
 landscape = System(
-    systems=[
-        System('forest', elements=[Population('foxes', n=5)]),
-        System('meadow', elements=[Population('rabbits', n=50)]),
+    components=[
+        System('forest', components=[Population('foxes', n=5)]),
+        System('meadow', components=[Population('rabbits', n=50)]),
     ],
     interactions=[Predation('hunt', predator='forest/foxes', prey='meadow/rabbits', a=0.02, b=0.01)],
 )
@@ -254,7 +254,7 @@ convention of the field.
 
 **Delays.** `delayed(x, tau)` is the state `x` at `t - tau`, for a constant or a state-dependent delay. The solvers keep
 a history of dense output and step no further than the smallest delay, by the method of steps. Before the start the
-history is the initial value, or what `history={path: value or function of time}` on the system gives.
+history is the initial value, or what the state declares with `state(..., history=value or function of time)`.
 
 ```python
 import numpy as np
@@ -263,11 +263,11 @@ from skcomplex.core.model import Event, Noise, Rate, delayed, step
 
 MackeyGlass = Element.define(
     'MackeyGlass',
-    states={'x': 0.5},
+    states={'x': state(0.5, history=lambda t: 0.5 + 0.1 * np.sin(t))},
     parameters={'beta': 0.2, 'gamma': 0.1, 'n': 10.0, 'tau': 17.0},
     laws=lambda s: [Rate(s.x, s.beta * delayed(s.x, s.tau) / (1 + delayed(s.x, s.tau) ** s.n) - s.gamma * s.x)],
 )
-cells = System(elements=[MackeyGlass('cells')], history={'cells.x': lambda t: 0.5 + 0.1 * np.sin(t)})
+cells = System(components=[MackeyGlass('cells')])
 print(Simulation(cells, dt=0.5).run(until=300).trajectory_['cells.x'][-1])
 ```
 
@@ -288,7 +288,7 @@ Ball = Element.define(
         Event(s.h, {derivative(s.h, 1): -s.e * derivative(s.h, 1)}, direction=-1, label='impact'),
     ],
 )
-trajectory = Simulation(System(elements=[Ball('ball')]), dt=0.01).run(until=3).trajectory_
+trajectory = Simulation(System(components=[Ball('ball')]), dt=0.01).run(until=3).trajectory_
 print([round(event.time, 6) for event in trajectory.events])
 ```
 
@@ -304,10 +304,10 @@ Filter = Element.define(
     parameters={'k': 1.0},
     laws=lambda s: [Rate(s.y, -s.k * s.y + step(s.t, 5.0))],
 )
-print(Simulation(System(elements=[Filter('filter')]), dt=0.5).run(until=10).trajectory_['filter.y'][-1])
+print(Simulation(System(components=[Filter('filter')]), dt=0.5).run(until=10).trajectory_['filter.y'][-1])
 ```
 
-**Noise conventions.** `System(..., noise='stratonovich')` or `'anti-ito'` declares how noise laws are read. The
+**Noise conventions.** `Noise(..., convention='stratonovich')` or `'anti-ito'` declares how a noise law is read. The
 compiler adds the drift correction `α g ∂g/∂x`, with `α = 1/2` and `1`, so every SDE solver integrates the equivalent
 Itô equation. `EulerMaruyama` has strong order 1/2. `Milstein`, in Platen's derivative-free form, has strong order 1 for
 diagonal noise, and `Heun` averages the drift over every step.
@@ -319,9 +319,9 @@ Growth = Element.define(
     'Growth',
     states={'x': 1.0},
     parameters={'mu': 0.5, 'sigma': 0.8},
-    laws=lambda s: [Rate(s.x, s.mu * s.x), Noise(s.x, s.sigma * s.x)],
+    laws=lambda s: [Rate(s.x, s.mu * s.x), Noise(s.x, s.sigma * s.x, convention='stratonovich')],
 )
-growth = System(elements=[Growth('asset')], noise='stratonovich')
+growth = System(components=[Growth('asset')])
 print(Simulation(growth, solver=Milstein(dt=0.01), random_state=0).run(until=1).state_)
 ```
 
@@ -361,7 +361,7 @@ Persistent = Element.define(
         Update(s.x, s.x + where(bernoulli('turn', 1 - s.q) > 0, -s.d, s.d) + normal('jitter', 0, 0.1)),
     ],
 )
-walkers = System(elements=[Persistent.group('walkers', 500)])
+walkers = System(components=[Persistent.group('walkers', 500)])
 final = Simulation(walkers, dt=1.0, random_state=0).run(until=200).trajectory_['walkers.x'][-1]
 print(round(float(final.var() / 200), 1))
 ```
@@ -397,7 +397,7 @@ Source = Element.define(
         Emission(s.symbol, s.hidden, [[0.7, 0.3], [0.2, 0.8]]),
     ],
 )
-simulation = Simulation(System(elements=[Source('source')]), dt=1.0, random_state=0).run(until=10000)
+simulation = Simulation(System(components=[Source('source')]), dt=1.0, random_state=0).run(until=10000)
 print(round(float((simulation.trajectory_['source.hidden'] == 'calm').mean()), 1))
 simulation.update_parameters({'source.stay': 0.5})
 ```
@@ -428,7 +428,7 @@ Flier = Element.define(
     states={'x': 0.0},
     laws=lambda s: [Update(s.x, s.x + draw('jump', 'levy_stable', alpha=1.5, beta=0.0))],
 )
-flight = Simulation(System(elements=[Flier.group('fliers', 100)]), dt=1.0, random_state=0).run(until=20)
+flight = Simulation(System(components=[Flier.group('fliers', 100)]), dt=1.0, random_state=0).run(until=20)
 print(flight.trajectory_['fliers.x'].shape)
 ```
 
@@ -455,7 +455,7 @@ Walker = Element.define(
     parameters={'alpha': 0.5},
     laws=lambda s: [Renewal(draw('wait', 'pareto', b=s.alpha), {s.x: s.x + normal('jump', 0, 1)}, label='jumps')],
 )
-walk = Simulation(System(elements=[Walker.group('walkers', 1000)]), dt=100.0, random_state=0).run(until=1000)
+walk = Simulation(System(components=[Walker.group('walkers', 1000)]), dt=100.0, random_state=0).run(until=1000)
 print(walk.problem_.form.value, walk.trajectory_['jumps.renewals'][-1] > 1000)
 ```
 
@@ -481,7 +481,7 @@ from skcomplex.core.solvers import FractionalEulerMaruyama
 
 Rough = Element.define('Rough', states={'x': 0.0}, laws=lambda s: [FractionalNoise(s.x, 1, hurst=0.3)])
 rough = Simulation(
-    System(elements=[Rough.group('walkers', 500)]),
+    System(components=[Rough.group('walkers', 500)]),
     solver=FractionalEulerMaruyama(dt=0.01),
     dt=0.1,
     random_state=0,
@@ -523,10 +523,10 @@ def order_parameter(s):
 
 
 oscillators = System(
-    elements=[Oscillator.group('phases', 100, theta=np.linspace(0, 1, 100), omega=np.linspace(0.9, 1.1, 100))],
-    observables=[Observable('z', phase_vector, group='phases'), Observable('order', order_parameter)],
+    components=[Oscillator.group('phases', 100, theta=np.linspace(0, 1, 100), omega=np.linspace(0.9, 1.1, 100))],
 )
-order = Simulation(oscillators, dt=1.0).run(until=50).trajectory_['order']
+observables = [Observable('z', phase_vector, group='phases'), Observable('order', order_parameter)]
+order = Simulation(oscillators, dt=1.0, observables=observables).run(until=50).trajectory_['order']
 print(round(float(order[0]), 3), round(float(order[-1]), 3))
 ```
 
@@ -557,11 +557,11 @@ def sine(member):
 
 
 coupled = System(
-    elements=[Oscillator.group('phases', 100, theta=np.linspace(0, 6, 100), omega=np.linspace(0.9, 1.1, 100))],
+    components=[Oscillator.group('phases', 100, theta=np.linspace(0, 6, 100), omega=np.linspace(0.9, 1.1, 100))],
     interactions=[MeanField('coupling', target='phases', X='X', Y='Y', K=2.0)],
-    observables=[Observable('X', cosine, group='phases'), Observable('Y', sine, group='phases')],
 )
-print(Simulation(coupled, dt=1.0).run(until=20).trajectory_['X'][-1].round(2))
+observables = [Observable('X', cosine, group='phases'), Observable('Y', sine, group='phases')]
+print(Simulation(coupled, dt=1.0, observables=observables).run(until=20).trajectory_['X'][-1].round(2))
 ```
 
 ## Stocks and flows
@@ -589,7 +589,7 @@ People = Element.define(
     parameters={'b': 0.03, 'd': 0.01},
     laws=population_laws,
 )
-crowd = System(elements=[People('crowd')])
+crowd = System(components=[People('crowd')])
 trajectory = Simulation(crowd, dt=1.0).run(until=10).trajectory_
 print(round(float(trajectory['crowd.births'][-1]), 3), round(float(trajectory['crowd.deaths'][-1]), 3))
 ```
@@ -656,7 +656,7 @@ class Trader(AgentType):
             transfer(borrower, agent, 1.0, 'claims')
 
 
-traders = Simulation(System(elements=[Trader.group('traders', 3)])).run(until=3).trajectory_
+traders = Simulation(System(components=[Trader.group('traders', 3)])).run(until=3).trajectory_
 print(traders.agents('traders', 3).values['cash'].sum())
 ```
 
@@ -729,7 +729,7 @@ Tank = Element.define(
 @register_model(field='examples/processes', references=('Torricelli 1643',), defaults={'until': 5})
 def draining_tank(level: float = 2.0) -> System:
     """Return a tank that drains at a rate proportional to its level."""
-    return System(elements=[Tank('tank', level=level)])
+    return System(components=[Tank('tank', level=level)])
 
 
 print(create('draining_tank').elements[0].level)
@@ -788,7 +788,7 @@ from skcomplex.core.model import Particle, ReflectingBox
 
 rng = np.random.default_rng(0)
 gas = System(
-    elements=[Particle.group('gas', 10_000, x=rng.uniform(0, 1, (10_000, 2)), v=rng.normal(0, 1, (10_000, 2)))],
+    components=[Particle.group('gas', 10_000, x=rng.uniform(0, 1, (10_000, 2)), v=rng.normal(0, 1, (10_000, 2)))],
     interactions=[ReflectingBox('box', target='gas', size=1.0)],
     space=EuclideanSpace(2),
 )
@@ -831,7 +831,7 @@ from sage.all__sagemath_symbolics import tanh
 from skcomplex.core.model import total
 
 Unit = Element.define('Unit', states={'x': 0.0}, laws=lambda s: [Rate(s.x, -s.x + tanh(total(s.x)))])
-units = System(elements=[Unit.group('units', 50, x=np.linspace(-1, 1, 50))])
+units = System(components=[Unit.group('units', 50, x=np.linspace(-1, 1, 50))])
 print(Simulation(units, dt=0.5).run(until=2).trajectory_['units.x'][-1, :3].round(3))
 
 payoff = np.array([[-0.5, 2.0], [0.0, 1.0]])
@@ -848,7 +848,7 @@ Replication = Interaction.define(
     ],
 )
 game = System(
-    elements=[Strategy.group('population', 2, x=[0.1, 0.9])],
+    components=[Strategy.group('population', 2, x=[0.1, 0.9])],
     interactions=[Replication('replication', population='population')],
 )
 print(Simulation(game, dt=1.0).run(until=40).trajectory_['population.x'][-1].round(3))
@@ -866,7 +866,7 @@ Inhibition = Interaction.define(
 )
 Activity = Element.define('Activity', states={'x': 0.1})
 network = System(
-    elements=[Activity(f'unit_{index}', x=0.1 * (index + 1)) for index in range(3)],
+    components=[Activity(f'unit_{index}', x=0.1 * (index + 1)) for index in range(3)],
     interactions=[Inhibition('inhibition', units=['unit_0', 'unit_1', 'unit_2'])],
 )
 print(Simulation(network, dt=1.0).run(until=30).state_.round(3))
@@ -898,7 +898,7 @@ class WeightedSum(Interaction):
 
 
 summed = System(
-    elements=[Node('a', x=1.0), Node('b', x=2.0), Node('out'), Node.group('nodes', 5, x=[0.0, 1.0, 2.0, 3.0, 4.0])],
+    components=[Node('a', x=1.0), Node('b', x=2.0), Node('out'), Node.group('nodes', 5, x=[0.0, 1.0, 2.0, 3.0, 4.0])],
     interactions=[WeightedSum('sum', target='out', inputs=['a', 'b', 'nodes[3]'], weights=[1.0, 1.0, 10.0])],
 )
 simulation = Simulation(summed, dt=1).run(until=1)
@@ -939,7 +939,7 @@ Following = Interaction.define(
     ],
 )
 ring = System(
-    elements=[Car.group('cars', 20, x=np.arange(20) * 2.0 + np.eye(20)[0] * 0.1)],
+    components=[Car.group('cars', 20, x=np.arange(20) * 2.0 + np.eye(20)[0] * 0.1)],
     interactions=[Following('following', cars='cars', length=40.0)],
 )
 print(Simulation(ring, dt=1.0).run(until=50).trajectory_['cars.v'][-1].std() > 0.1)
@@ -987,7 +987,7 @@ class LennardJones(PairPotential):
 
 side = np.arange(10) * 1.2
 liquid = System(
-    elements=[Particle.group('atoms', 100, x=np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2))],
+    components=[Particle.group('atoms', 100, x=np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2))],
     interactions=[LennardJones('lj', first='atoms', second='atoms', cutoff=2.5)],
     space=EuclideanSpace(2),
 )
@@ -1026,7 +1026,7 @@ Life = Element.define(
 )
 glider = np.zeros((20, 20))
 glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
-cells = System(elements=[Life.lattice('cells', LatticeSpace((20, 20)), alive=glider)])
+cells = System(components=[Life.lattice('cells', LatticeSpace((20, 20)), alive=glider)])
 trajectory = Simulation(cells, dt=1).run(until=4).trajectory_
 print(np.array_equal(trajectory.lattice('cells.alive')[-1], np.roll(glider, (1, 1), axis=(0, 1))))
 ```
@@ -1069,7 +1069,7 @@ Spin = Element.define(
         Sampler('metropolis', s.temperature),
     ],
 )
-spins = System(elements=[Spin.lattice('spins', LatticeSpace((32, 32)))])
+spins = System(components=[Spin.lattice('spins', LatticeSpace((32, 32)))])
 print(abs(Simulation(spins, dt=50, random_state=0).run(until=200).state_.mean()) > 0.9)
 ```
 
@@ -1087,7 +1087,7 @@ Burn = Element.define(
 )
 fire = np.zeros((40, 40))
 fire[20, 20] = 1
-forest = System(elements=[Burn.lattice('forest', LatticeSpace((40, 40), geometry='triangular'), fire=fire)])
+forest = System(components=[Burn.lattice('forest', LatticeSpace((40, 40), geometry='triangular'), fire=fire)])
 burning = Simulation(forest, dt=1).run(until=3).trajectory_.lattice('forest.fire')
 print([int(item.sum()) for item in burning])
 ```
@@ -1122,7 +1122,7 @@ GraphSpin = Element.define(
     ],
 )
 graph = nx.random_regular_graph(4, 200, seed=0)
-spins = System(elements=[GraphSpin.lattice('spins', NetworkSpace(graph))])
+spins = System(components=[GraphSpin.lattice('spins', NetworkSpace(graph))])
 print(abs(Simulation(spins, dt=50, random_state=0).run(until=200).state_.mean()) > 0.9)
 ```
 
@@ -1146,7 +1146,7 @@ Species = Element.define(
     states={'fitness': 0.5},
     laws=lambda s: [Extremal(s.fitness, Neighborhood(((-1,), (1,))), renew, repeat=100)],
 )
-ring = System(elements=[Species.lattice('ring', LatticeSpace(100), fitness=np.random.default_rng(0).random(100))])
+ring = System(components=[Species.lattice('ring', LatticeSpace(100), fitness=np.random.default_rng(0).random(100))])
 trajectory = Simulation(ring, dt=10, random_state=0).run(until=100).trajectory_
 print(len(trajectory.events), trajectory.events[0].label)
 ```
@@ -1178,7 +1178,7 @@ Diffusion = Element.define(
 initial = np.zeros(400)
 initial[200] = 20.0
 rod = Field('rod', Diffusion, LatticeSpace(400, spacing=0.05), boundary={'u': 'zero-flux'}, values={'u': initial})
-trajectory = Simulation(System(elements=[rod]), dt=0.1).run(until=0.5).trajectory_
+trajectory = Simulation(System(components=[rod]), dt=0.1).run(until=0.5).trajectory_
 print(trajectory['rod.u'][-1].max(), trajectory['rod.u'].sum(axis=1)[[0, -1]])
 ```
 
@@ -1237,7 +1237,7 @@ line = Field(
     values={'u': np.cos(positions / 16) * (1 + np.sin(positions / 16))},
     discretization='spectral',
 )
-print(np.abs(Simulation(System(elements=[line]), dt=10, solver=ETDRK4(dt=0.25)).run(until=100).state_).max())
+print(np.abs(Simulation(System(components=[line]), dt=10, solver=ETDRK4(dt=0.25)).run(until=100).state_).max())
 ```
 
 The implicit methods of `ScipyODE` are the stiff path for finite-difference and finite element fields, with adaptive
@@ -1314,7 +1314,7 @@ class Saturation(Interaction):
 
 
 herds = System(
-    elements=[Population.group('herds', 2000, n=1.0)],
+    components=[Population.group('herds', 2000, n=1.0)],
     interactions=[Saturation('growth', target='herds')],
 )
 print(Simulation(herds, dt=0.1).run(until=1).trajectory_['herds.n'][-1, 0])
@@ -1334,7 +1334,7 @@ from skcomplex.core.backends import LammpsBackend
 from skcomplex.core.model import LangevinThermostat, LennardJones
 
 atoms = System(
-    elements=[Particle.group('atoms', 100, x=np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2))],
+    components=[Particle.group('atoms', 100, x=np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2))],
     interactions=[
         LennardJones('lj', first='atoms', second='atoms', cutoff=2.5),
         LangevinThermostat('bath', target='atoms', temperature=0.5, gamma=1.0),
@@ -1393,7 +1393,7 @@ class Forager(AgentType):
             agent.create(food=agent.food)
 
 
-foragers = System(elements=[Forager.group('foragers', 50)], space=GridSpace(30, 30, torus=True))
+foragers = System(components=[Forager.group('foragers', 50)], space=GridSpace(30, 30, torus=True))
 trajectory = Simulation(foragers, random_state=0).run(until=20).trajectory_
 print(trajectory['foragers.count'][-1], len(trajectory.agents('foragers', 20)))
 ```
@@ -1447,10 +1447,10 @@ class Spread(Interaction):
 
 counts = []
 road = System(
-    systems=[
+    components=[
         System(
             'road',
-            elements=[Walker.group('walkers', 5, location=[(10.0 * index, 0.5) for index in range(5)])],
+            components=[Walker.group('walkers', 5, location=[(10.0 * index, 0.5) for index in range(5)])],
             interactions=[Spread('spread', walkers='walkers')],
         ),
     ],
@@ -1465,7 +1465,7 @@ print(counts)
 Economic and social models order each step into phases, match agents in markets, let institutions set policy, and let
 agents learn from their past.
 
-- `System(phases=[...])` lists the phases of a step. A `Phase(name, activation, repeat)` runs its agents
+- `DiscreteTime(schedule=Phases([...]))` lists the phases of a step. A `Phase(name, activation, repeat)` runs its agents
   `'random'`ly, `'sequential'`ly in order of creation, `'simultaneous'`ly, or `'by-type'`, for `repeat` rounds such as
   intraday rounds. In a simultaneous phase every rule reads the states of the start of the phase, and the writes apply
   at its end. `Rule(function, phase=name)` puts a rule in a phase. Rules without a phase run in the phase `'default'`,
@@ -1487,7 +1487,7 @@ agents learn from their past.
   next generation of strategies with the model's random stream.
 
 ```python
-from skcomplex.core.model import CallAuction, Institution, Market, Phase
+from skcomplex.core.model import CallAuction, DiscreteTime, Institution, Market, Phase, Phases
 
 
 class Trader(AgentType):
@@ -1519,7 +1519,7 @@ class Clerk(Institution):
 
 rng = np.random.default_rng(0)
 auction = System(
-    elements=[
+    components=[
         Trader.group('buyers', 20, value=rng.uniform(0.5, 2, 20), demand=1.0, money=2.0),
         Trader.group('sellers', 20, value=rng.uniform(0, 1.5, 20), supply=1.0),
     ],
@@ -1527,7 +1527,7 @@ auction = System(
         Market('auction', buyers='buyers', sellers='sellers', protocol=CallAuction(), phase='trade'),
         Clerk('clerk', phase='trade'),
     ],
-    phases=[Phase('quote'), Phase('trade', repeat=3)],
+    time=DiscreteTime(schedule=Phases([Phase('quote'), Phase('trade', repeat=3)])),
 )
 trajectory = Simulation(auction, random_state=0).run(until=5).trajectory_
 print(trajectory['auction.price'][1:], trajectory['clerk.traded'][-1], trajectory['clerk.fee'][-1])
@@ -1590,7 +1590,7 @@ A `Rewrite` interaction rewrites its target with fixed rules. Strings are words 
 from skcomplex.core.model import Module, Production, Rewrite, Word
 
 algae = System(
-    elements=[Word('algae', axiom='A')],
+    components=[Word('algae', axiom='A')],
     interactions=[Rewrite('rules', target='algae', rules=[Production('A', 'AB'), Production('B', 'A')])],
 )
 trajectory = Simulation(algae).run(until=5).trajectory_
@@ -1619,7 +1619,7 @@ class Shrinking(Rewriting):
 
 
 plant = System(
-    elements=[Word('plant', axiom=[Module('A', 1.0)], alphabet={'A': 1, 'F': 1})],
+    components=[Word('plant', axiom=[Module('A', 1.0)], alphabet={'A': 1, 'F': 1})],
     interactions=[Shrinking('growth', target='plant')],
 )
 print(Simulation(plant).run(until=5).trajectory_.structure('plant', 5))
@@ -1642,7 +1642,7 @@ from skcomplex.core.analysis import box_counting_dimension
 from skcomplex.core.model import Affine, Patch, Prototile, Substitution, Turtle
 
 koch = System(
-    elements=[Word('koch', axiom='F', turtle=Turtle(angle=60.0, contraction=1 / 3))],
+    components=[Word('koch', axiom='F', turtle=Turtle(angle=60.0, contraction=1 / 3))],
     interactions=[Rewrite('rules', target='koch', rules=[Production('F', 'F+F--F+F')])],
 )
 curve = Simulation(koch).run(until=4).trajectory_.structure('koch', 4)
@@ -1651,7 +1651,7 @@ print(len(curve.segments()), round(curve.length(), 6))
 interval = Prototile('interval', [(0, 0), (1, 0)])
 thirds = [('interval', Affine(scale=1 / 3)), ('interval', Affine(scale=1 / 3, translation=(2 / 3, 0)))]
 cantor = System(
-    elements=[Patch('cantor', prototiles=[interval])],
+    components=[Patch('cantor', prototiles=[interval])],
     interactions=[Rewrite('rules', target='cantor', rules=[Substitution('interval', thirds)])],
 )
 trajectory = Simulation(cantor).run(until=5).trajectory_
@@ -1678,7 +1678,7 @@ interface = nx.Graph()
 interface.add_nodes_from('ab')
 subdivide = GraphProduction(nx.Graph([('a', 'b')]), interface, nx.Graph([('a', 'c'), ('c', 'b')]))
 ring = System(
-    elements=[HostGraph('ring', graph=nx.cycle_graph(4))],
+    components=[HostGraph('ring', graph=nx.cycle_graph(4))],
     interactions=[Rewrite('rules', target='ring', rules=[subdivide])],
 )
 print(Simulation(ring, random_state=0).run(until=3).trajectory_['ring.size'].tolist())
@@ -1721,11 +1721,11 @@ class Coupling(Exchange):
 
 
 chain = QuantumSystem(
-    elements=[Spin.lattice('chain', LatticeSpace(6), initial=['up', 'down'] * 3)],
+    components=[Spin.lattice('chain', LatticeSpace(6), initial=['up', 'down'] * 3)],
     interactions=[Coupling('coupling', target='chain')],
-    observables=[expectation('sz', attrgetter('z'), group='chain')],
 )
-trajectory = Simulation(chain, dt=0.5).run(until=2.0).trajectory_
+observables = [expectation('sz', attrgetter('z'), group='chain')]
+trajectory = Simulation(chain, dt=0.5, observables=observables).run(until=2.0).trajectory_
 print(trajectory['sz'].shape, round(float(np.ptp(trajectory['energy'])), 8))
 ```
 
@@ -1794,7 +1794,7 @@ from skcomplex.core.model import Particle, Spring
 from skcomplex.core.viz import RerunObserver
 
 molecule = System(
-    elements=[Particle('a', x=[0.0, 0.0, 0.0]), Particle('b', x=[1.5, 0.0, 0.0], v=[0.0, 0.5, 0.0])],
+    components=[Particle('a', x=[0.0, 0.0, 0.0]), Particle('b', x=[1.5, 0.0, 0.0], v=[0.0, 0.5, 0.0])],
     interactions=[Spring('bond', first='a', second='b', k=4.0, length=1.0)],
     space=EuclideanSpace(3),
 )
@@ -1900,7 +1900,7 @@ from skcomplex.core.analysis import equations_of, solve_symbolically
 from skcomplex.core.model import HarmonicPotential
 
 oscillator = System(
-    elements=[Particle('p', x=1.0)],
+    components=[Particle('p', x=1.0)],
     interactions=[HarmonicPotential('trap', target='p', k=4.0)],
     space=EuclideanSpace(1),
 )

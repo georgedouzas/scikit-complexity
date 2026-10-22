@@ -32,7 +32,7 @@ Saver = Element.define(
         'sigma': parameter(default=0.5, domain=Domain.NONNEGATIVE),
         'degree': parameter(default=1.0, domain=Domain.POSITIVE),
     },
-    laws=lambda s: [Rate(s.W, s.J / s.degree * laplacian(s.W)), Noise(s.W, s.sigma * s.W)],
+    laws=lambda s: [Rate(s.W, s.J / s.degree * laplacian(s.W)), Noise(s.W, s.sigma * s.W, convention='stratonovich')],
 )
 
 
@@ -48,7 +48,7 @@ MeanFieldSaver = Element.define(
         'J': parameter(default=1.0, domain=Domain.NONNEGATIVE),
         'sigma': parameter(default=0.5, domain=Domain.NONNEGATIVE),
     },
-    laws=lambda s: [Rate(s.W, _mean_exchange(s)), Noise(s.W, s.sigma * s.W)],
+    laws=lambda s: [Rate(s.W, _mean_exchange(s)), Noise(s.W, s.sigma * s.W, convention='stratonovich')],
 )
 
 
@@ -57,6 +57,7 @@ MeanFieldSaver = Element.define(
     tags=('wealth', 'sde', 'network', 'pareto'),
     references=('Yakovenko and Rosser 2009', 'Bouchaud and Mezard 2000'),
     defaults={'until': 1.0, 'dt': 0.1},
+    observables=lambda system: [Observable('mean_wealth', group='agents', variable='W')],
 )
 def bouchaud_mezard_wealth(
     n_agents: int = 20,
@@ -106,8 +107,4 @@ def bouchaud_mezard_wealth(
         degree = 2 * nx.number_of_edges(graph) / nx.number_of_nodes(graph)
         values = {'W': wealth, 'J': J, 'sigma': sigma, 'degree': degree}
         agents = Field('agents', Saver, NetworkSpace(graph), values=values)
-    return System(
-        elements=[agents],
-        observables=[Observable('mean_wealth', group='agents', variable='W')],
-        noise='stratonovich',
-    )
+    return System(components=[agents])

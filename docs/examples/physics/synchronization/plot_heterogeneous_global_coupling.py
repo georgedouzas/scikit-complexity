@@ -16,7 +16,7 @@ import numpy as np
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'heterogeneous_global_coupling'
 
@@ -29,7 +29,13 @@ def coupling_at(time):
     return 0.0 if time < 15.0 else 2.0
 
 
-simulation = Simulation(system, dt=0.2, observers=[observer], schedule={'coupling.K': coupling_at}).run(until=40)
+simulation = Simulation(
+    system,
+    dt=0.2,
+    observers=[observer],
+    schedule={'coupling.K': coupling_at},
+    observables=describe(MODEL).observables_of(system),
+).run(until=40)
 
 # %%
 # The window of stability
@@ -51,7 +57,12 @@ leading = [max((nu - k / 2 + sign * np.sqrt(k**2 / 4 + sigma**2 * nu**2)).real f
 couplings = [0.1, 0.3, 0.6, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 12.0, 16.0]
 rates = []
 for k in couplings:
-    run = Simulation(create(MODEL, n_systems=50, k=k), dt=0.5).run(until=100).trajectory_
+    model_system = create(MODEL, n_systems=50, k=k)
+    run = (
+        Simulation(model_system, dt=0.5, observables=describe(MODEL).observables_of(model_system))
+        .run(until=100)
+        .trajectory_
+    )
     times, amplitude = np.asarray(run.times), np.asarray(run['amplitude'])
     late = (times >= 10.0) & (amplitude > 1e-8)
     rates.append(np.polyfit(times[late], np.log(amplitude[late]), 1)[0])

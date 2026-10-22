@@ -428,7 +428,7 @@ def moran_process(
     traits = np.zeros(size)
     traits[:mutants] = 1.0
     return System(
-        elements=[Individual.group('population', size, trait=traits, fitness=(1 + selection) ** traits)],
+        components=[Individual.group('population', size, trait=traits, fitness=(1 + selection) ** traits)],
         interactions=[MoranStep('moran', population='population', selection=selection, mutation=mutation)],
     )
 
@@ -502,7 +502,7 @@ def tangled_nature(
         seed=seed,
     )
     visual = VisualSpec('traits', {'color_by': 'trait', 'shown': ('distinct',)})
-    return System(elements=[Individual.group(ORGANISMS, organisms, trait=genome, visual=visual)], interactions=[step])
+    return System(components=[Individual.group(ORGANISMS, organisms, trait=genome, visual=visual)], interactions=[step])
 
 
 @register_model(
@@ -548,7 +548,7 @@ def adaptive_climbing(
     """
     fitness = _random_fitness(0, seed)
     return System(
-        elements=[
+        components=[
             Individual.group(
                 'population',
                 size,
@@ -616,4 +616,4 @@ def nk_landscape(
         k=float(k),
         seed=float(seed),
     )
-    return System(elements=[group])
+    return System(components=[group])

@@ -83,7 +83,7 @@ def test_create_matches_components():
     """Test that a model created by name runs like the same model built from its components."""
     created = create('lotka_volterra', a=0.2)
     built = System(
-        elements=[Population('prey', n=40.0), Population('predators', n=9.0)],
+        components=[Population('prey', n=40.0), Population('predators', n=9.0)],
         interactions=[
             ExponentialGrowth('growth', target='prey', r=1.1),
             Predation('predation', predator='predators', prey='prey', a=0.2, b=0.1),
@@ -229,7 +229,7 @@ def test_reductions_agree_with_observables(entry):
         pytest.skip('The model has no observable that laws read at the current state.')
     model.label = 'model'
     probes = [ObservedValue(f'probe_{index}') for index in range(len(paths))]
-    problem = compile_system(System(systems=[model], elements=probes, interactions=_readers(paths)), backend='numpy')
+    problem = compile_system(System(components=[*probes, *[model]], interactions=_readers(paths)), backend='numpy')
     reading = next((item.problem for item in problem.partitions if 'probe_0' in item.owners), problem)
     x, p = problem.initial_state, problem.initial_parameters
     rates = reading.drift(0.0, x, p)

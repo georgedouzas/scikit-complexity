@@ -73,7 +73,7 @@ def _lennard_jones_gas(n=100, interactions=(), period=None):
     """Return a Lennard-Jones gas on a lattice with random velocities."""
     velocities = np.random.default_rng(0).normal(0, 0.5, (n, 2))
     return System(
-        elements=[Particle.group('gas', n, x=_lattice(n), v=velocities)],
+        components=[Particle.group('gas', n, x=_lattice(n), v=velocities)],
         interactions=[LennardJones('lj', first='gas', second='gas', cutoff=CUTOFF, period=period), *interactions],
         space=EuclideanSpace(2),
     )
@@ -103,7 +103,7 @@ def test_lammps_trajectory_has_native_names_and_shapes():
 def test_lammps_rejects_population_model():
     """Test that a Lotka-Volterra system names the backend and every unsupported item."""
     system = System(
-        elements=[Population('rabbits', n=40), Population('foxes', n=9)],
+        components=[Population('rabbits', n=40), Population('foxes', n=9)],
         interactions=[
             LogisticGrowth('growth', target='rabbits'),
             Predation('hunt', predator='foxes', prey='rabbits'),
@@ -119,7 +119,7 @@ def test_lammps_rejects_population_model():
 def test_lammps_rejects_pair_energy_without_lepton_form():
     """Test that a pair energy with a function Lepton does not know is reported as unsupported."""
     system = System(
-        elements=[Particle.group('gas', 4, x=_lattice(4))],
+        components=[Particle.group('gas', 4, x=_lattice(4))],
         interactions=[Hyperbolic('hyperbolic', first='gas', second='gas', cutoff=1.0)],
         space=EuclideanSpace(2),
     )
@@ -129,7 +129,7 @@ def test_lammps_rejects_pair_energy_without_lepton_form():
 
 def test_lammps_rejects_groups_with_different_masses():
     """Test that a group whose members have different masses is reported as unsupported."""
-    system = System(elements=[Particle.group('gas', 2, x=_lattice(2), m=[1.0, 2.0])], space=EuclideanSpace(2))
+    system = System(components=[Particle.group('gas', 2, x=_lattice(2), m=[1.0, 2.0])], space=EuclideanSpace(2))
     with pytest.raises(BackendError, match='different masses'):
         Simulation(system, solver=LammpsBackend()).run(until=0.1)
 
@@ -137,7 +137,7 @@ def test_lammps_rejects_groups_with_different_masses():
 def test_lammps_rejects_mixed_boxes():
     """Test that periodic and reflecting boxes in one system are reported as unsupported."""
     system = System(
-        elements=[Particle.group('a', 4, x=_lattice(4)), Particle.group('b', 4, x=_lattice(4) + 2.0)],
+        components=[Particle.group('a', 4, x=_lattice(4)), Particle.group('b', 4, x=_lattice(4) + 2.0)],
         interactions=[PeriodicBox('wrap', target='a', size=5.0), ReflectingBox('walls', target='b', size=5.0)],
         space=EuclideanSpace(2),
     )
@@ -148,7 +148,7 @@ def test_lammps_rejects_mixed_boxes():
 def test_lammps_custom_pair_energy_matches_native_forces():
     """Test that a Lepton pair energy gives the native velocity change within 1e-8 relative error."""
     system = System(
-        elements=[Particle.group('gas', 100, x=_lattice(100) + np.random.default_rng(1).normal(0, 0.05, (100, 2)))],
+        components=[Particle.group('gas', 100, x=_lattice(100) + np.random.default_rng(1).normal(0, 0.05, (100, 2)))],
         interactions=[Exponential('exp', first='gas', second='gas', cutoff=CUTOFF, eps=2.0)],
         space=EuclideanSpace(2),
     )
@@ -160,7 +160,7 @@ def test_lammps_custom_pair_energy_matches_native_forces():
 def test_lammps_conditional_pair_energy_matches_native_forces():
     """Test that a pair energy with a condition on the distance gives the native velocity change in LAMMPS."""
     system = System(
-        elements=[Particle.group('gas', 100, x=_lattice(100) + np.random.default_rng(1).normal(0, 0.1, (100, 2)))],
+        components=[Particle.group('gas', 100, x=_lattice(100) + np.random.default_rng(1).normal(0, 0.1, (100, 2)))],
         interactions=[Stepwise('contact', first='gas', second='gas', cutoff=CUTOFF)],
         space=EuclideanSpace(2),
     )
@@ -220,7 +220,7 @@ def test_lammps_thermostat_temperature_changes_live():
     """Test that raising the thermostat temperature during a LAMMPS run heats the gas towards it."""
     gas = ideal_gas(1000, kT=1.0, size=30.0, random_state=0)
     system = System(
-        elements=gas.elements,
+        components=gas.elements,
         interactions=[*gas.interactions, LangevinThermostat('bath', target='gas', temperature=1.0, gamma=2.0)],
         space=gas.space,
     )
@@ -247,7 +247,7 @@ def test_lammps_runs_10000_atoms_in_real_time():
     """Test that 10000 Lennard-Jones atoms keep a real-time clock within 0.2 seconds on LAMMPS."""
     n = 10_000
     system = System(
-        elements=[Particle.group('gas', n, x=_lattice(n), v=np.random.default_rng(0).normal(0, 1, (n, 2)))],
+        components=[Particle.group('gas', n, x=_lattice(n), v=np.random.default_rng(0).normal(0, 1, (n, 2)))],
         interactions=[
             LennardJones('lj', first='gas', second='gas', cutoff=CUTOFF),
             ReflectingBox('box', target='gas', size=121.0),

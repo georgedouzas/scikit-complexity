@@ -9,6 +9,7 @@ from scipy.optimize import brentq
 from scipy.special import gammaln
 
 from skcomplex.core.runtime import Simulation
+from skcomplex.models import describe
 from skcomplex.models.biology.ecology import neutral_biodiversity, neutral_clustering
 from skcomplex.models.biology.epidemiology import heterogeneous_mean_field_sir
 from skcomplex.models.biology.evolution import origin_fixation_walk
@@ -43,7 +44,15 @@ def test_heterogeneous_mean_field_sir_epidemic_threshold(factor, below):
     """Test that the final epidemic size is below 1% below the threshold <k>/<k^2> and above 5% above it."""
     _, _, first, second = _degree_moments(2.5, 3, 100)
     beta = factor * first / second
-    trajectory = Simulation(heterogeneous_mean_field_sir(beta=beta, mu=1.0), dt=1.0).run(until=200).trajectory_
+    trajectory = (
+        Simulation(
+            built := heterogeneous_mean_field_sir(beta=beta, mu=1.0),
+            dt=1.0,
+            observables=describe('heterogeneous_mean_field_sir').observables_of(built),
+        )
+        .run(until=200)
+        .trajectory_
+    )
     final_size = trajectory['recovered'][-1]
     assert trajectory['infected'][-1] < 1e-6
     assert (final_size < 0.01) if below else (final_size > 0.05)
@@ -54,7 +63,11 @@ def test_heterogeneous_mean_field_sir_early_growth_rate():
     degrees, probabilities, first, second = _degree_moments(2.5, 3, 100)
     beta, mu = 0.13, 1.0
     system = heterogeneous_mean_field_sir(beta=beta, mu=mu, infected=1e-9)
-    trajectory = Simulation(system, dt=0.5).run(until=12).trajectory_
+    trajectory = (
+        Simulation(system, dt=0.5, observables=describe('heterogeneous_mean_field_sir').observables_of(system))
+        .run(until=12)
+        .trajectory_
+    )
     theta = trajectory['network.i'] @ ((degrees - 1) * probabilities) / first
     selected = trajectory.times >= 4
     rate = np.polyfit(trajectory.times[selected], np.log(theta[selected]), 1)[0]
@@ -65,7 +78,11 @@ def test_origin_fixation_walk_samples_fitness_to_the_power_n_minus_one():
     """Test that the time spent on each genome of four loci matches the stationary law Q ~ f^(N - 1)."""
     loci, size = 4, 10.0
     system = origin_fixation_walk(loci, N=size, mu=1.0, field=0.1, coupling=0.3, random_state=1)
-    trajectory = Simulation(system, dt=1.0, random_state=0).run(until=5000).trajectory_
+    trajectory = (
+        Simulation(system, dt=1.0, random_state=0, observables=describe('origin_fixation_walk').observables_of(system))
+        .run(until=5000)
+        .trajectory_
+    )
     alleles = trajectory['genome.s'][100:]
     visited = np.bincount(((alleles > 0) * 2 ** np.arange(loci)).sum(axis=1).astype(int), minlength=2**loci)
     fields = system.elements[0].values['h']
@@ -78,7 +95,11 @@ def test_origin_fixation_walk_samples_fitness_to_the_power_n_minus_one():
 def test_origin_fixation_walk_climbs_the_landscape():
     """Test that a large population ends near the single peak of a landscape of random fields."""
     system = origin_fixation_walk(16, N=1000.0, mu=0.01, random_state=0)
-    trajectory = Simulation(system, dt=10.0, random_state=0).run(until=1000).trajectory_
+    trajectory = (
+        Simulation(system, dt=10.0, random_state=0, observables=describe('origin_fixation_walk').observables_of(system))
+        .run(until=1000)
+        .trajectory_
+    )
     fields = system.elements[0].values['h']
     assert trajectory['fitness'][-1] == pytest.approx(1.0 + np.abs(fields).sum(), abs=0.02)
     assert trajectory['fitness'][-1] > trajectory['fitness'][0]
@@ -89,7 +110,13 @@ def test_neutral_biodiversity_species_number_matches_ewens_sum():
     size, nu = 100, 0.02
     theta = (size - 1) * nu / (1 - nu)
     trajectory = (
-        Simulation(neutral_biodiversity(size, nu=nu, random_state=0), random_state=0).run(until=3000).trajectory_
+        Simulation(
+            built := neutral_biodiversity(size, nu=nu, random_state=0),
+            random_state=0,
+            observables=describe('neutral_biodiversity').observables_of(built),
+        )
+        .run(until=3000)
+        .trajectory_
     )
     expected = np.sum(theta / (theta + np.arange(size)))
     assert trajectory['richness'][500:].mean() == pytest.approx(expected, rel=0.05)
@@ -99,7 +126,16 @@ def test_neutral_clustering_variance_grows_linearly_without_hops():
     """Test that without hops the variance over 400 patches, averaged over six runs, grows as 2 alpha n t."""
     system = neutral_clustering(400, n=10.0, alpha=1.0, beta=0.0)
     runs = [
-        Simulation(system, dt=2.0, random_state=seed, backend='numba').run(until=10).trajectory_ for seed in range(6)
+        Simulation(
+            system,
+            dt=2.0,
+            random_state=seed,
+            backend='numba',
+            observables=describe('neutral_clustering').observables_of(system),
+        )
+        .run(until=10)
+        .trajectory_
+        for seed in range(6)
     ]
     times = runs[0].times
     assert np.mean([run['mean'][-1] for run in runs]) == pytest.approx(10.0, rel=0.1)
@@ -111,7 +147,15 @@ def test_neutral_clustering_hops_slow_but_keep_the_clustering():
     sites, until = 64, 20.0
     system = neutral_clustering(sites, n=10.0, alpha=1.0, beta=1.0)
     variances = [
-        Simulation(system, dt=5.0, random_state=seed, backend='numba').run(until=until).trajectory_['variance']
+        Simulation(
+            system,
+            dt=5.0,
+            random_state=seed,
+            backend='numba',
+            observables=describe('neutral_clustering').observables_of(system),
+        )
+        .run(until=until)
+        .trajectory_['variance']
         for seed in range(32)
     ]
     times = np.arange(0.0, until + 1, 5.0)
@@ -136,7 +180,11 @@ def test_perishable_goods_duopoly_symmetry_breaking(ratio):
     control = 1.0
     critical = control / (1 + control) ** 2
     system = perishable_goods_duopoly(200, stock=0.5, tau_a=1.0, T=ratio * critical, random_state=0)
-    asymmetry = np.abs(Simulation(system, random_state=0).run(until=300).trajectory_['m'][-50:]).mean()
+    asymmetry = np.abs(
+        Simulation(system, random_state=0, observables=describe('perishable_goods_duopoly').observables_of(system))
+        .run(until=300)
+        .trajectory_['m'][-50:],
+    ).mean()
     if ratio < 1:
         assert asymmetry == pytest.approx(_asymmetry_at_mean_field(ratio * critical, control), abs=0.1)
     else:
@@ -153,7 +201,11 @@ def test_standardized_agents_match_the_exact_equilibrium():
     weights += K * marked * (marked - 1) / (2 * size * temperature)
     probabilities = np.exp(weights - weights.max()) / np.exp(weights - weights.max()).sum()
     system = standardized_agents(size, K=K, J=0.0, T=temperature, H=configurations, standardized=0.0, random_state=0)
-    q = Simulation(system, random_state=0).run(until=5000).trajectory_['q']
+    q = (
+        Simulation(system, random_state=0, observables=describe('standardized_agents').observables_of(system))
+        .run(until=5000)
+        .trajectory_['q']
+    )
     assert q[200:].mean() == pytest.approx(np.sum(probabilities * marked / size), abs=0.04)
 
 
@@ -161,7 +213,11 @@ def test_standardized_agents_match_the_exact_equilibrium():
 def test_standardized_agents_order_below_t_m(temperature, ordered):
     """Test that standardized agents magnetize below T_M = J, to the root of m = tanh(J m / T), and not above."""
     system = standardized_agents(100, K=10.0, J=1.0, T=temperature, H=50, random_state=0)
-    trajectory = Simulation(system, random_state=0).run(until=1000).trajectory_
+    trajectory = (
+        Simulation(system, random_state=0, observables=describe('standardized_agents').observables_of(system))
+        .run(until=1000)
+        .trajectory_
+    )
     magnetization = np.abs(trajectory['m'][-200:]).mean()
     assert trajectory['q'][-200:].mean() > 0.95
     if ordered:

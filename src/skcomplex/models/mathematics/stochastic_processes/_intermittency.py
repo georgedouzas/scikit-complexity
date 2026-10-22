@@ -14,7 +14,7 @@ IntermittentVariable = Element.define(
     'IntermittentVariable',
     states={'x': state(default=1.0, domain=Domain.POSITIVE)},
     parameters={'epsilon': 0.0, 'D': parameter(default=0.5, domain=Domain.POSITIVE)},
-    laws=lambda s: [Rate(s.x, s.epsilon * s.x - s.x**3), Noise(s.x, sqrt(2 * s.D) * s.x)],
+    laws=lambda s: [Rate(s.x, s.epsilon * s.x - s.x**3), Noise(s.x, sqrt(2 * s.D) * s.x, convention='stratonovich')],
 )
 
 
@@ -57,8 +57,8 @@ def on_off_intermittency(
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import on_off_intermittency
-        >>> on_off_intermittency(5).noise
-        'stratonovich'
+        >>> on_off_intermittency(5).components[0].size
+        5
     """
     variables = IntermittentVariable.group('variables', n_realizations, x=x, epsilon=epsilon, D=D)
-    return System(elements=[variables], noise='stratonovich')
+    return System(components=[variables])

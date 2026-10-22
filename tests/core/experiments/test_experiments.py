@@ -71,7 +71,7 @@ def test_replicates_are_independent():
 
 def test_orbit_diagram_sweep():
     """Test that a sweep of 200 growth rates of the logistic map keeps the last 100 values of each run."""
-    system = System(elements=[LogisticMap('map')])
+    system = System(components=[LogisticMap('map')])
     rates = np.linspace(2.8, 4.0, 200)
     result = Experiment(system, Grid(**{'map.r': rates}), until=400, warmup=301, outputs=['map.x']).run()
     assert len(result.rows) == 200
@@ -147,12 +147,10 @@ def _ishigami(s):
 
 def test_sobol_indices_of_ishigami():
     """Test that Sobol first-order indices of the Ishigami function match the known values within 0.05."""
-    system = System(
-        elements=[Point('p')],
-        observables=[Observable('y', _ishigami)],
-    )
+    system = System(components=[Point('p')])
     bounds = {f'p.x{index}': (-math.pi, math.pi) for index in (1, 2, 3)}
-    result = sensitivity(system, bounds, 'y', method='sobol', n=2048, until=0, random_state=0)
+    observables = [Observable('y', _ishigami)]
+    result = sensitivity(system, bounds, 'y', method='sobol', n=2048, until=0, random_state=0, observables=observables)
     expected = {'p.x1': 0.3139, 'p.x2': 0.4424, 'p.x3': 0.0}
     for name, value in expected.items():
         assert result.indices[name]['S1'] == pytest.approx(value, abs=0.05)

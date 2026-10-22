@@ -17,7 +17,7 @@ def _walkers(hurst, members=1000, fractional=True):
         states={'x': 0.0},
         laws=lambda s: [FractionalNoise(s.x, 1, hurst=hurst) if fractional else Noise(s.x, 1)],
     )
-    return System(elements=[walker.group('w', members)])
+    return System(components=[walker.group('w', members)])
 
 
 @pytest.mark.parametrize('hurst', [0.2, 0.5, 0.8])
@@ -95,7 +95,7 @@ def test_fractional_euler_maruyama_rejects_a_changed_hurst_index():
         laws=lambda s: [FractionalNoise(s.x, 1, hurst=s.H)],
     )
     solver = FractionalEulerMaruyama(dt=0.1, horizon=10)
-    simulation = Simulation(System(elements=[walker('w')]), solver=solver, dt=1, random_state=0)
+    simulation = Simulation(System(components=[walker('w')]), solver=solver, dt=1, random_state=0)
     simulation.run(5)
     simulation.update_parameters({'w.H': 0.6})
     with pytest.raises(SolverError, match=r'Hurst index changed'):

@@ -280,7 +280,7 @@ def influentials(
         caring=belief.argmax(axis=1).astype(float),
         influence=weights,
     )
-    return System(elements=[people], space=GridSpace(width, height, torus=True, capacity=1))
+    return System(components=[people], space=GridSpace(width, height, torus=True, capacity=1))
 
 
 @register_model(
@@ -348,7 +348,7 @@ def threshold_adoption(
         shifting=shifting,
     )
     return System(
-        elements=[people],
+        components=[people],
         interactions=[Adoption('adoption', target='people', size=size, mode=mode)],
         space=ContinuousSpace(size, size, torus=True),
     )

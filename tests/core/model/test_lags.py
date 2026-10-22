@@ -27,14 +27,14 @@ TooFar = Element.define(
 
 def test_fibonacci_recurrence():
     """Test that `x_{t+1} = x_t + x_{t-1}` from 1 and 1 gives the Fibonacci sequence."""
-    trajectory = Simulation(System(elements=[Fibonacci('f')])).run(until=8).trajectory_
+    trajectory = Simulation(System(components=[Fibonacci('f')])).run(until=8).trajectory_
     assert trajectory['f.x'].tolist() == [1, 2, 3, 5, 8, 13, 21, 34, 55]
     assert trajectory['f.x_lag1'].tolist()[:3] == [1, 1, 2]
 
 
 def test_multiplier_accelerator_oscillates_with_growing_amplitude():
     """Test that Samuelson's model with c v > 1 oscillates around G / (1 - c) with growing amplitude."""
-    income = Simulation(System(elements=[Income('economy')])).run(until=40).trajectory_['economy.Y']
+    income = Simulation(System(components=[Income('economy')])).run(until=40).trajectory_['economy.Y']
     deviation = income - 20.0 / (1 - 0.8)
     assert np.any(deviation[1:] * deviation[:-1] < 0)
     first, last = np.abs(deviation[:10]).max(), np.abs(deviation[-10:]).max()
@@ -46,4 +46,4 @@ def test_multiplier_accelerator_oscillates_with_growing_amplitude():
 def test_lag_beyond_kept_values_is_rejected():
     """Test that reading a lag the state does not keep raises an error naming the lag."""
     with pytest.raises(ValidationError, match=r'lag\(.*, 2\)'):
-        Simulation(System(elements=[TooFar('t')])).run(until=1)
+        Simulation(System(components=[TooFar('t')])).run(until=1)

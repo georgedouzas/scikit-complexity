@@ -137,4 +137,4 @@ def graph_ising(
     spins = np.ones(size) if initial == 'up' else rng.choice([-1.0, 1.0], size=size)
     space = NetworkSpace(graph)
     group = GraphIsingSpin.lattice('spins', space, spin=spins, J=J, h=h, temperature=temperature, sampler=sampler)
-    return System(elements=[group])
+    return System(components=[group])

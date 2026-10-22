@@ -470,7 +470,7 @@ def stigmergic_predator_prey(
     flag = float(emotions)
     life = System(
         'life',
-        elements=[
+        components=[
             Plant.group(PLANTS, plants, location=plant_cells, age=rng.integers(0, 4, plants).astype(float)),
             StigmergicPrey.group(PREY, prey, location=prey_cells, emotions=flag, **PREY_TRAITS),
             StigmergicPredator.group(PREDATORS, predators, location=predator_cells, emotions=flag, **PREDATOR_TRAITS),
@@ -478,4 +478,4 @@ def stigmergic_predator_prey(
         space=GridSpace(width, height, torus=True),
     )
     marks = Field('marks', EmotionMarks, LatticeSpace((width, height)), values={'decay': decay})
-    return System(systems=[life, System('ground', elements=[marks])])
+    return System(components=[life, System('ground', components=[marks])])

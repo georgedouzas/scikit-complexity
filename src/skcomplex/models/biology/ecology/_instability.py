@@ -151,4 +151,4 @@ def intrinsic_instability(
         p=p,
         sigma=sigma,
     )
-    return System(elements=[populations])
+    return System(components=[populations])

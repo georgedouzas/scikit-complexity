@@ -67,7 +67,7 @@ def heat_diffusion(
     u[middle] = 1.0
     condition = ('fixed', 0.0) if boundary == 'fixed' else boundary
     space = LatticeSpace(shape, spacing=spacing)
-    return System(elements=[Field('plate', Heat, space, boundary={'u': condition}, values={'u': u, 'D': D})])
+    return System(components=[Field('plate', Heat, space, boundary={'u': condition}, values={'u': u, 'D': D})])
 
 
 def harmonic(x: Array, y: Array) -> Array:
@@ -130,7 +130,7 @@ def heat_l_shape(
     """
     mesh = Mesh.l_shape(refine)
     return System(
-        elements=[
+        components=[
             Field(
                 'plate',
                 Heat,

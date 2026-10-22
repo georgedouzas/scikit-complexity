@@ -21,14 +21,14 @@ def test_views_and_logs_of_graphs_and_turtles(tmp_path):
     interface.add_nodes_from('ab')
     production = GraphProduction(nx.Graph([('a', 'b')]), interface, nx.Graph([('a', 'c'), ('c', 'b')]))
     graph = System(
-        elements=[HostGraph('graph', graph=nx.cycle_graph(3))],
+        components=[HostGraph('graph', graph=nx.cycle_graph(3))],
         interactions=[Rewrite('rules', target='graph', rules=[production])],
     )
     tree = System(
-        elements=[Word('tree', axiom='F', turtle=Turtle(angle=30.0, dimension=3))],
+        components=[Word('tree', axiom='F', turtle=Turtle(angle=30.0, dimension=3))],
         interactions=[Rewrite('rules', target='tree', rules=[Production('F', 'F[&F][/^F]')])],
     )
-    plain = System(elements=[Word('word', axiom='F', turtle=Turtle())])
+    plain = System(components=[Word('word', axiom='F', turtle=Turtle())])
     assert _views(graph) == [rrb.GraphView, rrb.TimeSeriesView]
     assert _views(tree) == [rrb.Spatial3DView, rrb.TimeSeriesView]
     assert _views(plain) == [rrb.Spatial2DView, rrb.TimeSeriesView]

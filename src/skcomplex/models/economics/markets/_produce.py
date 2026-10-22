@@ -158,6 +158,10 @@ class Shopper(AgentType):
     tags=('market', 'agents', 'heterogeneity'),
     references=('Hamill and Gilbert 2016',),
     defaults={'until': 10},
+    observables=lambda system: [
+        Observable('items_left', _items_left, group='shoppers'),
+        Observable('spent', group='shoppers', variable='spent'),
+    ],
 )
 def produce_market(
     n_shoppers: int = 50,
@@ -201,9 +205,5 @@ def produce_market(
     stalls = Stall.group('stalls', n_stalls, stall=np.arange(n_stalls, dtype=float), stock=stocks, markup=markups)
     shoppers = Shopper.group('shoppers', n_shoppers, wanted=lists)
     return System(
-        elements=[stalls, shoppers],
-        observables=[
-            Observable('items_left', _items_left, group='shoppers'),
-            Observable('spent', group='shoppers', variable='spent'),
-        ],
+        components=[stalls, shoppers],
     )

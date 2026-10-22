@@ -147,4 +147,4 @@ def deffuant(
         convergence=convergence,
         visual=visual,
     )
-    return System(elements=[people], interactions=[Encounters('meetings', target='people')])
+    return System(components=[people], interactions=[Encounters('meetings', target='people')])

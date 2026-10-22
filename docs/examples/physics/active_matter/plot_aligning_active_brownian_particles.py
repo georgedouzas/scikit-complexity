@@ -20,7 +20,7 @@ import rerun.blueprint as rrb
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import EulerMaruyama
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'aligning_active_brownian_particles'
 
@@ -39,7 +39,14 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, gamma=1.0, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=1.0, solver=EulerMaruyama(dt=0.05), observers=[observer], random_state=0).run(
+simulation = Simulation(
+    system,
+    dt=1.0,
+    solver=EulerMaruyama(dt=0.05),
+    observers=[observer],
+    random_state=0,
+    observables=describe(MODEL).observables_of(system),
+).run(
     until=100,
 )
 
@@ -56,7 +63,14 @@ threshold = 2 * D_r / (math.pi * d0**2 * density)
 strengths = np.array([0.02, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 1.0])
 polarizations = []
 for gamma in strengths:
-    run = Simulation(create(MODEL, gamma=gamma, random_state=1), dt=1.0, solver=EulerMaruyama(dt=0.05), random_state=1)
+    model_system = create(MODEL, gamma=gamma, random_state=1)
+    run = Simulation(
+        model_system,
+        dt=1.0,
+        solver=EulerMaruyama(dt=0.05),
+        random_state=1,
+        observables=describe(MODEL).observables_of(model_system),
+    )
     polarizations.append(np.abs(run.run(until=150).trajectory_['polarization'][75:]).mean())
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(simulation.trajectory_.times, np.abs(simulation.trajectory_['polarization']))

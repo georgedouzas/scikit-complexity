@@ -409,7 +409,7 @@ def agent_based_sir(
         lockdown_length=lockdown_length,
         lockdown_d=lockdown_d,
     )
-    return System(elements=[group], space=GridSpace(width, height, neighborhood='von_neumann'))
+    return System(components=[group], space=GridSpace(width, height, neighborhood='von_neumann'))
 
 
 @register_model(
@@ -489,7 +489,7 @@ def random_walker_epidemics(
         infection=infection,
         travel=travel,
     )
-    return System(elements=[group], space=space)
+    return System(components=[group], space=space)
 
 
 @register_model(
@@ -553,4 +553,4 @@ def network_sir(
         days=days,
         m=m,
     )
-    return System(elements=[group], space=NetworkSpace(graph))
+    return System(components=[group], space=NetworkSpace(graph))

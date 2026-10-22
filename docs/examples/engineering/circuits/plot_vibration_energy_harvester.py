@@ -16,13 +16,15 @@ import numpy as np
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'vibration_energy_harvester'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.01, observers=[observer]).run(until=10)
+simulation = Simulation(system, dt=0.01, observers=[observer], observables=describe(MODEL).observables_of(system)).run(
+    until=10,
+)
 
 # %%
 # Frequency response of the voltage
@@ -36,7 +38,12 @@ natural = np.sqrt(np.linalg.eigvals(np.diag([1 / m1, 1 / m2]) @ np.array([[k1 + 
 frequencies = np.linspace(2.0, 100.0, 50)
 amplitudes = []
 for omega in frequencies:
-    run = Simulation(create(MODEL, omega=omega), dt=0.01).run(until=10).trajectory_
+    model_system = create(MODEL, omega=omega)
+    run = (
+        Simulation(model_system, dt=0.01, observables=describe(MODEL).observables_of(model_system))
+        .run(until=10)
+        .trajectory_
+    )
     amplitudes.append(np.abs(run['voltage'][-300:]).max())
 fig, ax = plt.subplots(figsize=(7, 4.5))
 ax.semilogy(frequencies, amplitudes, 'o-', markersize=3, label='simulated voltage amplitude')

@@ -972,7 +972,7 @@ class SiteVisual(Visual):
             >>> from skcomplex.core.model import Element, NetworkSpace, System
             >>> from skcomplex.core.viz import SiteVisual
             >>> Node = Element.define('Node', states={'value': state(0.0)})
-            >>> system = System(elements=[Node.lattice('nodes', NetworkSpace(nx.cycle_graph(4)))])
+            >>> system = System(components=[Node.lattice('nodes', NetworkSpace(nx.cycle_graph(4)))])
             >>> problem = compile_system(system)
             >>> [type(view).__name__ for view in SiteVisual().views(problem.elements[0], problem)]
             ['GraphView']

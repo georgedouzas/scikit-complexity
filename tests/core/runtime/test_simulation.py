@@ -34,13 +34,13 @@ class FrameCounter(Observer):
 
 def _growth(r=1.0):
     """Return a system of exponential growth."""
-    return System(elements=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=r)])
+    return System(components=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=r)])
 
 
 def _epidemic():
     """Return a stochastic SIR system."""
     return System(
-        elements=[Compartment('S', n=95), Compartment('I', n=5), Compartment('R')],
+        components=[Compartment('S', n=95), Compartment('I', n=5), Compartment('R')],
         interactions=[
             Infection('infection', susceptible='S', infected='I', beta=0.01, stochastic=True),
             Recovery('recovery', infected='I', recovered='R', gamma=0.3, stochastic=True),
@@ -58,14 +58,14 @@ def test_simulation_hands_frames_to_observers():
 
 def test_simulation_discrete_frames_are_integer_times():
     """Test that discrete maps produce frames at integer times."""
-    system = System(elements=[Market('m')], interactions=[Cobweb('c', target='m')])
+    system = System(components=[Market('m')], interactions=[Cobweb('c', target='m')])
     trajectory = Simulation(system).run(until=10).trajectory_
     assert trajectory.times.tolist() == list(map(float, range(11)))
 
 
 def test_simulation_discrete_noninteger_dt_raises_error():
     """Test that a discrete map needs an integer dt."""
-    system = System(elements=[Market('m')], interactions=[Cobweb('c', target='m')])
+    system = System(components=[Market('m')], interactions=[Cobweb('c', target='m')])
     with pytest.raises(ValidationError, match='positive integer'):
         Simulation(system, dt=0.5).run(until=1)
 
@@ -107,7 +107,7 @@ def test_simulation_update_unknown_parameter_raises_error():
 
 def test_simulation_update_invalid_value_raises_error():
     """Test that parameter values are checked against their domain."""
-    system = System(elements=[Market('m')], interactions=[Cobweb('c', target='m')])
+    system = System(components=[Market('m')], interactions=[Cobweb('c', target='m')])
     simulation = Simulation(system).run(until=1)
     with pytest.raises(ValidationError, match='positive'):
         simulation.update_parameters({'c.b': -1.0})
@@ -178,7 +178,7 @@ def test_simulation_same_random_state_is_reproducible():
 def _logistic():
     """Return a logistic population."""
     return System(
-        elements=[Population('rabbits', n=10)],
+        components=[Population('rabbits', n=10)],
         interactions=[LogisticGrowth('growth', target='rabbits', r=1.0, K=100)],
     )
 
@@ -210,7 +210,7 @@ class Saver(AgentType):
 
 def test_simulation_agent_parameters_carry_over_runs():
     """Test that an agent group parameter set between runs is read by the rules of the next run."""
-    simulation = Simulation(System(elements=[Saver.group('savers', 3)])).run(until=0)
+    simulation = Simulation(System(components=[Saver.group('savers', 3)])).run(until=0)
     simulation.update_parameters({'savers.rate': 5.0})
     trajectory = simulation.run(until=2).trajectory_
     assert trajectory.agents('savers', 2).values['savings'].tolist() == [10.0, 10.0, 10.0]

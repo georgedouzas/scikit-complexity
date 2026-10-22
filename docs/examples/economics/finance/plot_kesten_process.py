@@ -19,13 +19,19 @@ from scipy.optimize import brentq
 from skcomplex.core.analysis import ccdf
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'kesten_process'
 N_FIRMS, LOW, HIGH, STEPS = 3000, 0.48, 1.48, 250
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(create(MODEL, n_firms=N_FIRMS), observers=[observer], random_state=0).run(until=STEPS)
+model_system = create(MODEL, n_firms=N_FIRMS)
+simulation = Simulation(
+    model_system,
+    observers=[observer],
+    random_state=0,
+    observables=describe(MODEL).observables_of(model_system),
+).run(until=STEPS)
 
 # %%
 # Tail exponent

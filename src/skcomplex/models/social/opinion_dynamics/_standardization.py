@@ -154,6 +154,10 @@ class Standardization(Interaction):
     tags=('agents', 'standardization', 'phase transition', 'large deviations', 'mean field'),
     references=('Bertin 2021', 'Bertin and Jensen 2019'),
     defaults={'until': 1000},
+    observables=lambda system: [
+        Observable('q', group='agents', variable='spin', reduce=_standardization),
+        Observable('m', group='agents', variable='spin', reduce='mean'),
+    ],
 )
 def standardized_agents(
     agents: int = 100,
@@ -210,10 +214,6 @@ def standardized_agents(
     configurations = np.where(marked, rng.integers(MARKED, size=agents), rng.integers(MARKED, H + MARKED, size=agents))
     configurations = configurations.astype(float)
     return System(
-        elements=[ComplexAgent.group('agents', agents, configuration=configurations, spin=_spins_of(configurations))],
+        components=[ComplexAgent.group('agents', agents, configuration=configurations, spin=_spins_of(configurations))],
         interactions=[Standardization('standardization', agents='agents', K=K, J=J, T=T, H=H)],
-        observables=[
-            Observable('q', group='agents', variable='spin', reduce=_standardization),
-            Observable('m', group='agents', variable='spin', reduce='mean'),
-        ],
     )

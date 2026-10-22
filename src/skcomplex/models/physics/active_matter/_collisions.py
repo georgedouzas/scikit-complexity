@@ -150,11 +150,21 @@ class BinaryCollisions(Interaction):
             agent.theta = float(heading)
 
 
+def _flocking_observables(system: System) -> list[Observable]:
+    """Return the mean heading components and the polarization of the birds."""
+    return [
+        Observable('mean_cos', _cosine, group='birds'),
+        Observable('mean_sin', _sine, group='birds'),
+        Observable('polarization', _polarization),
+    ]
+
+
 @register_model(
     field='physics/active_matter',
     tags=('active matter', 'agents', 'flocking', 'collisions', 'boltzmann equation'),
     references=('Bertin, Droz, and Grégoire 2006', 'Bertin, Droz, and Grégoire 2009', 'Bertin 2021'),
     defaults={'until': 200, 'dt': 1},
+    observables=_flocking_observables,
 )
 def binary_collision_flocking(
     n_particles: int = 400,
@@ -225,14 +235,8 @@ def binary_collision_flocking(
         d0=d0,
         substeps=float(substeps),
     )
-    observables = [
-        Observable('mean_cos', _cosine, group='birds'),
-        Observable('mean_sin', _sine, group='birds'),
-        Observable('polarization', _polarization),
-    ]
     return System(
-        elements=[birds],
+        components=[birds],
         interactions=[collisions],
-        observables=observables,
         space=ContinuousSpace(size, size, torus=True),
     )

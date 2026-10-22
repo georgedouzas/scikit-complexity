@@ -102,4 +102,4 @@ def stormer_problem(
         >>> stormer_problem(alpha=2.0).elements[0].alpha
         2.0
     """
-    return System(elements=[DipoleCharge('charge', x=x, y=y, z=z, x_d1=vx, y_d1=vy, z_d1=vz, alpha=alpha)])
+    return System(components=[DipoleCharge('charge', x=x, y=y, z=z, x_d1=vx, y_d1=vy, z_d1=vz, alpha=alpha)])

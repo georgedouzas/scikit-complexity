@@ -15,13 +15,15 @@ import numpy as np
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'daisyworld'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, dt=0.5, observers=[observer]).run(until=100)
+simulation = Simulation(system, dt=0.5, observers=[observer], observables=describe(MODEL).observables_of(system)).run(
+    until=100,
+)
 
 # %%
 # Temperature regulation across luminosities
@@ -34,7 +36,12 @@ S, sigma = 917.0, 5.67e-8
 luminosities = np.linspace(0.6, 1.6, 41)
 temperatures, whites, blacks = [], [], []
 for luminosity in luminosities:
-    run = Simulation(create(MODEL, L=luminosity, white=0.05, black=0.05), dt=1.0).run(until=200).trajectory_
+    model_system = create(MODEL, L=luminosity, white=0.05, black=0.05)
+    run = (
+        Simulation(model_system, dt=1.0, observables=describe(MODEL).observables_of(model_system))
+        .run(until=200)
+        .trajectory_
+    )
     temperatures.append(run['temperature'][-1] - 273.15)
     whites.append(run['planet.white'][-1])
     blacks.append(run['planet.black'][-1])

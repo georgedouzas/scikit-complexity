@@ -111,4 +111,4 @@ def energy_return(
         reinvestment=reinvestment,
         birth_rate=birth_rate,
     )
-    return System(elements=[sector])
+    return System(components=[sector])

@@ -236,7 +236,7 @@ def ising(
     spins = np.ones(shape) if initial == 'up' else np.random.default_rng(random_state).choice([-1.0, 1.0], size=shape)
     space = LatticeSpace(shape)
     group = IsingSpin.lattice('spins', space, spin=spins, J=J, h=h, temperature=temperature, sampler=sampler)
-    return System(elements=[group])
+    return System(components=[group])
 
 
 @register_model(
@@ -288,7 +288,7 @@ def potts(
     colors = np.random.default_rng(random_state).integers(0, q, size=shape).astype(float)
     space = LatticeSpace(shape)
     group = PottsSpin.lattice('spins', space, color=colors, J=J, temperature=temperature, q=q, sampler=sampler)
-    return System(elements=[group])
+    return System(components=[group])
 
 
 @register_model(
@@ -336,4 +336,4 @@ def xy(
     angles = np.random.default_rng(random_state).uniform(0, 2 * np.pi, size=shape)
     space = LatticeSpace(shape)
     group = XYSpin.lattice('spins', space, theta=angles, J=J, temperature=temperature, width=width)
-    return System(elements=[group])
+    return System(components=[group])

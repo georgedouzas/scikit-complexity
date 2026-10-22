@@ -182,4 +182,4 @@ def fhp_lattice_gas(
     occupied = (np.random.default_rng(random_state).random((space.size, DIRECTIONS)) < probability).astype(float)
     channels = {name: occupied[:, direction] for direction, name in enumerate(CHANNELS)}
     gas = FHPSite.lattice('gas', space, visual=DENSITY_VISUAL, density=occupied.sum(axis=1), **channels)
-    return System(elements=[gas])
+    return System(components=[gas])

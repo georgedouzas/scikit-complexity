@@ -93,21 +93,21 @@ def _run_lengths(series, symbol):
 
 def test_compile_system_draws_uniform_values():
     """Test that a uniform draw has mean 0.5 and no lag-1 autocorrelation over 100000 steps."""
-    x = _run(System(elements=[Uniform('a')]), 100000)['a.x'][1:]
+    x = _run(System(components=[Uniform('a')]), 100000)['a.x'][1:]
     assert abs(x.mean() - 0.5) < 0.005
     assert abs(np.corrcoef(x[:-1], x[1:])[0, 1]) < 0.01
 
 
 def test_compile_system_draws_independently_for_members():
     """Test that 1000 normal walkers reach variance 100 after 100 steps with uncorrelated halves."""
-    final = _run(System(elements=[Walker.group('g', 1000)]), 100)['g.x'][-1]
+    final = _run(System(components=[Walker.group('g', 1000)]), 100)['g.x'][-1]
     assert final.var() == pytest.approx(100, rel=0.15)
     assert abs(np.corrcoef(final[:500], final[500:])[0, 1]) < 0.1
 
 
 def test_compile_system_reads_arguments_before_the_step():
     """Test that a draw's probability uses the state and parameter values before the step."""
-    y = _run(System(elements=[Ramp('r')]), 20)['r.y']
+    y = _run(System(components=[Ramp('r')]), 20)['r.y']
     assert y[1] == 0
     assert np.all(y[3:] == 1)
 
@@ -115,13 +115,13 @@ def test_compile_system_reads_arguments_before_the_step():
 def test_compile_system_keeps_conditions_on_draws_undecided():
     """Test that a condition on a draw with constant arguments is drawn at every step, not decided when written."""
     coin = Element.define('Coin', states={'x': 0.0}, laws=lambda s: [Update(s.x, where(bernoulli('b', 0.5) > 0, 1, 0))])
-    x = _run(System(elements=[coin('c')]), 20000)['c.x'][1:]
+    x = _run(System(components=[coin('c')]), 20000)['c.x'][1:]
     assert np.mean(x) == pytest.approx(0.5, abs=0.02)
 
 
 def test_compile_system_shares_a_draw_within_a_step():
     """Test that two uses of one draw name read the same value at every frame."""
-    trajectory = _run(System(elements=[Flip('f')]), 200)
+    trajectory = _run(System(components=[Flip('f')]), 200)
     assert np.all((trajectory['f.a'] + trajectory['f.b'])[1:] == 1)
 
 
@@ -129,25 +129,25 @@ def test_compile_system_rejects_conflicting_draws():
     """Test that one draw name with two argument lists raises an error naming both declarations."""
     declarations = r"c uses the draw name 'u' for uniform_u\(0, 1\) and for uniform_u\(0, 2\)"
     with pytest.raises(ValidationError, match=declarations):
-        compile_system(System(elements=[Conflict('c')]))
+        compile_system(System(components=[Conflict('c')]))
 
 
 def test_compile_system_rejects_draws_in_rate_laws():
     """Test that a draw in a rate law raises an error that suggests a noise law."""
     with pytest.raises(IncompatibleLawsError, match=r'Rate law of d holds the random draw normal_kick.*Noise laws'):
-        compile_system(System(elements=[Drifting('d')]))
+        compile_system(System(components=[Drifting('d')]))
 
 
 def test_transition_reaches_the_stationary_distribution():
     """Test that a two-symbol chain spends the stationary fraction of steps in its first symbol."""
-    x = _codes(_run(System(elements=[Chain('c')]), 100000)['c.x'])
+    x = _codes(_run(System(components=[Chain('c')]), 100000)['c.x'])
     stationary = quantecon.MarkovChain(np.array(CHAIN)).stationary_distributions[0]
     assert np.mean(x == 0) == pytest.approx(stationary[0], abs=0.01)
 
 
 def test_transition_follows_a_live_matrix_change():
     """Test that the run lengths of the first symbol fall from mean 10 to mean 2 after a live change."""
-    simulation = Simulation(System(elements=[Chain('c')]), dt=1.0, random_state=0).run(50000)
+    simulation = Simulation(System(components=[Chain('c')]), dt=1.0, random_state=0).run(50000)
     simulation.update_parameters({'c.stay': 0.5})
     simulation.extend(100000)
     x = _codes(simulation.trajectory_['c.x'])
@@ -158,12 +158,12 @@ def test_transition_follows_a_live_matrix_change():
 def test_transition_rejects_a_row_that_does_not_sum_to_one():
     """Test that compiling a matrix with a row that sums to 0.9 names the law, the row, and the sum."""
     with pytest.raises(ValidationError, match=r'row 0 of the transition law of b\.x.* sums to 0\.9'):
-        compile_system(System(elements=[Broken('b')]))
+        compile_system(System(components=[Broken('b')]))
 
 
 def test_transition_rejects_a_live_change_that_breaks_a_row():
     """Test that a parameter change that makes an entry negative is rejected and the value is kept."""
-    simulation = Simulation(System(elements=[Chain('c')]), dt=1.0, random_state=0).run(10)
+    simulation = Simulation(System(components=[Chain('c')]), dt=1.0, random_state=0).run(10)
     with pytest.raises(ParameterError, match=r'c\.stay.*entry \(0, 1\) of the transition law of c\.x.*below 0'):
         simulation.update_parameters({'c.stay': 1.2})
     assert simulation.problem_.parameters.read(simulation.parameters_, 'c.stay') == pytest.approx(0.9)
@@ -171,13 +171,13 @@ def test_transition_rejects_a_live_change_that_breaks_a_row():
 
 def test_emission_aligns_with_the_hidden_state():
     """Test that an identity emission matrix copies the hidden sequence frame by frame."""
-    trajectory = _run(System(elements=[_hidden([[1, 0], [0, 1]])('s')]), 2000)
+    trajectory = _run(System(components=[_hidden([[1, 0], [0, 1]])('s')]), 2000)
     assert np.array_equal(_codes(trajectory['s.h']), _codes(trajectory['s.o']))
 
 
 def test_emission_draws_from_the_selected_row():
     """Test that the observed frequencies given each hidden state match the emission rows."""
-    trajectory = _run(System(elements=[_hidden(EMISSION)('s')]), 100000)
+    trajectory = _run(System(components=[_hidden(EMISSION)('s')]), 100000)
     hidden, observed = _codes(trajectory['s.h'])[1:], _codes(trajectory['s.o'])[1:]
     for row in (0, 1):
         assert np.mean(observed[hidden == row] == 0) == pytest.approx(EMISSION[row][0], abs=0.01)
@@ -185,15 +185,15 @@ def test_emission_draws_from_the_selected_row():
 
 def test_compile_system_reproduces_runs_with_one_seed():
     """Test that a hidden Markov source run twice with random state 0 gives equal trajectories."""
-    first = _run(System(elements=[_hidden(EMISSION)('s')]), 500)
-    second = _run(System(elements=[_hidden(EMISSION)('s')]), 500)
+    first = _run(System(components=[_hidden(EMISSION)('s')]), 500)
+    second = _run(System(components=[_hidden(EMISSION)('s')]), 500)
     assert np.array_equal(_codes(first['s.o']), _codes(second['s.o']))
 
 
 def test_compile_system_ignores_the_order_of_laws():
     """Test that the same source with its laws in two orders gives equal trajectories."""
-    first = _run(System(elements=[_hidden(EMISSION, order=1)('s')]), 500)
-    second = _run(System(elements=[_hidden(EMISSION, order=2)('s')]), 500)
+    first = _run(System(components=[_hidden(EMISSION, order=1)('s')]), 500)
+    second = _run(System(components=[_hidden(EMISSION, order=2)('s')]), 500)
     assert np.array_equal(_codes(first['s.h']), _codes(second['s.h']))
     assert np.array_equal(_codes(first['s.o']), _codes(second['s.o']))
 
@@ -209,7 +209,7 @@ def test_compile_system_draws_beside_reductions():
             Update(s.s, s.s),
         ],
     )
-    trajectory = _run(System(elements=[spins.group('g', 2)]), 3)
+    trajectory = _run(System(components=[spins.group('g', 2)]), 3)
     assert trajectory['g.h'][-1].tolist() == [1.0, -1.0]
 
 
@@ -224,7 +224,7 @@ def test_compile_system_agrees_across_backends():
             Update(s.b, where(s.k > 0, bernoulli('b', 0.3), 0)),
         ],
     )
-    system = System(elements=[mixed.group('m', 50)])
+    system = System(components=[mixed.group('m', 50)])
     numpy, numba = _run(system, 300, 'numpy'), _run(system, 300, 'numba')
     for name in ('m.x', 'm.k', 'm.b'):
         assert np.allclose(numpy[name], numba[name], atol=1e-12)
@@ -233,14 +233,14 @@ def test_compile_system_agrees_across_backends():
 def test_compile_system_keeps_deterministic_maps_unchanged():
     """Test that a map without draws keeps its deterministic signature and has no draws."""
     logistic = Element.define('Logistic', states={'x': 0.3}, laws=lambda s: [Update(s.x, 3.7 * s.x * (1 - s.x))])
-    problem = compile_system(System(elements=[logistic('l')]))
+    problem = compile_system(System(components=[logistic('l')]))
     assert not problem.stochastic
     assert problem.update(0.0, problem.initial_state, problem.initial_parameters).tolist() == pytest.approx([0.777])
 
 
 def test_compile_system_writes_draws_into_equations():
     """Test that the equation of a component that draws reads the uniform value of the draw."""
-    problem = compile_system(System(elements=[Ramp('r')]))
+    problem = compile_system(System(components=[Ramp('r')]))
     assert str(problem.equations['r.y']) == 'where(bernoulli_b_r < p_r*x_r, 1, 0)'
 
 
@@ -260,7 +260,7 @@ def test_compile_system_runs_compiled_chains_fast():
     """Test that 100000 two-state chains take less than 10 times a deterministic map of the same size."""
     two = Element.define('Two', states={'x': state(default=0, domain=BINARY)}, laws=lambda s: [Transition(s.x, CHAIN)])
     flip = Element.define('Flipper', states={'x': 0.0}, laws=lambda s: [Update(s.x, 1 - s.x)])
-    chains = compile_system(System(elements=[two.group('c', 100000)]), backend='numba')
-    flips = compile_system(System(elements=[flip.group('c', 100000)]), backend='numba')
+    chains = compile_system(System(components=[two.group('c', 100000)]), backend='numba')
+    flips = compile_system(System(components=[flip.group('c', 100000)]), backend='numba')
     rng = np.random.default_rng(0)
     assert _elapsed(chains, rng) < 10 * _elapsed(flips, rng)

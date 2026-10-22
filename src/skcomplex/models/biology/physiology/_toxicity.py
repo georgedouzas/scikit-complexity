@@ -121,4 +121,4 @@ def drug_toxicity(
         0.0
     """
     patient = DrugToxicity('patient', k=k, eta=eta, dose=dose, period=period, width=width, doses=doses)
-    return System(elements=[patient])
+    return System(components=[patient])

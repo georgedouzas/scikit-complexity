@@ -77,7 +77,7 @@ def lorenz(
         >>> lorenz(rho=20.0).elements[0].rho
         20.0
     """
-    return System(elements=[Lorenz('lorenz', x=x, y=y, z=z, sigma=sigma, rho=rho, beta=beta)])
+    return System(components=[Lorenz('lorenz', x=x, y=y, z=z, sigma=sigma, rho=rho, beta=beta)])
 
 
 @register_model(
@@ -125,7 +125,7 @@ def rossler(
         >>> rossler(c=4.0).elements[0].c
         4.0
     """
-    return System(elements=[Rossler('rossler', x=x, y=y, z=z, a=a, b=b, c=c)])
+    return System(components=[Rossler('rossler', x=x, y=y, z=z, a=a, b=b, c=c)])
 
 
 Jerk = Element.define(
@@ -173,7 +173,7 @@ def sprott_jerk(
         >>> sprott_jerk(A=0.5).elements[0].A
         0.5
     """
-    return System(elements=[Jerk('jerk', x=x, x_d1=velocity, x_d2=acceleration, A=A)])
+    return System(components=[Jerk('jerk', x=x, x_d1=velocity, x_d2=acceleration, A=A)])
 
 
 BlowUp = Element.define(
@@ -212,4 +212,4 @@ def finite_time_blow_up(x: float = 1.0, *, a: float = 1.0, p: float = 2.0) -> Sy
         >>> finite_time_blow_up(p=3.0).elements[0].p
         3.0
     """
-    return System(elements=[BlowUp('growth', x=x, a=a, p=p)])
+    return System(components=[BlowUp('growth', x=x, a=a, p=p)])

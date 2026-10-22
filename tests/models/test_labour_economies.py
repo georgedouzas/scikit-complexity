@@ -4,6 +4,7 @@ import numpy as np
 from scipy.special import expit
 
 from skcomplex.core.runtime import Simulation
+from skcomplex.models import describe
 from skcomplex.models.economics.markets import brock_hommes, fair_food, labour_market, sugarscape
 from skcomplex.models.economics.markets._sugarscape import gini
 
@@ -11,7 +12,15 @@ from skcomplex.models.economics.markets._sugarscape import gini
 def test_labour_market_flow_balance():
     """Unemployment settles at s / (s + f) and every hire takes an offer of the same step."""
     separation = 0.05
-    trajectory = Simulation(labour_market(150, 30, separation=separation), random_state=0).run(until=150).trajectory_
+    trajectory = (
+        Simulation(
+            built := labour_market(150, 30, separation=separation),
+            random_state=0,
+            observables=describe('labour_market').observables_of(built),
+        )
+        .run(until=150)
+        .trajectory_
+    )
     window = slice(50, None)
     finding = np.nansum(trajectory['labour.volume'][window]) / np.nansum(trajectory['office.searching'][window])
     unemployment = trajectory['unemployment'][window].mean()
@@ -25,7 +34,15 @@ def test_labour_market_flow_balance():
 
 def _fair_share(**kwargs):
     """Return the mean share of fair food over the last steps of a run."""
-    trajectory = Simulation(fair_food(12, 12, **kwargs), random_state=0).run(until=25).trajectory_
+    trajectory = (
+        Simulation(
+            built := fair_food(12, 12, **kwargs),
+            random_state=0,
+            observables=describe('fair_food').observables_of(built),
+        )
+        .run(until=25)
+        .trajectory_
+    )
     return trajectory['fair_share'][-10:].mean()
 
 

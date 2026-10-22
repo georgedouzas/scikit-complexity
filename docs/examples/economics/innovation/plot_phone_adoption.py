@@ -18,13 +18,19 @@ import numpy as np
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'phone_adoption'
 THRESHOLD, YEARS = 1.2, 50
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(create(MODEL, random_state=0), observers=[observer], random_state=0).run(until=18)
+model_system = create(MODEL, random_state=0)
+simulation = Simulation(
+    model_system,
+    observers=[observer],
+    random_state=0,
+    observables=describe(MODEL).observables_of(model_system),
+).run(until=18)
 
 # %%
 # Adoption against affordability
@@ -33,7 +39,12 @@ simulation = Simulation(create(MODEL, random_state=0), observers=[observer], ran
 # a phone should rise along an S-curve below the share that can afford one, starting with the upper class, and the lag
 # should be longest for the lower class, whose quarter the phones reach last.
 
-trajectory = Simulation(create(MODEL, random_state=0), random_state=0).run(until=YEARS).trajectory_
+model_system = create(MODEL, random_state=0)
+trajectory = (
+    Simulation(model_system, random_state=0, observables=describe(MODEL).observables_of(model_system))
+    .run(until=YEARS)
+    .trajectory_
+)
 frames = range(len(trajectory.times))
 households = [trajectory.agents('households', frame).values for frame in frames]
 classes = households[0]['social_class']

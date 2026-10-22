@@ -40,7 +40,7 @@ def solow(k: float = 1.0, *, s: float = 0.2, alpha: float = 0.3, delta: float = 
         0.3
     """
     return System(
-        elements=[Economy('economy', k=k)],
+        components=[Economy('economy', k=k)],
         interactions=[SolowGrowth('growth', target='economy', s=s, alpha=alpha, delta=delta)],
     )
 
@@ -96,7 +96,7 @@ def multiplier_accelerator(
         >>> multiplier_accelerator(v=0.5).elements[0].v
         0.5
     """
-    return System(elements=[Income('economy', Y=income, Y_lag1=previous, c=c, v=v, G=G)])
+    return System(components=[Income('economy', Y=income, Y_lag1=previous, c=c, v=v, G=G)])
 
 
 class Economy(Element):

@@ -65,4 +65,4 @@ def stommel(
         >>> stommel(eta2=1.0).elements[0].eta2
         1.0
     """
-    return System(elements=[StommelBoxes('ocean', T=T, S=S, eta1=eta1, eta2=eta2, eta3=eta3)])
+    return System(components=[StommelBoxes('ocean', T=T, S=S, eta1=eta1, eta2=eta2, eta3=eta3)])

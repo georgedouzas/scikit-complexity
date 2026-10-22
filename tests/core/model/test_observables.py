@@ -84,20 +84,19 @@ def _herd(s):
     return s.herd.n
 
 
+ORDER = [Observable('z', _phase_vector, group='osc'), Observable('order', _modulus)]
+
+
 def _oscillators():
-    """Return oscillators with an order parameter built from a complex mean."""
+    """Return oscillators whose order parameter `ORDER` builds from a complex mean."""
     return System(
-        elements=[Oscillator.group('osc', 50, theta=np.linspace(0, 1, 50), omega=np.linspace(0.5, 1.5, 50))],
-        observables=[
-            Observable('z', _phase_vector, group='osc'),
-            Observable('order', _modulus),
-        ],
+        components=[Oscillator.group('osc', 50, theta=np.linspace(0, 1, 50), omega=np.linspace(0.5, 1.5, 50))],
     )
 
 
 def test_order_parameter_every_frame():
     """Test that the modulus of the mean of exp(iθ) is recorded at every frame between 0 and 1."""
-    trajectory = Simulation(_oscillators(), dt=0.5).run(until=10).trajectory_
+    trajectory = Simulation(_oscillators(), dt=0.5, observables=ORDER).run(until=10).trajectory_
     order = trajectory['order']
     assert order.shape == (21,)
     assert np.all((order >= 0) & (order <= 1))
@@ -108,11 +107,11 @@ def test_order_parameter_every_frame():
 def test_expression_observable_of_elements():
     """Test that a system observable combines symbols of single elements and earlier observables."""
     system = System(
-        elements=[Population('a', n=2.0), Population('b', n=6.0)],
+        components=[Population('a', n=2.0), Population('b', n=6.0)],
         interactions=[ExponentialGrowth('g', target='a', r=1.0)],
-        observables=[Observable('total', _total), Observable('share', _share)],
     )
-    trajectory = Simulation(system, dt=0.5).run(until=1).trajectory_
+    observables = [Observable('total', _total), Observable('share', _share)]
+    trajectory = Simulation(system, dt=0.5, observables=observables).run(until=1).trajectory_
     assert np.allclose(trajectory['total'], trajectory['a.n'] + trajectory['b.n'])
     assert np.allclose(trajectory['share'], trajectory['a.n'] / trajectory['total'])
 
@@ -120,31 +119,25 @@ def test_expression_observable_of_elements():
 def test_observable_by_subsystem_path():
     """Test that an observable of a subsystem is recorded under the subsystem's path."""
     system = System(
-        systems=[
-            System(
-                'market',
-                elements=[Population('a', n=3.0)],
-                observables=[Observable('volume', _volume)],
-            ),
+        components=[
+            System('market', components=[Population('a', n=3.0)]),
         ],
     )
-    assert Simulation(system, dt=1).run(until=2).trajectory_['market/volume'].tolist() == [6.0, 6.0, 6.0]
+    simulation = Simulation(system, dt=1, observables=[Observable('market/volume', _volume)])
+    assert simulation.run(until=2).trajectory_['market/volume'].tolist() == [6.0, 6.0, 6.0]
 
 
 def test_agent_reduction_read_by_other_partition():
     """Test that the mean wealth of agents is recorded and read by an ODE in another partition."""
     system = System(
-        systems=[
-            System(
-                'village',
-                elements=[Saver.group('savers', 4)],
-                observables=[Observable('mean_wealth', group='savers', variable='wealth')],
-            ),
-            System('land', elements=[Population('soil', n=0.0)]),
+        components=[
+            System('village', components=[Saver.group('savers', 4)]),
+            System('land', components=[Population('soil', n=0.0)]),
         ],
         interactions=[Inflow('inflow', target='land/soil', source='village/mean_wealth')],
     )
-    trajectory = Simulation(system, dt=1).run(until=2).trajectory_
+    observables = [Observable('village/mean_wealth', group='savers', variable='wealth')]
+    trajectory = Simulation(system, dt=1, observables=observables).run(until=2).trajectory_
     assert trajectory['village/mean_wealth'].tolist() == [1.0, 2.0, 3.0]
     assert trajectory['land/soil.n'][-1] == pytest.approx(2.0 + 3.0)
 
@@ -152,22 +145,19 @@ def test_agent_reduction_read_by_other_partition():
 def test_observable_read_in_one_form_is_lowered():
     """Test that a law reading a symbolic observable of a system with one form reads it at the current state."""
     system = System(
-        elements=[Population.group('herd', 3, n=[1.0, 2.0, 6.0]), Population('soil')],
+        components=[Population.group('herd', 3, n=[1.0, 2.0, 6.0]), Population('soil')],
         interactions=[Inflow('inflow', target='soil', source='mean_n')],
-        observables=[Observable('mean_n', group='herd', variable='n')],
     )
-    trajectory = Simulation(system, dt=1.0).run(until=1).trajectory_
+    observables = [Observable('mean_n', group='herd', variable='n')]
+    trajectory = Simulation(system, dt=1.0, observables=observables).run(until=1).trajectory_
     assert trajectory['soil.n'][-1] == pytest.approx(trajectory['soil.n'][0] + 3.0)
 
 
 def test_unknown_symbol_is_rejected():
     """Test that an observable using a group member's symbol outside a reduction is rejected."""
-    system = System(
-        elements=[Population.group('herd', 3)],
-        observables=[Observable('bad', _herd)],
-    )
+    system = System(components=[Population.group('herd', 3)])
     with pytest.raises(AttributeError, match='herd'):
-        Simulation(system).run(until=1)
+        Simulation(system, observables=[Observable('bad', _herd)]).run(until=1)
 
 
 def test_observable_lambda_is_rejected():
@@ -183,21 +173,21 @@ def test_observable_lambda_reduction_is_rejected():
 
 
 def test_observable_module_function_pickles():
-    """Test that a system with a module-level observable pickles and records the same values once restored."""
+    """Test that a module-level observable pickles and records the same values once restored."""
     system = System(
-        elements=[Population('a', n=2.0), Population('b', n=6.0)],
+        components=[Population('a', n=2.0), Population('b', n=6.0)],
         interactions=[ExponentialGrowth('g', target='a', r=1.0)],
-        observables=[Observable('total', _total)],
     )
-    restored = pickle.loads(pickle.dumps(system))  # noqa: S301  # nosec B301: loads only what it dumped
-    expected = Simulation(system, dt=0.5).run(until=1).trajectory_['total']
-    assert np.allclose(Simulation(restored, dt=0.5).run(until=1).trajectory_['total'], expected)
+    observables = [Observable('total', _total)]
+    restored = pickle.loads(pickle.dumps(observables))  # noqa: S301  # nosec B301: loads only what it dumped
+    expected = Simulation(system, dt=0.5, observables=observables).run(until=1).trajectory_['total']
+    assert np.allclose(Simulation(system, dt=0.5, observables=restored).run(until=1).trajectory_['total'], expected)
 
 
 def test_observables_logged_to_rerun(tmp_path):
     """Test that observables are logged as time series under the path of their system."""
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd')
-    simulation = Simulation(_oscillators(), dt=0.5, observers=[observer]).run(until=1)
+    simulation = Simulation(_oscillators(), dt=0.5, observers=[observer], observables=ORDER).run(until=1)
     observer.recording_ = LoggedPaths()
     frame = Frame(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_, observables={'order': 0.5})
     observer.on_frame(frame)
@@ -217,10 +207,10 @@ def _member_timed(member):
 def test_observables_read_time():
     """Test that system observables and member expressions of reductions read the time as `s.t`."""
     system = System(
-        elements=[Population('a', n=2.0), Population.group('herd', 2, n=[1.0, 3.0])],
-        observables=[Observable('timed', _timed), Observable('member_timed', _member_timed, group='herd')],
+        components=[Population('a', n=2.0), Population.group('herd', 2, n=[1.0, 3.0])],
     )
-    trajectory = Simulation(system, dt=1.0).run(until=2).trajectory_
+    observables = [Observable('timed', _timed), Observable('member_timed', _member_timed, group='herd')]
+    trajectory = Simulation(system, dt=1.0, observables=observables).run(until=2).trajectory_
     assert trajectory['timed'].tolist() == [0.0, 2.0, 4.0]
     assert trajectory['member_timed'].tolist() == [2.0, 3.0, 4.0]
 
@@ -245,27 +235,28 @@ def _deviation_from_other(member):
 
 
 def _decaying_group(*observables):
-    """Return a decaying group of 4 members with observables."""
-    return System(elements=[Decaying.group('u', 4, x=np.arange(1.0, 5.0))], observables=list(observables))
+    """Return a simulation of a decaying group of 4 members with observables."""
+    system = System(components=[Decaying.group('u', 4, x=np.arange(1.0, 5.0))])
+    return Simulation(system, dt=0.5, observables=list(observables))
 
 
 def test_observable_reads_weighted_reduction_of_its_members():
     """Test that a member expression with a weighted total gives the local field energy at every frame."""
-    system = _decaying_group(Observable('energy', _local_field_energy, group='u', reduce='sum'))
-    trajectory = Simulation(system, dt=0.5).run(until=2).trajectory_
+    simulation = _decaying_group(Observable('energy', _local_field_energy, group='u', reduce='sum'))
+    trajectory = simulation.run(until=2).trajectory_
     x = np.asarray(trajectory['u.x'])
     np.testing.assert_allclose(trajectory['energy'], np.einsum('fi,ij,fj->f', x, FIELD_WEIGHTS, x), rtol=1e-12)
 
 
 def test_observable_reads_plain_reduction_of_its_members():
     """Test that a member expression with a plain mean gives the variance of the group at every frame."""
-    system = _decaying_group(Observable('spread', _deviation, group='u', reduce='var'))
-    trajectory = Simulation(system, dt=0.5).run(until=2).trajectory_
+    simulation = _decaying_group(Observable('spread', _deviation, group='u', reduce='var'))
+    trajectory = simulation.run(until=2).trajectory_
     np.testing.assert_allclose(trajectory['spread'], np.asarray(trajectory['u.x']).var(axis=1), rtol=1e-12)
 
 
 def test_observable_rejects_reduction_over_another_group():
     """Test that a reduction over a group other than the observable's raises the role error of laws."""
-    system = _decaying_group(Observable('other', _deviation_from_other, group='u', reduce='sum'))
+    simulation = _decaying_group(Observable('other', _deviation_from_other, group='u', reduce='sum'))
     with pytest.raises(RoleError, match=r'observable other reads a group other than u'):
-        Simulation(system, dt=0.5).run(until=1)
+        simulation.run(until=1)

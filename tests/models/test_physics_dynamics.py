@@ -9,6 +9,7 @@ from skcomplex.core.compile import compile_system
 from skcomplex.core.model import PairInteraction
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import ScipyODE
+from skcomplex.models import describe
 from skcomplex.models.physics.celestial_mechanics import (
     n_body,
     restricted_three_body,
@@ -332,7 +333,13 @@ def test_billiards_keep_the_speed_and_the_particle_on_the_table(shape):
 @pytest.mark.parametrize(('K', 'synchronized'), [(4.0, True), (0.5, False)])
 def test_kuramoto_synchronizes_above_the_critical_coupling(K, synchronized):
     """Test that the Kuramoto order parameter grows above the critical coupling and stays small below it."""
-    trajectory = _run(kuramoto(100, K=K), 40.0, 1.0, solver=ScipyODE())
+    trajectory = _run(
+        built := kuramoto(100, K=K),
+        40.0,
+        1.0,
+        solver=ScipyODE(),
+        observables=describe('kuramoto').observables_of(built),
+    )
     order = _series(trajectory, 'order')[0]
     assert (order[-10:].mean() > 0.8) == synchronized
     assert (order[-10:].mean() < 0.3) == (not synchronized)
@@ -361,7 +368,15 @@ def test_kuramoto_in_linear_time():
 def test_kuramoto_transition(factor, synchronized):
     """Test that 2000 oscillators stay incoherent at half the critical coupling and synchronize at twice it."""
     critical = 2 * math.sqrt(2 / math.pi)
-    trajectory = Simulation(kuramoto(2000, K=factor * critical), dt=0.5).run(until=100).trajectory_
+    trajectory = (
+        Simulation(
+            built := kuramoto(2000, K=factor * critical),
+            dt=0.5,
+            observables=describe('kuramoto').observables_of(built),
+        )
+        .run(until=100)
+        .trajectory_
+    )
     order = _series(trajectory, 'order')[0][trajectory.times >= 50].mean()
     assert (order > 0.6) == synchronized
     assert (order < 0.1) == (not synchronized)
@@ -373,7 +388,13 @@ def test_kuramoto_sakaguchi_populations_form_a_chimera():
     assert {(item.target, item.source) for item in system.interactions} == {
         (target, source) for target in ('first', 'second') for source in ('first', 'second')
     }
-    trajectory = _run(system, 200.0, 5.0, solver=ScipyODE())
+    trajectory = _run(
+        system,
+        200.0,
+        5.0,
+        solver=ScipyODE(),
+        observables=describe('kuramoto_sakaguchi_chimera').observables_of(system),
+    )
     first, second = _series(trajectory, 'first_order', 'second_order')
     coherent, incoherent = max(first[-1], second[-1]), min(first[-1], second[-1])
     assert coherent > 0.99
@@ -394,7 +415,7 @@ def test_nonlocal_ring_rotates_rigidly_when_synchronized():
     """Test that a synchronized ring turns at `omega - (2R + 1) sin(alpha) / (2R)`, counting every neighbour once."""
     system = nonlocal_ring_chimera(30, R=4, omega=1.0)
     system.elements[0].values['theta'] = np.zeros(30)
-    trajectory = _run(system, 2.0, 0.5)
+    trajectory = _run(system, 2.0, 0.5, observables=describe('nonlocal_ring_chimera').observables_of(system))
     theta = _series(trajectory, 'ring.theta')[0]
     assert np.allclose(theta[-1], theta[-1][0])
     assert theta[-1][0] == pytest.approx(2.0 * (1.0 - 9 * math.sin(1.46) / 8), rel=1e-6)
@@ -411,7 +432,13 @@ def test_ott_antonsen_order_parameter_reaches_its_fixed_point(K, expected):
 @pytest.mark.parametrize(('K', 'dead'), [(2.0, True), (0.1, False)])
 def test_winfree_oscillators_die_under_strong_coupling(K, dead):
     """Test that strong Winfree coupling stops the oscillators and weak coupling lets them turn."""
-    trajectory = _run(winfree(20, K=K), 60.0, 1.0, solver=ScipyODE())
+    trajectory = _run(
+        built := winfree(20, K=K),
+        60.0,
+        1.0,
+        solver=ScipyODE(),
+        observables=describe('winfree').observables_of(built),
+    )
     theta = _series(trajectory, 'oscillators.theta')[0]
     speed = np.abs(theta[-1] - theta[-2]).mean()
     assert (speed < 1e-3) == dead

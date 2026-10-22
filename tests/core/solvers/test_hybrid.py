@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from sklearn.base import clone
 
-from skcomplex.core.base import SolverError, ValidationError
+from skcomplex.core.base import SolverError, ValidationError, state
 from skcomplex.core.compile import compile_system
 from skcomplex.core.model import Element, Event, Noise, Rate, System, delayed, pulse_train, series, step
 from skcomplex.core.runtime import Simulation
@@ -26,12 +26,16 @@ FirstOrder = Element.define(
     laws=lambda s: [Rate(s.y, -s.k * s.y + step(s.t, 5.0))],
 )
 
-Stratonovich = Element.define(
-    'Stratonovich',
-    states={'x': 1.0},
-    parameters={'mu': 0.5, 'sigma': 0.8},
-    laws=lambda s: [Rate(s.x, s.mu * s.x), Noise(s.x, s.sigma * s.x)],
-)
+
+def _geometric(convention):
+    """Return the type of a geometric Brownian motion whose noise follows a convention."""
+    return Element.define(
+        'Geometric',
+        states={'x': 1.0},
+        parameters={'mu': 0.5, 'sigma': 0.8},
+        laws=lambda s: [Rate(s.x, s.mu * s.x), Noise(s.x, s.sigma * s.x, convention=convention)],
+    )
+
 
 Delayed = Element.define(
     'Delayed',
@@ -96,23 +100,28 @@ def test_hutchinson_settles_below_threshold():
 @pytest.mark.parametrize('solver', ['auto', 'rk4'])
 def test_delayed_decay_matches_method_of_steps(solver):
     """Test that `x' = -x(t - 1)` with history 1 matches its exact solution `1 - t + (t - 1)^2 / 2` on [1, 2]."""
-    trajectory = Simulation(System(elements=[Delayed('d')]), dt=0.1, solver=solver).run(until=2).trajectory_
+    trajectory = Simulation(System(components=[Delayed('d')]), dt=0.1, solver=solver).run(until=2).trajectory_
     times = trajectory.times
     exact = np.where(times <= 1, 1 - times, 1 - times + (times - 1) ** 2 / 2)
     assert trajectory['d.x'] == pytest.approx(exact, abs=1e-6)
 
 
+def _with_history(s):
+    """Return a decay driven by the state one unit of time ago."""
+    return [Rate(s.x, -delayed(s.x, 1.0))]
+
+
 def test_declared_history_is_read_before_the_start():
-    """Test that a history given as a function of time feeds the delayed state before the start."""
-    system = System(elements=[Delayed('d')], history={'d.x': lambda t: 1 + t})
-    trajectory = Simulation(system, dt=0.1).run(until=1).trajectory_
+    """Test that a history the state declares as a function of time feeds the delayed state before the start."""
+    Remembered = Element.define('Remembered', states={'x': state(1.0, history=lambda t: 1 + t)}, laws=_with_history)
+    trajectory = Simulation(System(components=[Remembered('d')]), dt=0.1).run(until=1).trajectory_
     assert trajectory['d.x'][-1] == pytest.approx(1 - 0.5, abs=1e-5)
 
 
-def test_history_names_states():
-    """Test that a history naming no state is rejected when compiling."""
-    with pytest.raises(ValidationError, match='not states'):
-        compile_system(System(elements=[Delayed('d')], history={'d.y': 1.0}))
+def test_history_is_keyed_by_state():
+    """Test that the history a state declares is compiled under the name of its state."""
+    Remembered = Element.define('Remembered', states={'x': state(1.0, history=2.0)}, laws=_with_history)
+    assert compile_system(System(components=[Remembered('d')])).history == {'d.x': 2.0}
 
 
 @pytest.mark.parametrize('solver', ['auto', 'rk4'])
@@ -129,7 +138,7 @@ def test_bouncing_ball_impact_times(solver):
 
 def test_terminal_event_ends_the_run():
     """Test that a terminal event at 3.2 ends the run there with the state at the crossing."""
-    trajectory = Simulation(System(elements=[Clock('clock')]), dt=0.5).run(until=10).trajectory_
+    trajectory = Simulation(System(components=[Clock('clock')]), dt=0.5).run(until=10).trajectory_
     assert trajectory.times[-1] == pytest.approx(3.2)
     assert trajectory['clock.x'][-1] == pytest.approx(3.2)
     assert [event.label for event in trajectory.events] == ['clock']
@@ -138,7 +147,7 @@ def test_terminal_event_ends_the_run():
 def test_event_without_reset_fires_once():
     """Test that an event that keeps the state fires once at its crossing and the run goes on past it."""
     Marker = Element.define('Marker', states={'x': 1.0}, laws=lambda s: [Rate(s.x, -1), Event(s.x, direction=-1)])
-    trajectory = Simulation(System(elements=[Marker('m')]), dt=0.5).run(until=2).trajectory_
+    trajectory = Simulation(System(components=[Marker('m')]), dt=0.5).run(until=2).trajectory_
     assert [event.time for event in trajectory.events] == pytest.approx([1.0])
     assert trajectory['m.x'][-1] == pytest.approx(-1.0)
 
@@ -152,13 +161,13 @@ def test_chattering_event_raises(solver):
         laws=lambda s: [Rate(s.x, -1), Event(s.x, {s.x: 1e-12}, direction=-1)],
     )
     with pytest.raises(SolverError, match='chattering'):
-        Simulation(System(elements=[Sticky('c')]), dt=0.5, solver=solver).run(until=2)
+        Simulation(System(components=[Sticky('c')]), dt=0.5, solver=solver).run(until=2)
 
 
 @pytest.mark.parametrize('solver', ['auto', 'rk4'])
 def test_step_response(solver):
     """Test that a first-order system is unforced before a step at 5 and follows the step response after it."""
-    trajectory = Simulation(System(elements=[FirstOrder('f')]), dt=0.25, solver=solver).run(until=10).trajectory_
+    trajectory = Simulation(System(components=[FirstOrder('f')]), dt=0.25, solver=solver).run(until=10).trajectory_
     times, values = trajectory.times, trajectory['f.y']
     assert np.all(values[times < 5] == 0.0)
     assert values == pytest.approx(np.where(times >= 5, 1 - np.exp(-(times - 5)), 0.0), abs=1e-6)
@@ -171,7 +180,7 @@ def test_pulse_train_and_series_breakpoints():
         states={'y': 0.0},
         laws=lambda s: [Rate(s.y, pulse_train(s.t, 2.0, 0.5) + series(s.t, [1.0, 3.0], [0.0, 1.0], kind='previous'))],
     )
-    problem = compile_system(System(elements=[Driven('d')]))
+    problem = compile_system(System(components=[Driven('d')]))
     assert problem.breakpoints.between(0.0, 5.0) == [0.5, 1.0, 2.0, 2.5, 3.0, 4.0, 4.5]
     trajectory = Simulation(problem, dt=0.5).run(until=5).trajectory_
     assert trajectory['d.y'][-1] == pytest.approx(1.5 + 2.0, abs=1e-6)
@@ -180,7 +189,7 @@ def test_pulse_train_and_series_breakpoints():
 def test_schedule_ramps_a_parameter():
     """Test that a scheduled parameter takes the value of its function of time before every frame."""
     simulation = Simulation(
-        System(elements=[FirstOrder('f')]),
+        System(components=[FirstOrder('f')]),
         dt=1.0,
         schedule={'f.k': lambda t: 1.0 + t},
     ).run(until=3)
@@ -190,7 +199,7 @@ def test_schedule_ramps_a_parameter():
 @pytest.mark.parametrize('stepper', [EulerMaruyama, Milstein, Heun])
 def test_stratonovich_geometric_brownian_motion(stepper):
     """Test that the Stratonovich mean of geometric Brownian motion at 1 is exp(mu + sigma^2 / 2) within 2 SE."""
-    system = compile_system(System(elements=[Stratonovich('g')], noise='stratonovich'))
+    system = compile_system(System(components=[_geometric('stratonovich')('g')]))
     values = np.asarray(
         [
             Simulation(system, dt=1.0, solver=stepper(dt=0.01), random_state=seed, record=False).run(until=1).state_[0]
@@ -204,22 +213,22 @@ def test_stratonovich_geometric_brownian_motion(stepper):
 def test_noise_convention_adds_drift_correction():
     """Test that the Stratonovich and anti-Itô corrections add half and all of `g dg/dx` to the drift."""
     for noise, alpha in [('ito', 0.0), ('stratonovich', 0.5), ('anti-ito', 1.0)]:
-        problem = compile_system(System(elements=[Stratonovich('g')], noise=noise))
+        problem = compile_system(System(components=[_geometric(noise)('g')]))
         drift = problem.drift(0.0, np.asarray([2.0]), problem.initial_parameters)
         assert drift[0] == pytest.approx(0.5 * 2 + alpha * 0.8**2 * 2)
 
 
 def test_unknown_noise_convention_is_rejected():
     """Test that a noise convention other than the three is rejected."""
-    with pytest.raises(ValidationError, match='noise'):
-        compile_system(System(elements=[Stratonovich('g')], noise='marcus'))
+    with pytest.raises(ValidationError, match='noise convention'):
+        compile_system(System(components=[_geometric('marcus')('g')]))
 
 
 def test_milstein_and_heun_converge_on_additive_noise():
     """Test that Milstein and Heun integrate an Ornstein-Uhlenbeck process to its stationary variance."""
     Ornstein = Element.define('Ornstein', states={'x': 0.0}, laws=lambda s: [Rate(s.x, -s.x), Noise(s.x, 1.0)])
     for stepper in (Milstein(dt=0.01), Heun(dt=0.01)):
-        values = Simulation(System(elements=[Ornstein('o')]), solver=stepper, dt=1.0, random_state=0).run(1000)
+        values = Simulation(System(components=[Ornstein('o')]), solver=stepper, dt=1.0, random_state=0).run(1000)
         assert np.var(values.trajectory_['o.x'][100:]) == pytest.approx(0.5, rel=0.2)
 
 
@@ -235,7 +244,7 @@ def test_steppers_without_hybrid_path_reject_events():
 def test_fixed_step_longer_than_delay_is_rejected():
     """Test that a fixed step longer than the smallest delay raises an error."""
     with pytest.raises(SolverError, match='smallest delay'):
-        Simulation(System(elements=[Delayed('d')]), dt=2.0, solver=RK4(dt=2.0)).run(until=2)
+        Simulation(System(components=[Delayed('d')]), dt=2.0, solver=RK4(dt=2.0)).run(until=2)
 
 
 def test_events_are_attached_to_frames():
@@ -264,8 +273,8 @@ def _short_delay(s):
 @pytest.mark.parametrize('tau', [1e-4, 1e-6])
 def test_very_short_delay_with_scipy(tau):
     """Test that ScipyODE integrates a delay shorter than its first step and matches the delay-free decay."""
-    Short = Element.define('Short', states={'x': 1.0}, parameters={'tau': tau}, laws=_short_delay)
-    system = System(elements=[Short('d')], history={'d.x': 1.0})
+    Short = Element.define('Short', states={'x': state(1.0, history=1.0)}, parameters={'tau': tau}, laws=_short_delay)
+    system = System(components=[Short('d')])
     trajectory = Simulation(system, solver=ScipyODE()).run(until=0.2).trajectory_
     assert trajectory['d.x'][-1] == pytest.approx(math.exp(-0.2), abs=1e-3)
 
@@ -278,7 +287,7 @@ def _monthly_dose(s):
 def test_periodic_breakpoints_over_unbounded_runs():
     """Test that periodic breakpoints bound a persistent integrator, which looks for the next one without an end."""
     Dosed = Element.define('Dosed', states={'c': 0.0}, parameters={'k': 0.1}, laws=_monthly_dose)
-    problem = compile_system(System(elements=[Dosed('a')]))
+    problem = compile_system(System(components=[Dosed('a')]))
     assert problem.breakpoints.next_after(1.0) == 21.0
     trajectory = Simulation(problem, dt=0.5).run(until=10).trajectory_
     expected = (1 - math.exp(-0.1 / 24)) / 0.1 * math.exp(-0.1 * (10 - 1 / 24))
@@ -293,7 +302,7 @@ def _scaled_delay(s):
 def test_delay_of_parameter_expression():
     """Test that a delay that is an expression of parameters takes its smallest value from their values."""
     Scaled = Element.define('Scaled', states={'x': 1.0}, parameters={'tau': 0.5}, laws=_scaled_delay)
-    problem = compile_system(System(elements=[Scaled('d')]))
+    problem = compile_system(System(components=[Scaled('d')]))
     assert problem.delays[0].minimum == 1.0
     trajectory = Simulation(problem, dt=0.5).run(until=3).trajectory_
     assert trajectory['d.x'][-1] == pytest.approx(-1 / 6, abs=1e-6)

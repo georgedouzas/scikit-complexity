@@ -16,13 +16,19 @@ import numpy as np
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'biased_trap_walk'
 
 system = create(MODEL, n_walkers=56, n_sites=80, alpha=0.5, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=5, observers=[observer], random_state=0).run(until=1495)
+simulation = Simulation(
+    system,
+    dt=5,
+    observers=[observer],
+    random_state=0,
+    observables=describe(MODEL).observables_of(system),
+).run(until=1495)
 
 # %%
 # Subdiffusive displacement
@@ -34,7 +40,8 @@ simulation = Simulation(system, dt=5, observers=[observer], random_state=0).run(
 
 fig, (scaling, spread) = plt.subplots(1, 2, figsize=(10, 4))
 for alpha in (0.3, 0.5, 0.7):
-    run = Simulation(create(MODEL, n_walkers=100, n_sites=400, alpha=alpha, random_state=1), dt=10, random_state=0)
+    model_system = create(MODEL, n_walkers=100, n_sites=400, alpha=alpha, random_state=1)
+    run = Simulation(model_system, dt=10, random_state=0, observables=describe(MODEL).observables_of(model_system))
     trajectory = run.run(until=3000).trajectory_
     times, position = trajectory.times[1:], trajectory['position'][1:]
     (line,) = scaling.loglog(times, position, label=f'alpha = {alpha}')

@@ -113,7 +113,7 @@ def test_triangular_rule_spreads_as_hexagons(backend):
     """Test that a fire on a periodic 40 x 40 triangular lattice covers the 3k(k + 1) + 1 sites within k steps."""
     fire = np.zeros((40, 40))
     fire[20, 20] = 1
-    system = System(elements=[Burn.lattice('forest', LatticeSpace((40, 40), geometry='triangular'), fire=fire)])
+    system = System(components=[Burn.lattice('forest', LatticeSpace((40, 40), geometry='triangular'), fire=fire)])
     burning = Simulation(system, dt=1, backend=backend).run(until=10).trajectory_.lattice('forest.fire')
     assert [int(item.sum()) for item in burning] == [3 * k * (k + 1) + 1 for k in range(11)]
 
@@ -135,8 +135,8 @@ def test_grid_graph_matches_square_lattice():
     graph.add_edges_from((site, int(other)) for site, row in enumerate(table) for other in row)
     glider = np.zeros((20, 20))
     glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
-    on_lattice = System(elements=[_life(Neighborhood.moore()).lattice('cells', lattice, alive=glider)])
-    on_graph = System(elements=[_life(Adjacency()).lattice('cells', NetworkSpace(graph), alive=glider.ravel())])
+    on_lattice = System(components=[_life(Neighborhood.moore()).lattice('cells', lattice, alive=glider)])
+    on_graph = System(components=[_life(Adjacency()).lattice('cells', NetworkSpace(graph), alive=glider.ravel())])
     expected = Simulation(on_lattice, dt=1).run(until=40).trajectory_['cells.alive']
     found = Simulation(on_graph, dt=1).run(until=40).trajectory_['cells.alive']
     assert np.array_equal(found, expected)
@@ -151,7 +151,7 @@ def test_totalistic_rule_counts_real_neighbours_on_star():
         laws=lambda s: [LocalRule(s.value, Adjacency(), Totalistic(lambda total: total))],
     )
     values = {0: 1.0, 1: 1.0, 2: 1.0, 3: 0.0, 4: 0.0, 5: 0.0}
-    system = System(elements=[Count.lattice('star', NetworkSpace(nx.star_graph(5)), value=values)])
+    system = System(components=[Count.lattice('star', NetworkSpace(nx.star_graph(5)), value=values)])
     assert Simulation(system, dt=1).run(until=1).state_.tolist() == [2, 1, 1, 1, 1, 1]
 
 
@@ -162,7 +162,7 @@ def test_function_rule_reads_degrees_on_star():
         states={'value': 0.0},
         laws=lambda s: [LocalRule(s.value, Adjacency(center=True), lambda *values, degree: degree)],
     )
-    system = System(elements=[Degree.lattice('star', NetworkSpace(nx.star_graph(5)))])
+    system = System(components=[Degree.lattice('star', NetworkSpace(nx.star_graph(5)))])
     assert Simulation(system, dt=1).run(until=1).state_.tolist() == [5, 1, 1, 1, 1, 1]
 
 
@@ -174,9 +174,9 @@ def test_lattice_groups_on_networks_reject_tables_and_capacities():
         laws=lambda s: [LocalRule(s.value, Adjacency(), Table({(1, 1): 1}))],
     )
     with pytest.raises(ValidationError, match='totalistic'):
-        compile_system(System(elements=[Ordered.lattice('nodes', NetworkSpace(nx.cycle_graph(4)))]))
+        compile_system(System(components=[Ordered.lattice('nodes', NetworkSpace(nx.cycle_graph(4)))]))
     with pytest.raises(ValidationError, match='capacity'):
-        compile_system(System(elements=[Ordered.lattice('nodes', NetworkSpace(nx.cycle_graph(4), capacity=1))]))
+        compile_system(System(components=[Ordered.lattice('nodes', NetworkSpace(nx.cycle_graph(4), capacity=1))]))
 
 
 def test_neighbor_sum_ignores_padding():
@@ -193,7 +193,7 @@ def test_neighbor_sum_ignores_padding():
     )
     graph = nx.star_graph(4)
     angles = np.random.default_rng(0).uniform(0, 2 * np.pi, 5)
-    (sampling,) = compile_system(System(elements=[XY.lattice('xy', NetworkSpace(graph), theta=angles)])).lattice
+    (sampling,) = compile_system(System(components=[XY.lattice('xy', NetworkSpace(graph), theta=angles)])).lattice
     proposal = angles + np.random.default_rng(1).uniform(-1, 1, 5)
     neighbours = np.append(angles, 0.0)[sampling.table]
     masks = (sampling.table != 5).astype(float)
@@ -238,12 +238,12 @@ def test_colored_schedule_partitions_triangular_lattice():
         ],
     )
     space = LatticeSpace((12, 12), geometry='triangular')
-    (sampling,) = compile_system(System(elements=[Spin.lattice('spins', space)])).lattice
+    (sampling,) = compile_system(System(components=[Spin.lattice('spins', space)])).lattice
     sites = np.concatenate(sampling.classes)
     assert np.array_equal(np.sort(sites), np.arange(144))
     for members in sampling.classes:
         assert not np.isin(sampling.table[members], members).any()
-    Simulation(System(elements=[Spin.lattice('spins', space)]), dt=1).run(until=2)
+    Simulation(System(components=[Spin.lattice('spins', space)]), dt=1).run(until=2)
 
 
 @pytest.mark.parametrize('space', [LatticeSpace((6, 6), geometry='triangular'), NetworkSpace(nx.cycle_graph(6))])
@@ -256,7 +256,7 @@ def test_checkerboard_rejected_where_it_does_not_apply(space):
         laws=lambda s: [LocalRule(s.spin, neighborhood, lambda *values: -values[0], schedule='checkerboard')],
     )
     with pytest.raises(ValidationError, match=r"local rule of spins.*'colored'"):
-        compile_system(System(elements=[Flip.lattice('spins', space)]))
+        compile_system(System(components=[Flip.lattice('spins', space)]))
 
 
 def test_extremal_changes_only_the_neighbourhood():
@@ -267,7 +267,7 @@ def test_extremal_changes_only_the_neighbourhood():
         laws=lambda s: [Extremal(s.value, Neighborhood.radius(), _renew)],
     )
     values = np.random.default_rng(0).random(100)
-    simulation = Simulation(System(elements=[Once.lattice('ring', LatticeSpace(100), value=values)]), dt=1)
+    simulation = Simulation(System(components=[Once.lattice('ring', LatticeSpace(100), value=values)]), dt=1)
     simulation.run(until=1)
     site = int(np.argmin(values))
     changed = np.flatnonzero(simulation.state_ != values)
@@ -283,7 +283,7 @@ def test_extremal_maximum_and_ties():
         states={'value': 0.0},
         laws=lambda s: [Extremal(s.value, Adjacency(), _renew, extremum='max', repeat=20)],
     )
-    system = System(elements=[Top.lattice('nodes', NetworkSpace(nx.path_graph(10)), value=np.full(10, 2.0))])
+    system = System(components=[Top.lattice('nodes', NetworkSpace(nx.path_graph(10)), value=np.full(10, 2.0))])
     events = Simulation(system, dt=1, random_state=0).run(until=1).trajectory_.events
     assert events[0].value == 2.0
     assert all(event.value <= 2.0 for event in events)
@@ -296,10 +296,10 @@ def test_extremal_runs_are_reproducible_across_backends():
     values = np.random.default_rng(1).random(50)
     runs = []
     for backend in ('numpy', 'numpy', 'numba', 'numba'):
-        system = System(elements=[Fitness.lattice('ring', LatticeSpace(50), value=values)])
+        system = System(components=[Fitness.lattice('ring', LatticeSpace(50), value=values)])
         simulation = Simulation(system, dt=1, backend=backend, random_state=7).run(until=20)
         runs.append((simulation.trajectory_['ring.value'], simulation.trajectory_.events))
-    system = System(elements=[Fitness.lattice('ring', LatticeSpace(50), value=values)])
+    system = System(components=[Fitness.lattice('ring', LatticeSpace(50), value=values)])
     compiled = compile_system(system, backend='numba')
     assert isinstance(compiled.lattice[0], CompiledExtremal)
     assert compiled.lattice[0].loop is not None

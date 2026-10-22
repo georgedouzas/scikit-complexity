@@ -114,4 +114,4 @@ def trap_model(
         T=T,
         tau0=tau0,
     )
-    return System(elements=[walkers], space=EuclideanSpace(2))
+    return System(components=[walkers], space=EuclideanSpace(2))

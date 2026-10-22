@@ -108,10 +108,17 @@ def _filter_system(system: System, keep: set[str], scope: str = '') -> System:
     """Return a copy of a system tree that keeps only the interactions whose paths are in `keep`."""
     return System(
         system.label,
-        elements=system.elements,
+        components=[
+            (
+                _filter_system(component, keep, f'{scope}{component.label}/')
+                if isinstance(component, System)
+                else component
+            )
+            for component in system.components
+        ],
         interactions=[item for item in system.interactions if f'{scope}{item.label}' in keep],
-        systems=[_filter_system(child, keep, f'{scope}{child.label}/') for child in system.systems],
         space=system.space,
+        time=system.time,
     )
 
 
@@ -175,7 +182,7 @@ class LammpsBackend(ExternalBackend):
         >>> from skcomplex.core.model import LennardJones, Particle
         >>> from skcomplex.core.runtime import Simulation
         >>> system = System(
-        ...     elements=[Particle.group('gas', 2, x=[[0.0, 0.0], [1.5, 0.0]])],
+        ...     components=[Particle.group('gas', 2, x=[[0.0, 0.0], [1.5, 0.0]])],
         ...     interactions=[LennardJones('lj', first='gas', second='gas', cutoff=2.5)],
         ...     space=EuclideanSpace(2),
         ... )

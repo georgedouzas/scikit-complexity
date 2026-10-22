@@ -95,4 +95,4 @@ def burridge_knopoff(
         boundary={'x': 'zero-flux', 'v': 'zero-flux'},
         values={'x': offsets, 'k_c': k_c, 'k_p': k_p, 'velocity': velocity, 'F0': F0, 'v_c': v_c},
     )
-    return System(elements=[fault])
+    return System(components=[fault])

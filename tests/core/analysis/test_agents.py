@@ -208,9 +208,9 @@ def test_coarse_grain_density():
 
 def test_mean_squared_displacement_diffusion_on_two_kinds_of_space():
     """Test that Brownian particles in a periodic box and walkers on a periodic grid diffuse without a plateau."""
-    continuous = System(elements=[Diffuser.group('particles', 300)], space=ContinuousSpace(20.0, 20.0, torus=True))
+    continuous = System(components=[Diffuser.group('particles', 300)], space=ContinuousSpace(20.0, 20.0, torus=True))
     grid = System(
-        elements=[GridWalker.group('walkers', 300)],
+        components=[GridWalker.group('walkers', 300)],
         space=GridSpace(20, 20, torus=True, neighborhood='von_neumann'),
     )
     for system in (continuous, grid):

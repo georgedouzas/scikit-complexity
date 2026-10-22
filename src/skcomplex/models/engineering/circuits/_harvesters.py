@@ -51,6 +51,7 @@ PiezoHarvester = Element.define(
     tags=('energy harvesting', 'piezoelectric', 'vibration', 'vehicles', 'ode'),
     references=('Trzaska 2023',),
     defaults={'until': 10.0, 'dt': 0.01},
+    observables=lambda system: [Observable('voltage', _piezo_voltage)],
 )
 def vibration_energy_harvester(
     *,
@@ -113,4 +114,4 @@ def vibration_energy_harvester(
         1000.0
     """
     harvester = PiezoHarvester('harvester', m1=m1, m2=m2, k1=k1, k2=k2, b=b, A=A, omega=omega, n=n, d=d, C=C)
-    return System(elements=[harvester], observables=[Observable('voltage', _piezo_voltage)])
+    return System(components=[harvester])

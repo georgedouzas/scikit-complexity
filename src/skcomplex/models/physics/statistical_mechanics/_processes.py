@@ -347,7 +347,7 @@ def q2r(
     spins = np.where(np.random.default_rng(random_state).random(shape) < up, 1.0, -1.0)
     space = LatticeSpace(shape)
     group = Q2RSpin.lattice('spins', space, spin=spins, phase=_checkerboard(shape), n_dim=len(shape))
-    return System(elements=[group])
+    return System(components=[group])
 
 
 @register_model(
@@ -390,7 +390,7 @@ def site_percolation(
     cover = (np.random.default_rng(random_state).random(shape) < p).astype(float)
     cover[0] *= BURNING
     space = LatticeSpace(shape, boundary='fixed')
-    return System(elements=[PercolationSite.lattice('lattice', space, cover=cover)])
+    return System(components=[PercolationSite.lattice('lattice', space, cover=cover)])
 
 
 @register_model(
@@ -439,7 +439,7 @@ def contact_process(
     shape = tuple(shape)
     states = (np.random.default_rng(random_state).random(shape) < infected).astype(float)
     space = LatticeSpace(shape)
-    return System(elements=[ContactSite.lattice('lattice', space, infected=states, rate=rate, tau=tau)])
+    return System(components=[ContactSite.lattice('lattice', space, infected=states, rate=rate, tau=tau)])
 
 
 @register_model(
@@ -499,7 +499,7 @@ def tasep(
     occupied[rng.choice(n_sites, round(density * n_sites), replace=False)] = 1.0
     space = LatticeSpace(n_sites, boundary='periodic' if ring else 'fixed')
     lane = ExclusionSite.lattice('lane', space, occupied=occupied, p=p, alpha=alpha, beta=beta, ring=ring)
-    return System(elements=[lane])
+    return System(components=[lane])
 
 
 @register_model(
@@ -545,4 +545,4 @@ def diffusion_limited_aggregation(
     stuck = np.zeros(n_walkers)
     stuck[0] = 1.0
     walkers = Walker.group('walkers', n_walkers, location=[tuple(map(int, cell)) for cell in cells], stuck=stuck)
-    return System(elements=[walkers], space=GridSpace(size, size, torus=True, neighborhood='von_neumann'))
+    return System(components=[walkers], space=GridSpace(size, size, torus=True, neighborhood='von_neumann'))

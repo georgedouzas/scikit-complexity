@@ -190,7 +190,7 @@ def agent_based_lotka_volterra(
     cells = rng.integers(0, [width, height], size=(prey + predators, 2))
     locations = [tuple(int(item) for item in cell) for cell in cells]
     return System(
-        elements=[
+        components=[
             Prey.group('prey', prey, location=locations[:prey], birth=birth),
             Predator.group(
                 'predators',

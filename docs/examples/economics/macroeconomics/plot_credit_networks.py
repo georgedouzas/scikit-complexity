@@ -18,7 +18,7 @@ import rerun.blueprint as rrb
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'credit_networks'
 
@@ -35,7 +35,13 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL, random_state=0), observers=[observer], random_state=0).run(until=100)
+model_system = create(MODEL, random_state=0)
+simulation = Simulation(
+    model_system,
+    observers=[observer],
+    random_state=0,
+    observables=describe(MODEL).observables_of(model_system),
+).run(until=100)
 
 # %%
 # Switching intensity and concentration
@@ -48,7 +54,12 @@ simulation = Simulation(create(MODEL, random_state=0), observers=[observer], ran
 intensities = np.array([0.0, 0.5, 2.0, 5.0, 20.0])
 herfindahl, spread = [], []
 for intensity in intensities:
-    trajectory = Simulation(create(MODEL, intensity=intensity, random_state=0), random_state=0).run(100).trajectory_
+    model_system = create(MODEL, intensity=intensity, random_state=0)
+    trajectory = (
+        Simulation(model_system, random_state=0, observables=describe(MODEL).observables_of(model_system))
+        .run(100)
+        .trajectory_
+    )
     herfindahl.append(trajectory['herfindahl'][50:].mean())
     spread.append(np.nanmean(trajectory['credit.spread'][50:]))
 fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))

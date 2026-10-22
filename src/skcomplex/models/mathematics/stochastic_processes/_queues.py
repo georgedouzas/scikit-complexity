@@ -96,4 +96,4 @@ def birth_death_queue(
         5
     """
     queue = Queue.group('queues', n_queues, n=n, arrival_rate=arrival_rate, service_rate=service_rate)
-    return System(elements=[queue])
+    return System(components=[queue])

@@ -108,4 +108,4 @@ def employment_takeover(size: int = 32, *, random_state: int | np.random.Generat
         cells = np.flatnonzero(employers.ravel() == kind)
         colours.ravel()[rng.choice(cells, len(cells) // 2, replace=False)] = 1.0
     cells = Workplace.lattice('cells', LatticeSpace((size, size)), colour=colours, employer=employers)
-    return System(elements=[cells])
+    return System(components=[cells])

@@ -424,7 +424,7 @@ def exponential_linear_growth(n: float = 2.0, *, r0: float = 0.31, r: float = 67
         0.31
     """
     return System(
-        elements=[Tumour('tumour', n=n)],
+        components=[Tumour('tumour', n=n)],
         interactions=[ExponentialLinearGrowth('growth', target='tumour', r0=r0, r=r)],
     )
 
@@ -461,7 +461,7 @@ def power_law_growth(n: float = 10.0, *, r: float = 1.32, p: float = 0.58) -> Sy
         0.6666666666666666
     """
     return System(
-        elements=[Tumour('tumour', n=n)],
+        components=[Tumour('tumour', n=n)],
         interactions=[PowerLawGrowth('growth', target='tumour', r=r, p=p)],
     )
 
@@ -500,7 +500,7 @@ def von_bertalanffy(n: float = 1.0, *, r: float = 2.32, p: float = 0.918, d: flo
         0.808
     """
     return System(
-        elements=[Tumour('tumour', n=n)],
+        components=[Tumour('tumour', n=n)],
         interactions=[PowerLawGrowth('growth', target='tumour', r=r, p=p), Loss('loss', target='tumour', d=d)],
     )
 
@@ -540,7 +540,7 @@ def generalized_logistic(n: float = 10.0, *, r: float = 0.305, K: float = 1221.0
         0.5
     """
     return System(
-        elements=[Tumour('tumour', n=n)],
+        components=[Tumour('tumour', n=n)],
         interactions=[GeneralizedLogisticGrowth('growth', target='tumour', r=r, K=K, p=p)],
     )
 
@@ -577,7 +577,7 @@ def gompertz(n: float = 10.0, *, r: float = 0.0719, K: float = 1964.0) -> System
         1000.0
     """
     return System(
-        elements=[Tumour('tumour', n=n)],
+        components=[Tumour('tumour', n=n)],
         interactions=[GompertzGrowth('growth', target='tumour', r=r, K=K)],
     )
 
@@ -618,7 +618,7 @@ def dynamic_carrying_capacity(n: float = 1.0, K: float = 12.7, *, r: float = 2.6
         12.7
     """
     return System(
-        elements=[Tumour('tumour', n=n), Vasculature('vessels', K=K)],
+        components=[Tumour('tumour', n=n), Vasculature('vessels', K=K)],
         interactions=[VascularSupport('support', tumour='tumour', vasculature='vessels', r=r, d=d)],
     )
 
@@ -673,7 +673,7 @@ def skipper_log_kill(
         21.0
     """
     return System(
-        elements=[Tumour('tumour', n=n)],
+        components=[Tumour('tumour', n=n)],
         interactions=[
             ExponentialGrowth('growth', target='tumour', r=r),
             LogKill('kill', target='tumour', a=a, dose=dose, period=period, width=width),
@@ -738,7 +738,7 @@ def norton_simon(
         42.0
     """
     return System(
-        elements=[Tumour('tumour', n=n)],
+        components=[Tumour('tumour', n=n)],
         interactions=[
             GompertzGrowth('growth', target='tumour', r=r, K=K),
             LogKill('kill', target='tumour', a=a, dose=dose, period=period, width=width, start=start),

@@ -197,6 +197,7 @@ class ReflectingFloor(Interaction):
     tags=('multiplicative process', 'lognormal', 'agents'),
     references=('Caiani et al. 2016', 'Thurner et al. 2018', 'Gibrat 1931'),
     defaults={'until': 100},
+    observables=lambda system: _size_observables(),
 )
 def gibrat_process(
     n_firms: int = 200,
@@ -230,7 +231,7 @@ def gibrat_process(
         10
     """
     firms = GibratFirm.group('firms', n_firms, x=x, previous=x, mu=mu, sigma=sigma)
-    return System(elements=[firms], observables=_size_observables())
+    return System(components=[firms])
 
 
 @register_model(
@@ -238,6 +239,7 @@ def gibrat_process(
     tags=('multiplicative process', 'power law', 'agents'),
     references=('Caiani et al. 2016', 'Thurner et al. 2018', 'Levy and Solomon 1996'),
     defaults={'until': 100},
+    observables=lambda system: _size_observables(),
 )
 def multiplicative_process(
     n_firms: int = 200,
@@ -279,9 +281,8 @@ def multiplicative_process(
     """
     firms = GibratFirm.group('firms', n_firms, x=x, previous=x, mu=mu, sigma=sigma)
     return System(
-        elements=[firms],
+        components=[firms],
         interactions=[ReflectingFloor('floor', firms='firms', c=c)],
-        observables=_size_observables(),
     )
 
 
@@ -290,6 +291,7 @@ def multiplicative_process(
     tags=('multiplicative process', 'power law', 'agents'),
     references=('Caiani et al. 2016', 'Thurner et al. 2018', 'Kesten 1973'),
     defaults={'until': 100},
+    observables=lambda system: _size_observables(),
 )
 def kesten_process(
     n_firms: int = 200,
@@ -342,4 +344,4 @@ def kesten_process(
         b_low=b_low,
         b_high=b_high,
     )
-    return System(elements=[firms], observables=_size_observables())
+    return System(components=[firms])

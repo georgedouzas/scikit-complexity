@@ -84,7 +84,7 @@ def ideal_gas(
         visual=visual,
     )
     return System(
-        elements=[molecules],
+        components=[molecules],
         interactions=[ReflectingBox('box', target=label, size=size)],
         space=EuclideanSpace(n_dim),
     )
@@ -147,7 +147,7 @@ def lennard_jones_fluid(
     if temperature is not None:
         interactions.append(LangevinThermostat('thermostat', target='fluid', temperature=temperature))
     return System(
-        elements=[Particle.group('fluid', n_particles, x=positions, v=velocities)],
+        components=[Particle.group('fluid', n_particles, x=positions, v=velocities)],
         interactions=interactions,
         space=EuclideanSpace(2),
     )

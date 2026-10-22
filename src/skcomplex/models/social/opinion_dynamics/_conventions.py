@@ -128,4 +128,4 @@ def naming_game(n_agents: int = 50) -> System:
         10
     """
     namers = Namer.group('namers', n_agents, words=np.zeros((n_agents, n_agents)))
-    return System(elements=[namers], interactions=[NamingGames('games', target='namers')])
+    return System(components=[namers], interactions=[NamingGames('games', target='namers')])

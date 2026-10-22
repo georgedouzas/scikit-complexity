@@ -58,6 +58,10 @@ def _draw_cloud(
     tags=('chaos', 'discrete map', 'random walk', 'diffusion'),
     references=('Bertin 2021',),
     defaults={'until': 200, 'dt': 1},
+    observables=lambda system: [
+        Observable('displacement', group='walkers', variable='y'),
+        Observable('square_displacement', _square_displacement, group='walkers'),
+    ],
 )
 def cubic_chaotic_map(n_walkers: int = 100, *, lam: float = 15.0) -> System:
     """Return Bertin's cubic chaotic map and the chaotic walk it drives, which spreads like a random walk.
@@ -88,11 +92,7 @@ def cubic_chaotic_map(n_walkers: int = 100, *, lam: float = 15.0) -> System:
     start = (np.arange(n_walkers) + 1 / 4) / n_walkers
     walkers = CubicWalk.group('walkers', n_walkers, x=start, y=0.0, lam=lam)
     return System(
-        elements=[walkers],
-        observables=[
-            Observable('displacement', group='walkers', variable='y'),
-            Observable('square_displacement', _square_displacement, group='walkers'),
-        ],
+        components=[walkers],
     )
 
 
@@ -143,7 +143,7 @@ def skew_tent_map(
         0.7
     """
     start = _draw_cloud(n_points, x, spread, random_state)
-    return System(elements=[SkewTentMap.group('points', n_points, x=start, a=a)])
+    return System(components=[SkewTentMap.group('points', n_points, x=start, a=a)])
 
 
 @register_model(
@@ -195,4 +195,4 @@ def doubling_map(
         41.0
     """
     start = np.floor(q * _draw_cloud(n_points, x, spread, random_state) + 1 / 2) / q
-    return System(elements=[DoublingMap.group('points', n_points, x=start, q=q)])
+    return System(components=[DoublingMap.group('points', n_points, x=start, q=q)])

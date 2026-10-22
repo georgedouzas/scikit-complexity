@@ -63,6 +63,10 @@ class Variable:
 
         quantity:
             The conserved quantity a state holds, such as `'money'` or `'mass'`, or `None`.
+
+        history:
+            The values of a state before the start, which delayed laws read, a number or a function of time, or `None`
+            to keep the initial value before the start.
     """
 
     kind: VariableKind
@@ -77,6 +81,7 @@ class Variable:
     variadic: bool = False
     per: str | None = None
     quantity: str | None = None
+    history: Any = None
 
 
 def _declare_field(default: Any, declaration: Variable) -> Any:
@@ -97,6 +102,7 @@ def state(
     lags: int = 0,
     initial: Sequence[Any] = (),
     quantity: str | None = None,
+    history: Any = None,
 ) -> Any:
     """Declare a state variable of an element, with its initial value as default.
 
@@ -128,6 +134,10 @@ def state(
             The conserved quantity the state holds, such as `'money'`, or `None`. Only flows change a tagged state, so
             the total of every quantity changes only through flows with the environment.
 
+        history:
+            The values of the state before the start, which delayed laws read, a number or a function of time, or
+            `None` to keep the initial value before the start.
+
     Returns:
         field:
             A dataclass field that carries the declaration.
@@ -154,7 +164,16 @@ def state(
     if len(initial) > max(order - 1, lags):
         error_msg = f'{len(initial)} initial values were given for {max(order - 1, lags)} companion states.'
         raise ValueError(error_msg)
-    declaration = Variable(VariableKind.STATE, domain, vector, order, lags, tuple(initial), quantity=quantity)
+    declaration = Variable(
+        VariableKind.STATE,
+        domain,
+        vector,
+        order,
+        lags,
+        tuple(initial),
+        quantity=quantity,
+        history=history,
+    )
     return _declare_field(default, declaration)
 
 

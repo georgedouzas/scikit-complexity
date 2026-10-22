@@ -4,6 +4,7 @@ import numpy as np
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import ScipyODE
+from skcomplex.models import describe
 from skcomplex.models.biology.oncology import (
     angiogenesis_immunotherapy,
     chemoimmunotherapy,
@@ -17,9 +18,11 @@ PRECISE = ScipyODE(method='LSODA', rtol=1e-8, atol=1e-10)
 STIFF = ScipyODE(method='LSODA', rtol=1e-6, atol=1e-6)
 
 
-def _run(system, until, dt, solver='auto'):
+def _run(system, until, dt, solver='auto', observables=()):
     """Return the trajectory of a system."""
-    return Simulation(system, dt=dt, random_state=0, solver=solver).run(until=until).trajectory_
+    return (
+        Simulation(system, dt=dt, random_state=0, solver=solver, observables=observables).run(until=until).trajectory_
+    )
 
 
 def test_chemovirotherapy_combination_beats_each_therapy_alone():
@@ -81,7 +84,13 @@ def test_her2_targeted_therapy_antibody_slows_logistic_growth():
 
 def test_angiogenesis_immunotherapy_follows_pharmacokinetics_and_resistance():
     """Test that a dose follows the two-compartment closed form and the resistance integrates the low amounts."""
-    trajectory = _run(angiogenesis_immunotherapy(doses=1), until=20.0, dt=0.05, solver=PRECISE)
+    trajectory = _run(
+        built := angiogenesis_immunotherapy(doses=1),
+        until=20.0,
+        dt=0.05,
+        solver=PRECISE,
+        observables=describe('angiogenesis_immunotherapy').observables_of(built),
+    )
     times, amount = trajectory.times, trajectory['tumour.c_an']
     alpha, beta, k21, dose = 0.4811, 0.0348, 0.215, 15.0
     later = times >= 1.0

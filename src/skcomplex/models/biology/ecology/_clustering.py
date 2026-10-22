@@ -113,6 +113,10 @@ class Hopping(Interaction):
     tags=('neutral theory', 'clustering', 'jump process', 'lattice', 'birth-death', 'diffusion'),
     references=('Bertin 2021', 'Houchmandzadeh 2002', 'Houchmandzadeh 2009'),
     defaults={'until': 50.0, 'dt': 0.5, 'backend': 'numba'},
+    observables=lambda system: [
+        Observable('mean', group='patches', variable='n', reduce='mean'),
+        Observable('variance', group='patches', variable='n', reduce='var'),
+    ],
 )
 def neutral_clustering(
     shape: int | Sequence[int] = 64,
@@ -158,10 +162,6 @@ def neutral_clustering(
     if beta:
         interactions.append(Hopping('hopping', patches=members, links=_neighbour_pairs(lattice), beta=beta))
     return System(
-        elements=[patches],
+        components=[patches],
         interactions=interactions,
-        observables=[
-            Observable('mean', group='patches', variable='n', reduce='mean'),
-            Observable('variance', group='patches', variable='n', reduce='var'),
-        ],
     )

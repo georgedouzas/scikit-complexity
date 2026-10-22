@@ -24,7 +24,7 @@ from skcomplex.models import create
 
 MODEL = 'multiplicative_noise'
 
-system = create(MODEL, n_particles=8, L=10.0, noise='ito')
+system = create(MODEL, n_particles=8, L=10.0, convention='ito')
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=10)
 solver = EulerMaruyama(dt=0.01)
 simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).run(until=299)
@@ -40,7 +40,7 @@ grid = np.linspace(0, 10, 200)
 sigma = 1.0 + 1.8 * (grid / 10 - 0.5)
 fig, ax = plt.subplots(figsize=(7, 4))
 for noise, power, color in (('ito', 2, 'tab:blue'), ('stratonovich', 1, 'tab:orange'), ('anti-ito', 0, 'tab:green')):
-    system_n = create(MODEL, n_particles=800, L=10.0, noise=noise)
+    system_n = create(MODEL, n_particles=800, L=10.0, convention=noise)
     run = Simulation(system_n, solver=solver, dt=0.1, random_state=1).run(until=300)
     edges, density = histogram(run.trajectory_['particles.x'][1500::20].ravel(), bins=25)
     ax.stairs(density, edges, color=color, label=f'{noise}')

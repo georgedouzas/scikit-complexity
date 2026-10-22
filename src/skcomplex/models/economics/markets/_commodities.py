@@ -153,4 +153,4 @@ def commodity_cycle(
         construction_delay=construction_delay,
         lifetime=lifetime,
     )
-    return System(elements=[market])
+    return System(components=[market])

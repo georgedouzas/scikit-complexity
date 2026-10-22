@@ -11,7 +11,7 @@ from typing import Any
 
 from ..base import Registry, ValidationError
 from ..compile import compile_system
-from ..model import System
+from ..model import Observable, System
 from ._simulations import Simulation
 
 type Factory = Callable[..., System]
@@ -44,6 +44,9 @@ class ModelEntry:
 
         defaults:
             The default run settings: `until` and any `Simulation` argument such as `dt` or `solver`.
+
+        observables:
+            A function of the model's system that returns its standard observables, or `None` for none.
     """
 
     name: str
@@ -53,6 +56,20 @@ class ModelEntry:
     tags: tuple[str, ...] = ()
     references: tuple[str, ...] = ()
     defaults: Mapping[str, Any] = dataclasses.field(default_factory=dict)
+    observables: Callable[[System], Sequence[Observable]] | None = dataclasses.field(default=None, repr=False)
+
+    def observables_of(self, system: System) -> list[Observable]:
+        """Return the standard observables of a system of the model, which `run` records.
+
+        Args:
+            system:
+                A system the model's factory returned.
+
+        Returns:
+            observables:
+                The observables, labelled by their path from the root.
+        """
+        return [] if self.observables is None else list(self.observables(system))
 
     @property
     def parameters(self) -> dict[str, Any]:
@@ -83,6 +100,7 @@ def register_model(
     tags: Sequence[str] = (),
     references: Sequence[str] = (),
     defaults: Mapping[str, Any] | None = None,
+    observables: Callable[[System], Sequence[Observable]] | None = None,
 ) -> Callable[[Factory], Factory]:
     """Return a decorator that registers a factory as a ready-made model.
 
@@ -105,6 +123,9 @@ def register_model(
         defaults:
             The default run settings: `until` and any `Simulation` argument such as `dt` or `solver`.
 
+        observables:
+            A function of the model's system that returns its standard observables, which `run` records, or `None`.
+
     Returns:
         decorator:
             The decorator, which returns the factory unchanged.
@@ -120,8 +141,8 @@ def register_model(
         >>> @register_model(field='examples/demo', references=('This docstring',), defaults={'until': 5})
         ... def constant_population(n: float = 3.0) -> System:
         ...     '''Return one population that does not change.'''
-        ...     return System(elements=[Population('a', n=n)])
-        >>> create('constant_population').elements[0].n
+        ...     return System(components=[Population('a', n=n)])
+        >>> create('constant_population').components[0].n
         3.0
     """
 
@@ -151,6 +172,7 @@ def register_model(
             tuple(tags),
             tuple(references),
             dict(defaults or {}),
+            observables,
         )
         MODELS.register(entry.name, entry)
         return factory
@@ -256,4 +278,5 @@ def run(name: str, *, settings: Mapping[str, Any] | None = None, **parameters: A
     entry = MODELS.resolve(name)
     chosen = {'random_state': 0, **entry.defaults, **(settings or {})}
     until = chosen.pop('until', 10.0)
-    return Simulation(create(name, **parameters), **chosen).run(until=until)
+    system = create(name, **parameters)
+    return Simulation(system, observables=entry.observables_of(system), **chosen).run(until=until)

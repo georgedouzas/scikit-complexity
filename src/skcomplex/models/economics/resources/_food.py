@@ -152,4 +152,4 @@ def food_security(
         training_target=training_target,
         intensity_target=intensity_target,
     )
-    return System(elements=[sector])
+    return System(components=[sector])

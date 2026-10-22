@@ -239,6 +239,7 @@ class ModulatedParticle(Element):
     s0: float = parameter(default=1.0, domain=Domain.POSITIVE)
     ds: float = parameter(default=1.8)
     L: float = parameter(default=100.0, domain=Domain.POSITIVE)
+    convention: str = 'anti-ito'
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the multiplicative noise and the reflecting walls.
@@ -252,7 +253,8 @@ class ModulatedParticle(Element):
                 The laws of the component.
         """
         reflected = where(s.x < 0, -s.x, where(s.x > s.L, 2 * s.L - s.x, s.x))
-        return [Noise(s.x, s.s0 + s.ds * (s.x / s.L - 0.5)), Boundary(s.x, reflected)]
+        noise = Noise(s.x, s.s0 + s.ds * (s.x / s.L - 0.5), convention=self.convention)
+        return [noise, Boundary(s.x, reflected)]
 
 
 @register_model(
@@ -316,11 +318,11 @@ def brownian_motion(
             gamma=gamma,
             temperature=kT,
         )
-        return System(elements=[beads], space=space)
+        return System(components=[beads], space=space)
     velocities = np.random.default_rng(random_state).normal(0.0, math.sqrt(kT / m), (n_particles, n_dim))
     beads = Particle.group('beads', n_particles, x=np.zeros((n_particles, n_dim)), v=velocities, m=m, visual=POINTS)
     bath = LangevinThermostat('bath', target='beads', temperature=kT, gamma=gamma)
-    return System(elements=[beads], interactions=[bath], space=space)
+    return System(components=[beads], interactions=[bath], space=space)
 
 
 @register_model(
@@ -389,7 +391,7 @@ def optical_trap(
         blink_period=blink_period,
         duty=duty,
     )
-    return System(elements=[beads], interactions=[trap], space=EuclideanSpace(n_dim))
+    return System(components=[beads], interactions=[trap], space=EuclideanSpace(n_dim))
 
 
 @register_model(
@@ -430,7 +432,7 @@ def kramers_escape(
     """
     positions = -1.0 + np.random.default_rng(random_state).normal(0.0, 0.1, n_particles)
     group = DoubleWell.group('particles', n_particles, x=positions, amplitude=0.0, D=D)
-    return System(elements=[group])
+    return System(components=[group])
 
 
 @register_model(
@@ -445,7 +447,7 @@ def multiplicative_noise(
     s0: float = 1.0,
     ds: float = 1.8,
     L: float = 100.0,
-    noise: str = 'anti-ito',
+    convention: str = 'anti-ito',
 ) -> System:
     """Return free particles in a box with position-dependent noise, read in the Itô, Stratonovich, or anti-Itô sense.
 
@@ -465,7 +467,7 @@ def multiplicative_noise(
         L:
             The length of the box.
 
-        noise:
+        convention:
             The convention of the noise, `'ito'`, `'stratonovich'`, or `'anti-ito'`.
 
     Returns:
@@ -474,11 +476,11 @@ def multiplicative_noise(
 
     Examples:
         >>> from skcomplex.models.physics.soft_matter import multiplicative_noise
-        >>> multiplicative_noise(10, noise='ito').noise
+        >>> multiplicative_noise(10, convention='ito').components[0].values['convention']
         'ito'
     """
-    group = ModulatedParticle.group('particles', n_particles, x=L / 2, s0=s0, ds=ds, L=L)
-    return System(elements=[group], noise=noise)
+    group = ModulatedParticle.group('particles', n_particles, x=L / 2, s0=s0, ds=ds, L=L, convention=convention)
+    return System(components=[group])
 
 
 @register_model(
@@ -521,7 +523,7 @@ def scaled_brownian_motion(
         >>> scaled_brownian_motion(10, alpha=1.5).elements[0].values['alpha']
         1.5
     """
-    return System(elements=[ScaledWalker.group('walkers', n_particles, K=K, alpha=alpha, t0=t0)])
+    return System(components=[ScaledWalker.group('walkers', n_particles, K=K, alpha=alpha, t0=t0)])
 
 
 @register_model(
@@ -595,4 +597,4 @@ def diffusion_in_a_speckle_field(
     )
     positions = rng.uniform(size / 4, 3 * size / 4, (n_particles, 2))
     beads = BrownianParticle.group('beads', n_particles, x=positions, gamma=1.0, temperature=D)
-    return System(elements=[beads], interactions=[speckle], space=EuclideanSpace(2))
+    return System(components=[beads], interactions=[speckle], space=EuclideanSpace(2))

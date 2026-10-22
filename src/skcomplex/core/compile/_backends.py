@@ -213,7 +213,7 @@ class NumpyBackend(Backend):
         >>> from skcomplex.core.compile import NumpyBackend, compile_system
         >>> from skcomplex.core.model import System
         >>> from skcomplex.models.biology.ecology import Population
-        >>> compile_system(System(elements=[Population('a')]), backend=NumpyBackend()).backend
+        >>> compile_system(System(components=[Population('a')]), backend=NumpyBackend()).backend
         'numpy'
     """
 

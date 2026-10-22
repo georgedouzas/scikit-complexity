@@ -50,7 +50,7 @@ class Trajectory:
         >>> from skcomplex.core.model import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> from skcomplex.core.runtime import Simulation
-        >>> system = System(elements=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1)])
+        >>> system = System(components=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1)])
         >>> trajectory = Simulation(system, dt=0.5).run(until=1).trajectory_
         >>> trajectory.times.tolist()
         [0.0, 0.5, 1.0]

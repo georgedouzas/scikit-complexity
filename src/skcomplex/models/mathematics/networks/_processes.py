@@ -130,7 +130,7 @@ def network_random_walk(graph: nx.Graph | None = None, *, n_walkers: int = 50) -
         3
     """
     graph = _graph_or_default(graph)
-    return System(elements=[NetworkWalker.group('walkers', n_walkers)], space=NetworkSpace(graph))
+    return System(components=[NetworkWalker.group('walkers', n_walkers)], space=NetworkSpace(graph))
 
 
 @register_model(
@@ -168,7 +168,7 @@ def network_diffusion(graph: nx.Graph | None = None, *, D: float = 1.0, source: 
     initial = np.zeros(graph.number_of_nodes())
     initial[source] = 1.0
     nodes = Field('nodes', NodeContent, NetworkSpace(graph), values={'u': initial, 'D': D})
-    return System(elements=[nodes])
+    return System(components=[nodes])
 
 
 @register_model(
@@ -203,4 +203,4 @@ def pagerank(graph: nx.Graph | None = None, *, damping: float = 0.85) -> System:
     size = graph.number_of_nodes()
     degrees = np.array([degree for _, degree in graph.degree()], dtype=float)
     values = {'rank': np.full(size, 1 / size), 'degree': degrees, 'n_nodes': float(size), 'damping': damping}
-    return System(elements=[Field('pages', NodeRank, NetworkSpace(graph), values=values)])
+    return System(components=[Field('pages', NodeRank, NetworkSpace(graph), values=values)])

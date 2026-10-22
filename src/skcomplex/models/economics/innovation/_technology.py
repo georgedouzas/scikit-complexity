@@ -290,6 +290,7 @@ class Invention(Interaction):
     tags=('innovation', 'technology', 'learning curve', 'agents'),
     references=('Thurner et al. 2018', 'McNerney et al. 2011'),
     defaults={'until': 200},
+    observables=lambda system: [Observable('total_cost', group='components', reduce='sum', variable='cost')],
 )
 def nk_technology(
     n_components: int = 10,
@@ -326,9 +327,8 @@ def nk_technology(
     dependencies = _design_structure(n_components, d, rng)
     components = Component.group('components', n_components, cost=rng.random(n_components))
     return System(
-        elements=[components],
+        components=[components],
         interactions=[Redesign('redesign', components='components', dependencies=dependencies.tolist())],
-        observables=[Observable('total_cost', group='components', reduce='sum', variable='cost')],
     )
 
 
@@ -376,4 +376,4 @@ def arthur_polak(*, max_components: int = 12, max_inputs: int = 3) -> System:
         max_components=float(max_components),
         max_inputs=float(max_inputs),
     )
-    return System(elements=[technologies], interactions=[invention])
+    return System(components=[technologies], interactions=[invention])

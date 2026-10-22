@@ -63,9 +63,9 @@ class CoSimulation(Stepper):
         >>> from skcomplex.core.runtime import Simulation
         >>> from skcomplex.core.solvers import CoSimulation
         >>> system = System(
-        ...     systems=[
-        ...         System('a', elements=[Population('x', n=1)], interactions=[ExponentialGrowth('g', target='x')]),
-        ...         System('b', elements=[Population('y', n=1)], interactions=[ExponentialGrowth('g', target='y')]),
+        ...     components=[
+        ...         System('a', components=[Population('x', n=1)], interactions=[ExponentialGrowth('g', target='x')]),
+        ...         System('b', components=[Population('y', n=1)], interactions=[ExponentialGrowth('g', target='y')]),
         ...     ],
         ... )
         >>> simulation = Simulation(system, solver=CoSimulation(split=True), dt=0.5).run(until=1)

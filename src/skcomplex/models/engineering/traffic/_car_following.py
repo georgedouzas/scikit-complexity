@@ -161,7 +161,7 @@ def optimal_velocity(
     speed = V0 * (np.tanh(headway - hc) + np.tanh(hc))
     cars = Car.group('cars', n_cars, x=_ring_positions(n_cars, length, perturbation), v=float(speed))
     following = OptimalVelocity('follow', cars='cars', a=a, V0=V0, hc=hc, road_length=length)
-    return System(elements=[cars], interactions=[following])
+    return System(components=[cars], interactions=[following])
 
 
 @register_model(
@@ -242,7 +242,7 @@ def intelligent_driver_model(
         length=car_length,
         road_length=length,
     )
-    return System(elements=[cars], interactions=[following])
+    return System(components=[cars], interactions=[following])
 
 
 @register_model(
@@ -315,4 +315,4 @@ def delayed_car_following(
         )
         for index in range(1, n_cars)
     ]
-    return System(elements=[lead, *followers], interactions=interactions)
+    return System(components=[lead, *followers], interactions=interactions)

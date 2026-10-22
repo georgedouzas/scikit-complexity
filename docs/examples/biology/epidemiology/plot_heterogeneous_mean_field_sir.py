@@ -16,7 +16,7 @@ import numpy as np
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'heterogeneous_mean_field_sir'
 
@@ -25,7 +25,9 @@ probabilities = degrees**-2.5 / np.sum(degrees**-2.5)
 first, second = np.sum(degrees * probabilities), np.sum(degrees**2 * probabilities)
 system = create(MODEL, k_max=30, beta=2.5 * first / second)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer]).run(until=40)
+simulation = Simulation(system, dt=0.5, observers=[observer], observables=describe(MODEL).observables_of(system)).run(
+    until=40,
+)
 
 # %%
 # Final size against the transmission rate
@@ -37,7 +39,11 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).run(until=40)
 
 rates = np.linspace(0.2, 3.0, 15) * first / second
 final_sizes = [
-    Simulation(create(MODEL, k_max=30, beta=rate, infected=1e-6), dt=1.0).run(until=300).trajectory_['recovered'][-1]
+    Simulation(
+        create(MODEL, k_max=30, beta=rate, infected=1e-6), dt=1.0, observables=describe(MODEL).observables_of(system),
+    )
+    .run(until=300)
+    .trajectory_['recovered'][-1]
     for rate in rates
 ]
 infected = simulation.trajectory_['network.i']

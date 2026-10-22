@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, parameter, state
-from ....core.model import AgentType, Institution, Law, Phase, Rule, Symbols, System, heuristics
+from ....core.model import AgentType, DiscreteTime, Institution, Law, Phase, Phases, Rule, Symbols, System, heuristics
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -247,7 +247,7 @@ def el_farol(
     ]
     patrons = Patron.group('patrons', n_agents, predictors=masks, discount=discount)
     return System(
-        elements=[patrons],
+        components=[patrons],
         interactions=[Bar('bar', capacity=capacity)],
-        phases=[Phase('decide'), Phase('count')],
+        time=DiscreteTime(schedule=Phases([Phase('decide'), Phase('count')])),
     )

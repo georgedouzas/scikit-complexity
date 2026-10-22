@@ -16,14 +16,21 @@ from scipy.integrate import solve_ivp
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'neutral_clustering'
 SITES, N, ALPHA, BETA = 128, 10.0, 1.0, 0.5
 
 system = create(MODEL, shape=SITES, n=N, alpha=ALPHA, beta=BETA)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.25, backend='numba', observers=[observer], random_state=0).run(until=60)
+simulation = Simulation(
+    system,
+    dt=0.25,
+    backend='numba',
+    observers=[observer],
+    random_state=0,
+    observables=describe(MODEL).observables_of(system),
+).run(until=60)
 
 # %%
 # Growth of the fluctuations
@@ -50,7 +57,11 @@ def expected_variance(times):
 
 times = simulation.trajectory_.times
 still = create(MODEL, shape=SITES, n=N, alpha=ALPHA, beta=0.0)
-isolated = Simulation(still, dt=0.25, backend='numba', random_state=0).run(until=60).trajectory_['variance']
+isolated = (
+    Simulation(still, dt=0.25, backend='numba', random_state=0, observables=describe(MODEL).observables_of(still))
+    .run(until=60)
+    .trajectory_['variance']
+)
 
 fig, (growth, profile) = plt.subplots(1, 2, figsize=(10, 4))
 growth.plot(times, simulation.trajectory_['variance'], label='simulated, beta = 0.5')

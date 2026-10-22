@@ -7,7 +7,7 @@ from scipy import integrate
 from skcomplex.core.analysis import box_counting_dimension, entropy_rate
 from skcomplex.core.base import ValidationError
 from skcomplex.core.runtime import Simulation
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 TWO_STATE = ((0.9, 0.1), (0.4, 0.6))
 
@@ -19,7 +19,9 @@ def _final(name, until, **arguments):
 
 def _series(name, until, **arguments):
     """Return the trajectory of a model run with frames at every step."""
-    return Simulation(create(name, **arguments), dt=1, random_state=0).run(until).trajectory_
+    system = create(name, **arguments)
+    observables = describe(name).observables_of(system)
+    return Simulation(system, dt=1, random_state=0, observables=observables).run(until).trajectory_
 
 
 def _memory_msd(t, alpha, sigma):

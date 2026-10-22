@@ -11,6 +11,7 @@ from skcomplex.core.model import (
     BilateralSearch,
     CallAuction,
     DeferredAcceptance,
+    DiscreteTime,
     GridSpace,
     Institution,
     Market,
@@ -18,6 +19,7 @@ from skcomplex.core.model import (
     Order,
     OrderBook,
     Phase,
+    Phases,
     RationedQueue,
     Rule,
     SampleAndSwitch,
@@ -67,8 +69,8 @@ class Worker(AgentType):
 def test_offer_before_acceptance():
     """Every acceptance refers to an offer made earlier in the same step."""
     system = System(
-        elements=[Worker.group('workers', 5), Employer.group('employers', 3)],
-        phases=[Phase('offers'), Phase('acceptance')],
+        components=[Worker.group('workers', 5), Employer.group('employers', 3)],
+        time=DiscreteTime(schedule=Phases([Phase('offers'), Phase('acceptance')])),
     )
     trajectory = Simulation(system, random_state=0).run(until=10).trajectory_
     workers = trajectory.agents('workers', 10)
@@ -78,7 +80,7 @@ def test_offer_before_acceptance():
 
 def test_undeclared_phase_raises():
     """A rule in a phase that the system does not declare raises an error."""
-    system = System(elements=[Employer.group('employers', 2)])
+    system = System(components=[Employer.group('employers', 2)])
     with pytest.raises(SimulationError, match='offers'):
         Simulation(system).run(until=1)
 
@@ -95,7 +97,10 @@ def test_phases_keep_unphased_models():
         def tick(self, agent, model):
             agent.count += 1
 
-    system = System(elements=[Counter.group('counters', 3)], phases=[Phase('extra', repeat=2)])
+    system = System(
+        components=[Counter.group('counters', 3)],
+        time=DiscreteTime(schedule=Phases([Phase('extra', repeat=2)])),
+    )
     trajectory = Simulation(system, random_state=0).run(until=4).trajectory_
     assert trajectory.agents('counters', 4).values['count'].tolist() == [4.0, 4.0, 4.0]
 
@@ -122,9 +127,9 @@ def test_simultaneous_imitation():
     payoffs = np.zeros(width)
     payoffs[0] = 1.0
     system = System(
-        elements=[Imitator.group('players', width, location=locations, strategy=payoffs, payoff=payoffs)],
+        components=[Imitator.group('players', width, location=locations, strategy=payoffs, payoff=payoffs)],
         space=GridSpace(width, 1, torus=False, neighborhood='von_neumann'),
-        phases=[Phase('imitation', activation='simultaneous')],
+        time=DiscreteTime(schedule=Phases([Phase('imitation', activation='simultaneous')])),
     )
     trajectory = Simulation(system, random_state=0).run(until=3).trajectory_
     for frame in range(4):
@@ -146,15 +151,15 @@ def test_sequential_and_by_type_order():
             return [Rule(lambda agent, model: seen.append(('second', agent.id)), phase='go')]
 
     system = System(
-        elements=[First.group('first', 3), Second.group('second', 3)],
-        phases=[Phase('go', activation='by-type', groups=['second', 'first'])],
+        components=[First.group('first', 3), Second.group('second', 3)],
+        time=DiscreteTime(schedule=Phases([Phase('go', activation='by-type', groups=['second', 'first'])])),
     )
     Simulation(system, random_state=0).run(until=1)
     assert [group for group, _ in seen] == ['second'] * 3 + ['first'] * 3
     seen.clear()
     sequential = System(
-        elements=[First.group('first', 3), Second.group('second', 3)],
-        phases=[Phase('go', 'sequential')],
+        components=[First.group('first', 3), Second.group('second', 3)],
+        time=DiscreteTime(schedule=Phases([Phase('go', 'sequential')])),
     )
     Simulation(sequential, random_state=0).run(until=1)
     assert [identity for _, identity in seen] == sorted(identity for _, identity in seen)
@@ -305,9 +310,9 @@ def _zero_intelligence(n_traders, rng):
     sellers = Seller.group('sellers', n_traders, value=costs, supply=1.0)
     market = Market('auction', buyers='buyers', sellers='sellers', protocol=CallAuction(), phase='clear')
     system = System(
-        elements=[buyers, sellers],
+        components=[buyers, sellers],
         interactions=[market],
-        phases=[Phase('quote'), Phase('clear')],
+        time=DiscreteTime(schedule=Phases([Phase('quote'), Phase('clear')])),
     )
     return values, costs, system
 
@@ -365,12 +370,12 @@ class CentralBank(Institution):
 def test_interest_rate_rule():
     """The interest rate changes only at steps where inflation exceeds the target."""
     system = System(
-        elements=[Shop.group('shops', 20)],
+        components=[Shop.group('shops', 20)],
         interactions=[CentralBank('bank', phase='policy')],
-        observables=[Observable('price_level', group='shops', variable='price')],
-        phases=[Phase('policy')],
+        time=DiscreteTime(schedule=Phases([Phase('policy')])),
     )
-    trajectory = Simulation(system, random_state=0).run(until=40).trajectory_
+    observables = [Observable('price_level', group='shops', variable='price')]
+    trajectory = Simulation(system, random_state=0, observables=observables).run(until=40).trajectory_
     rate, inflation = trajectory['bank.rate'], trajectory['bank.inflation']
     changed = np.diff(rate) != 0
     assert changed.any()
@@ -381,7 +386,7 @@ def test_interest_rate_rule():
 
 def test_undeclared_report_raises():
     """Reporting a name the owner does not declare raises an error."""
-    system = System(elements=[Trader.group('traders', 1)], interactions=[Institution('reader', rule=_report_total)])
+    system = System(components=[Trader.group('traders', 1)], interactions=[Institution('reader', rule=_report_total)])
     with pytest.raises(SimulationError, match='declare'):
         Simulation(system).run(until=1)
 
@@ -403,11 +408,11 @@ def test_observable_and_set_parameter_by_view():
                 model.set_parameter('missing', 1.0)
 
     system = System(
-        elements=[Trader.group('traders', 4, money=2.0)],
+        components=[Trader.group('traders', 4, money=2.0)],
         interactions=[Reader('reader')],
-        observables=[Observable('wealth', group='traders', variable='money', reduce='sum')],
     )
-    trajectory = Simulation(system, random_state=0).run(until=2).trajectory_
+    observables = [Observable('wealth', group='traders', variable='money', reduce='sum')]
+    trajectory = Simulation(system, random_state=0, observables=observables).run(until=2).trajectory_
     assert trajectory['reader.total'][-1] == 8.0
 
 
@@ -430,7 +435,7 @@ class Saver(AgentType):
 
 def test_memory_window():
     """Agents remember the last values of the states their type lists."""
-    trajectory = Simulation(System(elements=[Saver.group('savers', 2)]), random_state=0).run(until=5).trajectory_
+    trajectory = Simulation(System(components=[Saver.group('savers', 2)]), random_state=0).run(until=5).trajectory_
     assert trajectory.agents('savers', 5).values['seen'].tolist() == [3.0, 3.0]
 
 
@@ -444,7 +449,7 @@ def test_memory_of_unremembered_state_raises():
             return [Rule(lambda agent, model: memory(agent, 'money'))]
 
     with pytest.raises(KeyError, match='remember'):
-        Simulation(System(elements=[Forgetful.group('agents', 1)])).run(until=1)
+        Simulation(System(components=[Forgetful.group('agents', 1)])).run(until=1)
 
 
 def test_heuristics_and_logit():

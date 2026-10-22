@@ -129,7 +129,7 @@ def calibrate(
         error_msg = 'Calibration needs at least one observed series.'
         raise ValidationError(error_msg)
     factory, defaults = resolve_source(source)
-    problem = _problem(factory, arguments, None)
+    problem = _problem(factory, arguments, None, source if isinstance(source, str) else None)
     names = list(bounds)
     series = {
         path: (np.asarray(times, dtype=float), np.asarray(values, dtype=float))

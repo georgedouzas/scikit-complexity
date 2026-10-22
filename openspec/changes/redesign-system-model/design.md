@@ -135,7 +135,8 @@ spaces (grid, network, continuous) are these same kinds; an agent group lives on
 
 When `time` is omitted, it is inferred from the law classes, and validation reports an ambiguous inference. Declaring
 time explicitly is always allowed and always checked. Static time covers the constraint-based, optimal-control, and
-static models of the pending changes.
+static models of the pending changes. This change defines static time and validates it; the static form and its root
+and optimisation solvers are specified by `add-static-models`, which builds on it.
 
 ### Laws by time semantics
 

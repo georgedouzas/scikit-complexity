@@ -141,7 +141,7 @@ def success_to_the_successful(
         >>> success_to_the_successful(a=60.0).elements[0].a
         60.0
     """
-    return System(elements=[Contest('contest', a=a, b=b, budget=budget, lifetime=lifetime)])
+    return System(components=[Contest('contest', a=a, b=b, budget=budget, lifetime=lifetime)])
 
 
 @register_model(
@@ -211,7 +211,7 @@ def shifting_the_burden(
         solution_delay=solution_delay,
         erosion=erosion,
     )
-    return System(elements=[burden])
+    return System(components=[burden])
 
 
 @register_model(
@@ -270,4 +270,4 @@ def escalation(
         adjustment_time=adjustment_time,
         perception_delay=perception_delay,
     )
-    return System(elements=[race])
+    return System(components=[race])

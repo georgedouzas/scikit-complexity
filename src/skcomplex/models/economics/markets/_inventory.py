@@ -114,4 +114,4 @@ def car_dealer(
         response_delay=response_delay,
         delivery_delay=delivery_delay,
     )
-    return System(elements=[dealer])
+    return System(components=[dealer])

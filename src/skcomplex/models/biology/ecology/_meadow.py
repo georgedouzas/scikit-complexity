@@ -270,7 +270,7 @@ def meadow_capacity(
     cells = [(column, row) for column in range(width) for row in range(height)]
     picks = rng.choice(len(cells), size=cows, replace=False)
     return System(
-        elements=[
+        components=[
             Pasture.group('pasture', len(cells), location=cells, growth=growth),
             Cow.group('cows', cows, location=[cells[int(pick)] for pick in picks], bite=bite),
         ],

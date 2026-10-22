@@ -17,13 +17,15 @@ import numpy as np
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'kuramoto_sakaguchi_chimera'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1.0, observers=[observer]).run(until=300)
+simulation = Simulation(system, dt=1.0, observers=[observer], observables=describe(MODEL).observables_of(system)).run(
+    until=300,
+)
 
 # %%
 # Order parameters

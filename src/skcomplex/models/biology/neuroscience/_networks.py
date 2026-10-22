@@ -390,7 +390,7 @@ def delayed_lif_network(
         DelayedSynapse(f'synapse_{source}_{target}', source=f'neuron_{source}', target=f'neuron_{target}', J=J, D=D)
         for source, target in _random_connections(n_neurons, probability, rng)
     ]
-    return System(elements=neurons, interactions=synapses)
+    return System(components=neurons, interactions=synapses)
 
 
 @register_model(
@@ -462,4 +462,4 @@ def legion(
         values=values,
     )
     inhibition = GlobalInhibition('inhibition', inhibitor='inhibitor', oscillators='oscillators', W_z=W_z)
-    return System(elements=[oscillators, Inhibitor('inhibitor')], interactions=[inhibition])
+    return System(components=[oscillators, Inhibitor('inhibitor')], interactions=[inhibition])

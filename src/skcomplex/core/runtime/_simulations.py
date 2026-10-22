@@ -14,7 +14,7 @@ from sklearn.base import BaseEstimator
 
 from ..base import Domain, Form, ParameterError, SimulationError, ValidationError
 from ..compile import Backend, Entry, ObservableEvaluator, Problem, Vector, compile_system, validate
-from ..model import System
+from ..model import Observable, System
 from ..solvers import AgentState, RewritingState, Stepper, resolve_solver
 from ._clocks import AsFastAsPossible, Clock
 from ._frames import Frame
@@ -86,6 +86,10 @@ class Simulation(BaseEstimator):
             A mapping from dotted parameter name to a function of time, such as a ramp of a control parameter. At every
             frame the parameter takes the value of its function at the frame's time and keeps it until the next frame.
 
+        observables:
+            The observables to compute and record at every frame, labelled by their path from the root, such as
+            `village/mean_wealth` for an observable of the nested system `village`.
+
     Attributes:
         problem_:
             The compiled problem.
@@ -107,7 +111,7 @@ class Simulation(BaseEstimator):
         >>> from skcomplex.models.biology.ecology import LogisticGrowth, Population
         >>> from skcomplex.core.runtime import Simulation
         >>> system = System(
-        ...     elements=[Population('rabbits', n=10)],
+        ...     components=[Population('rabbits', n=10)],
         ...     interactions=[LogisticGrowth('growth', target='rabbits', r=1.0, K=100)],
         ... )
         >>> simulation = Simulation(system, dt=1.0).run(until=20)
@@ -128,6 +132,7 @@ class Simulation(BaseEstimator):
         random_state: int | np.random.Generator | None = None,
         checked: bool = False,
         schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,
+        observables: Sequence[Observable] = (),
     ) -> None:
         self.system = system
         self.solver = solver
@@ -139,6 +144,7 @@ class Simulation(BaseEstimator):
         self.random_state = random_state
         self.checked = checked
         self.schedule = schedule
+        self.observables = observables
 
     def _check_dt(self, problem: Problem, until: float) -> float:
         """Return the time between frames of a run until a time, after validating it for the problem's form."""
@@ -165,8 +171,12 @@ class Simulation(BaseEstimator):
         """Compile the system, build the stepper, and notify the observers of the start."""
         previous = self._previous_parameters()
         if not isinstance(self.system, Problem):
-            validate(self.system, solver=self.solver, backend=self.backend).raise_errors()
-        self.problem_ = self.system if isinstance(self.system, Problem) else compile_system(self.system, self.backend)
+            validate(self.system, solver=self.solver, backend=self.backend, observables=self.observables).raise_errors()
+        self.problem_ = (
+            self.system
+            if isinstance(self.system, Problem)
+            else compile_system(self.system, self.backend, self.observables)
+        )
         self._prepared_system = self.system
         self.dt_ = self._check_dt(self.problem_, until)
         self.stepper_ = resolve_solver(self.problem_, self.solver)
@@ -394,7 +404,7 @@ class Simulation(BaseEstimator):
             >>> from skcomplex.models.biology.ecology import LogisticGrowth, Population
             >>> from skcomplex.core.runtime import Simulation
             >>> system = System(
-            ...     elements=[Population('rabbits', n=10)],
+            ...     components=[Population('rabbits', n=10)],
             ...     interactions=[LogisticGrowth('growth', target='rabbits', r=1.0, K=100)],
             ... )
             >>> simulation = Simulation(system, dt=1.0).run(until=5)

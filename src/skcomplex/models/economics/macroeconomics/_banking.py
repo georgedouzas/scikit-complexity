@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 
 from ....core.base import Domain, parameter, state
-from ....core.model import AgentType, Institution, Law, Observable, Phase, Rule, Symbols, System
+from ....core.model import AgentType, DiscreteTime, Institution, Law, Observable, Phase, Phases, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -257,6 +257,11 @@ class Regulator(Institution):
     tags=('money', 'banks', 'agents', 'institution'),
     references=('Hamill and Gilbert 2016 ch. 9',),
     defaults={'until': 300},
+    observables=lambda system: [
+        Observable('broad_money', group='banks', variable='deposits', reduce='sum'),
+        Observable('reserves', group='banks', variable='reserves', reduce='sum'),
+        Observable('loans', group='banks', variable='loans', reduce='sum'),
+    ],
 )
 def fractional_reserve_banking(
     customers: int = 100,
@@ -345,12 +350,7 @@ def fractional_reserve_banking(
         change_at=change_at,
     )
     return System(
-        elements=[depositors, lenders],
+        components=[depositors, lenders],
         interactions=[regulator],
-        observables=[
-            Observable('broad_money', group='banks', variable='deposits', reduce='sum'),
-            Observable('reserves', group='banks', variable='reserves', reduce='sum'),
-            Observable('loans', group='banks', variable='loans', reduce='sum'),
-        ],
-        phases=[Phase('regulate'), Phase('pay'), Phase('lend', repeat=10)],
+        time=DiscreteTime(schedule=Phases([Phase('regulate'), Phase('pay'), Phase('lend', repeat=10)])),
     )

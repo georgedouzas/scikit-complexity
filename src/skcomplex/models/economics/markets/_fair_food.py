@@ -8,7 +8,19 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import AgentType, GridSpace, Law, Observable, Phase, Rule, Symbols, System, logit_choice
+from ....core.model import (
+    AgentType,
+    DiscreteTime,
+    GridSpace,
+    Law,
+    Observable,
+    Phase,
+    Phases,
+    Rule,
+    Symbols,
+    System,
+    logit_choice,
+)
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -108,6 +120,7 @@ class Consumer(AgentType):
     tags=('consumer choice', 'social influence', 'agents', 'grid'),
     references=('Chesney 2021 ch. 3', 'Chesney 2021 ch. 7'),
     defaults={'until': 50},
+    observables=lambda system: [Observable('fair_share', group='consumers', variable='fair')],
 )
 def fair_food(
     width: int = 20,
@@ -183,8 +196,7 @@ def fair_food(
         intensity=intensity,
     )
     return System(
-        elements=[consumers],
+        components=[consumers],
         space=GridSpace(width, height, torus=True, capacity=1),
-        observables=[Observable('fair_share', group='consumers', variable='fair')],
-        phases=[Phase('shopping', activation='simultaneous')],
+        time=DiscreteTime(schedule=Phases([Phase('shopping', activation='simultaneous')])),
     )

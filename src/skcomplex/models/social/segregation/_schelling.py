@@ -119,4 +119,4 @@ def schelling(
     size = int(width * height * density)
     kinds = (rng.random(size) < minority).astype(float)
     residents = Resident.group('residents', size, kind=kinds, threshold=threshold)
-    return System(elements=[residents], space=GridSpace(width, height, capacity=1))
+    return System(components=[residents], space=GridSpace(width, height, capacity=1))

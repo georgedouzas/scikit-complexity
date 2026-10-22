@@ -17,7 +17,7 @@ from ._lattices import (
 )
 from ._layout import Entry, Layout
 from ._numba_backend import NumbaBackend
-from ._observables import ObservableEvaluator, observables_of
+from ._observables import ObservableEvaluator, observables_of, with_observables
 from ._printing import NUMPY_DIALECT, SCALAR_DIALECT, Dialect, numpy_function, print_expressions
 from ._problem import (
     Accelerated,
@@ -123,4 +123,5 @@ __all__: list[
     'resolve_backend',
     'spectral_multiplier',
     'validate',
+    'with_observables',
 ]

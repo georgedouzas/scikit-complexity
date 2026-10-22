@@ -297,7 +297,7 @@ def sznajd(
     graph = nx.cycle_graph(50) if graph is None else graph
     size = nx.number_of_nodes(graph)
     people = Persuader.group('people', size, opinion=_shares(size, share, random_state))
-    return System(elements=[people], space=NetworkSpace(graph))
+    return System(components=[people], space=NetworkSpace(graph))
 
 
 @register_model(
@@ -343,7 +343,7 @@ def galam_majority(
         opinion=_shares(n_agents, share, random_state),
         group_size=group_size,
     )
-    return System(elements=[citizens], interactions=[Discussions('talks', target='citizens')])
+    return System(components=[citizens], interactions=[Discussions('talks', target='citizens')])
 
 
 @register_model(
@@ -404,7 +404,7 @@ def social_impact(
         noise=noise,
     )
     return System(
-        elements=[people],
+        components=[people],
         interactions=[SocialImpact('impact', target='people')],
         space=GridSpace(width, height, capacity=1),
     )

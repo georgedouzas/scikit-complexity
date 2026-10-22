@@ -120,6 +120,7 @@ class Household(AgentType):
     tags=('diffusion', 'adoption', 'network effect', 'agents'),
     references=('Hamill and Gilbert 2016',),
     defaults={'until': 50},
+    observables=lambda system: [Observable('share', group='households', variable='phone')],
 )
 def phone_adoption(
     shape: Sequence[int] = (30, 30),
@@ -185,7 +186,6 @@ def phone_adoption(
         threshold=threshold,
     )
     return System(
-        elements=[households],
+        components=[households],
         space=GridSpace(width, height, torus=True),
-        observables=[Observable('share', group='households', variable='phone')],
     )

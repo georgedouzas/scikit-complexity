@@ -128,4 +128,4 @@ def generalized_lotka_volterra(
         raise ValidationError(error_msg)
     species = Microbe.group('species', size, x=abundances, b=[float(value) for value in b])
     matrix = tuple(tuple(float(value) for value in row) for row in a)
-    return System(elements=[species], interactions=[GeneralizedLotkaVolterra('glv', community='species', a=matrix)])
+    return System(components=[species], interactions=[GeneralizedLotkaVolterra('glv', community='species', a=matrix)])

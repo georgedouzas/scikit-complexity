@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from ._flows import Auxiliary, Flow
 
 type Target = Expression | SymbolicVector
+NOISE_CONVENTIONS = {'ito': 0.0, 'stratonovich': 0.5, 'anti-ito': 1.0}
 type NumericFunction = Callable[[float, Mapping[str, Any]], Any]
 
 
@@ -157,6 +158,10 @@ class Noise:
         order:
             The order of the derivative the noise drives, checked against the state's order, or `None` to use it.
 
+        convention:
+            The stochastic calculus of the law, `'ito'`, `'stratonovich'`, or `'anti-ito'`. The compiler adds the
+            drift correction of the convention, so every solver integrates the Itô form.
+
     Examples:
         >>> from skcomplex.core.base import symbol
         >>> from skcomplex.core.model import Noise
@@ -174,10 +179,14 @@ class Noise:
     target: Target
     value: object
     order: int | None = None
+    convention: str = 'ito'
 
     def __post_init__(self) -> None:
-        """Check the value of the law."""
+        """Check the value and the convention of the law."""
         _check_value(self, 'value', f'value of the {type(self).__name__.lower()} law of {self.target}')
+        if self.convention not in NOISE_CONVENTIONS:
+            error_msg = f'Unknown noise convention {self.convention!r}. Use one of {", ".join(NOISE_CONVENTIONS)}.'
+            raise ValidationError(error_msg)
 
 
 @dataclass(frozen=True)
@@ -447,11 +456,19 @@ class FractionalNoise(Noise):
 
     hurst: object = 0.5
 
-    def __init__(self, target: Target, value: object, hurst: object, order: int | None = None) -> None:
+    def __init__(
+        self,
+        target: Target,
+        value: object,
+        hurst: object,
+        order: int | None = None,
+        convention: str = 'ito',
+    ) -> None:
         object.__setattr__(self, 'target', target)
         object.__setattr__(self, 'value', value)
         object.__setattr__(self, 'hurst', hurst)
         object.__setattr__(self, 'order', order)
+        object.__setattr__(self, 'convention', convention)
         self.__post_init__()
 
 
@@ -553,7 +570,7 @@ class Equation:
 
     law_kind: ClassVar[LawKind] = LawKind.EQUATION
     requires: ClassVar[Requires] = Requires(
-        time={TimeKind.CONTINUOUS},
+        time={TimeKind.CONTINUOUS, TimeKind.STATIC},
         domains={DomainKind.REAL, DomainKind.ANGLE, DomainKind.COMPLEX, DomainKind.VECTOR},
     )
 

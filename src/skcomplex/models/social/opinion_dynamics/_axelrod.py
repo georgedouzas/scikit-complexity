@@ -243,7 +243,7 @@ def axelrod(
     locations = [(x, y) for x in range(width) for y in range(height)]
     villages = Village.group('villages', size, location=locations, culture=cultures, features=features, traits=traits)
     return System(
-        elements=[villages],
+        components=[villages],
         interactions=[CultureCensus('census', villages='villages', width=width, height=height)],
         space=GridSpace(width, height, neighborhood='von_neumann', capacity=1),
     )

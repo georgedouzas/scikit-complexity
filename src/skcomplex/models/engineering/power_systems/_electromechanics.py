@@ -182,7 +182,7 @@ def regenerative_braking(
         100.0
     """
     car = RegenerativeCar('car', v=v, I=0.0, Vs=0.0, m=m, A=A, L=L, R=R, C=C, alpha=alpha, beta=beta)
-    return System(elements=[car])
+    return System(components=[car])
 
 
 @register_model(
@@ -264,7 +264,7 @@ def faraday_disk(
         6.0
     """
     charger = FaradayDisk('charger', I=I, U=U, omega=omega, B=B, M=M, N=N, R1=R1, R2=R2, L=L, C=C)
-    return System(elements=[charger])
+    return System(components=[charger])
 
 
 @register_model(
@@ -323,4 +323,4 @@ def wheel_rail_contact(
         500.0
     """
     rail = RailSegment('rail', F=F, T=T, width=width, spacing=spacing, k2=k2, Mr=Mr, Ms=Ms)
-    return System(elements=[rail])
+    return System(components=[rail])

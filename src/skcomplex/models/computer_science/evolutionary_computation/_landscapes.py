@@ -183,6 +183,6 @@ def bit_string_evolution(
         one_values=tuple(one_values.tolist()),
     )
     return System(
-        elements=[BitString.group('genomes', n_agents, genome=genomes, fitness=fitness)],
+        components=[BitString.group('genomes', n_agents, genome=genomes, fitness=fitness)],
         interactions=[reproduction],
     )

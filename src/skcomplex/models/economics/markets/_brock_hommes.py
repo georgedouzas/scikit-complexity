@@ -10,9 +10,11 @@ import numpy as np
 from ....core.base import Domain, parameter, role, state
 from ....core.model import (
     AgentType,
+    DiscreteTime,
     Institution,
     Law,
     Phase,
+    Phases,
     Rule,
     Symbols,
     System,
@@ -250,4 +252,8 @@ def brock_hommes(
         noise=noise,
         initial=initial,
     )
-    return System(elements=[traders], interactions=[pricing], phases=[Phase('choice'), Phase('pricing')])
+    return System(
+        components=[traders],
+        interactions=[pricing],
+        time=DiscreteTime(schedule=Phases([Phase('choice'), Phase('pricing')])),
+    )

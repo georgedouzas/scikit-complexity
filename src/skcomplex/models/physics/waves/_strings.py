@@ -165,7 +165,7 @@ def spring_chain(
         DrivenAnchor('left_end', target='mass_0', k=k, center=[0.0, 0.0], amplitude=amplitude, omega=omega),
         DrivenAnchor('right_end', target=f'mass_{n_masses - 1}', k=k, center=[length, 0.0]),
     ]
-    return System(elements=masses, interactions=[*anchors, *springs], space=EuclideanSpace(2))
+    return System(components=masses, interactions=[*anchors, *springs], space=EuclideanSpace(2))
 
 
 @register_model(
@@ -220,4 +220,4 @@ def standing_waves(
     space = LatticeSpace(n_sites, spacing=spacing)
     edges = ('fixed', 0.0)
     string = Field('string', WaveString, space, boundary={'u': edges, 'v': edges}, values={'u': shape, 'c': c})
-    return System(elements=[string])
+    return System(components=[string])

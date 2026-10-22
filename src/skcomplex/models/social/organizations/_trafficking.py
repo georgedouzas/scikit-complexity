@@ -259,4 +259,4 @@ def trafficking(
     victim = (np.arange(n_victims + n_free) < n_victims).astype(float)
     women = Traveller.group('women', n_victims + n_free, location=homes, victim=victim)
     day = DailyMovements('day', women='women', premises='premises', n_cities=n_cities)
-    return System(elements=[premises, women], interactions=[day], space=GridSpace(width, height))
+    return System(components=[premises, women], interactions=[day], space=GridSpace(width, height))

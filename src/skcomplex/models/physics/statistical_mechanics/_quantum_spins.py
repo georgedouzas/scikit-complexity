@@ -178,6 +178,10 @@ class Dephasing(Interaction):
     tags=('quantum', 'spins', 'lattice', 'magnetism', 'open system'),
     references=('Heisenberg 1928', 'Mihailović et al. 2023'),
     defaults={'until': 8.0, 'dt': 0.05},
+    observables=lambda system: [
+        expectation('sz', local_magnetization, group='chain'),
+        expectation('magnetization', total_magnetization),
+    ],
 )
 def quantum_heisenberg(
     n_sites: int = 12,
@@ -250,11 +254,7 @@ def quantum_heisenberg(
         interactions.append(Dephasing('dephasing', target='chain', gamma=gamma))
     return QuantumSystem(
         'quantum_heisenberg',
-        elements=[chain],
+        components=[chain],
         interactions=interactions,
-        observables=[
-            expectation('sz', local_magnetization, group='chain'),
-            expectation('magnetization', total_magnetization),
-        ],
         initial='ground' if initial == 'ground' else None,
     )

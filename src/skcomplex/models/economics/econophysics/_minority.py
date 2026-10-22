@@ -245,4 +245,4 @@ def minority_game(
     players = Speculator.group('players', n_agents, first=codes[0], second=codes[1])
     period = period if evolutionary else 0
     game = MinorityGame('game', players='players', memory=memory, period=period, fraction=fraction)
-    return System(elements=[players], interactions=[game])
+    return System(components=[players], interactions=[game])

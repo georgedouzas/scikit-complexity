@@ -15,7 +15,7 @@ from sklearn.base import BaseEstimator
 
 from ..base import ExperimentError, ValidationError
 from ..compile import Problem, compile_system, observables_of
-from ..model import System
+from ..model import Observable, System
 from ..runtime import MODELS, Frame, Observer, Simulation, Trajectory
 from ._designs import Design, Row
 from ._results import ExperimentResult, RunResult
@@ -68,7 +68,31 @@ def split_overrides(values: Mapping[str, Any]) -> tuple[dict[str, Any], dict[str
     return arguments, paths
 
 
-def _problem(source: Callable[..., System] | System, arguments: Mapping[str, Any], system: System | None) -> Problem:
+def observables_for(observables: Sequence[Observable] | str | None, system: System) -> list[Observable]:
+    """Return the observables of a run: given ones, the standard ones of a registered model by name, or none.
+
+    Args:
+        observables:
+            The observables, the name of a registered model whose standard observables to use, or `None`.
+
+        system:
+            The system of the run.
+
+    Returns:
+        observables:
+            The observables.
+    """
+    if isinstance(observables, str):
+        return MODELS.resolve(observables).observables_of(system)
+    return list(observables or ())
+
+
+def _problem(
+    source: Callable[..., System] | System,
+    arguments: Mapping[str, Any],
+    system: System | None,
+    observables: Sequence[Observable] | str | None = None,
+) -> Problem:
     """Return the compiled problem of a source with factory arguments, compiled once per process and arguments."""
     if system is not None:
         key: tuple[Any, ...] = ('system', id(system))
@@ -83,8 +107,10 @@ def _problem(source: Callable[..., System] | System, arguments: Mapping[str, Any
     else:
         key = (source, tuple(sorted((name, repr(value)) for name, value in arguments.items())))
         built = None
+    key = (*key, observables if isinstance(observables, str | None) else tuple(map(id, observables)))
     if key not in _PROBLEMS:
-        _PROBLEMS[key] = compile_system(built if built is not None else source(**arguments))
+        built = built if built is not None else source(**arguments)
+        _PROBLEMS[key] = compile_system(built, observables=observables_for(observables, built))
     return _PROBLEMS[key]
 
 
@@ -176,6 +202,9 @@ class Task:
 
         warmup:
             The simulated time before which kept series are discarded.
+
+        observables:
+            The observables of the run, or the name of the registered model whose standard observables to use.
     """
 
     index: int
@@ -188,6 +217,7 @@ class Task:
     settings: Mapping[str, Any]
     outputs: Sequence[Output] | None
     warmup: float
+    observables: Sequence[Observable] | str | None = None
 
 
 def _scalars(name: str, value: Any) -> dict[str, Any]:  # noqa: ANN401
@@ -209,7 +239,7 @@ def run_task(task: Task) -> RunResult:
             The run's design values, scenario, replicate, seed, series, and scalars.
     """
     arguments, paths = split_overrides({**task.row, **(task.scenario.overrides or {})})
-    problem = with_values(_problem(task.source, arguments, task.scenario.system), paths)
+    problem = with_values(_problem(task.source, arguments, task.scenario.system, task.observables), paths)
     schedule = _Schedule(task.scenario.schedule)
     simulation = Simulation(
         problem,
@@ -292,6 +322,9 @@ class Experiment(BaseEstimator):
         executor:
             `'serial'`, `'thread'`, `'process'`, or a `concurrent.futures` executor.
 
+        observables:
+            The observables of every run, or `None` for the standard observables of a registered model.
+
     Examples:
         >>> from skcomplex.core.experiments import Experiment, Grid
         >>> from skcomplex.models.biology.ecology import logistic_growth
@@ -314,6 +347,7 @@ class Experiment(BaseEstimator):
         warmup: float = 0.0,
         random_state: int | None = None,
         executor: str | Executor = 'serial',
+        observables: Sequence[Observable] | None = None,
     ) -> None:
         self.source = source
         self.design = design
@@ -326,6 +360,7 @@ class Experiment(BaseEstimator):
         self.warmup = warmup
         self.random_state = random_state
         self.executor = executor
+        self.observables = observables
 
     def tasks(self) -> list[Task]:
         """Return the runs of the experiment in their fixed order.
@@ -342,6 +377,8 @@ class Experiment(BaseEstimator):
             error_msg = f'replicates = {self.replicates!r} must be a positive integer.'
             raise ValidationError(error_msg)
         source, defaults = resolve_source(self.source)
+        named = self.source if isinstance(self.source, str) else None
+        observables = list(self.observables) if self.observables is not None else named
         given = {key: value for key, value in {'dt': self.dt, 'solver': self.solver}.items() if value is not None}
         settings = {key: value for key, value in {**defaults, **given}.items() if key in RUN_SETTINGS}
         until = self.until if self.until is not None else defaults.get('until', 10.0)
@@ -364,6 +401,7 @@ class Experiment(BaseEstimator):
                         settings,
                         self.outputs,
                         self.warmup,
+                        observables,
                     )
                     tasks.append(task)
         return tasks
@@ -384,7 +422,7 @@ class Experiment(BaseEstimator):
         if self.executor in {'serial', 'thread'}:
             for task in tasks:
                 arguments, _ = split_overrides({**task.row, **(task.scenario.overrides or {})})
-                _problem(task.source, arguments, task.scenario.system)
+                _problem(task.source, arguments, task.scenario.system, task.observables)
         if self.executor == 'serial':
             results = [run_task(task) for task in tasks]
         else:

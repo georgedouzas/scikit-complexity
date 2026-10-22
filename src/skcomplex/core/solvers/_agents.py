@@ -36,6 +36,7 @@ from ..base import (
 from ..compile import CompiledAgents, ObservableEvaluator, Problem, Vector
 from ..model import ContinuousSpace, GridSpace, Group, MesaSystem, NetworkSpace, Phase, Rule, Space
 from ..model._phases import DEFAULT_PHASE
+from ..model._time import DiscreteTime
 from ._base import Stepper, register_solver
 
 MAX_SEED = 2**31 - 1
@@ -721,7 +722,7 @@ class MesaStepper(Stepper):
         ...
         ...     def tick(self, agent, model):
         ...         agent.count += 1
-        >>> trajectory = Simulation(System(elements=[Counter.group('counters', 3)])).run(until=4).trajectory_
+        >>> trajectory = Simulation(System(components=[Counter.group('counters', 3)])).run(until=4).trajectory_
         >>> trajectory.agents('counters', 4).values['count'].tolist()
         [4.0, 4.0, 4.0]
     """
@@ -776,7 +777,8 @@ class MesaStepper(Stepper):
         roles = {item.path: item.roles for item in problem.interactions}
         self._views = {spec.path: ModelView(self, spec.path) for spec in problem.agents}
         self._rules = [(ModelView(self, owner, roles.get(owner)), rule) for owner, rule in problem.model_rules]
-        self._phases = _phase_plan(getattr(problem.system, 'phases', ()), problem)
+        time = getattr(problem.system, 'time', None)
+        self._phases = _phase_plan(time.phases if isinstance(time, DiscreteTime) else (), problem)
         owners = [(item.path, type(item.interaction)) for item in problem.interactions] + [
             (spec.path, spec.element.element if isinstance(spec.element, Group) else type(spec.element))
             for spec in problem.agents

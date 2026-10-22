@@ -18,13 +18,15 @@ from scipy.special import jv
 from skcomplex.core.analysis import spectrum
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create, run
+from skcomplex.models import create, describe, run
 
 MODEL = 'quantum_heisenberg'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.05, observers=[observer]).run(until=8.0)
+simulation = Simulation(system, dt=0.05, observers=[observer], observables=describe(MODEL).observables_of(system)).run(
+    until=8.0,
+)
 
 # %%
 # Magnon and ground-state energy

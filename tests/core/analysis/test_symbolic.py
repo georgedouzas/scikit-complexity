@@ -18,7 +18,7 @@ from tests.core.compile.test_compiler import CallableGrowth
 
 def test_equations_of_logistic_growth():
     """Test that logistic growth gives `dn/dt = r * n * (1 - n / K)`."""
-    system = System(elements=[Population('p', n=10)], interactions=[LogisticGrowth('g', target='p')])
+    system = System(components=[Population('p', n=10)], interactions=[LogisticGrowth('g', target='p')])
     problem = compile_system(system)
     n = function('n_p')(problem.time)
     r, K = problem.symbols['g.r'], problem.symbols['g.K']
@@ -30,7 +30,7 @@ def test_equations_of_logistic_growth():
 
 def test_equations_of_discrete_map_gives_next_value():
     """Test that a discrete map gives the value at `t + 1`."""
-    system = System(elements=[Market('m')], interactions=[Cobweb('c', target='m')])
+    system = System(components=[Market('m')], interactions=[Cobweb('c', target='m')])
     equation = equations_of(system)['m.price']
     t = compile_system(system).time
     assert bool(equation.lhs() == function('price_m')(t + 1))
@@ -39,7 +39,7 @@ def test_equations_of_discrete_map_gives_next_value():
 def test_equations_of_jump_process_raises_error():
     """Test that jump processes have no symbolic equations."""
     system = System(
-        elements=[Compartment('I', n=1), Compartment('R')],
+        components=[Compartment('I', n=1), Compartment('R')],
         interactions=[Recovery('r', infected='I', recovered='R', stochastic=True)],
     )
     with pytest.raises(AnalysisError, match='jump process'):
@@ -48,7 +48,7 @@ def test_equations_of_jump_process_raises_error():
 
 def test_solve_symbolically_free_particle():
     """Test that a free particle moves linearly with two integration constants."""
-    system = System(elements=[Particle('p')], space=EuclideanSpace(1))
+    system = System(components=[Particle('p')], space=EuclideanSpace(1))
     solution = solve_symbolically(system)['p.x[0]']
     t = compile_system(system).time
     slope, start = solution.rhs().diff(t), solution.rhs().subs({t: 0})
@@ -61,7 +61,7 @@ def test_solve_symbolically_free_particle():
 def test_solve_symbolically_constant_acceleration():
     """Test that a constant force gives `F * t**2 / (2 * m)` from rest."""
     system = System(
-        elements=[Particle('p')],
+        components=[Particle('p')],
         interactions=[ConstantForce('push', target='p', F=3.0)],
         space=EuclideanSpace(1),
     )
@@ -75,7 +75,7 @@ def test_solve_symbolically_constant_acceleration():
 def test_solve_symbolically_harmonic_oscillator():
     """Test that an oscillator from its initial state oscillates with frequency `sqrt(k / m)`."""
     system = System(
-        elements=[Particle('p', x=1.0, v=0.0)],
+        components=[Particle('p', x=1.0, v=0.0)],
         interactions=[HarmonicPotential('trap', target='p')],
         space=EuclideanSpace(1),
     )
@@ -93,14 +93,14 @@ def test_solve_symbolically_harmonic_oscillator():
 
 def test_solve_symbolically_not_ode_raises_error():
     """Test that only ODE systems are solved."""
-    system = System(elements=[Asset('s')], interactions=[GeometricBrownianMotion('g', target='s')])
+    system = System(components=[Asset('s')], interactions=[GeometricBrownianMotion('g', target='s')])
     with pytest.raises(AnalysisError, match='stochastic differential equations'):
         solve_symbolically(system)
 
 
 def test_solve_symbolically_callable_raises_error():
     """Test that callable laws cannot be solved."""
-    system = System(elements=[Population('rabbits')], interactions=[CallableGrowth('g', target='rabbits')])
+    system = System(components=[Population('rabbits')], interactions=[CallableGrowth('g', target='rabbits')])
     with pytest.raises(AnalysisError, match='callable'):
         solve_symbolically(system)
 
@@ -109,7 +109,7 @@ def test_sage_expression_compiles_like_number():
     """Test that a constant force given as a Sage expression simulates like the same force given as a number."""
     force = SR(2) * SR(1.5)
     system = System(
-        elements=[Particle('p')],
+        components=[Particle('p')],
         interactions=[ConstantForce('push', target='p', F=float(force))],
         space=EuclideanSpace(1),
     )
@@ -124,7 +124,7 @@ def test_sage_expression_compiles_like_number():
             return [Rate(s.target.v, [force])]
 
     sage_system = System(
-        elements=[Particle('p')],
+        components=[Particle('p')],
         interactions=[SageForce('push', target='p')],
         space=EuclideanSpace(1),
     )

@@ -52,7 +52,7 @@ def logistic_map(x: float = 0.2, *, r: float = 3.7) -> System:
         >>> logistic_map(r=3.2).elements[0].r
         3.2
     """
-    return System(elements=[LogisticMap('map', x=x, r=r)])
+    return System(components=[LogisticMap('map', x=x, r=r)])
 
 
 @register_model(
@@ -86,7 +86,7 @@ def henon_map(x: float = 0.0, y: float = 0.0, *, a: float = 1.4, b: float = 0.3)
         >>> henon_map(a=1.2).elements[0].a
         1.2
     """
-    return System(elements=[HenonMap('map', x=x, y=y, a=a, b=b)])
+    return System(components=[HenonMap('map', x=x, y=y, a=a, b=b)])
 
 
 StandardMap = Element.define(
@@ -188,7 +188,7 @@ def standard_map(theta: float = 0.0, p: float = 2 * math.pi * GOLDEN_MEAN, *, K:
         >>> standard_map(K=0.5).elements[0].K
         0.5
     """
-    return System(elements=[StandardMap('map', theta=theta, p=p, K=K)])
+    return System(components=[StandardMap('map', theta=theta, p=p, K=K)])
 
 
 @register_model(
@@ -219,7 +219,7 @@ def circle_map(theta: float = 0.0, *, Omega: float = 0.25, K: float = 0.9) -> Sy
         >>> circle_map(K=1.0).elements[0].K
         1.0
     """
-    return System(elements=[CircleMap('map', theta=theta, Omega=Omega, K=K)])
+    return System(components=[CircleMap('map', theta=theta, Omega=Omega, K=K)])
 
 
 @register_model(
@@ -247,7 +247,7 @@ def tent_map(x: float = 0.3, *, mu: float = 1.99) -> System:
         >>> tent_map(mu=1.5).elements[0].mu
         1.5
     """
-    return System(elements=[TentMap('map', x=x, mu=mu)])
+    return System(components=[TentMap('map', x=x, mu=mu)])
 
 
 @register_model(
@@ -295,7 +295,7 @@ def baker_map(
         >>> baker_map(lambda_a=0.2).elements[0].lambda_a
         0.2
     """
-    return System(elements=[BakerMap('map', x=x, y=y, alpha=alpha, lambda_a=lambda_a, lambda_b=lambda_b)])
+    return System(components=[BakerMap('map', x=x, y=y, alpha=alpha, lambda_a=lambda_a, lambda_b=lambda_b)])
 
 
 @register_model(
@@ -342,7 +342,7 @@ def towel_map(
         >>> towel_map(a=3.7).elements[0].a
         3.7
     """
-    return System(elements=[TowelMap('map', x=x, y=y, z=z, a=a, b=b)])
+    return System(components=[TowelMap('map', x=x, y=y, z=z, a=a, b=b)])
 
 
 @register_model(
@@ -370,7 +370,7 @@ def intermittency_map(x: float = 0.01, *, z: float = 2.0) -> System:
         >>> intermittency_map(z=1.5).elements[0].z
         1.5
     """
-    return System(elements=[IntermittencyMap('map', x=x, z=z)])
+    return System(components=[IntermittencyMap('map', x=x, z=z)])
 
 
 @register_model(
@@ -401,7 +401,7 @@ def newton_raphson_map(x: float = 0.5, y: float = 0.5) -> System:
         >>> newton_raphson_map(x=1.5).elements[0].x
         1.5
     """
-    return System(elements=[NewtonMap('map', x=x, y=y)])
+    return System(components=[NewtonMap('map', x=x, y=y)])
 
 
 @register_model(
@@ -429,4 +429,4 @@ def cat_map(x: float = 0.1, y: float = 0.3) -> System:
         >>> cat_map(x=0.5).elements[0].x
         0.5
     """
-    return System(elements=[CatMap('map', x=x, y=y)])
+    return System(components=[CatMap('map', x=x, y=y)])

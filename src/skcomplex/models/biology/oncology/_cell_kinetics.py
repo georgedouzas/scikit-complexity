@@ -322,8 +322,8 @@ def cell_cycle_chemotherapy(
         'DormantCellCycle'
     """
     if dormant:
-        return System(elements=[DormantCellCycle('tumour', u=u1, v=v)])
-    return System(elements=[CellCycle('tumour', u1=u1, u2=u2)])
+        return System(components=[DormantCellCycle('tumour', u=u1, v=v)])
+    return System(components=[CellCycle('tumour', u1=u1, u2=u2)])
 
 
 @register_model(
@@ -383,4 +383,4 @@ def erythropoiesis_mercaptopurine(
     """
     Q = Q50 * (m0 / r1 - 1) ** (1 / n)
     patient = Erythropoiesis('patient', L=r1 * Q / d1, Q=Q, P=0.71 / 6.43 * Q, r1=r1, d1=d1, m0=m0, Q50=Q50, n=n, U=U)
-    return System(elements=[patient])
+    return System(components=[patient])

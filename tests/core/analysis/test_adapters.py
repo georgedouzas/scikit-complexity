@@ -63,7 +63,7 @@ def test_series_of_an_ode():
 
 def test_path_of_a_gillespie_run():
     """Test that the jump path of a birth-death run keeps only the frames where the state changed."""
-    system = System(elements=[BirthDeath('cells')])
+    system = System(components=[BirthDeath('cells')])
     trajectory = Simulation(system, dt=0.01, random_state=0).run(until=20).trajectory_
     path = path_of(trajectory)
     assert path.label == 'cells.n'

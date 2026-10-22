@@ -238,7 +238,7 @@ def discrete_master_equation(
     probability = np.zeros(n_states)
     probability[0] = 1.0
     space = LatticeSpace(n_states)
-    return System(elements=[Microstate.lattice('states', space, P=probability, U=potential, beta=beta, w=w)])
+    return System(components=[Microstate.lattice('states', space, P=probability, U=potential, beta=beta, w=w)])
 
 
 @register_model(
@@ -281,7 +281,7 @@ def two_phase_zone_exchange(
         >>> two_phase_zone_exchange(5).elements[0].size
         5
     """
-    return System(elements=[Zone.group('zones', n_zones, Na=Na, p=p, k=k)])
+    return System(components=[Zone.group('zones', n_zones, Na=Na, p=p, k=k)])
 
 
 @register_model(
@@ -336,4 +336,4 @@ def landau_relaxation(
         >>> landau_relaxation(T=2.0).elements[0].T
         2.0
     """
-    return System(elements=[OrderParameter('magnet', phi=phi, a=a, b=b, T=T, Tc=Tc, h=h, Gamma=Gamma)])
+    return System(components=[OrderParameter('magnet', phi=phi, a=a, b=b, T=T, Tc=Tc, h=h, Gamma=Gamma)])

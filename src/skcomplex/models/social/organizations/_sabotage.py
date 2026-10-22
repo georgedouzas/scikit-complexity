@@ -288,6 +288,6 @@ def insider_sabotage(
     )
     supervisors = Supervisor.group('supervisors', n_supervisors)
     return System(
-        elements=[employees, supervisors],
+        components=[employees, supervisors],
         space=GridSpace(size, size, neighborhood='von_neumann', torus=True),
     )

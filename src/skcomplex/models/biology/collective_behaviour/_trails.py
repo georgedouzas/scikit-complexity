@@ -252,8 +252,8 @@ def active_walkers(
     )
     ground = Field('ground', Ground, LatticeSpace((size, size), boundary='reflecting'), values={'T': T})
     return System(
-        systems=[
-            System('people', elements=[walkers], space=GridSpace(size, size)),
-            System('land', elements=[ground]),
+        components=[
+            System('people', components=[walkers], space=GridSpace(size, size)),
+            System('land', components=[ground]),
         ],
     )

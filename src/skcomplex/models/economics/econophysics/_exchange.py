@@ -83,4 +83,4 @@ def boltzmann_wealth(n_agents: int = 100) -> System:
         >>> boltzmann_wealth(10).elements[0].size
         10
     """
-    return System(elements=[Trader.group('traders', n_agents)])
+    return System(components=[Trader.group('traders', n_agents)])

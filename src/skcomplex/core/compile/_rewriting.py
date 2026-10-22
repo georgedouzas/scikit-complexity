@@ -444,7 +444,7 @@ def compile_rewriting(system: System) -> Problem:
         >>> from skcomplex.core.compile import compile_system
         >>> from skcomplex.core.model import Production, Rewrite, System, Word
         >>> system = System(
-        ...     elements=[Word('algae', axiom='A')],
+        ...     components=[Word('algae', axiom='A')],
         ...     interactions=[Rewrite('rules', target='algae', rules=[Production('A', 'AB'), Production('B', 'A')])],
         ... )
         >>> problem = compile_system(system)

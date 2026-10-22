@@ -4,7 +4,7 @@
 # License: MIT
 
 import math
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 
 import rerun as rr
@@ -12,7 +12,7 @@ import rerun.blueprint as rrb
 
 from ..base import ValidationError
 from ..compile import CompiledAgents, CompiledElement, Problem, compile_system, observables_of
-from ..model import MesaSystem, System
+from ..model import MesaSystem, Observable, System
 from ._traits import agents_visual_of
 from ._visuals import PointsVisual, ScalarsVisual, resolve_visual
 
@@ -26,9 +26,9 @@ WHOLE_RUN = rrb.TimeAxis(
 )
 
 
-def _problem_of(system: System | Problem) -> Problem:
-    """Return the problem of a system, compiling it when it is not compiled yet."""
-    return system if isinstance(system, Problem) else compile_system(system)
+def _problem_of(system: System | Problem, observables: Sequence[Observable] = ()) -> Problem:
+    """Return the problem of a system with its observables, compiling it when it is not compiled yet."""
+    return system if isinstance(system, Problem) else compile_system(system, observables=observables)
 
 
 def _contents(view: rrb.View) -> list[str]:
@@ -247,6 +247,7 @@ def default_blueprint(
     *,
     parameters: bool = False,
     primary: str | None = None,
+    observables: Sequence[Observable] = (),
 ) -> rrb.Blueprint:
     """Return a Rerun blueprint built from the views the visuals of a system declare.
 
@@ -263,6 +264,9 @@ def default_blueprint(
 
         primary:
             The name or the origin of the view to put first, with its row, or `None` for `primary_view(system)`.
+
+        observables:
+            The observables of the run, which get a time series view, unless `system` is a compiled problem.
 
     Returns:
         blueprint:
@@ -282,7 +286,7 @@ def default_blueprint(
         >>> [str(view.origin) for view in blueprint.root_container.contents]
         ['cells/v', 'cells/u']
     """
-    spatial, series = _ordered_views(_problem_of(system), parameters=parameters)
+    spatial, series = _ordered_views(_problem_of(system, observables), parameters=parameters)
     ordered = [spatial, series] if primary is None else _with_primary(spatial, series, primary)
     rows = [_row(views) for views in ordered if views]
     if len(rows) > 1:

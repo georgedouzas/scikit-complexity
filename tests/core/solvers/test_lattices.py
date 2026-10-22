@@ -41,7 +41,7 @@ def _shift(schedule):
         states={'value': 0.0},
         laws=lambda s: [LocalRule(s.value, Neighborhood(((-1,),)), lambda left: left, schedule=schedule)],
     )
-    return System(elements=[Copy.lattice('ring', LatticeSpace(6), value=[1, 2, 3, 4, 5, 6])])
+    return System(components=[Copy.lattice('ring', LatticeSpace(6), value=[1, 2, 3, 4, 5, 6])])
 
 
 def _rule_30(n_steps, size):
@@ -70,9 +70,9 @@ def test_fixed_and_reflecting_edges():
         states={'value': 0.0},
         laws=lambda s: [LocalRule(s.value, Neighborhood(((-1,),)), lambda left: left)],
     )
-    fixed = System(elements=[Edge.lattice('cells', LatticeSpace(3, boundary='fixed', fill=9), value=[1, 2, 3])])
+    fixed = System(components=[Edge.lattice('cells', LatticeSpace(3, boundary='fixed', fill=9), value=[1, 2, 3])])
     assert Simulation(fixed, dt=1).run(until=1).state_.tolist() == [9, 1, 2]
-    mirror = System(elements=[Edge.lattice('cells', LatticeSpace(3, boundary='reflecting'), value=[1, 2, 3])])
+    mirror = System(components=[Edge.lattice('cells', LatticeSpace(3, boundary='reflecting'), value=[1, 2, 3])])
     assert Simulation(mirror, dt=1).run(until=1).state_.tolist() == [1, 1, 2]
 
 
@@ -117,14 +117,14 @@ def test_table_and_totalistic_rules():
         states={'bit': 0.0},
         laws=lambda s: [LocalRule(s.bit, Neighborhood.radius(), Totalistic({1: 1, 3: 1}))],
     )
-    ring = System(elements=[Parity.lattice('ring', LatticeSpace(5), bit=[0, 1, 0, 0, 0])])
+    ring = System(components=[Parity.lattice('ring', LatticeSpace(5), bit=[0, 1, 0, 0, 0])])
     assert Simulation(ring, dt=1).run(until=1).state_.tolist() == [1, 1, 1, 0, 0]
     Swap = Element.define(
         'Swap',
         states={'bit': 0.0},
         laws=lambda s: [LocalRule(s.bit, Neighborhood(((0,),)), Table({(0,): 1, (1,): 0}))],
     )
-    flip = System(elements=[Swap.lattice('ring', LatticeSpace(3), bit=[0, 1, 0])])
+    flip = System(components=[Swap.lattice('ring', LatticeSpace(3), bit=[0, 1, 0])])
     assert Simulation(flip, dt=1).run(until=1).state_.tolist() == [1, 0, 1]
     Count = Element.define(
         'Count',
@@ -133,7 +133,7 @@ def test_table_and_totalistic_rules():
             LocalRule(s.bit, Neighborhood(((-1,), (1,))), OuterTotalistic(lambda center, total: (center + total) % 2)),
         ],
     )
-    count = System(elements=[Count.lattice('ring', LatticeSpace(4), bit=[1, 0, 0, 0])])
+    count = System(components=[Count.lattice('ring', LatticeSpace(4), bit=[1, 0, 0, 0])])
     assert Simulation(count, dt=1).run(until=1).state_.tolist() == [1, 1, 0, 1]
 
 
@@ -165,7 +165,7 @@ def test_checkerboard_needs_bipartite_neighbourhood():
         laws=lambda s: [LocalRule(s.alive, Neighborhood.moore(), lambda *values: values[0], schedule='checkerboard')],
     )
     with pytest.raises(ValidationError, match='random-sequential'):
-        compile_system(System(elements=[Cell.lattice('cells', LatticeSpace((4, 4)))]))
+        compile_system(System(components=[Cell.lattice('cells', LatticeSpace((4, 4)))]))
 
 
 def test_unknown_schedule_is_rejected():
@@ -191,7 +191,7 @@ def test_rule_reads_parameters_by_keyword():
         parameters={'rate': 1.0},
         laws=lambda s: [LocalRule(s.value, Neighborhood(((0,),)), lambda value, *, rate: value + rate)],
     )
-    simulation = Simulation(System(elements=[Growth.lattice('cells', LatticeSpace(2))]), dt=1).run(until=2)
+    simulation = Simulation(System(components=[Growth.lattice('cells', LatticeSpace(2))]), dt=1).run(until=2)
     assert simulation.state_.tolist() == [2.0, 2.0]
     simulation.update_parameters({'cells.rate': 5.0})
     assert simulation.parameters_.tolist() == [5.0, 5.0]
@@ -218,7 +218,7 @@ def test_relaxation_records_avalanches():
         ],
     )
     space = LatticeSpace(5, boundary='fixed')
-    trajectory = Simulation(System(elements=[Pile.lattice('pile', space, height=[1, 1, 1, 1, 1])]), dt=1).run(1)
+    trajectory = Simulation(System(components=[Pile.lattice('pile', space, height=[1, 1, 1, 1, 1])]), dt=1).run(1)
     (record,) = trajectory.trajectory_.events
     assert (record.label, record.time) == ('pile', 1.0)
     assert (record.size, record.duration, record.area) == (9, 5, 5)
@@ -235,13 +235,13 @@ def test_relaxation_without_end_raises():
         ],
     )
     with pytest.raises(SolverError, match='not stable after 10 iterations'):
-        Simulation(System(elements=[Restless.lattice('cells', LatticeSpace(2))]), dt=1).run(until=1)
+        Simulation(System(components=[Restless.lattice('cells', LatticeSpace(2))]), dt=1).run(until=1)
 
 
 def test_local_rule_needs_lattice_group():
     """Test that a local rule on a state outside a lattice group is rejected."""
     with pytest.raises(ValidationError, match='LocalRule law of cells needs a lattice'):
-        compile_system(System(elements=[Group('cells', element=Shift, size=3)]))
+        compile_system(System(components=[Group('cells', element=Shift, size=3)]))
 
 
 def test_monte_carlo_energy_change_is_symbolic():
@@ -253,7 +253,7 @@ def test_monte_carlo_energy_change_is_symbolic():
         parameters={'J': 1.0, 'temperature': 1.0},
         laws=lambda s: [Energy(-s.J * s.spin * sum(neighbors(s.spin, nearest)), nearest), Move.flip(s.spin)],
     )
-    problem = compile_system(System(elements=[Spin.lattice('spins', LatticeSpace((4, 4)))]))
+    problem = compile_system(System(components=[Spin.lattice('spins', LatticeSpace((4, 4)))]))
     sampling = problem.lattice[0]
     change = sampling.delta(0.0, np.ones(3), *np.ones((4, 3)), -np.ones(3), 1.0, 1.0)[0]
     assert np.allclose(change, 8.0)
@@ -275,7 +275,7 @@ def test_monte_carlo_needs_one_energy_and_move():
         ],
     )
     with pytest.raises(ValidationError, match='one energy, one move'):
-        compile_system(System(elements=[Lonely.lattice('spins', LatticeSpace((4, 4)))]))
+        compile_system(System(components=[Lonely.lattice('spins', LatticeSpace((4, 4)))]))
 
 
 @pytest.mark.parametrize('sampler', ['metropolis', 'glauber', 'heat-bath'])
@@ -333,7 +333,7 @@ def _pile(activity, evaluated):
     )
     heights = np.random.default_rng(0).integers(0, 4, size=(32, 32)).astype(float)
     space = LatticeSpace((32, 32), boundary='fixed')
-    return System(elements=[Pile.lattice('pile', space, height=heights)])
+    return System(components=[Pile.lattice('pile', space, height=heights)])
 
 
 def test_relaxation_over_active_sites_matches_the_full_update():

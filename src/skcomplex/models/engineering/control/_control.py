@@ -173,7 +173,7 @@ def thermostat(
         0.3
     """
     room = Room('room', T=T, setting=setting, furnace=furnace, leak=leak, outside=outside, swing=swing)
-    return System(elements=[room])
+    return System(components=[room])
 
 
 @register_model(
@@ -252,7 +252,7 @@ def pid_loop(
         change=change,
         disturbance=disturbance,
     )
-    return System(elements=[process])
+    return System(components=[process])
 
 
 @register_model(
@@ -297,7 +297,7 @@ def pendulum_swing_up(
         0.2
     """
     pendulum = SwingingPendulum('pendulum', theta=theta, theta_d1=omega0, f=0.0, f_d1=0.0, omega=omega, mu=mu)
-    return System(elements=[pendulum])
+    return System(components=[pendulum])
 
 
 @register_model(
@@ -305,6 +305,7 @@ def pendulum_swing_up(
     tags=('control', 'orbits', 'celestial mechanics', 'ode'),
     references=('Dilão et al. 2022', 'Dilão 2023'),
     defaults={'until': 20.0, 'dt': 0.05, 'solver': RK4(dt=0.005)},
+    observables=lambda system: [Observable('energy', _energy_of_satellite)],
 )
 def satellite_transfer(
     s: float = 0.314,
@@ -353,4 +354,4 @@ def satellite_transfer(
         0.7
     """
     satellite = Satellite('satellite', s=s, s_d1=velocity, theta=theta, Lz=Lz, epsilon=epsilon, H_final=H_final)
-    return System(elements=[satellite], observables=[Observable('energy', _energy_of_satellite)])
+    return System(components=[satellite])

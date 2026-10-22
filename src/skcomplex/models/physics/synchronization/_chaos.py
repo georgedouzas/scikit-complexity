@@ -131,7 +131,7 @@ def coupled_rossler(
         DiffusiveCoupling(f'coupling_{first}_{second}', first=f'oscillator_{first}', second=f'oscillator_{second}', k=k)
         for first, second in links
     ]
-    return System(elements=oscillators, interactions=couplings)
+    return System(components=oscillators, interactions=couplings)
 
 
 @register_model(
@@ -176,6 +176,6 @@ def aggregate_averaging_synchronization(
         0.1
     """
     return System(
-        elements=[LogisticUnit('first', x=x1), LogisticUnit('second', x=x2)],
+        components=[LogisticUnit('first', x=x1), LogisticUnit('second', x=x2)],
         interactions=[AggregateAveraging('averaging', first='first', second='second', r=r, kappa=kappa)],
     )

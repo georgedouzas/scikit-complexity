@@ -244,7 +244,7 @@ def oil_economy(
         lifetime=lifetime,
         price_table=None if price_table is None else tuple(float(value) for value in price_table),
     )
-    return System(elements=[economy])
+    return System(components=[economy])
 
 
 @register_model(
@@ -305,4 +305,4 @@ def fishery_capital(
         lifetime=lifetime,
         yield_table=tuple(float(value) for value in yield_table),
     )
-    return System(elements=[fishery])
+    return System(components=[fishery])

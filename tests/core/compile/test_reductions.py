@@ -82,7 +82,7 @@ def _group_of(laws, size=10, values=None):
     """Return a system of one group of units whose laws read reductions."""
     unit = Element.define('Reducing', states={'x': 0.0}, laws=laws)
     values = RNG.normal(size=size) if values is None else np.asarray(values, dtype=float)
-    return System(elements=[unit.group('units', size, x=values)]), values
+    return System(components=[unit.group('units', size, x=values)]), values
 
 
 def _rates(system, backend='numpy'):
@@ -98,12 +98,8 @@ def _kuramoto(size, *, observables=False):
     if observables:
         return (
             System(
-                elements=[oscillators],
+                components=[oscillators],
                 interactions=[MeanFieldCoupling('coupling', target='oscillators', X='X', Y='Y', K=2.0)],
-                observables=[
-                    Observable('X', _cosine, group='oscillators'),
-                    Observable('Y', _sine, group='oscillators'),
-                ],
             ),
             theta,
             omega,
@@ -121,7 +117,7 @@ def _kuramoto(size, *, observables=False):
         ],
     )
     return (
-        System(elements=[oscillators], interactions=[coupling('coupling', target='oscillators', K=2.0)]),
+        System(components=[oscillators], interactions=[coupling('coupling', target='oscillators', K=2.0)]),
         theta,
         omega,
     )
@@ -144,7 +140,7 @@ def test_instantaneous_mean_in_interaction():
     theta = RNG.uniform(0, 2 * math.pi, 40)
     Neuron = Element.define('Neuron', states={'theta': state(0.0, domain=Domain.ANGLE)})
     system = System(
-        elements=[Neuron.group('neurons', 40, theta=theta)],
+        components=[Neuron.group('neurons', 40, theta=theta)],
         interactions=[MeanPulse('pulses', neurons='neurons')],
     )
     problem = compile_system(system)
@@ -162,7 +158,7 @@ def test_maximum_drives_single_element(largest, drive):
     """Test that the inhibitor is driven exactly when some oscillator exceeds the threshold."""
     values = np.linspace(-1.0, largest, 8)
     system = System(
-        elements=[Unit.group('oscillators', 8, x=values), Inhibitor('inhibitor')],
+        components=[Unit.group('oscillators', 8, x=values), Inhibitor('inhibitor')],
         interactions=[Drive('drive', inhibitor='inhibitor', oscillators='oscillators')],
     )
     problem = compile_system(system)
@@ -243,7 +239,7 @@ def test_two_groups_in_one_reduction():
         laws=lambda s: [Rate(s.target.x, total(s.prey.x * s.predators.x))],
     )
     system = System(
-        elements=[Unit.group('prey', 3), Unit.group('predators', 3), Unit('target')],
+        components=[Unit.group('prey', 3), Unit.group('predators', 3), Unit('target')],
         interactions=[Predation('predation', prey='prey', predators='predators', target='target')],
     )
     with pytest.raises(RoleError, match=r'total\(.*predators and prey.*one reduction per group'):
@@ -259,7 +255,7 @@ def test_interaction_reads_second_group_through_reductions():
     )
     first, second = RNG.normal(size=4), RNG.normal(size=6)
     system = System(
-        elements=[Unit.group('first', 4, x=first), Unit.group('second', 6, x=second)],
+        components=[Unit.group('first', 4, x=first), Unit.group('second', 6, x=second)],
         interactions=[Coupling('coupling', target='first', source='second')],
     )
     for backend in ('numpy', 'numba'):
@@ -270,7 +266,8 @@ def test_interaction_reads_second_group_through_reductions():
 def test_kuramoto_through_observables(backend):
     """Test that laws reading observables of their own partition compile to one ODE at the current state."""
     system, theta, omega = _kuramoto(40, observables=True)
-    problem = compile_system(system, backend=backend)
+    observables = [Observable('X', _cosine, group='oscillators'), Observable('Y', _sine, group='oscillators')]
+    problem = compile_system(system, backend=backend, observables=observables)
     assert problem.form.name == 'ODE'
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     np.testing.assert_allclose(rates, _all_to_all(theta, omega), atol=1e-12)
@@ -279,12 +276,11 @@ def test_kuramoto_through_observables(backend):
 def test_callable_observable_in_same_partition():
     """Test that a law reading a callable observable of its own partition is rejected."""
     system = System(
-        elements=[Unit.group('herd', 3), Unit('soil')],
+        components=[Unit.group('herd', 3), Unit('soil')],
         interactions=[Reader('reader', target='soil', source='spread')],
-        observables=[Observable('spread', group='herd', variable='x', reduce=np.ptp)],
     )
     with pytest.raises(ValidationError, match=r'spread.*symbolically.*another'):
-        compile_system(system)
+        compile_system(system, observables=[Observable('spread', group='herd', variable='x', reduce=np.ptp)])
 
 
 def test_observable_read_in_its_own_partition():
@@ -296,11 +292,11 @@ def test_observable_read_in_its_own_partition():
         laws=lambda s: [Rate(s.W, s.r * s.W)],
     )
     system = System(
-        elements=[Saver.group('savers', 5, W=RNG.uniform(1, 2, 5), r=RNG.uniform(0, 0.2, 5)), Unit('account')],
+        components=[Saver.group('savers', 5, W=RNG.uniform(1, 2, 5), r=RNG.uniform(0, 0.2, 5)), Unit('account')],
         interactions=[Reader('reader', target='account', source='mean_wealth')],
-        observables=[Observable('mean_wealth', group='savers', variable='W')],
     )
-    simulation = Simulation(system, dt=0.5).run(until=5)
+    observables = [Observable('mean_wealth', group='savers', variable='W')]
+    simulation = Simulation(system, dt=0.5, observables=observables).run(until=5)
     problem, trajectory = simulation.problem_, simulation.trajectory_
     assert not problem.partitions
     index = problem.states.entry('account.x').start
@@ -375,7 +371,7 @@ def test_element_set_reduction():
     """Test that a role bound to an element set applies to each element and reduces over the set."""
     Total = Interaction.define('Total', roles=['units'], laws=lambda s: [Rate(s.units.x, total(s.units.x))])
     system = System(
-        elements=[Unit(f'unit_{index}', x=float(index + 1)) for index in range(3)],
+        components=[Unit(f'unit_{index}', x=float(index + 1)) for index in range(3)],
         interactions=[Total('total', units=['unit_0', 'unit_1', 'unit_2'])],
     )
     problem = compile_system(system)
@@ -388,7 +384,7 @@ def _shared(share, values):
     """Return a system of one group whose interaction gives every member a share of a reduction."""
     Share = Interaction.define('Share', roles=['cells'], laws=lambda s: [Rate(s.cells.x, share(s))])
     return System(
-        elements=[Unit.group('units', len(values), x=values)],
+        components=[Unit.group('units', len(values), x=values)],
         interactions=[Share('share', cells='units')],
     )
 
@@ -412,7 +408,7 @@ def test_element_set_of_mixed_types():
     Other = Element.define('Other', states={'x': 0.0})
     Total = Interaction.define('Total', roles=['units'], laws=lambda s: [Rate(s.units.x, total(s.units.x))])
     system = System(
-        elements=[Unit('a'), Other('b')],
+        components=[Unit('a'), Other('b')],
         interactions=[Total('total', units=['a', 'b'])],
     )
     with pytest.raises(RoleError, match=r"'units'.*Unit and Other"):

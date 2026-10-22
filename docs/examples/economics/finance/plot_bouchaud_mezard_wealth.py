@@ -22,13 +22,13 @@ from skcomplex.core.analysis import ccdf, gini
 from skcomplex.core.model import Observable
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'bouchaud_mezard_wealth'
 N_AGENTS, J, SIGMA, DT, UNTIL = 500, 0.5, 1.0, 0.01, 30.0
 
 system = create(MODEL, n_agents=N_AGENTS, J=J, sigma=SIGMA)
-system.set_params(observables=[Observable('gini', group='agents', variable='W', reduce=gini)])
+observables = [*describe(MODEL).observables_of(system), Observable('gini', group='agents', variable='W', reduce=gini)]
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
     rrb.TimeSeriesView(origin='/gini', name='Gini coefficient', axis_x=rrb.TimeAxis(view_range=whole_run)),
@@ -37,7 +37,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=20)
-simulation = Simulation(system, dt=DT, observers=[observer], random_state=0).run(until=UNTIL)
+simulation = Simulation(system, dt=DT, observers=[observer], random_state=0, observables=observables).run(until=UNTIL)
 
 # %%
 # Stationary distribution

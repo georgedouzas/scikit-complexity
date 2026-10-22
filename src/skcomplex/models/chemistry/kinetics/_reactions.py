@@ -214,7 +214,7 @@ def michaelis_menten(
         ['E', 'S', 'C', 'P']
     """
     return System(
-        elements=[Species('E', n=enzyme), Species('S', n=substrate), Species('C'), Species('P')],
+        components=[Species('E', n=enzyme), Species('S', n=substrate), Species('C'), Species('P')],
         interactions=[
             Binding('binding', first='E', second='S', product='C', k=k_binding, stochastic=stochastic),
             Dissociation('unbinding', complex='C', first='E', second='S', k=k_unbinding, stochastic=stochastic),
@@ -278,4 +278,4 @@ def chemical_langevin_equation(
         >>> chemical_langevin_equation(c4=3.0).elements[0].c4
         3.0
     """
-    return System(elements=[Schlogl('reactor', x=x, c1=c1, c2=c2, c3=c3, c4=c4, A=A, B=B)])
+    return System(components=[Schlogl('reactor', x=x, c1=c1, c2=c2, c3=c3, c4=c4, A=A, B=B)])

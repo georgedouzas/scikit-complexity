@@ -83,7 +83,7 @@ from skcomplex.core.model import System
 from skcomplex.models.biology.ecology import LogisticGrowth, Mortality, Population, Predation
 
 system = System(
-    elements=[Population('rabbits', n=40), Population('foxes', n=9)],
+    components=[Population('rabbits', n=40), Population('foxes', n=9)],
     interactions=[
         LogisticGrowth('growth', target='rabbits', r=1.1, K=1000),
         Predation('hunt', predator='foxes', prey='rabbits', a=0.4, b=0.1),
@@ -135,7 +135,7 @@ class Harvest(Interaction):
 
 
 harvested = System(
-    elements=[Population('fish', n=500)],
+    components=[Population('fish', n=500)],
     interactions=[LogisticGrowth('growth', target='fish', r=0.5, K=1000), Harvest('fishing', target='fish', h=0.1)],
 )
 print(equations_of(harvested)['fish.n'])

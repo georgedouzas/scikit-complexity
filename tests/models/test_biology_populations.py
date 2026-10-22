@@ -238,7 +238,7 @@ def test_meadow_runs_nested_in_a_farm(growth):
     """Test that the meadow placed as the subsystem `farm` runs as the meadow at the root."""
     root = _run(meadow_capacity(growth=growth, random_state=0), 25, random_state=0)
     nested = meadow_capacity(growth=growth, random_state=0).set_params(label='farm')
-    farm = _run(System(systems=[nested]), 25, random_state=0)
+    farm = _run(System(components=[nested]), 25, random_state=0)
     assert farm['farm/cows.count'].tolist() == root['cows.count'].tolist()
     assert {interaction.pasture for interaction in nested.interactions} == {'pasture'}
 

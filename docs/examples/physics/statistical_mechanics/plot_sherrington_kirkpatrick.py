@@ -16,13 +16,19 @@ import numpy as np
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'sherrington_kirkpatrick'
 
 system = create(MODEL, n_spins=200, temperature=0.3)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer], random_state=0).run(until=100)
+simulation = Simulation(
+    system,
+    dt=0.5,
+    observers=[observer],
+    random_state=0,
+    observables=describe(MODEL).observables_of(system),
+).run(until=100)
 
 # %%
 # Energy and freezing against temperature
@@ -38,7 +44,11 @@ temperatures = np.linspace(0.2, 2.0, 7)
 energies, frozen = [], []
 for temperature in temperatures:
     sample = create(MODEL, n_spins=200, temperature=temperature)
-    spins = Simulation(sample, dt=1.0, random_state=0).run(until=100).trajectory_['spins.spin'][50:]
+    spins = (
+        Simulation(sample, dt=1.0, random_state=0, observables=describe(MODEL).observables_of(sample))
+        .run(until=100)
+        .trajectory_['spins.spin'][50:]
+    )
     energies.append(-0.5 * np.einsum('ti,ij,tj->t', spins, couplings, spins).mean() / 200)
     frozen.append(np.mean(spins.mean(axis=0) ** 2))
 grid = np.linspace(1.0, 2.1, 50)

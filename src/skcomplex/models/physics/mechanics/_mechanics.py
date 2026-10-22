@@ -75,7 +75,7 @@ def projectile(speed: float = 10.0, angle: float = 45.0, *, mass: float = 1.0, d
     if drag:
         interactions.append(LinearDrag('drag', target='ball', gamma=drag))
     return System(
-        elements=[Particle('ball', x=[0.0, 0.0], v=velocity, m=mass)],
+        components=[Particle('ball', x=[0.0, 0.0], v=velocity, m=mass)],
         interactions=interactions,
         space=EuclideanSpace(2),
     )
@@ -126,7 +126,7 @@ def harmonic_oscillator(
     if damping:
         interactions.append(LinearDrag('damping', target='mass', gamma=damping))
     return System(
-        elements=[Particle('mass', x=x, v=v, m=mass)],
+        components=[Particle('mass', x=x, v=v, m=mass)],
         interactions=interactions,
         space=EuclideanSpace(1),
     )
@@ -199,7 +199,7 @@ def pendulum(
         >>> pendulum(theta=0.1).elements[0].theta_d1
         0.0
     """
-    return System(elements=[Pendulum('bob', theta=theta, theta_d1=omega, m=m, g=g, l=l)])
+    return System(components=[Pendulum('bob', theta=theta, theta_d1=omega, m=m, g=g, l=l)])
 
 
 @register_model(
@@ -251,7 +251,7 @@ def driven_damped_oscillator(
         >>> driven_damped_oscillator(F=0.5).elements[0].F
         0.5
     """
-    return System(elements=[Oscillator('mass', x=x, x_d1=v, m=m, k=k, c=c, F=F, omega=omega)])
+    return System(components=[Oscillator('mass', x=x, x_d1=v, m=m, k=k, c=c, F=F, omega=omega)])
 
 
 BouncingBall = Element.define(
@@ -344,7 +344,7 @@ def bouncing_ball(h: float = 1.0, v: float = 0.0, *, g: float = 9.81, e: float =
         >>> round(trajectory.events[0].time, 6)
         0.451524
     """
-    return System(elements=[BouncingBall('ball', h=h, h_d1=v, g=g, e=e)])
+    return System(components=[BouncingBall('ball', h=h, h_d1=v, g=g, e=e)])
 
 
 @register_model(
@@ -412,7 +412,7 @@ def newtons_cradle(
         ElasticCollision(f'collision_{index}', left=f'ball_{index}', right=f'ball_{index + 1}', diameter=diameter)
         for index in range(n_balls - 1)
     ]
-    return System(elements=elements, interactions=interactions)
+    return System(components=elements, interactions=interactions)
 
 
 @register_model(
@@ -458,4 +458,4 @@ def circular_billiard(
         >>> circular_billiard(radius=2.0).elements[0].radius
         2.0
     """
-    return System(elements=[DiscBilliard('particle', x=x, y=y, vx=vx, vy=vy, radius=radius)])
+    return System(components=[DiscBilliard('particle', x=x, y=y, vx=vx, vy=vy, radius=radius)])

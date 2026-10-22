@@ -217,7 +217,7 @@ def hodgkin_huxley(
     """
     gates = _resting_gates(v)
     return System(
-        elements=[
+        components=[
             HodgkinHuxley(
                 'neuron',
                 v=v,
@@ -282,4 +282,4 @@ def fitzhugh_nagumo_ode(
         >>> fitzhugh_nagumo_ode(I=0.0).elements[0].I
         0.0
     """
-    return System(elements=[FitzHughNagumoNeuron('neuron', v=v, w=w, a=a, b=b, epsilon=epsilon, I=I)])
+    return System(components=[FitzHughNagumoNeuron('neuron', v=v, w=w, a=a, b=b, epsilon=epsilon, I=I)])

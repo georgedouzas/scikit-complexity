@@ -87,7 +87,7 @@ def complex_ginzburg_landau(
     rng = np.random.default_rng(random_state)
     values = {'u': _noise(shape, 0.01, rng), 'v': _noise(shape, 0.01, rng), 'b': b, 'c': c}
     space = LatticeSpace(shape, spacing=length / shape[0])
-    return System(elements=[Field('medium', GinzburgLandau, space, values=values, discretization='spectral')])
+    return System(components=[Field('medium', GinzburgLandau, space, values=values, discretization='spectral')])
 
 
 @register_model(
@@ -132,4 +132,4 @@ def swift_hohenberg(
     shape = tuple(shape)
     values = {'u': _noise(shape, 0.01, random_state), 'r': r}
     space = LatticeSpace(shape, spacing=length / shape[0])
-    return System(elements=[Field('cells', SwiftHohenberg, space, values=values, discretization='spectral')])
+    return System(components=[Field('cells', SwiftHohenberg, space, values=values, discretization='spectral')])

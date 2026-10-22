@@ -49,7 +49,7 @@ class Ring(Interaction):
 def _ahead(backend='numpy', **settings):
     """Return the read positions of a group of four cars after one update."""
     system = System(
-        elements=[Car.group('cars', 4, x=[10.0, 11.0, 12.0, 13.0])],
+        components=[Car.group('cars', 4, x=[10.0, 11.0, 12.0, 13.0])],
         interactions=[LookAhead('look', cars='cars', **settings)],
     )
     problem = compile_system(system, backend=backend)
@@ -77,7 +77,7 @@ def test_shift_member_runs_the_same_on_both_backends():
     x = np.random.default_rng(0).uniform(0, 2 * np.pi, 1000)
     trajectories = []
     for backend in ('numpy', 'numba'):
-        system = System(elements=[Car.group('cars', 1000, x=x)], interactions=[Ring('ring', cars='cars')])
+        system = System(components=[Car.group('cars', 1000, x=x)], interactions=[Ring('ring', cars='cars')])
         simulation = Simulation(system, solver=RK4(dt=0.01), dt=0.5, backend=backend).run(until=2.0)
         assert simulation.problem_.backend == backend
         trajectories.append(simulation.trajectory_['cars.x'])
@@ -86,7 +86,7 @@ def test_shift_member_runs_the_same_on_both_backends():
 
 def test_shift_member_of_a_single_element_raises_error():
     """Test that an offset read of a single element's state names the component and the state."""
-    system = System(elements=[Car('car', x=1.0)], interactions=[LookAhead('look', cars='car')])
+    system = System(components=[Car('car', x=1.0)], interactions=[LookAhead('look', cars='car')])
     with pytest.raises(ValidationError, match=r'look reads car\.x at a member offset'):
         compile_system(system)
 
@@ -115,7 +115,7 @@ Site = Element.define('Site', states={'n': 0.0})
 def _hopping(occupations, boundary='periodic'):
     """Return a group of sites whose particles hop to the next site."""
     sites = Site.group('sites', len(occupations), n=np.asarray(occupations, dtype=float))
-    return System(elements=[sites], interactions=[Hop('hop', sites='sites', boundary=boundary)])
+    return System(components=[sites], interactions=[Hop('hop', sites='sites', boundary=boundary)])
 
 
 @pytest.mark.parametrize('backend', ['numpy', 'numba'])
@@ -150,8 +150,8 @@ def test_jump_at_member_offset_matches_per_link_interactions(backend):
         for index in range(20)
     ]
     systems = [
-        System(elements=[sites], interactions=[ZeroRangeHops('hops', sites='sites', q=0.5)]),
-        System(elements=[sites], interactions=links),
+        System(components=[sites], interactions=[ZeroRangeHops('hops', sites='sites', q=0.5)]),
+        System(components=[sites], interactions=links),
     ]
     profiles = []
     for system in systems:

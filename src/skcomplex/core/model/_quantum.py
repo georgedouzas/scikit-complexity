@@ -20,6 +20,7 @@ from ._observables import Observable
 from ._operators import LocalOperator, Operator, sparse_matrix
 from ._spaces import NetworkSpace, Space
 from ._systems import System
+from ._time import Time
 
 DEFAULT_MAX_DIMENSION = 2**20
 NORM_TOLERANCE = 1e-8
@@ -532,20 +533,17 @@ class QuantumSystem(System):
         label:
             The label of the system.
 
-        elements:
-            The quantum elements and groups.
+        components:
+            The quantum elements and groups, and nested systems.
 
         interactions:
             The interactions, such as `Exchange` subclasses.
 
-        systems:
-            The child systems.
-
         space:
             The space of groups that have none of their own.
 
-        observables:
-            The observables, such as those `expectation` returns.
+        time:
+            The time of the system, `ContinuousTime` or `None` to infer it.
 
         initial:
             The initial state of the whole system, a vector, a density matrix, `'ground'` for the lowest eigenstate of
@@ -556,7 +554,7 @@ class QuantumSystem(System):
 
     Examples:
         >>> from skcomplex.core.model import QuantumSystem, Qubit
-        >>> QuantumSystem(elements=[Qubit('q')], initial='ground').max_dimension
+        >>> QuantumSystem(components=[Qubit('q')], initial='ground').max_dimension
         1048576
     """
 
@@ -564,22 +562,14 @@ class QuantumSystem(System):
         self,
         label: str = 'system',
         *,
-        elements: Sequence[Element | Group] = (),
+        components: Sequence[Element | Group | System] = (),
         interactions: Sequence[Interaction] = (),
-        systems: Sequence[System] = (),
         space: Space | None = None,
-        observables: Sequence[Observable] = (),
+        time: Time | None = None,
         initial: object = None,
         max_dimension: int = DEFAULT_MAX_DIMENSION,
     ) -> None:
-        super().__init__(
-            label,
-            elements=elements,
-            interactions=interactions,
-            systems=systems,
-            space=space,
-            observables=observables,
-        )
+        super().__init__(label, components=components, interactions=interactions, space=space, time=time)
         self.initial = initial
         self.max_dimension = max_dimension
 

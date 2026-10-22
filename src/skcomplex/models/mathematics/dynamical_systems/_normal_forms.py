@@ -63,7 +63,7 @@ def saddle_node_form(x: float = 0.0, *, mu: float = 1.0) -> System:
         >>> saddle_node_form(mu=0.5).elements[0].mu
         0.5
     """
-    return System(elements=[SaddleNode('form', x=x, mu=mu)])
+    return System(components=[SaddleNode('form', x=x, mu=mu)])
 
 
 @register_model(
@@ -102,7 +102,7 @@ def hopf_form(x: float = 0.1, y: float = 0.0, *, mu: float = 0.25, omega: float 
         >>> hopf_form(mu=-0.1).elements[0].mu
         -0.1
     """
-    return System(elements=[Hopf('form', x=x, y=y, mu=mu, omega=omega, a=a)])
+    return System(components=[Hopf('form', x=x, y=y, mu=mu, omega=omega, a=a)])
 
 
 @register_model(
@@ -146,7 +146,7 @@ def takens_bogdanov_form(
         >>> takens_bogdanov_form(beta1=0.0).elements[0].beta1
         0.0
     """
-    return System(elements=[TakensBogdanov('form', x=x, y=y, beta1=beta1, beta2=beta2, sign=sign)])
+    return System(components=[TakensBogdanov('form', x=x, y=y, beta1=beta1, beta2=beta2, sign=sign)])
 
 
 @register_model(
@@ -177,4 +177,4 @@ def cusp_form(x: float = 0.5, *, beta1: float = 0.0, beta2: float = 1.0) -> Syst
         >>> cusp_form(beta1=0.2).elements[0].beta1
         0.2
     """
-    return System(elements=[Cusp('form', x=x, beta1=beta1, beta2=beta2)])
+    return System(components=[Cusp('form', x=x, beta1=beta1, beta2=beta2)])

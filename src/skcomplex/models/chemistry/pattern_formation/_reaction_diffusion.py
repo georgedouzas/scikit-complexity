@@ -101,7 +101,7 @@ def gray_scott(
     u[middle], v[middle] = 0.5, 0.25
     noise = _noise(shape, 0.01, random_state)
     values = {'u': u + noise, 'v': v + np.abs(noise), 'Du': Du, 'Dv': Dv, 'F': F, 'k': k}
-    return System(elements=[Field('cells', GrayScott, LatticeSpace(shape), values=values)])
+    return System(components=[Field('cells', GrayScott, LatticeSpace(shape), values=values)])
 
 
 @register_model(
@@ -158,7 +158,7 @@ def brusselator(
         'Du': Du,
         'Dv': Dv,
     }
-    return System(elements=[Field('cells', Brusselator, LatticeSpace(shape), values=values)])
+    return System(components=[Field('cells', Brusselator, LatticeSpace(shape), values=values)])
 
 
 @register_model(
@@ -223,4 +223,4 @@ def schnakenberg(
         'Du': Du,
         'Dv': Dv,
     }
-    return System(elements=[Field('cells', Schnakenberg, LatticeSpace(shape, spacing=spacing), values=values)])
+    return System(components=[Field('cells', Schnakenberg, LatticeSpace(shape, spacing=spacing), values=values)])

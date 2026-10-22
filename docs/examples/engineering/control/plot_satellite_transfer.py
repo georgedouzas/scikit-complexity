@@ -18,7 +18,7 @@ import rerun.blueprint as rrb
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'satellite_transfer'
 
@@ -38,7 +38,13 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(system, dt=0.05, solver=RK4(dt=0.005), observers=[observer]).run(until=20)
+simulation = Simulation(
+    system,
+    dt=0.05,
+    solver=RK4(dt=0.005),
+    observers=[observer],
+    observables=describe(MODEL).observables_of(system),
+).run(until=20)
 
 # %%
 # From one Kepler orbit to another

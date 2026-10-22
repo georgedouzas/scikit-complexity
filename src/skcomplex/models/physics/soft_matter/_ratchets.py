@@ -177,7 +177,7 @@ def tilted_periodic_potential(
         temperature=kT,
     )
     washboard = TiltedWashboard('washboard', target='particles', U0=U0, L=L, f=f)
-    return System(elements=[particles], interactions=[washboard], space=EuclideanSpace(1))
+    return System(components=[particles], interactions=[washboard], space=EuclideanSpace(1))
 
 
 @register_model(
@@ -261,4 +261,4 @@ def flashing_ratchet(
         asymmetry=asymmetry,
         switches=tuple(float(time) for time in times[times < duration]),
     )
-    return System(elements=[particles], interactions=[sawtooth], space=EuclideanSpace(1))
+    return System(components=[particles], interactions=[sawtooth], space=EuclideanSpace(1))

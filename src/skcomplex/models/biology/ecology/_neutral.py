@@ -111,4 +111,4 @@ def neutral_macroecology(
         >>> neutral_macroecology(20).elements[0].size
         20
     """
-    return System(elements=[NeutralSpecies.group('species', species, n=n, b0=b0, b1=b1, d0=d0, d1=d1)])
+    return System(components=[NeutralSpecies.group('species', species, n=n, b0=b0, b1=b1, d0=d0, d1=d1)])

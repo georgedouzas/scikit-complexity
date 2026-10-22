@@ -94,6 +94,10 @@ class ImmunizingDegreeClass(Element):
         'Barrat, Barthelemy, and Vespignani 2008',
     ),
     defaults={'until': 100.0, 'dt': 0.5},
+    observables=lambda system: [
+        Observable('infected', _infected_share, group='network', reduce='sum'),
+        Observable('recovered', _recovered_share, group='network', reduce='sum'),
+    ],
 )
 def heterogeneous_mean_field_sir(
     exponent: float = 2.5,
@@ -155,9 +159,5 @@ def heterogeneous_mean_field_sir(
         P=weights,
     )
     return System(
-        elements=[classes],
-        observables=[
-            Observable('infected', _infected_share, group='network', reduce='sum'),
-            Observable('recovered', _recovered_share, group='network', reduce='sum'),
-        ],
+        components=[classes],
     )

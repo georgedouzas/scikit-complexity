@@ -18,7 +18,7 @@ import rerun.blueprint as rrb
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'labour_market'
 SEPARATION = 0.05
@@ -40,7 +40,12 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 system = create(MODEL, n_workers=200, n_firms=40, separation=SEPARATION, random_state=0)
-simulation = Simulation(system, observers=[observer], random_state=0).run(until=200)
+simulation = Simulation(
+    system,
+    observers=[observer],
+    random_state=0,
+    observables=describe(MODEL).observables_of(system),
+).run(until=200)
 
 # %%
 # Flow balance

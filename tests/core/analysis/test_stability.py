@@ -82,7 +82,7 @@ def _hawks_and_doves(V=2.0, C=3.0, size=2):
         ],
     )
     return System(
-        elements=[Strategy.group('population', size, x=[1 / size] * size)],
+        components=[Strategy.group('population', size, x=[1 / size] * size)],
         interactions=[Replication('replication', population='population')],
     )
 
@@ -99,6 +99,6 @@ def test_hawks_and_doves_as_group():
 def test_group_above_limit():
     """Test that the Jacobian of a group of 1000 members that reads reductions states the limit of 64 members."""
     Member = Element.define('Member', states={'x': 0.0}, laws=lambda s: [Rate(s.x, total(s.x) - s.x)])
-    system = System(elements=[Member.group('group', 1000)])
+    system = System(components=[Member.group('group', 1000)])
     with pytest.raises(AnalysisError, match=r'limit of 64 members.*smaller group'):
         jacobian(system)

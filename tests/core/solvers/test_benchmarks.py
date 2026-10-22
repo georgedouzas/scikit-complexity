@@ -71,7 +71,7 @@ def test_interacting_gas_of_100000_runs_in_real_time():
     size = float(np.sqrt(n))
     rng = np.random.default_rng(0)
     system = System(
-        elements=[Particle.group('gas', n, x=rng.uniform(0, size, (n, 2)), v=rng.normal(0, 1, (n, 2)))],
+        components=[Particle.group('gas', n, x=rng.uniform(0, size, (n, 2)), v=rng.normal(0, 1, (n, 2)))],
         interactions=[
             SoftSphere('soft', first='gas', second='gas', cutoff=1.0),
             ReflectingBox('box', target='gas', size=size),
@@ -101,7 +101,7 @@ def test_large_game_of_life_runs_in_real_time(tmp_path):
 def _epidemic():
     """Return a stochastic epidemic of 1000 individuals."""
     return System(
-        elements=[Compartment('S', n=990), Compartment('I', n=10), Compartment('R')],
+        components=[Compartment('S', n=990), Compartment('I', n=10), Compartment('R')],
         interactions=[
             Infection('infection', susceptible='S', infected='I', beta=0.0003, stochastic=True),
             Recovery('recovery', infected='I', recovered='R', gamma=0.1, stochastic=True),
@@ -131,7 +131,7 @@ def test_compiled_gillespie_runs_serial_kernels():
 def test_small_system_drift_is_fast():
     """Test that the NumPy drift of 20 logistic populations takes at most 250 microseconds and is correct."""
     system = System(
-        elements=[Population(f'p{index}', n=1.0 + index) for index in range(20)],
+        components=[Population(f'p{index}', n=1.0 + index) for index in range(20)],
         interactions=[LogisticGrowth(f'g{index}', target=f'p{index}', r=1.0, K=100) for index in range(20)],
     )
     problem = compile_system(system, backend='numpy')
@@ -223,7 +223,7 @@ def _event_run(jacobian):
     """Return the duration and the event time of stiff Fisher-KPP that stops when its total grows by half."""
     line = fisher_kpp(STIFF_SIZE, D=1.0, spacing=0.05).elements[0]
     level = 1.5 * line.values['u'].sum()
-    system = System(elements=[line], interactions=[StiffThreshold('threshold', line='line', level=level)])
+    system = System(components=[line], interactions=[StiffThreshold('threshold', line='line', level=level)])
     simulation = Simulation(system, solver=ScipyODE(method='BDF', jacobian=jacobian), dt=1.0, backend='numpy')
     start = time.perf_counter()
     times = simulation.run(until=10.0).trajectory_.times
@@ -256,7 +256,7 @@ def _hutchinson_run(jacobian):
     initial = 0.5 + 0.1 * np.cos(np.linspace(0, 2 * np.pi, size))
     field = Field('line', DiffusiveHutchinson, LatticeSpace(size, spacing=0.05), values={'u': initial})
     simulation = Simulation(
-        System(elements=[field]),
+        System(components=[field]),
         solver=ScipyODE(method='BDF', jacobian=jacobian),
         dt=1.0,
         backend='numpy',

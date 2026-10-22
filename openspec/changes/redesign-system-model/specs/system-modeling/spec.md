@@ -93,7 +93,7 @@ agents.
 A system's time SHALL be continuous, discrete with a schedule, or absent. The schedules SHALL be synchronous, random
 sequential, or ordered phases, each with its rules and activation policy. Without a declared time, it SHALL be inferred
 from the law classes, and an ambiguous inference SHALL be reported by validation. A system without time SHALL hold only
-constraint laws and SHALL be solved once.
+constraint laws; solving it is specified by `add-static-models`.
 
 #### Scenario: Inferred continuous time
 - **WHEN** a system holds only rate laws and declares no time
@@ -104,8 +104,8 @@ constraint laws and SHALL be solved once.
 - **THEN** every step runs the three phases in that order, each with its own rules
 
 #### Scenario: Static system
-- **WHEN** a system with no time holds only algebraic equations
-- **THEN** a run returns one frame with the solution
+- **WHEN** a system declared with static time holds a rate law
+- **THEN** validation reports the law, since a static system holds only constraint laws
 
 ### Requirement: Laws are classified by their time semantics
 Every law SHALL belong to one class, continuous, event, discrete, or constraint, and its class SHALL decide the time

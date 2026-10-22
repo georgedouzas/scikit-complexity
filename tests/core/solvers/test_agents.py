@@ -158,7 +158,7 @@ def _money_system():
 
 def test_rules_give_agent_form():
     """Test that a system of agent groups with rules compiles to the agent-based form."""
-    problem = compile_system(System(elements=[Walker.group('walkers', 3)], space=GridSpace(5, 5)))
+    problem = compile_system(System(components=[Walker.group('walkers', 3)], space=GridSpace(5, 5)))
     assert problem.form is Form.AGENT
     assert problem.agents[0].states == ('moves',)
 
@@ -166,7 +166,7 @@ def test_rules_give_agent_form():
 def test_rules_mixed_with_rates_raise_error():
     """Test that rules and rates in one system raise the law kind error."""
     system = System(
-        elements=[Walker.group('walkers', 3), Population('herd')],
+        components=[Walker.group('walkers', 3), Population('herd')],
         interactions=[ExponentialGrowth('growth', target='herd')],
         space=GridSpace(5, 5),
     )
@@ -176,7 +176,7 @@ def test_rules_mixed_with_rates_raise_error():
 
 def test_agents_are_born_every_step():
     """Test that one offspring per agent per step gives 10, 20, 40, and 80 agents."""
-    trajectory = Simulation(System(elements=[Breeder.group('herd', 10)])).run(until=3).trajectory_
+    trajectory = Simulation(System(components=[Breeder.group('herd', 10)])).run(until=3).trajectory_
     assert trajectory['herd.count'].tolist() == [10.0, 20.0, 40.0, 80.0]
     assert len(trajectory.agents('herd', 3)) == 80
 
@@ -184,7 +184,7 @@ def test_agents_are_born_every_step():
 def test_model_rules_remove_agents():
     """Test that an interaction rule removes agents and frames report the agents alive."""
     system = System(
-        elements=[Walker.group('walkers', 5)],
+        components=[Walker.group('walkers', 5)],
         interactions=[Culler('cull', target='walkers')],
         space=GridSpace(5, 5),
     )
@@ -197,7 +197,7 @@ def test_model_rules_remove_agents():
 def test_grid_neighbours(neighborhood, expected):
     """Test that an agent in the middle of a 10 by 10 grid has 8 Moore or 4 von Neumann neighbouring cells."""
     system = System(
-        elements=[Probe('probe', location=(5, 5))],
+        components=[Probe('probe', location=(5, 5))],
         space=GridSpace(10, 10, neighborhood=neighborhood),
     )
     snapshot = Simulation(system).run(until=1).trajectory_.agents('probe', 1)
@@ -206,7 +206,7 @@ def test_grid_neighbours(neighborhood, expected):
 
 def test_network_neighbours_follow_edges():
     """Test that agents on a cycle network see their two neighbours."""
-    system = System(elements=[Probe.group('nodes', 6)], space=NetworkSpace(nx.cycle_graph(6)))
+    system = System(components=[Probe.group('nodes', 6)], space=NetworkSpace(nx.cycle_graph(6)))
     snapshot = Simulation(system).run(until=1).trajectory_.agents('nodes', 1)
     assert snapshot.values['near'].tolist() == [2.0] * 6
     assert sorted(snapshot.locations.tolist()) == list(range(6))
@@ -215,7 +215,7 @@ def test_network_neighbours_follow_edges():
 def test_continuous_neighbours_within_radius():
     """Test that agents in a continuous space find the agents within a radius."""
     system = System(
-        elements=[Drifter.group('drifters', 3, location=[(1.0, 1.0), (1.5, 1.0), (8.0, 8.0)])],
+        components=[Drifter.group('drifters', 3, location=[(1.0, 1.0), (1.5, 1.0), (8.0, 8.0)])],
         space=ContinuousSpace(10.0, 10.0),
     )
     snapshot = Simulation(system).run(until=1).trajectory_.agents('drifters', 1)
@@ -225,7 +225,9 @@ def test_continuous_neighbours_within_radius():
 def test_agent_runs_are_reproducible():
     """Test that equal random states give equal agent trajectories."""
     runs = [
-        Simulation(System(elements=[Walker.group('walkers', 5)], space=GridSpace(10, 10)), random_state=0).run(until=5)
+        Simulation(System(components=[Walker.group('walkers', 5)], space=GridSpace(10, 10)), random_state=0).run(
+            until=5,
+        )
         for _ in range(2)
     ]
     first, second = (run.trajectory_.agents('walkers', 5) for run in runs)
@@ -236,7 +238,7 @@ def test_agent_runs_are_reproducible():
 def test_agent_frames_use_integer_steps():
     """Test that agent-based models reject a non-integer frame duration."""
     with pytest.raises(ValidationError, match='positive integer'):
-        Simulation(System(elements=[Breeder.group('herd', 2)]), dt=0.5).run(until=1)
+        Simulation(System(components=[Breeder.group('herd', 2)]), dt=0.5).run(until=1)
 
 
 def test_wrapped_mesa_model_reports_gini_and_keeps_wealth():
@@ -267,7 +269,7 @@ def test_wrapped_parameter_changes_live():
 def test_mesa_system_must_be_root():
     """Test that a wrapped Mesa model nested in another system is rejected."""
     with pytest.raises(ValidationError, match='root system'):
-        compile_system(System(systems=[_money_system()]))
+        compile_system(System(components=[_money_system()]))
 
 
 SEEN: list[object] = []
@@ -317,10 +319,10 @@ def _census(looked_up='counted', space=None, schedule=None):
     SEEN.clear()
     farm = System(
         'farm',
-        elements=[Cattle.group('cows', 42), Cattle.group('patches', 43)],
+        components=[Cattle.group('cows', 42), Cattle.group('patches', 43)],
         interactions=[Census('census', counted='cows', others='patches', looked_up=looked_up)],
     )
-    system = System(systems=[farm], space=space)
+    system = System(components=[farm], space=space)
     simulation = Simulation(system, schedule=schedule, random_state=0).run(until=3)
     return simulation, list(SEEN)
 
@@ -362,7 +364,7 @@ def test_rule_reads_grid_dimensions_and_torus():
 
 def _views(space, locations):
     """Return views of two agents placed at given locations of a space."""
-    system = System(elements=[Cattle.group('cows', 2, location=locations)], space=space)
+    system = System(components=[Cattle.group('cows', 2, location=locations)], space=space)
     simulation = Simulation(system, random_state=0).run(until=0)
     stepper = simulation.stepper_
     return [AgentView(agent, stepper) for agent in stepper.group_agents('cows')]
@@ -407,7 +409,7 @@ class Clocked(AgentType):
 
 def test_rules_read_model_time():
     """Test that rules read the model time k during the step that produces frame k."""
-    trajectory = Simulation(System(elements=[Clocked.group('clocks', 2)])).run(until=3).trajectory_
+    trajectory = Simulation(System(components=[Clocked.group('clocks', 2)])).run(until=3).trajectory_
     assert [trajectory.agents('clocks', step).values['seen'].tolist() for step in (1, 2, 3)] == [
         [1.0, 1.0],
         [2.0, 2.0],
@@ -417,7 +419,7 @@ def test_rules_read_model_time():
 
 def test_one_agent_takes_one_entry_values():
     """Test that a group of one agent reads a one-entry location and a one-entry value as its own."""
-    system = System(elements=[Clocked.group('one', 1, location=[(1, 1)], n=[3.0])], space=GridSpace(5, 5))
+    system = System(components=[Clocked.group('one', 1, location=[(1, 1)], n=[3.0])], space=GridSpace(5, 5))
     snapshot = Simulation(system).run(until=0).trajectory_.agents('one', 0)
     assert snapshot.locations.tolist() == [[1, 1]]
     assert snapshot.values['n'].tolist() == [3.0]

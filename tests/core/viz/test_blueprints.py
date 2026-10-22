@@ -85,7 +85,7 @@ def test_default_blueprint_shows_other_states_of_points_over_whole_run():
         states={'x': state(0.0, vector=True), 'energy': 0.0},
         visual=VisualSpec('points', {'position': 'x'}),
     )
-    blueprint = default_blueprint(System(elements=[Walker.group('walkers', 3)], space=EuclideanSpace(2)))
+    blueprint = default_blueprint(System(components=[Walker.group('walkers', 3)], space=EuclideanSpace(2)))
     assert [type(view).__name__ for view in _views(blueprint)] == ['Spatial2DView', 'TimeSeriesView']
     assert _whole_run_series(blueprint)
 
@@ -120,7 +120,7 @@ def test_default_blueprint_puts_spatial_views_above_series():
 
 def test_default_blueprint_splits_series_by_six():
     """Test that a type with more than six series is split over several views."""
-    system = System(elements=[Population(f'p{index}') for index in range(8)])
+    system = System(components=[Population(f'p{index}') for index in range(8)])
     names = [str(view.name) for view in _views(default_blueprint(system))]
     assert names == ['Population 1', 'Population 2']
 
@@ -234,4 +234,4 @@ def test_fields_on_networks_are_drawn_as_colored_graphs():
 def test_fields_keep_a_given_visual():
     """Test that a field keeps the visual it is given."""
     field = Field('plate', Heat, LatticeSpace((4, 4)), visual=VisualSpec('sites'))
-    assert compile_system(System(elements=[field])).elements[0].visual.kind == 'sites'
+    assert compile_system(System(components=[field])).elements[0].visual.kind == 'sites'

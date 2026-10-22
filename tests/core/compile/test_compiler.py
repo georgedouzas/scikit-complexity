@@ -71,7 +71,7 @@ class DoubleUpdate(Interaction):
 
 def _ecology(growth):
     """Return a system of one population under a growth interaction."""
-    return System(elements=[Population('rabbits', n=10)], interactions=[growth])
+    return System(components=[Population('rabbits', n=10)], interactions=[growth])
 
 
 @pytest.mark.parametrize(
@@ -80,20 +80,20 @@ def _ecology(growth):
         (_ecology(LogisticGrowth('growth', target='rabbits')), Form.ODE),
         (
             System(
-                elements=[Asset('stock', price=100)],
+                components=[Asset('stock', price=100)],
                 interactions=[GeometricBrownianMotion('gbm', target='stock')],
             ),
             Form.SDE,
         ),
         (
             System(
-                elements=[Compartment('I', n=5), Compartment('R')],
+                components=[Compartment('I', n=5), Compartment('R')],
                 interactions=[Recovery('rec', infected='I', recovered='R', stochastic=True)],
             ),
             Form.JUMP,
         ),
-        (System(elements=[Market('m')], interactions=[Cobweb('c', target='m')]), Form.DISCRETE),
-        (System(elements=[Population('a')]), Form.ODE),
+        (System(components=[Market('m')], interactions=[Cobweb('c', target='m')]), Form.DISCRETE),
+        (System(components=[Population('a')]), Form.ODE),
     ],
 )
 def test_compile_system_infers_form(system, form):
@@ -104,7 +104,7 @@ def test_compile_system_infers_form(system, form):
 def test_compile_system_mixed_kinds_raises_error():
     """Test that updates and rates in one system are rejected."""
     system = System(
-        elements=[Market('m'), Population('a')],
+        components=[Market('m'), Population('a')],
         interactions=[Cobweb('c', target='m'), ExponentialGrowth('g', target='a')],
     )
     with pytest.raises(IncompatibleLawsError, match='rate: a; update: m'):
@@ -113,7 +113,7 @@ def test_compile_system_mixed_kinds_raises_error():
 
 def test_compile_system_names_nested_states_by_path():
     """Test that nested states are named by their path."""
-    system = System(systems=[System('meadow', elements=[Population('rabbits', n=3)])])
+    system = System(components=[System('meadow', components=[Population('rabbits', n=3)])])
     problem = compile_system(system)
     assert problem.states.names == ['meadow/rabbits.n']
     assert problem.initial_state.tolist() == [3.0]
@@ -122,9 +122,9 @@ def test_compile_system_names_nested_states_by_path():
 def test_compile_system_couples_subsystems():
     """Test that an interaction couples elements of two subsystems."""
     system = System(
-        systems=[
-            System('forest', elements=[Population('foxes', n=2)]),
-            System('meadow', elements=[Population('rabbits', n=5)]),
+        components=[
+            System('forest', components=[Population('foxes', n=2)]),
+            System('meadow', components=[Population('rabbits', n=5)]),
         ],
         interactions=[Predation('hunt', predator='forest/foxes', prey='meadow/rabbits', a=1.0, b=0.5)],
     )
@@ -152,7 +152,7 @@ def test_compile_system_callable_law_is_evaluated():
 def test_compile_system_rates_add_up():
     """Test that two forces on one particle add up."""
     system = System(
-        elements=[Particle('p', x=1.0, m=2.0)],
+        components=[Particle('p', x=1.0, m=2.0)],
         interactions=[ConstantForce('push', target='p', F=4.0), HarmonicPotential('trap', target='p', k=6.0)],
         space=EuclideanSpace(1),
     )
@@ -163,7 +163,7 @@ def test_compile_system_rates_add_up():
 def test_compile_system_keeps_oscillator_equations():
     """Test that the velocity equation of an oscillator is `-k * (x - center) / m`."""
     system = System(
-        elements=[Particle('p')],
+        components=[Particle('p')],
         interactions=[HarmonicPotential('trap', target='p')],
         space=EuclideanSpace(1),
     )
@@ -178,27 +178,27 @@ def test_compile_system_keeps_oscillator_equations():
 
 def test_compile_system_vector_state_takes_space_dimension():
     """Test that vector states have one component per dimension."""
-    problem = compile_system(System(elements=[Particle('p')], space=EuclideanSpace(2)))
+    problem = compile_system(System(components=[Particle('p')], space=EuclideanSpace(2)))
     assert problem.states.component_names == ['p.x[0]', 'p.x[1]', 'p.v[0]', 'p.v[1]']
 
 
 def test_compile_system_vector_state_without_space_raises_error():
     """Test that a vector state needs a space."""
     with pytest.raises(SpaceError, match='must have a space'):
-        compile_system(System(elements=[Particle('p')]))
+        compile_system(System(components=[Particle('p')]))
 
 
 @pytest.mark.parametrize('m', [-2.0, 0.0, 'm'])
 def test_compile_system_value_outside_domain_raises_error(m):
     """Test that a parameter outside its domain is rejected."""
-    system = System(elements=[Particle('p', m=m)], space=EuclideanSpace(1))
+    system = System(components=[Particle('p', m=m)], space=EuclideanSpace(1))
     with pytest.raises(ValidationError, match=r'p\.m'):
         compile_system(system)
 
 
 def test_compile_system_wrong_shape_raises_error():
     """Test that a vector value of the wrong size is rejected."""
-    system = System(elements=[Particle('p', x=[1, 2, 3])], space=EuclideanSpace(2))
+    system = System(components=[Particle('p', x=[1, 2, 3])], space=EuclideanSpace(2))
     with pytest.raises(ValidationError, match='shape'):
         compile_system(system)
 
@@ -212,7 +212,7 @@ def test_compile_system_unknown_role_raises_error():
 
 def test_compile_system_duplicate_label_raises_error():
     """Test that siblings must have distinct labels."""
-    system = System(elements=[Population('a'), Population('a')])
+    system = System(components=[Population('a'), Population('a')])
     with pytest.raises(LabelError, match="'a'"):
         compile_system(system)
 
@@ -220,7 +220,7 @@ def test_compile_system_duplicate_label_raises_error():
 def test_compile_system_invalid_label_raises_error():
     """Test that labels must be words."""
     with pytest.raises(LabelError, match='not valid'):
-        compile_system(System(elements=[Population('a.b')]))
+        compile_system(System(components=[Population('a.b')]))
 
 
 def test_compile_system_undeclared_symbol_raises_error():
@@ -231,7 +231,7 @@ def test_compile_system_undeclared_symbol_raises_error():
 
 def test_compile_system_double_update_raises_error():
     """Test that a state takes one update law."""
-    system = System(elements=[Market('m')], interactions=[DoubleUpdate('bad', target='m')])
+    system = System(components=[Market('m')], interactions=[DoubleUpdate('bad', target='m')])
     with pytest.raises(ValidationError, match='second time'):
         compile_system(system)
 
@@ -239,7 +239,7 @@ def test_compile_system_double_update_raises_error():
 def test_compile_system_jump_stoichiometry():
     """Test that jump changes become rows of the stoichiometry matrix."""
     system = System(
-        elements=[Compartment('S', n=9), Compartment('I', n=1)],
+        components=[Compartment('S', n=9), Compartment('I', n=1)],
         interactions=[Infection('inf', susceptible='S', infected='I', beta=0.5, stochastic=True)],
     )
     problem = compile_system(system)
@@ -272,7 +272,10 @@ def _summed(inputs, weights=1.0, **settings):
         Node('target'),
         Node.group('nodes', 10, x=np.arange(10.0)),
     ]
-    return System(elements=elements, interactions=[WeightedSum('sum', target='target', inputs=inputs, weights=weights)])
+    return System(
+        components=elements,
+        interactions=[WeightedSum('sum', target='target', inputs=inputs, weights=weights)],
+    )
 
 
 @pytest.mark.parametrize('backend', ['numpy', 'numba'])
@@ -334,7 +337,7 @@ class SitesDrive(Interaction):
 
 def _hub_and_sites(interaction):
     """Return a hub and a group of five sites with states 0 to 4, coupled by an interaction."""
-    return System(elements=[Node.group('sites', 5, x=np.arange(5.0)), Hub('hub')], interactions=[interaction])
+    return System(components=[Node.group('sites', 5, x=np.arange(5.0)), Hub('hub')], interactions=[interaction])
 
 
 def test_compile_plain_role_binds_one_group_member():
@@ -382,7 +385,7 @@ def _compile_time(n_links):
         ZeroRangeHop(f'hop_{index}', link=[f'sites[{index}]', f'sites[{(index + 1) % n_links}]'])
         for index in range(n_links)
     ]
-    system = System(elements=[sites], interactions=links)
+    system = System(components=[sites], interactions=links)
     durations = []
     for _ in range(2):
         start = time.perf_counter()

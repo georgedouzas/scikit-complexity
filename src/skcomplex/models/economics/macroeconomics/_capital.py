@@ -67,4 +67,4 @@ def capital_stock(
         output_per_capital=output_per_capital,
         lifetime=lifetime,
     )
-    return System(elements=[economy])
+    return System(components=[economy])

@@ -195,7 +195,7 @@ def energy_balance(
         T_ice=T_ice,
         width=width,
     )
-    return System(elements=[climate])
+    return System(components=[climate])
 
 
 @register_model(
@@ -261,7 +261,7 @@ def budyko_sellers(
         boundary={'T': 'zero-flux'},
         values={'T': np.full(n_bands, float(T)), 'x': x, 'Q': Q, 'A': A, 'B': B, 'D': D, 'C': C},
     )
-    return System(elements=[bands])
+    return System(components=[bands])
 
 
 @register_model(
@@ -269,6 +269,7 @@ def budyko_sellers(
     tags=('ode', 'regulation', 'Gaia', 'vegetation'),
     references=('Watson and Lovelock 1983', 'Jensen 2023'),
     defaults={'until': 100.0, 'dt': 0.5},
+    observables=lambda system: [Observable('temperature', _daisyworld_temperature)],
 )
 def daisyworld(
     white: float = 0.2,
@@ -306,6 +307,5 @@ def daisyworld(
         1.2
     """
     return System(
-        elements=[Daisyworld('planet', white=white, black=black, L=L, gamma=gamma)],
-        observables=[Observable('temperature', _daisyworld_temperature)],
+        components=[Daisyworld('planet', white=white, black=black, L=L, gamma=gamma)],
     )

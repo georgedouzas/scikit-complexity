@@ -24,7 +24,7 @@ from skcomplex.models.physics.mechanics import harmonic_oscillator
 
 def _growth_problem():
     """Return the compiled problem of exponential growth."""
-    system = System(elements=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1.0)])
+    system = System(components=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1.0)])
     return compile_system(system)
 
 
@@ -51,7 +51,7 @@ class Explosion(Interaction):
 def test_scipy_ode_failure_raises_error():
     """Test that an integrator failure raises a named error."""
     problem = compile_system(
-        System(elements=[Population('a', n=1)], interactions=[Explosion('boom', target='a')]),
+        System(components=[Population('a', n=1)], interactions=[Explosion('boom', target='a')]),
     )
     stepper = ScipyODE()
     stepper.initialize(problem, np.random.default_rng(0))
@@ -94,7 +94,7 @@ def test_simulation_default_solver_keeps_accuracy_of_non_stiff_model():
 def _relaxing_group(size):
     """Return a group whose members relax to their mean, so every member reads every other one."""
     Relax = Element.define('Relax', states={'x': 0.0}, laws=lambda s: [Rate(s.x, -(s.x - mean(s.x)))])
-    return System(elements=[Relax.group('cells', size, x=np.linspace(0.0, 1.0, size))])
+    return System(components=[Relax.group('cells', size, x=np.linspace(0.0, 1.0, size))])
 
 
 def test_default_solver_leaves_lsoda_for_states_its_dense_matrix_cannot_hold():
@@ -120,7 +120,7 @@ Tub = Element.define(
 
 def test_default_solver_leaves_lsoda_when_a_state_rests_on_a_discontinuity():
     """Test that a group of tubs resting empty on their drain switch finishes with RK45, and explicit LSODA stalls."""
-    tubs = System(elements=[Tub.group('tubs', 1, water=[20.0])])
+    tubs = System(components=[Tub.group('tubs', 1, water=[20.0])])
     with pytest.warns(UserWarning, match='LSODA stalled'):
         simulation = Simulation(tubs, dt=1).run(until=6)
     assert simulation.stepper_.method_ == 'RK45'
@@ -136,7 +136,7 @@ def test_default_solver_starts_from_rest_with_a_vanishing_drift():
         states={'x': 0.0, 'v': 0.0},
         laws=lambda s: [Rate(s.x, s.v), Rate(s.v, -4 * s.x + sin(s.t))],
     )
-    simulation = Simulation(System(elements=[Forced('oscillator')]), dt=0.01).run(until=5)
+    simulation = Simulation(System(components=[Forced('oscillator')]), dt=0.01).run(until=5)
     times = simulation.trajectory_.times
     expected = (np.sin(times) - np.sin(2 * times) / 2) / 3
     np.testing.assert_allclose(simulation.trajectory_['oscillator.x'], expected, atol=1e-6)
@@ -145,7 +145,7 @@ def test_default_solver_starts_from_rest_with_a_vanishing_drift():
 def test_euler_maruyama_without_noise_matches_ode():
     """Test that zero noise reduces Euler-Maruyama to the deterministic solution."""
     system = System(
-        elements=[Asset('s', price=1.0)],
+        components=[Asset('s', price=1.0)],
         interactions=[GeometricBrownianMotion('gbm', target='s', mu=1.0, sigma=0.0)],
     )
     problem = compile_system(system)
@@ -158,7 +158,7 @@ def test_euler_maruyama_without_noise_matches_ode():
 def test_euler_maruyama_nonpositive_dt_raises_error():
     """Test that the internal step must be positive."""
     problem = compile_system(
-        System(elements=[Asset('s')], interactions=[GeometricBrownianMotion('gbm', target='s')]),
+        System(components=[Asset('s')], interactions=[GeometricBrownianMotion('gbm', target='s')]),
     )
     stepper = EulerMaruyama(dt=0.0)
     stepper.initialize(problem, np.random.default_rng(0))
@@ -170,7 +170,7 @@ def test_gillespie_conserves_individuals():
     """Test that recoveries move individuals without creating or destroying them."""
     problem = compile_system(
         System(
-            elements=[Compartment('I', n=50), Compartment('R')],
+            components=[Compartment('I', n=50), Compartment('R')],
             interactions=[Recovery('rec', infected='I', recovered='R', gamma=0.5, stochastic=True)],
         ),
     )
@@ -185,7 +185,7 @@ def test_gillespie_conserves_individuals():
 def test_iteration_applies_one_step_per_unit_time():
     """Test that the discrete stepper applies the map once per integer step."""
     problem = compile_system(
-        System(elements=[Market('m', price=1.0)], interactions=[Cobweb('c', target='m', a=10, b=2, c=1, d=1)]),
+        System(components=[Market('m', price=1.0)], interactions=[Cobweb('c', target='m', a=10, b=2, c=1, d=1)]),
     )
     stepper = Iteration()
     stepper.initialize(problem, np.random.default_rng(0))
@@ -194,7 +194,7 @@ def test_iteration_applies_one_step_per_unit_time():
 
 def _decay():
     """Return the system of exponential decay."""
-    return System(elements=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=-1.0)])
+    return System(components=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=-1.0)])
 
 
 def test_scipy_ode_keeps_integrator_across_frames():
@@ -231,7 +231,7 @@ Chatter = Element.define('Chatter', states={'w': 20.0}, laws=lambda s: [Rate(s.w
 def test_default_solver_names_a_state_sliding_along_a_discontinuity():
     """Test that a state sliding along a switch no event sees ends in a named error instead of a run without end."""
     with pytest.warns(UserWarning, match='LSODA stalled'), pytest.raises(SolverError, match='slides along'):
-        Simulation(System(elements=[Chatter('tub')]), dt=1).run(until=6)
+        Simulation(System(components=[Chatter('tub')]), dt=1).run(until=6)
 
 
 def test_default_solver_names_a_blow_up():

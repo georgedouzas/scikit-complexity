@@ -79,7 +79,7 @@ def rlc_circuit(
         >>> rlc_circuit(R=0.5).elements[0].R
         0.5
     """
-    return System(elements=[Circuit('circuit', q=q, q_d1=current, L=L, R=R, C=C, V=V, omega=omega)])
+    return System(components=[Circuit('circuit', q=q, q_d1=current, L=L, R=R, C=C, V=V, omega=omega)])
 
 
 def _scroll_nonlinearity(x: Expression, a: Expression, b: Expression, c: Expression) -> Expression:
@@ -260,7 +260,7 @@ def chua(
     element = ChuaCircuit if nonlinearity == 'piecewise-linear' else MultiscrollChuaCircuit
     initial = {'x': x, 'y': y, 'alpha': alpha, 'beta': beta}
     values: dict[str, Any] = {name: value for name, value in initial.items() if value is not None}
-    return System(elements=[element('circuit', z=z, **values)])
+    return System(components=[element('circuit', z=z, **values)])
 
 
 @register_model(
@@ -341,7 +341,7 @@ def mixed_mode_chua(
         beta=beta,
         c=c,
     )
-    return System(elements=[circuit])
+    return System(components=[circuit])
 
 
 @register_model(
@@ -397,7 +397,7 @@ def memristor_oscillator(
         >>> memristor_oscillator(L=2.0).elements[0].L
         2.0
     """
-    return System(elements=[MemristorCircuit('circuit', v=v, i=i, w=w, C=C, L=L, alpha=alpha, beta=beta)])
+    return System(components=[MemristorCircuit('circuit', v=v, i=i, w=w, C=C, L=L, alpha=alpha, beta=beta)])
 
 
 @register_model(
@@ -449,7 +449,7 @@ def tunnel_diode_oscillator(
         >>> tunnel_diode_oscillator(alpha=2.0).elements[0].alpha
         2.0
     """
-    return System(elements=[TunnelDiodeCircuit('circuit', V=V, i=i, L=L, C=C, alpha=alpha, gamma=gamma)])
+    return System(components=[TunnelDiodeCircuit('circuit', V=V, i=i, L=L, C=C, alpha=alpha, gamma=gamma)])
 
 
 @register_model(
@@ -505,4 +505,4 @@ def impulsive_circuits(
         >>> impulsive_circuits(T=3.0).elements[0].T
         3.0
     """
-    return System(elements=[KickedCircuit('circuit', x=x, x_d1=current, clock=0.0, L=L, R=R, C=C, A=A, T=T)])
+    return System(components=[KickedCircuit('circuit', x=x, x_d1=current, clock=0.0, L=L, R=R, C=C, A=A, T=T)])

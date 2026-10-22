@@ -93,4 +93,4 @@ def galton_watson(n_individuals: int = 10, *, m: float = 1.0) -> System:
         >>> galton_watson(5, m=1.2).elements[0].size
         5
     """
-    return System(elements=[Individual.group('population', n_individuals, m=m)])
+    return System(components=[Individual.group('population', n_individuals, m=m)])

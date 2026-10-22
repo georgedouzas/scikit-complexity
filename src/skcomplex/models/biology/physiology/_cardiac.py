@@ -140,4 +140,4 @@ def aliev_panfilov(
     v[:, : columns // 2] = 2.0
     values = {'u': u, 'v': v, 'D': D, 'k': k, 'a': a, 'epsilon0': epsilon0, 'mu1': mu1, 'mu2': mu2}
     space = LatticeSpace((rows, columns), boundary='reflecting')
-    return System(elements=[Field('tissue', AlievPanfilov, space, values=values)])
+    return System(components=[Field('tissue', AlievPanfilov, space, values=values)])

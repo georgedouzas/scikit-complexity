@@ -17,7 +17,7 @@ import rerun.blueprint as rrb
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'cournot_duopoly'
 A, B, COSTS = 1500.0, 10.0, (0.0, 150.0)
@@ -32,7 +32,12 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 system = create(MODEL, outputs=(0.0, 0.0), costs=COSTS, a=A, b=B, error=0.05)
-simulation = Simulation(system, observers=[observer], random_state=0).run(until=60)
+simulation = Simulation(
+    system,
+    observers=[observer],
+    random_state=0,
+    observables=describe(MODEL).observables_of(system),
+).run(until=60)
 
 # %%
 # Reaction curves and convergence
@@ -48,7 +53,11 @@ def outputs(trajectory):
 
 
 exact_system = create(MODEL, outputs=(100.0, 0.0), costs=COSTS, a=A, b=B)
-exact = outputs(Simulation(exact_system, random_state=0).run(until=20).trajectory_)
+exact = outputs(
+    Simulation(exact_system, random_state=0, observables=describe(MODEL).observables_of(exact_system))
+    .run(until=20)
+    .trajectory_,
+)
 noisy = outputs(simulation.trajectory_)
 grid = np.linspace(0.0, 150.0, 2)
 fig, (reaction, distance) = plt.subplots(1, 2, figsize=(10, 4))

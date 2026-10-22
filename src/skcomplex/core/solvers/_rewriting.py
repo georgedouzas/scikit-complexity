@@ -41,7 +41,7 @@ class Rewriter(Stepper):
         >>> from skcomplex.core.runtime import Simulation
         >>> from skcomplex.core.solvers import Rewriter
         >>> system = System(
-        ...     elements=[Word('algae', axiom='A')],
+        ...     components=[Word('algae', axiom='A')],
         ...     interactions=[Rewrite('rules', target='algae', rules=[Production('A', 'AB'), Production('B', 'A')])],
         ... )
         >>> trajectory = Simulation(system, solver=Rewriter()).run(until=5).trajectory_

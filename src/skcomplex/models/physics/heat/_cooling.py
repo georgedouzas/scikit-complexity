@@ -46,4 +46,4 @@ def cooling_coffee(T: float = 90.0, *, room: float = 20.0, k: float = 0.1) -> Sy
         >>> cooling_coffee(T=5.0).elements[0].T
         5.0
     """
-    return System(elements=[CoffeeCup('coffee', T=T, room=room, k=k)])
+    return System(components=[CoffeeCup('coffee', T=T, room=room, k=k)])

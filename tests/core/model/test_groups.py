@@ -41,13 +41,13 @@ def test_group_stores_arguments():
 
 def test_group_position_state_has_member_shape():
     """Test that a group's vector state has one row per member."""
-    system = System(elements=[Particle.group('gas', 1000, x=np.zeros((1000, 2)))], space=EuclideanSpace(2))
+    system = System(components=[Particle.group('gas', 1000, x=np.zeros((1000, 2)))], space=EuclideanSpace(2))
     assert compile_system(system).states.entry('gas.x').shape == (1000, 2)
 
 
 def test_group_wrong_number_of_values_raises_error():
     """Test that a group with the wrong number of values names the group, variable, and sizes."""
-    system = System(elements=[Particle.group('gas', 1000, x=np.zeros((999, 2)))], space=EuclideanSpace(2))
+    system = System(components=[Particle.group('gas', 1000, x=np.zeros((999, 2)))], space=EuclideanSpace(2))
     with pytest.raises(ValidationError, match=r'gas\.x .*999 values .* 1000 members'):
         compile_system(system)
 
@@ -56,25 +56,25 @@ def test_group_wrong_number_of_values_raises_error():
 def test_group_invalid_size_raises_error(size, match):
     """Test that a group size must be a positive integer."""
     with pytest.raises(ValidationError, match=match):
-        compile_system(System(elements=[Population.group('herds', size)]))
+        compile_system(System(components=[Population.group('herds', size)]))
 
 
 def test_group_unknown_value_raises_error():
     """Test that a group can only set variables of its element type."""
     with pytest.raises(ValidationError, match='does not declare'):
-        compile_system(System(elements=[Population.group('herds', 3, mass=1.0)]))
+        compile_system(System(components=[Population.group('herds', 3, mass=1.0)]))
 
 
 def test_group_non_element_type_raises_error():
     """Test that a group's element must be an Element subclass."""
     with pytest.raises(ValidationError, match='not an Element subclass'):
-        compile_system(System(elements=[Group('herds', element=int, size=3)]))
+        compile_system(System(components=[Group('herds', element=int, size=3)]))
 
 
 def test_role_binds_to_group_and_applies_to_every_member():
     """Test that an interaction bound to a group applies its law to every member."""
     system = System(
-        elements=[Population.group('herds', 3, n=[1.0, 2.0, 3.0])],
+        components=[Population.group('herds', 3, n=[1.0, 2.0, 3.0])],
         interactions=[ExponentialGrowth('growth', target='herds', r=2.0)],
     )
     problem = compile_system(system)
@@ -85,7 +85,7 @@ def test_role_binds_to_group_and_applies_to_every_member():
 def test_single_element_bound_with_group_receives_sum():
     """Test that a single element bound next to a group receives the sum over the members."""
     system = System(
-        elements=[Population.group('rabbits', 3, n=[1.0, 2.0, 3.0]), Population('fox', n=2.0)],
+        components=[Population.group('rabbits', 3, n=[1.0, 2.0, 3.0]), Population('fox', n=2.0)],
         interactions=[Predation('hunt', predator='fox', prey='rabbits', a=1.0, b=1.0)],
     )
     problem = compile_system(system)
@@ -104,7 +104,7 @@ Cell = Element.define('Cell', states={'size': 0.0})
 def test_interaction_reads_two_groups_member_by_member(backend):
     """Test that an interaction bound to two groups of equal size reads row `i` of both together."""
     system = System(
-        elements=[Box.group('source', 5, n=np.arange(5.0)), Box.group('sink', 5)],
+        components=[Box.group('source', 5, n=np.arange(5.0)), Box.group('sink', 5)],
         interactions=[Flow('flow', source='source', sink='sink')],
     )
     problem = compile_system(system, backend=backend)
@@ -116,7 +116,7 @@ def test_interaction_reads_two_groups_member_by_member(backend):
 def test_interaction_reading_groups_of_different_sizes_raises_error():
     """Test that an interaction reading groups of different sizes member by member names both groups and sizes."""
     system = System(
-        elements=[Box.group('source', 5), Box.group('sink', 7)],
+        components=[Box.group('source', 5), Box.group('sink', 7)],
         interactions=[Flow('flow', source='source', sink='sink')],
     )
     with pytest.raises(RoleError, match=r'sink of 7 members, source of 5 members.*PairInteraction'):
@@ -126,7 +126,7 @@ def test_interaction_reading_groups_of_different_sizes_raises_error():
 def test_group_takes_state_named_size():
     """Test that a state named size takes per-member values, since the group size is given by position."""
     group = Cell.group('cells', 3, size=[1.0, 2.0, 3.0])
-    problem = compile_system(System(elements=[group]))
+    problem = compile_system(System(components=[group]))
     assert group.size == 3
     assert problem.states.read(problem.initial_state, 'cells.size').tolist() == [1.0, 2.0, 3.0]
 
@@ -140,7 +140,7 @@ def test_group_label_and_size_are_positional_only():
 def test_pair_interaction_rejects_other_law_kinds():
     """Test that pair interactions take rate laws only."""
     system = System(
-        elements=[Particle.group('gas', 3)],
+        components=[Particle.group('gas', 3)],
         interactions=[Attraction('pull', first='gas', second='gas')],
         space=EuclideanSpace(2),
     )
@@ -159,7 +159,7 @@ def test_pair_interaction_needs_vector_position():
             return [Rate(s.first.n, s.second.n)]
 
     system = System(
-        elements=[Population.group('herds', 3)],
+        components=[Population.group('herds', 3)],
         interactions=[Contact('contact', first='herds', second='herds')],
     )
     with pytest.raises(ValidationError, match="vector state 'x'"):

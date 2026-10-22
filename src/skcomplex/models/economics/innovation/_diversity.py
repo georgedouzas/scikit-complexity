@@ -55,4 +55,4 @@ def creative_phase_transition(x: float = 0.1, *, r: float = 5.0) -> System:
         >>> creative_phase_transition(r=2.0).elements[0].r
         2.0
     """
-    return System(elements=[AdjacentPossible('system', x=x, d=r * x**2 * (1 - x), r=r)])
+    return System(components=[AdjacentPossible('system', x=x, d=r * x**2 * (1 - x), r=r)])

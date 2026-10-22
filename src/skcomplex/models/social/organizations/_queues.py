@@ -140,4 +140,4 @@ def priority_queues(
     """
     priorities = np.random.default_rng(random_state).random(n_tasks)
     tasks = Task.group('tasks', n_tasks, priority=priorities, greed=greed)
-    return System(elements=[tasks], interactions=[Execution('execution', target='tasks')])
+    return System(components=[tasks], interactions=[Execution('execution', target='tasks')])

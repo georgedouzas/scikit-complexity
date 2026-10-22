@@ -83,6 +83,7 @@ class DilutedNeuron(Element):
     tags=('neural network', 'associative memory', 'spin glass', 'discrete map'),
     references=('Derrida, Gardner, and Zippelius 1987', 'Bertin 2021'),
     defaults={'until': 20, 'dt': 1},
+    observables=lambda system: [Observable('overlap', _overlap, group='neurons')],
 )
 def diluted_hopfield(
     n_neurons: int = 4000,
@@ -141,4 +142,4 @@ def diluted_hopfield(
         beta=temperature_scale / connectivity,
         couplings=_couplings(patterns, connectivity, rng),
     )
-    return System(elements=[neurons], observables=[Observable('overlap', _overlap, group='neurons')])
+    return System(components=[neurons])

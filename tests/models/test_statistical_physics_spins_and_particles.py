@@ -7,6 +7,7 @@ import pytest
 from scipy.optimize import brentq
 
 from skcomplex.core.runtime import Simulation
+from skcomplex.models import describe
 from skcomplex.models.physics.statistical_mechanics import (
     absorbing_birth_death,
     asep,
@@ -57,7 +58,11 @@ def tree_occupation_probabilities(*, n_levels, branches, nu, alpha, beta_ext, di
 def test_curie_weiss_magnetization(temperature):
     """Test that 2000 spins order at `T = 0.5 J` as `m = tanh(m J / T)` predicts and stay disordered at `T = 2 J`."""
     system = curie_weiss(2000, temperature=temperature, random_state=1)
-    trajectory = Simulation(system, dt=1.0, random_state=0).run(until=30).trajectory_
+    trajectory = (
+        Simulation(system, dt=1.0, random_state=0, observables=describe('curie_weiss').observables_of(system))
+        .run(until=30)
+        .trajectory_
+    )
     magnetization = np.abs(trajectory['magnetization'][10:]).mean()
     if temperature < 1:
         assert abs(magnetization - spontaneous_magnetization(temperature)) < 0.02
@@ -71,7 +76,16 @@ def test_sherrington_kirkpatrick_energy_and_freezing():
     for temperature in (2.0, 0.3):
         system = sherrington_kirkpatrick(200, temperature=temperature, random_state=0)
         couplings = system.elements[0].values['couplings']
-        trajectory = Simulation(system, dt=1.0, random_state=0).run(until=100).trajectory_
+        trajectory = (
+            Simulation(
+                system,
+                dt=1.0,
+                random_state=0,
+                observables=describe('sherrington_kirkpatrick').observables_of(system),
+            )
+            .run(until=100)
+            .trajectory_
+        )
         spins = trajectory['spins.spin'][50:]
         energy = -0.5 * np.einsum('ti,ij,tj->t', spins, couplings, spins).mean() / 200
         frozen.append(np.mean(spins.mean(axis=0) ** 2))
@@ -89,7 +103,11 @@ def test_edwards_anderson_freezes_without_magnetization():
         system = edwards_anderson(32, temperature=temperature, random_state=0)
         values = system.elements[0].values
         right, down = (values[name].reshape(32, 32) for name in ('J_right', 'J_down'))
-        trajectory = Simulation(system, dt=10, random_state=0).run(until=2000).trajectory_
+        trajectory = (
+            Simulation(system, dt=10, random_state=0, observables=describe('edwards_anderson').observables_of(system))
+            .run(until=2000)
+            .trajectory_
+        )
         spins = trajectory.lattice('spins.spin')[-50:]
         energy = lattice_bond_energy(spins, right, down).mean()
         frozen = np.mean(spins.mean(axis=0) ** 2)
@@ -106,7 +124,11 @@ def test_mattis_spin_glass_overlap_orders_like_ising():
     """Test that the Mattis overlap follows the Onsager magnetization below `T_c` while the magnetization stays zero."""
     for temperature in (1.5, 3.5):
         system = mattis_spin_glass(32, temperature=temperature, random_state=0)
-        trajectory = Simulation(system, dt=10, random_state=0).run(until=1000).trajectory_
+        trajectory = (
+            Simulation(system, dt=10, random_state=0, observables=describe('mattis_spin_glass').observables_of(system))
+            .run(until=1000)
+            .trajectory_
+        )
         overlap = np.abs(trajectory['overlap'][-30:]).mean()
         assert np.abs(trajectory['magnetization'][-30:]).mean() < 0.1
         if temperature < ISING_CRITICAL_TEMPERATURE:

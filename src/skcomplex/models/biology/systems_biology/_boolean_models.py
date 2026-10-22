@@ -80,7 +80,7 @@ def _rule_network(
         )
         for name, (inputs, rule) in rules.items()
     ]
-    return System(elements=nodes, interactions=functions)
+    return System(components=nodes, interactions=functions)
 
 
 @register_model(
@@ -201,4 +201,4 @@ def boolean_repressilator(x: Sequence[int] = (1, 0, 0), *, delay: int = 0) -> Sy
             for source, relay in itertools.pairwise(chain)
         )
         functions.append(BooleanFunction(f'repression_{target}', target=target, inputs=[chain[-1]], table=(1, 0)))
-    return System(elements=[*genes, *relays], interactions=functions)
+    return System(components=[*genes, *relays], interactions=functions)

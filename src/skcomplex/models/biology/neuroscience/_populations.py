@@ -434,7 +434,7 @@ def wilson_cowan(
         >>> wilson_cowan(P=0.0).elements[0].P
         0.0
     """
-    return System(elements=[WilsonCowan('cortex', E=E, I=I, P=P, Q=Q, c1=c1, c2=c2, c3=c3, c4=c4)])
+    return System(components=[WilsonCowan('cortex', E=E, I=I, P=P, Q=Q, c1=c1, c2=c2, c3=c3, c4=c4)])
 
 
 @register_model(
@@ -495,7 +495,7 @@ def theta_neurons(
         theta=phases,
         eta=np.asarray(_lorentzian_quantiles(eta, delta, n_neurons)),
     )
-    return System(elements=[neurons], interactions=[PulseCoupling('coupling', neurons='neurons', kappa=kappa, n=n)])
+    return System(components=[neurons], interactions=[PulseCoupling('coupling', neurons='neurons', kappa=kappa, n=n)])
 
 
 @register_model(
@@ -542,7 +542,7 @@ def winners_take_all(
     """
     units = [RateUnit(f'unit_{index}', x=x, I=value, tau=tau) for index, value in enumerate(inputs)]
     inhibition = MutualInhibition('inhibition', units=[unit.label for unit in units], beta=beta)
-    return System(elements=units, interactions=[inhibition])
+    return System(components=units, interactions=[inhibition])
 
 
 @register_model(
@@ -595,4 +595,4 @@ def polyhomeostatic_neuron(
         0.1
     """
     neuron = PolyhomeostaticNeuron('neuron', mu=mu, eps_a=eps_a, eps_b=eps_b, I0=I0, A=A, omega=omega)
-    return System(elements=[neuron])
+    return System(components=[neuron])

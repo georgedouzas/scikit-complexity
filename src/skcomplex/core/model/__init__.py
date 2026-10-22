@@ -122,8 +122,16 @@ from ._rewriting import (
 from ._spaces import Adjacency, ContinuousSpace, EuclideanSpace, GridSpace, NetworkSpace, Space
 from ._symbols import Symbols
 from ._systems import MesaSystem, System
+from ._time import ContinuousTime, DiscreteTime, Phases, StaticTime, Time
 
-__all__: list[str] = [
+__all__: list[
+    'ContinuousTime',
+    'DiscreteTime',
+    'Phases',
+    'StaticTime',
+    'Time',
+    'str',
+] = [
     'Adjacency',
     'Affine',
     'AgentType',

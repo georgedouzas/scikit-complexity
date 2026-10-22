@@ -118,4 +118,4 @@ def earthquakes(
     """
     forces = np.random.default_rng(random_state).random(tuple(shape))
     space = LatticeSpace(tuple(shape), boundary='fixed')
-    return System(elements=[Fault.lattice('fault', space, force=forces, alpha=alpha)])
+    return System(components=[Fault.lattice('fault', space, force=forces, alpha=alpha)])

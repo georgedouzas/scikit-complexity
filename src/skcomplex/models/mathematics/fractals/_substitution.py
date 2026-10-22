@@ -45,7 +45,10 @@ def koch_curve(angle: float = 60.0) -> System:
         turtle=Turtle(angle=angle, step=1.0, contraction=1 / 3),
         bounds=(-0.03, -0.05, 1.03, 0.35),
     )
-    return System(elements=[word], interactions=[Rewrite('rules', target='koch', rules=[Production('F', 'F+F--F+F')])])
+    return System(
+        components=[word],
+        interactions=[Rewrite('rules', target='koch', rules=[Production('F', 'F+F--F+F')])],
+    )
 
 
 @register_model(
@@ -85,7 +88,7 @@ def cantor_set(ratio: float = 1 / 3) -> System:
     pieces = [('interval', Affine(scale=ratio)), ('interval', Affine(scale=ratio, translation=(1 - ratio, 0.0)))]
     patch = Patch('cantor', prototiles=[interval], bounds=(-0.03, -0.1, 1.03, 0.1))
     return System(
-        elements=[patch],
+        components=[patch],
         interactions=[Rewrite('rules', target='cantor', rules=[Substitution(pieces[0][0], pieces)])],
     )
 
@@ -138,6 +141,6 @@ def sierpinski_substitution(shape: str = 'triangle', *, filled: bool = True) -> 
         raise ValidationError(error_msg)
     patch = Patch('sierpinski', prototiles=[prototile], filled=filled)
     return System(
-        elements=[patch],
+        components=[patch],
         interactions=[Rewrite('rules', target='sierpinski', rules=[Substitution(pieces[0][0], pieces)])],
     )

@@ -15,14 +15,16 @@ import numpy as np
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver, default_blueprint
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'kuramoto'
 
 system = create(MODEL, n_oscillators=50, K=4.0, sigma=1.0, seed=0)
-blueprint = default_blueprint(system, primary='observables')
+blueprint = default_blueprint(system, primary='observables', observables=describe(MODEL).observables_of(system))
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=0.2, observers=[observer]).run(until=30)
+simulation = Simulation(system, dt=0.2, observers=[observer], observables=describe(MODEL).observables_of(system)).run(
+    until=30,
+)
 
 # %%
 # Onset of synchronization
@@ -34,7 +36,8 @@ simulation = Simulation(system, dt=0.2, observers=[observer]).run(until=30)
 couplings = np.linspace(0.0, 4.0, 17)
 order = []
 for coupling in couplings:
-    run = Simulation(create(MODEL, n_oscillators=400, K=coupling, sigma=1.0, seed=1), dt=0.2).run(until=60)
+    model_system = create(MODEL, n_oscillators=400, K=coupling, sigma=1.0, seed=1)
+    run = Simulation(model_system, dt=0.2, observables=describe(MODEL).observables_of(model_system)).run(until=60)
     order.append(np.mean(np.asarray(run.trajectory_['order'])[-100:]))
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(couplings, order, 'o-')

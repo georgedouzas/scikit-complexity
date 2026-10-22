@@ -75,7 +75,7 @@ def kuramoto_sivashinsky(modes: int = 128, *, length: float = 32 * math.pi) -> S
     positions = np.arange(1, modes + 1) * spacing
     values = {'u': np.cos(positions / 16) * (1 + np.sin(positions / 16))}
     space = LatticeSpace(modes, spacing=spacing)
-    return System(elements=[Field('line', KuramotoSivashinsky, space, values=values, discretization='spectral')])
+    return System(components=[Field('line', KuramotoSivashinsky, space, values=values, discretization='spectral')])
 
 
 def _velocity(omega: Any) -> tuple[Any, Any]:  # noqa: ANN401
@@ -279,7 +279,7 @@ def incompressible_flow(
     states = ['omega'] if buoyancy is None else ['omega', 'theta']
     symmetry = dict.fromkeys(states, (None, 'odd')) if walls else None
     field = Field('flow', element, space, values=values, discretization='spectral', symmetry=symmetry)
-    return System(elements=[field])
+    return System(components=[field])
 
 
 @register_model(
@@ -417,7 +417,7 @@ def burgers(n: int = 200, *, mean: float = 1.5, amplitude: float = 1.0) -> Syste
     centers = (np.arange(n) + 0.5) * spacing
     values = {'u': mean + amplitude * np.sin(centers)}
     space = LatticeSpace(n, spacing=spacing)
-    return System(elements=[Field('line', Burgers, space, values=values, discretization='finite-volume')])
+    return System(components=[Field('line', Burgers, space, values=values, discretization='finite-volume')])
 
 
 @register_model(
@@ -469,4 +469,4 @@ def shallow_water(
     values = {'h': depth, 'q': np.zeros(n), 'g': g}
     boundary = {'h': 'zero-flux', 'q': 'zero-flux'}
     field = Field('channel', ShallowWater, space, boundary=boundary, values=values, discretization='finite-volume')
-    return System(elements=[field])
+    return System(components=[field])

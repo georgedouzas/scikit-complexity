@@ -104,7 +104,7 @@ def two_mass_spring_damper(
     """
     rest1, rest2 = l1, l1 + l2
     return System(
-        elements=[Particle('first', x=x1, v=0.0, m=m1), Particle('second', x=x2, v=0.0, m=m2)],
+        components=[Particle('first', x=x1, v=0.0, m=m1), Particle('second', x=x2, v=0.0, m=m2)],
         interactions=[
             HarmonicPotential('left_spring', target='first', k=k1, center=rest1),
             HarmonicPotential('right_spring', target='second', k=k2, center=rest2),

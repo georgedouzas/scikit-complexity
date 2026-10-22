@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.runtime import Simulation
+from skcomplex.models import describe
 from skcomplex.models.economics.econophysics import (
     el_farol,
     kinetic_wealth_exchange,
@@ -15,7 +16,15 @@ from skcomplex.models.social.opinion_dynamics import axelrod, cultural_traits, l
 
 def _final_wealth(until, **options):
     """Return the wealth of every trader at the end of a kinetic exchange run."""
-    trajectory = Simulation(kinetic_wealth_exchange(500, **options), random_state=0).run(until=until).trajectory_
+    trajectory = (
+        Simulation(
+            built := kinetic_wealth_exchange(500, **options),
+            random_state=0,
+            observables=describe('kinetic_wealth_exchange').observables_of(built),
+        )
+        .run(until=until)
+        .trajectory_
+    )
     return trajectory.agents('traders', until).values['wealth']
 
 

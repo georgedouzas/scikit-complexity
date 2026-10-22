@@ -110,6 +110,7 @@ class InvestingFirm(AgentType):
     tags=('business cycle', 'agents', 'firms'),
     references=('Caiani et al. 2016', 'Delli Gatti et al. 2010'),
     defaults={'until': 100},
+    observables=lambda system: [Observable('production', group='firms', reduce='sum', variable='Y')],
 )
 def toy_firm_investment(
     n_firms: int = 100,
@@ -155,4 +156,4 @@ def toy_firm_investment(
     """
     profits = pbar + 2.0 * np.random.default_rng(random_state).random(n_firms)
     firms = InvestingFirm.group('firms', n_firms, Z=profits, gamma=gamma, phi=phi, r=r, pbar=pbar)
-    return System(elements=[firms], observables=[Observable('production', group='firms', reduce='sum', variable='Y')])
+    return System(components=[firms])

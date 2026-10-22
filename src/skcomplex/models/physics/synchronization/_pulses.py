@@ -65,6 +65,7 @@ IntegrateAndFireOscillator = Element.define(
     tags=('synchronization', 'oscillators', 'phase', 'oscillator death'),
     references=('Winfree 1967', 'Ariaratnam and Strogatz 2001', 'Bick et al. 2020'),
     defaults={'until': 50.0, 'dt': 0.5},
+    observables=lambda system: _order_parameter('order', 'oscillators'),
 )
 def winfree(n_oscillators: int = 50, *, K: float = 0.5, spread: float = 0.1, seed: int = 0) -> System:
     """Return the Winfree model, `theta_i' = omega_i + (K / N) sum_j P(theta_j) R(theta_i)`, with the sum over all `j`.
@@ -103,9 +104,8 @@ def winfree(n_oscillators: int = 50, *, K: float = 0.5, spread: float = 0.1, see
         omega=np.linspace(1 - spread, 1 + spread, n_oscillators),
     )
     return System(
-        elements=[oscillators],
+        components=[oscillators],
         interactions=[WinfreeMeanField('coupling', target='oscillators', K=K)],
-        observables=_order_parameter('order', 'oscillators'),
     )
 
 
@@ -164,4 +164,4 @@ def mirollo_strogatz(
         gamma=gamma,
         epsilon=epsilon,
     )
-    return System(elements=[oscillators])
+    return System(components=[oscillators])

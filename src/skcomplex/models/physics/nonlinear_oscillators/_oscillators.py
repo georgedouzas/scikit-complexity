@@ -108,7 +108,7 @@ def duffing(
         0.3
     """
     return System(
-        elements=[Duffing('duffing', x=x, x_d1=v, delta=delta, alpha=alpha, beta=beta, gamma=gamma, omega=omega)],
+        components=[Duffing('duffing', x=x, x_d1=v, delta=delta, alpha=alpha, beta=beta, gamma=gamma, omega=omega)],
     )
 
 
@@ -140,7 +140,7 @@ def van_der_pol(x: float = 2.0, v: float = 0.0, *, mu: float = 1.0) -> System:
         >>> van_der_pol(mu=3.0).elements[0].mu
         3.0
     """
-    return System(elements=[VanDerPol('oscillator', x=x, x_d1=v, mu=mu)])
+    return System(components=[VanDerPol('oscillator', x=x, x_d1=v, mu=mu)])
 
 
 @register_model(
@@ -175,7 +175,7 @@ def henon_heiles(x: float = 0.0, y: float = 0.1, px: float = 0.35, py: float = 0
         >>> henon_heiles(px=0.3).elements[0].x_d1
         0.3
     """
-    return System(elements=[HenonHeiles('star', x=x, y=y, x_d1=px, y_d1=py)])
+    return System(components=[HenonHeiles('star', x=x, y=y, x_d1=px, y_d1=py)])
 
 
 @register_model(
@@ -222,7 +222,7 @@ def stuart_landau(
         >>> stuart_landau(mu=0.5).elements[0].mu
         0.5
     """
-    return System(elements=[StuartLandau('oscillator', x=x, y=y, mu=mu, omega=omega, beta=beta)])
+    return System(components=[StuartLandau('oscillator', x=x, y=y, mu=mu, omega=omega, beta=beta)])
 
 
 @register_model(
@@ -269,7 +269,7 @@ def forced_van_der_pol(
         >>> forced_van_der_pol(A=0.5).elements[0].A
         0.5
     """
-    return System(elements=[ForcedVanDerPol('oscillator', x=x, x_d1=v, mu=mu, A=A, omega=omega)])
+    return System(components=[ForcedVanDerPol('oscillator', x=x, x_d1=v, mu=mu, A=A, omega=omega)])
 
 
 @register_model(
@@ -303,4 +303,4 @@ def adler_equation(phi: float = 0.0, *, detuning: float = 0.5, epsilon: float = 
         >>> adler_equation(detuning=2.0).elements[0].detuning
         2.0
     """
-    return System(elements=[AdlerPhase('difference', phi=phi, detuning=detuning, epsilon=epsilon)])
+    return System(components=[AdlerPhase('difference', phi=phi, detuning=detuning, epsilon=epsilon)])

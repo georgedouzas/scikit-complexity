@@ -141,4 +141,4 @@ def shaken_spring_block(
             'v_stick': v_stick,
         },
     )
-    return System(elements=[chain])
+    return System(components=[chain])

@@ -144,7 +144,7 @@ def _circuit(
         repression(f'repression_{source}_{target}', repressor=f'gene_{source}', target=f'gene_{target}')
         for source, target in edges
     ]
-    return System(elements=genes, interactions=repressions)
+    return System(components=genes, interactions=repressions)
 
 
 @register_model(
@@ -346,4 +346,4 @@ def negative_autoregulation(
         n=n,
         stochastic=stochastic,
     )
-    return System(elements=[gene], interactions=[feedback])
+    return System(components=[gene], interactions=[feedback])

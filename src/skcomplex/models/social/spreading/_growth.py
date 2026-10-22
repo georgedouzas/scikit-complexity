@@ -129,4 +129,4 @@ def simon_yule(*, innovation: float = 0.1, words_per_step: int = 100) -> System:
         1
     """
     words = Word.group('words', 1, count=1.0, innovation=innovation)
-    return System(elements=[words], interactions=[Writing('writing', target='words', words_per_step=words_per_step)])
+    return System(components=[words], interactions=[Writing('writing', target='words', words_per_step=words_per_step)])

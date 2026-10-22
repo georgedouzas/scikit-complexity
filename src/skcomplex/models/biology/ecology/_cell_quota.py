@@ -134,4 +134,4 @@ def droop_cell_quota(
         4.0
     """
     algae = QuotaPhytoplankton('algae', Q=Q, P=P, r_inf=r_inf, q=q, vmax=vmax, g=g, R=R, d=d)
-    return System(elements=[algae])
+    return System(components=[algae])

@@ -216,4 +216,4 @@ def stochastic_schelling(
         intercept=intercept,
     )
     moves = BlockMoves('moves', target='dwellers', width=width, height=height, side=side)
-    return System(elements=[dwellers], interactions=[moves], space=GridSpace(width, height, capacity=1))
+    return System(components=[dwellers], interactions=[moves], space=GridSpace(width, height, capacity=1))

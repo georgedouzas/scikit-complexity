@@ -122,6 +122,7 @@ class NeutralReplacement(Interaction):
     tags=('neutral theory', 'biodiversity', 'speciation', 'agents', 'species abundance'),
     references=('Bertin 2021', 'Hubbell 2001', 'Vallade and Houchmandzadeh 2003'),
     defaults={'until': 500},
+    observables=lambda system: [Observable('richness', group='community', variable='species', reduce=_richness)],
 )
 def neutral_biodiversity(
     individuals: int = 200,
@@ -160,7 +161,6 @@ def neutral_biodiversity(
     """
     labels = np.random.default_rng(random_state).integers(species, size=individuals).astype(float)
     return System(
-        elements=[Organism.group('community', individuals, species=labels)],
+        components=[Organism.group('community', individuals, species=labels)],
         interactions=[NeutralReplacement('replacement', community='community', nu=nu)],
-        observables=[Observable('richness', group='community', variable='species', reduce=_richness)],
     )

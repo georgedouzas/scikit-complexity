@@ -73,7 +73,7 @@ def test_drug_resistance_switching_resensitizes_after_the_dose():
     treated = _run(drug_resistance_switching(**switching), until=200.0, dt=1.0)
     assert treated['tumour.Rp'][-1] > 0.5
     tumour = ResistanceSwitching('tumour', S=treated['tumour.S'][-1], Rp=treated['tumour.Rp'][-1], u=0.0, **switching)
-    after = _run(System(elements=[tumour]), until=400.0, dt=1.0)
+    after = _run(System(components=[tumour]), until=400.0, dt=1.0)
     assert after['tumour.S'][-1] > 0.9
 
 

@@ -32,14 +32,14 @@ through the conformance suite.
 
 ## 3. System, space, and time
 
-- [ ] 3.1 Change the signature to `System(label, components, interactions, space, time)` and make a system a component.
+- [x] 3.1 Change the signature to `System(label, components, interactions, space, time)` and make a system a component.
   Move the old arguments to their new homes:
   - observables to simulations and catalog entries;
   - history to states;
   - noise convention to noise laws;
   - phases to the schedule of discrete time.
-- [ ] 3.2 Add the time kinds with inference and the synchronous, random-sequential, and phases schedules, and static
-  systems solved once.
+- [x] 3.2 Add the time kinds with inference and the synchronous, random-sequential, and phases schedules, and static
+  time validated; solving static systems is specified by `add-static-models`.
 - [ ] 3.3 Unify the space kinds across time classes:
   - boundary conditions on the space;
   - hyperedges on networks;

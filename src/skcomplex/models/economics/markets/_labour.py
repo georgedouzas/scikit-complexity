@@ -11,11 +11,13 @@ from ....core.base import Domain, parameter, role, state
 from ....core.model import (
     AgentType,
     DeferredAcceptance,
+    DiscreteTime,
     Institution,
     Law,
     Market,
     Observable,
     Phase,
+    Phases,
     Rule,
     Symbols,
     System,
@@ -249,6 +251,7 @@ def _unemployed(agent: AgentView) -> float:
     tags=('labour', 'market', 'matching', 'agents'),
     references=('Hamill and Gilbert 2016 ch. 7',),
     defaults={'until': 200},
+    observables=lambda system: [Observable('unemployment', _unemployed, group='workers')],
 )
 def labour_market(
     n_workers: int = 200,
@@ -346,8 +349,7 @@ def labour_market(
         on_trade=hire,
     )
     return System(
-        elements=[firms, workers],
+        components=[firms, workers],
         interactions=[SearchCount('office', workers='workers', phase='matching'), market],
-        observables=[Observable('unemployment', _unemployed, group='workers')],
-        phases=[Phase('offers'), Phase('matching')],
+        time=DiscreteTime(schedule=Phases([Phase('offers'), Phase('matching')])),
     )

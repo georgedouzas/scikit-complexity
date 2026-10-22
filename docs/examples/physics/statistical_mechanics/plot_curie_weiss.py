@@ -17,13 +17,19 @@ from scipy.optimize import brentq
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'curie_weiss'
 
 system = create(MODEL, n_spins=200, temperature=0.5)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.2, observers=[observer], random_state=0).run(until=30)
+simulation = Simulation(
+    system,
+    dt=0.2,
+    observers=[observer],
+    random_state=0,
+    observables=describe(MODEL).observables_of(system),
+).run(until=30)
 
 # %%
 # Magnetization against temperature
@@ -45,7 +51,7 @@ temperatures = np.linspace(0.4, 1.6, 9)
 measured = []
 for temperature in temperatures:
     ordered = create(MODEL, n_spins=1000, temperature=temperature, initial='up')
-    run = Simulation(ordered, dt=1.0, random_state=0).run(until=40)
+    run = Simulation(ordered, dt=1.0, random_state=0, observables=describe(MODEL).observables_of(ordered)).run(until=40)
     measured.append(np.abs(run.trajectory_['magnetization'][10:]).mean())
 grid = np.linspace(0.3, 1.7, 200)
 fig, (series, curve) = plt.subplots(1, 2, figsize=(10, 4))

@@ -41,8 +41,8 @@ def test_symbols_unknown_name_lists_available_names():
 
 def test_system_repr_counts_children():
     """Test that a system shows its label and the number of each child kind."""
-    system = System('meadow', elements=[Population('rabbits')], space=EuclideanSpace(2))
-    assert repr(system) == "System('meadow', elements=1, interactions=0, systems=0)"
+    system = System('meadow', components=[Population('rabbits')], space=EuclideanSpace(2))
+    assert repr(system) == "System('meadow', components=1, interactions=0)"
 
 
 def test_element_state_named_visual_raises_error():
@@ -72,7 +72,7 @@ def _numpy_vector_rate(s):
 def test_numpy_scalar_times_vector_is_rejected():
     """Test that a law value that NumPy built as an array raises a named error that names the state."""
     Moving = Element.define('Moving', states={'v': state(0.0, vector=True)}, laws=_numpy_vector_rate)
-    system = System(elements=[Moving('m', v=[1.0, 2.0])], space=EuclideanSpace(2))
+    system = System(components=[Moving('m', v=[1.0, 2.0])], space=EuclideanSpace(2))
     with pytest.raises(ValidationError, match=r'rate law of \(v_m.*float'):
         compile_system(system)
 
@@ -90,7 +90,7 @@ def _float_decay(s):
 def test_numpy_scalar_values_match_floats():
     """Test that NumPy scalar law values run like the same laws written with Python floats."""
     trajectories = [
-        Simulation(System(elements=[Element.define('Decay', states={'x': 2.0}, laws=laws)('d')]), dt=0.5)
+        Simulation(System(components=[Element.define('Decay', states={'x': 2.0}, laws=laws)('d')]), dt=0.5)
         .run(until=2)
         .trajectory_['d.x']
         for laws in (_numpy_decay, _float_decay)
@@ -107,4 +107,4 @@ def test_jump_increment_symbol_is_rejected():
     """Test that a jump whose increment is a parameter raises a named error naming the state and the increment."""
     Counter = Element.define('Counter', states={'n': 0.0}, parameters={'k': 2.0}, laws=_parameter_jump)
     with pytest.raises(ValidationError, match=r'jump of n_c has the increment k_c.*number'):
-        compile_system(System(elements=[Counter('c')]))
+        compile_system(System(components=[Counter('c')]))

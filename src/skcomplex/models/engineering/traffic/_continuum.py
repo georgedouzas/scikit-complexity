@@ -127,7 +127,7 @@ def lighthill_whitham_richards(
         values=values,
         discretization='finite-volume',
     )
-    return System(elements=[road])
+    return System(components=[road])
 
 
 @register_model(
@@ -184,7 +184,7 @@ def payne(
     rho = _density_bump(n, density, bump)
     values = {'rho': rho, 'q': rho * vmax * (1 - rho / rho_max), 'vmax': vmax, 'rho_max': rho_max, 'tau': tau}
     road = Field('road', Payne, LatticeSpace(n, spacing=1 / n), values=values, discretization='finite-volume')
-    return System(elements=[road])
+    return System(components=[road])
 
 
 @register_model(
@@ -261,4 +261,4 @@ def kerner_konhauser(
     }
     space = LatticeSpace(n, spacing=length / n)
     road = Field('road', KernerKonhauser, space, values=values, discretization='finite-volume')
-    return System(elements=[road])
+    return System(components=[road])

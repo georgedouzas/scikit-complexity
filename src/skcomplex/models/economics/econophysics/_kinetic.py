@@ -161,6 +161,7 @@ class DebtExchange(Interaction):
     tags=('wealth', 'agents', 'exchange', 'kinetic'),
     references=('Chakraborti and Chakrabarti 2000', 'Dragulescu and Yakovenko 2000', 'Yakovenko and Rosser 2009'),
     defaults={'until': 200},
+    observables=lambda system: [Observable('variance', group='traders', variable='wealth', reduce='var')],
 )
 def kinetic_wealth_exchange(
     n_agents: int = 500,
@@ -217,7 +218,6 @@ def kinetic_wealth_exchange(
         else DebtExchange('trades', traders='traders', debt=debt, amount=amount)
     )
     return System(
-        elements=[Saver.group('traders', n_agents, wealth=wealth)],
+        components=[Saver.group('traders', n_agents, wealth=wealth)],
         interactions=[trades],
-        observables=[Observable('variance', group='traders', variable='wealth', reduce='var')],
     )

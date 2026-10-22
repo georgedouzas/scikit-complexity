@@ -245,7 +245,7 @@ def binary_ant_decision(
         TrailChoice(f'choice_{chosen}', chosen=chosen, other=other, flux=flux, k=k, h=h, stochastic=stochastic)
         for chosen, other in (('left', 'right'), ('right', 'left'))
     ]
-    return System(elements=branches, interactions=choices)
+    return System(components=branches, interactions=choices)
 
 
 @register_model(
@@ -306,4 +306,4 @@ def rats(
         calming=calming,
         stochastic=stochastic,
     )
-    return System(elements=groups, interactions=[transitions])
+    return System(components=groups, interactions=[transitions])

@@ -162,7 +162,7 @@ def sample_space_reducing(n_balls: int = 20, *, n_states: int = 10, lam: float =
         4
     """
     return System(
-        elements=[
+        components=[
             ReducingBall.group('balls', n_balls, level=float(n_states), n_states=float(n_states), lam=lam),
         ],
     )
@@ -195,4 +195,4 @@ def fragmentation(size: int = 1000, *, rate: float = 0.5) -> System:
         >>> fragmentation(50).elements[0].size
         1
     """
-    return System(elements=[Fragment.group('fragments', 1, length=float(size), rate=rate)])
+    return System(components=[Fragment.group('fragments', 1, length=float(size), rate=rate)])

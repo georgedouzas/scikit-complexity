@@ -124,7 +124,7 @@ class FractionalEulerMaruyama(Stepper):
         ...     states={'x': 0.0},
         ...     laws=lambda s: [FractionalNoise(s.x, 1, hurst=0.75)],
         ... )
-        >>> problem = compile_system(System(elements=[Walker.group('walkers', 500)]))
+        >>> problem = compile_system(System(components=[Walker.group('walkers', 500)]))
         >>> stepper = FractionalEulerMaruyama(dt=0.01, horizon=1.0)
         >>> stepper.initialize(problem, np.random.default_rng(0))
         >>> state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)

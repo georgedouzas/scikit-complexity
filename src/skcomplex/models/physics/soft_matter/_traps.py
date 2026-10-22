@@ -80,11 +80,21 @@ class TrapSite(Element):
         return [LocalRule(targets, ALONG_ROW, _hop, reads=(*targets, s.tau))]
 
 
+def _trap_observables(system: System) -> list[Observable]:
+    """Return the visits, the walkers, and the mean position of the traps."""
+    return [
+        Observable('visits', group='traps', variable='visited', reduce='sum'),
+        Observable('walkers', group='traps', variable='occupied', reduce='sum'),
+        Observable('position', _mean_position),
+    ]
+
+
 @register_model(
     field='physics/soft_matter',
     tags=('lattice', 'anomalous diffusion', 'disorder', 'traps', 'subdiffusion'),
     references=('Bertin 2021', 'Bouchaud and Georges 1990'),
     defaults={'until': 2000, 'dt': 10},
+    observables=_trap_observables,
 )
 def biased_trap_walk(
     n_walkers: int = 100,
@@ -139,9 +149,4 @@ def biased_trap_walk(
         visited=start,
         tau=tau,
     )
-    observables = [
-        Observable('visits', group='traps', variable='visited', reduce='sum'),
-        Observable('walkers', group='traps', variable='occupied', reduce='sum'),
-        Observable('position', _mean_position),
-    ]
-    return System(elements=[traps], observables=observables)
+    return System(components=[traps])
