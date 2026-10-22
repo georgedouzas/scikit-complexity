@@ -75,7 +75,7 @@ through the conformance suite.
 
 ## 6. Restructure the core packages
 
-- [ ] 6.1 Split `core.model` into `core.system`, `core.components`, `core.interactions`, `core.space`, and `core.laws`,
+- [x] 6.1 Split `core.model` into `core.system`, `core.components`, `core.interactions`, `core.space`, and `core.laws`,
   remove `core.model`, and rewrite the imports of the core, the library, the tests, the examples, and the docs.
 - [x] 6.2 Move the NumPy and Numba backends from `core.compile` and the Mesa backend from `core.solvers` to
   `core.backends`, make the Lepton printer private to the LAMMPS backend, and add the tests of the package layout.
