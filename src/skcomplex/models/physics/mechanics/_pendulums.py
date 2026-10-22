@@ -9,20 +9,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos, sign, sin, sqrt
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
-from ....core.model import (
-    ContinuousSpace,
-    Element,
-    Equation,
-    Event,
-    Interaction,
-    Particle,
-    Potential,
-    Rate,
-    Symbols,
-    System,
-    derivative,
-)
+from ....core.components import Element, Particle
+from ....core.interactions import Interaction, Potential
+from ....core.laws import Equation, Event, Rate, Symbols, derivative
 from ....core.runtime import register_model
+from ....core.space import ContinuousSpace
+from ....core.system import System
 from ..realizations import HarmonicPotential, LinearDrag
 from ._mechanics import Pendulum
 

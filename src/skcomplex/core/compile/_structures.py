@@ -12,7 +12,7 @@ import numpy.typing as npt
 import shapely
 
 from ..base import ValidationError
-from ..model import Module, Prototile
+from ..laws import Module, Prototile
 
 type Array = npt.NDArray[Any]
 
@@ -304,7 +304,7 @@ class PatchStructure(Structure):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.compile import PatchStructure
-        >>> from skcomplex.core.model import Prototile
+        >>> from skcomplex.core.laws import Prototile
         >>> patch = PatchStructure([Prototile('interval', [(0, 0), (1, 0)])], [0], np.eye(3)[None], 0)
         >>> patch.length()
         1.0

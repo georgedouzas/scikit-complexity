@@ -10,6 +10,7 @@ import pytest
 from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.base import ValidationError, state
+from skcomplex.core.components import Element
 from skcomplex.core.experiments import (
     Experiment,
     Grid,
@@ -21,7 +22,8 @@ from skcomplex.core.experiments import (
     calibrate,
     sensitivity,
 )
-from skcomplex.core.model import Element, Observable, System, Update
+from skcomplex.core.laws import Update
+from skcomplex.core.system import Observable, System
 from skcomplex.models.biology.ecology import logistic_growth
 from skcomplex.models.biology.epidemiology import sir
 from skcomplex.models.economics.resources import harvesting

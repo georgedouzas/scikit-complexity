@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import SR, desolve, desolve_laplace, desolve_s
 
 from ..base import AnalysisError, Expression, Form, components_of, declare_domains
 from ..compile import Problem, compile_system
-from ..model import System
+from ..system import System
 
 UNEVALUATED = frozenset({'ilt', 'laplace', 'integrate', 'integral'})
 
@@ -178,7 +178,7 @@ def equations_of(system: System) -> dict[str, Expression]:
 
     Examples:
         >>> from skcomplex.core.analysis import equations_of
-        >>> from skcomplex.core.model import System
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import LogisticGrowth, Population
         >>> system = System(
         ...     components=[Population('rabbits', n=10)],
@@ -219,7 +219,7 @@ def solve_symbolically(system: System, *, use_initial_state: bool = False) -> di
 
     Examples:
         >>> from skcomplex.core.analysis import solve_symbolically
-        >>> from skcomplex.core.model import System
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> system = System(
         ...     components=[Population('a', n=2)],

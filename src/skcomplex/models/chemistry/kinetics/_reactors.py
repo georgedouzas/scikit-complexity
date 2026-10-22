@@ -6,8 +6,10 @@
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Element, Law, Rate, Symbols, System, pulse_train
+from ....core.components import Element
+from ....core.laws import Law, Rate, Symbols, pulse_train
 from ....core.runtime import register_model
+from ....core.system import System
 
 CatalystPellet = Element.define(
     'CatalystPellet',

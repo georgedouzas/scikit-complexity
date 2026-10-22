@@ -12,7 +12,7 @@ import numpy.typing as npt
 from sklearn.metrics import normalized_mutual_info_score
 
 from ..base import AnalysisError
-from ..model import NetworkSpace
+from ..space import NetworkSpace
 from ._kinds import DataKind, analysis
 from ._statistics import fit_power_law
 

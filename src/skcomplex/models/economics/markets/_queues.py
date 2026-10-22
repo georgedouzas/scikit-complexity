@@ -6,9 +6,12 @@
 from typing import ClassVar
 
 from ....core.base import Domain, VariableKind, declarations_of, parameter, role, state
-from ....core.model import Element, Interaction, Law, Rule, Symbols, System
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Law, Rule, Symbols
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ....core.system import System
 
 WASH = 0
 VALET = 1

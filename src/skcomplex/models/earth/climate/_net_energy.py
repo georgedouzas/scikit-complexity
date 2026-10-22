@@ -4,8 +4,10 @@
 # License: MIT
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Auxiliary, Element, Law, Rate, Sink, Source, Symbols, System, Transfer
+from ....core.components import Element
+from ....core.laws import Auxiliary, Law, Rate, Sink, Source, Symbols, Transfer
 from ....core.runtime import register_model
+from ....core.system import System
 
 
 def _energy_laws(s: Symbols) -> list[Law]:

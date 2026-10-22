@@ -12,7 +12,7 @@ import numpy as np
 from sklearn.base import BaseEstimator
 
 from ..base import BackendError, ComponentKind, DomainKind, Form, LawKind, Registry, SpaceKind, Supports, TimeKind
-from ..model import Boundary, Jump, Noise, Rate, Update
+from ..laws import Boundary, Jump, Noise, Rate, Update
 from ._kernels import Indices, Kernel, Reference, add_into, assign_into, jump_channels, noise_rows
 from ._problem import Accelerated, Draws, JumpChannels, Vector, VectorFunction
 from ._reductions import ReductionPass
@@ -211,7 +211,7 @@ class NumpyBackend(Backend):
 
     Examples:
         >>> from skcomplex.core.compile import NumpyBackend, compile_system
-        >>> from skcomplex.core.model import System
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import Population
         >>> compile_system(System(components=[Population('a')]), backend=NumpyBackend()).backend
         'numpy'

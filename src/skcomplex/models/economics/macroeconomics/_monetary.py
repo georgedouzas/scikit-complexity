@@ -4,8 +4,11 @@
 # License: MIT
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Auxiliary, Element, Interaction, Law, Sink, Source, Symbols, System, Transfer, Update
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Auxiliary, Law, Sink, Source, Symbols, Transfer, Update
 from ....core.runtime import register_model
+from ....core.system import System
 
 Households = Element.define(
     'Households',

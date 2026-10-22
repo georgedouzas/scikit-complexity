@@ -17,22 +17,8 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import SR
 
 from ..base import Expression, SolverError, ValidationError, symbol
-from ..model import (
-    Adjacency,
-    Drive,
-    Energy,
-    Extremal,
-    LatticeSpace,
-    LocalRule,
-    Move,
-    Neighborhood,
-    NetworkSpace,
-    OuterTotalistic,
-    Relaxation,
-    Sampler,
-    Table,
-    Totalistic,
-)
+from ..laws import Drive, Energy, Extremal, LocalRule, Move, OuterTotalistic, Relaxation, Sampler, Table, Totalistic
+from ..space import Adjacency, LatticeSpace, Neighborhood, NetworkSpace
 from ._printing import numpy_function
 
 type Vector = npt.NDArray[np.float64]

@@ -8,8 +8,10 @@ from typing import Any
 from sage.all__sagemath_symbolics import cos, pi
 
 from ....core.base import Domain, Expression, state
-from ....core.model import Element, Law, Rate, Symbols, System
+from ....core.components import Element
+from ....core.laws import Law, Rate, Symbols
 from ....core.runtime import register_model
+from ....core.system import System
 
 
 def _saltzman_laws(s: Symbols) -> list[Law]:

@@ -10,9 +10,12 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, parameter
-from ....core.model import Element, Field, LatticeSpace, Mesh, Rate, System, laplacian
+from ....core.components import Element, Field
+from ....core.laws import Rate, laplacian
 from ....core.runtime import register_model
 from ....core.solvers import IMEXEuler
+from ....core.space import LatticeSpace, Mesh
+from ....core.system import System
 
 type Array = npt.NDArray[np.float64]
 

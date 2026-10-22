@@ -4,20 +4,10 @@
 # License: MIT
 
 from ....core.base import Domain, parameter, state
-from ....core.model import (
-    Auxiliary,
-    Element,
-    Law,
-    Sink,
-    Source,
-    Symbols,
-    System,
-    Transfer,
-    distributed_delay,
-    lookup,
-    where,
-)
+from ....core.components import Element
+from ....core.laws import Auxiliary, Law, Sink, Source, Symbols, Transfer, distributed_delay, lookup, where
 from ....core.runtime import register_model
+from ....core.system import System
 
 ALLOCATION_TABLE = ((0.0, 0.0), (0.2, 0.05), (0.5, 0.5), (0.8, 0.95), (1.0, 1.0))
 

@@ -25,9 +25,9 @@ from ..base import (
     symbol,
     symbols_of,
 )
-from ..model import Auxiliary, Boundary, Event, Invariant, Jump, Law, Noise, Rate, Sink, Transfer, Update
-from ..model import Source as Environment
-from ..model._flows import delay_parts
+from ..laws import Auxiliary, Boundary, Event, Invariant, Jump, Law, Noise, Rate, Sink, Transfer, Update
+from ..laws import Source as Environment
+from ..laws._flows import delay_parts
 from ._kernels import Reference
 from ._kernels import Source as Read
 from ._layout import Entry

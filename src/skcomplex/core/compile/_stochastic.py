@@ -26,7 +26,7 @@ from ..base import (
     symbols_of,
     vector,
 )
-from ..model import (
+from ..laws import (
     Boundary,
     Call,
     Draw,
@@ -43,7 +43,7 @@ from ..model import (
     draws_in,
     where,
 )
-from ..model._laws import Renewal
+from ..laws._laws import Renewal
 from ._kernels import Reference, Source
 from ._layout import Entry
 from ._printing import numpy_function

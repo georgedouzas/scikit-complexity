@@ -4,8 +4,10 @@
 # License: MIT
 
 from ....core.base import Domain, parameter
-from ....core.model import Element, Rate, System
+from ....core.components import Element
+from ....core.laws import Rate
 from ....core.runtime import register_model
+from ....core.system import System
 
 CoffeeCup = Element.define(
     'CoffeeCup',

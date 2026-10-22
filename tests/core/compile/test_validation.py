@@ -6,7 +6,10 @@ import pytest
 
 from skcomplex.core.base import Domain, ValidationError, parameter, role, state
 from skcomplex.core.compile import Issue, ValidationReport, ValidationWarning, validate
-from skcomplex.core.model import Element, Interaction, Rate, Rule, System, Update
+from skcomplex.core.components import Element
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Rate, Rule, Update
+from skcomplex.core.system import System
 
 
 class Stock(Element):

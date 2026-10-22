@@ -6,9 +6,11 @@
 from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Element, Noise, Rate, System
+from ....core.components import Element
+from ....core.laws import Noise, Rate
 from ....core.runtime import register_model
 from ....core.solvers import Heun
+from ....core.system import System
 
 IntermittentVariable = Element.define(
     'IntermittentVariable',

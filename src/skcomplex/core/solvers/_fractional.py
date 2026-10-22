@@ -117,7 +117,9 @@ class FractionalEulerMaruyama(Stepper):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.core.model import Element, FractionalNoise, System
+        >>> from skcomplex.core.components import Element
+        >>> from skcomplex.core.laws import FractionalNoise
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.core.solvers import FractionalEulerMaruyama
         >>> Walker = Element.define(
         ...     'Walker',

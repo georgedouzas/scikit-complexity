@@ -9,20 +9,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import sin
 
 from ....core.base import Domain, Expression, parameter, role, vector
-from ....core.model import (
-    ContinuousSpace,
-    Element,
-    Field,
-    LatticeSpace,
-    Particle,
-    Potential,
-    Rate,
-    Symbols,
-    System,
-    laplacian,
-)
+from ....core.components import Element, Field, Particle
+from ....core.interactions import Potential
+from ....core.laws import Rate, Symbols, laplacian
 from ....core.runtime import register_model
 from ....core.solvers import VelocityVerlet
+from ....core.space import ContinuousSpace, LatticeSpace
+from ....core.system import System
 from ..realizations import Spring
 
 WaveString = Element.define(

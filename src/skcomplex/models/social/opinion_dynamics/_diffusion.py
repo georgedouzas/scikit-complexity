@@ -9,9 +9,13 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, ValidationError, VisualSpec, parameter, role, state
-from ....core.model import ContinuousSpace, Element, Interaction, LatticeSpace, Law, Rule, Symbols, System
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Law, Rule, Symbols
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ....core.space import ContinuousSpace, LatticeSpace
+from ....core.system import System
 
 type Array = npt.NDArray[np.float64]
 

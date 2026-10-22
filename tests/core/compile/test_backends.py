@@ -10,20 +10,13 @@ import pytest
 
 from skcomplex.core.base import BackendError, Domain, SolverError, parameter, role
 from skcomplex.core.compile import NumbaBackend, NumpyBackend, compile_system
-from skcomplex.core.model import (
-    Call,
-    ContinuousSpace,
-    Interaction,
-    Jump,
-    Noise,
-    PairPotential,
-    Particle,
-    Rate,
-    System,
-    Update,
-)
+from skcomplex.core.components import Particle
+from skcomplex.core.interactions import Interaction, PairPotential
+from skcomplex.core.laws import Call, Jump, Noise, Rate, Update
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4, EulerMaruyama, Gillespie, Iteration, VelocityVerlet
+from skcomplex.core.space import ContinuousSpace
+from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import Population
 from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
 from skcomplex.models.physics.realizations import HarmonicPotential

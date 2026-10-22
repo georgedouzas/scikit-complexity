@@ -7,21 +7,11 @@ import networkx as nx
 import numpy as np
 
 from ....core.base import Domain, parameter, state
-from ....core.model import (
-    Adjacency,
-    Element,
-    Energy,
-    Law,
-    Move,
-    NetworkSpace,
-    Sample,
-    Sampler,
-    Symbols,
-    System,
-    adjacent,
-    neighbor_sum,
-)
+from ....core.components import Element
+from ....core.laws import Energy, Law, Move, Sample, Sampler, Symbols, adjacent, neighbor_sum
 from ....core.runtime import register_model
+from ....core.space import Adjacency, NetworkSpace
+from ....core.system import System
 
 NODES = 400
 DEGREE = 4

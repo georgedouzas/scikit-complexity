@@ -9,8 +9,9 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ..compile import CompiledAgents, CompiledElement, Problem, QuantumProblem
-from ..model import LatticeSpace, view_of
+from ..components import view_of
 from ..runtime import Frame
+from ..space import LatticeSpace
 from ._visuals import SPACE_TIME, ImageVisual, _log_scalars, register_visual
 
 

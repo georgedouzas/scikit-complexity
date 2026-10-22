@@ -14,7 +14,7 @@ from skcomplex.core.analysis import (
     summarize_network,
 )
 from skcomplex.core.base import AnalysisError
-from skcomplex.core.model import NetworkSpace
+from skcomplex.core.space import NetworkSpace
 
 PERCOLATION_THRESHOLD = 0.5927
 

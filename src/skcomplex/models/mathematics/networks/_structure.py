@@ -10,9 +10,12 @@ import numpy as np
 
 from ....core.analysis import assortativity, centrality, communities, motif_zscores, summarize_network
 from ....core.base import Domain, VisualSpec, state
-from ....core.model import Element, Law, NetworkSpace, Observable, Rule, Symbols, System
+from ....core.components import Element
+from ....core.laws import Law, Rule, Symbols
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ....core.space import NetworkSpace
+from ....core.system import Observable, System
 
 BLOCKS = 4
 BLOCK_SIZE = 100

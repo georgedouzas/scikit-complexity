@@ -17,17 +17,12 @@ from skcomplex.core.base import (
     symbol,
 )
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import (
-    ContinuousSpace,
-    Element,
-    Interaction,
-    LatticeSpace,
-    Particle,
-    Rate,
-    System,
-    Update,
-)
+from skcomplex.core.components import Element, Particle
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Rate, Update
 from skcomplex.core.runtime import Simulation
+from skcomplex.core.space import ContinuousSpace, LatticeSpace
+from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import ExponentialGrowth, LogisticGrowth, Population, Predation
 from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
 from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion

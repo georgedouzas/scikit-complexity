@@ -14,7 +14,8 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import SR, I
 
 from ..base import Domain, Expression, RoleError, ValidationError, real_components_of, symbol, symbols_of
-from ..model import Observable, Reduction, Symbols, System, reduce_values, reductions_in
+from ..laws import Reduction, Symbols, reductions_in
+from ..system import Observable, System, reduce_values
 from ._complex import joined_complex
 from ._kernels import Source
 from ._layout import Entry
@@ -273,7 +274,7 @@ class ObservableEvaluator:
 
     Examples:
         >>> from skcomplex.core.compile import ObservableEvaluator, compile_system
-        >>> from skcomplex.core.model import Observable, System
+        >>> from skcomplex.core.system import Observable, System
         >>> from skcomplex.models.biology.ecology import Population
         >>> system = System(components=[Population.group('herd', 2, n=[2.0, 6.0])])
         >>> total = Observable('total', group='herd', reduce='sum', variable='n')

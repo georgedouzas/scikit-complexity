@@ -11,7 +11,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ..compile import CompiledAgents, CompiledElement, GraphStructure, PatchStructure, Problem, Structure, WordStructure
-from ..model import Patch, Word
+from ..components import Patch, Word
 from ..runtime import Frame
 from ._visuals import Visual, _colors_of, _log_scalars, register_visual
 

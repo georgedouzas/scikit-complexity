@@ -22,7 +22,8 @@ from ..base import (
     ValidationError,
 )
 from ..compile import Partition, Problem, Vector, partition_system
-from ..model import Aggregate, reduce_values
+from ..components import Aggregate
+from ..system import reduce_values
 from ._agents import AgentState, MesaStepper
 from ._base import Stepper, register_solver, resolve_solver
 
@@ -58,7 +59,7 @@ class CoSimulation(Stepper):
             The stepper of every partition by partition name.
 
     Examples:
-        >>> from skcomplex.core.model import System
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> from skcomplex.core.runtime import Simulation
         >>> from skcomplex.core.solvers import CoSimulation

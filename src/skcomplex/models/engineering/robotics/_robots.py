@@ -10,9 +10,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos, exp, sin, sqrt
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, state
-from ....core.model import Boundary, ContinuousSpace, Element, Law, Noise, Rate, Rule, Symbols, System, delayed, where
+from ....core.components import Element
+from ....core.laws import Boundary, Law, Noise, Rate, Rule, Symbols, delayed, where
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ....core.space import ContinuousSpace
+from ....core.system import System
 
 BEACON_MARGIN = 5.0
 EDGE_FRACTION = 1e-9

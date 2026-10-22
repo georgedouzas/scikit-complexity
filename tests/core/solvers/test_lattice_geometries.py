@@ -9,21 +9,16 @@ from sage.all__sagemath_symbolics import cos
 
 from skcomplex.core.base import ValidationError
 from skcomplex.core.compile import CompiledExtremal, ExtremalRecord, compile_system
+from skcomplex.core.components import Element
 from skcomplex.core.experiments import Experiment, Grid
-from skcomplex.core.model import (
-    Adjacency,
-    Element,
+from skcomplex.core.laws import (
     Energy,
     Extremal,
-    LatticeSpace,
     LocalRule,
     Move,
-    Neighborhood,
-    NetworkSpace,
     OuterTotalistic,
     Sample,
     Sampler,
-    System,
     Table,
     Totalistic,
     adjacent,
@@ -31,6 +26,8 @@ from skcomplex.core.model import (
     neighbors,
 )
 from skcomplex.core.runtime import Frame, Simulation
+from skcomplex.core.space import Adjacency, LatticeSpace, Neighborhood, NetworkSpace
+from skcomplex.core.system import System
 from skcomplex.core.viz import RerunObserver, SiteVisual
 from skcomplex.models.physics.criticality import hexagonal_forest_fire
 from skcomplex.models.physics.statistical_mechanics import graph_ising

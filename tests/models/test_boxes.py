@@ -4,9 +4,12 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import Domain, parameter
-from skcomplex.core.model import ContinuousSpace, PairPotential, Particle, System
+from skcomplex.core.components import Particle
+from skcomplex.core.interactions import PairPotential
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import ScipyODE
+from skcomplex.core.space import ContinuousSpace
+from skcomplex.core.system import System
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 
 N_DIM = 2

@@ -11,22 +11,12 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, parameter, state
-from ....core.model import (
-    Element,
-    Field,
-    Flux,
-    LatticeSpace,
-    Law,
-    Rate,
-    Symbols,
-    System,
-    divergence,
-    gradient,
-    inverse_laplacian,
-    laplacian,
-)
+from ....core.components import Element, Field
+from ....core.laws import Flux, Law, Rate, Symbols, divergence, gradient, inverse_laplacian, laplacian
 from ....core.runtime import register_model
 from ....core.solvers import ETDRK4, SSPRK
+from ....core.space import LatticeSpace
+from ....core.system import System
 
 type Array = npt.NDArray[np.float64]
 

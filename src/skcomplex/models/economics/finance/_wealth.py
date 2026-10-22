@@ -8,21 +8,11 @@ from collections.abc import Sequence
 import networkx as nx
 
 from ....core.base import Domain, Expression, parameter, state
-from ....core.model import (
-    Element,
-    Field,
-    Group,
-    NetworkSpace,
-    Noise,
-    Observable,
-    Rate,
-    Symbols,
-    System,
-    count,
-    laplacian,
-    mean,
-)
+from ....core.components import Element, Field, Group
+from ....core.laws import Noise, Rate, Symbols, count, laplacian, mean
 from ....core.runtime import register_model
+from ....core.space import NetworkSpace
+from ....core.system import Observable, System
 
 Saver = Element.define(
     'Saver',

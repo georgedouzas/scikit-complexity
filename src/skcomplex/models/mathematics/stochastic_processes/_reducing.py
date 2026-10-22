@@ -6,9 +6,11 @@
 from typing import ClassVar
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import Element, Law, Rule, Symbols, System
+from ....core.components import Element
+from ....core.laws import Law, Rule, Symbols
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ....core.system import System
 
 
 class ReducingBall(Element):

@@ -8,9 +8,11 @@ import rerun as rr
 
 from skcomplex.core.base import Form, SolverError
 from skcomplex.core.compile import RenewalRecord, compile_system
-from skcomplex.core.model import Element, Jump, Rate, System, bernoulli, draw, mean, normal
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Jump, Rate, bernoulli, draw, mean, normal
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4, RenewalStepper, ScipyODE
+from skcomplex.core.system import System
 from skcomplex.core.viz import RerunObserver
 
 Counter = Element.define(

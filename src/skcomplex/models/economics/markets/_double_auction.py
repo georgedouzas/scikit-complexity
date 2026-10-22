@@ -8,9 +8,12 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import Domain, parameter, state
-from ....core.model import DiscreteTime, Element, Law, Phase, Phases, Rule, Symbols, System
+from ....core.components import Element
+from ....core.laws import Law, Rule, Symbols
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ....core.space import DiscreteTime, Phase, Phases
+from ....core.system import System
 from ..realizations import CallAuction, Institution, Market, OrderBook, Trade
 
 PROTOCOLS = ('order_book', 'call_auction')

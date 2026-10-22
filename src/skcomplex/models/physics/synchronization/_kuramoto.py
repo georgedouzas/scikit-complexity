@@ -10,18 +10,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos, sin
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
-from ....core.model import (
-    ContinuousSpace,
-    Element,
-    Interaction,
-    Law,
-    Rate,
-    Symbols,
-    System,
-    delayed,
-    mean,
-)
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Law, Rate, Symbols, delayed, mean
 from ....core.runtime import register_model
+from ....core.space import ContinuousSpace
+from ....core.system import System
 from ._utils import _order_parameter
 
 PhaseOscillator = Element.define(

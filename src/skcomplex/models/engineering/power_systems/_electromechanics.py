@@ -4,8 +4,10 @@
 # License: MIT
 
 from ....core.base import Domain, Expression, parameter, state
-from ....core.model import Element, Rate, Symbols, System, derivative, pulse_train, where
+from ....core.components import Element
+from ....core.laws import Rate, Symbols, derivative, pulse_train, where
 from ....core.runtime import register_model
+from ....core.system import System
 
 
 def _dry_friction(speed: Expression, coefficient: Expression) -> Expression:

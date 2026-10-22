@@ -4,8 +4,10 @@
 # License: MIT
 
 from ....core.base import Domain, state
-from ....core.model import Element, Jump, Law, Symbols, System
+from ....core.components import Element
+from ....core.laws import Jump, Law, Symbols
 from ....core.runtime import register_model
+from ....core.system import System
 
 
 class PolyaUrn(Element):

@@ -7,9 +7,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Element, Field, Flux, LatticeSpace, Rate, System, laplacian
+from ....core.components import Element, Field
+from ....core.laws import Flux, Rate, laplacian
 from ....core.runtime import register_model
 from ....core.solvers import SSPRK
+from ....core.space import LatticeSpace
+from ....core.system import System
 
 KERNER_KONHAUSER_OFFSET = 3.72e-6
 

@@ -6,7 +6,8 @@
 from collections.abc import Callable
 from typing import Any
 
-from ....core.model import Interaction, Law, Rule, Symbols
+from ....core.interactions import Interaction
+from ....core.laws import Law, Rule, Symbols
 
 
 class Institution(Interaction):

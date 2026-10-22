@@ -4,8 +4,11 @@
 # License: MIT
 
 from ....core.base import Domain, parameter, role, state
-from ....core.model import Element, Interaction, Law, Symbols, System, Update
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Law, Symbols, Update
 from ....core.runtime import register_model
+from ....core.system import System
 
 
 @register_model(

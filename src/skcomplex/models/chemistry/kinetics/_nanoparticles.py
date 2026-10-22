@@ -5,9 +5,9 @@
 
 from collections.abc import Sequence
 
-from ....core.model import System
 from ....core.runtime import register_model
 from ....core.solvers import ScipyODE
+from ....core.system import System
 from ._reactions import Binding, Dissociation, Species
 
 PROTEINS = ('albumin', 'lipoprotein', 'fibrinogen')

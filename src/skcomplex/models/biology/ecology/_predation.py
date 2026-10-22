@@ -6,9 +6,11 @@
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, Expression, parameter, role
-from ....core.model import Interaction, Jump, Law, Rate, Symbols, System, Update, where
+from ....core.interactions import Interaction
+from ....core.laws import Jump, Law, Rate, Symbols, Update, where
 from ....core.runtime import register_model
 from ....core.solvers import ScipyODE
+from ....core.system import System
 from ._populations import ExponentialGrowth, Mortality, Population, Predation
 
 

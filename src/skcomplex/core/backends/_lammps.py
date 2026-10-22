@@ -28,8 +28,12 @@ from ..base import (
     symbol,
 )
 from ..compile import CompiledElement, CompiledInteraction, Problem, Vector, compile_system
-from ..model import ContinuousSpace, Interaction, PairPotential, Particle, Symbols, System
+from ..components import Particle
+from ..interactions import Interaction, PairPotential
+from ..laws import Symbols
 from ..solvers import SOLVERS, register_solver
+from ..space import ContinuousSpace
+from ..system import System
 from ._base import ExternalBackend
 from ._lepton import lepton_expression
 
@@ -90,7 +94,7 @@ def register_lammps_pair(interaction: type[PairPotential], style: str, arguments
 
     Examples:
         >>> from skcomplex.core.backends import NATIVE_PAIRS, register_lammps_pair
-        >>> from skcomplex.core.model import PairPotential
+        >>> from skcomplex.core.interactions import PairPotential
         >>> class Flat(PairPotential):
         ...     def pair_energy(self, s, r):
         ...         return 0 * r
@@ -113,7 +117,7 @@ def register_lammps_fix(interaction: type[Interaction], command: FixCommand) -> 
 
     Examples:
         >>> from skcomplex.core.backends import NATIVE_FIXES, register_lammps_fix
-        >>> from skcomplex.core.model import Interaction
+        >>> from skcomplex.core.interactions import Interaction
         >>> class Push(Interaction):
         ...     pass
         >>> register_lammps_fix(Push, lambda fix: f'fix {fix.name} {fix.group} addforce 1.0 0.0 0.0')
@@ -248,7 +252,9 @@ class LammpsBackend(ExternalBackend):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.backends import LammpsBackend
-        >>> from skcomplex.core.model import ContinuousSpace, Particle, System
+        >>> from skcomplex.core.components import Particle
+        >>> from skcomplex.core.space import ContinuousSpace
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.models.physics.realizations import LennardJones
         >>> from skcomplex.core.runtime import Simulation
         >>> system = System(

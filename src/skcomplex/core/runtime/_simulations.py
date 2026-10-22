@@ -23,8 +23,8 @@ from ..compile import (
     validate,
     with_initial_state,
 )
-from ..model import Observable, System
 from ..solvers import AgentState, RewritingState, Stepper, resolve_solver
+from ..system import Observable, System
 from ._clocks import AsFastAsPossible, Clock
 from ._conservation import InvariantMonitor
 from ._frames import Frame
@@ -122,7 +122,7 @@ class Simulation(BaseEstimator):
             The current parameter vector.
 
     Examples:
-        >>> from skcomplex.core.model import System
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import LogisticGrowth, Population
         >>> from skcomplex.core.runtime import Simulation
         >>> system = System(
@@ -420,7 +420,7 @@ class Simulation(BaseEstimator):
                 later than its time.
 
         Examples:
-            >>> from skcomplex.core.model import System
+            >>> from skcomplex.core.system import System
             >>> from skcomplex.models.biology.ecology import LogisticGrowth, Population
             >>> from skcomplex.core.runtime import Simulation
             >>> system = System(

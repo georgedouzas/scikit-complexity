@@ -10,8 +10,11 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR
 
 from ....core.base import Domain, Expression, ValidationError, parameter, role, state
-from ....core.model import Element, Interaction, Law, Symbols, System, Update, where
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Law, Symbols, Update, where
 from ....core.runtime import register_model
+from ....core.system import System
 
 YEAST_NODES = ('Cln3', 'MBF', 'SBF', 'Cln1_2', 'Cdh1', 'Swi5', 'Cdc20', 'Clb5_6', 'Sic1', 'Clb1_2', 'Mcm1')
 YEAST_INPUTS = {

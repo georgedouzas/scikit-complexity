@@ -173,7 +173,7 @@ puts it. The modelling packages hold what a system is made of, and the engineeri
 
 | Package | Holds |
 |---|---|
-| `core.system` | `System`, its composition and nesting, and `validate` with its report and issues |
+| `core.system` | `System`, its composition and nesting, ensembles, and the observables that measure systems |
 | `core.components` | `Element`, `Group`, states and parameters, and state domains |
 | `core.interactions` | `Interaction`, its bindings, and matching |
 | `core.space` | the continuous, lattice, network, and mesh spaces, and the continuous, discrete, and static times |
@@ -189,6 +189,11 @@ share one package because a system lives in space and time together, and each is
 against. A helper that serves one backend, such as the printer of LAMMPS's Lepton expressions, is private to that
 backend's module, not a sibling module that reads as a backend. `skcomplex.core.model` is removed without a shim, like
 the other renamed names of this change.
+
+`validate` stays in `core.compile`, because it reads the compiler's census of laws and the registry of solvers, so
+placing it in `core.system` would make the bottom of the modelling packages import the engineering packages above
+them. Within the modelling packages, every package imports only the ones before it in the order base, space, laws,
+components, interactions, system, which a layout test checks.
 
 Rejected alternatives:
 - Keeping the flat `core.model`: it hides the definition of a system and mixed general primitives with realizations.

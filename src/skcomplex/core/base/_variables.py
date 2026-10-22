@@ -173,7 +173,7 @@ def state(
 
     Examples:
         >>> from skcomplex.core.base import Domain, state
-        >>> from skcomplex.core.model import Element
+        >>> from skcomplex.core.components import Element
         >>> class Population(Element):
         ...     n: float = state(1.0, domain=Domain.NONNEGATIVE)
         >>> Population('rabbits', n=40).n
@@ -293,7 +293,7 @@ def parameter(
 
     Examples:
         >>> from skcomplex.core.base import Domain, parameter, role
-        >>> from skcomplex.core.model import Interaction
+        >>> from skcomplex.core.interactions import Interaction
         >>> class Growth(Interaction):
         ...     r: float = parameter(1.0, domain=Domain.POSITIVE)
         >>> Growth('growth', r=0.5).r
@@ -333,7 +333,7 @@ def role(*, variadic: bool = False) -> Any:
 
     Examples:
         >>> from skcomplex.core.base import role
-        >>> from skcomplex.core.model import Interaction
+        >>> from skcomplex.core.interactions import Interaction
         >>> class Mortality(Interaction):
         ...     target: str = role()
         >>> Mortality('death', target='foxes').target

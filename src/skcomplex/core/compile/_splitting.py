@@ -10,7 +10,7 @@ from typing import Any
 from sage.all__sagemath_symbolics import SR
 
 from ..base import Expression
-from ..model import Field
+from ..components import Field
 from ._kernels import Reference, Source
 
 OPERATORS = ('laplacian', 'partial', 'inverse_laplacian')

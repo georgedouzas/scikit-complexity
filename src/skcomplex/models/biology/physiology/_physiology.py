@@ -8,9 +8,12 @@ from collections.abc import Sequence
 import numpy as np
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Element, Field, LatticeSpace, Rate, System, delayed, laplacian
+from ....core.components import Element, Field
+from ....core.laws import Rate, delayed, laplacian
 from ....core.runtime import register_model
 from ....core.solvers import RK4
+from ....core.space import LatticeSpace
+from ....core.system import System
 
 FitzHughNagumo = Element.define(
     'FitzHughNagumo',

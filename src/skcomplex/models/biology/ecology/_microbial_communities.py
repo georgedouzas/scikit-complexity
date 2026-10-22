@@ -8,8 +8,11 @@ from collections.abc import Sequence
 import numpy as np
 
 from ....core.base import Domain, ValidationError, parameter, role, state
-from ....core.model import Element, Interaction, Law, Rate, Symbols, System, total
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Law, Rate, Symbols, total
 from ....core.runtime import register_model
+from ....core.system import System
 
 COMMUNITY_GROWTH = (1.0, 0.8, 0.6)
 COMMUNITY_INTERACTIONS = ((-1.0, -0.3, 0.2), (-0.2, -1.0, -0.3), (0.1, -0.2, -1.0))

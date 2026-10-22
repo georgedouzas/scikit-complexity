@@ -10,8 +10,11 @@ from math import prod
 from sage.all__sagemath_symbolics import SR
 
 from ....core.base import Domain, Expression, ValidationError, parameter, role, state
-from ....core.model import Element, Interaction, Law, Rate, Symbols, System
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Law, Rate, Symbols
 from ....core.runtime import register_model
+from ....core.system import System
 
 RAMAN = 'Raman 2021'
 PATHWAY_ALPHA = (2.0, 1.0, 1.0)

@@ -6,8 +6,10 @@
 from collections.abc import Sequence
 
 from ....core.base import Domain, state
-from ....core.model import Element, Emission, Law, Symbols, System, Transition
+from ....core.components import Element
+from ....core.laws import Emission, Law, Symbols, Transition
 from ....core.runtime import register_model
+from ....core.system import System
 
 type Matrix = Sequence[Sequence[float]]
 

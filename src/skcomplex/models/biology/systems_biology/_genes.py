@@ -8,8 +8,11 @@ from dataclasses import replace
 from functools import partial
 
 from ....core.base import Domain, parameter, role, state
-from ....core.model import Element, Interaction, Jump, Law, Rate, Symbols, System
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Jump, Law, Rate, Symbols
 from ....core.runtime import register_model
+from ....core.system import System
 
 
 class Gene(Element):

@@ -11,9 +11,12 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import Element, LatticeSpace, Law, Observable, Rule, Symbols, System
+from ....core.components import Element
+from ....core.laws import Law, Rule, Symbols
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ....core.space import LatticeSpace
+from ....core.system import Observable, System
 
 type Array = npt.NDArray[np.float64]
 

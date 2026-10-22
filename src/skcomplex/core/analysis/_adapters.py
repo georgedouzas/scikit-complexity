@@ -14,8 +14,9 @@ import numpy.typing as npt
 from ..base import AnalysisError, Categorical, Domain, Form
 from ..compile import Problem, compile_system, observables_of
 from ..experiments import ExperimentResult
-from ..model import ContinuousSpace, LatticeSpace, NetworkSpace, System
 from ..runtime import Trajectory
+from ..space import ContinuousSpace, LatticeSpace, NetworkSpace
+from ..system import System
 from ._kinds import ANALYSES, AnalysisEntry, DataKind
 
 type Array = npt.NDArray[np.float64]

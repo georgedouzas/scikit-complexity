@@ -11,9 +11,9 @@ import numpy.typing as npt
 
 from ..base import AnalysisError, Form
 from ..compile import CompiledEvent, EventRecord, Problem, Vector, compile_system
-from ..model import System
 from ..runtime import Simulation
 from ..solvers import Stepper
+from ..system import System
 
 type Array = npt.NDArray[np.float64]
 

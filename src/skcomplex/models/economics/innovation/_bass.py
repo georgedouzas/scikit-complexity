@@ -4,8 +4,10 @@
 # License: MIT
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Element, Law, Symbols, System, Transfer
+from ....core.components import Element
+from ....core.laws import Law, Symbols, Transfer
 from ....core.runtime import register_model
+from ....core.system import System
 
 
 def _adoption(s: Symbols) -> list[Law]:

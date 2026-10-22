@@ -8,11 +8,10 @@ import quantecon
 
 from skcomplex.core.base import Domain, IncompatibleLawsError, ParameterError, ValidationError, parameter, state
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import (
-    Element,
+from skcomplex.core.components import Element
+from skcomplex.core.laws import (
     Emission,
     Rate,
-    System,
     Transition,
     Update,
     bernoulli,
@@ -23,6 +22,7 @@ from skcomplex.core.model import (
     where,
 )
 from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
 
 CHAIN = [[0.9, 0.1], [0.4, 0.6]]
 EMISSION = [[0.7, 0.3], [0.2, 0.8]]

@@ -15,9 +15,9 @@ import rerun.blueprint as rrb
 
 from ..base import Domain, Registry, VisualSpec
 from ..compile import CompiledAgents, CompiledElement, Problem
-from ..model import ContinuousSpace, LatticeSpace, NetworkSpace, Space
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
+from ..space import ContinuousSpace, LatticeSpace, NetworkSpace, Space
 
 MAX_POINT_DIMENSIONS = 3
 UPWARD = np.array([1.0, -1.0])
@@ -969,7 +969,9 @@ class SiteVisual(Visual):
             >>> import networkx as nx
             >>> from skcomplex.core.base import state
             >>> from skcomplex.core.compile import compile_system
-            >>> from skcomplex.core.model import Element, NetworkSpace, System
+            >>> from skcomplex.core.components import Element
+            >>> from skcomplex.core.space import NetworkSpace
+            >>> from skcomplex.core.system import System
             >>> from skcomplex.core.viz import SiteVisual
             >>> Node = Element.define('Node', states={'value': state(0.0)})
             >>> system = System(components=[Node.lattice('nodes', NetworkSpace(nx.cycle_graph(4)))])

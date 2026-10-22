@@ -8,23 +8,13 @@ import pytest
 
 from skcomplex.core.base import Domain, parameter
 from skcomplex.core.compile import NumbaBackend, compile_system
-from skcomplex.core.model import (
-    ContinuousSpace,
-    Element,
-    Event,
-    Field,
-    Interaction,
-    LatticeSpace,
-    PairPotential,
-    Particle,
-    Rate,
-    System,
-    delayed,
-    laplacian,
-    total,
-)
+from skcomplex.core.components import Element, Field, Particle
+from skcomplex.core.interactions import Interaction, PairPotential
+from skcomplex.core.laws import Event, Rate, delayed, laplacian, total
 from skcomplex.core.runtime import RealTime, Simulation
 from skcomplex.core.solvers import CrankNicolson, Gillespie, ScipyODE, VelocityVerlet
+from skcomplex.core.space import ContinuousSpace, LatticeSpace
+from skcomplex.core.system import System
 from skcomplex.core.viz import RerunObserver
 from skcomplex.models.biology.ecology import LogisticGrowth, Population, fisher_kpp
 from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery

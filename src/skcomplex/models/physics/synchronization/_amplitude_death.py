@@ -9,8 +9,11 @@ import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import Domain, Expression, ValidationError, VisualSpec, parameter
-from ....core.model import Element, Interaction, Observable, Rate, Symbols, System, mean
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Rate, Symbols, mean
 from ....core.runtime import register_model
+from ....core.system import Observable, System
 
 QUANTILE_GRID_SIZE = 20001
 DISTRIBUTIONS = ('lorentzian', 'quartic')

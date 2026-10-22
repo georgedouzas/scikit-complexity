@@ -7,20 +7,13 @@ import pytest
 
 from skcomplex.core.base import SolverError, ValidationError
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import (
-    Element,
-    Event,
-    Field,
-    Interaction,
-    LatticeSpace,
-    Rate,
-    System,
-    delayed,
-    laplacian,
-    total,
-)
+from skcomplex.core.components import Element, Field
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Event, Rate, delayed, laplacian, total
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4, ScipyODE
+from skcomplex.core.space import LatticeSpace
+from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import FisherKPP, fisher_kpp
 
 SIZE = 400

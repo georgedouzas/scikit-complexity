@@ -6,8 +6,11 @@
 import numpy as np
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Element, Field, LatticeSpace, Rate, System, advection, laplacian
+from ....core.components import Element, Field
+from ....core.laws import Rate, advection, laplacian
 from ....core.runtime import register_model
+from ....core.space import LatticeSpace
+from ....core.system import System
 
 ArbitrageDensity = Element.define(
     'ArbitrageDensity',

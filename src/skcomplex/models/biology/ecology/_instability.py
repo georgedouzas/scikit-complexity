@@ -6,8 +6,10 @@
 from sage.all__sagemath_symbolics import exp, sqrt
 
 from ....core.base import Domain, Expression, parameter, state
-from ....core.model import Element, Law, Symbols, System, Update, bernoulli, normal, where
+from ....core.components import Element
+from ....core.laws import Law, Symbols, Update, bernoulli, normal, where
 from ....core.runtime import register_model
+from ....core.system import System
 
 
 def _nonnegative(value: Expression) -> Expression:

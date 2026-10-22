@@ -6,8 +6,11 @@
 import numpy as np
 
 from ....core.base import Domain, Expression, parameter
-from ....core.model import Element, Interaction, Rate, System, Update
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Rate, Update
 from ....core.runtime import register_model
+from ....core.system import System
 
 PAIR = 2
 

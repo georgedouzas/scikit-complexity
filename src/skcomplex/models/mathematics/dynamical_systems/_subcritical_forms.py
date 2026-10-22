@@ -4,8 +4,10 @@
 # License: MIT
 
 from ....core.base import Domain, Expression, parameter
-from ....core.model import Element, Rate, Symbols, System
+from ....core.components import Element
+from ....core.laws import Rate, Symbols
 from ....core.runtime import register_model
+from ....core.system import System
 
 
 def _subcritical_hopf_rates(s: Symbols) -> tuple[Expression, Expression]:

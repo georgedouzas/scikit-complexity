@@ -13,8 +13,9 @@ import qutip
 
 from ..base import AnalysisError, ParameterError
 from ..compile import QuantumProblem, Vector, compile_system
-from ..model import Operator, Symbols, System
+from ..laws import Operator, Symbols
 from ..runtime import Trajectory
+from ..system import System
 
 DIAGONAL_TOLERANCE = 1e-12
 SECTOR_TOLERANCE = 1e-9
@@ -215,7 +216,7 @@ def entanglement_entropy(trajectory: Trajectory, subsystems: Sequence[str]) -> n
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import entanglement_entropy
-        >>> from skcomplex.core.model import System
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.core.runtime import Simulation
         >>> from skcomplex.models.physics.realizations import Spin
         >>> singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
@@ -262,7 +263,8 @@ def hamiltonian_of(system: System | QuantumProblem) -> Operator:
 
     Examples:
         >>> from skcomplex.core.analysis import hamiltonian_of
-        >>> from skcomplex.core.model import Generator, System
+        >>> from skcomplex.core.laws import Generator
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.models.physics.realizations import Qubit
         >>> Driven = Qubit.define('Driven', parameters={'omega': 1.0}, laws=lambda s: [Generator(s.omega / 2 * s.z)])
         >>> hamiltonian_of(System(components=[Driven('q')]))

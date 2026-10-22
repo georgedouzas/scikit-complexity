@@ -4,8 +4,10 @@
 # License: MIT
 
 from ....core.base import VisualSpec, state
-from ....core.model import Element, Rate, System, derivative
+from ....core.components import Element
+from ....core.laws import Rate, derivative
 from ....core.runtime import register_model
+from ....core.system import System
 
 DipoleCharge = Element.define(
     'DipoleCharge',

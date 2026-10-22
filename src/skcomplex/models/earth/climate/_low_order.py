@@ -6,8 +6,11 @@
 import numpy as np
 
 from ....core.base import state, vector
-from ....core.model import ContinuousSpace, Element, Law, Rate, Symbols, System
+from ....core.components import Element
+from ....core.laws import Law, Rate, Symbols
 from ....core.runtime import register_model
+from ....core.space import ContinuousSpace
+from ....core.system import System
 
 
 def _lorenz_96_laws(s: Symbols) -> list[Law]:

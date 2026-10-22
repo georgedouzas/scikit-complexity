@@ -13,8 +13,8 @@ from skcomplex.core.analysis import (
 )
 from skcomplex.core.base import AnalysisError, ParameterError
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import System
 from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
 from skcomplex.models import create, describe
 from skcomplex.models.biology.ecology import Population
 from skcomplex.models.physics.realizations import Spin

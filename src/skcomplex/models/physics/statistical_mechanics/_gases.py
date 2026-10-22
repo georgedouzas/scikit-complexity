@@ -6,13 +6,11 @@
 import numpy as np
 
 from ....core.base import VisualSpec
-from ....core.model import (
-    ContinuousSpace,
-    Interaction,
-    Particle,
-    System,
-)
+from ....core.components import Particle
+from ....core.interactions import Interaction
 from ....core.runtime import register_model
+from ....core.space import ContinuousSpace
+from ....core.system import System
 from ..realizations import LangevinThermostat, LennardJones
 
 

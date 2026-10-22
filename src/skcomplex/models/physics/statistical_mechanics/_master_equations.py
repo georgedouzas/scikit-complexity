@@ -9,8 +9,11 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Element, Jump, LatticeSpace, Law, LocalRule, Neighborhood, Rate, Symbols, System
+from ....core.components import Element
+from ....core.laws import Jump, Law, LocalRule, Rate, Symbols
 from ....core.runtime import register_model
+from ....core.space import LatticeSpace, Neighborhood
+from ....core.system import System
 
 type Array = npt.NDArray[np.float64]
 

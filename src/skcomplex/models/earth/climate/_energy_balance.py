@@ -9,20 +9,11 @@ import numpy as np
 from sage.all__sagemath_symbolics import tanh
 
 from ....core.base import Domain, Expression, state
-from ....core.model import (
-    Element,
-    Field,
-    LatticeSpace,
-    Law,
-    Observable,
-    Rate,
-    Symbols,
-    System,
-    gradient,
-    laplacian,
-    where,
-)
+from ....core.components import Element, Field
+from ....core.laws import Law, Rate, Symbols, gradient, laplacian, where
 from ....core.runtime import register_model
+from ....core.space import LatticeSpace
+from ....core.system import Observable, System
 
 
 def _daisyworld_albedo(s: Any) -> Expression:  # noqa: ANN401

@@ -9,9 +9,11 @@ import numpy as np
 from sage.all__sagemath_symbolics import exp, log
 
 from ....core.base import Domain, Expression, parameter, state
-from ....core.model import Element, Law, Rate, Symbols, System, delayed, pulse
+from ....core.components import Element
+from ....core.laws import Law, Rate, Symbols, delayed, pulse
 from ....core.runtime import register_model
 from ....core.solvers import ScipyODE
+from ....core.system import System
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 

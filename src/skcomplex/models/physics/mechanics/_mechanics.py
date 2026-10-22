@@ -7,18 +7,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos, sin
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import (
-    ContinuousSpace,
-    Element,
-    Equation,
-    Event,
-    Interaction,
-    Particle,
-    Rate,
-    System,
-    derivative,
-)
+from ....core.components import Element, Particle
+from ....core.interactions import Interaction
+from ....core.laws import Equation, Event, Rate, derivative
 from ....core.runtime import register_model
+from ....core.space import ContinuousSpace
+from ....core.system import System
 from ..realizations import ConstantForce, HarmonicPotential, LinearDrag
 
 GRAVITY = 9.81

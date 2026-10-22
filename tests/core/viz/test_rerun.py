@@ -10,8 +10,11 @@ from sage.all__sagemath_symbolics import I
 
 from skcomplex.core.base import Domain, VisualSpec, state
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import ContinuousSpace, Element, Field, LatticeSpace, Particle, Rate, Rule, System
+from skcomplex.core.components import Element, Field, Particle
+from skcomplex.core.laws import Rate, Rule
 from skcomplex.core.runtime import Frame, Simulation
+from skcomplex.core.space import ContinuousSpace, LatticeSpace
+from skcomplex.core.system import System
 from skcomplex.core.viz import ImageVisual, PointsVisual, RerunObserver, ScalarsVisual, Visual, resolve_visual
 from skcomplex.models import create
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population

@@ -12,8 +12,8 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ..compile import CompiledAgents, CompiledElement, Problem
-from ..model import Space
 from ..solvers import AgentSnapshot
+from ..space import Space
 from ._visuals import SERIES_COLORS, AgentsVisual, _widened, register_visual, resolve_visual
 
 BINS = 20

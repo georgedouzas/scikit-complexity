@@ -4,9 +4,11 @@
 # License: MIT
 
 from ....core.base import Domain, state
-from ....core.model import Element, Law, Rule, Symbols, System
+from ....core.components import Element
+from ....core.laws import Law, Rule, Symbols
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ....core.system import System
 
 
 class Trader(Element):

@@ -8,7 +8,8 @@ from functools import partial
 from sage.all__sagemath_symbolics import I, exp
 
 from ....core.base import Expression
-from ....core.model import Observable, Symbols
+from ....core.laws import Symbols
+from ....core.system import Observable
 
 
 def _phase_vector(member: Symbols) -> Expression:

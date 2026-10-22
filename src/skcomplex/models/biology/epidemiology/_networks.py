@@ -8,8 +8,11 @@ import networkx as nx
 import numpy as np
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Element, Field, Law, NetworkSpace, Rate, Symbols, System, laplacian, total
+from ....core.components import Element, Field
+from ....core.laws import Law, Rate, Symbols, laplacian, total
 from ....core.runtime import register_model
+from ....core.space import NetworkSpace
+from ....core.system import System
 
 
 class DegreeClass(Element):

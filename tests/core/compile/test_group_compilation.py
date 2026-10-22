@@ -7,19 +7,11 @@ import pytest
 
 from skcomplex.core.base import Domain, ValidationError, parameter, role
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import (
-    Boundary,
-    ContinuousSpace,
-    Interaction,
-    Jump,
-    Noise,
-    PairPotential,
-    Particle,
-    Rate,
-    System,
-    Update,
-    mod,
-)
+from skcomplex.core.components import Particle
+from skcomplex.core.interactions import Interaction, PairPotential
+from skcomplex.core.laws import Boundary, Jump, Noise, Rate, Update, mod
+from skcomplex.core.space import ContinuousSpace
+from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import Population
 
 CUTOFF = 2.5

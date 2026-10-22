@@ -6,8 +6,10 @@
 import numpy as np
 
 from ....core.base import Domain, Expression, ValidationError, VisualSpec, parameter
-from ....core.model import Element, Event, Law, Rate, Symbols, System, where
+from ....core.components import Element
+from ....core.laws import Event, Law, Rate, Symbols, where
 from ....core.runtime import register_model
+from ....core.system import System
 
 SHAPES = ('sinai', 'mushroom')
 

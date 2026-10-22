@@ -13,17 +13,9 @@ import qutip
 import scipy.sparse as sp
 
 from ....core.base import HilbertSpace, ValidationError, VisualSpec, state
-from ....core.model import (
-    Element,
-    LatticeSpace,
-    LocalOperator,
-    NetworkSpace,
-    Operator,
-    QuantumView,
-    Space,
-    neighbour_pairs,
-    sparse_matrix,
-)
+from ....core.components import Element, QuantumView
+from ....core.laws import LocalOperator, Operator, sparse_matrix
+from ....core.space import LatticeSpace, NetworkSpace, Space, neighbour_pairs
 
 DIGEST_SIZE = 8
 
@@ -105,7 +97,7 @@ class Spin(Element):
             The state in the Hilbert space: `'up'`, `'down'`, a basis index, or a vector.
 
     Examples:
-        >>> from skcomplex.core.model import QuantumView
+        >>> from skcomplex.core.components import QuantumView
         >>> from skcomplex.models.physics.realizations import Spin
         >>> QuantumView(Spin('s', j=1)).dimension
         3
@@ -129,7 +121,7 @@ class Qubit(Element):
             The state in the Hilbert space: `'up'`, `'down'`, `'excited'`, `'ground'`, a basis index, or a vector.
 
     Examples:
-        >>> from skcomplex.core.model import QuantumView
+        >>> from skcomplex.core.components import QuantumView
         >>> from skcomplex.models.physics.realizations import Qubit
         >>> sorted(QuantumView(Qubit('q')).local_operators())
         ['minus', 'plus', 'x', 'y', 'z']
@@ -153,7 +145,7 @@ class Mode(Element):
             The state in the Hilbert space: the number of quanta, or a vector.
 
     Examples:
-        >>> from skcomplex.core.model import QuantumView
+        >>> from skcomplex.core.components import QuantumView
         >>> from skcomplex.models.physics.realizations import Mode
         >>> QuantumView(Mode('cavity', quanta=4)).dimension
         5
@@ -183,7 +175,8 @@ class Site(Element):
             The state in the Hilbert space: the initial site, or a vector of amplitudes over the sites.
 
     Examples:
-        >>> from skcomplex.core.model import LatticeSpace, QuantumView
+        >>> from skcomplex.core.components import QuantumView
+        >>> from skcomplex.core.space import LatticeSpace
         >>> from skcomplex.models.physics.realizations import Site
         >>> QuantumView(Site('particle', space=LatticeSpace(16))).dimension
         16

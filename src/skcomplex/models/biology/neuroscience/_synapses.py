@@ -4,8 +4,10 @@
 # License: MIT
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Element, Law, Symbols, System, Update, mod, where
+from ....core.components import Element
+from ....core.laws import Law, Symbols, Update, mod, where
 from ....core.runtime import register_model
+from ....core.system import System
 
 
 class Adaptrode(Element):

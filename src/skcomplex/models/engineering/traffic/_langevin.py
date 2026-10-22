@@ -7,20 +7,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import Domain, Expression, parameter, state
-from ....core.model import (
-    Element,
-    Field,
-    Interaction,
-    LatticeSpace,
-    Noise,
-    Rate,
-    Symbols,
-    System,
-    divergence,
-    laplacian,
-)
+from ....core.components import Element, Field
+from ....core.interactions import Interaction
+from ....core.laws import Noise, Rate, Symbols, divergence, laplacian
 from ....core.runtime import register_model
 from ....core.solvers import RK4, EulerMaruyama
+from ....core.space import LatticeSpace
+from ....core.system import System
 from ._car_following import Car, _headway
 
 

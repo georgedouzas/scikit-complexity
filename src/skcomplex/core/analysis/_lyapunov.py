@@ -13,7 +13,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, dirac_delta, sgn
 
 from ..compile import SCALAR_DIALECT, Problem, print_expressions
-from ..model import System
+from ..system import System
 from ._stability import Dynamics, dynamics_of
 
 FUNCTIONS: dict[str, Callable[..., Any]] = {}

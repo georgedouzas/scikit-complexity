@@ -10,8 +10,10 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, Expression, parameter, state
-from ....core.model import Element, Law, Observable, Symbols, System, Update, total, uniform, where
+from ....core.components import Element
+from ....core.laws import Law, Symbols, Update, total, uniform, where
 from ....core.runtime import register_model
+from ....core.system import Observable, System
 
 
 def _overlap(member: Symbols) -> Expression:

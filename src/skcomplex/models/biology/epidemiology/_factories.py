@@ -3,8 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.model import System
 from ....core.runtime import register_model
+from ....core.system import System
 from ._compartments import Compartment, ImmunityLoss, Infection, Recovery
 
 

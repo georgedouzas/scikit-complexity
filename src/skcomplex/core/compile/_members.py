@@ -8,7 +8,8 @@ from dataclasses import dataclass, field
 from sage.all__sagemath_symbolics import SR
 
 from ..base import Expression, SymbolicVector, ValidationError, domain_of, symbol, vector
-from ..model import LatticeSpace, Neighborhood, shift_arguments
+from ..laws import shift_arguments
+from ..space import LatticeSpace, Neighborhood
 from ._fields import LATTICE_BOUNDARIES, MODES, NeighborRead
 from ._kernels import Reference, Source
 

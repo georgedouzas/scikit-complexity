@@ -11,7 +11,7 @@ from typing import Any
 
 from ..base import Registry, ValidationError
 from ..compile import compile_system
-from ..model import Observable, System
+from ..system import Observable, System
 from ._simulations import Simulation
 
 type Factory = Callable[..., System]
@@ -160,7 +160,7 @@ def register_model(
             A default run setting is unknown, or a factory argument has no default.
 
     Examples:
-        >>> from skcomplex.core.model import System
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import Population
         >>> from skcomplex.core.runtime import create, register_model
         >>> @register_model(field='examples/demo', references=('This docstring',), defaults={'until': 5})

@@ -19,19 +19,10 @@ from skcomplex.core.base import (
     TimeKind,
 )
 from skcomplex.core.compile import law_types, missing_declarations
-from skcomplex.core.model import (
-    ContinuousSpace,
-    Field,
-    Generator,
-    LatticeSpace,
-    Mesh,
-    NetworkSpace,
-    Rate,
-    Rule,
-    Sampler,
-    Update,
-)
+from skcomplex.core.components import Field
+from skcomplex.core.laws import Generator, Rate, Rule, Sampler, Update
 from skcomplex.core.solvers import SOLVERS, Stepper
+from skcomplex.core.space import ContinuousSpace, LatticeSpace, Mesh, NetworkSpace
 
 INVENTORY = Path(__file__).parents[3] / 'docs' / 'overview' / 'inventory.toml'
 

@@ -4,8 +4,11 @@
 # License: MIT
 
 from ....core.base import Domain, state
-from ....core.model import Element, Interaction, System, Update, lag
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Update, lag
 from ....core.runtime import register_model
+from ....core.system import System
 from ._populations import (
     DelayedLogisticGrowth,
     ExponentialGrowth,

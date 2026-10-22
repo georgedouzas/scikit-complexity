@@ -1,10 +1,12 @@
 """Test agent-based models on the Mesa backend: recognition, spaces, populations, reproducibility, and support."""
 
+import importlib
+import importlib.util
+
 import networkx as nx
 import numpy as np
 import pytest
 
-import skcomplex.core.model
 from skcomplex.core.base import (
     Form,
     IncompatibleLawsError,
@@ -19,20 +21,13 @@ from skcomplex.core.base import (
 )
 from skcomplex.core.compile import compile_system, validate
 from skcomplex.core.compile._compiler import AGENT_RESERVED_NAMES
-from skcomplex.core.model import (
-    ContinuousSpace,
-    DiscreteTime,
-    Element,
-    Group,
-    Interaction,
-    LatticeSpace,
-    NetworkSpace,
-    Rule,
-    System,
-    runs_rules,
-)
+from skcomplex.core.components import Element, Group, runs_rules
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Rule
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import AgentView, MesaStepper
+from skcomplex.core.space import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
+from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population
 
 
@@ -137,8 +132,9 @@ def _money_system():
 
 def test_agent_specific_classes_do_not_exist():
     """Test that agents are ordinary elements, with no agent type or wrapped Mesa system in the core."""
-    assert not hasattr(skcomplex.core.model, 'AgentType')
-    assert not hasattr(skcomplex.core.model, 'MesaSystem')
+    packages = [importlib.import_module(f'skcomplex.core.{name}') for name in ('components', 'system')]
+    assert not any(hasattr(package, name) for package in packages for name in ('AgentType', 'MesaSystem'))
+    assert importlib.util.find_spec('skcomplex.core.model') is None
 
 
 def test_rule_laws_make_elements_agents():

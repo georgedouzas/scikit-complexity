@@ -4,8 +4,10 @@
 # License: MIT
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Auxiliary, Element, Law, Rate, Sink, Source, Symbols, System, Transfer, lookup
+from ....core.components import Element
+from ....core.laws import Auxiliary, Law, Rate, Sink, Source, Symbols, Transfer, lookup
 from ....core.runtime import register_model
+from ....core.system import System
 
 INPUT_EFFECT = ((0.0, 0.3), (0.25, 0.45), (0.5, 0.58), (0.75, 0.68), (1.0, 0.75), (1.5, 0.8))
 LEARNING_EFFECT = ((0.0, 0.0), (0.25, 0.4), (0.5, 0.7), (0.75, 0.9), (1.0, 1.0))

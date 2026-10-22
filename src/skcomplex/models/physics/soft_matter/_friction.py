@@ -6,22 +6,12 @@
 import numpy as np
 
 from ....core.base import Domain, parameter
-from ....core.model import (
-    Element,
-    Field,
-    LatticeSpace,
-    Law,
-    Noise,
-    Rate,
-    Symbols,
-    System,
-    both,
-    laplacian,
-    pulse_train,
-    where,
-)
+from ....core.components import Element, Field
+from ....core.laws import Law, Noise, Rate, Symbols, both, laplacian, pulse_train, where
 from ....core.runtime import register_model
 from ....core.solvers import EulerMaruyama
+from ....core.space import LatticeSpace
+from ....core.system import System
 
 
 def _frictional_block_laws(s: Symbols) -> list[Law]:

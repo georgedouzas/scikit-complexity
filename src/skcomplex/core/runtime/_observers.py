@@ -41,7 +41,7 @@ class Recorder(Observer):
     """Observer that keeps every frame it receives.
 
     Examples:
-        >>> from skcomplex.core.model import System
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import Population
         >>> from skcomplex.core.runtime import Recorder, Simulation
         >>> recorder = Recorder()

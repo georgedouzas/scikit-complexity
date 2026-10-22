@@ -7,8 +7,8 @@ import itertools
 from collections.abc import Callable, Sequence
 
 from ....core.base import ValidationError
-from ....core.model import System
 from ....core.runtime import register_model
+from ....core.system import System
 from ._boolean import BooleanFunction, BooleanNode
 
 type Rule = Callable[..., bool]

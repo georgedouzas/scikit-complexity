@@ -4,8 +4,11 @@
 # License: MIT
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Element, Interaction, Rate, Sink, Source, System, Transfer, step, where
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Rate, Sink, Source, Transfer, step, where
 from ....core.runtime import register_model
+from ....core.system import System
 
 INFLOW_START = 5.0
 

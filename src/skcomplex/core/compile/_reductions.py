@@ -12,7 +12,7 @@ import numpy.typing as npt
 import scipy.sparse
 
 from ..base import Expression
-from ..model import reduce_values
+from ..system import reduce_values
 from ._layout import Entry
 from ._printing import numpy_function
 

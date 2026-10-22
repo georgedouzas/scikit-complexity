@@ -6,22 +6,11 @@
 from itertools import pairwise
 
 from ....core.base import Domain, Expression, parameter, state
-from ....core.model import (
-    Auxiliary,
-    Element,
-    Interaction,
-    Law,
-    Rate,
-    Sink,
-    Source,
-    Symbols,
-    System,
-    Transfer,
-    distributed_delay,
-    step,
-    where,
-)
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Auxiliary, Law, Rate, Sink, Source, Symbols, Transfer, distributed_delay, step, where
 from ....core.runtime import register_model
+from ....core.system import System
 
 ECHELONS = ('retailer', 'wholesaler', 'distributor', 'factory')
 

@@ -8,9 +8,11 @@ from typing import Any
 from sage.all__sagemath_symbolics import exp, log, sin
 
 from ....core.base import Domain, Expression, ParameterError, parameter, state
-from ....core.model import Element, Law, Observable, Rate, Symbols, System, pulse, where
+from ....core.components import Element
+from ....core.laws import Law, Rate, Symbols, pulse, where
 from ....core.runtime import register_model
 from ....core.solvers import ScipyODE
+from ....core.system import Observable, System
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 INFUSIONS = ('constant', 'exponential', 'periodic')

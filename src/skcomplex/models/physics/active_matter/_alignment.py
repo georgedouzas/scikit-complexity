@@ -10,9 +10,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import I, exp, sin
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, role
-from ....core.model import ContinuousSpace, Interaction, Law, Observable, Rate, Symbols, System
+from ....core.interactions import Interaction
+from ....core.laws import Law, Rate, Symbols
 from ....core.runtime import register_model
 from ....core.solvers import EulerMaruyama
+from ....core.space import ContinuousSpace
+from ....core.system import Observable, System
 from ._particles import ActiveParticle
 
 HEADINGS = VisualSpec(

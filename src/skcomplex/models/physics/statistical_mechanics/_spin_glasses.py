@@ -9,21 +9,11 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, Expression, ValidationError, VisualSpec, parameter, state
-from ....core.model import (
-    Element,
-    Energy,
-    LatticeSpace,
-    Law,
-    Move,
-    Neighborhood,
-    Observable,
-    Sample,
-    Sampler,
-    Symbols,
-    System,
-    neighbors,
-)
+from ....core.components import Element
+from ....core.laws import Energy, Law, Move, Sample, Sampler, Symbols, neighbors
 from ....core.runtime import register_model
+from ....core.space import LatticeSpace, Neighborhood
+from ....core.system import Observable, System
 from ._fully_connected_spins import SPIN_IMAGE
 
 type Couplings = npt.NDArray[np.floating]

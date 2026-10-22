@@ -4,8 +4,11 @@ import networkx as nx
 import rerun.blueprint as rrb
 
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import GraphProduction, HostGraph, Production, Rewrite, System, Word
+from skcomplex.core.components import HostGraph, Word
+from skcomplex.core.interactions import Rewrite
+from skcomplex.core.laws import GraphProduction, Production
 from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
 from skcomplex.core.viz import GeometryVisual, RerunObserver, WordGeometry
 
 

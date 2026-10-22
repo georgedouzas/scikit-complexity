@@ -47,7 +47,7 @@ class Trajectory:
             One mapping from rewritten element path to its structure per frame, empty for other systems.
 
     Examples:
-        >>> from skcomplex.core.model import System
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> from skcomplex.core.runtime import Simulation
         >>> system = System(components=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1)])
@@ -133,7 +133,7 @@ class Trajectory:
         Examples:
             >>> import numpy as np
             >>> from skcomplex.core.compile import compile_system
-            >>> from skcomplex.core.model import replicate
+            >>> from skcomplex.core.system import replicate
             >>> from skcomplex.core.runtime import Simulation
             >>> from skcomplex.models.mathematics.dynamical_systems import logistic_map
             >>> ensemble = replicate(logistic_map(), 3, {'map.x': [0.1, 0.2, 0.3]})

@@ -8,9 +8,12 @@ from collections.abc import Mapping
 from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import Domain, Expression, parameter, role, state
-from ....core.model import Element, Interaction, Jump, Law, Noise, Rate, Symbols, System, where
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Jump, Law, Noise, Rate, Symbols, where
 from ....core.runtime import register_model
 from ....core.solvers import EulerMaruyama
+from ....core.system import System
 
 
 def _reaction_laws(propensity: Expression, changes: Mapping[Expression, int], *, stochastic: bool) -> list[Law]:

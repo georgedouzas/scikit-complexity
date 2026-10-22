@@ -8,9 +8,11 @@ import math
 from sage.all__sagemath_symbolics import exp, log, pi
 
 from ....core.base import Domain, Expression, parameter, state
-from ....core.model import Element, Law, Rate, Symbols, System, pulse_train
+from ....core.components import Element
+from ....core.laws import Law, Rate, Symbols, pulse_train
 from ....core.runtime import register_model
 from ....core.solvers import ScipyODE
+from ....core.system import System
 
 BOOK_REFERENCE = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 INHIBITOR_CLEARANCE = math.log(2) / 3.9

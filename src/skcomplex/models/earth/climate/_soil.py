@@ -3,8 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.model import Element, System, Update
+from ....core.components import Element
+from ....core.laws import Update
 from ....core.runtime import register_model
+from ....core.system import System
 
 SoilTemperature = Element.define(
     'SoilTemperature',

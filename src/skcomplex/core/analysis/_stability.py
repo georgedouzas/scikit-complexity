@@ -15,7 +15,7 @@ from scipy.optimize import root
 
 from ..base import AnalysisError, Expression, Form, components_of, declare_domains
 from ..compile import Problem, compile_system
-from ..model import System
+from ..system import System
 from ._groups import expand_groups
 
 ZERO = 1e-9

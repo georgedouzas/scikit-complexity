@@ -16,7 +16,9 @@ from sage.all__sagemath_symbolics import SR
 from scipy.sparse import diags
 
 from ..base import Expression, ValidationError, domain_of, symbol
-from ..model import Adjacency, Field, LatticeSpace, Mesh, Neighborhood, NetworkSpace, where
+from ..components import Field
+from ..laws import where
+from ..space import Adjacency, LatticeSpace, Mesh, Neighborhood, NetworkSpace
 from ._kernels import Reference, Source
 from ._printing import numpy_function
 

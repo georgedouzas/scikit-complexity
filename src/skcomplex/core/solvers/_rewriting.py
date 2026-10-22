@@ -37,7 +37,10 @@ class Rewriter(Stepper):
     sizes. Stochastic productions and the order of graph matches draw from the simulation's random stream.
 
     Examples:
-        >>> from skcomplex.core.model import Production, Rewrite, System, Word
+        >>> from skcomplex.core.components import Word
+        >>> from skcomplex.core.interactions import Rewrite
+        >>> from skcomplex.core.laws import Production
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.core.runtime import Simulation
         >>> from skcomplex.core.solvers import Rewriter
         >>> system = System(

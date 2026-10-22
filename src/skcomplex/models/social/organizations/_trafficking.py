@@ -8,9 +8,13 @@ from typing import ClassVar, cast
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, role, state
-from ....core.model import Element, Interaction, LatticeSpace, Law, Rule, Symbols, System
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Law, Rule, Symbols
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ....core.space import LatticeSpace
+from ....core.system import System
 
 MONTH = 30
 QUARTER = 90

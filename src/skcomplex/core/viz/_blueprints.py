@@ -12,7 +12,7 @@ import rerun.blueprint as rrb
 
 from ..base import ValidationError
 from ..compile import CompiledAgents, CompiledElement, Problem, compile_system, observables_of
-from ..model import Observable, System
+from ..system import Observable, System
 from ._traits import agents_visual_of
 from ._visuals import PointsVisual, ScalarsVisual, resolve_visual
 

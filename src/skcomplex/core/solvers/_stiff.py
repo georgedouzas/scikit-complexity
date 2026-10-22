@@ -25,7 +25,7 @@ from ..base import (
     symbol,
 )
 from ..compile import Problem, Vector, mesh_laplacian, numpy_function, spectral_multiplier
-from ..model import LatticeSpace, Mesh, Neighborhood, NetworkSpace
+from ..space import LatticeSpace, Mesh, Neighborhood, NetworkSpace
 from ._base import Stepper, register_solver
 
 CONTOUR_POINTS = 64

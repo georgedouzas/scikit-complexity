@@ -41,44 +41,33 @@ from ..base import (
     vector,
     wrap_angle,
 )
-from ..model import (
-    Aggregate,
+from ..components import Aggregate, Element, Field, Group
+from ..interactions import Interaction, Match
+from ..laws import (
     Auxiliary,
     Boundary,
     Call,
-    ContinuousSpace,
     Drive,
-    Element,
     Emission,
     Energy,
     Equation,
     Event,
     Extremal,
-    Field,
     Flux,
     FractionalNoise,
-    Group,
-    Interaction,
     Invariant,
     Jump,
-    LatticeSpace,
     Law,
     LocalRule,
-    Match,
-    Mesh,
     Move,
-    NetworkSpace,
     Noise,
-    Observable,
     Rate,
     Reduction,
     Relaxation,
     Rule,
     Sample,
     Sampler,
-    Space,
     Symbols,
-    System,
     Transfer,
     Transition,
     Update,
@@ -94,7 +83,9 @@ from ..model import (
     variance,
     where,
 )
-from ..model._laws import NOISE_CONVENTIONS, Renewal
+from ..laws._laws import NOISE_CONVENTIONS, Renewal
+from ..space import ContinuousSpace, LatticeSpace, Mesh, NetworkSpace, Space
+from ..system import Observable, System
 from ._backends import Backend, resolve_backend
 from ._complex import modulus_form, split_law
 from ._fields import DiffusiveLimit, FieldLowering, has_operators
@@ -3162,7 +3153,7 @@ def compile_system(
 
     Examples:
         >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.core.model import System
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> problem = compile_system(
         ...     System(
@@ -3258,7 +3249,7 @@ def partition_system(system: System, backend: str | Backend = 'auto') -> Problem
 
     Examples:
         >>> from skcomplex.core.compile import partition_system
-        >>> from skcomplex.core.model import System
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> system = System(
         ...     components=[

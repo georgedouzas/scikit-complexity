@@ -7,8 +7,11 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos, sqrt, tanh
 
 from ....core.base import Domain, Expression, parameter
-from ....core.model import Element, Interaction, Rate, System, delayed, mod, shift_member
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Rate, delayed, mod, shift_member
 from ....core.runtime import register_model
+from ....core.system import System
 
 Car = Element.define(
     'Car',

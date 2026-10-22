@@ -5,8 +5,10 @@ import rerun.blueprint as rrb
 
 from skcomplex.core.base import ValidationError, VisualSpec, state
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import ContinuousSpace, Element, Field, LatticeSpace, System
+from skcomplex.core.components import Element, Field
 from skcomplex.core.runtime import Simulation
+from skcomplex.core.space import ContinuousSpace, LatticeSpace
+from skcomplex.core.system import System
 from skcomplex.core.viz import (
     AgentsVisual,
     ImageVisual,

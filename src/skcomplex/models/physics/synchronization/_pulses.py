@@ -7,8 +7,11 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos, sin
 
 from ....core.base import Domain, Expression, parameter
-from ....core.model import Element, Event, Interaction, Law, Rate, Symbols, System, maximum, mean, where
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Event, Law, Rate, Symbols, maximum, mean, where
 from ....core.runtime import register_model
+from ....core.system import System
 from ._utils import _order_parameter
 
 

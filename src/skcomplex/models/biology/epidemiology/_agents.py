@@ -9,9 +9,12 @@ import networkx as nx
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import Element, LatticeSpace, Law, NetworkSpace, Rule, Symbols, System
+from ....core.components import Element
+from ....core.laws import Law, Rule, Symbols
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ....core.space import LatticeSpace, NetworkSpace
+from ....core.system import System
 
 SUSCEPTIBLE, EXPOSED, INFECTED, RECOVERED, DEAD = 0.0, 1.0, 2.0, 3.0, 4.0
 HEALTHY, SICK, DECEASED = 0.0, 1.0, 2.0

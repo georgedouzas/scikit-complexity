@@ -10,22 +10,11 @@ from sage.all__sagemath_symbolics import cos, heaviside, sin, tanh
 
 from skcomplex.core.base import Domain, RoleError, ValidationError, state
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import (
-    Element,
-    Interaction,
-    Jump,
-    Observable,
-    Rate,
-    System,
-    Update,
-    count,
-    maximum,
-    mean,
-    minimum,
-    total,
-    variance,
-)
+from skcomplex.core.components import Element
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Jump, Rate, Update, count, maximum, mean, minimum, total, variance
 from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import Observable, System
 
 RNG = np.random.default_rng(0)
 

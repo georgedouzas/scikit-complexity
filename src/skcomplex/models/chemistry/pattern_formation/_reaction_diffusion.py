@@ -8,9 +8,12 @@ from collections.abc import Sequence
 import numpy as np
 import numpy.typing as npt
 
-from ....core.model import Element, Field, LatticeSpace, Rate, System, laplacian
+from ....core.components import Element, Field
+from ....core.laws import Rate, laplacian
 from ....core.runtime import register_model
 from ....core.solvers import RK4
+from ....core.space import LatticeSpace
+from ....core.system import System
 
 type Array = npt.NDArray[np.float64]
 

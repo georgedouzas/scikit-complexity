@@ -9,9 +9,11 @@ from sklearn.base import clone
 
 from skcomplex.core.base import SolverError, ValidationError, state
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import Element, Event, Noise, Rate, System, delayed, pulse_train, series, step
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Event, Noise, Rate, delayed, pulse_train, series, step
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4, EulerMaruyama, Gillespie, Heun, Milstein, ScipyODE, VelocityVerlet
+from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import hutchinson
 from skcomplex.models.biology.physiology import mackey_glass
 from skcomplex.models.engineering.processes import bathtub

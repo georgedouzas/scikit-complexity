@@ -4,7 +4,7 @@
 # License: MIT
 
 from ....core.base import Expression
-from ....core.model import distributed_delay
+from ....core.laws import distributed_delay
 
 
 def delay1(value: object, time: object) -> Expression:

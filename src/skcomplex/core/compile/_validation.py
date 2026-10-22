@@ -34,7 +34,8 @@ from ..base import (
     VariableKind,
     declarations_of,
 )
-from ..model import (
+from ..interactions import Match
+from ..laws import (
     Auxiliary,
     Boundary,
     Dissipator,
@@ -48,24 +49,20 @@ from ..model import (
     GraphProduction,
     Invariant,
     Jump,
-    LatticeSpace,
     LocalRule,
-    Match,
-    NetworkSpace,
     Noise,
-    Observable,
     Production,
     Rate,
     Relaxation,
     Rule,
     Sample,
-    Space,
     Substitution,
-    System,
     Transfer,
     Transition,
     Update,
 )
+from ..space import LatticeSpace, NetworkSpace, Space
+from ..system import Observable, System
 from ._backends import BACKENDS
 from ._compiler import CensusRecord, _held_observables, _with_held_observables, law_census
 from ._layout import Entry
@@ -229,7 +226,7 @@ class ValidationReport:
 
     Examples:
         >>> from skcomplex.core.compile import validate
-        >>> from skcomplex.core.model import System
+        >>> from skcomplex.core.system import System
         >>> validate(System()).ok
         True
     """

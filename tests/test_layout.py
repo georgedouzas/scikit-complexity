@@ -4,6 +4,7 @@ A model package imports the core and the shared realizations of its own field, a
 """
 
 import ast
+import importlib.util
 import subprocess  # nosec B404: the tests run the interpreter on code they write
 import sys
 from pathlib import Path
@@ -11,7 +12,8 @@ from pathlib import Path
 import pytest
 
 PACKAGE = Path(__file__).parent.parent / 'src' / 'skcomplex'
-CORE_PACKAGES = ['base', 'model', 'compile', 'solvers', 'runtime', 'viz', 'experiments', 'analysis', 'backends']
+MODELLING_PACKAGES = ['base', 'space', 'laws', 'components', 'interactions', 'system']
+CORE_PACKAGES = [*MODELLING_PACKAGES, 'compile', 'solvers', 'runtime', 'viz', 'experiments', 'analysis', 'backends']
 
 
 def _module_of(path):
@@ -145,10 +147,54 @@ def test_layout_has_core_and_models():
     assert core == sorted(CORE_PACKAGES)
 
 
+def _top_level_imports(path):
+    """Return the core packages a module imports when it loads, leaving out imports under `TYPE_CHECKING`."""
+    module, is_package = _module_of(path)
+    package = module if is_package else module.rpartition('.')[0]
+    found = set()
+    for node in ast.parse(path.read_text()).body:
+        if isinstance(node, ast.ImportFrom) and node.level:
+            base = package.split('.')[: len(package.split('.')) - (node.level - 1)]
+            target = '.'.join([*base, *([node.module] if node.module else [])])
+        elif isinstance(node, ast.ImportFrom):
+            target = node.module or ''
+        else:
+            continue
+        parts = target.split('.')
+        if parts[:2] == ['skcomplex', 'core'] and len(parts) > 2:
+            found.add(parts[2])
+    return found
+
+
+def test_modelling_packages_import_downward():
+    """Test that each modelling package of the core imports only the packages below it, as a system is defined."""
+    found = []
+    for rank, name in enumerate(MODELLING_PACKAGES):
+        allowed = set(MODELLING_PACKAGES[: rank + 1])
+        for path in sorted((PACKAGE / 'core' / name).rglob('*.py')):
+            found += [f'{path.name} of {name} imports {target}' for target in _top_level_imports(path) - allowed]
+    assert found == []
+
+
+def test_primitives_import_from_their_part_of_a_system():
+    """Test that primitives import from the package of their part: system, components, interactions, space, laws."""
+    from skcomplex.core.components import Element  # noqa: PLC0415
+    from skcomplex.core.interactions import Interaction  # noqa: PLC0415
+    from skcomplex.core.laws import Rate  # noqa: PLC0415
+    from skcomplex.core.space import DiscreteTime, LatticeSpace  # noqa: PLC0415
+    from skcomplex.core.system import System  # noqa: PLC0415
+
+    assert importlib.util.find_spec('skcomplex.core.model') is None
+    modules = {
+        item.__module__.split('.')[2] for item in (Element, Interaction, Rate, DiscreteTime, LatticeSpace, System)
+    }
+    assert modules == {'components', 'interactions', 'laws', 'space', 'system'}
+
+
 def test_framework_imports_from_core():
     """Test that the framework's names import from the packages of the core."""
     from skcomplex.core.base import Domain  # noqa: PLC0415
-    from skcomplex.core.model import Element  # noqa: PLC0415
+    from skcomplex.core.components import Element  # noqa: PLC0415
     from skcomplex.core.runtime import Simulation  # noqa: PLC0415
     from skcomplex.core.solvers import RK4  # noqa: PLC0415
 
@@ -183,7 +229,7 @@ def test_package_respects_layout():
 @pytest.mark.parametrize(
     ('relative', 'source', 'message'),
     [
-        ('core/model/_planted_check.py', 'from ...models import physics\n', 'core imports skcomplex.models'),
+        ('core/system/_planted_check.py', 'from ...models import physics\n', 'core imports skcomplex.models'),
         (
             'models/_planted/_check.py',
             'from ...core.compile._compiler import _compile\n',
@@ -213,7 +259,9 @@ def test_core_works_without_models():
         [
             'import sys',
             'from skcomplex.core.analysis import equations_of',
-            'from skcomplex.core.model import Element, Rate, System',
+            'from skcomplex.core.components import Element',
+            'from skcomplex.core.laws import Rate',
+            'from skcomplex.core.system import System',
             'from skcomplex.core.runtime import Simulation',
             "Decay = Element.define('Decay', states={'n': 1.0}, laws=lambda s: [Rate(s.n, -s.n)])",
             "system = System(components=[Decay('a')])",

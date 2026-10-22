@@ -13,8 +13,9 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
 from ..base import Expression, RewritingError, symbols_of
-from ..model import Module, Production, Word
-from ..model._rewriting import parse_word
+from ..components import Word
+from ..laws import Module, Production
+from ..laws._rewriting import parse_word
 from ._printing import numpy_function
 from ._rewriting_kernels import (
     ACTION_CODES,

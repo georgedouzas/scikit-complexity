@@ -6,8 +6,10 @@
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Element, Event, Law, Rate, Symbols, System, pulse_train, where
+from ....core.components import Element
+from ....core.laws import Event, Law, Rate, Symbols, pulse_train, where
 from ....core.runtime import register_model
+from ....core.system import System
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 

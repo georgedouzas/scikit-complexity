@@ -4,8 +4,10 @@
 # License: MIT
 
 from ....core.base import Domain, Expression, parameter, state
-from ....core.model import Auxiliary, Element, Law, Sink, Source, Symbols, System, Transfer, where
+from ....core.components import Element
+from ....core.laws import Auxiliary, Law, Sink, Source, Symbols, Transfer, where
 from ....core.runtime import register_model
+from ....core.system import System
 
 TONNES_PER_MILLION_KG = 1e3
 FEMALE_FRACTION = 0.5

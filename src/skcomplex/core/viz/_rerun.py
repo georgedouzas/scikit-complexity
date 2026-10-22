@@ -14,8 +14,8 @@ import rerun.blueprint as rrb
 
 from ..base import ValidationError
 from ..compile import CompiledElement, Problem, RenewalRecord
-from ..model import NetworkSpace
 from ..runtime import Frame, Observer
+from ..space import NetworkSpace
 from ._blueprints import default_blueprint, save_blueprint
 from ._traits import agents_visual_of
 from ._visuals import AgentsVisual, Visual, _log_scalars, resolve_visual
@@ -94,7 +94,7 @@ class RerunObserver(Observer):
     Examples:
         >>> import tempfile
         >>> from pathlib import Path
-        >>> from skcomplex.core.model import System
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> from skcomplex.core.runtime import Simulation
         >>> from skcomplex.core.viz import RerunObserver

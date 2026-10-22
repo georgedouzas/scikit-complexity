@@ -8,9 +8,12 @@ from sage.all__sagemath_symbolics import sqrt, tanh
 
 from skcomplex.core.base import ParameterError
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import Element, Interaction, Rate, System
+from skcomplex.core.components import Element
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Rate
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4, SSPRK, EulerMaruyama, ScipyODE
+from skcomplex.core.system import System
 from skcomplex.models import describe
 from skcomplex.models.engineering.circuits import (
     chua,

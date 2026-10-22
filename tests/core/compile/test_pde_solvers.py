@@ -8,9 +8,12 @@ import pytest
 
 from skcomplex.core.base import SolverError, ValidationError
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import Element, Field, Flux, LatticeSpace, Mesh, Rate, System, inverse_laplacian, laplacian
+from skcomplex.core.components import Element, Field
+from skcomplex.core.laws import Flux, Rate, inverse_laplacian, laplacian
 from skcomplex.core.runtime import Frame, Simulation
 from skcomplex.core.solvers import ETDRK4, IMEX2, SSPRK, CrankNicolson, IMEXEuler, SplitOperator
+from skcomplex.core.space import LatticeSpace, Mesh
+from skcomplex.core.system import System
 from skcomplex.core.viz import RerunObserver, resolve_visual
 from skcomplex.models.biology.ecology import logistic_growth
 from skcomplex.models.physics.fluids import (

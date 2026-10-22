@@ -16,8 +16,8 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import gini
-from skcomplex.core.model import Observable
 from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import Observable
 from skcomplex.core.viz import RerunObserver
 from skcomplex.models import create
 

@@ -6,9 +6,11 @@
 from sage.all__sagemath_symbolics import cos, pi, sin
 
 from ....core.base import Domain, Expression, parameter, state
-from ....core.model import Element, Observable, Rate, Symbols, System, derivative, step, where
+from ....core.components import Element
+from ....core.laws import Rate, Symbols, derivative, step, where
 from ....core.runtime import register_model
 from ....core.solvers import RK4
+from ....core.system import Observable, System
 
 HOURS_PER_DAY = 24.0
 DISTURBANCE_TIME = 10.0

@@ -5,7 +5,11 @@ import sympy  # noqa: TID251  # the test passes a SymPy expression to check that
 
 from skcomplex.core.base import Domain, Expression, SymbolicVector, ValidationError, domain_of, role
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import ContinuousSpace, Interaction, Particle, Rate, System
+from skcomplex.core.components import Particle
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Rate
+from skcomplex.core.space import ContinuousSpace
+from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import Population
 
 RECEIVED: dict[str, object] = {}

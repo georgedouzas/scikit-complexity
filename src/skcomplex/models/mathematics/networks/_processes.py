@@ -9,9 +9,12 @@ import networkx as nx
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import Element, Field, Law, NetworkSpace, Rate, Rule, Symbols, System, Update, laplacian
+from ....core.components import Element, Field
+from ....core.laws import Law, Rate, Rule, Symbols, Update, laplacian
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ....core.space import NetworkSpace
+from ....core.system import System
 
 NodeContent = Element.define(
     'NodeContent',

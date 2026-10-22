@@ -12,7 +12,11 @@ import numpy as np
 import numpy.typing as npt
 
 from ..base import Expression, Form, SymbolicVector, VisualSpec, real_components_of
-from ..model import Element, Group, Interaction, Invariant, Rule, Space, System
+from ..components import Element, Group
+from ..interactions import Interaction
+from ..laws import Invariant, Rule
+from ..space import Space
+from ..system import System
 from ._hybrid import Breakpoints, CompiledEvent, Delay
 from ._lattices import LatticeStep, lattice_shape
 from ._layout import Layout

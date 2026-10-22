@@ -4,8 +4,11 @@
 # License: MIT
 
 from ....core.base import Domain, Expression, parameter, role, state
-from ....core.model import Element, Interaction, Law, Symbols, System, Update, lag, where
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Law, Symbols, Update, lag, where
 from ....core.runtime import register_model
+from ....core.system import System
 
 MAX_RECOVERY = 12
 

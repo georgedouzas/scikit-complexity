@@ -6,9 +6,11 @@
 from typing import ClassVar
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import Element, Jump, Law, Rule, Symbols, System
+from ....core.components import Element
+from ....core.laws import Jump, Law, Rule, Symbols
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ....core.system import System
 
 PoissonCounter = Element.define(
     'PoissonCounter',

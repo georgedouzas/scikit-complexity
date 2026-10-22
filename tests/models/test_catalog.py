@@ -9,8 +9,11 @@ from sklearn.base import clone
 
 from skcomplex.core.base import ValidationError
 from skcomplex.core.compile import ObservableEvaluator, compile_system, contains_quantum, observables_of
-from skcomplex.core.model import Element, Group, Interaction, Rate, System, runs_rules
+from skcomplex.core.components import Element, Group, runs_rules
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Rate
 from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
 from skcomplex.core.viz import RerunObserver
 from skcomplex.models import catalog, create, describe, register_model, run
 from skcomplex.models.biology.ecology import ExponentialGrowth, Mortality, Population, Predation

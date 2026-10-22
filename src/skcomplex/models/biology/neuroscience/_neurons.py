@@ -4,8 +4,10 @@
 # License: MIT
 
 from ....core.base import Domain, parameter
-from ....core.model import Element, Event, Rate, System
+from ....core.components import Element
+from ....core.laws import Event, Rate
 from ....core.runtime import register_model
+from ....core.system import System
 
 LeakyIntegrateAndFire = Element.define(
     'LeakyIntegrateAndFire',

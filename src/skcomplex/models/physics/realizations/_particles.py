@@ -9,7 +9,8 @@ from sage.all__sagemath_symbolics import sqrt
 
 from ....core.backends import LammpsFix, register_lammps_fix, register_lammps_pair
 from ....core.base import Domain, Expression, SymbolicVector, parameter, role
-from ....core.model import Interaction, Law, Noise, PairPotential, Potential, Rate, Symbols
+from ....core.interactions import Interaction, PairPotential, Potential
+from ....core.laws import Law, Noise, Rate, Symbols
 
 
 def _distance(first: SymbolicVector, second: SymbolicVector) -> Expression:

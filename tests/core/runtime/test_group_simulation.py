@@ -6,8 +6,10 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import ValidationError
-from skcomplex.core.model import ContinuousSpace, Particle, System
+from skcomplex.core.components import Particle
 from skcomplex.core.runtime import RealTime, Simulation
+from skcomplex.core.space import ContinuousSpace
+from skcomplex.core.system import System
 from skcomplex.models.physics.realizations import ConstantForce
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 

@@ -33,9 +33,11 @@ from ..base import (
     declarations_of,
 )
 from ..compile import CompiledAgents, ObservableEvaluator, Problem, Vector
-from ..model import ContinuousSpace, Group, LatticeSpace, NetworkSpace, Phase, Rule, Space
-from ..model._phases import DEFAULT_PHASE
-from ..model._time import DiscreteTime
+from ..components import Group
+from ..laws import Rule
+from ..space import ContinuousSpace, LatticeSpace, NetworkSpace, Phase, Space
+from ..space._phases import DEFAULT_PHASE
+from ..space._time import DiscreteTime
 from ._base import Stepper, register_solver
 
 MAX_SEED = 2**31 - 1
@@ -728,7 +730,9 @@ class MesaStepper(Stepper):
 
     Examples:
         >>> from skcomplex.core.base import state
-        >>> from skcomplex.core.model import Element, Rule, System
+        >>> from skcomplex.core.components import Element
+        >>> from skcomplex.core.laws import Rule
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.core.runtime import Simulation
         >>> class Counter(Element):
         ...     count: float = state(0.0)

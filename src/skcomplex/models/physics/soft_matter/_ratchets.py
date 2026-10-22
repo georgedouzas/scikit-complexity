@@ -9,9 +9,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import sin
 
 from ....core.base import Domain, parameter, role, vector
-from ....core.model import ContinuousSpace, Interaction, Law, Rate, Symbols, System, mod, series, where
+from ....core.interactions import Interaction
+from ....core.laws import Law, Rate, Symbols, mod, series, where
 from ....core.runtime import register_model
 from ....core.solvers import EulerMaruyama
+from ....core.space import ContinuousSpace
+from ....core.system import System
 from ._diffusion import BrownianParticle
 
 

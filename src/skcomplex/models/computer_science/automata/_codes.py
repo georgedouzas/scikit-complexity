@@ -7,7 +7,7 @@ import itertools
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from ....core.model import OuterTotalistic, Table
+from ....core.laws import OuterTotalistic, Table
 
 ELEMENTARY_RULES = 256
 

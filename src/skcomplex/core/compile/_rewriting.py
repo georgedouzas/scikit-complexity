@@ -23,20 +23,10 @@ from ..base import (
     declarations_of,
     symbol,
 )
-from ..model import (
-    Element,
-    GraphProduction,
-    Group,
-    HostGraph,
-    Patch,
-    Production,
-    Rewriting,
-    RewritingLaw,
-    Substitution,
-    Symbols,
-    System,
-    structure_of,
-)
+from ..components import Element, Group, HostGraph, Patch, structure_of
+from ..interactions import Rewriting
+from ..laws import GraphProduction, Production, RewritingLaw, Substitution, Symbols
+from ..system import System
 from ._layout import Entry, Layout
 from ._problem import CompiledElement, CompiledInteraction, Problem
 from ._structures import GraphStructure, PatchStructure
@@ -447,7 +437,10 @@ def compile_rewriting(system: System) -> Problem:
 
     Examples:
         >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.core.model import Production, Rewrite, System, Word
+        >>> from skcomplex.core.components import Word
+        >>> from skcomplex.core.interactions import Rewrite
+        >>> from skcomplex.core.laws import Production
+        >>> from skcomplex.core.system import System
         >>> system = System(
         ...     components=[Word('algae', axiom='A')],
         ...     interactions=[Rewrite('rules', target='algae', rules=[Production('A', 'AB'), Production('B', 'A')])],

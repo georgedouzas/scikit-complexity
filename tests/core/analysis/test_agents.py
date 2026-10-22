@@ -23,9 +23,12 @@ from skcomplex.core.analysis import (
     structure_factor,
 )
 from skcomplex.core.base import AnalysisError, Domain, VisualSpec, state
-from skcomplex.core.model import ContinuousSpace, Element, LatticeSpace, Law, Rule, Symbols, System
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Law, Rule, Symbols
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import AgentView, ModelView
+from skcomplex.core.space import ContinuousSpace, LatticeSpace
+from skcomplex.core.system import System
 from skcomplex.models import run
 
 

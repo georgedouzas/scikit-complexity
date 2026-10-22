@@ -13,7 +13,7 @@ import numpy.typing as npt
 from scipy.spatial import cKDTree
 
 from ..base import Expression, ValidationError, symbols_of
-from ..model import NumericFunction
+from ..laws import NumericFunction
 from ._layout import Entry, Layout
 from ._printing import numpy_function
 from ._problem import JumpChannels, Vector

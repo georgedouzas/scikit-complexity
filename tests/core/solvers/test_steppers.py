@@ -10,9 +10,12 @@ from scipy.integrate import solve_ivp
 
 from skcomplex.core.base import SolverError, role
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import Element, Interaction, Rate, System, mean, step, where
+from skcomplex.core.components import Element
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Rate, mean, step, where
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4, EulerMaruyama, Gillespie, Iteration, ScipyODE, resolve_solver
+from skcomplex.core.system import System
 from skcomplex.models import create, run
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population
 from skcomplex.models.biology.epidemiology import Compartment, Recovery

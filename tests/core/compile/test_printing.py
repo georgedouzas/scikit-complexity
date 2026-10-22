@@ -30,7 +30,7 @@ from sage.all__sagemath_symbolics import (
 from skcomplex.core.backends import LeptonPrinter
 from skcomplex.core.base import symbol
 from skcomplex.core.compile import NUMPY_DIALECT, SCALAR_DIALECT, print_expressions
-from skcomplex.core.model import both, either, mod, where
+from skcomplex.core.laws import both, either, mod, where
 
 X, Y = symbol('x'), symbol('y')
 VALUES = {X: 0.3, Y: 1.7}

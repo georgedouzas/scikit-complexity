@@ -12,20 +12,15 @@ from skcomplex.core.analysis import power_spectrum
 from skcomplex.core.backends import LammpsBackend
 from skcomplex.core.base import BackendError, Domain, ValidationError, parameter, state
 from skcomplex.core.compile import Entry, Layout, NumbaBackend, compile_system
-from skcomplex.core.model import (
+from skcomplex.core.components import Element, Field
+from skcomplex.core.laws import (
     Call,
-    Element,
     Equation,
     Event,
-    Field,
     Jump,
-    LatticeSpace,
     LocalRule,
-    Neighborhood,
-    Observable,
     Rate,
     Rule,
-    System,
     Update,
     derivative,
     laplacian,
@@ -35,6 +30,8 @@ from skcomplex.core.model import (
 )
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import ETDRK4, IMEX2, RK4, CrankNicolson, IMEXEuler, ScipyODE
+from skcomplex.core.space import LatticeSpace, Neighborhood
+from skcomplex.core.system import Observable, System
 from skcomplex.models.physics.pattern_formation import GinzburgLandau
 
 STIFF = (IMEXEuler(dt=0.05), IMEX2(dt=0.05), CrankNicolson(dt=0.05))

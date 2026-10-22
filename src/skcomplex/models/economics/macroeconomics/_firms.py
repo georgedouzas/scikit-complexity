@@ -6,9 +6,11 @@
 import numpy as np
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Element, Law, Observable, Rule, Symbols, System
+from ....core.components import Element
+from ....core.laws import Law, Rule, Symbols
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ....core.system import Observable, System
 
 
 class InvestingFirm(Element):

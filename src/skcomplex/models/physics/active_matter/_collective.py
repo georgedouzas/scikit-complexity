@@ -12,25 +12,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.model import (
-    ContinuousSpace,
-    Element,
-    Field,
-    Interaction,
-    LatticeSpace,
-    Law,
-    Noise,
-    Particle,
-    Rate,
-    Symbols,
-    System,
-    advection,
-    divergence,
-    gradient,
-    laplacian,
-)
+from ....core.components import Element, Field, Particle
+from ....core.interactions import Interaction
+from ....core.laws import Law, Noise, Rate, Symbols, advection, divergence, gradient, laplacian
 from ....core.runtime import register_model
 from ....core.solvers import RK4, EulerMaruyama
+from ....core.space import ContinuousSpace, LatticeSpace
+from ....core.system import System
 from ._particles import ActiveParticle
 
 type Array = npt.NDArray[np.float64]

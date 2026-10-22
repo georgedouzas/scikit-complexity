@@ -4,9 +4,11 @@
 # License: MIT
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Element, Law, Rate, Symbols, System
+from ....core.components import Element
+from ....core.laws import Law, Rate, Symbols
 from ....core.runtime import register_model
 from ....core.solvers import ScipyODE
+from ....core.system import System
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 

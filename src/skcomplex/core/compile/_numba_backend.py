@@ -31,7 +31,7 @@ from ..base import (
     ValidationError,
     symbols_of,
 )
-from ..model import Boundary, Jump, Noise, Rate, Update
+from ..laws import Boundary, Jump, Noise, Rate, Update
 from ._backends import (
     AUTO_MEMBERS,
     Backend,
@@ -739,7 +739,7 @@ class NumbaBackend(Backend):
 
     Examples:
         >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.core.model import System
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> system = System(
         ...     components=[Population.group('herds', 2, n=[1.0, 2.0])],

@@ -8,9 +8,12 @@ from typing import ClassVar, cast
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import Element, Field, LatticeSpace, Law, Rate, Rule, Symbols, System, laplacian
+from ....core.components import Element, Field
+from ....core.laws import Law, Rate, Rule, Symbols, laplacian
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ....core.space import LatticeSpace
+from ....core.system import System
 
 OXYGEN = 'tissue/tissue.oxygen'
 VEGF = 'tissue/tissue.vegf'

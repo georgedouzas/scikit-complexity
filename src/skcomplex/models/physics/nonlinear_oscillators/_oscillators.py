@@ -6,8 +6,10 @@
 from sage.all__sagemath_symbolics import cos, sin
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import Element, Rate, System, derivative
+from ....core.components import Element
+from ....core.laws import Rate, derivative
 from ....core.runtime import register_model
+from ....core.system import System
 
 Duffing = Element.define(
     'Duffing',

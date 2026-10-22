@@ -19,8 +19,8 @@ import rerun.blueprint as rrb
 from scipy import stats
 
 from skcomplex.core.analysis import ccdf, gini
-from skcomplex.core.model import Observable
 from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import Observable
 from skcomplex.core.viz import RerunObserver
 from skcomplex.models import create, describe
 

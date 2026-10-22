@@ -3,8 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.model import Element, Rate, System
+from ....core.components import Element
+from ....core.laws import Rate
 from ....core.runtime import register_model
+from ....core.system import System
 
 SaddleNode = Element.define(
     'SaddleNode',

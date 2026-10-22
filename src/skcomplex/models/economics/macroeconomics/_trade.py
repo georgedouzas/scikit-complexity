@@ -4,8 +4,10 @@
 # License: MIT
 
 from ....core.base import Domain, Expression, parameter, state
-from ....core.model import Element, Observable, Symbols, System, Update, where
+from ....core.components import Element
+from ....core.laws import Symbols, Update, where
 from ....core.runtime import register_model
+from ....core.system import Observable, System
 
 TradingEconomy = Element.define(
     'TradingEconomy',

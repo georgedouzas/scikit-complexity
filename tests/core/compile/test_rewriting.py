@@ -18,21 +18,11 @@ from skcomplex.core.base import (
     symbol,
 )
 from skcomplex.core.compile import PatchStructure, WordStructure, compile_system
-from skcomplex.core.model import (
-    Affine,
-    GraphProduction,
-    HostGraph,
-    Module,
-    Patch,
-    Production,
-    Prototile,
-    Rewrite,
-    Rewriting,
-    Substitution,
-    System,
-    Word,
-)
+from skcomplex.core.components import HostGraph, Patch, Word
+from skcomplex.core.interactions import Rewrite, Rewriting
+from skcomplex.core.laws import Affine, GraphProduction, Module, Production, Prototile, Substitution
 from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
 from skcomplex.core.viz import WordGeometry
 from skcomplex.models.biology.ecology import Population
 

@@ -7,8 +7,11 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, state
-from ....core.model import Element, LatticeSpace, Law, LocalRule, Neighborhood, Observable, Symbols, System
+from ....core.components import Element
+from ....core.laws import Law, LocalRule, Symbols
 from ....core.runtime import register_model
+from ....core.space import LatticeSpace, Neighborhood
+from ....core.system import Observable, System
 
 type Array = npt.NDArray[np.float64]
 

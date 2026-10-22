@@ -4,20 +4,10 @@
 # License: MIT
 
 from ....core.base import Domain, parameter, state
-from ....core.model import (
-    Auxiliary,
-    Element,
-    Law,
-    Sink,
-    Source,
-    Symbols,
-    System,
-    Transfer,
-    distributed_delay,
-    step,
-    where,
-)
+from ....core.components import Element
+from ....core.laws import Auxiliary, Law, Sink, Source, Symbols, Transfer, distributed_delay, step, where
 from ....core.runtime import register_model
+from ....core.system import System
 
 
 def _dealer_laws(s: Symbols) -> list[Law]:

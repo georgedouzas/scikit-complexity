@@ -8,9 +8,13 @@ from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.base import ValidationError, role
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import Element, Interaction, Jump, LatticeSpace, Rate, System, Update, shift_member
+from skcomplex.core.components import Element
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Jump, Rate, Update, shift_member
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4
+from skcomplex.core.space import LatticeSpace
+from skcomplex.core.system import System
 from skcomplex.models.physics.statistical_mechanics import (
     ParticleSite,
     ZeroRangeHop,

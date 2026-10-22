@@ -5,17 +5,11 @@
 from typing import Any, ClassVar
 
 from ....core.base import Domain, ValidationError, parameter, role
-from ....core.model import (
-    Dissipator,
-    Generator,
-    Interaction,
-    LatticeSpace,
-    Operator,
-    Symbols,
-    System,
-    expectation,
-)
+from ....core.interactions import Interaction
+from ....core.laws import Dissipator, Generator, Operator, Symbols
 from ....core.runtime import register_model
+from ....core.space import LatticeSpace
+from ....core.system import System, expectation
 from ..realizations import Spin
 
 INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')

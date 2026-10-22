@@ -28,23 +28,11 @@ from ..base import (
     symbol,
     vector,
 )
-from ..model import (
-    Dissipator,
-    Generator,
-    Group,
-    Interaction,
-    LatticeSpace,
-    Observable,
-    Operator,
-    QuantumView,
-    Symbols,
-    System,
-    hilbert_state,
-    is_quantum,
-    neighbour_pairs,
-    reduce_values,
-    view_of,
-)
+from ..components import Group, QuantumView, hilbert_state, is_quantum, view_of
+from ..interactions import Interaction
+from ..laws import Dissipator, Generator, Operator, Symbols
+from ..space import LatticeSpace, neighbour_pairs
+from ..system import Observable, System, reduce_values
 from ._fields import spectral_multiplier
 from ._layout import Entry, Layout
 from ._printing import numpy_function

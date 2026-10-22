@@ -8,7 +8,7 @@ from typing import Any
 
 from sklearn.base import BaseEstimator
 
-from ..model import System
+from ..system import System
 
 
 class Scenario(BaseEstimator):

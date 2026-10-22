@@ -8,8 +8,11 @@ from collections.abc import Mapping, Sequence
 from sage.all__sagemath_symbolics import SR
 
 from ....core.base import Domain, Expression, ValidationError, role, state
-from ....core.model import Element, Interaction, Law, Symbols, System, Update, categorical, where
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Law, Symbols, Update, categorical, where
 from ....core.runtime import register_model
+from ....core.system import System
 from ._boolean import _pattern
 
 type Candidates = Sequence[tuple[Sequence[int], float]]

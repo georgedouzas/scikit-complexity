@@ -6,8 +6,10 @@
 import numpy as np
 
 from ....core.base import Domain, Expression, parameter, state
-from ....core.model import Element, Law, Observable, Rate, Symbols, System, total
+from ....core.components import Element
+from ....core.laws import Law, Rate, Symbols, total
 from ....core.runtime import register_model
+from ....core.system import Observable, System
 
 
 def _recovered_share(member: Symbols) -> Expression:

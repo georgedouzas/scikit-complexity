@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import SR, max_symbolic, min_symbolic
 
 from ..base import AnalysisError, Expression, components_of, domain_of, symbol
 from ..compile import Entry, Problem
-from ..model import where
+from ..laws import where
 
 MEMBER_LIMIT = 64
 

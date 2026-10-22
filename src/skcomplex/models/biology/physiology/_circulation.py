@@ -8,8 +8,11 @@ import math
 from sage.all__sagemath_symbolics import sin
 
 from ....core.base import Domain, Expression, parameter, role, state
-from ....core.model import Element, Interaction, Law, Rate, Symbols, System, mod, where
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Law, Rate, Symbols, mod, where
 from ....core.runtime import register_model
+from ....core.system import System
 
 
 def _pressure(chamber: Symbols, t: Expression) -> Expression:

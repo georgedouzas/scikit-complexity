@@ -11,20 +11,12 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import (
-    Element,
-    LatticeSpace,
-    Law,
-    LocalRule,
-    Neighborhood,
-    NetworkSpace,
-    Rule,
-    Symbols,
-    System,
-    Totalistic,
-)
+from ....core.components import Element
+from ....core.laws import Law, LocalRule, Rule, Symbols, Totalistic
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ....core.space import LatticeSpace, Neighborhood, NetworkSpace
+from ....core.system import System
 
 type Array = npt.NDArray[np.float64]
 

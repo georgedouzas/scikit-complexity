@@ -7,8 +7,10 @@ import math
 
 from sage.all__sagemath_symbolics import pi, sin
 
-from ....core.model import Element, System, Update, mod, where
+from ....core.components import Element
+from ....core.laws import Update, mod, where
 from ....core.runtime import register_model
+from ....core.system import System
 
 GOLDEN_MEAN = (math.sqrt(5) - 1) / 2
 

@@ -9,19 +9,12 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
-from ....core.model import (
-    ContinuousSpace,
-    Element,
-    Interaction,
-    Jump,
-    LatticeSpace,
-    Law,
-    Symbols,
-    System,
-    shift_member,
-    where,
-)
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Jump, Law, Symbols, shift_member, where
 from ....core.runtime import register_model
+from ....core.space import ContinuousSpace, LatticeSpace
+from ....core.system import System
 
 type Array = npt.NDArray[np.float64]
 

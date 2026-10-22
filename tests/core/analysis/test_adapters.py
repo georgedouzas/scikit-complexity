@@ -21,9 +21,11 @@ from skcomplex.core.analysis import (
     structure_factor,
 )
 from skcomplex.core.base import AnalysisError, Domain, parameter, state
+from skcomplex.core.components import Element
 from skcomplex.core.experiments import Experiment
-from skcomplex.core.model import Element, Jump, System
+from skcomplex.core.laws import Jump
 from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
 from skcomplex.models import create, run
 
 BirthDeath = Element.define(

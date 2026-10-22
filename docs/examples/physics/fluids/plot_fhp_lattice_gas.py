@@ -14,8 +14,8 @@ fluid at large scales. The view shows the number of particles of every hexagonal
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.model import LatticeSpace
 from skcomplex.core.runtime import Simulation
+from skcomplex.core.space import LatticeSpace
 from skcomplex.core.viz import RerunObserver
 from skcomplex.models import create
 

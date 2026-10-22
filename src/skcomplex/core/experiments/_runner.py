@@ -15,8 +15,8 @@ from sklearn.base import BaseEstimator
 
 from ..base import ExperimentError, ValidationError
 from ..compile import Problem, compile_system, observables_of
-from ..model import Observable, System
 from ..runtime import MODELS, Frame, Observer, Simulation, Trajectory
+from ..system import Observable, System
 from ._designs import Design, Row
 from ._results import ExperimentResult, RunResult
 from ._scenarios import Scenario

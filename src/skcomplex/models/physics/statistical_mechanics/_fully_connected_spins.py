@@ -8,8 +8,11 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, state
-from ....core.model import Element, Jump, LatticeSpace, Law, Observable, Symbols, System, count, mean, total, where
+from ....core.components import Element
+from ....core.laws import Jump, Law, Symbols, count, mean, total, where
 from ....core.runtime import register_model
+from ....core.space import LatticeSpace
+from ....core.system import Observable, System
 
 type Array = npt.NDArray[np.float64]
 

@@ -6,8 +6,10 @@
 import math
 
 from ....core.base import Domain, ValidationError, parameter, state
-from ....core.model import Element, Equation, System, derivative
+from ....core.components import Element
+from ....core.laws import Equation, derivative
 from ....core.runtime import register_model
+from ....core.system import System
 
 ScaleFactor = Element.define(
     'ScaleFactor',

@@ -22,20 +22,12 @@ from ..base import (
     VariableKind,
     declarations_of,
 )
-from ..model import (
-    Element,
-    Group,
-    Interaction,
-    LatticeSpace,
-    Match,
-    NetworkSpace,
-    Rule,
-    Space,
-    System,
-    probe_laws,
-    runs_rules,
-)
-from ..model._components import part_count
+from ..components import Element, Group, probe_laws, runs_rules
+from ..components._components import part_count
+from ..interactions import Interaction, Match
+from ..laws import Rule
+from ..space import LatticeSpace, NetworkSpace, Space
+from ..system import System
 
 LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
 MEMBER_SUFFIX = re.compile(r'\[-?\d+\]$')

@@ -5,7 +5,9 @@ from sage.all__sagemath_symbolics import SR, cos, diff, function, sin, sqrt
 
 from skcomplex.core.analysis import equations_of, solve_symbolically
 from skcomplex.core.base import AnalysisError, state
-from skcomplex.core.model import Element, Rate, System, Update, derivative, lag
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Rate, Update, derivative, lag
+from skcomplex.core.system import System
 
 Pendulum = Element.define(
     'Pendulum',

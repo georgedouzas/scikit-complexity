@@ -6,23 +6,11 @@ from sage.all__sagemath_symbolics import sin, tanh
 
 from skcomplex.core.base import ValidationError
 from skcomplex.core.compile import compile_system, mesh_laplacian
-from skcomplex.core.model import (
-    Element,
-    Field,
-    LatticeSpace,
-    Mesh,
-    Rate,
-    System,
-    count,
-    laplacian,
-    maximum,
-    mean,
-    minimum,
-    total,
-    variance,
-    where,
-)
+from skcomplex.core.components import Element, Field
+from skcomplex.core.laws import Rate, count, laplacian, maximum, mean, minimum, total, variance, where
 from skcomplex.core.solvers import SplitOperator
+from skcomplex.core.space import LatticeSpace, Mesh
+from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import FisherKPP
 from skcomplex.models.chemistry.pattern_formation import gray_scott
 from skcomplex.models.physics.fluids import kuramoto_sivashinsky

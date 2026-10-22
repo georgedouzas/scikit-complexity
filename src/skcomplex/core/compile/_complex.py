@@ -11,7 +11,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, I, arctan2, sqrt
 
 from ..base import Expression, SymbolicVector, ValidationError, components_of
-from ..model import Boundary, Call, Equation, Event, Jump, Law, Noise, Rate, Rule, Update
+from ..laws import Boundary, Call, Equation, Event, Jump, Law, Noise, Rate, Rule, Update
 from ._lowering import symbolic_components
 
 LINEAR = frozenset({'laplacian', 'inverse_laplacian', 'partial', 'upwind', 'derivative', 'lag', 'delayed'})

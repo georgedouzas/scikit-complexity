@@ -9,8 +9,11 @@ from collections.abc import Sequence
 import numpy as np
 
 from ....core.base import Domain, Expression, ValidationError, parameter, role, state
-from ....core.model import Element, Interaction, Law, Rate, Symbols, System, Update, total
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Law, Rate, Symbols, Update, total
 from ....core.runtime import register_model
+from ....core.system import System
 
 
 def _mean_fitness(master: Symbols) -> Expression:

@@ -6,8 +6,11 @@
 from sage.all__sagemath_symbolics import log
 
 from ....core.base import Domain, parameter, role, state
-from ....core.model import Element, Interaction, Law, Rate, Symbols, System, pulse_train, where
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Law, Rate, Symbols, pulse_train, where
 from ....core.runtime import register_model
+from ....core.system import System
 
 GROWTH_REFERENCES = ('Padmanabhan, Meskin, and Al Moustafa 2021', 'Benzekry et al. 2014')
 

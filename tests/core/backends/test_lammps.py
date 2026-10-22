@@ -11,15 +11,13 @@ from sage.all__sagemath_symbolics import arcsinh, exp
 from skcomplex.core.backends import LammpsBackend
 from skcomplex.core.base import BackendError, Domain, parameter
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import (
-    ContinuousSpace,
-    PairPotential,
-    Particle,
-    System,
-    where,
-)
+from skcomplex.core.components import Particle
+from skcomplex.core.interactions import PairPotential
+from skcomplex.core.laws import where
 from skcomplex.core.runtime import RealTime, Simulation
 from skcomplex.core.solvers import VelocityVerlet
+from skcomplex.core.space import ContinuousSpace
+from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import LogisticGrowth, Mortality, Population, Predation
 from skcomplex.models.physics.realizations import (
     ConstantForce,

@@ -6,8 +6,11 @@
 import numpy as np
 
 from ....core.base import ValidationError
-from ....core.model import Affine, Patch, Production, Prototile, Rewrite, Substitution, System, Word
+from ....core.components import Patch, Word
+from ....core.interactions import Rewrite
+from ....core.laws import Affine, Production, Prototile, Substitution
 from ....core.runtime import register_model
+from ....core.system import System
 from ....core.viz import WordGeometry
 
 SHAPES = ('triangle', 'carpet')

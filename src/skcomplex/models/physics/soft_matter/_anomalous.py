@@ -10,22 +10,12 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, state, vector
-from ....core.model import (
-    ContinuousSpace,
-    Element,
-    FractionalNoise,
-    Jump,
-    Law,
-    Noise,
-    Rate,
-    Symbols,
-    System,
-    Update,
-    draw,
-    normal,
-)
+from ....core.components import Element
+from ....core.laws import FractionalNoise, Jump, Law, Noise, Rate, Symbols, Update, draw, normal
 from ....core.runtime import register_model
 from ....core.solvers import RK4, EulerMaruyama, FractionalEulerMaruyama
+from ....core.space import ContinuousSpace
+from ....core.system import System
 
 POINTS = VisualSpec('points', {'position': 'x'})
 

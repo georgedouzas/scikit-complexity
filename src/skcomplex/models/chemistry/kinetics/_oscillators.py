@@ -4,9 +4,11 @@
 # License: MIT
 
 from ....core.base import Domain, state
-from ....core.model import Element, Rate, System
+from ....core.components import Element
+from ....core.laws import Rate
 from ....core.runtime import register_model
 from ....core.solvers import ScipyODE
+from ....core.system import System
 
 BrusselatorReaction = Element.define(
     'BrusselatorReaction',

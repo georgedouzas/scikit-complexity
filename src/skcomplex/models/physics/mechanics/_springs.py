@@ -6,8 +6,12 @@
 from sage.all__sagemath_symbolics import cos
 
 from ....core.base import Domain, parameter
-from ....core.model import ContinuousSpace, Interaction, Particle, Rate, System
+from ....core.components import Particle
+from ....core.interactions import Interaction
+from ....core.laws import Rate
 from ....core.runtime import register_model
+from ....core.space import ContinuousSpace
+from ....core.system import System
 from ..realizations import HarmonicPotential, LinearDrag, Spring
 
 HarmonicForce = Interaction.define(

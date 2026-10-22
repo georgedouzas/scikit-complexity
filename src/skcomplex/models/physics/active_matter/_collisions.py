@@ -11,9 +11,13 @@ import numpy.typing as npt
 from scipy.spatial import KDTree
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
-from ....core.model import ContinuousSpace, Element, Interaction, Law, Observable, Rule, Symbols, System
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Law, Rule, Symbols
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ....core.space import ContinuousSpace
+from ....core.system import Observable, System
 
 type Array = npt.NDArray[np.float64]
 

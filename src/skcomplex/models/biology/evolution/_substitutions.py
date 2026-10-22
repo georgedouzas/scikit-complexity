@@ -10,8 +10,12 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
-from ....core.model import Element, Interaction, Jump, LatticeSpace, Law, Observable, Symbols, System, total
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Jump, Law, Symbols, total
 from ....core.runtime import register_model
+from ....core.space import LatticeSpace
+from ....core.system import Observable, System
 
 type Array = npt.NDArray[np.float64]
 

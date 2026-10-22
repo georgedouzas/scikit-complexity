@@ -6,7 +6,9 @@
 from sage.all__sagemath_symbolics import pi, sin
 
 from ....core.base import Domain, parameter, role, state
-from ....core.model import Element, Interaction, Law, Rate, Symbols, delayed
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Law, Rate, Symbols, delayed
 
 
 class Population(Element):

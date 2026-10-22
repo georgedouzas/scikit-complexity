@@ -8,18 +8,11 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, state
-from ....core.model import (
-    Adjacency,
-    Element,
-    Extremal,
-    LatticeSpace,
-    Law,
-    Neighborhood,
-    NetworkSpace,
-    Symbols,
-    System,
-)
+from ....core.components import Element
+from ....core.laws import Extremal, Law, Symbols
 from ....core.runtime import register_model
+from ....core.space import Adjacency, LatticeSpace, Neighborhood, NetworkSpace
+from ....core.system import System
 
 type Array = npt.NDArray[np.float64]
 

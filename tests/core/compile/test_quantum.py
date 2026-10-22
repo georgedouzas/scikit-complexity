@@ -9,16 +9,11 @@ import qutip
 
 from skcomplex.core.base import Form, HilbertSpaceError, IncompatibleLawsError, ValidationError, parameter, role, symbol
 from skcomplex.core.compile import ObservableEvaluator, QuantumProblem, compile_system
-from skcomplex.core.model import (
-    Dissipator,
-    Generator,
-    Interaction,
-    LatticeSpace,
-    Rate,
-    System,
-    expectation,
-)
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Dissipator, Generator, Rate
 from skcomplex.core.solvers import LindbladEvolution
+from skcomplex.core.space import LatticeSpace
+from skcomplex.core.system import System, expectation
 from skcomplex.models.biology.ecology import Population
 from skcomplex.models.physics.realizations import Mode, Qubit, Spin
 

@@ -4,8 +4,10 @@
 # License: MIT
 
 from ....core.base import Domain, Expression, parameter, state
-from ....core.model import Auxiliary, Element, Law, Rate, Sink, Symbols, System, Transfer, lookup, where
+from ....core.components import Element
+from ....core.laws import Auxiliary, Law, Rate, Sink, Symbols, Transfer, lookup, where
 from ....core.runtime import register_model
+from ....core.system import System
 
 PROFITABILITY_EFFECT = (
     (0.0, 0.02),

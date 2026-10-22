@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from skcomplex.core.analysis import equations_of
-from skcomplex.core.model import System
+from skcomplex.core.system import System
 from skcomplex.models import catalog, create, describe
 
 sys.path.insert(0, str(Path(__file__).parent))

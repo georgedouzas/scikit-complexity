@@ -11,9 +11,12 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import cos, sin, sqrt
 
 from ....core.base import Domain, VisualSpec, parameter, state, vector
-from ....core.model import ContinuousSpace, Element, Law, Noise, Rate, Rule, Symbols, System
+from ....core.components import Element
+from ....core.laws import Law, Noise, Rate, Rule, Symbols
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, EulerMaruyama, ModelView
+from ....core.space import ContinuousSpace
+from ....core.system import System
 
 type Array = npt.NDArray[np.float64]
 

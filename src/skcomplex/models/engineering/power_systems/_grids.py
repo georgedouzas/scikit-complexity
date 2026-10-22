@@ -6,8 +6,11 @@
 from sage.all__sagemath_symbolics import sin
 
 from ....core.base import Domain, parameter, state
-from ....core.model import Element, Interaction, Rate, System, derivative
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Rate, derivative
 from ....core.runtime import register_model
+from ....core.system import System
 
 GridNode = Element.define(
     'GridNode',

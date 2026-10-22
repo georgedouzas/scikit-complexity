@@ -208,7 +208,7 @@ class ScipyODE(Stepper):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.core.model import System
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> from skcomplex.core.solvers import ScipyODE
         >>> problem = compile_system(
@@ -616,7 +616,7 @@ class RK4(Stepper):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.core.model import System
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> from skcomplex.core.solvers import RK4
         >>> problem = compile_system(
@@ -879,8 +879,9 @@ class VelocityVerlet(Stepper):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.core.model import ContinuousSpace, System
-        >>> from skcomplex.core.model import Particle
+        >>> from skcomplex.core.space import ContinuousSpace
+        >>> from skcomplex.core.system import System
+        >>> from skcomplex.core.components import Particle
         >>> from skcomplex.models.physics.realizations import ConstantForce
         >>> from skcomplex.core.solvers import VelocityVerlet
         >>> problem = compile_system(
@@ -984,7 +985,7 @@ class EulerMaruyama(Stepper):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.core.model import System
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion
         >>> from skcomplex.core.solvers import EulerMaruyama
         >>> problem = compile_system(
@@ -1256,7 +1257,7 @@ class Gillespie(Stepper):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.core.model import System
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.epidemiology import Compartment, Recovery
         >>> from skcomplex.core.solvers import Gillespie
         >>> problem = compile_system(
@@ -1364,7 +1365,7 @@ class Iteration(Stepper):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.core.model import System
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.models.economics.markets import Cobweb, Market
         >>> from skcomplex.core.solvers import Iteration
         >>> problem = compile_system(
@@ -1444,7 +1445,9 @@ class RenewalStepper(Stepper):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.core.model import Element, Jump, System, draw
+        >>> from skcomplex.core.components import Element
+        >>> from skcomplex.core.laws import Jump, draw
+        >>> from skcomplex.core.system import System
         >>> from skcomplex.core.solvers import RenewalStepper
         >>> Counter = Element.define(
         ...     'Counter',

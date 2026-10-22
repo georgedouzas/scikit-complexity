@@ -14,8 +14,8 @@ import numpy.typing as npt
 
 from ..compile import compile_system
 from ..experiments import Experiment, Grid, RandomDesign, Source, resolve_source
-from ..model import System, replicate
 from ..runtime import Simulation, Trajectory
+from ..system import System, replicate
 
 RUN_SETTINGS = ('solver', 'backend')
 

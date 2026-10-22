@@ -4,9 +4,9 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.model import System
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import ScipyODE
+from skcomplex.core.system import System
 from skcomplex.models import catalog, describe, run
 from skcomplex.models.biology.ecology import (
     agent_based_lotka_volterra,

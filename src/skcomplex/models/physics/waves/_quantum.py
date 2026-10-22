@@ -8,20 +8,13 @@ from typing import Any
 import numpy as np
 
 from ....core.base import Domain, ValidationError, parameter, role
-from ....core.model import (
-    Dissipator,
-    Element,
-    Field,
-    Generator,
-    Interaction,
-    LatticeSpace,
-    Rate,
-    Symbols,
-    System,
-    laplacian,
-)
+from ....core.components import Element, Field
+from ....core.interactions import Interaction
+from ....core.laws import Dissipator, Generator, Rate, Symbols, laplacian
 from ....core.runtime import register_model
 from ....core.solvers import ETDRK4
+from ....core.space import LatticeSpace
+from ....core.system import System
 from ..realizations import Site
 
 WaveFunction = Element.define(

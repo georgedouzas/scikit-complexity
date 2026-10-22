@@ -4,8 +4,11 @@
 # License: MIT
 
 from ....core.base import Domain, Expression, parameter, role, state
-from ....core.model import Element, Interaction, Jump, Law, Rate, Symbols, System
+from ....core.components import Element
+from ....core.interactions import Interaction
+from ....core.laws import Jump, Law, Rate, Symbols
 from ....core.runtime import register_model
+from ....core.system import System
 
 
 def _transfer(source: Expression, destination: Expression, rate: Expression, *, stochastic: bool) -> list[Law]:

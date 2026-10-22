@@ -9,9 +9,12 @@ import networkx as nx
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, state
-from ....core.model import Element, Law, NetworkSpace, Rule, Symbols, System
+from ....core.components import Element
+from ....core.laws import Law, Rule, Symbols
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
+from ....core.space import NetworkSpace
+from ....core.system import System
 
 
 class ThresholdNode(Element):

@@ -9,9 +9,11 @@ import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import Domain, parameter
-from ....core.model import Element, Noise, Rate, System
+from ....core.components import Element
+from ....core.laws import Noise, Rate
 from ....core.runtime import register_model
 from ....core.solvers import EulerMaruyama
+from ....core.system import System
 
 ColoredNoiseParticle = Element.define(
     'ColoredNoiseParticle',
