@@ -893,7 +893,10 @@ class MesaStepper(Stepper):
         """Create the initial agents of a group with their per-agent or shared initial values."""
         space = self.problem_.agent_space
         network_nodes = list(space.graph.nodes) if isinstance(space, NetworkSpace) else []
-        given = (spec.element.values or {}).get('location') if hasattr(spec.element, 'values') else getattr(spec.element, 'location', None)  # type: ignore[union-attr]
+        element = spec.element
+        given = (
+            (element.values or {}).get('location') if hasattr(element, 'values') else getattr(element, 'location', None)
+        )
         for index in range(spec.size):
             values = {name: _member_value(value, index, spec.size) for name, value in spec.values.items()}
             location = _member_location(given, index, spec.size)

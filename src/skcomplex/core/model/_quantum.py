@@ -5,6 +5,7 @@
 
 import hashlib
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from typing import Any, ClassVar
 
 import networkx as nx
@@ -13,12 +14,14 @@ import numpy.typing as npt
 import qutip
 import scipy.sparse as sp
 
-from ..base import ValidationError, VisualSpec, role
+from ..base import HilbertFamily, HilbertSpace, ValidationError, VariableKind, VisualSpec, declarations_of, role, state
 from ._components import Element, Group, Interaction
 from ._lattices import LatticeSpace
+from ._laws import Law
 from ._observables import Observable
 from ._operators import LocalOperator, Operator, sparse_matrix
 from ._spaces import NetworkSpace, Space
+from ._symbols import Symbols
 from ._systems import System
 from ._time import Time
 
@@ -94,65 +97,84 @@ def expectation(
     return Observable(label, expression, group=group, reduce=_members if reduce is None else reduce)
 
 
-class QuantumElement(Element):
-    """Base class of quantum subsystems, elements whose state is a vector of a Hilbert space.
-
-    Subclasses implement `dimension`, `local_operators`, and `basis_index`. Laws written for an element receive the
-    namespace of its local operators and parameters, and return `Hamiltonian` and `Dissipator` laws. A group of quantum
-    elements is the tensor product of its members' spaces, in member order.
+def hilbert_state(element_type: type) -> str | None:
+    """Return the name of the state of an element type that lies in a Hilbert space, or `None` for a classical type.
 
     Args:
-        label:
-            The label of the element.
+        element_type:
+            The element type.
 
-        initial:
-            The initial state, a basis label, a basis index, or a vector of the element's Hilbert space.
+    Returns:
+        name:
+            The name of the state.
+    """
+    for name, declaration in declarations_of(element_type, VariableKind.STATE).items():
+        if isinstance(declaration.domain, HilbertSpace | HilbertFamily):
+            return name
+    return None
+
+
+def is_quantum(element_type: type) -> bool:
+    """Check whether an element type is a quantum subsystem, an element with a state in a Hilbert space.
+
+    Args:
+        element_type:
+            The element type.
+
+    Returns:
+        quantum:
+            Whether a state of the type lies in a Hilbert space.
+    """
+    return (
+        isinstance(element_type, type) and issubclass(element_type, Element) and hilbert_state(element_type) is not None
+    )
+
+
+@dataclass(frozen=True)
+class QuantumView:
+    """View of an element with a state in a Hilbert space, as the quantum compiler reads it.
+
+    Args:
+        element:
+            The element.
+
+    Examples:
+        >>> from skcomplex.core.model import QuantumView, Qubit
+        >>> QuantumView(Qubit('q', initial='down')).initial_vector().tolist()
+        [0j, (1+0j)]
     """
 
-    visual: ClassVar[VisualSpec] = VisualSpec('expectations')
-    display: ClassVar[str | None] = 'z'
-    initial: Any = 0
+    element: Element
 
-    @classmethod
-    def lattice(
-        cls,
-        label: str,
-        space: LatticeSpace,
-        /,
-        *,
-        visual: VisualSpec | None = None,
-        **values: Any,  # noqa: ANN401
-    ) -> Group:
-        """Return a group of subsystems, one member per site of a lattice, drawn by their local expectations.
+    @property
+    def state(self) -> str:
+        """Name of the state in the Hilbert space."""
+        name = hilbert_state(type(self.element))
+        if name is None:
+            error_msg = f'{type(self.element).__name__} {self.element.label!r} has no state in a Hilbert space.'
+            raise ValidationError(error_msg)
+        return name
 
-        Args:
-            label:
-                The label of the group.
+    @property
+    def space(self) -> HilbertSpace:
+        """Hilbert space of the element."""
+        domain = declarations_of(type(self.element), VariableKind.STATE)[self.state].domain
+        return domain.of(self.element) if isinstance(domain, HilbertFamily) else domain
 
-            space:
-                The lattice.
-
-            visual:
-                The visual of the group, or `None` for the visual of the element type.
-
-            **values:
-                Arrays of the lattice shape, or values shared by every member.
-
-        Returns:
-            group:
-                The group.
-
-        Examples:
-            >>> from skcomplex.core.model import LatticeSpace, Spin
-            >>> Spin.lattice('chain', LatticeSpace(4)).size
-            4
-        """
-        return super().lattice(label, space, visual=cls.visual if visual is None else visual, **values)
+    @property
+    def label(self) -> str:
+        """Label of the element."""
+        return self.element.label
 
     @property
     def dimension(self) -> int:
-        """Dimension of the Hilbert space of the element."""
-        raise NotImplementedError
+        """Dimension of the Hilbert space."""
+        return self.space.dimension
+
+    @property
+    def display(self) -> str | None:
+        """Operator whose expectation visuals show for a group, or `None` for the probabilities of the basis."""
+        return self.space.display
 
     def local_operators(self) -> dict[str, LocalOperator]:
         """Return the local operators of the element by name.
@@ -160,15 +182,14 @@ class QuantumElement(Element):
         Returns:
             operators:
                 A mapping from name to local operator.
-
-        Raises:
-            NotImplementedError:
-                The subclass does not implement the method.
         """
-        raise NotImplementedError
+        return {
+            name: LocalOperator(name, None if matrix is None else sparse_matrix(matrix), hermitian=hermitian)
+            for name, (matrix, hermitian) in self.space.operators.items()
+        }
 
     def basis_index(self, label: object) -> int:
-        """Return the index of the basis state of a label.
+        """Return the index of the basis state of a label or an index.
 
         Args:
             label:
@@ -182,13 +203,11 @@ class QuantumElement(Element):
             ValidationError:
                 The label names no basis state.
         """
-        if isinstance(label, int | np.integer) and not isinstance(label, bool) and 0 <= label < self.dimension:
-            return int(label)
-        error_msg = (
-            f'{type(self).__name__} {self.label!r} has no basis state {label!r}. Use an index from 0 to '
-            f'{self.dimension - 1}.'
-        )
-        raise ValidationError(error_msg)
+        try:
+            return self.space.index(label)
+        except ValueError as error:
+            error_msg = f'{type(self.element).__name__} {self.label!r}: {error}'
+            raise ValidationError(error_msg) from error
 
     def initial_vector(self) -> npt.NDArray[np.complex128]:
         """Return the initial state of the element as a normalised vector.
@@ -201,7 +220,7 @@ class QuantumElement(Element):
             ValidationError:
                 The initial state names no basis state, or is a vector of the wrong size or norm.
         """
-        initial = self.initial
+        initial = getattr(self.element, self.state)
         if isinstance(initial, str | int | np.integer):
             vector = np.zeros(self.dimension, dtype=complex)
             vector[self.basis_index(initial)] = 1.0
@@ -217,7 +236,7 @@ class QuantumElement(Element):
         return vector
 
     def namespace(self, key: str) -> dict[str, Any]:
-        """Return the operators of a subsystem by name, as the namespace of laws and observables holds them.
+        """Return the operators of the subsystem by name, with the names the element adds through `operator_namespace`.
 
         Args:
             key:
@@ -227,10 +246,106 @@ class QuantumElement(Element):
             names:
                 A mapping from the name of every local operator to the operator acting on the subsystem.
         """
-        return {name: Operator({((key, local),): 1}) for name, local in self.local_operators().items()}
+        names: dict[str, Any] = {name: Operator({((key, local),): 1}) for name, local in self.local_operators().items()}
+        extra = getattr(self.element, 'operator_namespace', None)
+        return {**names, **(extra(key, self) if extra is not None else {})}
+
+    def laws(self, s: Symbols) -> list[Law]:
+        """Return the laws of the element for a namespace of its operators.
+
+        Args:
+            s:
+                The namespace.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
+        return self.element.laws(s)
 
 
-class Spin(QuantumElement):
+def view_of(component: Element | Group) -> QuantumView:
+    """Return the quantum view of an element, or of the first member of a group.
+
+    Args:
+        component:
+            A quantum element or a group of them.
+
+    Returns:
+        view:
+            The view, from whose space the display and the local operators of the component are read.
+    """
+    if not isinstance(component, Group):
+        return QuantumView(component)
+    values = {
+        name: value if isinstance(value, str) or np.ndim(value) == 0 or len(value) != component.size else value[0]
+        for name, value in (component.values or {}).items()
+    }
+    return QuantumView(component.element(component.label, **values))
+
+
+def _spin_space(element: 'Spin') -> HilbertSpace:
+    """Return the space of a spin of quantum number `j`, from `m = j` down to `m = -j`."""
+    size = 2 * element.j + 1
+    if not float(size).is_integer() or size < 2:  # noqa: PLR2004
+        error_msg = f'Spin {element.label!r} has j = {element.j!r}, which is not a positive multiple of one half.'
+        raise ValidationError(error_msg)
+    operators = {
+        'x': (qutip.jmat(element.j, 'x'), True),
+        'y': (qutip.jmat(element.j, 'y'), True),
+        'z': (qutip.jmat(element.j, 'z'), True),
+        'plus': (qutip.jmat(element.j, '+'), False),
+        'minus': (qutip.jmat(element.j, '-'), False),
+    }
+    return HilbertSpace(int(size), operators, basis={'up': 0, 'down': int(size) - 1})
+
+
+QUBIT = HilbertSpace(
+    2,
+    {
+        'x': (qutip.sigmax(), True),
+        'y': (qutip.sigmay(), True),
+        'z': (qutip.sigmaz(), True),
+        'plus': (qutip.sigmap(), False),
+        'minus': (qutip.sigmam(), False),
+    },
+    basis={'up': 0, 'excited': 0, 'down': 1, 'ground': 1},
+)
+
+
+def _mode_space(element: 'Mode') -> HilbertSpace:
+    """Return the space of a bosonic mode truncated at a number of quanta."""
+    quanta = element.quanta
+    if isinstance(quanta, bool) or not isinstance(quanta, int | np.integer) or quanta < 1:
+        error_msg = f'Mode {element.label!r} has quanta = {quanta!r}, which is not a positive integer.'
+        raise ValidationError(error_msg)
+    size = int(quanta) + 1
+    operators = {
+        'annihilate': (qutip.destroy(size), False),
+        'create': (qutip.create(size), False),
+        'number': (qutip.num(size), True),
+    }
+    return HilbertSpace(size, operators, display='number')
+
+
+def _site_space(element: 'Site') -> HilbertSpace:
+    """Return the space of a particle on the sites of a lattice or a network, with its Laplacian and adjacency."""
+    space = element.space
+    if isinstance(space, LatticeSpace):
+        size = space.size
+    elif isinstance(space, NetworkSpace):
+        size = int(space.graph.number_of_nodes())
+    else:
+        error_msg = f'Site {element.label!r} has space {space!r}. Give it a LatticeSpace or a NetworkSpace.'
+        raise ValidationError(error_msg)
+    rows, columns = zip(*_bonds(space, size), strict=True) if size > 1 else ((), ())
+    adjacency = sp.coo_array((np.ones(len(rows)), (rows, columns)), shape=(size, size))
+    laplacian = -sparse_matrix(nx.laplacian_matrix(space.graph)) if isinstance(space, NetworkSpace) else None
+    operators = {'laplacian': (laplacian, True), 'adjacency': (adjacency + adjacency.T, True)}
+    return HilbertSpace(size, operators, display=None)
+
+
+class Spin(Element):
     """Spin of quantum number `j`, with the spin components `x`, `y`, `z` and the ladder operators `plus` and `minus`.
 
     The basis is ordered from `m = j` to `m = -j`, so `'up'` is index 0 and `'down'` is the last index.
@@ -243,58 +358,20 @@ class Spin(QuantumElement):
             The spin quantum number, a positive multiple of one half.
 
         initial:
-            `'up'`, `'down'`, a basis index, or a vector.
+            The state in the Hilbert space: `'up'`, `'down'`, a basis index, or a vector.
 
     Examples:
-        >>> from skcomplex.core.model import Spin
-        >>> Spin('s', j=1).dimension
+        >>> from skcomplex.core.model import QuantumView, Spin
+        >>> QuantumView(Spin('s', j=1)).dimension
         3
     """
 
+    visual: ClassVar[VisualSpec] = VisualSpec('expectations')
     j: float = 0.5
-    initial: Any = 'up'
-
-    @property
-    def dimension(self) -> int:
-        """Dimension `2 j + 1` of the Hilbert space."""
-        size = 2 * self.j + 1
-        if not float(size).is_integer() or size < 2:  # noqa: PLR2004
-            error_msg = f'Spin {self.label!r} has j = {self.j!r}, which is not a positive multiple of one half.'
-            raise ValidationError(error_msg)
-        return int(size)
-
-    def local_operators(self) -> dict[str, LocalOperator]:
-        """Return the spin components and the ladder operators.
-
-        Returns:
-            operators:
-                The operators `x`, `y`, `z`, `plus`, and `minus`.
-        """
-        self.dimension  # noqa: B018
-        return {
-            'x': LocalOperator('x', sparse_matrix(qutip.jmat(self.j, 'x')), hermitian=True),
-            'y': LocalOperator('y', sparse_matrix(qutip.jmat(self.j, 'y')), hermitian=True),
-            'z': LocalOperator('z', sparse_matrix(qutip.jmat(self.j, 'z')), hermitian=True),
-            'plus': LocalOperator('plus', sparse_matrix(qutip.jmat(self.j, '+'))),
-            'minus': LocalOperator('minus', sparse_matrix(qutip.jmat(self.j, '-'))),
-        }
-
-    def basis_index(self, label: object) -> int:
-        """Return the index of `'up'`, `'down'`, or a basis index.
-
-        Args:
-            label:
-                The label of a basis state, or its index.
-
-        Returns:
-            index:
-                The index of the basis state.
-        """
-        named = {'up': 0, 'down': self.dimension - 1}
-        return named[label] if isinstance(label, str) and label in named else super().basis_index(label)
+    initial: Any = state('up', domain=HilbertSpace.family(_spin_space))
 
 
-class Qubit(QuantumElement):
+class Qubit(Element):
     """Two-level system with the Pauli matrices `x`, `y`, `z` and the ladder operators `plus` and `minus`.
 
     The state `'up'`, also `'excited'`, is index 0 with `z = 1`, and `'down'`, also `'ground'`, is index 1.
@@ -304,52 +381,19 @@ class Qubit(QuantumElement):
             The label of the qubit.
 
         initial:
-            `'up'`, `'down'`, `'excited'`, `'ground'`, a basis index, or a vector.
+            The state in the Hilbert space: `'up'`, `'down'`, `'excited'`, `'ground'`, a basis index, or a vector.
 
     Examples:
-        >>> from skcomplex.core.model import Qubit
-        >>> sorted(Qubit('q').local_operators())
+        >>> from skcomplex.core.model import QuantumView, Qubit
+        >>> sorted(QuantumView(Qubit('q')).local_operators())
         ['minus', 'plus', 'x', 'y', 'z']
     """
 
-    initial: Any = 'up'
-
-    @property
-    def dimension(self) -> int:
-        """Dimension 2 of the Hilbert space."""
-        return 2
-
-    def local_operators(self) -> dict[str, LocalOperator]:
-        """Return the Pauli matrices and the ladder operators.
-
-        Returns:
-            operators:
-                The operators `x`, `y`, `z`, `plus`, and `minus`.
-        """
-        return {
-            'x': LocalOperator('x', sparse_matrix(qutip.sigmax()), hermitian=True),
-            'y': LocalOperator('y', sparse_matrix(qutip.sigmay()), hermitian=True),
-            'z': LocalOperator('z', sparse_matrix(qutip.sigmaz()), hermitian=True),
-            'plus': LocalOperator('plus', sparse_matrix(qutip.sigmap())),
-            'minus': LocalOperator('minus', sparse_matrix(qutip.sigmam())),
-        }
-
-    def basis_index(self, label: object) -> int:
-        """Return the index of `'up'`, `'down'`, `'excited'`, `'ground'`, or a basis index.
-
-        Args:
-            label:
-                The label of a basis state, or its index.
-
-        Returns:
-            index:
-                The index of the basis state.
-        """
-        named = {'up': 0, 'excited': 0, 'down': 1, 'ground': 1}
-        return named[label] if isinstance(label, str) and label in named else super().basis_index(label)
+    visual: ClassVar[VisualSpec] = VisualSpec('expectations')
+    initial: Any = state('up', domain=QUBIT)
 
 
-class Mode(QuantumElement):
+class Mode(Element):
     """Bosonic mode truncated at a number of quanta, with `annihilate`, `create`, and `number`.
 
     Args:
@@ -360,42 +404,20 @@ class Mode(QuantumElement):
             The largest number of quanta, so the dimension is `quanta + 1`.
 
         initial:
-            The initial number of quanta, or a vector.
+            The state in the Hilbert space: the number of quanta, or a vector.
 
     Examples:
-        >>> from skcomplex.core.model import Mode
-        >>> Mode('cavity', quanta=4).dimension
+        >>> from skcomplex.core.model import Mode, QuantumView
+        >>> QuantumView(Mode('cavity', quanta=4)).dimension
         5
     """
 
-    display: ClassVar[str | None] = 'number'
+    visual: ClassVar[VisualSpec] = VisualSpec('expectations')
     quanta: int = 4
-    initial: Any = 0
-
-    @property
-    def dimension(self) -> int:
-        """Dimension `quanta + 1` of the Hilbert space."""
-        if isinstance(self.quanta, bool) or not isinstance(self.quanta, int | np.integer) or self.quanta < 1:
-            error_msg = f'Mode {self.label!r} has quanta = {self.quanta!r}, which is not a positive integer.'
-            raise ValidationError(error_msg)
-        return int(self.quanta) + 1
-
-    def local_operators(self) -> dict[str, LocalOperator]:
-        """Return the ladder operators and the number operator.
-
-        Returns:
-            operators:
-                The operators `annihilate`, `create`, and `number`.
-        """
-        size = self.dimension
-        return {
-            'annihilate': LocalOperator('annihilate', sparse_matrix(qutip.destroy(size))),
-            'create': LocalOperator('create', sparse_matrix(qutip.create(size))),
-            'number': LocalOperator('number', sparse_matrix(qutip.num(size)), hermitian=True),
-        }
+    initial: Any = state(0, domain=HilbertSpace.family(_mode_space))
 
 
-class Site(QuantumElement):
+class Site(Element):
     """Single particle on the sites of a lattice or a network, whose basis state `k` is the particle at site `k`.
 
     Its namespace holds the Laplacian of the space, `laplacian`, spectral on a periodic lattice and of finite
@@ -411,62 +433,37 @@ class Site(QuantumElement):
             The lattice or the network.
 
         initial:
-            The initial site, or a vector of amplitudes over the sites.
+            The state in the Hilbert space: the initial site, or a vector of amplitudes over the sites.
 
     Examples:
-        >>> from skcomplex.core.model import LatticeSpace, Site
-        >>> Site('particle', space=LatticeSpace(16)).dimension
+        >>> from skcomplex.core.model import LatticeSpace, QuantumView, Site
+        >>> QuantumView(Site('particle', space=LatticeSpace(16))).dimension
         16
     """
 
-    display: ClassVar[str | None] = None
+    visual: ClassVar[VisualSpec] = VisualSpec('expectations')
     space: Space | None = None
-    initial: Any = 0
+    initial: Any = state(0, domain=HilbertSpace.family(_site_space))
 
-    @property
-    def dimension(self) -> int:
-        """Number of sites of the space."""
-        if isinstance(self.space, LatticeSpace):
-            return self.space.size
-        if isinstance(self.space, NetworkSpace):
-            return int(self.space.graph.number_of_nodes())
-        error_msg = f'Site {self.label!r} has space {self.space!r}. Give it a LatticeSpace or a NetworkSpace.'
-        raise ValidationError(error_msg)
-
-    def local_operators(self) -> dict[str, LocalOperator]:
-        """Return the Laplacian and the adjacency of the space.
-
-        Returns:
-            operators:
-                The operators `laplacian` and `adjacency`.
-        """
-        size = self.dimension
-        rows, columns = zip(*_bonds(self.space, size), strict=True) if size > 1 else ((), ())
-        adjacency = sp.coo_array((np.ones(len(rows)), (rows, columns)), shape=(size, size))
-        laplacian = None
-        if isinstance(self.space, NetworkSpace):
-            laplacian = -sparse_matrix(nx.laplacian_matrix(self.space.graph))
-        return {
-            'laplacian': LocalOperator('laplacian', laplacian, hermitian=True),
-            'adjacency': LocalOperator('adjacency', sparse_matrix(adjacency + adjacency.T), hermitian=True),
-        }
-
-    def namespace(self, key: str) -> dict[str, Any]:
-        """Return the operators of the particle with its site indices and the functions `projector` and `diagonal`.
+    def operator_namespace(self, key: str, view: QuantumView) -> dict[str, Any]:
+        """Return the site indices and the functions `projector` and `diagonal` of the particle.
 
         Args:
             key:
                 The key of the subsystem.
 
+            view:
+                The quantum view of the particle.
+
         Returns:
             names:
-                A mapping from name to operator or function.
+                A mapping from name to operator, function, or indices.
         """
-        size = self.dimension
+        size = view.dimension
 
         def projector(site: int) -> Operator:
             values = np.zeros(size)
-            values[self.basis_index(site)] = 1.0
+            values[view.basis_index(site)] = 1.0
             matrix = sp.csr_array(sp.diags_array(values.astype(complex)))
             return Operator({((key, LocalOperator(f'projector({site})', matrix, hermitian=True)),): 1})
 
@@ -476,8 +473,7 @@ class Site(QuantumElement):
             matrix = sp.csr_array(sp.diags_array(array.astype(complex)))
             return Operator({((key, LocalOperator(f'diagonal({digest})', matrix, hermitian=True)),): 1})
 
-        sites = tuple(range(size))
-        return {**super().namespace(key), 'projector': projector, 'diagonal': diagonal, 'sites': sites}
+        return {'projector': projector, 'diagonal': diagonal, 'sites': tuple(range(size))}
 
 
 class Exchange(Interaction):

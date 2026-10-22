@@ -35,7 +35,7 @@ from ..model import (
     Substitution,
     Symbols,
     System,
-    Word,
+    structure_of,
 )
 from ._layout import Entry, Layout
 from ._problem import CompiledElement, CompiledInteraction, Problem
@@ -43,7 +43,7 @@ from ._structures import GraphStructure, PatchStructure
 from ._tree import Node, flatten_system
 from ._words import IDENTIFIER, CompiledWord, Parameters
 
-REWRITTEN = (Word, Patch, HostGraph)
+LAWS_OF = {'sequence': Production, 'tiling': Substitution, 'graph': GraphProduction}
 
 
 class CompiledPatch:
@@ -350,6 +350,11 @@ class CompiledGraph:
 type Compiled = CompiledWord | CompiledPatch | CompiledGraph
 
 
+def _type_of(component: object) -> type:
+    """Return the element type of a group, or the type of any other component."""
+    return component.element if isinstance(component, Group) else type(component)
+
+
 def is_rewriting(system: System) -> bool:
     """Check whether a system holds a word, a patch, or a host graph.
 
@@ -361,7 +366,7 @@ def is_rewriting(system: System) -> bool:
         found:
             Whether one of its elements, at any depth, is rewritten.
     """
-    return any(isinstance(element, REWRITTEN) for element in system.elements) or any(
+    return any(structure_of(_type_of(element)) for element in system.elements) or any(
         is_rewriting(child) for child in system.systems
     )
 
@@ -398,15 +403,15 @@ def _compiled(
 ) -> Compiled:
     """Return the compiled rewriting system of one element from the laws that target it."""
     element = node.component
-    kinds = {Word: Production, Patch: Substitution, HostGraph: GraphProduction}
-    expected = next(kind for owner, kind in kinds.items() if isinstance(element, owner))
+    kind = structure_of(type(element))
+    expected = LAWS_OF[kind]
     wrong = [law for law in laws if not isinstance(law, expected)]
     if wrong:
         error_msg = (
             f'{type(element).__name__} {node.path!r} is rewritten by {expected.__name__} laws, but got {wrong[0]!r}.'
         )
         raise RewritingError(error_msg)
-    if isinstance(element, Word):
+    if kind == 'sequence':
         return CompiledWord(
             node.path,
             element,
@@ -414,7 +419,7 @@ def _compiled(
             parameters,
             values,
         )
-    if isinstance(element, Patch):
+    if kind == 'tiling':
         return CompiledPatch(node.path, element, [law for law in laws if isinstance(law, Substitution)], parameters)
     return CompiledGraph(node.path, element, [law for law in laws if isinstance(law, GraphProduction)])
 
@@ -452,9 +457,9 @@ def compile_rewriting(system: System) -> Problem:
         ('rewriting system', ['algae.A', 'algae.B', 'algae.size'])
     """
     nodes = flatten_system(system)
-    elements = {node.path: node for node in nodes if isinstance(node.component, REWRITTEN)}
+    elements = {node.path: node for node in nodes if structure_of(_type_of(node.component))}
     for node in nodes:
-        if isinstance(node.component, Group) and issubclass(node.component.element, REWRITTEN):
+        if isinstance(node.component, Group) and structure_of(node.component.element):
             error_msg = f'{node.path} is a group of rewritten elements. Declare one element per structure.'
             raise RewritingError(error_msg)
         if node.path not in elements and not isinstance(node.component, Rewriting):

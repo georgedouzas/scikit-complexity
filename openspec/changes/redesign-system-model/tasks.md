@@ -46,7 +46,7 @@ through the conformance suite.
   - agent spaces as the same kinds.
 - [x] 3.4 Add variable groups and groups on sites, edges, and hyperedges, with their validation. Reading edge states
   and rewiring are specified by `add-adaptive-networks`.
-- [ ] 3.5 Add the structured state domains: Hilbert space, sequence, graph, and tiling. Dissolve the core's
+- [x] 3.5 Add the structured state domains: Hilbert space, sequence, graph, and tiling. Dissolve the core's
   quantum-element, word, patch, and host-graph classes into elements with those domains.
 - [ ] 3.6 Add role arities and the bindings `'members'`, `'pairs'`, `'neighbours'`, and `'hyperedges'`, with their
   validation. Replace `PairInteraction` with them, and reject states on interactions. Laws run once per hyperedge are

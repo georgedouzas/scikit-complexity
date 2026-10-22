@@ -37,11 +37,14 @@ from ..model import (
     LatticeSpace,
     Observable,
     Operator,
-    QuantumElement,
     QuantumSystem,
+    QuantumView,
     Symbols,
     System,
+    hilbert_state,
+    is_quantum,
     reduce_values,
+    view_of,
 )
 from ._fields import spectral_multiplier
 from ._layout import Entry, Layout
@@ -63,7 +66,7 @@ class _Subsystem:
     """Quantum subsystem with its key, its element, and its index in the tensor product."""
 
     key: str
-    element: QuantumElement
+    element: QuantumView
     index: int
 
 
@@ -77,7 +80,7 @@ class _Laws:
 
 def _is_quantum_node(node: Node) -> bool:
     """Check whether a node is a quantum element or a group of quantum elements."""
-    return not isinstance(node.component, Interaction) and issubclass(node.component_type, QuantumElement)
+    return not isinstance(node.component, Interaction) and is_quantum(node.component_type)
 
 
 def _sum_matrices(matrices: Iterable[sp.csr_array], size: int) -> sp.csr_array:
@@ -115,16 +118,17 @@ def _member_value(value: Any, member: int, size: int) -> Any:  # noqa: ANN401
     return value[member] if len(value) == size else value
 
 
-def _members_of(node: Node) -> list[tuple[str, QuantumElement]]:
+def _members_of(node: Node) -> list[tuple[str, QuantumView]]:
     """Return the key and the element of every member of a quantum element or group."""
     component = node.component
     if not isinstance(component, Group):
-        return [(node.path, component)]
+        return [(node.path, QuantumView(component))]
     names = [item.name for item in dataclasses.fields(component.element) if item.init and item.name != 'label']
     members = []
     for member in range(component.size):
         values = {name: _member_value(node.value_of(name), member, component.size) for name in names}
-        members.append((f'{node.path}[{member}]', component.element(label=f'{component.label}_{member}', **values)))
+        element = component.element(label=f'{component.label}_{member}', **values)
+        members.append((f'{node.path}[{member}]', QuantumView(element)))
     return members
 
 
@@ -141,10 +145,11 @@ def _check_classical(nodes: list[Node]) -> None:
         raise IncompatibleLawsError(error_msg)
     for node in nodes:
         states = declarations_of(node.component_type, VariableKind.STATE) if _is_quantum_node(node) else {}
+        states = {name: item for name, item in states.items() if name != hilbert_state(node.component_type)}
         if states:
             error_msg = (
-                f'Quantum element {node.path} declares the states {", ".join(states)}. The state of a quantum element '
-                'is its Hilbert space vector, so declare parameters instead.'
+                f'Quantum element {node.path} declares the states {", ".join(states)} besides its state in a Hilbert '
+                'space, which is its only state, so declare parameters instead.'
             )
             raise ValidationError(error_msg)
 
@@ -548,7 +553,7 @@ class QuantumProblem(Problem):
                 A mapping from the name of a local operator, or `'probability'`, to an array or a number.
         """
         element = next(item for item in self.elements if item.path == path)
-        display = element.element.element.display if element.members is not None else element.element.display
+        display = view_of(element.element).display
         if element.members is None and display is None:
             index = self.subsystems.index(path)
             shaped = self._probabilities(x).reshape(self.dimensions)
@@ -558,7 +563,7 @@ class QuantumProblem(Problem):
             matrices = self._local_matrices(path, display)
             values = [self.expect([QuantumTerm(matrix, SR(1))], 0.0, x, np.zeros(0)) for matrix in matrices]
             return {display: np.real(np.asarray(values))}
-        names = [name for name, local in element.element.local_operators().items() if local.hermitian]
+        names = [name for name, local in view_of(element.element).local_operators().items() if local.hermitian]
         return {
             name: float(np.real(self.expect([QuantumTerm(matrix, SR(1))], 0.0, x, np.zeros(0))))
             for name in names
@@ -751,7 +756,7 @@ def _subsystems_of(quantum: list[Node]) -> tuple[dict[str, _Subsystem], dict[str
     for node in quantum:
         for key, element in _members_of(node):
             subsystems[key] = _Subsystem(key, element, len(subsystems))
-            spaces[key] = getattr(element, 'space', None) or node.space
+            spaces[key] = getattr(element.element, 'space', None) or node.space
     return subsystems, spaces
 
 
@@ -833,7 +838,7 @@ def contains_quantum(system: System) -> bool:
     """
     for element in system.elements:
         kind = element.element if isinstance(element, Group) else type(element)
-        if isinstance(kind, type) and issubclass(kind, QuantumElement):
+        if is_quantum(kind):
             return True
     return any(contains_quantum(child) for child in system.systems)
 

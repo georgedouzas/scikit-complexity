@@ -4,14 +4,26 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, ClassVar
 
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ..base import DomainKind, LawKind, Requires, RewritingError, TimeKind, VisualSpec, role
+from ..base import (
+    DomainKind,
+    LawKind,
+    Requires,
+    RewritingError,
+    Structure,
+    TimeKind,
+    VariableKind,
+    VisualSpec,
+    declarations_of,
+    role,
+    state,
+)
 from ._components import Element, Interaction
 from ._symbols import Symbols
 
@@ -461,7 +473,7 @@ class Word(Element):
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('geometry')
-    axiom: Letters = ''
+    axiom: Letters = state('', domain=Structure('sequence'))
     alphabet: str | Mapping[str, int] | None = None
     ignore: str | Sequence[str] = ''
     turtle: Turtle | None = None
@@ -501,7 +513,7 @@ class Patch(Element):
 
     visual: ClassVar[VisualSpec] = VisualSpec('geometry')
     prototiles: Sequence[Prototile] = ()
-    tiles: Sequence[tuple[str, Affine]] | None = None
+    tiles: Sequence[tuple[str, Affine]] | None = state(None, domain=Structure('tiling'))
     filled: bool = False
     max_size: int = 10_000_000
     bounds: Sequence[float] | None = None
@@ -533,12 +545,36 @@ class HostGraph(Element):
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('geometry')
-    graph: nx.Graph = field(default_factory=nx.Graph)
+    graph: nx.Graph = state(nx.Graph(), domain=Structure('graph'))
     max_size: int = 1_000_000
     max_matches: int = 100_000
 
 
 type RewritingLaw = Production | Substitution | GraphProduction
+
+
+def structure_of(element_type: type) -> str | None:
+    """Return the kind of structure an element type rewrites, from the domain of its structured state.
+
+    Args:
+        element_type:
+            The element type.
+
+    Returns:
+        kind:
+            `'sequence'`, `'tiling'`, or `'graph'`, or `None` for a type without a structured state.
+
+    Examples:
+        >>> from skcomplex.core.model import Word, structure_of
+        >>> structure_of(Word)
+        'sequence'
+    """
+    if not (isinstance(element_type, type) and issubclass(element_type, Element)):
+        return None
+    for declaration in declarations_of(element_type, VariableKind.STATE).values():
+        if isinstance(declaration.domain, Structure):
+            return declaration.domain.kind
+    return None
 
 
 class Rewriting(Interaction):

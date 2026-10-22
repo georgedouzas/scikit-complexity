@@ -1,9 +1,20 @@
 """Test systems defined by their components, interactions, space, and time."""
 
 import networkx as nx
+import numpy as np
 import pytest
 
-from skcomplex.core.base import Domain, SpaceError, ValidationError, parameter, role, state
+from skcomplex.core.base import (
+    Domain,
+    HilbertSpace,
+    SpaceError,
+    Structure,
+    Tensor,
+    ValidationError,
+    parameter,
+    role,
+    state,
+)
 from skcomplex.core.compile import compile_system, validate
 from skcomplex.core.model import (
     ContinuousSpace,
@@ -11,17 +22,24 @@ from skcomplex.core.model import (
     DiscreteTime,
     Element,
     Group,
+    Hamiltonian,
     Interaction,
     LatticeSpace,
     NetworkSpace,
     Particle,
     Phase,
     Phases,
+    Production,
+    QuantumView,
     Rate,
+    Rewrite,
     Rule,
     StaticTime,
     System,
     Update,
+    Word,
+    is_quantum,
+    structure_of,
 )
 from skcomplex.core.runtime import Simulation
 
@@ -216,3 +234,45 @@ def test_unknown_part_is_rejected():
     """Test that a group on a part other than sites, edges, and hyperedges is rejected."""
     with pytest.raises(SpaceError, match='faces'):
         Group('cells', element=Stock, on='faces', space=LatticeSpace(4))
+
+
+PAULI = HilbertSpace(
+    2,
+    {'x': (np.array([[0.0, 1.0], [1.0, 0.0]]), True), 'z': (np.diag([1.0, -1.0]), True)},
+    basis={'up': 0, 'down': 1},
+)
+
+
+class TwoLevel(Element):
+    """Element whose only state lies in a two-dimensional Hilbert space, driven by the operator `x`."""
+
+    psi: object = state('up', domain=PAULI)
+
+    def laws(self, s):
+        """Return the generator of the rotation about `x`."""
+        return [Hamiltonian(s.x / 2)]
+
+
+def test_element_with_hilbert_state_runs_unitary_dynamics():
+    """Test that a plain element with a state in a Hilbert space and a generator law runs unitary dynamics."""
+    simulation = Simulation(System(components=[TwoLevel('q')]), solver='unitary', dt=np.pi).run(until=np.pi)
+    assert str(simulation.problem_.form.name) == 'QUANTUM'
+    assert QuantumView(TwoLevel('q', psi='down')).initial_vector().tolist() == [0j, 1 + 0j]
+    assert is_quantum(TwoLevel)
+    assert not is_quantum(Stock)
+
+
+def test_sequence_state_is_rewritten_in_parallel():
+    """Test that an element with a sequence state is rewritten by its productions at every step."""
+    rules = [Production('A', 'AB'), Production('B', 'A')]
+    system = System(components=[Word('algae', axiom='A')], interactions=[Rewrite('rules', target='algae', rules=rules)])
+    trajectory = Simulation(system).run(until=4).trajectory_
+    assert trajectory['algae.size'].tolist() == [1.0, 2.0, 3.0, 5.0, 8.0]
+    assert structure_of(Word) == 'sequence'
+
+
+def test_structured_domains_name_their_kind():
+    """Test that tensor and structure domains report their kinds, and an unknown structure is rejected."""
+    assert Tensor(2, 'traceless').value == 'traceless tensor of rank 2'
+    with pytest.raises(ValueError, match='structure'):
+        Structure('tree')

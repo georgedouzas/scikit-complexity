@@ -3,7 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from dataclasses import dataclass
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
@@ -243,4 +244,176 @@ class Categorical:
         return True
 
 
-type AnyDomain = Domain | Categorical
+@dataclass(frozen=True)
+class HilbertSpace:
+    """Domain of a state that is a vector of a Hilbert space, with the local operators laws build Hamiltonians from.
+
+    An element whose state lies in a Hilbert space is a quantum subsystem. Its laws read every local operator by name,
+    and a group of such elements is the tensor product of its members' spaces, in member order.
+
+    Args:
+        dimension:
+            The dimension of the space.
+
+        operators:
+            A mapping from operator name to its matrix and whether it is Hermitian, such as `{'z': (matrix, True)}`.
+
+        basis:
+            A mapping from the label of a basis state to its index, such as `{'up': 0, 'down': 1}`.
+
+        display:
+            The name of the operator whose expectation visuals show for a group of such elements, or `None` for the
+            probabilities of the basis states.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.base import HilbertSpace
+        >>> space = HilbertSpace(2, {'z': (np.diag([1.0, -1.0]), True)}, basis={'up': 0, 'down': 1})
+        >>> space.index('down'), space.index(0)
+        (1, 0)
+    """
+
+    dimension: int
+    operators: Mapping[str, tuple[Any, bool]] = field(default_factory=dict)
+    basis: Mapping[str, int] = field(default_factory=dict)
+    display: str | None = 'z'
+
+    @property
+    def value(self) -> str:
+        """Name of the domain, used in error messages."""
+        return f'Hilbert space of dimension {self.dimension}'
+
+    def index(self, label: object) -> int:
+        """Return the index of a basis state from its label or its index.
+
+        Args:
+            label:
+                The label of a basis state, or its index.
+
+        Returns:
+            index:
+                The index of the basis state.
+
+        Raises:
+            ValueError:
+                The label names no basis state.
+        """
+        if isinstance(label, str) and label in self.basis:
+            return self.basis[label]
+        if isinstance(label, int | np.integer) and not isinstance(label, bool) and 0 <= label < self.dimension:
+            return int(label)
+        labels = ', '.join(map(repr, self.basis)) or 'none'
+        error_msg = f'{label!r} is no basis state. Use a label ({labels}) or an index from 0 to {self.dimension - 1}.'
+        raise ValueError(error_msg)
+
+    @staticmethod
+    def family(function: Callable[[Any], 'HilbertSpace']) -> 'HilbertFamily':
+        """Return the Hilbert spaces of an element type that depend on the values of each element.
+
+        Args:
+            function:
+                A function of an element that returns its Hilbert space, such as the space of a spin of quantum
+                number `element.j`.
+
+        Returns:
+            family:
+                The family, which a state declares as its domain.
+        """
+        return HilbertFamily(function)
+
+
+@dataclass(frozen=True)
+class HilbertFamily:
+    """Hilbert spaces of the elements of a type, each given by a function of the element.
+
+    Args:
+        function:
+            A function of an element that returns its Hilbert space.
+    """
+
+    function: Callable[[Any], HilbertSpace]
+
+    @property
+    def value(self) -> str:
+        """Name of the domain, used in error messages."""
+        return 'Hilbert space'
+
+    def of(self, element: object) -> HilbertSpace:
+        """Return the Hilbert space of one element.
+
+        Args:
+            element:
+                The element.
+
+        Returns:
+            space:
+                Its Hilbert space.
+        """
+        return self.function(element)
+
+
+STRUCTURES = ('sequence', 'tiling', 'graph')
+
+
+@dataclass(frozen=True)
+class Structure:
+    """Domain of a state that is a structure rewritten as a whole: a sequence of symbols, a tiling, or a graph.
+
+    Args:
+        kind:
+            `'sequence'`, `'tiling'`, or `'graph'`.
+
+    Raises:
+        ValueError:
+            The kind is unknown.
+
+    Examples:
+        >>> from skcomplex.core.base import Structure
+        >>> Structure('sequence').value
+        'sequence'
+    """
+
+    kind: str
+
+    def __post_init__(self) -> None:
+        """Check the kind of structure."""
+        if self.kind not in STRUCTURES:
+            error_msg = f'Unknown structure {self.kind!r}. Use one of {", ".join(STRUCTURES)}.'
+            raise ValueError(error_msg)
+
+    @property
+    def value(self) -> str:
+        """Name of the domain, used in error messages."""
+        return self.kind
+
+
+@dataclass(frozen=True)
+class Tensor:
+    """Domain of a state that is a tensor of a rank over the dimensions of the space, with a declared symmetry.
+
+    Fields of tensors, such as the nematic order of active matter, are specified by `add-tensor-fields`.
+
+    Args:
+        rank:
+            The number of indices.
+
+        symmetry:
+            `'symmetric'`, `'antisymmetric'`, `'traceless'` for symmetric and traceless, or `None` for none.
+
+    Examples:
+        >>> from skcomplex.core.base import Tensor
+        >>> Tensor(2, 'traceless').value
+        'traceless tensor of rank 2'
+    """
+
+    rank: int
+    symmetry: str | None = None
+
+    @property
+    def value(self) -> str:
+        """Name of the domain, used in error messages."""
+        kind = f'{self.symmetry} tensor' if self.symmetry else 'tensor'
+        return f'{kind} of rank {self.rank}'
+
+
+type AnyDomain = Domain | Categorical | HilbertSpace | HilbertFamily | Structure | Tensor

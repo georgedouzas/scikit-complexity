@@ -16,6 +16,7 @@ from skcomplex.core.model import (
     NetworkSpace,
     Operator,
     QuantumSystem,
+    QuantumView,
     Qubit,
     Site,
     Spin,
@@ -26,26 +27,26 @@ from skcomplex.core.model import (
 
 def _namespace(element, key):
     """Return the namespace of the local operators of an element."""
-    return Symbols(**element.namespace(key))
+    return Symbols(**QuantumView(element).namespace(key))
 
 
 def test_spin_local_operators_match_qutip():
     """Test that spin operators are QuTiP's angular momentum matrices."""
-    operators = Spin('s', j=1).local_operators()
+    operators = QuantumView(Spin('s', j=1)).local_operators()
     for name, component in (('x', 'x'), ('y', 'y'), ('z', 'z'), ('plus', '+'), ('minus', '-')):
         assert np.allclose(operators[name].matrix.toarray(), qutip.jmat(1, component).full())
 
 
 def test_qubit_local_operators_are_pauli_matrices():
     """Test that qubit operators are the Pauli matrices and their ladder operators."""
-    operators = Qubit('q').local_operators()
+    operators = QuantumView(Qubit('q')).local_operators()
     assert np.allclose(operators['x'].matrix.toarray(), qutip.sigmax().full())
     assert np.allclose(operators['minus'].matrix.toarray(), qutip.sigmam().full())
 
 
 def test_mode_local_operators_match_qutip():
     """Test that mode operators are QuTiP's truncated ladder and number operators."""
-    operators = Mode('a', quanta=4).local_operators()
+    operators = QuantumView(Mode('a', quanta=4)).local_operators()
     assert np.allclose(operators['annihilate'].matrix.toarray(), qutip.destroy(5).full())
     assert np.allclose(operators['number'].matrix.toarray(), qutip.num(5).full())
 
@@ -57,22 +58,22 @@ def test_mode_local_operators_match_qutip():
 def test_dimension_rejects_invalid_spaces(element, message):
     """Test that a subsystem with no valid Hilbert space raises an error."""
     with pytest.raises(ValidationError, match=message):
-        _ = element.dimension
+        _ = QuantumView(element).dimension
 
 
 def test_initial_vector_resolves_labels_and_vectors():
     """Test that initial states come from labels, indices, and normalised vectors."""
-    assert Spin('s', initial='down').initial_vector().tolist() == [0, 1]
-    assert Mode('a', quanta=2, initial=2).initial_vector().tolist() == [0, 0, 1]
+    assert QuantumView(Spin('s', initial='down')).initial_vector().tolist() == [0, 1]
+    assert QuantumView(Mode('a', quanta=2, initial=2)).initial_vector().tolist() == [0, 0, 1]
     vector = np.array([1, 1j]) / np.sqrt(2)
-    assert np.allclose(Qubit('q', initial=vector).initial_vector(), vector)
+    assert np.allclose(QuantumView(Qubit('q', initial=vector)).initial_vector(), vector)
 
 
 @pytest.mark.parametrize('initial', ['left', 7, [1.0, 1.0]])
 def test_initial_vector_rejects_unknown_states(initial):
     """Test that unknown labels and unnormalised vectors raise an error."""
     with pytest.raises(ValidationError, match=r'basis state|Normalise'):
-        Qubit('q', initial=initial).initial_vector()
+        QuantumView(Qubit('q', initial=initial)).initial_vector()
 
 
 def test_operator_exchange_term_has_three_terms():
@@ -140,8 +141,8 @@ def test_site_namespace_has_projectors_and_diagonals():
     local = next(iter(projector.terms))[0][1]
     assert local.matrix.toarray()[2, 2] == 1
     assert repr(names.diagonal([1, 2, 3, 4])).startswith('p.diagonal(')
-    assert site.local_operators()['adjacency'].matrix.sum() == 8
-    assert site.local_operators()['laplacian'].matrix.toarray()[0, 0] == -2
+    assert QuantumView(site).local_operators()['adjacency'].matrix.sum() == 8
+    assert QuantumView(site).local_operators()['laplacian'].matrix.toarray()[0, 0] == -2
 
 
 def test_expectation_keeps_member_values():

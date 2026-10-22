@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
+import numpy as np
+
 from ._domains import AnyDomain, Domain
 
 METADATA_KEY = 'skcomplex'
@@ -97,7 +99,7 @@ def _declare_field(default: Any, declaration: Variable) -> Any:
     metadata = {METADATA_KEY: declaration}
     if default is dataclasses.MISSING:
         return dataclasses.field(metadata=metadata)
-    if isinstance(default, list | tuple | dict | set):
+    if not isinstance(default, int | float | complex | str | bytes | Enum | np.generic | type(None)):
         return dataclasses.field(default_factory=lambda: copy.deepcopy(default), metadata=metadata)
     return dataclasses.field(default=default, metadata=metadata)
 

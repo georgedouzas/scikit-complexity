@@ -13,6 +13,8 @@ from ..base import (
     Domain,
     DomainKind,
     Form,
+    HilbertFamily,
+    HilbertSpace,
     IncompatibleLawsError,
     LabelError,
     LawKind,
@@ -24,7 +26,9 @@ from ..base import (
     SolverError,
     SpaceError,
     SpaceKind,
+    Structure,
     Supports,
+    Tensor,
     TimeKind,
     ValidationError,
 )
@@ -281,18 +285,21 @@ def domain_kind(entry: Entry, *, vector: bool = False) -> DomainKind:
         kind:
             The domain kind.
     """
-    if vector:
-        return DomainKind.VECTOR
-    if entry.is_complex or entry.domain is Domain.COMPLEX:
-        return DomainKind.COMPLEX
-    if isinstance(entry.domain, Categorical):
-        return DomainKind.CATEGORICAL
+    domain = entry.domain
+    if vector or entry.is_complex or domain is Domain.COMPLEX:
+        return DomainKind.VECTOR if vector else DomainKind.COMPLEX
+    if isinstance(domain, Structure):
+        return DomainKind(domain.kind)
+    classes = {Categorical: DomainKind.CATEGORICAL, Tensor: DomainKind.TENSOR}
+    classes |= {HilbertSpace: DomainKind.HILBERT, HilbertFamily: DomainKind.HILBERT}
+    if type(domain) in classes:
+        return classes[type(domain)]
     return {
         Domain.INTEGER: DomainKind.INTEGER,
         Domain.NONNEGATIVE_INTEGER: DomainKind.INTEGER,
         Domain.BOOLEAN: DomainKind.BOOLEAN,
         Domain.ANGLE: DomainKind.ANGLE,
-    }.get(entry.domain, DomainKind.REAL)
+    }.get(domain, DomainKind.REAL)
 
 
 def _space_kind(space: object) -> SpaceKind:

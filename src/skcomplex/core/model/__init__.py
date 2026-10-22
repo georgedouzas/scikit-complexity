@@ -94,12 +94,15 @@ from ._phases import Phase
 from ._quantum import (
     Exchange,
     Mode,
-    QuantumElement,
     QuantumSystem,
+    QuantumView,
     Qubit,
     Site,
     Spin,
     expectation,
+    hilbert_state,
+    is_quantum,
+    view_of,
 )
 from ._reductions import Reduction, count, has_reductions, maximum, mean, minimum, reductions_in, total, variance
 from ._rewriting import (
@@ -116,6 +119,7 @@ from ._rewriting import (
     Substitution,
     Turtle,
     Word,
+    structure_of,
 )
 from ._spaces import Adjacency, ContinuousSpace, NetworkSpace, Space
 from ._symbols import Symbols
@@ -197,8 +201,8 @@ __all__: list[
     'Production',
     'Protocol',
     'Prototile',
-    'QuantumElement',
     'QuantumSystem',
+    'QuantumView',
     'Qubit',
     'Rate',
     'RationedQueue',
@@ -250,9 +254,11 @@ __all__: list[
     'gradient',
     'has_reductions',
     'heuristics',
+    'hilbert_state',
     'imitate',
     'inverse_laplacian',
     'is_draw',
+    'is_quantum',
     'lag',
     'laplacian',
     'logit_choice',
@@ -278,10 +284,12 @@ __all__: list[
     'smooth',
     'smooth3',
     'step',
+    'structure_of',
     'total',
     'total_surplus',
     'transfer',
     'uniform',
     'variance',
+    'view_of',
     'where',
 ]

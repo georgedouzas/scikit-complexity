@@ -9,7 +9,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ..compile import CompiledAgents, CompiledElement, Problem, QuantumProblem
-from ..model import LatticeSpace
+from ..model import LatticeSpace, view_of
 from ..runtime import Frame
 from ._visuals import SPACE_TIME, ImageVisual, _log_scalars, register_visual
 
@@ -17,7 +17,7 @@ from ._visuals import SPACE_TIME, ImageVisual, _log_scalars, register_visual
 def _shape_of(element: CompiledElement) -> tuple[int, ...] | None:
     """Return the lattice shape of the local values of a quantum group or particle, or `None` for scalar values."""
     space = getattr(element.element, 'space', None)
-    if element.members is None and getattr(element.element, 'display', 'z') is not None:
+    if element.members is None and view_of(element.element).display is not None:
         return None
     return space.dimensions if isinstance(space, LatticeSpace) else (int(element.members or 0) or -1,)
 
@@ -26,7 +26,7 @@ def _profile_name(element: CompiledElement) -> str:
     """Return the name of the local values of a group, its displayed operator, or `probability` for a particle."""
     if element.members is None:
         return 'probability'
-    return str(element.element.element.display)
+    return str(view_of(element.element).display)
 
 
 class ExpectationVisual(ImageVisual):
