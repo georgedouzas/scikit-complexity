@@ -17,6 +17,7 @@ from ..interactions import Interaction
 from ..laws import Invariant, Rule
 from ..space import Space
 from ..system import System
+from ._contractions import CompiledEncounter
 from ._hybrid import Breakpoints, CompiledEvent, Delay
 from ._lattices import LatticeStep, lattice_shape
 from ._layout import Layout
@@ -566,6 +567,9 @@ class Problem:
             The quantities, flows, auxiliaries, and feedback terms of the system, or `None` for partitioned and Mesa
             problems.
 
+        encounters:
+            The encounter laws, whose gain and loss rates the drift holds and particle solvers sample.
+
         backend:
             The name of the backend that produced the numeric functions.
 
@@ -620,6 +624,7 @@ class Problem:
     fractional: tuple[FractionalRows, ...] = field(default=(), repr=False)
 
     stock_flow: StockFlow | None = field(default=None, repr=False)
+    encounters: tuple[CompiledEncounter, ...] = field(default=(), repr=False)
     backend: str = 'numpy'
     accelerated: Accelerated | None = field(default=None, repr=False)
     rewriting: tuple[Any, ...] = field(default=(), repr=False)

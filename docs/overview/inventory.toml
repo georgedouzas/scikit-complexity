@@ -124,6 +124,7 @@ transfer = { class = "any", description = "Quantity moved from a source state to
 boundary = { class = "constraint", description = "Constraint applied to states after each step" }
 invariant = { class = "constraint", description = "Conserved expression checked or enforced" }
 objective = { class = "constraint", description = "Quantity minimised by a static solution or a control" }
+encounter = { class = "continuous", description = "Encounter of active particles that moves, creates, or removes them over an activity grid" }
 
 [vocabulary.domains]
 real = "Real numbers, possibly bounded"

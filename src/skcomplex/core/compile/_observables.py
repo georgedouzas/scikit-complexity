@@ -204,7 +204,10 @@ class _MemberReductions:
         """Return the weights of a reduction as a CSR array after checking their shape."""
         if reduction.weights is None:
             return None
-        shape = tuple(reduction.weights.shape)
+        weights = reduction.weights
+        if np.ndim(weights) == 1 and len(weights) == self.size:
+            weights = np.broadcast_to(weights, (self.size, self.size))
+        shape = tuple(weights.shape)
         if shape != (self.size, self.size):
             error_msg = (
                 f'The weights of the reduction {reduction.call} of observable {self.path} have the shape {shape}, but '
@@ -212,7 +215,7 @@ class _MemberReductions:
                 f'{self.group}.'
             )
             raise ValidationError(error_msg)
-        return scipy.sparse.csr_array(reduction.weights, dtype=float)
+        return scipy.sparse.csr_array(weights, dtype=float)
 
     def _placeholder(self, reduction: Reduction) -> Expression:
         """Return the placeholder of a reduction, compiling it the first time it is found."""

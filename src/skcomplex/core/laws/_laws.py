@@ -19,6 +19,7 @@ from ..base import (
     TimeKind,
     ValidationError,
 )
+from ._encounters import Destruction, Encounter, Proliferation
 from ._lattices import Drive, Energy, Extremal, LocalRule, Move, Relaxation, Sample, Sampler
 
 if TYPE_CHECKING:
@@ -646,4 +647,7 @@ type Law = (
     | Flux
     | Transfer
     | Auxiliary
+    | Encounter
+    | Proliferation
+    | Destruction
 )

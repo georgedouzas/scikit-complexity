@@ -8,11 +8,15 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, cast
 
+import numpy as np
+from sage.all__sagemath_symbolics import SR
+
 from ..base import (
     BackendError,
     Categorical,
     Domain,
     DomainKind,
+    Expression,
     Form,
     HilbertFamily,
     HilbertSpace,
@@ -39,9 +43,11 @@ from ..interactions import Match
 from ..laws import (
     Auxiliary,
     Boundary,
+    Destruction,
     Dissipator,
     Drive,
     Emission,
+    Encounter,
     Equation,
     Event,
     Extremal,
@@ -53,6 +59,7 @@ from ..laws import (
     LocalRule,
     Noise,
     Production,
+    Proliferation,
     Rate,
     Relaxation,
     Rule,
@@ -61,6 +68,7 @@ from ..laws import (
     Transfer,
     Transition,
     Update,
+    outcome_sums,
 )
 from ..space import LatticeSpace, NetworkSpace, Space
 from ..system import Observable, System
@@ -73,6 +81,13 @@ from ._rewriting import is_rewriting
 from ._tree import flatten_system
 
 OPTIONAL_SOLVERS = {'lammps': 'lammps'}
+TIME_CLASSES = {
+    TimeKind.CONTINUOUS: 'ContinuousTime()',
+    TimeKind.DISCRETE: 'DiscreteTime()',
+    TimeKind.STATIC: 'StaticTime()',
+}
+PROBABILITY_TOLERANCE = 1e-9
+LISTED_ENCOUNTERS = 3
 
 
 def _solver_registry() -> Registry:
@@ -117,6 +132,9 @@ def law_types() -> tuple[Any, ...]:
         Production,
         Substitution,
         GraphProduction,
+        Encounter,
+        Proliferation,
+        Destruction,
     )
 
 
@@ -417,8 +435,57 @@ def _law_issues(records: list[CensusRecord], times: dict[str, TimeKind | None]) 
             kinds = {
                 str(item.law_kind) for item in law_types() if item.requires.time and item.requires.accepts('time', time)
             }
-            fix = f'Declare {_names(requires.time)} time, or use a law of {time} time: {_names(kinds)}.'
+            classes = ' or '.join(f'`{TIME_CLASSES[kind]}`' for kind in sorted(requires.time))
+            fix = f'Declare {_names(requires.time)} time with {classes}, or use a law of {time} time: {_names(kinds)}.'
             issues.append(Issue('law-time', record.path, message, fix))
+    return issues
+
+
+def _probability_sum(total: object) -> float | None:
+    """Return the sum of the outcome probabilities of one encounter as a number, or `None` when it holds a symbol."""
+    value = SR(total).simplify_full() if isinstance(total, Expression) else SR(total)
+    return float(value) if value.is_numeric() else None
+
+
+def _unnormalized(law: Encounter | Proliferation) -> list[tuple[int, int, float]]:
+    """Return the candidate and field activities of the encounters whose outcome probabilities do not sum to one."""
+    table = law.transition if isinstance(law, Encounter) else law.outcomes
+    if table is None:
+        return []
+    sums = outcome_sums(table)
+    rates = np.broadcast_to(law.rate, sums.shape)
+    found = []
+    for (candidate, field_activity), total in np.ndenumerate(sums):
+        rate = rates[candidate, field_activity]
+        if SR(rate).is_numeric() and float(SR(rate)) == 0:
+            continue
+        value = _probability_sum(total)
+        if value is not None and abs(value - 1) > PROBABILITY_TOLERANCE:
+            found.append((candidate, field_activity, value))
+    return found
+
+
+def _encounter_issues(records: list[CensusRecord]) -> list[Issue]:
+    """Return the encounter laws whose outcome probabilities do not sum to one over the outcomes of an encounter."""
+    issues = []
+    for record in records:
+        law = record.law
+        if not isinstance(law, Encounter | Proliferation):
+            continue
+        found = _unnormalized(law)
+        if not found:
+            continue
+        listed = '; '.join(
+            f'candidate activity {candidate} with field activity {field_activity} sums to {value:.6g}'
+            for candidate, field_activity, value in found[:LISTED_ENCOUNTERS]
+        )
+        more = f', and {len(found) - LISTED_ENCOUNTERS} more' if len(found) > LISTED_ENCOUNTERS else ''
+        message = (
+            f'The {type(law).__name__} law of {record.path} has outcome probabilities that do not sum to one over the '
+            f'outcomes of an encounter: {listed}{more}.'
+        )
+        fix = 'Give outcome probabilities that sum to one over the outcomes of every encounter with a nonzero rate.'
+        issues.append(Issue('encounter-probabilities', record.path, message, fix))
     return issues
 
 
@@ -532,6 +599,7 @@ def validate(
         report.issues.append(Issue(code, path, str(failure), fix, error=type(failure)))
     report.issues += _binding_issues(system)
     report.issues += _law_issues(records, _declared_times(system))
+    report.issues += _encounter_issues(records)
     owners: dict[str, set[LawKind]] = {}
     for record in records:
         owners.setdefault(record.owner, set()).add(record.law.law_kind)

@@ -88,6 +88,8 @@ from ..space import ContinuousSpace, LatticeSpace, Mesh, NetworkSpace, Space
 from ..system import Observable, System
 from ._backends import Backend, resolve_backend
 from ._complex import modulus_form, split_law
+from ._contractions import CompiledEncounter
+from ._encounters import ENCOUNTER_LAWS, compile_encounters
 from ._fields import DiffusiveLimit, FieldLowering, has_operators
 from ._flows import StockFlowPass, quantities_of
 from ._hybrid import (
@@ -156,13 +158,13 @@ FORMS: dict[frozenset[type], Form] = {
     frozenset({Energy, Move, Sampler}): Form.MONTE_CARLO,
     frozenset({Renewal}): Form.RENEWAL,
 }
-FORMLESS = frozenset({Boundary, Event, Flux})
+FORMLESS = frozenset({Boundary, Event, Flux, *ENCOUNTER_LAWS})
 CONTINUOUS = frozenset({Rate, Noise})
 ASSIGNED_KINDS = (Update, Boundary)
 MEMBER_REFERENCE = re.compile(r'^(?P<path>.+)\[(?P<index>-?\d+)\]$')
 LATTICE_LAWS = (LocalRule, Drive, Relaxation, Extremal, Energy, Move, Sampler)
-KERNEL_FREE = (*LATTICE_LAWS, Flux, Transfer, Auxiliary, Invariant)
-DECLARED_FREE = (LocalRule, Drive, Relaxation, Extremal, Flux, Transfer, Auxiliary, Invariant)
+KERNEL_FREE = (*LATTICE_LAWS, Flux, Transfer, Auxiliary, Invariant, *ENCOUNTER_LAWS)
+DECLARED_FREE = (LocalRule, Drive, Relaxation, Extremal, Flux, Transfer, Auxiliary, Invariant, *ENCOUNTER_LAWS)
 AGENT_VIEW_NAMES = frozenset(
     {
         'id',
@@ -908,7 +910,7 @@ def _collect_laws(spec: _KernelSpec, component: object, flows: StockFlowPass, *,
         error_msg = (
             f'`laws` of {spec.owner} must return a list of Rate, Noise, FractionalNoise, Jump, Update, Transition, '
             'Emission, Boundary, Rule, Equation, Event, LocalRule, Drive, Relaxation, Extremal, Sample, Flux, '
-            'Transfer, or Auxiliary laws.'
+            'Transfer, Auxiliary, Encounter, Proliferation, or Destruction laws.'
         )
         raise ValidationError(error_msg)
     if spec.pairs is not None and not all(isinstance(law, Rate) for law in declared):
@@ -1826,7 +1828,10 @@ class _Reductions:
         if reduction.weights is None:
             return None
         readers = len(next(iter(spec.sets.values())).references) if spec.sets else spec.rows
-        shape = tuple(reduction.weights.shape)
+        weights = reduction.weights
+        if np.ndim(weights) == 1 and len(weights) == size:
+            weights = np.broadcast_to(weights, (readers, size))
+        shape = tuple(weights.shape)
         if shape != (readers, size):
             error_msg = (
                 f'The weights of the reduction {reduction.call} of {spec.owner} over {group or "no group"} have the '
@@ -1834,7 +1839,7 @@ class _Reductions:
                 'one column per reduced member.'
             )
             raise ValidationError(error_msg)
-        return scipy.sparse.csr_array(reduction.weights, dtype=float)
+        return scipy.sparse.csr_array(weights, dtype=float)
 
     def _placeholder(self, reduction: Reduction, spec: _KernelSpec) -> Expression:
         """Return the placeholder of a reduction, or the placeholders of its real and imaginary parts."""
@@ -2619,6 +2624,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
             raise
         plan = _plan_partitions(system, kinds)
         return _compile_partitions(system, backend, plan)
+    encounters = _compiled_encounters(specs, declarations, backend, blocks)
     specs, reductions = _with_reductions(specs, hybrid, declarations, drawing.draws.size if drawing.draws else 0)
     lowered = _lower_laws(specs, declarations)
     members = sum(block.node.members or 0 for block in blocks if not block.node.is_agent)
@@ -2630,6 +2636,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
     functions['boundary'] = _wrapping_angles(cast('VectorFunction | None', functions.get('boundary')), states)
     functions['equations'] = _written_equations(cast('dict[str, Expression]', functions['equations']), states, fields)
     volumes, constrained = _with_discretizations(functions, specs, declarations, blocks)
+    _with_encounters(functions, encounters, declarations.ends[True])
     jacobian = (
         ExactJacobian(
             tuple(lowered.kernels[Rate]),
@@ -2640,7 +2647,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
             symmetries=tuple(_symmetries(blocks)),
             constrained=constrained[0],
         )
-        if form is Form.ODE
+        if form is Form.ODE and not encounters
         else None
     )
     initial_state = np.concatenate([np.zeros(0), *declarations.initial_states])
@@ -2713,6 +2720,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         renewals=_compile_renewals(hybrid, declarations.time, owners),
         fractional=_fractional_rows(lowered) if form is Form.SDE else (),
         stock_flow=stock_flow,
+        encounters=encounters,
         **functions,  # type: ignore[arg-type]
     )
 
@@ -2971,6 +2979,37 @@ def _with_volumes(drift: Any, volumes: tuple[FiniteVolume, ...]) -> Any:  # noqa
         return rates
 
     return conserved
+
+
+def _compiled_encounters(
+    specs: list[tuple[_KernelSpec, list[Law]]],
+    declarations: _Declarations,
+    backend: str | Backend,
+    blocks: list[_Block],
+) -> tuple[CompiledEncounter, ...]:
+    """Return the encounter laws of every component, lowered before reductions prune the groups they read."""
+    if not any(isinstance(law, ENCOUNTER_LAWS) for _, laws in specs for law in laws):
+        return ()
+    members = sum(block.node.members or 0 for block in blocks if not block.node.is_agent)
+    fused = resolve_backend(backend, members).name == 'numba'
+    components = [(spec.owner, dict(spec.references), laws) for spec, laws in specs]
+    return compile_encounters(components, declarations.time, fused=fused)
+
+
+def _with_encounters(functions: dict[str, Any], encounters: tuple[CompiledEncounter, ...], size: int) -> None:
+    """Add the gain and loss rates of encounter laws to the drift, which then runs outside compiled stepper loops."""
+    if not encounters:
+        return
+    drift = functions.get('drift')
+
+    def encountered(t: float, x: Vector, p: Vector) -> Vector:
+        rates = np.zeros(size) if drift is None else np.array(drift(t, x, p), dtype=float)
+        for encounter in encounters:
+            rates += encounter.rates(x, p)
+        return rates
+
+    functions['drift'] = encountered
+    functions['accelerated'] = None
 
 
 def _history(blocks: list[_Block]) -> dict[str, Any]:

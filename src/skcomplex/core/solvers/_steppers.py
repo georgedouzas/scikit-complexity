@@ -224,7 +224,7 @@ class ScipyODE(Stepper):
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.CONTINUOUS},
         space=set(SpaceKind),
-        laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER},
+        laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.ENCOUNTER},
         domains=NUMERIC_DOMAINS,
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
     )
@@ -631,7 +631,15 @@ class RK4(Stepper):
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.CONTINUOUS},
         space=set(SpaceKind),
-        laws={LawKind.JUMP, LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER},
+        laws={
+            LawKind.JUMP,
+            LawKind.RATE,
+            LawKind.EQUATION,
+            LawKind.EVENT,
+            LawKind.BOUNDARY,
+            LawKind.TRANSFER,
+            LawKind.ENCOUNTER,
+        },
         domains=NUMERIC_DOMAINS,
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
     )
