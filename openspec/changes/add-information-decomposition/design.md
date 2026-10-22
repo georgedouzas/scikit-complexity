@@ -68,3 +68,11 @@ A coarse-graining is closed when the macro series predicts its own future as wel
   `'dep'` of `dit`.
 - The surrogate test of the risks section is one function, `surrogate_test`, which takes any measure of many variables
   and shuffles every variable independently, so every measure accepts it without a keyword of its own.
+- `emergence_criteria` computes the practical criteria Ψ, Δ, and Γ of Rosas et al. (2020), which are defined with the
+  minimum mutual information redundancy. Another redundancy would need the full integrated information decomposition
+  of the four variables of two times, which no maintained library computes, so the function takes no redundancy
+  keyword, and `partial_information` keeps the keyword for two sources.
+- `add-emergence-analysis` is not merged, so `closure` takes a partition in the convention its design fixes: the macro
+  label of every integer micro state, or a function from the micro series to the macro series. When
+  `partition_coarse_grain` lands, `closure` can accept its partitions unchanged. The result holds the two conditional
+  entropies, `H(V_t | V_past)` and `H(V_t | X_past)`, and their gap, and leaves the threshold of closure to the caller.

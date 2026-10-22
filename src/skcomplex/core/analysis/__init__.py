@@ -68,6 +68,12 @@ from ._embedding import (
     embed,
     false_nearest_neighbors,
 )
+from ._emergence_criteria import (
+    Closure,
+    EmergenceCriteria,
+    closure,
+    emergence_criteria,
+)
 from ._events import Events, detect_events
 from ._extremes import (
     ExtremeValueFit,
@@ -235,6 +241,7 @@ __all__: list[str] = [
     'Avalanches',
     'BasinStability',
     'Cloning',
+    'Closure',
     'Clusters',
     'Collapse',
     'Communities',
@@ -250,6 +257,7 @@ __all__: list[str] = [
     'Dynamics',
     'EarlyWarning',
     'Embedding',
+    'EmergenceCriteria',
     'Ensemble',
     'EnsembleEntropy',
     'EntropyProduction',
@@ -314,6 +322,7 @@ __all__: list[str] = [
     'centrality',
     'clark_evans_ratio',
     'cloning',
+    'closure',
     'cluster_sizes',
     'coarse_grain',
     'collapse_distributions',
@@ -344,6 +353,7 @@ __all__: list[str] = [
     'dynamics_of',
     'early_warning',
     'embed',
+    'emergence_criteria',
     'ensemble_entropy',
     'ensemble_of',
     'entanglement_entropy',
