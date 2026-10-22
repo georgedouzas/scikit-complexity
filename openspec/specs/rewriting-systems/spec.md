@@ -62,10 +62,10 @@ both written as symbolic expressions of the predecessor's parameters and the sys
   longer rewritten because its condition is false
 
 ### Requirement: Turtles interpret words as geometry
-A turtle SHALL interpret a word as line segments in two or three dimensions from declared symbol meanings, moving
-forward with or without drawing, turning by a parameter angle, pushing and popping its state with brackets, and
-scaling its step by a factor per generation. A module's first parameter SHALL override the step or the angle where
-the module has one.
+The visual `WordGeometry` of `skcomplex.core.viz`, the turtle interpretation of L-systems, SHALL interpret a word as line
+segments in two or three dimensions from declared symbol meanings: moving with or without drawing, turning by a
+parameter angle, pushing and popping its state with brackets, and scaling its step per generation. A module's first
+parameter SHALL override the step or the angle. A word SHALL take it as its `geometry`.
 
 #### Scenario: Koch curve length
 - **WHEN** the word of the Koch L-system `F → F+F--F+F` with a 60° angle and a step of `3^-n` is interpreted at

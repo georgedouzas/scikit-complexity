@@ -36,29 +36,49 @@ space, and rules SHALL query the neighbours of an agent in its space.
 - **THEN** it receives the 8 surrounding cells
 
 ### Requirement: Agent systems run on Mesa
-The Mesa backend SHALL build a Mesa model from an agent-based system, advance it one Mesa step per unit of time, and
-activate agents in random order by default, with a seed that makes runs reproducible. Each step SHALL advance Mesa's
-clock, so the model time that rules read during the step that produces frame `k` is `k`.
+An agent system SHALL be an ordinary system: elements with rule laws, in fixed or variable groups, under discrete time,
+on a space. Mesa SHALL be the backend that executes discrete-time systems with rule laws, selected and validated like
+any other backend. It SHALL advance one Mesa step per unit of time, activate agents by the schedule of the system's
+time with a seed that makes runs reproducible, and advance Mesa's clock so that rules read the time `k` during the
+step that produces frame `k`.
 
 #### Scenario: Reproducible run
-- **WHEN** the same agent-based system is simulated twice with random state 0
+- **WHEN** the same agent system is simulated twice on the Mesa backend with random state 0
 - **THEN** the two trajectories are equal
 
 #### Scenario: Rules read the model time
 - **WHEN** a rule stores `model.time` in a state of its agent at every step of a run until time 3
 - **THEN** the state is 1, 2, and 3 in the frames at times 1, 2, and 3, not 0
 
-### Requirement: Existing Mesa models run unchanged
-`MesaSystem` SHALL wrap a Mesa model class with its constructor parameters, model reporters, and agent reporters, so the
-model runs with the framework's simulation, clocks, observers, and trajectories without changes to its code.
+#### Scenario: No agent-specific system class
+- **WHEN** a user builds an agent model
+- **THEN** they use `System` with `DiscreteTime`, and no `MesaSystem` or `AgentType` exists in the core
 
-#### Scenario: Wrapped Boltzmann wealth model
-- **WHEN** a plain Mesa Boltzmann wealth model is wrapped with a Gini reporter and simulated for 100 steps
-- **THEN** the trajectory returns 101 Gini values and the total wealth stays constant
+### Requirement: Agents are the members that run or receive rules
+The agents SHALL be the members of variable groups and of the elements and groups whose own laws include rules. In a
+system with rules, a group whose element type has no laws of its own SHALL be a passive agent that rules read and
+change, unless an interaction whose laws are not rules binds it. Single elements and groups on the parts of a space
+SHALL never be passive agents.
 
-#### Scenario: Live parameter on a wrapped model
-- **WHEN** a user updates a declared parameter of a running wrapped model
-- **THEN** the model attribute takes the new value before the next step
+#### Scenario: Passive agents
+- **WHEN** a group of stalls without laws shares a system with shoppers whose rules buy from the stalls
+- **THEN** the stalls are agents that the shoppers' rules read and change
+
+### Requirement: Agent names avoid the names Mesa reads
+The states and parameters of agents SHALL NOT take the names of the agent view or of the attributes Mesa reads from
+agents, and compiling a system SHALL report any that do.
+
+#### Scenario: Reserved names
+- **WHEN** an agent element declares a state named like an attribute Mesa reads from agents, such as `unique_id`
+- **THEN** compiling the system raises an error that names the state and the reserved name
+
+### Requirement: Only variable groups change size
+Rules SHALL create and remove members of variable groups only, so a group keeps its size unless it is declared with
+`variable=True`.
+
+#### Scenario: Fixed groups keep their size
+- **WHEN** a rule creates a member of a group that is not variable
+- **THEN** the run raises an error that suggests declaring the group with `variable=True`
 
 ### Requirement: Agent trajectories hold changing populations
 A trajectory of an agent-based run SHALL return model reporters as arrays and agent variables per frame as arrays whose
@@ -127,8 +147,9 @@ attribute that Mesa or the Mesa backend reads from agents, which are `position`,
   with a `TypeError`
 
 ### Requirement: Steps run ordered phases
-An agent partition SHALL run named phases in order every step, each with its own rules, an activation policy (random,
-sequential, simultaneous, or by type), and an optional number of repeated rounds.
+A discrete time with a phases schedule SHALL run its named phases in order in every step. Each phase SHALL have its
+own rules, an activation policy (random, sequential, simultaneous, or by type), and an optional number of repeated
+rounds. Rules without a phase SHALL run in the phase `'default'`, first unless a phase of that name is listed.
 
 #### Scenario: Offer before acceptance
 - **WHEN** employers make wage offers in one phase and workers accept the best offer in the next
@@ -138,30 +159,6 @@ sequential, simultaneous, or by type), and an optional number of repeated rounds
 - **WHEN** agents on a lattice copy their best neighbour's strategy in a simultaneous phase
 - **THEN** every agent reads its neighbours' strategies from the start of the phase
 
-### Requirement: Markets match and clear between groups
-A market interaction SHALL match two agent groups with a chosen protocol, settle every trade by an atomic transfer of
-money and goods between the two agents, and publish price, volume, and unmatched quantity as reporters.
-
-#### Scenario: Double auction efficiency
-- **WHEN** zero-intelligence traders with budget constraints trade in a call auction
-- **THEN** the realised surplus exceeds 90% of the maximum surplus implied by their valuations
-
-#### Scenario: Order book priority
-- **WHEN** two sell orders at the same price arrive before a matching buy order
-- **THEN** the earlier sell order trades first
-
-### Requirement: Institutions set parameters from observables
-An institution SHALL read observables and set parameters of other groups and interactions during the run, with every
-change recorded.
-
-#### Scenario: Interest-rate rule
-- **WHEN** a central bank raises the interest rate whenever inflation exceeds its target
-- **THEN** the interest rate in the trajectory changes only at steps where the inflation observable exceeds the target
-
-### Requirement: Learning blocks support adaptation
-Agent rules SHALL use memories of their own states, forecasting heuristics, logit choice among strategies, imitation of
-neighbours, and evolutionary operators over strategy states.
-
-#### Scenario: El Farol self-organisation
-- **WHEN** 100 agents with heuristic forecasts decide whether to attend a bar with capacity 60 for 500 steps
-- **THEN** the mean attendance after the transient lies within 5 of 60
+#### Scenario: Phases as a time schedule
+- **WHEN** a system declares `DiscreteTime(schedule=Phases([produce, trade, consume]))`
+- **THEN** every step runs the rules of `produce`, then `trade`, then `consume`
