@@ -93,11 +93,43 @@ Decisions taken while applying the change:
 `evolutionary_sk_game` is a fixed `Group` of `N` elements under `DiscreteTime()` in no space, with a quenched
 symmetric Gaussian coupling matrix, a per-agent incentive updated by memory-weighted reinforcement, softmax actions at a
 per-agent temperature, and extremal replacement of the least fit with a temperature redrawn uniformly. Every part is an
-existing core primitive: group reductions with weights, draws, `Update` laws, and `Extremal`. The softmax choice is a
-learning heuristic, so the model package defines it over draws, instead of importing the learning helpers of
-`skcomplex.models.economics` or `skcomplex.models.social`, which are other fields' realizations. Its inventory entry
-is tagged with discrete time, no space, a group, the members binding, and discrete laws. Its priority is `core` because
-no implemented model combines learning and extremal selection on a frustrated landscape.
+existing core primitive: group reductions with weights, draws, `Update` laws, and the `minimum` reduction that selects
+the least fit. The softmax choice is a learning heuristic, so the model package defines it over draws, instead of
+importing the learning helpers of `skcomplex.models.economics` or `skcomplex.models.social`, which are other fields'
+realizations. Its inventory entry is tagged with discrete time, no space, a group, no binding, and discrete laws. Its
+priority is `core` because no implemented model combines learning and extremal selection on a frustrated landscape.
+
+Decisions taken while applying the change:
+
+- The core's `Extremal` law requires a lattice or a network and cannot share a partition with `Update` laws, which
+  the compiler rejects as a mix of law kinds. The replacement of the least fit is therefore an `Update` switched by
+  the group reduction `minimum`: a member whose fitness equals the least fitness of the group gets no incentive and a
+  newcomer's temperature drawn with `uniform`. This keeps the model a group in no space, as the design asks, and
+  exercises reductions, draws, updates, and switches together. Ties replace every tied member, which happens only at
+  the start, when every fitness is zero. Letting `Extremal` combine with `Update` laws on groups is left to a later
+  change.
+- The replaced member learns in the same step from the field of the other members, `Q = α h`, so its fitness differs
+  from the others' at once and ties do not recur.
+- Lesmana et al. run two baseline updates after each replacement. The element's `settling` attribute keeps this
+  protocol, 2 by default: replacement happens at steps where `t mod (settling + 1)` is 0, a time switch that exposed
+  and fixed a defect of the compiler's breakpoints for a modulo of time nested inside another function.
+- The reward kept at every step is `σ h` of the actions of the previous step, since all updates are simultaneous.
+- With a fixed temperature, scalar or one per agent, no member is replaced, which gives the baseline SK game of the
+  sweep in the same factory.
+- The inventory entry records the model as a group in no space without bindings, with the primitives groups,
+  reductions, draws, updates, and switches, since it has no interaction and no lattice.
+- The cascades are the Bak-Sneppen avalanches of the fitnesses at the replacement steps, the runs of steps with at
+  least one fitness below a threshold `f_0`, measured with the core's `avalanches`. Their fitted exponent depends on
+  the threshold, as Lesmana et al. find for their `δ`, from about 1.4 to 1.7 between the 95th and the 99th
+  percentiles of the least fitness. The self-organisation test fixes `f_0` at the 97th percentile and fits above
+  sizes of 5, which gives 1.43 to 1.49 over three seeds of 51,000 to 90,000 steps, within 0.15 of 3/2.
+- The reward test compares the evolving game, averaged over the second half of 51,000 steps, with the fixed game at
+  temperatures 0.05, 0.1, 0.2, 0.3, 0.5, and 1 on the same couplings. The evolving game wins on the three seeds tried,
+  by 0.04 to 0.05 on two and by 0.005 on the third, so the test uses seed 1. The evolved temperatures have a median
+  near 0.1, below the edge temperature near 0.3 that Lesmana et al. report for uniform temperatures, while the
+  ergodicity coefficient of the example still places them between the frozen and the ergodic regimes.
+- The model's thumbnail is the histogram of the temperatures. The `traits` visual logged only agents, so it now logs
+  the states of a vectorised group too.
 
 ## Risks / Trade-offs
 

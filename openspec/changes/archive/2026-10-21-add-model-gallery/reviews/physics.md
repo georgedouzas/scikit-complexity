@@ -43,6 +43,7 @@
 | forest_fire | fire fronts sweeping through older stands | tree density settles near 0.4, below the percolation threshold | 9.0 s, 300 frames, 11.3 MB |
 | sandpile | stable heights 0-3 in the critical state | mean height plateaus at 2.1; size density follows s^-1.2 over two decades | 22.3 s, 300 frames, 1.1 MB |
 | manna_sandpile | stable heights 0-1 in the critical state | density plateaus near 0.68; size density follows s^-1.27 | 15.3 s, 300 frames, 0.4 MB |
+| evolutionary_sk_game | histogram of the agents' temperatures piled up below 0.5 after starting uniform on [0, 2] | median temperature falls from 1 to 0.13; f_0 cascades fit S^-1.42 against S^-3/2; ergodicity coefficient falls from 0.71 to 0.10 across the rescalings, 0.39 at the evolved temperatures | 9.8 s, 300 frames, 1.1 MB |
 | brownian_motion | round Gaussian cloud of 500 particles | MSD follows the Ornstein-Uhlenbeck law from ballistic to diffusive | 0.6 s, 201 frames, 2.5 MB |
 | optical_trap | elongated cloud in an anisotropic trap | position histograms match Gaussians of variance kT / k (k = 1.01, 0.26) | 0.2 s, 251 frames, 1.1 MB |
 | stochastic_resonance | hops between wells locked to the forcing | response at the forcing frequency peaks at D = 0.12, near the matching 0.10 | 20.6 s, 251 frames, 0.06 MB |
