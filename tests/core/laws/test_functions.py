@@ -4,6 +4,7 @@ import warnings
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.base import symbol
 from skcomplex.core.compile import NUMPY_DIALECT, SCALAR_DIALECT, compile_system, numpy_function, print_expressions
@@ -131,3 +132,15 @@ def test_series_interpolates_long_linear_data(backend):
     rates = [problem.drift(time, problem.initial_state, problem.initial_parameters)[0] for time in probes]
     np.testing.assert_allclose(rates, np.interp(probes, times, values), rtol=0, atol=1e-12)
     assert problem.breakpoints.between(-1.0, 1000.0) == list(times)
+
+
+def test_condition_on_a_nested_modulo_of_time_compiles():
+    """Test that a condition whose side holds a modulo of time inside another function compiles and switches."""
+    nested = Element.define(
+        'Nested',
+        states={'y': 0.0},
+        laws=lambda s: [Rate(s.y, where(s.y < sin(where(mod(s.t, 2) < 1, 1, 0)), 1, 0))],
+    )
+    problem = compile_system(System(components=[nested('n')]))
+    assert problem.drift(0.5, problem.initial_state, problem.initial_parameters)[0] == 1.0
+    assert problem.drift(1.5, problem.initial_state, problem.initial_parameters)[0] == 0.0

@@ -297,10 +297,10 @@ def breakpoints_of(expressions: Iterable[Any], time: Expression) -> Breakpoints:
                 fixed.add(root)
             for call in _mod_calls(difference):
                 argument, period = call.operands()
-                zero = _linear_root(argument, time)
-                if zero is not None and period.is_numeric():
+                zero, rest = _linear_root(argument, time), difference - call
+                if zero is not None and period.is_numeric() and rest.is_numeric():
                     span = float(period)
-                    offset = float(-(difference - call).subs({time: 0}))
+                    offset = float(-rest)
                     periodic.update({(zero, span), (zero + offset, span)})
                     resolved = True
             unresolved = unresolved or not resolved
