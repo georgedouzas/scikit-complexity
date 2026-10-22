@@ -5,7 +5,7 @@
 groups = ["default", "changelog", "checks", "docs", "formatting", "gallery", "maintenance", "release", "tests"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.1"
-content_hash = "sha256:e4aa12644e0f9f3d15872797a9b40c411a6dc769bf05fa15092ebf5895ca3e89"
+content_hash = "sha256:4f7420632af787155ccc8f523bc9c442dfdeb9eb0d732120bd847c66f5908c80"
 
 [[metadata.targets]]
 requires_python = ">=3.12,<3.14"
@@ -727,6 +727,23 @@ files = [
 ]
 
 [[package]]
+name = "derivative"
+version = "0.6.3"
+requires_python = "<4.0,>=3.9"
+summary = "Numerical differentiation in python."
+groups = ["default"]
+dependencies = [
+    "importlib-metadata>=7.1.0",
+    "numpy>=1.18.3",
+    "scikit-learn<2,>=1",
+    "scipy<2.0.0,>=1.4.1",
+]
+files = [
+    {file = "derivative-0.6.3-py3-none-any.whl", hash = "sha256:e121926a21e13a5ab1db07e10e26a5e805494a1255eac032c2fba309547e64c9"},
+    {file = "derivative-0.6.3.tar.gz", hash = "sha256:72e7fd56e92665f939b5449c4b9ceea88fdf02eda7378cf0a3e961ab0df58181"},
+]
+
+[[package]]
 name = "dill"
 version = "0.4.1"
 requires_python = ">=3.9"
@@ -993,6 +1010,21 @@ files = [
 ]
 
 [[package]]
+name = "h5netcdf"
+version = "1.8.1"
+requires_python = ">=3.9"
+summary = "netCDF4 via h5py"
+groups = ["default"]
+dependencies = [
+    "numpy",
+    "packaging",
+]
+files = [
+    {file = "h5netcdf-1.8.1-py3-none-any.whl", hash = "sha256:a76ed7cfc9b8a8908ea7057c4e57e27307acff1049b7f5ed52db6c2247636879"},
+    {file = "h5netcdf-1.8.1.tar.gz", hash = "sha256:9b396a4cc346050fc1a4df8523bc1853681ec3544e0449027ae397cb953c7a16"},
+]
+
+[[package]]
 name = "humanize"
 version = "4.16.0"
 requires_python = ">=3.10"
@@ -1026,6 +1058,20 @@ groups = ["checks", "docs", "release"]
 files = [
     {file = "idna-3.20-py3-none-any.whl", hash = "sha256:ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c"},
     {file = "idna-3.20.tar.gz", hash = "sha256:a7db850025b95ded1eae8a46181a1a6c56c92c96f0e2b005d9ff8dc0210cab44"},
+]
+
+[[package]]
+name = "importlib-metadata"
+version = "9.0.1"
+requires_python = ">=3.10"
+summary = "Read metadata from Python packages"
+groups = ["default"]
+dependencies = [
+    "zipp>=3.20",
+]
+files = [
+    {file = "importlib_metadata-9.0.1-py3-none-any.whl", hash = "sha256:bba5600596a7e21f3eef53281cf28d6a5195634d2f2b78ff9501a3272c6eaab0"},
+    {file = "importlib_metadata-9.0.1.tar.gz", hash = "sha256:ab830580bc0ef3db61ce8fae716389e5462b67e033018bab6d8f80ef17172f99"},
 ]
 
 [[package]]
@@ -2773,6 +2819,26 @@ files = [
 ]
 
 [[package]]
+name = "pydmd"
+version = "2025.8.1"
+requires_python = ">=3.8"
+summary = "Python Dynamic Mode Decomposition."
+groups = ["default"]
+dependencies = [
+    "h5netcdf",
+    "matplotlib",
+    "numpy",
+    "scikit-learn",
+    "scipy>=1.6.0",
+    "typing-extensions>=4.7.0; python_version < \"3.12\"",
+    "xarray",
+]
+files = [
+    {file = "pydmd-2025.8.1-py3-none-any.whl", hash = "sha256:5a0ae2b46ce2ff0e6076934520d88d5894c3201a292d280d78bfd12480ec44b9"},
+    {file = "pydmd-2025.8.1.tar.gz", hash = "sha256:3f4d1c3d48e33e43430b46dc1f1ad757c507376c23f7cd68e5abaa1ae526205c"},
+]
+
+[[package]]
 name = "pydoclint"
 version = "0.11.1"
 requires_python = ">=3.10"
@@ -2837,6 +2903,24 @@ groups = ["default", "checks", "docs"]
 files = [
     {file = "pyparsing-3.3.3-py3-none-any.whl", hash = "sha256:ece8c00a69cf01b45d0b1dedabb469c90d8caf996d4fda40f147627a122849a4"},
     {file = "pyparsing-3.3.3.tar.gz", hash = "sha256:928ae7e20211f3b6f3915a72f06a0cfd29ab9d24279dd6346b6b1a7146397d36"},
+]
+
+[[package]]
+name = "pysindy"
+version = "2.1.0"
+requires_python = ">=3.10"
+summary = "Sparse Identification of Nonlinear Dynamics"
+groups = ["default"]
+dependencies = [
+    "derivative>=0.6.2",
+    "numpy>=2.0",
+    "scikit-learn!=1.5.0,!=1.6.0,!=1.7.1,>=1.1",
+    "scipy",
+    "typing-extensions",
+]
+files = [
+    {file = "pysindy-2.1.0-py3-none-any.whl", hash = "sha256:b75c1bc760b728eac52a42ee3e3dd97454175e49df29124740ea7dee43a8be39"},
+    {file = "pysindy-2.1.0.tar.gz", hash = "sha256:369659db632e72e670b64cfd79fd3c0b9efc8e3a36f0c35f4f11b844e863bb08"},
 ]
 
 [[package]]
@@ -3152,6 +3236,22 @@ files = [
     {file = "rerun_sdk-0.39.0-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:3af91fe364bf2af8e72bf1ab4155ae5acb2e1cf1f1c54770d371b80085e72ed9"},
     {file = "rerun_sdk-0.39.0-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:42d679739f42324b5a58354fc4ded5ecfcb949c4169df2053e8f490f1be68c8f"},
     {file = "rerun_sdk-0.39.0-cp310-abi3-win_amd64.whl", hash = "sha256:893229364933cf71efc486c0f666e1d5c112c436faa4882a0c300571f4120863"},
+]
+
+[[package]]
+name = "reservoirpy"
+version = "0.4.2"
+requires_python = ">=3.9"
+summary = "A simple and flexible code for Reservoir Computing architectures like Echo State Networks."
+groups = ["default"]
+dependencies = [
+    "joblib>=1.3.0",
+    "numpy>=1.21.1",
+    "scipy>=1.4.1",
+]
+files = [
+    {file = "reservoirpy-0.4.2-py3-none-any.whl", hash = "sha256:cb6f61b2a3b90986d4cc89e14aa0c0b92632711272ff6f7dcd94e0c973217432"},
+    {file = "reservoirpy-0.4.2.tar.gz", hash = "sha256:0328c27635bf65e05e186432aabd34e77fbb96dc49fcb10767b8a568b385dc75"},
 ]
 
 [[package]]
@@ -3719,4 +3819,15 @@ dependencies = [
 files = [
     {file = "xarray-2026.9.0-py3-none-any.whl", hash = "sha256:fe349fa871628b1a0a5217af3fe1283a2862d5485156e6eda354fffb81c3bb7c"},
     {file = "xarray-2026.9.0.tar.gz", hash = "sha256:6abc69694c22fa1f0fb2f357ff4e41d88beb4477ed71091f944b7dbf67ed54fe"},
+]
+
+[[package]]
+name = "zipp"
+version = "4.1.2"
+requires_python = ">=3.10"
+summary = "Backport of pathlib-compatible object wrapper for zip files"
+groups = ["default"]
+files = [
+    {file = "zipp-4.1.2-py3-none-any.whl", hash = "sha256:b30cb6cd253122169c47de245ca24a86bac2a5d3802ba15bf7ba6414eb9e144d"},
+    {file = "zipp-4.1.2.tar.gz", hash = "sha256:cf474b90b07ea932637e17c6b9479de2b2882900b0d311bdaf4f5c000a15a97f"},
 ]

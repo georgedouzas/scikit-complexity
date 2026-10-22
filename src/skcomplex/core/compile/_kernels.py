@@ -270,9 +270,16 @@ class Kernel:
         """Compile the symbolic outputs and the arguments of calls into one NumPy function."""
         self._slots: list[tuple[int, int]] = []
         expressions: list[Expression] = []
+        calls: dict[tuple[int, tuple[Expression, ...]], tuple[int, int]] = {}
         for output in self.outputs:
+            key = (id(output.function), output.arguments) if output.arguments is not None else None
+            if key is not None and key in calls:
+                self._slots.append(calls[key])
+                continue
             parts = [output.expression] if output.expression is not None else list(output.arguments or ())
             self._slots.append((len(expressions), len(parts)))
+            if key is not None:
+                calls[key] = self._slots[-1]
             expressions.extend(parts)
         used = symbols_of(expressions) - {self.time}
         unknown = used - set(self.references)
