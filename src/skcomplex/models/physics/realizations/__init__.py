@@ -1,4 +1,4 @@
-"""Realizations shared by the physics packages: named forces, potentials, and thermostats of particles."""
+"""Realizations shared by the physics packages: named particle forces and thermostats, and quantum species."""
 
 from ._particles import (
     ConstantForce,
@@ -10,6 +10,7 @@ from ._particles import (
     SoftSphere,
     Spring,
 )
+from ._quantum import Mode, Qubit, Site, Spin
 
 __all__: list[str] = [
     'ConstantForce',
@@ -18,6 +19,10 @@ __all__: list[str] = [
     'LangevinThermostat',
     'LennardJones',
     'LinearDrag',
+    'Mode',
+    'Qubit',
+    'Site',
     'SoftSphere',
+    'Spin',
     'Spring',
 ]

@@ -61,20 +61,16 @@ from ._matching import Match, matches, random_pairing
 from ._memory import memory
 from ._meshes import Mesh
 from ._observables import Observable, reduce_values
-from ._operators import Dissipator, Generator, LocalOperator, Operator
+from ._operators import Dissipator, Generator, LocalOperator, Operator, sparse_matrix
 from ._particles import PairPotential, Particle, Potential
 from ._phases import Phase
 from ._quantum import (
-    Exchange,
-    Mode,
     QuantumSystem,
     QuantumView,
-    Qubit,
-    Site,
-    Spin,
     expectation,
     hilbert_state,
     is_quantum,
+    neighbour_pairs,
     view_of,
 )
 from ._reductions import Reduction, count, has_reductions, maximum, mean, minimum, reductions_in, total, variance
@@ -123,7 +119,6 @@ __all__: list[
     'Energy',
     'Equation',
     'Event',
-    'Exchange',
     'Extremal',
     'Field',
     'Flux',
@@ -142,7 +137,6 @@ __all__: list[
     'Match',
     'MesaSystem',
     'Mesh',
-    'Mode',
     'Module',
     'Move',
     'Neighborhood',
@@ -161,7 +155,6 @@ __all__: list[
     'Prototile',
     'QuantumSystem',
     'QuantumView',
-    'Qubit',
     'Rate',
     'Reduction',
     'Relaxation',
@@ -172,10 +165,8 @@ __all__: list[
     'Sample',
     'Sampler',
     'Sink',
-    'Site',
     'Source',
     'Space',
-    'Spin',
     'Substitution',
     'Symbols',
     'System',
@@ -219,6 +210,7 @@ __all__: list[
     'mod',
     'neighbor_sum',
     'neighbors',
+    'neighbour_pairs',
     'normal',
     'pulse',
     'pulse_train',
@@ -230,6 +222,7 @@ __all__: list[
     'series',
     'shift_arguments',
     'shift_member',
+    'sparse_matrix',
     'step',
     'structure_of',
     'total',

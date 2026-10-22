@@ -1,25 +1,25 @@
 """Test the QuTiP solvers of quantum systems."""
 
 from operator import attrgetter
+from typing import ClassVar
 
 import numpy as np
 import pytest
 
-from skcomplex.core.base import SolverError, parameter
+from skcomplex.core.base import SolverError, parameter, role
 from skcomplex.core.compile import compile_system
 from skcomplex.core.model import (
     Dissipator,
-    Exchange,
     Generator,
+    Interaction,
     LatticeSpace,
     QuantumSystem,
-    Qubit,
-    Spin,
     System,
     expectation,
 )
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import LindbladEvolution, QuantumTrajectories, UnitaryEvolution
+from skcomplex.models.physics.realizations import Qubit, Spin
 
 OMEGA = 2.0
 GAMMA = 0.5
@@ -32,8 +32,11 @@ Dephased = Qubit.define(
 )
 
 
-class XXZ(Exchange):
+class XXZ(Interaction):
     """Anisotropic exchange."""
+
+    over: ClassVar[str] = 'neighbours'
+    target: str = role()
 
     delta: float = parameter(1.0)
 

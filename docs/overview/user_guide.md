@@ -1701,9 +1701,9 @@ state of every subsystem is a basis label, an index, or a vector.
 
 Laws receive the local operators of their subsystems, which combine by sums, products, numbers, and symbolic
 coefficients of parameters and time into an `Operator`. `Generator(operator)` adds to the Hamiltonian, with
-`ħ = 1`, and `Dissipator(operator, rate)` adds a Lindblad dissipator, which makes the system open. An `Exchange`
-interaction is written once for a bond, with `s.first` and `s.second`, and acts on every pair of neighbours of the
-space of its group. Compiling checks that the Hamiltonian is Hermitian and that the dimension stays within the
+`ħ = 1`, and `Dissipator(operator, rate)` adds a Lindblad dissipator, which makes the system open. An interaction
+with the binding `over = 'neighbours'` is written once for a bond, with `s.first` and `s.second`, and acts on every pair
+of neighbours of the space of the group its one role binds. Compiling checks that the Hamiltonian is Hermitian and that the dimension stays within the
 `max_dimension` of a `QuantumSystem`, which also takes a whole-system initial state such as `'ground'`.
 
 ```python
@@ -1711,12 +1711,17 @@ from operator import attrgetter
 
 import numpy as np
 
-from skcomplex.core.base import parameter
-from skcomplex.core.model import Exchange, Generator, LatticeSpace, QuantumSystem, Spin, expectation
+from typing import ClassVar
+
+from skcomplex.core.base import parameter, role
+from skcomplex.core.model import Generator, Interaction, LatticeSpace, QuantumSystem, expectation
 from skcomplex.core.runtime import Simulation
+from skcomplex.models.physics.realizations import Spin
 
 
-class Coupling(Exchange):
+class Coupling(Interaction):
+    over: ClassVar[str] = 'neighbours'
+    target: str = role()
     J: float = parameter(1.0)
 
     def laws(self, s):

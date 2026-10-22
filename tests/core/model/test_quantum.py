@@ -8,21 +8,18 @@ import qutip
 from skcomplex.core.base import ValidationError, symbol
 from skcomplex.core.model import (
     Dissipator,
-    Exchange,
     Generator,
     LatticeSpace,
     LocalOperator,
-    Mode,
     NetworkSpace,
     Operator,
     QuantumSystem,
     QuantumView,
-    Qubit,
-    Site,
-    Spin,
     Symbols,
     expectation,
+    neighbour_pairs,
 )
+from skcomplex.models.physics.realizations import Mode, Qubit, Site, Spin
 
 
 def _namespace(element, key):
@@ -122,15 +119,14 @@ def test_laws_reject_values_that_are_not_operators():
         Dissipator(q.minus, 'fast')
 
 
-def test_pairs_lists_lattice_and_network_bonds():
-    """Test that exchange bonds are the neighbours of periodic and open lattices and of networks."""
-    exchange = Exchange('e', target='chain')
-    assert exchange.pairs(LatticeSpace(4), 4) == [(0, 1), (1, 2), (2, 3), (3, 0)]
-    assert exchange.pairs(LatticeSpace(3, boundary='fixed'), 3) == [(0, 1), (1, 2)]
-    assert len(exchange.pairs(LatticeSpace((2, 3)), 6)) == 9
-    assert exchange.pairs(NetworkSpace(nx.path_graph(3)), 3) == [(0, 1), (1, 2)]
+def test_neighbour_pairs_list_lattice_and_network_bonds():
+    """Test that neighbour pairs are the bonds of periodic and open lattices and of networks."""
+    assert neighbour_pairs(LatticeSpace(4), 4) == [(0, 1), (1, 2), (2, 3), (3, 0)]
+    assert neighbour_pairs(LatticeSpace(3, boundary='fixed'), 3) == [(0, 1), (1, 2)]
+    assert len(neighbour_pairs(LatticeSpace((2, 3)), 6)) == 9
+    assert neighbour_pairs(NetworkSpace(nx.path_graph(3)), 3) == [(0, 1), (1, 2)]
     with pytest.raises(ValidationError, match='Neighbours'):
-        exchange.pairs(None, 2)
+        neighbour_pairs(None, 2)
 
 
 def test_site_namespace_has_projectors_and_diagonals():

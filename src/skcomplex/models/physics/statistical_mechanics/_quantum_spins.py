@@ -2,23 +2,21 @@
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
-
-from typing import Any
+from typing import Any, ClassVar
 
 from ....core.base import Domain, ValidationError, parameter, role
 from ....core.model import (
     Dissipator,
-    Exchange,
     Generator,
     Interaction,
     LatticeSpace,
     Operator,
     QuantumSystem,
-    Spin,
     Symbols,
     expectation,
 )
 from ....core.runtime import register_model
+from ..realizations import Spin
 
 INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')
 BOUNDARIES = {'periodic': 'periodic', 'open': 'fixed'}
@@ -61,7 +59,7 @@ def total_magnetization(s: Symbols) -> Operator:
     return sum((member.z for member in s.chain), start=Operator({}))
 
 
-class XXZExchange(Exchange):
+class XXZExchange(Interaction):
     """Exchange `J (S^x_i S^x_j + S^y_i S^y_j + Δ S^z_i S^z_j)` between neighbouring spins.
 
     Args:
@@ -82,6 +80,9 @@ class XXZExchange(Exchange):
         >>> XXZExchange('exchange', target='chain', delta=0.5).delta
         0.5
     """
+
+    over: ClassVar[str] = 'neighbours'
+    target: str = role()
 
     J: float = parameter(default=1.0, domain=Domain.REAL)
     delta: float = parameter(default=1.0, domain=Domain.REAL)

@@ -197,7 +197,8 @@ class UnitaryEvolution(QuantumSolver):
         >>> import numpy as np
         >>> from skcomplex.core.solvers import UnitaryEvolution
         >>> from skcomplex.core.runtime import Simulation
-        >>> from skcomplex.core.model import Generator, Qubit, System, expectation
+        >>> from skcomplex.core.model import Generator, System, expectation
+        >>> from skcomplex.models.physics.realizations import Qubit
         >>> from operator import attrgetter
         >>> Rabi = Qubit.define('Rabi', laws=lambda s: [Generator(s.x / 2)])
         >>> system = System(components=[Rabi('q')])
@@ -238,7 +239,8 @@ class LindbladEvolution(QuantumSolver):
         >>> import numpy as np
         >>> from skcomplex.core.solvers import LindbladEvolution
         >>> from skcomplex.core.runtime import Simulation
-        >>> from skcomplex.core.model import Dissipator, Qubit, System, expectation
+        >>> from skcomplex.core.model import Dissipator, System, expectation
+        >>> from skcomplex.models.physics.realizations import Qubit
         >>> from operator import attrgetter
         >>> Decaying = Qubit.define('Decaying', laws=lambda s: [Dissipator(s.minus, 0.5)])
         >>> system = System(components=[Decaying('q')])
@@ -281,7 +283,8 @@ class QuantumTrajectories(QuantumSolver):
     Examples:
         >>> from skcomplex.core.solvers import QuantumTrajectories
         >>> from skcomplex.core.runtime import Simulation
-        >>> from skcomplex.core.model import Dissipator, Qubit, System, expectation
+        >>> from skcomplex.core.model import Dissipator, System, expectation
+        >>> from skcomplex.models.physics.realizations import Qubit
         >>> from operator import attrgetter
         >>> Decaying = Qubit.define('Decaying', laws=lambda s: [Dissipator(s.minus, 1.0)])
         >>> system = System(components=[Decaying('q')])

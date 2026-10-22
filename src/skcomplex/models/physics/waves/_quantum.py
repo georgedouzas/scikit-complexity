@@ -17,13 +17,13 @@ from ....core.model import (
     LatticeSpace,
     QuantumSystem,
     Rate,
-    Site,
     Symbols,
     System,
     laplacian,
 )
 from ....core.runtime import register_model
 from ....core.solvers import ETDRK4
+from ..realizations import Site
 
 WaveFunction = Element.define(
     'WaveFunction',

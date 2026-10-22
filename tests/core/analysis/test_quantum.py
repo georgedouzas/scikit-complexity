@@ -13,10 +13,11 @@ from skcomplex.core.analysis import (
 )
 from skcomplex.core.base import AnalysisError, ParameterError
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import QuantumSystem, Spin, System
+from skcomplex.core.model import QuantumSystem, System
 from skcomplex.core.runtime import Simulation
 from skcomplex.models import create, describe
 from skcomplex.models.biology.ecology import Population
+from skcomplex.models.physics.realizations import Spin
 from skcomplex.models.physics.statistical_mechanics import total_magnetization
 
 

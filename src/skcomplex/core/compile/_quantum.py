@@ -42,10 +42,10 @@ from ..model import (
     System,
     hilbert_state,
     is_quantum,
+    neighbour_pairs,
     reduce_values,
     view_of,
 )
-from ..model._quantum import _bonds
 from ._fields import spectral_multiplier
 from ._layout import Entry, Layout
 from ._printing import numpy_function
@@ -644,12 +644,19 @@ def _interaction_laws(
     assert isinstance(interaction, Interaction)  # nosec B101: the caller passes interactions only
     parameters = {**_parameter_symbols(node, symbols, None), 't': symbol('t')}
     if type(interaction).over == 'neighbours':
-        path = f'{node.scope}{interaction.target}'
+        roles = list(declarations_of(interaction, VariableKind.ROLE))
+        if len(roles) != 1:
+            error_msg = (
+                f'Interaction {node.path} over neighbours declares the roles {roles}. Declare one role, bound to the '
+                'group whose neighbours it couples.'
+            )
+            raise ValidationError(error_msg)
+        path = f'{node.scope}{getattr(interaction, roles[0])}'
         if path not in groups:
             error_msg = f'Interaction {node.path} over neighbours targets {path}, which is not a quantum group.'
             raise ValidationError(error_msg)
         group = groups[path]
-        for first, second in _bonds(group.space, group.members or 1):
+        for first, second in neighbour_pairs(group.space, group.members or 1):
             namespace = Symbols(first=members[path][first], second=members[path][second], **parameters)
             _collect_laws(laws, f'{node.path} on the bond ({first}, {second})', interaction.laws(namespace))
         return

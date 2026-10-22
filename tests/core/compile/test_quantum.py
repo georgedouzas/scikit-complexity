@@ -1,31 +1,33 @@
 """Test the compilation of quantum systems."""
 
 from operator import attrgetter
+from typing import ClassVar
 
 import numpy as np
 import pytest
 import qutip
 
-from skcomplex.core.base import Form, HilbertSpaceError, IncompatibleLawsError, ValidationError, parameter, symbol
+from skcomplex.core.base import Form, HilbertSpaceError, IncompatibleLawsError, ValidationError, parameter, role, symbol
 from skcomplex.core.compile import ObservableEvaluator, QuantumProblem, compile_system
 from skcomplex.core.model import (
     Dissipator,
-    Exchange,
     Generator,
+    Interaction,
     LatticeSpace,
-    Mode,
     QuantumSystem,
-    Qubit,
     Rate,
-    Spin,
     System,
     expectation,
 )
 from skcomplex.models.biology.ecology import Population
+from skcomplex.models.physics.realizations import Mode, Qubit, Spin
 
 
-class Heisenberg(Exchange):
+class Heisenberg(Interaction):
     """Isotropic exchange with a coupling."""
+
+    over: ClassVar[str] = 'neighbours'
+    target: str = role()
 
     J: float = parameter(1.0)
 
