@@ -59,9 +59,10 @@ def test_two_time_correlation_equilibrium_has_no_aging():
 def test_two_time_correlation_aging_on_two_domains():
     """Test that an Ising quench and the trap model age: correlations grow with the age and collapse on tau / t_w."""
     system = create('ising', size=256, temperature=1.0, sampler='glauber')
-    frames = fields_of(Simulation(system, dt=1).run(until=400).trajectory_)
+    # One quench gives a ratio spread between 0.01 and 0.13 by seed, so the curves average four seeded quenches.
+    runs = [fields_of(Simulation(system, dt=1, random_state=seed).run(until=400).trajectory_) for seed in range(4, 8)]
     waiting, lags = [50, 100, 200], np.arange(0, 200)
-    ising = two_time_correlation(frames[None], waiting, lags)
+    ising = two_time_correlation(np.stack(runs), waiting, lags)
     horizon = 1000.0
     renewals = _trap_renewals(np.random.default_rng(1), 20_000, horizon)
     grid = np.arange(0, 1001, 5.0)
