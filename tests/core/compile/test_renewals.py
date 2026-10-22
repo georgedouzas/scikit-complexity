@@ -8,9 +8,9 @@ from skcomplex.core.compile import compile_system
 from skcomplex.core.model import (
     Element,
     FractionalNoise,
+    Jump,
     Noise,
     Rate,
-    Renewal,
     System,
     Update,
     draw,
@@ -21,7 +21,7 @@ from skcomplex.core.model import (
 Counter = Element.define(
     'Counter',
     states={'n': 0.0},
-    laws=lambda s: [Renewal(draw('wait', 'expon'), {s.n: s.n + 1})],
+    laws=lambda s: [Jump(waiting=draw('wait', 'expon'), reset={s.n: s.n + 1})],
 )
 Decay = Element.define('Decay', states={'y': 1.0}, laws=lambda s: [Rate(s.y, -s.y)])
 
@@ -32,7 +32,7 @@ def _renewal(waiting, reset=None):
         'Renewing',
         states={'x': 0.0},
         parameters={'a': 1.0},
-        laws=lambda s: [Renewal(waiting(s), reset(s) if reset else None)],
+        laws=lambda s: [Jump(waiting=waiting(s), reset=reset(s) if reset else None)],
     )
 
 
@@ -70,7 +70,7 @@ def test_compile_system_keeps_the_form_of_rate_laws_with_renewals():
     walker = Element.define(
         'Walker',
         states={'x': 0.0, 'v': 1.0},
-        laws=lambda s: [Rate(s.x, s.v), Renewal(draw('wait', 'expon'), {s.v: -s.v})],
+        laws=lambda s: [Rate(s.x, s.v), Jump(waiting=draw('wait', 'expon'), reset={s.v: -s.v})],
     )
     assert compile_system(System(components=[walker('w')])).form is Form.ODE
 

@@ -191,11 +191,19 @@ class Noise:
 
 @dataclass(frozen=True)
 class Jump:
-    """Random event that changes states by fixed increments at a given rate.
+    """Random event that changes states, on an exponential clock of a given rate or on a clock of drawn waiting times.
+
+    With a `rate`, the event fires at the times of a Poisson process of that propensity and changes states by fixed
+    increments, as in continuous-time Markov chains. With a `waiting` time instead, it fires after a waiting time drawn
+    anew at every firing, and applies its `reset`, as in renewal processes such as the jumps of a random walk. Every
+    member of a group then fires on its own clock, draws in the waiting time and the reset take a fresh value at every
+    firing, and the trajectory records every firing and counts them in `<label>.renewals`. Jumps on such clocks
+    combine with rate and noise laws, which evolve the states between firings.
 
     Args:
         rate:
-            The propensity of the event, as a symbolic expression or a callable `f(t, values)`.
+            The propensity of the event, as a symbolic expression or a callable `f(t, values)`, or `None` with a
+            waiting time.
 
         changes:
             A mapping from the symbol of a scalar state to its increment when the event fires. In a law of a group,
@@ -203,6 +211,20 @@ class Jump:
             member `i + k` with the boundary of the read. Past a fixed end that change is left out, so the quantity
             leaves the group. Offsets follow the member order, which on a lattice of more than one dimension does not
             follow lattice neighbours.
+
+        waiting:
+            The waiting time until the next firing, usually a draw from a distribution with nonnegative support,
+            such as `draw('wait', 'pareto', b=alpha)`, or `None` for the exponential clock of `rate`.
+
+        reset:
+            With a waiting time, a mapping from state symbol to its new value, which may hold draws, or `None`.
+
+        label:
+            With a waiting time, the name of the firings in the trajectory, or `None` for the component's path.
+
+    Raises:
+        ValidationError:
+            The jump has both or neither of a rate and a waiting time, or an increment holds a symbol.
 
     Examples:
         >>> from skcomplex.core.base import symbol
@@ -213,7 +235,15 @@ class Jump:
         >>> n = symbol('n')
         >>> Jump(n, {n: -1, shift_member(n, 1): 1}).changes[shift_member(n, 1)]
         1
+        >>> from skcomplex.core.model import draw
+        >>> Jump(waiting=draw('wait', 'expon'), reset={n: 0}).reset[n]
+        0
     """
+
+    @property
+    def renewal(self) -> 'Renewal | None':
+        """Renewal the compiler runs for a jump on a clock of waiting times, or `None` for an exponential clock."""
+        return None if self.waiting is None else Renewal(self.waiting, self.reset, self.label)
 
     law_kind: ClassVar[LawKind] = LawKind.JUMP
     requires: ClassVar[Requires] = Requires(
@@ -221,11 +251,20 @@ class Jump:
         domains={DomainKind.REAL, DomainKind.INTEGER, DomainKind.BOOLEAN, DomainKind.CATEGORICAL},
     )
 
-    rate: object
+    rate: object = None
     changes: Mapping[Expression, float] = field(default_factory=dict)
+    waiting: object = None
+    reset: Mapping[Any, object] | None = None
+    label: str | None = None
 
     def __post_init__(self) -> None:
-        """Check the rate and the increments of the jump."""
+        """Check the clock and the increments of the jump."""
+        if (self.rate is None) == (self.waiting is None):
+            error_msg = 'A jump fires at a rate or after a waiting time. Give exactly one of them.'
+            raise ValidationError(error_msg)
+        if self.waiting is not None:
+            _check_value(self, 'waiting', 'waiting time of a jump')
+            return
         _check_value(self, 'rate', f'rate of the jump of {", ".join(map(str, self.changes))}')
         for state, increment in self.changes.items():
             if not _is_number(increment):
@@ -474,7 +513,7 @@ class FractionalNoise(Noise):
 
 @dataclass(frozen=True)
 class Renewal:
-    """Renewal of states after waiting times drawn anew at every renewal, such as the jumps of a random walk.
+    """Renewal of states after waiting times drawn anew at every renewal, which the compiler runs for a waiting `Jump`.
 
     Every member of a group renews on its own clock. A renewal applies its reset to the states all at once, then
     draws the next waiting time from the states after the reset. Draws in the waiting time and the reset take a fresh
@@ -492,13 +531,6 @@ class Renewal:
         label:
             The name of the renewal in the trajectory, or `None` for the component's path.
 
-    Examples:
-        >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.model import Renewal, draw, normal
-        >>> x = symbol('x')
-        >>> renewal = Renewal(draw('wait', 'expon'), {x: x + normal('jump')})
-        >>> renewal.reset[x]
-        x + normal_jump(0, 1)
     """
 
     law_kind: ClassVar[LawKind] = LawKind.JUMP

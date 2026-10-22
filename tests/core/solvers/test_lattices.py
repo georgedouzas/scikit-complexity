@@ -16,6 +16,7 @@ from skcomplex.core.model import (
     Neighborhood,
     OuterTotalistic,
     Relaxation,
+    Sample,
     Sampler,
     System,
     Table,
@@ -251,7 +252,7 @@ def test_monte_carlo_energy_change_is_symbolic():
         'Spin',
         states={'spin': state(1.0, domain=Domain.INTEGER)},
         parameters={'J': 1.0, 'temperature': 1.0},
-        laws=lambda s: [Energy(-s.J * s.spin * sum(neighbors(s.spin, nearest)), nearest), Move.flip(s.spin)],
+        laws=lambda s: [Sample(Energy(-s.J * s.spin * sum(neighbors(s.spin, nearest)), nearest), Move.flip(s.spin))],
     )
     problem = compile_system(System(components=[Spin.lattice('spins', LatticeSpace((4, 4)))]))
     sampling = problem.lattice[0]
@@ -262,16 +263,15 @@ def test_monte_carlo_energy_change_is_symbolic():
 
 
 def test_monte_carlo_needs_one_energy_and_move():
-    """Test that Monte Carlo laws without a move are rejected."""
+    """Test that two Monte Carlo laws of one component are rejected."""
     nearest = Neighborhood.von_neumann()
     Lonely = Element.define(
         'Lonely',
         states={'spin': 1.0},
         parameters={'temperature': 1.0},
         laws=lambda s: [
-            Energy(-s.spin * sum(neighbors(s.spin, nearest)), nearest),
-            Move.flip(s.spin),
-            Move.flip(s.spin),
+            Sample(Energy(-s.spin * sum(neighbors(s.spin, nearest)), nearest), Move.flip(s.spin)),
+            Sample(Energy(-s.spin * sum(neighbors(s.spin, nearest)), nearest), Move.flip(s.spin)),
         ],
     )
     with pytest.raises(ValidationError, match='one energy, one move'):

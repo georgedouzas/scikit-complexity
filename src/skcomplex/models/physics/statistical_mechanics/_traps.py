@@ -10,7 +10,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import ContinuousSpace, Element, Law, Renewal, Symbols, System, draw, uniform
+from ....core.model import ContinuousSpace, Element, Jump, Law, Symbols, System, draw, uniform
 from ....core.runtime import register_model
 
 
@@ -61,7 +61,7 @@ class TrapWalker(Element):
         """
         reset = {item: uniform(f'place{index}') for index, item in enumerate(s.x)}
         waiting = draw('escape', 'expon', scale=s.tau0 * exp(s.E / s.T))
-        return [Renewal(waiting, {**reset, s.E: draw('depth', 'expon')}, label='escapes')]
+        return [Jump(waiting=waiting, reset={**reset, s.E: draw('depth', 'expon')}, label='escapes')]
 
 
 @register_model(

@@ -16,6 +16,7 @@ from ....core.model import (
     Law,
     Move,
     Neighborhood,
+    Sample,
     Sampler,
     Symbols,
     System,
@@ -73,7 +74,7 @@ class IsingSpin(Element):
                 The laws of the component.
         """
         energy = -s.J * s.spin * sum(neighbors(s.spin, NEAREST)) - s.h * s.spin
-        return [Energy(energy, NEAREST), Move.flip(s.spin), Sampler(self.sampler, s.temperature)]
+        return [Sample(Energy(energy, NEAREST), Move.flip(s.spin), Sampler(self.sampler, s.temperature))]
 
 
 class PottsSpin(Element):
@@ -123,9 +124,11 @@ class PottsSpin(Element):
         """
         energy = -s.J * sum(where(s.color == item, 1, 0) for item in neighbors(s.color, NEAREST))
         return [
-            Energy(energy, NEAREST),
-            Move.random_value(s.color, range(self.q)),
-            Sampler(self.sampler, s.temperature),
+            Sample(
+                Energy(energy, NEAREST),
+                Move.random_value(s.color, range(self.q)),
+                Sampler(self.sampler, s.temperature),
+            ),
         ]
 
 
@@ -171,7 +174,7 @@ class XYSpin(Element):
                 The laws of the component.
         """
         energy = -s.J * sum(cos(s.theta - item) for item in neighbors(s.theta, NEAREST))
-        return [Energy(energy, NEAREST), Move.rotate(s.theta, self.width), Sampler('metropolis', s.temperature)]
+        return [Sample(Energy(energy, NEAREST), Move.rotate(s.theta, self.width), Sampler('metropolis', s.temperature))]
 
 
 def _square(size: int | Sequence[int]) -> tuple[int, ...]:

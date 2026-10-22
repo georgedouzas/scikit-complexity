@@ -54,7 +54,7 @@ through the conformance suite.
 
 ## 4. Laws and general primitives
 
-- [ ] 4.1 Classify every law kind by time semantics. Absorb `Renewal` into `Jump` with a clock, and absorb `Energy`,
+- [x] 4.1 Classify every law kind by time semantics. Absorb `Renewal` into `Jump` with a clock, and absorb `Energy`,
   `Move`, and `Sampler` into `Sample` with Metropolis as the only core acceptance.
 - [ ] 4.2 Add `Transfer`, `Invariant`, `Match` with random pairing, and `parameter(adaptive=True)`, and verify their
   scenarios.

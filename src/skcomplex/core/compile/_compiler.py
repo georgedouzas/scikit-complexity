@@ -73,8 +73,8 @@ from ..model import (
     Rate,
     Reduction,
     Relaxation,
-    Renewal,
     Rule,
+    Sample,
     Sampler,
     Space,
     Symbols,
@@ -93,7 +93,7 @@ from ..model import (
     variance,
     where,
 )
-from ..model._laws import NOISE_CONVENTIONS
+from ..model._laws import NOISE_CONVENTIONS, Renewal
 from ._backends import Backend, resolve_backend
 from ._complex import modulus_form, split_law
 from ._fields import DiffusiveLimit, FieldLowering, has_operators
@@ -170,6 +170,7 @@ ASSIGNED_KINDS = (Update, Boundary)
 MEMBER_REFERENCE = re.compile(r'^(?P<path>.+)\[(?P<index>-?\d+)\]$')
 LATTICE_LAWS = (LocalRule, Drive, Relaxation, Extremal, Energy, Move, Sampler)
 KERNEL_FREE = (*LATTICE_LAWS, Flux, Flow, Auxiliary)
+DECLARED_FREE = (LocalRule, Drive, Relaxation, Extremal, Flux, Flow, Auxiliary)
 
 
 def _renamed(value: Expression, mapping: dict[Expression, Expression]) -> Expression:
@@ -867,26 +868,42 @@ def _state_name(spec: _KernelSpec, target: Expression) -> str:
     return reference.entry.name if reference is not None else str(target)
 
 
+def _unpacked(laws: object) -> object:
+    """Return laws with jumps on clocks of waiting times as renewals and samples as their energy, move, and sampler."""
+    if not isinstance(laws, list | tuple):
+        return laws
+    unpacked: list[object] = []
+    for law in laws:
+        if isinstance(law, Jump) and law.renewal is not None:
+            unpacked.append(law.renewal)
+        elif isinstance(law, Sample):
+            unpacked += law.parts
+        else:
+            unpacked.append(law)
+    return unpacked
+
+
 def _collect_laws(spec: _KernelSpec, component: object, flows: StockFlowPass, *, expand: bool = True) -> list[Law]:
     """Return the laws a component returns for its namespace after checking their kinds and expanding its flows.
 
-    Without `expand`, flows and auxiliaries are kept as declared, as the census of validation reads them.
+    Jumps on clocks of waiting times become renewals and samples their energy, move, and sampler, as the steppers run
+    them. Without `expand`, the laws are kept as declared, as the census of validation reads them.
     """
-    laws = component.laws(spec.namespace)  # type: ignore[attr-defined]
-    kinds = (Rate, Noise, Jump, Update, Transition, Emission, Boundary, Rule, Equation, Event, Renewal, *KERNEL_FREE)
-    if not isinstance(laws, list | tuple) or not all(isinstance(law, kinds) for law in laws):
+    declared = component.laws(spec.namespace)  # type: ignore[attr-defined]
+    kinds = (Rate, Noise, Jump, Update, Transition, Emission, Boundary, Rule, Equation, Event, Sample, *DECLARED_FREE)
+    if not isinstance(declared, list | tuple) or not all(isinstance(law, kinds) for law in declared):
         error_msg = (
             f'`laws` of {spec.owner} must return a list of Rate, Noise, FractionalNoise, Jump, Update, Transition, '
-            'Emission, Boundary, Rule, Equation, Event, Renewal, LocalRule, Drive, Relaxation, Extremal, Energy, Move, '
-            'Sampler, Flux, Flow, or Auxiliary laws.'
+            'Emission, Boundary, Rule, Equation, Event, LocalRule, Drive, Relaxation, Extremal, Sample, Flux, Flow, or '
+            'Auxiliary laws.'
         )
         raise ValidationError(error_msg)
-    if spec.pairs is not None and not all(isinstance(law, Rate) for law in laws):
+    if spec.pairs is not None and not all(isinstance(law, Rate) for law in declared):
         error_msg = f'Pair interaction {spec.owner} returns laws other than Rate, which pair interactions do not take.'
         raise ValidationError(error_msg)
     if not expand:
-        return list(laws)
-    laws = flows.expand(spec, list(laws))
+        return list(declared)
+    laws = flows.expand(spec, list(_unpacked(declared)))
     return [item for law in laws for item in split_law(law, spec.owner, lambda target: _state_name(spec, target))]
 
 
@@ -2215,6 +2232,10 @@ def _law_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
 
     A rule acts for the first agent group among its roles, or for its first role when none is an agent group.
     """
+    if isinstance(law, Jump) and law.renewal is not None:
+        law = law.renewal
+    if isinstance(law, Sample):
+        law = law.energy
     if isinstance(law, Rule):
         paths = [path for value in spec.roles.values() for path in ([value] if isinstance(value, str) else value)]
         return next((path for path in paths if path in agents), next(iter(paths), spec.owner))

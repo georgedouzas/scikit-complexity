@@ -14,6 +14,7 @@ from ....core.model import (
     Law,
     Move,
     NetworkSpace,
+    Sample,
     Sampler,
     Symbols,
     System,
@@ -74,7 +75,7 @@ class GraphIsingSpin(Element):
                 The laws of the component.
         """
         energy = -s.J * s.spin * neighbor_sum(adjacent(s.spin)) - s.h * s.spin
-        return [Energy(energy, Adjacency()), Move.flip(s.spin), Sampler(self.sampler, s.temperature, 'colored')]
+        return [Sample(Energy(energy, Adjacency()), Move.flip(s.spin), Sampler(self.sampler, s.temperature, 'colored'))]
 
 
 @register_model(

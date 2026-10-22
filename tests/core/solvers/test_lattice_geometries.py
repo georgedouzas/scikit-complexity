@@ -21,6 +21,7 @@ from skcomplex.core.model import (
     Neighborhood,
     NetworkSpace,
     OuterTotalistic,
+    Sample,
     Sampler,
     System,
     Table,
@@ -186,9 +187,11 @@ def test_neighbor_sum_ignores_padding():
         states={'theta': 0.0},
         parameters={'J': 1.3, 'temperature': 0.5},
         laws=lambda s: [
-            Energy(-s.J * neighbor_sum(cos(s.theta - adjacent(s.theta))), Adjacency()),
-            Move.rotate(s.theta, 1.0),
-            Sampler('metropolis', s.temperature, schedule='colored'),
+            Sample(
+                Energy(-s.J * neighbor_sum(cos(s.theta - adjacent(s.theta))), Adjacency()),
+                Move.rotate(s.theta, 1.0),
+                Sampler('metropolis', s.temperature, schedule='colored'),
+            ),
         ],
     )
     graph = nx.star_graph(4)
@@ -232,9 +235,11 @@ def test_colored_schedule_partitions_triangular_lattice():
         states={'spin': 1.0},
         parameters={'temperature': 2.0},
         laws=lambda s: [
-            Energy(-s.spin * sum(neighbors(s.spin, Neighborhood.triangular())), Neighborhood.triangular()),
-            Move.flip(s.spin),
-            Sampler('metropolis', s.temperature, schedule='colored'),
+            Sample(
+                Energy(-s.spin * sum(neighbors(s.spin, Neighborhood.triangular())), Neighborhood.triangular()),
+                Move.flip(s.spin),
+                Sampler('metropolis', s.temperature, schedule='colored'),
+            ),
         ],
     )
     space = LatticeSpace((12, 12), geometry='triangular')

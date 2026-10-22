@@ -887,6 +887,43 @@ class Sampler:
 
 
 @dataclass(frozen=True)
+class Sample:
+    """Monte Carlo law that samples states by moves accepted from the change of an energy, one sweep per unit of time.
+
+    Args:
+        energy:
+            The energy of a site and its neighbourhood.
+
+        move:
+            The move proposed at a site.
+
+        sampler:
+            The acceptance of moves, with its temperature and schedule, or `None` for Metropolis acceptance at the
+            parameter `temperature` of the component.
+
+    Examples:
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.model import Energy, Move, Neighborhood, Sample, Sampler
+        >>> spin = symbol('spin')
+        >>> law = Sample(Energy(-spin, Neighborhood.von_neumann()), Move.flip(spin), Sampler('glauber', 2.0))
+        >>> law.sampler.kind
+        'glauber'
+    """
+
+    law_kind: ClassVar[LawKind] = LawKind.SAMPLE
+    requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
+
+    energy: Energy
+    move: Move
+    sampler: Sampler | None = None
+
+    @property
+    def parts(self) -> list[Energy | Move | Sampler]:
+        """Energy, move, and sampler, as the compiler reads them."""
+        return [self.energy, self.move] if self.sampler is None else [self.energy, self.move, self.sampler]
+
+
+@dataclass(frozen=True)
 class Extremal:
     """Law that applies a rule to the site with the smallest or largest value of a key state and to its neighbours.
 

@@ -17,6 +17,7 @@ from ....core.model import (
     Move,
     Neighborhood,
     Observable,
+    Sample,
     Sampler,
     Symbols,
     System,
@@ -112,7 +113,9 @@ class BondSpin(Element):
         """
         couplings = (s.J_up, s.J_left, s.J_right, s.J_down)
         field = sum(coupling * other for coupling, other in zip(couplings, neighbors(s.spin, NEAREST), strict=True))
-        return [Energy(-s.spin * (field + s.h), NEAREST), Move.flip(s.spin), Sampler('metropolis', s.temperature)]
+        return [
+            Sample(Energy(-s.spin * (field + s.h), NEAREST), Move.flip(s.spin), Sampler('metropolis', s.temperature)),
+        ]
 
 
 class MattisSpin(BondSpin):

@@ -13,7 +13,8 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
 from ..base import Expression, SolverError, SymbolicVector, ValidationError, components_of, symbol, symbols_of
-from ..model import Draw, Renewal, draws_in, has_reductions, is_draw
+from ..model import Draw, draws_in, has_reductions, is_draw
+from ..model._laws import Renewal
 from ._kernels import Reference, Source
 from ._printing import numpy_function
 from ._problem import RenewalRecord

@@ -8,7 +8,7 @@ import rerun as rr
 
 from skcomplex.core.base import Form, SolverError
 from skcomplex.core.compile import RenewalRecord, compile_system
-from skcomplex.core.model import Element, Rate, Renewal, System, bernoulli, draw, mean, normal
+from skcomplex.core.model import Element, Jump, Rate, System, bernoulli, draw, mean, normal
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4, RenewalStepper, ScipyODE
 from skcomplex.core.viz import RerunObserver
@@ -16,30 +16,30 @@ from skcomplex.core.viz import RerunObserver
 Counter = Element.define(
     'Counter',
     states={'n': 0.0},
-    laws=lambda s: [Renewal(draw('wait', 'expon'), {s.n: s.n + 1}, label='ticks')],
+    laws=lambda s: [Jump(waiting=draw('wait', 'expon'), reset={s.n: s.n + 1}, label='ticks')],
 )
 Resetting = Element.define(
     'Resetting',
     states={'x': 0.0},
-    laws=lambda s: [Renewal(draw('wait', 'expon'), {s.x: draw('value', 'norm', loc=2, scale=3)})],
+    laws=lambda s: [Jump(waiting=draw('wait', 'expon'), reset={s.x: draw('value', 'norm', loc=2, scale=3)})],
 )
 Kicked = Element.define(
     'Kicked',
     states={'a': 0.0, 'b': 0.0},
-    laws=lambda s: [Renewal(draw('wait', 'expon'), {s.a: normal('kick', 0, 1), s.b: -normal('kick', 0, 1)})],
+    laws=lambda s: [Jump(waiting=draw('wait', 'expon'), reset={s.a: normal('kick', 0, 1), s.b: -normal('kick', 0, 1)})],
 )
 Waiting = Element.define(
     'Waiting',
     states={'n': 0.0},
     parameters={'alpha': 0.5},
-    laws=lambda s: [Renewal(draw('wait', 'pareto', b=s.alpha), {s.n: s.n + 1})],
+    laws=lambda s: [Jump(waiting=draw('wait', 'pareto', b=s.alpha), reset={s.n: s.n + 1})],
 )
 Flier = Element.define(
     'Flier',
     states={'x': 0.0, 'v': 1.0},
     laws=lambda s: [
         Rate(s.x, s.v),
-        Renewal(draw('flight', 'pareto', b=1.5, scale=0.5), {s.v: 2 * bernoulli('sign', 0.5) - 1}),
+        Jump(waiting=draw('flight', 'pareto', b=1.5, scale=0.5), reset={s.v: 2 * bernoulli('sign', 0.5) - 1}),
     ],
 )
 Following = Element.define(
@@ -47,7 +47,7 @@ Following = Element.define(
     states={'x': 0.0},
     laws=lambda s: [
         Rate(s.x, mean(s.x) - s.x + 1),
-        Renewal(draw('wait', 'expon'), {s.x: s.x + normal('jump')}),
+        Jump(waiting=draw('wait', 'expon'), reset={s.x: s.x + normal('jump')}),
     ],
 )
 

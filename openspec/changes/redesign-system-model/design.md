@@ -170,7 +170,8 @@ dissipator is, and an energy operator generating unitary flow is better named fo
 
 The core holds each primitive in its general form, with at most one neutral default:
 - `Match` defaults to random pairing;
-- `Sample` defaults to Metropolis acceptance;
+- `Sample` defaults to Metropolis acceptance, and also offers the general Glauber and heat-bath rules, which are
+  Monte Carlo algorithms rather than realizations of a field;
 - `Jump` defaults to an exponential clock.
 
 Every specific realization lives in the `skcomplex.models.<field>.<subfield>` module of the models that use it. This

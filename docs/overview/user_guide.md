@@ -408,7 +408,7 @@ The library has these models ready: `persistent_random_walk`, `markov_source`, `
 
 ## Anomalous processes
 
-Renewal laws and fractional noise laws write processes with memory: events that fire after waiting times from any
+Jumps on clocks of waiting times and fractional noise laws write processes with memory: events that fire after waiting times from any
 distribution, and noise whose increments are correlated over the whole run.
 
 ### Draws from SciPy distributions
@@ -432,28 +432,28 @@ flight = Simulation(System(components=[Flier.group('fliers', 100)]), dt=1.0, ran
 print(flight.trajectory_['fliers.x'].shape)
 ```
 
-### Renewal laws
+### Jumps on clocks of waiting times
 
-`Renewal(waiting, reset, label)` fires after a waiting time, applies its reset to the states all at once, and draws the
+`Jump(waiting=..., reset=..., label=...)` fires after a waiting time, applies its reset to the states all at once, and draws the
 next waiting time from the states after the reset. Every member of a group renews on its own clock. Draws in the
 waiting time and the reset take a fresh value at every renewal of every member, and every use of one name in a
 renewal reads the same value. A waiting time that is a single draw must come from a distribution with nonnegative
 support, and compiling rejects one that can be negative, such as `normal`.
 
-A system or partition whose only laws are renewal laws compiles to the renewal form, which `RenewalStepper` runs
+A system or partition whose only laws are such jumps compiles to the renewal form, which `RenewalStepper` runs
 exactly, from renewal to renewal with no time grid. A frame holds the states the last renewal at or before its time
-set. Renewal laws also combine with the rate and noise laws of the same component, which evolve the states between
+set. These jumps also combine with the rate and noise laws of the same component, which evolve the states between
 renewals. `RK4` and `EulerMaruyama` stop every member at its own renewals when the members do not interact, and split
-the step at every renewal time for all members when a law sums over the group. Other steppers reject renewal laws.
+the step at every renewal time for all members when a law sums over the group. Other steppers reject these jumps.
 
 ```python
-from skcomplex.core.model import Renewal
+from skcomplex.core.model import Jump
 
 Walker = Element.define(
     'Walker',
     states={'x': 0.0},
     parameters={'alpha': 0.5},
-    laws=lambda s: [Renewal(draw('wait', 'pareto', b=s.alpha), {s.x: s.x + normal('jump', 0, 1)}, label='jumps')],
+    laws=lambda s: [Jump(waiting=draw('wait', 'pareto', b=s.alpha), reset={s.x: s.x + normal('jump', 0, 1)}, label='jumps')],
 )
 walk = Simulation(System(components=[Walker.group('walkers', 1000)]), dt=100.0, random_state=0).run(until=1000)
 print(walk.problem_.form.value, walk.trajectory_['jumps.renewals'][-1] > 1000)
@@ -1048,14 +1048,14 @@ trajectory = Simulation(sandpile((20, 20)), dt=100, random_state=0).run(until=20
 print(max(event.size for event in trajectory.events))
 ```
 
-**Monte Carlo.** `Energy(expression, neighborhood)` is the local energy of a site, every term of the total energy
+**Monte Carlo.** A `Sample(energy, move, sampler)` law samples states. `Energy(expression, neighborhood)` is the local energy of a site, every term of the total energy
 that involves it, with neighbour values read through `neighbors`. `Move.flip`, `Move.random_value`, and `Move.rotate`
 propose changes, and `Sampler('metropolis' | 'glauber' | 'heat-bath', temperature)` accepts them. The energy change of
 a move is derived symbolically, sweeps update the two sublattices in turn, and the temperature is a parameter that
 changes live.
 
 ```python
-from skcomplex.core.model import Energy, Move, Sampler, neighbors
+from skcomplex.core.model import Energy, Move, Sample, Sampler, neighbors
 
 nearest = Neighborhood.von_neumann()
 Spin = Element.define(
@@ -1063,9 +1063,11 @@ Spin = Element.define(
     states={'spin': state(1.0, domain=Domain.INTEGER)},
     parameters={'J': 1.0, 'temperature': 1.5},
     laws=lambda s: [
-        Energy(-s.J * s.spin * sum(neighbors(s.spin, nearest)), nearest),
-        Move.flip(s.spin),
-        Sampler('metropolis', s.temperature),
+        Sample(
+            Energy(-s.J * s.spin * sum(neighbors(s.spin, nearest)), nearest),
+            Move.flip(s.spin),
+            Sampler('metropolis', s.temperature),
+        ),
     ],
 )
 spins = System(components=[Spin.lattice('spins', LatticeSpace((32, 32)))])
@@ -1115,9 +1117,11 @@ GraphSpin = Element.define(
     states={'spin': state(1.0, domain=Domain.INTEGER)},
     parameters={'J': 1.0, 'temperature': 1.0},
     laws=lambda s: [
-        Energy(-s.J * s.spin * neighbor_sum(adjacent(s.spin)), Adjacency()),
-        Move.flip(s.spin),
-        Sampler('metropolis', s.temperature, schedule='colored'),
+        Sample(
+            Energy(-s.J * s.spin * neighbor_sum(adjacent(s.spin)), Adjacency()),
+            Move.flip(s.spin),
+            Sampler('metropolis', s.temperature, schedule='colored'),
+        ),
     ],
 )
 graph = nx.random_regular_graph(4, 200, seed=0)

@@ -14,10 +14,10 @@ from ....core.model import (
     ContinuousSpace,
     Element,
     FractionalNoise,
+    Jump,
     Law,
     Noise,
     Rate,
-    Renewal,
     Symbols,
     System,
     Update,
@@ -81,7 +81,11 @@ class ContinuousTimeWalker(Element):
         """
         jumps = [item + normal(f'jump{index}', 0, s.sigma) for index, item in enumerate(s.x)]
         return [
-            Renewal(draw('wait', 'pareto', b=s.alpha, scale=s.tau0), dict(zip(s.x, jumps, strict=True)), label='jumps'),
+            Jump(
+                waiting=draw('wait', 'pareto', b=s.alpha, scale=s.tau0),
+                reset=dict(zip(s.x, jumps, strict=True)),
+                label='jumps',
+            ),
         ]
 
 
@@ -134,9 +138,9 @@ class LevyWalker(Element):
         turn = [s.speed * item for item in _direction('direction', len(list(s.v)))]
         return [
             Rate(s.x, s.v),
-            Renewal(
-                draw('flight', 'pareto', b=s.sigma, scale=s.tau0),
-                dict(zip(s.v, turn, strict=True)),
+            Jump(
+                waiting=draw('flight', 'pareto', b=s.sigma, scale=s.tau0),
+                reset=dict(zip(s.v, turn, strict=True)),
                 label='turns',
             ),
         ]
@@ -190,7 +194,7 @@ class TransientWalker(Element):
         waiting = draw('wait', 'expon', scale=s.D ** (-s.gamma))
         return [
             Noise(s.x, sqrt(2 * s.D)),
-            Renewal(waiting, {s.D: draw('coefficient', 'beta', a=s.sigma, b=1)}, label='changes'),
+            Jump(waiting=waiting, reset={s.D: draw('coefficient', 'beta', a=s.sigma, b=1)}, label='changes'),
         ]
 
 

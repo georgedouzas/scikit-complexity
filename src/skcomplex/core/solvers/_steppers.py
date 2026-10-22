@@ -1443,12 +1443,12 @@ class RenewalStepper(Stepper):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.core.model import Element, Renewal, System, draw
+        >>> from skcomplex.core.model import Element, Jump, System, draw
         >>> from skcomplex.core.solvers import RenewalStepper
         >>> Counter = Element.define(
         ...     'Counter',
         ...     states={'n': 0.0},
-        ...     laws=lambda s: [Renewal(draw('wait', 'expon'), {s.n: s.n + 1})],
+        ...     laws=lambda s: [Jump(waiting=draw('wait', 'expon'), reset={s.n: s.n + 1})],
         ... )
         >>> problem = compile_system(System(components=[Counter.group('counters', 3)]))
         >>> stepper = RenewalStepper()

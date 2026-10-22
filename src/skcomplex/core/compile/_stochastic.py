@@ -37,13 +37,13 @@ from ..model import (
     Law,
     Noise,
     Rate,
-    Renewal,
     Transition,
     Update,
     categorical,
     draws_in,
     where,
 )
+from ..model._laws import Renewal
 from ._kernels import Reference, Source
 from ._layout import Entry
 from ._printing import numpy_function
