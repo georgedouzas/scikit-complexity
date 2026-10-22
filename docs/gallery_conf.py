@@ -1,8 +1,8 @@
 """Configure `mkdocs-gallery`: the Rerun scraper before the Matplotlib one, the examples to run, and stale examples.
 
-The Rerun scraper comes first, so the Rerun screenshot is image 1 of every example, which `mkdocs-gallery` takes as
-the thumbnail by default, and the analysis figures follow it. The scraper also resets before every example, so it
-times the whole script and writes its recording to a temporary folder of the run.
+The Rerun scraper comes first, so the Rerun screenshot is image 1 of every example, which `mkdocs-gallery` takes as the
+thumbnail by default, and the analysis figures follow it. The scraper also resets before every example, so it times the
+whole script and writes its recording to a temporary folder of the run.
 """
 
 import sys

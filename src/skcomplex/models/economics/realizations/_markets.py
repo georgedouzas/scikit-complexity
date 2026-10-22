@@ -115,9 +115,9 @@ class Protocol:
 
     Subclasses implement `match(buyers, sellers, model)`, which receives the orders of the participants with something
     to trade and returns trades whose quantities respect the orders' quantities and budgets. A protocol is also a
-    pairing of the core's matching law: called with the buyers and sellers, it reads their orders from the states
-    `bid`, `demand`, and `money` of buyers and `ask` and `supply` of sellers, and returns the trades, which unpack as
-    pairs of buyer and seller.
+    pairing of the core's matching law: called with the buyers and sellers, it reads their orders from the states `bid`,
+    `demand`, and `money` of buyers and `ask` and `supply` of sellers, and returns the trades, which unpack as pairs of
+    buyer and seller.
     """
 
     def __call__(
@@ -220,12 +220,12 @@ class BilateralSearch(Protocol):
 
 @dataclass(frozen=True)
 class SampleAndSwitch(Protocol):
-    """Partner choice of Caiani et al. (2016 ch. 2): sample sellers and switch to a cheaper one with some probability.
+    """Partner choice that samples sellers and switches to a cheaper one with some probability.
 
-    Every buyer, in random order, samples `sample` sellers that still offer something. When the cheapest of them asks
-    less than its current partner, the buyer switches with probability `1 - exp(intensity * (p_new - p_old) / p_new)`,
-    and otherwise stays. It buys from its partner at the partner's ask, and the buyer's state `partner`, when it has
-    one, holds the id of the partner across steps.
+    The protocol follows chapter 2 of Caiani et al. (2016). Every buyer, in random order, samples `sample` sellers that
+    still offer something. When the cheapest of them asks less than its current partner, the buyer switches with
+    probability `1 - exp(intensity * (p_new - p_old) / p_new)`, and otherwise stays. It buys from its partner at the
+    partner's ask, and the buyer's state `partner`, when it has one, holds the id of the partner across steps.
 
     Args:
         sample:

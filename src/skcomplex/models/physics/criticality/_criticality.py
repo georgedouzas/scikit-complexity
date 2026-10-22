@@ -185,7 +185,6 @@ class Forest(Element):
             laws:
                 The laws of the component.
         """
-
         return [LocalRule(s.cover, NEAREST, _burn, stochastic=True)]
 
 

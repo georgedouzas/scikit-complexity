@@ -33,7 +33,7 @@ def _memory_msd(t, alpha, sigma):
 
 
 def _hopfield_map(m, connectivity, n_patterns, beta):
-    """Return the overlap after one step of the annealed approximation, Eq. (6.55) of Bertin."""
+    """Return the overlap after one step of the annealed approximation, equation (6.55) of Bertin."""
     spread = np.sqrt(connectivity * (n_patterns - m**2))
 
     def integrand(z):

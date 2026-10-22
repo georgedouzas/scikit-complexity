@@ -18,7 +18,7 @@ def _nonnegative(value: Expression) -> Expression:
 
 
 class UnstablePopulations(Element):
-    """Resident population `x` and invading population `y`, after Eqs. (13.3) and (13.4) of Jensen.
+    """Resident population `x` and invading population `y`, after equations (13.3) and (13.4) of Jensen.
 
     At every step `x ← [x - eta (x - X)] exp(-alpha y) + √x sigma chi`, an Ornstein-Uhlenbeck step damped by the
     invader. With probability `p` a mutation from `x` adds `nu x` to `y`, and otherwise

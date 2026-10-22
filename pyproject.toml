@@ -126,6 +126,8 @@ target-version = ["py312"]
 [tool.docformatter]
 in-place = true
 recursive = true
+# The gallery docstrings open with a Markdown title on their own line, as mkdocs-gallery reads them.
+exclude = ["examples", "generated"]
 close-quotes-on-newline = true
 wrap-descriptions = 120
 wrap-summaries = 120

@@ -21,9 +21,9 @@ class Stepper(BaseEstimator):
 
     Subclasses set the class variable `form` and implement `advance`. Every call to `advance` receives the current
     parameters, so parameter changes apply at the next call, and applies the boundary laws of the problem after every
-    internal step. Steppers that treat diffusion implicitly set `implicit`,
-    so they do not warn about the stability limit of explicit steps. Steppers that fire renewal laws set `renews`, and
-    steppers that integrate fractional noise set `fractional`.
+    internal step. Steppers that treat diffusion implicitly set `implicit`, so they do not warn about the stability
+    limit of explicit steps. Steppers that fire renewal laws set `renews`, and steppers that integrate fractional noise
+    set `fractional`.
     """
 
     supports: ClassVar[Supports]

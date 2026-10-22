@@ -170,8 +170,8 @@ def _network_layout(graph: nx.Graph) -> dict[str, npt.NDArray[np.float64]]:
 class Visual:
     """Base class of visuals, which log the state of one element to a Rerun recording.
 
-    Subclasses implement `log`, declare the Rerun views that show what they log with `views`, and are registered
-    under a name with `register_visual`.
+    Subclasses implement `log`, declare the Rerun views that show what they log with `views`, and are registered under a
+    name with `register_visual`.
     """
 
     def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:

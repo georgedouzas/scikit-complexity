@@ -812,9 +812,9 @@ def _check_aligned(spec: _KernelSpec, groups: list[str]) -> None:
 def _settle_rows(spec: _KernelSpec, laws: list[Law]) -> None:
     """Set the groups an interaction is evaluated over from the member symbols its laws read outside reductions.
 
-    Laws without reductions keep the group their one group role binds to, so a single element bound next to it
-    receives the sum over the members. Groups of one size that laws read outside reductions are read member by
-    member, row `i` of each together.
+    Laws without reductions keep the group their one group role binds to, so a single element bound next to it receives
+    the sum over the members. Groups of one size that laws read outside reductions are read member by member, row `i` of
+    each together.
     """
     values = [law.rate if isinstance(law, Jump) else getattr(law, 'value', None) for law in laws]
     if not spec.groups or (len(spec.groups) == 1 and not any(has_reductions(value) for value in values)):
@@ -2028,8 +2028,8 @@ def _form_kinds(owners: Iterable[set[type]]) -> frozenset[type]:
     """Return the law kinds that decide the form of components with their own kinds.
 
     Renewal laws combine with the rate and noise laws of the same components, so they drop out of the kinds then. A
-    component with renewal laws alone next to components with other laws keeps them, so the system does not fit one
-    form and runs as partitions.
+    component with renewal laws alone next to components with other laws keeps them, so the system does not fit one form
+    and runs as partitions.
     """
     owned = [set(kinds) - FORMLESS for kinds in owners]
     kinds: set[type] = set().union(*owned)

@@ -530,7 +530,6 @@ class Renewal:
 
         label:
             The name of the renewal in the trajectory, or `None` for the component's path.
-
     """
 
     law_kind: ClassVar[LawKind] = LawKind.JUMP

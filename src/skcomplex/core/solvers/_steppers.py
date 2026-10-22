@@ -79,8 +79,8 @@ def _lsoda_first_step(
 
     LSODA guesses its first step from the distance to the end when the drift vanishes at the start, and without a
     largest step it fails before its first step on a far end. The step then comes from the drift's change over a trial
-    step, as in SciPy's other solvers (Hairer, Norsett, and Wanner, II.4). Elsewhere LSODA's own guess is kept, since
-    a trial step across a discontinuous drift, such as stick-slip friction, gives needlessly small steps.
+    step, as in SciPy's other solvers (Hairer, Norsett, and Wanner, II.4). Elsewhere LSODA's own guess is kept, since a
+    trial step across a discontinuous drift, such as stick-slip friction, gives needlessly small steps.
     """
     span = abs(end - t)
     with np.errstate(all='ignore'):
@@ -533,9 +533,9 @@ class ScipyODE(Stepper):
     def _to_event(self, p: Vector, until: float) -> None:
         """Integrate the current step up to a time or to its first event, and apply the event or the boundary.
 
-        The integrator restarts where a boundary law first changes the state. When that happens at once after a
-        restart, the state rests on the boundary while the drift pushes it out, as for a clipped stock under a
-        constant inflow, so the step runs to its end and the boundary projects the state there instead.
+        The integrator restarts where a boundary law first changes the state. When that happens at once after a restart,
+        the state rests on the boundary while the drift pushes it out, as for a clipped stock under a constant inflow,
+        so the step runs to its end and the boundary projects the state there instead.
         """
         segment = self._next_segment(p)
         end = min(segment.end, until)
