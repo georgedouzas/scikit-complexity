@@ -184,6 +184,22 @@ the default.
 - **WHEN** the import graph of `skcomplex.core` is computed
 - **THEN** it contains no module of `skcomplex.models`
 
+### Requirement: Core packages mirror the system definition
+The modelling packages of `skcomplex.core` SHALL be `system`, `components`, `interactions`, `space`, which holds space
+and time, and `laws`, each exporting the primitives of its part of a system. Every backend SHALL live in
+`skcomplex.core.backends`, and `compile` and `solvers` SHALL hold no backend. A module that serves one backend SHALL be
+private to that backend. `skcomplex.core.model` SHALL not exist.
+
+#### Scenario: Primitives by part
+- **WHEN** a user imports `System`, `Element`, `Interaction`, `LatticeSpace`, `DiscreteTime`, and `Rate`
+- **THEN** they come from `core.system`, `core.components`, `core.interactions`, `core.space`, `core.space`, and
+  `core.laws`
+
+#### Scenario: Backends in one package
+- **WHEN** the test suite lists the backends registered for solvers
+- **THEN** each one is defined in a module of `skcomplex.core.backends`, and `skcomplex.core.backends` has no public
+  module that is not a backend or the backend base
+
 ## REMOVED Requirements
 
 ### Requirement: Systems nest and compose

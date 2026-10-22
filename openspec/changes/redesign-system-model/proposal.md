@@ -72,6 +72,9 @@ validator that knows which combinations are valid.
   One validation pass computes compatibility from these declarations before compilation. It reports every problem at
   once, each with the component path, the reason, and a fix, and the same declarations generate the documentation
   table of valid combinations.
+- **BREAKING** The core packages mirror the system definition: `core.system`, `core.components`,
+  `core.interactions`, `core.space` (space and time), and `core.laws` replace `core.model`, and every backend, NumPy,
+  Numba, LAMMPS, and Mesa, lives in `core.backends`.
 - Acceptance gate: every inventory entry, the implemented models and those of the pending changes, maps to the new
   vocabulary before any code changes. Any entry that does not map exposes a missing general primitive, which is
   specified here first.
@@ -102,8 +105,10 @@ validator that knows which combinations are valid.
 
 ## Impact
 
-- `skcomplex.core.model`, `skcomplex.core.base`, `skcomplex.core.compile`, `skcomplex.core.solvers`, and
-  `skcomplex.core.runtime` change their public names. This is a breaking change on the 0.x line, without shims.
+- `skcomplex.core.model` is replaced by `core.system`, `core.components`, `core.interactions`, `core.space`, and
+  `core.laws`; backends move from `core.compile` and `core.solvers` to `core.backends`; `skcomplex.core.base`,
+  `skcomplex.core.compile`, `skcomplex.core.solvers`, and `skcomplex.core.runtime` change their public names. This is
+  a breaking change on the 0.x line, without shims.
 - All 438 library models and their gallery examples are migrated to the new vocabulary.
 - The 26 pending OpenSpec changes are rebased onto the new vocabulary after this change, before any of them is applied.
 - `docs/overview/inventory.toml` replaces its flat primitive vocabulary with the categories of the new design.

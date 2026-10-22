@@ -73,13 +73,20 @@ through the conformance suite.
 - [ ] 5.3 Remove `MesaSystem` and `AgentType`, make Mesa a backend with its declared support, and port the gallery
   example that wrapped a Mesa model.
 
-## 6. Migrate the library
+## 6. Restructure the core packages
 
-- [ ] 6.1 Migrate the models field by field to the new vocabulary, comparing each against the baseline of task 1.3.
-- [ ] 6.2 Migrate the gallery examples and the user guide to the new system definition, and regenerate the inventory
+- [ ] 6.1 Split `core.model` into `core.system`, `core.components`, `core.interactions`, `core.space`, and `core.laws`,
+  remove `core.model`, and rewrite the imports of the core, the library, the tests, the examples, and the docs.
+- [ ] 6.2 Move the NumPy and Numba backends from `core.compile` and the Mesa backend from `core.solvers` to
+  `core.backends`, make the Lepton printer private to the LAMMPS backend, and add the tests of the package layout.
+
+## 7. Migrate the library
+
+- [ ] 7.1 Migrate the models field by field to the new vocabulary, comparing each against the baseline of task 1.3.
+- [ ] 7.2 Migrate the gallery examples and the user guide to the new system definition, and regenerate the inventory
   coverage by category.
 
-## 7. Pending changes and gate
+## 8. Pending changes and gate
 
-- [ ] 7.1 Rebase the artifacts of the 26 pending changes onto the new vocabulary, and validate every one of them.
-- [ ] 7.2 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass.
+- [ ] 8.1 Rebase the artifacts of the 26 pending changes onto the new vocabulary, and validate every one of them.
+- [ ] 8.2 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass.

@@ -166,6 +166,34 @@ dissipator is, and an energy operator generating unitary flow is better named fo
 | `parameter(adaptive=True)` | a parameter that laws may change; compiled as a state and recorded | `Institution` |
 | `Equation` solved for adaptive parameters | clears an aggregate balance each step | `Walrasian`, `CallAuction` clearing |
 
+### Core packages mirror the system definition
+
+The packages of `skcomplex.core` follow the definition of a system, so a reader finds a primitive where the concept
+puts it. The modelling packages hold what a system is made of, and the engineering packages hold how it runs:
+
+| Package | Holds |
+|---|---|
+| `core.system` | `System`, its composition and nesting, and `validate` with its report and issues |
+| `core.components` | `Element`, `Group`, states and parameters, and state domains |
+| `core.interactions` | `Interaction`, its bindings, and matching |
+| `core.space` | the continuous, lattice, network, and mesh spaces, and the continuous, discrete, and static times |
+| `core.laws` | every law, from `Rate` and `Jump` to `Rule`, `Transfer`, `Invariant`, and `Generator` |
+| `core.base` | symbolic support, errors, the registry, and the declaration vocabulary |
+| `core.compile` | lowering of a validated system to a problem, with no backend |
+| `core.solvers` | steppers, with no backend |
+| `core.backends` | every backend: NumPy, Numba, LAMMPS, and Mesa, each with its private printers and adapters |
+| `core.runtime`, `core.analysis`, `core.viz`, `core.experiments` | running, analysing, drawing, and experimenting |
+
+Laws get their own package because both components and interactions use them, so neither owns them. Space and time
+share one package because a system lives in space and time together, and each is a substrate the laws are validated
+against. A helper that serves one backend, such as the printer of LAMMPS's Lepton expressions, is private to that
+backend's module, not a sibling module that reads as a backend. `skcomplex.core.model` is removed without a shim, like
+the other renamed names of this change.
+
+Rejected alternatives:
+- Keeping the flat `core.model`: it hides the definition of a system and mixed general primitives with realizations.
+- Splitting the laws between `components` and `interactions`: `Rate`, `Rule`, and most other laws serve both.
+
 ### Realizations live in the models
 
 The core holds each primitive in its general form, with at most one neutral default:
@@ -314,4 +342,5 @@ The baseline of the migration holds the trajectory of every catalog model run wi
 3. New system signature, space and time, and law classes in the core, migrating the models field by field.
 4. Move field primitives to the library.
 5. Remove `MesaSystem` and the old names.
-6. Rebase the pending changes.
+6. Restructure the core packages to mirror the system definition, and gather every backend in `core.backends`.
+7. Rebase the pending changes.
