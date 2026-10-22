@@ -9,9 +9,10 @@ import pytest
 from scipy import stats
 
 from skcomplex.core.analysis import conservation, flow_matrix, loop_dominance, loops
-from skcomplex.core.base import ConservationError, LabelError, ValidationError, state
+from skcomplex.core.base import ConservationError, LabelError, ValidationError, parameter, role, state
 from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
+from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import (
     Auxiliary,
     Boundary,
@@ -331,3 +332,40 @@ def test_member_invariant_rejects_lambdas_and_pickles_with_functions():
     data = pickle.dumps(Invariant('equity', attrgetter('equity')))
     invariant = pickle.loads(data)  # noqa: S301  # nosec B301: loads only what it dumped
     assert invariant.label == 'equity'
+
+
+def _total_money(model):
+    """Return the money of every holder bound to the payments."""
+    return sum(agent.money for agent in model.agents('holders'))
+
+
+class Payments(Interaction):
+    """Payments between holders, which create money when asked, under the invariant of the total."""
+
+    holders: str = role()
+    creates: float = parameter(0.0)
+
+    def laws(self, s):
+        """Return the rule that moves money and the invariant of the total."""
+        return [Rule(self.move), Invariant('total money', _total_money)]
+
+    def move(self, model):
+        """Move one unit from the first holder to the second, and create money when the payments create it."""
+        first, second = model.agents('holders')[:2]
+        transfer(first, second, 1.0, 'money')
+        first.money += model.parameter('creates')
+
+
+@pytest.mark.parametrize(('creates', 'violated'), [(0.0, False), (0.5, True)])
+def test_interaction_invariant_checks_the_total_of_its_agents(creates, violated):
+    """Test that an invariant of an interaction holds under transfers and names the interaction when money appears."""
+    system = System(
+        components=[Lender.group('holders', 3, variable=True, money=5.0)],
+        interactions=[Payments('payments', holders='holders', creates=creates)],
+    )
+    if violated:
+        with pytest.raises(ConservationError, match="'total money' of payments"):
+            Simulation(system).run(3)
+        return
+    trajectory = Simulation(system).run(3).trajectory_
+    assert trajectory.agents('holders', 3).values['money'].sum() == pytest.approx(15.0)

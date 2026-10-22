@@ -203,14 +203,17 @@ class Invariant:
     The trajectory records the expression under `<component path>.<label>`, and every run checks at every frame that it
     differs from its value at the first frame by no more than the tolerance, raising an error that names the invariant
     and the first frame that breaks it. A group of agents declares an invariant of each member as a module-level
-    function of the member, which the agent stepper checks after every step against the member's first value.
+    function of the member, which the agent stepper checks after every step against the member's first value. An
+    interaction of agents declares an invariant of the agents it binds as a module-level function of its model view,
+    such as the total of a state over a group, which the agent stepper checks after every step against its first value.
 
     Args:
         label:
             The name of the invariant, unique among the transfers, auxiliaries, and invariants of its component.
 
         expression:
-            The expression of states and parameters, or a module-level function of a member of an agent group.
+            The expression of states and parameters, or a module-level function of a member of an agent group or of
+            the model view of an interaction of agents.
 
         tolerance:
             The largest change from the first frame that the run accepts.
@@ -245,7 +248,7 @@ class Invariant:
 
     @property
     def is_member(self) -> bool:
-        """Whether the invariant is a function of each member of an agent group."""
+        """Whether the invariant is a function of each member of an agent group or of an interaction's model view."""
         return callable(self.expression) and not isinstance(self.expression, Expression | SymbolicVector)
 
     def value_of(self, member: Any) -> float:  # noqa: ANN401
@@ -253,7 +256,7 @@ class Invariant:
 
         Args:
             member:
-                The member, as rules receive it.
+                The member, or the model view of an interaction, as rules receive it.
 
         Returns:
             value:
@@ -267,13 +270,13 @@ class Invariant:
 
         Args:
             member:
-                The member, as rules receive it.
+                The member, or the model view of an interaction, as rules receive it.
 
             first:
                 The value of the invariant when the member was first checked.
 
             name:
-                The name of the member in the message, such as its group and id.
+                The name of the member in the message, such as its group and id, or the path of the interaction.
 
         Raises:
             ConservationError:

@@ -126,7 +126,7 @@ class Protocol:
         right: Sequence[Any],
         rng: np.random.Generator,
         capacity: int,
-    ) -> list[Trade]:
+    ) -> list[Any]:
         """Return the trades between buyers and sellers, as a pairing of the matching law.
 
         Args:
