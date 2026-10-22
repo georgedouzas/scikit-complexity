@@ -1,4 +1,7 @@
-"""Test the layout of the package: the core never depends on models, and model packages are self-contained."""
+"""Test the layout of the package: the core never depends on models, and model packages are self-contained.
+
+A model package imports the core and the shared realizations of its own field, and nothing of another package.
+"""
 
 import ast
 import subprocess  # nosec B404: the tests run the interpreter on code they write
@@ -61,6 +64,9 @@ def _violations(path):
             if private:
                 found.append(f'{module}: private {", ".join(private)} from {target}')
         elif target.startswith('skcomplex.models'):
+            field = '.'.join(module.split('.')[:3])
+            if target.startswith(f'{field}.realizations'):
+                continue
             aggregator = is_package and target.startswith(f'{module}.')
             own = _home(target) == _home(module) or target.startswith(f'{_home(module)}.')
             if not aggregator and not own and target != _home(module):
@@ -156,6 +162,20 @@ def test_old_framework_paths_are_gone(name):
         __import__(name)
 
 
+def test_realizations_of_the_own_field_import():
+    """Test that a model package imports the realizations of its own field, and not those of another field."""
+    path = PACKAGE / 'models' / 'physics' / 'mechanics' / '_planted_realizations.py'
+    path.write_text('from ..realizations import Spin\nfrom ...economics.realizations import Market\n')
+    try:
+        found = _violations(path)
+    finally:
+        path.unlink()
+    assert found == [
+        'skcomplex.models.physics.mechanics._planted_realizations: imports the model package '
+        'skcomplex.models.economics.realizations',
+    ]
+
+
 def test_package_respects_layout():
     """Test that no source file of the package breaks the layout rules."""
     found = [item for path in PACKAGE.rglob('*.py') for item in _violations(path)]
@@ -172,6 +192,7 @@ def test_package_respects_layout():
             'private _compiler, _compile',
         ),
         ('models/_planted/_check.py', 'from ..physics import mechanics\n', 'imports the model package'),
+        ('models/_planted/_check.py', 'from ..physics.realizations import Spin\n', 'imports the model package'),
     ],
 )
 def test_layout_check_finds_planted_imports(relative, source, message):

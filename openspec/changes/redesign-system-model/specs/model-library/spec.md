@@ -3,17 +3,18 @@
 ## ADDED Requirements
 
 ### Requirement: Specific realizations live in the model library
-The library SHALL hold every specific realization of a core primitive in the module of the field and subfield that
-introduced it, and other fields SHALL import it from there. The realizations the core holds today SHALL move to
-`economics`, `social`, `physics`, `mathematics`, and `engineering`, as the design's table of moved realizations lists.
+The library SHALL hold every specific realization of a core primitive in the model package that uses it, or in the
+module `skcomplex.models.<field>.realizations` when several packages of one field share it, which only that field's
+packages import. A package of another field that needs a realization SHALL define its own. The realizations the core
+holds today SHALL move as the design's table of moved realizations lists.
 
 #### Scenario: Order book from the library
-- **WHEN** a user imports the order book from `skcomplex.models.economics`
+- **WHEN** a user imports the order book from `skcomplex.models.economics.realizations`
 - **THEN** it is a pairing function for the core's matching law, and its priority scenario holds: the earlier of two
   same-price sell orders trades first
 
 #### Scenario: Potential from the library
-- **WHEN** a user imports the Lennard-Jones potential from `skcomplex.models.physics`
+- **WHEN** a user imports the Lennard-Jones potential from `skcomplex.models.physics.realizations`
 - **THEN** it is a realization of the core's potential primitive, and the existing LAMMPS agreement tests pass with it
 
 ### Requirement: Library models keep their behaviour across the redesign

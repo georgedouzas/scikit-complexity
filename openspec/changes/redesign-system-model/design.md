@@ -184,7 +184,9 @@ includes:
 - a tiling, turtle, or production family;
 - a waiting-time distribution beyond the default.
 
-A realization shared by several fields lives in the field that introduced it, and the others import it.
+A realization that several model packages of one field share lives in `skcomplex.models.<field>.realizations`, which
+only that field's packages import, so model packages stay otherwise self-contained. A package of another field that
+needs the same realization defines its own.
 
 The core depends on no models module. Its tests define their realizations inline, and an import-graph test checks that
 the core never imports `skcomplex.models`.
