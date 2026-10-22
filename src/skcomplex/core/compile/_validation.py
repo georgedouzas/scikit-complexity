@@ -8,6 +8,8 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, cast
 
+import numpy as np
+
 from ..base import (
     BackendError,
     Categorical,
@@ -19,6 +21,7 @@ from ..base import (
     IncompatibleLawsError,
     LabelError,
     LawKind,
+    NoiseKind,
     ParameterError,
     Registry,
     Requires,
@@ -35,6 +38,7 @@ from ..base import (
     VariableKind,
     declarations_of,
 )
+from ..components import Wiener
 from ..interactions import Match
 from ..laws import (
     Auxiliary,
@@ -65,7 +69,7 @@ from ..laws import (
 from ..space import LatticeSpace, NetworkSpace, Space
 from ..system import Observable, System
 from ._backends import BACKENDS, load_backends
-from ._compiler import CensusRecord, _held_observables, _with_held_observables, law_census
+from ._compiler import CensusRecord, _held_observables, _process_covariance, _with_held_observables, law_census
 from ._layout import Entry
 from ._observables import with_observables
 from ._quantum import contains_quantum
@@ -73,6 +77,7 @@ from ._rewriting import is_rewriting
 from ._tree import flatten_system
 
 OPTIONAL_SOLVERS = {'lammps': 'lammps'}
+COVARIANCE_TOLERANCE = 1e-12
 
 
 def _solver_registry() -> Registry:
@@ -479,6 +484,220 @@ def _solver_issues(solver: object, records: list[CensusRecord], system: System) 
     return issues
 
 
+def _wiener_nodes(system: System) -> list[tuple[str, Wiener]]:
+    """Return the path and the element of every Wiener element of a system."""
+    return [(node.path, node.component) for node in flatten_system(system) if isinstance(node.component, Wiener)]
+
+
+def _matrix_problem(matrix: np.ndarray) -> str | None:
+    """Return why a square covariance matrix is not symmetric positive semidefinite, or `None` when it is."""
+    asymmetry = np.abs(matrix - matrix.T)
+    if np.max(asymmetry) > COVARIANCE_TOLERANCE * max(1.0, float(np.max(np.abs(matrix)))):
+        row, column = np.unravel_index(int(np.argmax(asymmetry)), matrix.shape)
+        return f'Its covariance is not symmetric: entry ({row}, {column}) is {matrix[row, column]}.'
+    values = np.linalg.eigvalsh(matrix)
+    if values[0] < -COVARIANCE_TOLERANCE * max(1.0, float(np.max(np.abs(values)))):
+        return f'Its covariance is not positive semidefinite: it has the negative eigenvalue {values[0]:.6g}.'
+    return None
+
+
+def _covariance_problem(wiener: Wiener) -> str | None:
+    """Return why the dimension or the covariance of a Wiener element is invalid, or `None` when both are valid."""
+    dimension = wiener.dimension
+    if not isinstance(dimension, int) or isinstance(dimension, bool) or dimension < 1:
+        return f'Its dimension {dimension!r} is not a positive integer.'
+    if wiener.covariance is None:
+        return None
+    try:
+        matrix = np.asarray(wiener.covariance, dtype=float)
+    except (TypeError, ValueError):
+        return f'Its covariance {wiener.covariance!r} is not a matrix of numbers.'
+    if matrix.shape != (dimension, dimension):
+        return f'Its covariance has the shape {matrix.shape}, not ({dimension}, {dimension}).'
+    return _matrix_problem(matrix)
+
+
+def _wiener_issues(system: System) -> list[Issue]:
+    """Return the Wiener elements outside continuous time or with an invalid covariance."""
+    times = _declared_times(system)
+    issues = []
+    for path, wiener in _wiener_nodes(system):
+        time = times.get(path.rpartition('/')[0])
+        if time is not None and not wiener.requires.accepts('time', time):
+            message = f'The Wiener element {path} declares Wiener processes, which exist only in continuous time.'
+            issues.append(Issue('wiener-time', path, message, 'Declare continuous time for its system.'))
+        problem = _covariance_problem(wiener)
+        if problem is not None:
+            message = f'The Wiener element {path} is invalid. {problem}'
+            fix = 'Give a symmetric positive semidefinite covariance with one row and column per process.'
+            issues.append(Issue('wiener-covariance', path, message, fix))
+    return issues
+
+
+def _law_name(record: CensusRecord) -> str:
+    """Return the name of the law of a census record."""
+    return f'{type(record.law).__name__} law of {record.path}'
+
+
+def _process_name(key: Any) -> str:  # noqa: ANN401
+    """Return the name of a process key."""
+    kind, path, item = key
+    return (
+        f'the local process {item!r} of {path}' if kind == 'local' else f'process {item} of the Wiener element {path}'
+    )
+
+
+def _noise_records(records: list[CensusRecord]) -> list[CensusRecord]:
+    """Return the records of noise laws."""
+    return [record for record in records if isinstance(record.law, Noise)]
+
+
+def _handle_issues(records: list[CensusRecord]) -> list[Issue]:
+    """Return the laws that use the handle of a Wiener process outside the process of a noise law."""
+    issues = []
+    for record in records:
+        if record.handles:
+            message = (
+                f'The {_law_name(record)} uses the Wiener handle {", ".join(record.handles)} in a value, but a handle '
+                'is only the process of a noise law.'
+            )
+            fix = 'Name the handle as the process of a noise law, `Noise(target, value, process=s.<role>.dW)`.'
+            issues.append(Issue('wiener-handle', record.path, message, fix))
+    return issues
+
+
+def _convention_issues(records: list[CensusRecord]) -> list[Issue]:
+    """Return the processes that noise laws of different conventions share."""
+    sharing: dict[object, list[CensusRecord]] = {}
+    for record in _noise_records(records):
+        for key in dict.fromkeys(record.processes):
+            if key is not None:
+                sharing.setdefault(key, []).append(record)
+    issues = []
+    for process, sharers in sharing.items():
+        conventions = {cast('Noise', record.law).convention for record in sharers}
+        if len(conventions) > 1:
+            laws = ' and '.join(f'the {cast("Noise", item.law).convention} {_law_name(item)}' for item in sharers)
+            message = f'{laws[0].upper()}{laws[1:]} share {_process_name(process)} with different conventions.'
+            fix = 'Declare one convention for every noise law of the process.'
+            issues.append(Issue('noise-convention-mixed', sharers[0].path, message, fix))
+    return issues
+
+
+def _sharer(record: CensusRecord, noisy: list[CensusRecord], wieners: dict[str, Wiener]) -> CensusRecord | None:
+    """Return a noise law of another component that drives a state the amplitude of a law reads through its process."""
+    for key, reads in zip(record.processes, record.reads, strict=True):
+        if key is None:
+            continue
+        for item in noisy:
+            if item.path == record.path:
+                continue
+            for state, process in zip(item.driven, item.processes, strict=True):
+                if process is not None and state in reads and _process_covariance(key, process, wieners):
+                    return item
+    return None
+
+
+def _scope_issues(records: list[CensusRecord], wieners: dict[str, Wiener]) -> list[Issue]:
+    """Return the noise laws of a convention whose drift correction needs an amplitude of another component."""
+    noisy = _noise_records(records)
+    issues = []
+    for record in noisy:
+        if cast('Noise', record.law).convention == 'ito':
+            continue
+        other = _sharer(record, noisy, wieners)
+        if other is not None:
+            message = (
+                f'The {_law_name(record)} depends on a state that the {_law_name(other)} drives through a shared '
+                'process, so its drift correction needs an amplitude outside its component.'
+            )
+            fix = 'Use the Itô convention, or write both laws in one component.'
+            issues.append(Issue('noise-correction-scope', record.path, message, fix))
+    return issues
+
+
+def _noise_needs(records: list[CensusRecord], wieners: dict[str, Wiener]) -> dict[NoiseKind, CensusRecord]:
+    """Return the noise structures a system uses, each with the first law that needs it."""
+    needs: dict[NoiseKind, CensusRecord] = {}
+    states: dict[object, set[tuple[str, int]]] = {}
+    first: dict[object, CensusRecord] = {}
+    spread: set[object] = set()
+    for record in _noise_records(records):
+        for key, state in zip(record.processes, record.driven, strict=True):
+            if key is None:
+                needs.setdefault(NoiseKind.DIAGONAL, record)
+                continue
+            states.setdefault(key, set()).add(state)
+            first.setdefault(key, record)
+            if key[0] == 'wiener' and record.members > 1:
+                spread.add(key)
+            if key[0] == 'wiener' and wieners[key[1]].covariance is not None:
+                needs.setdefault(NoiseKind.CORRELATED, record)
+    for process, driven in states.items():
+        shared = len(driven) > 1 or process in spread
+        needs.setdefault(NoiseKind.SHARED if shared else NoiseKind.DIAGONAL, first[process])
+    return needs
+
+
+def _noise_runners(solver: object, backend: object) -> list[tuple[str, Any]]:
+    """Return the solver and the backend that run the noise of a system, leaving out unknown names and backends."""
+    runners: list[tuple[str, Any]] = []
+    if solver == 'auto':
+        runners.append(('solver', _solver_registry().resolve((Form.SDE, 'auto'))))
+    elif isinstance(solver, str):
+        runners += [('solver', cls) for cls, names in _solver_classes().items() if solver in names][:1]
+    else:
+        runners.append(('solver', type(solver)))
+    if isinstance(backend, str) and backend in set(BACKENDS):
+        runners.append(('backend', BACKENDS.resolve(backend)))
+    elif not isinstance(backend, str):
+        runners.append(('backend', type(backend)))
+    return runners
+
+
+def _noise_fix(term: NoiseKind) -> str:
+    """Return the fix that lists the solvers and backends that support a noise structure."""
+    solvers = sorted(
+        name
+        for cls, names in _solver_classes().items()
+        if LawKind.NOISE in cls.supports.laws and term in cls.supports.noise
+        for name in names
+    )
+    backends = sorted(str(key) for key in BACKENDS if term in BACKENDS.resolve(key).supports.noise)
+    return f'Use one of the solvers {", ".join(solvers)}, with one of the backends {", ".join(backends)}.'
+
+
+def _noise_support_issues(
+    records: list[CensusRecord],
+    wieners: dict[str, Wiener],
+    solver: object,
+    backend: object,
+) -> list[Issue]:
+    """Return the noise structures of a system that the chosen solver or backend does not support."""
+    needs = _noise_needs(records, wieners)
+    if not needs:
+        return []
+    issues = []
+    for role, runner in _noise_runners(solver, backend):
+        supported = getattr(runner, 'supports', Supports()).noise
+        for term, record in needs.items():
+            if term not in supported:
+                message = f'The {_law_name(record)} needs {term} noise, which the {role} {runner.__name__} lacks.'
+                issues.append(Issue('noise-unsupported', record.path, message, _noise_fix(term), error=SolverError))
+    return issues
+
+
+def _noise_issues(system: System, records: list[CensusRecord], solver: object, backend: object) -> list[Issue]:
+    """Return the problems of the Wiener elements and the noise laws of a system."""
+    wieners = dict(_wiener_nodes(system))
+    issues = _wiener_issues(system) + _handle_issues(records)
+    if any(issue.code == 'wiener-covariance' for issue in issues):
+        return issues
+    issues += _convention_issues(records)
+    issues += _scope_issues(records, wieners)
+    return issues + _noise_support_issues(records, wieners, solver, backend)
+
+
 def validate(
     system: System,
     *,
@@ -538,6 +757,7 @@ def validate(
     report.issues += _mixed_issues(system, owners)
     if solver != 'auto':
         report.issues += _solver_issues(solver, records, system)
+    report.issues += _noise_issues(system, records, solver, backend)
     if isinstance(backend, str) and backend != 'auto' and backend not in set(BACKENDS):
         message = f'No backend is registered under {backend!r}.'
         fix = f'Choose one of {_names(BACKENDS)}.'

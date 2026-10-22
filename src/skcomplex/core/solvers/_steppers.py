@@ -21,6 +21,7 @@ from ..base import (
     Expression,
     Form,
     LawKind,
+    NoiseKind,
     SolverError,
     SpaceKind,
     Supports,
@@ -797,7 +798,7 @@ def _advance_sde_hybrid(
         while time < bound - RESTART * max(1.0, abs(bound)):
             step = min(dt, bound - time)
             parameters = with_delays(problem, history, time, state, p)
-            noise = stepper.rng_.normal(0.0, math.sqrt(step), size=problem.noise_rows.size)
+            noise = problem.draw_increments(stepper.rng_, math.sqrt(step))
             following = increment(time, state, parameters, step=step, noise=noise, end=min(time + step, ceiling))
             start, end = state.copy(), following.copy()
 
@@ -1014,6 +1015,7 @@ class EulerMaruyama(Stepper):
         },
         domains=NUMERIC_DOMAINS,
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        noise=set(NoiseKind),
     )
 
     form: ClassVar[Form] = Form.SDE
@@ -1027,7 +1029,7 @@ class EulerMaruyama(Stepper):
         problem = self.problem_
         rows = problem.noise_rows
         following = state + cast('VectorFunction', problem.drift)(time, state, p) * lengths
-        noise = self.rng_.standard_normal(rows.size) * np.sqrt(lengths[rows])
+        noise = problem.draw_increments(self.rng_, 1.0) * np.sqrt(lengths[rows])
         np.add.at(following, rows, cast('VectorFunction', problem.diffusion)(time, state, p) * noise)
         return self._bounded(time + float(np.max(lengths)), following, p)
 
@@ -1075,7 +1077,7 @@ class EulerMaruyama(Stepper):
         for index in range(n_steps):
             time = t + index * step
             amplitudes = diffusion(time, state, p)
-            increments = self.rng_.normal(0.0, math.sqrt(step), size=amplitudes.size)
+            increments = self.problem_.draw_increments(self.rng_, math.sqrt(step))
             state = state + drift(time, state, p) * step
             np.add.at(state, rows, amplitudes * increments)
             state = self._bounded(time + step, state, p)
@@ -1126,6 +1128,7 @@ class Milstein(Stepper):
         laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.NOISE},
         domains=NUMERIC_DOMAINS,
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        noise={NoiseKind.DIAGONAL},
     )
 
     form: ClassVar[Form] = Form.SDE
@@ -1208,6 +1211,7 @@ class Heun(Stepper):
         laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.NOISE},
         domains=NUMERIC_DOMAINS,
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        noise=set(NoiseKind),
     )
 
     form: ClassVar[Form] = Form.SDE
@@ -1468,6 +1472,7 @@ class RenewalStepper(Stepper):
         laws={LawKind.JUMP, LawKind.RATE, LawKind.NOISE, LawKind.EQUATION, LawKind.BOUNDARY},
         domains=set(DomainKind) - {DomainKind.HILBERT},
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        noise={NoiseKind.DIAGONAL},
     )
 
     form: ClassVar[Form] = Form.RENEWAL

@@ -17,6 +17,7 @@ from ..base import (
     Form,
     HorizonError,
     LawKind,
+    NoiseKind,
     SolverError,
     SpaceKind,
     Supports,
@@ -140,6 +141,7 @@ class FractionalEulerMaruyama(Stepper):
         laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.NOISE},
         domains=NUMERIC_DOMAINS,
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        noise={NoiseKind.DIAGONAL},
     )
 
     form: ClassVar[Form] = Form.SDE

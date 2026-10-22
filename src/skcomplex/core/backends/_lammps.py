@@ -21,6 +21,7 @@ from ..base import (
     Domain,
     Form,
     LawKind,
+    NoiseKind,
     SpaceKind,
     Supports,
     TimeKind,
@@ -274,6 +275,7 @@ class LammpsBackend(ExternalBackend):
         laws={LawKind.RATE, LawKind.NOISE, LawKind.EQUATION, LawKind.BOUNDARY},
         domains=NUMERIC_DOMAINS,
         components={ComponentKind.ELEMENT, ComponentKind.GROUP},
+        noise={NoiseKind.DIAGONAL},
     )
 
     name: ClassVar[str] = 'LAMMPS'

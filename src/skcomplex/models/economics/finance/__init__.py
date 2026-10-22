@@ -3,6 +3,7 @@
 from ._arbitrage import ArbitrageDensity, arbitrage_traders
 from ._assets import Asset, GeometricBrownianMotion, geometric_brownian_motion
 from ._contagion import Bank, DebtRankCascade, debtrank
+from ._correlated_assets import CorrelatedGeometricBrownianMotion, correlated_geometric_brownian_motion
 from ._growth_processes import (
     GibratFirm,
     KestenFirm,
@@ -17,6 +18,7 @@ __all__: list[str] = [
     'ArbitrageDensity',
     'Asset',
     'Bank',
+    'CorrelatedGeometricBrownianMotion',
     'DebtRankCascade',
     'GeometricBrownianMotion',
     'GibratFirm',
@@ -26,6 +28,7 @@ __all__: list[str] = [
     'Saver',
     'arbitrage_traders',
     'bouchaud_mezard_wealth',
+    'correlated_geometric_brownian_motion',
     'debtrank',
     'geometric_brownian_motion',
     'gibrat_process',

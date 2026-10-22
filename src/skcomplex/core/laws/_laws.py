@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from ._flows import Auxiliary, Transfer
 
 type Target = Expression | SymbolicVector
+type Process = str | tuple[str, ...] | Expression | SymbolicVector | None
 NOISE_CONVENTIONS = {'ito': 0.0, 'stratonovich': 0.5, 'anti-ito': 1.0}
 type NumericFunction = Callable[[float, Mapping[str, Any]], Any]
 
@@ -60,6 +61,13 @@ def _checked_matrix(description: str, matrix: object) -> tuple[tuple[object, ...
 def _check_value(law: object, name: str, description: str) -> None:
     """Replace a value field of a frozen law by its checked value."""
     object.__setattr__(law, name, _checked_value(description, getattr(law, name)))
+
+
+def _is_process(process: object) -> bool:
+    """Check whether a value names the Wiener process of a noise law: `None`, a label, labels, or handles."""
+    if process is None or isinstance(process, str | Expression | SymbolicVector):
+        return True
+    return isinstance(process, tuple) and bool(process) and all(isinstance(item, str) for item in process)
 
 
 def _is_number(value: object) -> bool:
@@ -146,7 +154,11 @@ class Rate:
 
 @dataclass(frozen=True)
 class Noise:
-    """Amplitude of an independent Wiener process that drives the highest time derivative of a state.
+    """Amplitude of a Wiener process that drives the highest time derivative of a state.
+
+    Without a process, every component of the target and every member of a group gets its own independent Wiener
+    process. Laws of one component, or of one member, that name the same local process share its increment. Laws that
+    name a process of a `Wiener` element through a role share it across components and members.
 
     Args:
         target:
@@ -162,12 +174,22 @@ class Noise:
             The stochastic calculus of the law, `'ito'`, `'stratonovich'`, or `'anti-ito'`. The compiler adds the
             drift correction of the convention, so every solver integrates the Itô form.
 
+        process:
+            `None` for independent processes, a label local to the component, a tuple of labels with one per
+            component of a vector target, or the handle `s.<role>.dW` or `s.<role>.dW[k]` of a `Wiener` element.
+
+    Raises:
+        ValidationError:
+            The convention is unknown, or the process is not a label, a tuple of labels, or a handle.
+
     Examples:
         >>> from skcomplex.core.base import symbol
         >>> from skcomplex.core.laws import Noise
         >>> price = symbol('price')
         >>> Noise(price, 0.2 * price).value
         0.2*price
+        >>> Noise(price, 0.2 * price, process='market').process
+        'market'
     """
 
     law_kind: ClassVar[LawKind] = LawKind.NOISE
@@ -180,12 +202,19 @@ class Noise:
     value: object
     order: int | None = None
     convention: str = 'ito'
+    process: Process = None
 
     def __post_init__(self) -> None:
-        """Check the value and the convention of the law."""
+        """Check the value, the convention, and the process of the law."""
         _check_value(self, 'value', f'value of the {type(self).__name__.lower()} law of {self.target}')
         if self.convention not in NOISE_CONVENTIONS:
             error_msg = f'Unknown noise convention {self.convention!r}. Use one of {", ".join(NOISE_CONVENTIONS)}.'
+            raise ValidationError(error_msg)
+        if not _is_process(self.process):
+            error_msg = (
+                f'The process of the noise law of {self.target} is {self.process!r}. Give a label, a tuple of labels, '
+                'or the handle `s.<role>.dW` of a Wiener element.'
+            )
             raise ValidationError(error_msg)
 
 
@@ -497,6 +526,7 @@ class FractionalNoise(Noise):
     """
 
     hurst: object = 0.5
+    process: Process = field(default=None, init=False)
 
     def __init__(
         self,
@@ -511,6 +541,7 @@ class FractionalNoise(Noise):
         object.__setattr__(self, 'hurst', hurst)
         object.__setattr__(self, 'order', order)
         object.__setattr__(self, 'convention', convention)
+        object.__setattr__(self, 'process', None)
         self.__post_init__()
 
 

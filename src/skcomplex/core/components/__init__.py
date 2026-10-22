@@ -6,6 +6,7 @@ from ._memory import memory
 from ._particles import Particle
 from ._quantum import QuantumView, hilbert_state, is_quantum, view_of
 from ._rewriting import HostGraph, Patch, Word, structure_of
+from ._wiener import Wiener
 
 __all__: list[str] = [
     'Aggregate',
@@ -16,6 +17,7 @@ __all__: list[str] = [
     'Particle',
     'Patch',
     'QuantumView',
+    'Wiener',
     'Word',
     'hilbert_state',
     'is_quantum',

@@ -1,13 +1,21 @@
 """Test the chemical kinetics models against their known behavior."""
 
 import numpy as np
+import pytest
 
+from skcomplex.core.base import ValidationError
+from skcomplex.core.compile import compile_system
 from skcomplex.core.runtime import Simulation
+from skcomplex.core.solvers import EulerMaruyama
+from skcomplex.core.system import System
 from skcomplex.models import describe
 from skcomplex.models.chemistry.kinetics import (
+    Binding,
+    Species,
     brusselator_ode,
     catalyst_pellet,
     chemical_langevin_equation,
+    chemical_langevin_network,
     cubic_autocatalysis,
     cyclic_cellular_automaton,
     michaelis_menten,
@@ -130,3 +138,44 @@ def test_cyclic_cellular_automaton_advances_around_the_cycle():
     steps = np.mod(levels[1:] - levels[:-1], 8)
     assert set(np.unique(steps)) <= {0.0, 1.0}
     assert steps[-1].sum() > 0
+
+
+def test_langevin_binding_conserves_difference():
+    """Test that `A + B -> C` as a chemical Langevin equation keeps `A - B` while `A` fluctuates."""
+    system = System(
+        components=[Species('A', n=200.0), Species('B', n=150.0), Species('C')],
+        interactions=[Binding('binding', first='A', second='B', product='C', k=0.001, langevin=True)],
+    )
+    trajectory = _run(system, 5.0, 0.05, solver=EulerMaruyama(dt=1e-3))
+    difference = trajectory['A.n'] - trajectory['B.n']
+    np.testing.assert_allclose(difference, 50.0, rtol=1e-9)
+    deterministic = _run(
+        System(
+            components=[Species('A', n=200.0), Species('B', n=150.0), Species('C')],
+            interactions=[Binding('binding', first='A', second='B', product='C', k=0.001)],
+        ),
+        5.0,
+        0.05,
+    )
+    assert np.max(np.abs(trajectory['A.n'] - deterministic['A.n'])) > 0.5
+
+
+def test_langevin_and_stochastic_reaction_is_rejected():
+    """Test that a reaction both stochastic and in Langevin mode raises an error that names it."""
+    system = System(
+        components=[Species('A', n=10.0), Species('B', n=10.0), Species('C')],
+        interactions=[Binding('binding', first='A', second='B', product='C', stochastic=True, langevin=True)],
+    )
+    with pytest.raises(ValidationError, match='binding'):
+        compile_system(system)
+
+
+def test_chemical_langevin_network_conserves_totals():
+    """Test that the enzyme network under noise keeps `E + C` and `S + C + P` at every frame."""
+    defaults = describe('chemical_langevin_network').defaults
+    trajectory = _run(chemical_langevin_network(), defaults['until'], defaults['dt'], solver=defaults['solver'])
+    enzyme = trajectory['E.n'] + trajectory['C.n']
+    substrate = trajectory['S.n'] + trajectory['C.n'] + trajectory['P.n']
+    np.testing.assert_allclose(enzyme, 100.0, rtol=1e-9)
+    np.testing.assert_allclose(substrate, 300.0, rtol=1e-9)
+    assert np.std(np.diff(trajectory['C.n'])) > 0

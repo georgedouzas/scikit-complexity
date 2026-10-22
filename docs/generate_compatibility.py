@@ -12,6 +12,11 @@ def _terms(terms: frozenset[object], every: int | None = None) -> str:
     return ', '.join(f'`{term}`' for term in sorted(map(str, terms)))
 
 
+def _noise_terms(terms: frozenset[object]) -> str:
+    """Return the noise structures of a declaration, `none` for an empty one."""
+    return _terms(terms) if terms else 'none'
+
+
 def law_lines() -> list[str]:
     """Return the requirements of every law type.
 
@@ -49,10 +54,12 @@ def solver_lines() -> list[str]:
         '## Solvers',
         '',
         'Every solver declares what it supports. Validation checks a chosen solver against the laws, domains,',
-        'components, and space of a system, and lists the solvers that support what it lacks.',
+        'components, space, and noise structures of a system, and lists the solvers that support what it lacks. A',
+        'diagonal noise draws one Wiener process per state, a shared noise drives several states with one process, and',
+        'a correlated noise draws the processes of a Wiener element with a covariance.',
         '',
-        '| Solver | Form | Time | Space | Laws | Domains | Components |',
-        '|---|---|---|---|---|---|---|',
+        '| Solver | Form | Time | Space | Laws | Domains | Components | Noise |',
+        '|---|---|---|---|---|---|---|---|',
     ]
     for key in sorted(SOLVERS, key=lambda key: (key[0].name, key[1])):
         if key[1] == 'auto':
@@ -66,6 +73,7 @@ def solver_lines() -> list[str]:
             _terms(supports.laws, len(LawKind)),
             _terms(supports.domains, 12),
             _terms(supports.components, 7),
+            _noise_terms(supports.noise),
         ]
         lines.append(f'| {" | ".join(cells)} |')
     return lines
@@ -82,14 +90,16 @@ def backend_lines() -> list[str]:
         '',
         '## Backends',
         '',
-        'Backends turn the compiled laws into numeric functions. Each declares the laws and domains it lowers.',
+        'Backends turn the compiled laws into numeric functions. Each declares the laws, domains, and noise structures',
+        'it lowers.',
         '',
-        '| Backend | Laws | Domains |',
-        '|---|---|---|',
+        '| Backend | Laws | Domains | Noise |',
+        '|---|---|---|---|',
     ]
     for key in sorted(BACKENDS):
         supports = BACKENDS.resolve(key).supports
-        lines.append(f'| `{key}` | {_terms(supports.laws, len(LawKind))} | {_terms(supports.domains, 12)} |')
+        cells = [_terms(supports.laws, len(LawKind)), _terms(supports.domains, 12), _noise_terms(supports.noise)]
+        lines.append(f'| `{key}` | {" | ".join(cells)} |')
     return lines
 
 

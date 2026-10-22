@@ -11,7 +11,15 @@ from ._oscillators import (
     cubic_autocatalysis,
     oregonator,
 )
-from ._reactions import Binding, Dissociation, Schlogl, Species, chemical_langevin_equation, michaelis_menten
+from ._reactions import (
+    Binding,
+    Dissociation,
+    Schlogl,
+    Species,
+    chemical_langevin_equation,
+    chemical_langevin_network,
+    michaelis_menten,
+)
 from ._reactors import CatalystPellet, PulsedElectrode, catalyst_pellet, pulsed_electrochemical_reactor
 
 __all__: list[str] = [
@@ -29,6 +37,7 @@ __all__: list[str] = [
     'brusselator_ode',
     'catalyst_pellet',
     'chemical_langevin_equation',
+    'chemical_langevin_network',
     'cubic_autocatalysis',
     'cyclic_cellular_automaton',
     'hodgepodge',

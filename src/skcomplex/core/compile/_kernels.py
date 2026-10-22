@@ -16,7 +16,7 @@ from ..base import Expression, ValidationError, symbols_of
 from ..laws import NumericFunction
 from ._layout import Entry, Layout
 from ._printing import numpy_function
-from ._problem import JumpChannels, Vector
+from ._problem import JumpChannels, Vector, WienerBlock
 
 type Indices = npt.NDArray[np.intp]
 type Pairs = tuple[Indices, Indices] | None
@@ -195,6 +195,30 @@ class PairSearch:
         return first_positions - (difference - self.period * np.rint(difference / self.period))
 
 
+@dataclass(frozen=True)
+class NoiseProcess:
+    """Named Wiener process that a noise output draws, shared by every output with the same key.
+
+    Args:
+        key:
+            The identity of the process: a local label of a component, or the path of a Wiener element.
+
+        index:
+            The process within a Wiener element.
+
+        dimension:
+            The number of processes of a Wiener element, or 0 for a local label, which takes one process per member.
+
+        factor:
+            The factor `L` with `L L^T = C` of the covariance of a Wiener element, or `None` for the identity.
+    """
+
+    key: object
+    index: int = 0
+    dimension: int = 0
+    factor: npt.NDArray[np.float64] | None = field(default=None, compare=False)
+
+
 @dataclass
 class Output:
     """Value a kernel produces for one target component.
@@ -217,6 +241,9 @@ class Output:
 
         components:
             The number of components the callable returns per evaluation index.
+
+        process:
+            The named Wiener process of a noise output, or `None` for one independent process per evaluation index.
     """
 
     target: Reference | None
@@ -225,6 +252,7 @@ class Output:
     arguments: tuple[Expression, ...] | None = None
     component: int = 0
     components: int = 1
+    process: NoiseProcess | None = None
 
 
 @dataclass
@@ -530,8 +558,49 @@ def member_indices(reference: Reference, rows: int) -> Indices:
     return np.full(rows, reference.entry.start + reference.column, dtype=np.intp)
 
 
-def noise_rows(kernels: list[Kernel]) -> Indices:
-    """Return the state index driven by every Wiener process of noise kernels.
+@dataclass
+class _Processes:
+    """Wiener processes of noise outputs, numbered in order of first use."""
+
+    count: int = 0
+    local: dict[object, Indices] = field(default_factory=dict)
+    starts: dict[object, int] = field(default_factory=dict)
+    blocks: list[WienerBlock] = field(default_factory=list)
+
+    def _fresh(self, size: int) -> Indices:
+        """Return the columns of new processes."""
+        columns = np.arange(self.count, self.count + size, dtype=np.intp)
+        self.count += size
+        return columns
+
+    def columns(self, process: NoiseProcess | None, size: int) -> Indices:
+        """Return the process of every evaluation index of a noise output."""
+        if process is None:
+            return self._fresh(size)
+        if not process.dimension:
+            if process.key not in self.local:
+                self.local[process.key] = self._fresh(size)
+            columns = self.local[process.key]
+            if columns.size != size:
+                error_msg = (
+                    f'The noise process {process.key!r} drives members of groups of different sizes. Name one process '
+                    'per group.'
+                )
+                raise ValidationError(error_msg)
+            return columns
+        if process.key not in self.starts:
+            self.starts[process.key] = self.count
+            if process.factor is not None:
+                self.blocks.append(WienerBlock(self.count, process.dimension, process.factor))
+            self.count += process.dimension
+        return np.full(size, self.starts[process.key] + process.index, dtype=np.intp)
+
+
+def lower_noise(kernels: list[Kernel]) -> tuple[Indices, Indices, int, tuple[WienerBlock, ...]]:
+    """Return the state and the Wiener process of every amplitude of noise kernels, with the processes they draw.
+
+    Processes are numbered in order of first use. An output without a named process takes one new process per
+    evaluation index, so noise without named processes draws one process per amplitude in evaluation order.
 
     Args:
         kernels:
@@ -539,10 +608,30 @@ def noise_rows(kernels: list[Kernel]) -> Indices:
 
     Returns:
         rows:
-            One state index per Wiener process.
+            One state index per amplitude.
+
+        columns:
+            One process index per amplitude.
+
+        processes:
+            The number of processes.
+
+        blocks:
+            The blocks of correlated processes with their covariance factors.
     """
-    rows = [member_indices(item.target, kernel.rows) for kernel in kernels for item in kernel.outputs]  # type: ignore[arg-type]
-    return np.concatenate([np.zeros(0, dtype=np.intp), *rows]).astype(np.intp)
+    rows, columns, processes = [], [], _Processes()
+    for kernel in kernels:
+        for item in kernel.outputs:
+            indices = member_indices(item.target, kernel.rows)  # type: ignore[arg-type]
+            rows.append(indices)
+            columns.append(processes.columns(item.process, indices.size))
+    empty = np.zeros(0, dtype=np.intp)
+    return (
+        np.concatenate([empty, *rows]).astype(np.intp),
+        np.concatenate([empty, *columns]).astype(np.intp),
+        processes.count,
+        tuple(processes.blocks),
+    )
 
 
 def jump_channels(
