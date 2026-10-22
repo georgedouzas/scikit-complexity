@@ -2,6 +2,7 @@
 
 from ._agents import AgentSnapshot, AgentState
 from ._base import SOLVERS, Stepper, register_solver, resolve_solver
+from ._caputo import FractionalABM, GrunwaldLetnikov, L1Scheme
 from ._cosimulation import CoSimulation
 from ._fractional import FractionalEulerMaruyama, fractional_gaussian_noise
 from ._lattices import LatticeStepper, MonteCarlo
@@ -31,11 +32,14 @@ __all__: list[str] = [
     'CoSimulation',
     'CrankNicolson',
     'EulerMaruyama',
+    'FractionalABM',
     'FractionalEulerMaruyama',
     'Gillespie',
+    'GrunwaldLetnikov',
     'Heun',
     'IMEXEuler',
     'Iteration',
+    'L1Scheme',
     'LatticeStepper',
     'LindbladEvolution',
     'Milstein',
