@@ -9,7 +9,8 @@ constraints arrive frame by frame, and train estimators by epochs.
 
 ### Requirement: Constraint problems declare Boolean states and constraints
 Elements SHALL declare Boolean decision states, clauses over literals, and cardinality constraints that at least or
-at most `k` of a set of literals hold. Constraints SHALL be given as a sequence, so a run can reveal them in order.
+at most `k` of a set of literals hold. Constraints SHALL be given as a sequence, so a run can reveal them in order. A
+constraint problem SHALL require static time and Boolean states, and validation SHALL report other uses.
 
 #### Scenario: Perceptron pattern as a constraint
 - **WHEN** a binary perceptron of 21 weights `w_i = ±1` must give the output `sigma` for a pattern `xi`
@@ -18,7 +19,7 @@ at most `k` of a set of literals hold. Constraints SHALL be given as a sequence,
 ### Requirement: Satisfiability is decided incrementally
 A run SHALL reveal a set number of further constraints per frame and SHALL decide at every frame whether the
 revealed constraints are satisfiable, keeping what the solver learned before. The frame SHALL hold a satisfying
-assignment when one exists, and the observable `satisfiable`. A problem SHALL also enumerate all solutions up to a
+assignment when one exists, and the Boolean state `satisfiable`. A problem SHALL also enumerate all solutions up to a
 limit.
 
 #### Scenario: Small perceptron
@@ -31,8 +32,9 @@ limit.
 - **THEN** the mean load `p/N` at the first unsatisfiable frame lies between 0.7 and 1.0, near the critical load 0.83
 
 ### Requirement: Estimators train by epochs
-Elements SHALL wrap an estimator that learns incrementally, with its training data, and SHALL run one epoch per
-frame. The frame SHALL hold the learned coefficients and the training error.
+Elements SHALL wrap an estimator that learns incrementally, with its training data, and SHALL run one epoch per step
+of discrete time. The frame SHALL hold the learned coefficients and the training error as states. A learner SHALL
+require discrete time, and validation SHALL report it under any other time.
 
 #### Scenario: Separable patterns
 - **WHEN** a real-weight perceptron with 25 inputs trains on 12 random patterns

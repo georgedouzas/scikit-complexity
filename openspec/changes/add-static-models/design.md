@@ -2,17 +2,25 @@
 
 ## Context
 
-The parts of the framework that this change builds on:
-- Every system compiles to one `Form`, and a stepper per form advances a `Simulation` frame by frame in simulated time.
-  The `Trajectory` records `times`, states, parameters, and observables, and `RerunObserver` logs each frame on the
-  `step` and `sim_time` timelines.
+The parts of the framework that this change builds on, after `redesign-system-model`:
+- A system is `System(label, components=, interactions=, space=, time=)`. Its time is `ContinuousTime()`,
+  `DiscreteTime(...)`, or `StaticTime()`, and validation already reports a static system that holds a law outside the
+  constraint class. The redesign defines static time but no solver for it, and leaves the static form and its root and
+  optimisation solvers to this change.
+- Laws are classified by time semantics through `LawKind.law_class`. The constraint class holds algebraic `Equation`,
+  `Boundary`, `Invariant`, and `Objective`, valid under any time.
+- Every primitive declares `Requires`, every solver and backend declares `Supports`, and `validate()` reports each
+  misuse as an `Issue` with a code, path, message, and fix before compilation.
+- The compiler lowers validated laws to an internal `Form`, and a stepper per form advances a `Simulation` frame by
+  frame. The `Trajectory` records `times`, states, parameters, and the observables given to the simulation, and
+  `RerunObserver` logs each frame on the `step` and `sim_time` timelines.
 - Laws are Sage expressions, lowered to NumPy and Numba. `Equation` already solves implicit relations for the highest
   derivatives.
 - `schedule` sets a parameter from a function of time at every frame. The archived `add-experiments` runs replicates
   with independent streams, and designs and summaries over them.
 - Groups give vectorised members, reductions such as `total` and `mean` reduce over them, and `PointsVisual` draws
-  members in a continuous space.
-- The Monte Carlo form already compiles Metropolis, Glauber, and heat-bath acceptance in `Sampler`.
+  members in a `ContinuousSpace`.
+- `Sample` already compiles Metropolis acceptance, with Glauber and heat-bath as the general alternatives.
 
 The six models (see proposal.md) have no time derivative and no update law. They need a frame axis that is a swept
 parameter or the iteration of an algorithm, and adapters to the libraries that solve them.
@@ -25,7 +33,9 @@ parameter or the iteration of an algorithm, and adapters to the libraries that s
   interface, without a parallel runtime, and without a fake time axis.
 - Take every numerical method from a mature library, with the core holding only the adapters.
 - Keep each construct domain-agnostic. A game is not an oligopoly, a constraint problem is not a perceptron, and a
-  point pattern is not a set of disks.
+  point pattern is not a set of disks. Physics and economics realizations, such as Boltzmann averages and learning
+  heuristics, live in `skcomplex.models.<field>.realizations`.
+- Declare the requirements of every new primitive and the support of every new solver, so validation reports misuse.
 
 **Non-Goals:**
 
@@ -46,21 +56,41 @@ Three frame axes cover the six models. Each is the real axis of the model, not t
 | Axis | Meaning of a frame | `run` | Trajectory | Models |
 |---|---|---|---|---|
 | sweep of a parameter | one value of the control parameter, solved once | `Simulation(..., sweep=Sweep('lq.dose', values)).run()` | `axis == 'lq.dose'`, `times` hold the doses | `lq_cell_survival`, `random_energy_model`, `oligopoly_equilibria`, `continuum_percolation` |
-| iteration of an algorithm | one generation, epoch, or round | `run(until=n)` with `dt=1` | `axis == 'iteration'` | `evolutionary_optimisers`, the learning dynamics of games, the real perceptron |
+| iteration of an algorithm | one generation, epoch, or round | `run(until=n)` under `DiscreteTime()` | `axis == 'iteration'` | `evolutionary_optimisers`, the learning dynamics of games, the real perceptron |
 | growing problem | one more revealed constraint, or more revealed points | a sweep of the revealed count | `axis` is the count parameter | `perceptron_satisfiability`, `continuum_percolation` |
 
-- `Form.STATIC` ('static solution') holds systems whose laws are `Define` and `Balance`, and the elements solved as a
-  whole, `Satisfiability` and `PointProcess`. Its stepper `Evaluation` solves the system once per frame from the
-  current parameters and sets the state vector to the solution. With no sweep, `run(until=0)` gives one frame.
-- `Form.PROCEDURE` ('iterative procedure') holds systems with `Search`, `Learner`, or a `Game` with a learning
-  dynamic. `ProcedureStepper` calls one `step` of each such element per frame with the run's random stream.
-- `Sweep(parameter, values)` is a run setting, stored unmodified. `Simulation` sets the parameter through the same
-  path as `update_parameters`, so domain checks apply, and records the value in place of the time. The catalog's
-  defaults may hold a `sweep`, so `run('lq_cell_survival')` sweeps the dose with no arguments. A sweep of a growing
-  problem sweeps an integer parameter, such as the number of revealed patterns.
+- Static models declare `time=StaticTime()`, or omit it and have it inferred from their constraint laws. The internal
+  `Form.STATIC` ('static solution') holds systems whose laws are `Define` and algebraic `Equation`, and the elements
+  solved as a whole, `Satisfiability` and `PointProcess`. Its solver `Evaluation` solves the system once per frame from
+  the current parameters and sets the state vector to the solution. With no sweep, `run(until=0)` gives one frame.
+- Procedures run under `DiscreteTime()`. `Search`, `Learner`, and a `Game` with a learning dynamic each hold one law of
+  the new kind `LawKind.PROCEDURE`, in the discrete class, which is one `step` of an external algorithm. The internal
+  `Form.PROCEDURE` ('iterative procedure') holds such systems, and `ProcedureStepper` calls one `step` of each such
+  element per time step with the run's random stream.
+- `Sweep(parameter, values)` is a setting of `Simulation`, never of the system, stored unmodified. `Simulation` sets
+  the parameter through the same path as `update_parameters`, so domain checks apply, and records the value in place
+  of the time. The catalog's defaults may hold a `sweep`, so `run('lq_cell_survival')` sweeps the dose with no
+  arguments. A sweep of a growing problem sweeps an integer parameter, such as the number of revealed patterns.
 - `Trajectory` gains `axis`, `'time'` by default, so analysis code and the gallery's plots label the axis correctly.
 - Disorder averages are ensembles of the existing experiments over seeds. A quenched parameter is drawn once per run,
   so replicates average over draws with no new machinery.
+
+### Declarations and validation
+
+| Primitive or solver | Package | Declaration | Issue reported by `validate()` |
+|---|---|---|---|
+| `Define` | `core.laws` | `LawKind.DEFINE`, constraint class, `Requires(domains=NUMERIC_DOMAINS)` | definitions that form a cycle, naming the states, with the fix of an algebraic `Equation` |
+| algebraic `Equation` with `unknowns` | `core.laws` | `LawKind.EQUATION`, read as constraint class when it holds no derivative | an unknown that is not a state of the system, or more unknowns than equations |
+| `Quenched` | `core.components` | `Requires()` | a distribution that is not a frozen `scipy.stats` distribution |
+| `PointProcess` | `core.components` | `Requires(space={SpaceKind.CONTINUOUS})` | a point process outside a continuous space, with the fix `space=ContinuousSpace(...)` |
+| `Satisfiability` | `core.components` | `Requires(time={TimeKind.STATIC}, domains={DomainKind.BOOLEAN})` | a `reveal` parameter that is not an integer parameter |
+| `Game` | `core.components` | `Requires(time={TimeKind.STATIC, TimeKind.DISCRETE})`; discrete time only with a learning dynamic | a learning dynamic under static time, or discrete time without one |
+| `Learner`, `Search` | `core.components` | `Requires(time={TimeKind.DISCRETE})` | the element under continuous or static time, with the fix `DiscreteTime()` |
+| `Evaluation` | `core.solvers` | `Supports(time={TimeKind.STATIC}, laws={DEFINE, EQUATION, OBJECTIVE}, domains={REAL, INTEGER, BOOLEAN})` | a static system with a law it does not support |
+| `ProcedureStepper` | `core.solvers` | `Supports(time={TimeKind.DISCRETE}, laws={PROCEDURE, UPDATE})` | a procedure law with a solver that does not support it, listing `ProcedureStepper` |
+
+`Sweep` is a run setting, and `Simulation` checks that its parameter exists and is not adaptive, since a law that
+changes the swept parameter would contradict the axis.
 
 Alternatives considered:
 - A separate `Solver` API outside `Simulation`, returning a result object. It would split the library into two
@@ -116,28 +146,34 @@ The spike measured:
 
 ### Definitions and algebraic equations
 
-- `Define(state, expression)` is a law. The compiler orders definitions by their dependencies and rejects a cycle,
-  naming the states. They lower through the existing printers to one NumPy or Numba function.
-- `Balance(relations, unknowns, guess=None)` is a law. At compile time, Sage's `solve` is tried. A unique explicit
-  solution turns the balance into definitions. Otherwise the stepper calls `scipy.optimize.root` with the compiled
-  residual and its symbolic Jacobian, starting from the previous frame's solution or `guess`. A failure raises
-  `SolveError`, a named error in `skcomplex.core.base`.
-- `best_response(payoff, strategy)` returns the relation `diff(payoff, strategy) == 0`, so a continuous game is a
-  `Balance` of its players' best responses.
+- `Define(state, expression)` is a law of the constraint class, in `core.laws`. The compiler orders definitions by
+  their dependencies, and validation reports a cycle, naming the states. They lower through the existing printers to
+  one NumPy or Numba function.
+- Algebraic equations reuse the redesign's `Equation`, with `unknowns=` naming the states it solves for and an
+  optional `guess`. This replaces the `Balance` law this change first proposed. At compile time, Sage's `solve` is
+  tried. A unique explicit solution turns the equations into definitions. Otherwise the solver calls
+  `scipy.optimize.root` with the compiled residual and its symbolic Jacobian, starting from the previous frame's
+  solution or `guess`. A failure raises `SolveError`, a named error in `skcomplex.core.base`.
+- `best_response(payoff, strategy)` returns the relation `diff(payoff, strategy) == 0`, so a continuous game is a set of
+  algebraic `Equation`s of its players' best responses.
 
 ### Random ensembles
 
 - `Quenched(distribution, shape)` declares a parameter drawn from a `scipy.stats` frozen distribution with the run's
   generator, once, in `Simulation._prepare`. Its draw is part of `parameters_`, so it appears in frames and is
   recorded once in the trajectory.
-- `log_partition(energy, temperature)` and `boltzmann_mean(value, energy, temperature)` are reductions over a group,
-  lowered to `scipy.special.logsumexp` on NumPy and to a max-shifted sum on Numba.
-- `PointProcess(space, intensity=None, count=None, maximum=...)` is a group of points in a `ContinuousSpace`. It
+- `log_sum_exp(expression)` is a general reduction over a group, beside `total` and `mean`, lowered to
+  `scipy.special.logsumexp` on NumPy and to a max-shifted sum on Numba.
+- `log_partition(energy, temperature)` and `boltzmann_mean(value, energy, temperature)` are physics realizations in
+  `skcomplex.models.physics.realizations`, built on `log_sum_exp` of `-energy / temperature`. The core names no
+  Boltzmann weight.
+- `PointProcess(intensity=None, count=None, maximum=...)` is a group of points in the system's `ContinuousSpace`. It
   draws the largest pattern of the sweep once, in arrival order, and a frame reveals the first `Poisson(intensity *
   volume)` points of it, drawn by a quenched count, so sweeps are nested.
 - `clusters(points, radius, span=axis)` in `skcomplex.core.analysis` builds the contact graph with
   `cKDTree.query_pairs` and labels it with `connected_components`. It returns the labels, the sizes, and whether one
-  label touches both faces. It is also an observable, so the largest cluster and the spanning flag stream per frame.
+  label touches both faces. It also builds observables, so `Simulation(observables=...)` or a catalog entry streams the
+  largest cluster and the spanning flag per frame.
 
 ### Games
 
@@ -145,9 +181,11 @@ The spike measured:
   expressions of the strategy symbols, tabulated on the strategy grids.
 - `equilibria(game, method='support' | 'vertex' | 'lemke-howson')` in `skcomplex.core.analysis` returns the mixed
   equilibria through `nashpy.Game`.
-- `Game(dynamics='fictitious' | 'stochastic-fictitious' | 'replicator')` makes the element a procedure. Its step
-  advances the matching nashpy generator by one item, with NumPy's legacy seed set from the run's stream because
-  nashpy draws from the global state. The states are the play counts or the population shares.
+- `Game(dynamics=...)` makes the element a procedure. A dynamic is any object with a `step`. The core ships none: the
+  fictitious play, stochastic fictitious play, and replicator dynamics are learning heuristics, so they are
+  realizations in `skcomplex.models.economics.realizations`. Each step advances the matching nashpy generator by one
+  item, with NumPy's legacy seed set from the run's stream because nashpy draws from the global state. The states are
+  the play counts or the population shares.
 
 ### Constraint satisfaction and learning
 
@@ -158,20 +196,22 @@ The spike measured:
 - The adapter keeps one PySAT solver (CaDiCaL 1.9.5 by default) for the run. Each frame adds only the newly revealed
   constraints, encoding cardinalities with `pysat.card.CardEnc` and a shared `IDPool`, and calls `solve`. A frame that
   reveals fewer constraints than the last rebuilds the solver.
-- `satisfiable` is an observable, and the states hold the model. `enumerate_solutions(system, limit)` uses
-  `enum_models` on a copy of the solver.
+- `satisfiable` is a Boolean state of the element, and the other states hold the model. `enumerate_solutions(system,
+  limit)` uses `enum_models` on a copy of the solver.
 - `Learner(estimator, data, target)` is an element that clones a scikit-learn estimator with `partial_fit`. Each step
-  is one epoch over the data in a random order from the run's stream. The states are `coef_` and `intercept_`, and
-  `training_error` is an observable.
+  is one epoch over the data in a random order from the run's stream. The states are `coef_`, `intercept_`, and
+  `training_error`.
 
 ### Search processes
 
-- `Search(variables, bounds, objective, algorithm, population=40)` is an element. The objective is a Sage expression
-  of the variables, lowered to a vectorised function over the population.
+- `Search(variables, bounds, objective, algorithm, population=40)` is an element. The objective is the redesign's
+  `Objective` law over a Sage expression of the variables, lowered to a vectorised function over the population.
 - For `'ga'`, `'de'`, `'pso'`, `'es'`, and `'cmaes'`, the adapter sets up the pymoo algorithm with the run's seed and
-  calls `ask`, evaluates the compiled objective, and calls `tell`, once per frame. The candidates are the members of
-  a group, so `PointsVisual` draws them on the landscape, and `best` and `mean` are observables.
-- `'annealing'` reuses the Metropolis acceptance that `Sampler` already compiles, applied to a Gaussian proposal per
+  calls `ask`, evaluates the compiled objective, and calls `tell`, once per step. These are optimisation algorithms,
+  engineering terms like solvers, so they stay in the core. The candidates are the members of a group, so
+  `PointsVisual` draws them on the landscape, and the catalog entry declares the reductions `best` and `mean` as
+  observables.
+- `'annealing'` reuses the Metropolis acceptance that `Sample` already compiles, applied to a Gaussian proposal per
   candidate, with a temperature parameter that the run's `schedule` cools. No library offers a steppable classical
   simulated annealing that is widely used, and the framework already has the acceptance rule.
 
@@ -187,9 +227,9 @@ The spike measured:
 
 | Model | Field path | Construction | Default run | Thumbnail and analysis plot |
 |---|---|---|---|---|
-| `lq_cell_survival` | `biology/oncology` | `Define` of survival `exp(-alpha D - beta G D^2)`, the Lea-Catcheside factor `G = 2(x - 1 + e^-x)/x^2` with `x = lambda T`, and BED (Eqs. 6.6–6.8) | sweep of the dose over 0–10 Gy | survival on a log scale against dose, and BED of fractionation schemes |
-| `random_energy_model` | `physics/statistical_mechanics` | `Quenched` Gaussian energies of variance `N J^2/2` on 2^N members, with `log_partition` observables | sweep of `T` over 0.2–2 | entropy and free energy against `T` with the theory and `T_g`, averaged over draws |
-| `oligopoly_equilibria` | `economics/markets` | Cournot best responses as `Balance` (Eqs. 21.5–21.6), the m-firm indifference condition as `Balance` for `F(P)`, and the discretised duopoly as a `Game` with fictitious play | sweep of the incentive weight `lambda` | sales against `lambda`, and the empirical price distribution of fictitious play against `F(P)` |
+| `lq_cell_survival` | `biology/oncology` | `StaticTime()`, `Define` of survival `exp(-alpha D - beta G D^2)`, the Lea-Catcheside factor `G = 2(x - 1 + e^-x)/x^2` with `x = lambda T`, and BED (Eqs. 6.6–6.8) | sweep of the dose over 0–10 Gy | survival on a log scale against dose, and BED of fractionation schemes |
+| `random_energy_model` | `physics/statistical_mechanics` | `Quenched` Gaussian energies of variance `N J^2/2` on 2^N members, with the physics realization `log_partition` as catalog observables | sweep of `T` over 0.2–2 | entropy and free energy against `T` with the theory and `T_g`, averaged over draws |
+| `oligopoly_equilibria` | `economics/markets` | Cournot best responses as algebraic `Equation`s (Eqs. 21.5–21.6), the m-firm indifference condition as an algebraic `Equation` for `F(P)`, and the discretised duopoly as a `Game` with the fictitious play realization | sweep of the incentive weight `lambda` | sales against `lambda`, and the empirical price distribution of fictitious play against `F(P)` |
 | `perceptron_satisfiability` | `computer_science/neural_networks` | `Satisfiability` with one `at_least` per pattern, and a real-weight `Learner` variant | sweep of the number of revealed patterns | satisfiable fraction against `p/N` for several `N`, with the critical loads 0.83 and 2 |
 | `evolutionary_optimisers` | `computer_science/evolutionary_computation` | `Search` on Rastrigin or Rosenbrock with a chosen algorithm | 100 generations | the population on the landscape, and the best value per generation for each algorithm |
 | `continuum_percolation` | `physics/statistical_mechanics` | `PointProcess` of disks and `clusters` | sweep of the filling factor over 0.8–1.5 | the disks coloured by cluster, and the spanning probability against the filling factor for two sizes, crossing near 1.128 |
@@ -209,3 +249,18 @@ out of scope to pending this change.
   the spike.
 - [Three new runtime dependencies] → nashpy and PySAT are small, and pymoo brings `cma`, `autograd`, `moocore`, and
   `matplotlib`, which the documentation already installs. deptry learns that they are used.
+
+## Open Questions
+
+- **Is `Game` a core primitive or a library realization?** Game theory is mathematics, so this design keeps `Game` and
+  `equilibria` in the core and moves only the learning dynamics to the economics realizations. Games are, however,
+  used only by economics and social models, and the redesign moved markets and learning heuristics out of the core.
+  Keeping or moving `Game` (and the `nashpy` adapter with it) needs a product decision.
+- **Does `Define` stay a law of its own?** The redesign's algebraic `Equation` with a unique explicit solution already
+  becomes a definition, and the redesign added named expressions. `Define` is kept here for its dependency ordering
+  and its cycle report; folding it into algebraic `Equation` would turn cyclic definitions into simultaneous equations
+  instead of an issue.
+- **Law class of algebraic `Equation`.** The redesign lists `Equation` both as a continuous law (implicit, in
+  derivatives) and as a constraint law (algebraic), but `LawKind.EQUATION` has one law class, continuous. This design
+  reads an equation without derivatives as the constraint class; whether that becomes a separate law kind is left to
+  the redesign's owners, and `add-acausal-components` relies on the same reading.

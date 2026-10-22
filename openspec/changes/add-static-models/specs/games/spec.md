@@ -3,7 +3,7 @@
 ## Purpose
 
 Lets a user declare games between players, compute their Nash equilibria, and run learning dynamics whose rounds are
-frames.
+time steps.
 
 ## ADDED Requirements
 
@@ -23,13 +23,23 @@ enumeration, or the Lemke-Howson algorithm, as mixed strategies of both players.
 - **WHEN** the equilibria of matching pennies are computed by support enumeration
 - **THEN** there is one equilibrium, in which both players mix their two strategies with probability 1/2
 
-### Requirement: Learning dynamics run one round per frame
-Games SHALL run fictitious play, stochastic fictitious play, and replicator dynamics, with one round or one step per
-frame, and the frame SHALL hold each player's current mixed strategy or play counts.
+### Requirement: Learning dynamics run one round per step
+A game SHALL take a learning dynamic, any object that advances the game by one round, and SHALL then run one round per
+step of discrete time, with the frame holding each player's current mixed strategy or play counts. The core SHALL ship
+no learning dynamic; fictitious play, stochastic fictitious play, and replicator dynamics SHALL be provided by
+`skcomplex.models.economics.realizations`.
 
 #### Scenario: Fictitious play converges
-- **WHEN** fictitious play runs matching pennies for 1000 rounds
+- **WHEN** the library's fictitious play runs matching pennies for 1000 rounds
 - **THEN** the empirical frequencies of both players are within 0.05 of 1/2 at the last frame
+
+### Requirement: Games declare the time they run under
+A game SHALL require static time without a learning dynamic and discrete time with one, and validation SHALL report
+any other time with the game's path and a fix.
+
+#### Scenario: Dynamic under static time
+- **WHEN** a game with a learning dynamic is placed in a system with `StaticTime()`
+- **THEN** validation reports the game and suggests `DiscreteTime()`
 
 ### Requirement: Continuous games are solved from best responses
 The modelling layer SHALL turn a continuous game, given by each player's payoff in the strategies, into the

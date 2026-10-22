@@ -20,9 +20,10 @@ draw independent values.
 - **WHEN** an ensemble runs 10 replicates of a model with quenched parameters
 - **THEN** each replicate holds its own draw, and the ensemble summary averages observables over the draws
 
-### Requirement: Boltzmann reductions sum over configurations
-The modelling layer SHALL provide the logarithm of the partition function and the Boltzmann average of a value over
-the members of a group, at a temperature, computed without overflow for energies of any size.
+### Requirement: Log-sum-exp reduces over members without overflow
+The core SHALL provide the log-sum-exp reduction of an expression over the members of a group, computed without
+overflow for values of any size. The library SHALL provide, in `skcomplex.models.physics.realizations`, the logarithm
+of the partition function and the Boltzmann average of a value at a temperature, built on it.
 
 #### Scenario: Random energy model entropy
 - **WHEN** the entropy per spin `(ln Z + U/T)/N` of 2^20 Gaussian energies of variance `N/2` is averaged over 10
@@ -36,17 +37,23 @@ the members of a group, at a temperature, computed without overflow for energies
   most `ln` of the number of members
 
 ### Requirement: Random point patterns are quenched groups
-Elements SHALL place a group of points in a continuous space by a Poisson process of given intensity, or by a fixed
-count, drawn from the seed. The points SHALL carry an arrival order, so that a sweep of the intensity reveals the first
-points of one pattern and the patterns of a sweep are nested.
+Point processes SHALL place a group of points in the system's continuous space by a Poisson process of given
+intensity, or by a fixed count, drawn from the seed. The points SHALL carry an arrival order, so that a sweep of the
+intensity reveals the first points of one pattern and the patterns of a sweep are nested. A point process SHALL
+require a continuous space, and validation SHALL report one outside it.
 
 #### Scenario: Nested sweep
 - **WHEN** a sweep raises the intensity of a pattern from 0.5 to 1.5
 - **THEN** every frame's points are the first points of the next frame's points
 
+#### Scenario: Outside a continuous space
+- **WHEN** a point process is placed in a system with a lattice space
+- **THEN** validation reports the point process and suggests a `ContinuousSpace`
+
 ### Requirement: Contact clusters are observable
 The analysis layer SHALL compute the clusters of a point pattern whose members touch within a radius: the number of
-clusters, the size of the largest, and whether a cluster spans the space between two opposite faces.
+clusters, the size of the largest, and whether a cluster spans the space between two opposite faces. It SHALL build
+observables of them that a simulation or catalog entry records per frame.
 
 #### Scenario: Spanning probability
 - **WHEN** disks of radius 1 are placed in a square of side 60 at filling factors 1.0 and 1.25 over 50 draws each
