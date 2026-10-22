@@ -16,5 +16,6 @@
 | saltzman_glaciation | ice, carbon, and ocean in a self-sustained cycle | closed x-y loop; spectral peak at 102 kyr | 16 s script, 251 frames, 0.11 MB |
 | soil_temperature | chaotic surface and damped deep temperature | orbit diagram: fixed point x* matches, period doubling to chaos, r = 3.8 chaotic | 9 s script, 201 frames, 0.05 MB |
 | stommel | T and S settling in the thermal mode | 64 starts split between thermal (T > S) and haline (S > T) modes | 15 s script, 251 frames, 0.06 MB |
+| tipping_cascade_network | network midway through the cascade: tipped elements bright around the first, the far end still dark | tipping time grows with graph distance from the first element; swept control tips one element alone past c = 1, all forty when coupled (from c = 0.9) | 0.5 s script, 181 frames, 0.09 MB |
 | van_der_pol_ice_ages | sawtooth of slow build-up and fast terminations | limit cycle hugs the outer branches of the cubic nullcline | 12 s script, 201 frames, 0.06 MB |
 | energy_return | extraction capacity rising, peaking, and falling as the reserve depletes | cost plus net energy equals gross energy; peaks of net energy per person (year 106), net energy (121), and gross energy (125) in that order | 0.4 s, 251 frames, 0.21 MB |
