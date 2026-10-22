@@ -4,9 +4,10 @@
 
 - [ ] 1.1 Survey PySINDy, PyDMD, PyKoopman, and ReservoirPy, record the result, and add the chosen ones as runtime
   dependencies
-- [ ] 1.2 Add `fit_dmd` with its element, and verify the linear system scenario
+- [ ] 1.2 Add `fit_dmd` with its element in a continuous-time system, and verify the linear system scenario and that
+  the surrogate passes `validate()`
 - [ ] 1.3 Add `fit_sindy` with symbolic laws, and verify the Lorenz scenario
-- [ ] 1.4 Add `fit_reservoir`, and verify the chaotic forecast scenario
+- [ ] 1.4 Add `fit_reservoir` with its element in a discrete-time system, and verify the chaotic forecast scenario
 
 ## 2. Library
 

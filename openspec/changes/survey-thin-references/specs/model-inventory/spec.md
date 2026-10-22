@@ -4,7 +4,7 @@
 
 ### Requirement: Every reference source is surveyed section by section
 Every textbook and paper in `references` SHALL be surveyed section by section, and the survey SHALL be recorded with the
-sections read, the models found, and the primitives each exercises, so a source with few inventory entries is a source
+sections read, the models found, and the tags of each in the system vocabulary, so a source with few inventory entries is a source
 with few models and not an unread one.
 
 #### Scenario: Thinly cited textbook

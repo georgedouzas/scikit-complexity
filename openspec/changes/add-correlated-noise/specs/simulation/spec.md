@@ -6,7 +6,7 @@
 The SDE steppers SHALL draw the increments of shared and correlated Wiener processes from the run's random stream, in
 Python and in compiled code. Two runs with the same random state SHALL be equal, and a system that names no process
 SHALL reproduce the trajectory it had before shared processes existed. A backend that cannot apply a shared process
-SHALL reject it.
+SHALL not declare support for it, so validation rejects the combination before compilation.
 
 #### Scenario: Same seed with correlated noise
 - **WHEN** a system with a correlated Wiener element runs twice with random state 0 on the Numba backend
@@ -21,5 +21,5 @@ SHALL reject it.
 - **THEN** on each backend the two states keep their initial difference at every frame
 
 #### Scenario: Backend without shared noise
-- **WHEN** a system with a shared process is given to the LAMMPS backend
-- **THEN** it raises a named solver error that names the process
+- **WHEN** a system with a shared process is validated with the LAMMPS backend
+- **THEN** the report holds an error that names the process's first law and lists the backends that support shared noise

@@ -2,15 +2,19 @@
 
 ## Context
 
-`Noise(target, value)` gives every component of its target, and every member of a group, one fresh Wiener process. The
+This design is rebased on `redesign-system-model`: the noise convention is an argument of each noise law,
+`Noise(convention=...)`, and every solver and backend declares its support, which validation compares with the system
+before compilation.
+
+`Noise(target, value, convention='ito')` gives every component of its target, and every member of a group, one fresh Wiener process. The
 compiler lowers the noise laws to one diffusion function that returns one amplitude per process, and to `noise_rows`,
 the state each process drives. `EulerMaruyama`, `Milstein`, `Heun`, and the hybrid SDE loop draw one normal increment
 per amplitude and add `amplitude * increment` at its row. The Numba Euler-Maruyama loop does the same in compiled code.
 The diffusion matrix is therefore diagonal per process: a process never drives two states, and two processes are never
 correlated.
 
-The convention correction adds `alpha g dg/dx` per noise law, with `alpha` 0, 1/2, or 1 for Itô, Stratonovich, and
-anti-Itô. It raises an ambiguity error when several noise laws drive one state.
+The convention correction adds `alpha g dg/dx` per noise law, with `alpha` 0, 1/2, or 1 for the law's convention, Itô,
+Stratonovich, or anti-Itô. It raises an ambiguity error when several noise laws drive one state.
 
 ## Goals / Non-Goals
 
@@ -49,7 +53,7 @@ computes once. The code kept in house is the adapter: the mapping of outputs to 
 
 ### Naming processes
 
-`Noise(target, value, order=None, process=None)` gains `process`:
+`Noise(target, value, order=None, convention='ito', process=None)` in `skcomplex.core.laws` gains `process`:
 - `None` keeps today's behaviour, one independent process per component and member;
 - a string is a label local to the component instance, and to the member for member laws. Every noise law of the
   component with that label, and every component of a vector target, shares one process;
@@ -66,12 +70,19 @@ Two correlated processes per member come from two local labels:
 
 ### Wiener elements
 
-`Wiener(label, dimension=1, covariance=None)` is an `Element` with no states. It declares `dimension` processes whose
+`Wiener(label, dimension=1, covariance=None)` in `skcomplex.core.components` is an `Element` with no states. It declares `dimension` processes whose
 increments over a step `h` have covariance `h C`, with `C` the identity by default. `C` is a constructor argument
-fixed at compile time, not a run-time parameter. The compiler checks that it is square of size `dimension`, symmetric,
-and positive semidefinite within `1e-12` of its largest eigenvalue, and otherwise raises a `ValidationError` that
-names the element and the offending eigenvalue or entry. `s.<role>.dW` is a handle that only `Noise.process`
-accepts, and an expression that uses it raises a `ValidationError` that names the law.
+fixed at compile time, not a run-time parameter.
+
+`Wiener` declares `Requires(time={TimeKind.CONTINUOUS})`, since Wiener increments exist only in continuous time.
+`validate()` reports:
+- `wiener-time`: a `Wiener` element in a system whose time is not continuous, with the fix of continuous time;
+- `wiener-covariance`: a covariance that is not square of size `dimension`, symmetric, and positive semidefinite within
+  `1e-12` of its largest eigenvalue, naming the element and the offending eigenvalue or entry;
+- `wiener-handle`: an expression outside `Noise.process` that uses `s.<role>.dW`, naming the law, with the fix of
+  naming the handle as the law's process.
+
+`compile_system` and `Simulation` raise these in one `ValidationError`, as for every issue.
 
 The factor `L` with `L Lᵀ = C` is the Cholesky factor from `numpy.linalg.cholesky`. A singular `C`, such as two
 processes with correlation 1, falls back to `V sqrt(max(Λ, 0))` from `numpy.linalg.eigh`.
@@ -87,6 +98,24 @@ Columns are numbered in order of first use in evaluation order. A `Wiener` eleme
 `dimension` columns at its first use. For a system that names no process, `noise_columns` is `arange(n_outputs)` and
 `noise_blocks` is empty, so the steppers draw the same normals in the same order as today.
 
+### Declared noise support
+
+The vocabulary of `skcomplex.core.base` gains `NoiseKind` with the terms `'diagonal'` (every process drives one state),
+`'shared'` (a process drives several states), and `'correlated'` (a `Wiener` element with a covariance), and `Supports`
+gains a `noise` field over them. A system's noise structure is the set of terms its noise laws and `Wiener` elements
+use, computed from the system's definition without compiling it. The declarations are:
+
+| Solver or backend | `noise` |
+|---|---|
+| `EulerMaruyama`, `Heun`, the hybrid SDE loop | diagonal, shared, correlated |
+| `Milstein` | diagonal |
+| NumPy and Numba backends | diagonal, shared, correlated |
+| LAMMPS backend | diagonal |
+
+`validate()` reports `noise-unsupported` when the chosen or `'auto'` solver or backend lacks a term of the system's
+noise structure. The issue names the first law or `Wiener` element that needs the term, and its fix lists the solvers
+or backends that support it. The solvers and backends no longer raise for unsupported noise themselves.
+
 ### Steppers
 
 Each step draws `z = rng.normal(0, sqrt(h), n_processes)` from the stepper's `rng_`, which the simulation seeds,
@@ -96,21 +125,22 @@ problem has no blocks and `columns` is the identity, the stepper takes today's p
 - `EulerMaruyama` and the hybrid SDE loop apply the scaled scatter. The Numba loop gains the `columns`, block offsets,
   and flattened factors as arrays and applies the same loop, so it stays in compiled code.
 - `Heun` applies the scaled scatter in its predictor and corrector, and stays an Itô scheme for any noise.
-- `Milstein` raises a `SolverError` when a process drives more than one state or a block is correlated. The message
-  names the process and suggests `EulerMaruyama` or `Heun`.
-- A backend that cannot apply a shared process, such as LAMMPS, raises a `SolverError` that names the process.
+- `Milstein` and the LAMMPS backend are never given shared or correlated noise, since validation rejects that
+  combination through their declared support.
 
 ### Convention corrections
 
 With amplitudes `G_ij` of state `i` on process `j` and covariance `C`, the drift correction of state `i` is
 `alpha Σ_k Σ_j Σ_l C_jl G_kl ∂G_ij/∂x_k`. Independent processes have `C` equal to the identity, so a process that
 drives one state gives back today's `alpha g dg/dx`. The sum is well defined when several laws drive one state, so the
-ambiguity error is removed.
+ambiguity error is removed. With conventions on the laws, `alpha` belongs to the process: every law that names one
+process must declare the same convention, and `validate()` reports `noise-convention-mixed`, naming the laws and the
+process, with the fix of one convention for all of them. Laws with independent processes keep their own conventions.
 
 The compiler builds each term in the scope of the law whose amplitude it differentiates. A term needs `G_kl` of
 another state `x_k`. When `x_k` gets its noise from a law of another component through a shared or correlated
-process, that amplitude is not in the scope. Compiling a Stratonovich or anti-Itô system then raises a
-`ValidationError` that names both laws and suggests the Itô form or one component for both laws. Additive noise and
+process, that amplitude is not in the scope. `validate()` then reports `noise-correction-scope` for a Stratonovich or
+anti-Itô law in that case, naming both laws, with the fix of the Itô convention or one component for both laws. Additive noise and
 amplitudes that depend only on their own state, such as correlated geometric Brownian motions, never reach this case.
 
 ### Chemical Langevin mode
@@ -118,7 +148,8 @@ amplitudes that depend only on their own state, such as correlated geometric Bro
 `Binding` and `Dissociation` gain `langevin: bool = False`. In Langevin mode a channel with propensity `a` adds
 `change * a` to the drift of every species it changes and one noise law per species with amplitude
 `change * sqrt(max(a, 0))` on the local process `'channel'`. Setting both `stochastic` and `langevin` raises a
-`ValidationError` that names the interaction. The flag keeps the library's `stochastic` convention, where a model
+`ValidationError` that names the interaction when the interaction is built. Both interactions are library realizations
+in `skcomplex.models.chemistry.kinetics`, built on the core's `Rate`, `Jump`, and `Noise` laws. The flag keeps the library's `stochastic` convention, where a model
 switches between rate and jump descriptions.
 
 `chemical_langevin_network` is the chemical Langevin equation of the enzyme network `E + S <-> C -> E + P` with
@@ -133,7 +164,7 @@ since each of its channels changes one species.
   the amplitudes with two local processes.
 - [Chemical Langevin amplitudes need non-negative propensities] → The amplitude clips the propensity at zero, as the
   Schlögl model does. Species can still turn slightly negative near zero, which is a known limit of the equation.
-- [Milstein rejects non-diagonal noise] → The error names the alternatives, and a later change can add the commutative
-  case.
+- [Milstein rejects non-diagonal noise] → Validation names the alternatives, and a later change can add the commutative
+  case by widening its declaration.
 - [A different draw order would change seeded runs] → Systems that name no process keep the identity path, and a
   regression test compares a seeded run against a stored trajectory.
