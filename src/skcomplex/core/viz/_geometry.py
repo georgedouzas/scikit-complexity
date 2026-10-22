@@ -66,7 +66,7 @@ def _strips(structure: Structure) -> tuple[list[npt.NDArray[np.float64]], npt.ND
 class GeometryVisual(Visual):
     """Visual that logs the structure of a rewritten element at every frame, in a frame fixed across generations.
 
-    Turtle segments, segment tiles, and polygon outlines are one batch of line strips, colored by branch depth or by
+    Word segments, segment tiles, and polygon outlines are one batch of line strips, colored by branch depth or by
     prototile. A filled patch is an image of its raster instead. A host graph is logged as graph nodes and edges. The
     counts of symbols, prototiles, or labels are logged as series under `<path>/counts/<state>`.
 
@@ -144,8 +144,8 @@ class GeometryVisual(Visual):
 
         Returns:
             views:
-                A graph view for a host graph, a 3D view for a turtle in three dimensions, or a 2D view otherwise,
-                followed by the time series view.
+                A graph view for a host graph, a 3D view for a word geometry in three dimensions, or a 2D view
+                otherwise, followed by the time series view.
 
         Examples:
             >>> from skcomplex.core.compile import compile_system
@@ -161,8 +161,8 @@ class GeometryVisual(Visual):
         component = element.element
         if not isinstance(component, Word | Patch):
             return [rrb.GraphView(origin=path, name=path), series]
-        turtle = component.turtle if isinstance(component, Word) else None
-        if turtle is not None and turtle.dimension == 3:  # noqa: PLR2004
+        geometry = component.geometry if isinstance(component, Word) else None
+        if geometry is not None and geometry.dimension == 3:  # noqa: PLR2004
             return [rrb.Spatial3DView(origin=path, name=path), series]
         bounds = _bounds_of(element) if isinstance(element, CompiledElement) else None
         if bounds is None or self._is_filled(element):  # type: ignore[arg-type]

@@ -1,4 +1,4 @@
-"""Test the segregation indices of categorical states on grids and networks."""
+"""Test the mixing measures of categorical states on grids and networks."""
 
 import networkx as nx
 import numpy as np
@@ -35,7 +35,7 @@ def _global_like_share(occupied: np.ndarray) -> float:
     return float(np.sum(counts * (counts - 1)) / (occupied.size * (occupied.size - 1)))
 
 
-def test_like_neighbor_share_same_segregation_index_on_two_domains():
+def test_like_neighbor_share_same_index_on_two_domains():
     """Test that a relaxed Schelling model and a quenched Ising lattice exceed 0.75, unlike random arrangements."""
     rng = np.random.default_rng(0)
     schelling = _schelling_grid(40)

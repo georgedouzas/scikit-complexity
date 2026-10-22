@@ -4,9 +4,9 @@ import networkx as nx
 import rerun.blueprint as rrb
 
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import GraphProduction, HostGraph, Production, Rewrite, System, Turtle, Word
+from skcomplex.core.model import GraphProduction, HostGraph, Production, Rewrite, System, Word
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import GeometryVisual, RerunObserver
+from skcomplex.core.viz import GeometryVisual, RerunObserver, WordGeometry
 
 
 def _views(system):
@@ -15,8 +15,8 @@ def _views(system):
     return [type(view) for view in GeometryVisual().views(problem.elements[0], problem)]
 
 
-def test_views_and_logs_of_graphs_and_turtles(tmp_path):
-    """Test the views of a host graph, a 3D turtle, and an unbounded word, and that each is logged."""
+def test_views_and_logs_of_graphs_and_word_geometries(tmp_path):
+    """Test the views of a host graph, a 3D word geometry, and an unbounded word, and that each is logged."""
     interface = nx.Graph()
     interface.add_nodes_from('ab')
     production = GraphProduction(nx.Graph([('a', 'b')]), interface, nx.Graph([('a', 'c'), ('c', 'b')]))
@@ -25,10 +25,10 @@ def test_views_and_logs_of_graphs_and_turtles(tmp_path):
         interactions=[Rewrite('rules', target='graph', rules=[production])],
     )
     tree = System(
-        components=[Word('tree', axiom='F', turtle=Turtle(angle=30.0, dimension=3))],
+        components=[Word('tree', axiom='F', geometry=WordGeometry(angle=30.0, dimension=3))],
         interactions=[Rewrite('rules', target='tree', rules=[Production('F', 'F[&F][/^F]')])],
     )
-    plain = System(components=[Word('word', axiom='F', turtle=Turtle())])
+    plain = System(components=[Word('word', axiom='F', geometry=WordGeometry())])
     assert _views(graph) == [rrb.GraphView, rrb.TimeSeriesView]
     assert _views(tree) == [rrb.Spatial3DView, rrb.TimeSeriesView]
     assert _views(plain) == [rrb.Spatial2DView, rrb.TimeSeriesView]

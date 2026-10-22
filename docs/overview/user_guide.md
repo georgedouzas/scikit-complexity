@@ -1633,21 +1633,23 @@ print(Simulation(plant).run(until=5).trajectory_.structure('plant', 5))
 A generation that would make a word longer than `max_size` raises `RewritingError` before allocating it, and the
 frames before it stay recorded.
 
-### Turtles, patches, and measures
+### Word geometries, patches, and measures
 
-A `Turtle` draws a word as line segments in two or three dimensions: `F` draws forward, `f` moves, `+` and `-` turn,
-`[` and `]` push and pop a branch, and `contraction` scales the step at every generation. A `Patch` holds tiles, each a
-`Prototile` segment or polygon under an affine placement, and a `Substitution` replaces every tile of a prototile by
-pieces placed by `Affine` maps relative to it. Structures with a geometry report `<element>.length` and
+A `WordGeometry`, from `skcomplex.core.viz`, draws a word as line segments in two or three dimensions, as the turtle
+interpretation of L-systems does: `F` draws forward, `f` moves, `+` and `-` turn, `[` and `]` push and pop a branch,
+and `contraction` scales the step at every generation. A `Patch` holds tiles, each a `Prototile` segment or polygon
+under an affine placement, and a `Substitution` replaces every tile of a prototile by pieces placed by `Affine` maps
+relative to it. Structures with a geometry report `<element>.length` and
 `<element>.area` at every frame, and give `bounds()` and `raster(resolution)`, a boolean grid that
 `box_counting_dimension` reads.
 
 ```python
 from skcomplex.core.analysis import box_counting_dimension
-from skcomplex.core.model import Affine, Patch, Prototile, Substitution, Turtle
+from skcomplex.core.model import Affine, Patch, Prototile, Substitution
+from skcomplex.core.viz import WordGeometry
 
 koch = System(
-    components=[Word('koch', axiom='F', turtle=Turtle(angle=60.0, contraction=1 / 3))],
+    components=[Word('koch', axiom='F', geometry=WordGeometry(angle=60.0, contraction=1 / 3))],
     interactions=[Rewrite('rules', target='koch', rules=[Production('F', 'F+F--F+F')])],
 )
 curve = Simulation(koch).run(until=4).trajectory_.structure('koch', 4)

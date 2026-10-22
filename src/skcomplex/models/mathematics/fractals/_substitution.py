@@ -6,8 +6,9 @@
 import numpy as np
 
 from ....core.base import ValidationError
-from ....core.model import Affine, Patch, Production, Prototile, Rewrite, Substitution, System, Turtle, Word
+from ....core.model import Affine, Patch, Production, Prototile, Rewrite, Substitution, System, Word
 from ....core.runtime import register_model
+from ....core.viz import WordGeometry
 
 SHAPES = ('triangle', 'carpet')
 
@@ -42,7 +43,7 @@ def koch_curve(angle: float = 60.0) -> System:
         'koch',
         axiom='F',
         alphabet='F+-',
-        turtle=Turtle(angle=angle, step=1.0, contraction=1 / 3),
+        geometry=WordGeometry(angle=angle, step=1.0, contraction=1 / 3),
         bounds=(-0.03, -0.05, 1.03, 0.35),
     )
     return System(

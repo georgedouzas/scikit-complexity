@@ -45,7 +45,7 @@ class Structure:
 
     @property
     def has_geometry(self) -> bool:
-        """Whether the structure has a geometry, a patch or a word with a turtle."""
+        """Whether the structure has a geometry, a patch or a word with a word geometry."""
         return False
 
     def segments(self) -> Array:
@@ -174,7 +174,7 @@ class Structure:
 
 
 class WordStructure(Structure):
-    """Word of a string rewriting system at one generation, with the turtle geometry where a turtle is declared.
+    """Word of a string rewriting system at one generation, with its segments where a word geometry is declared.
 
     Args:
         alphabet:
@@ -190,10 +190,10 @@ class WordStructure(Structure):
             The generation.
 
         segments:
-            The turtle segments of shape `(k, 2, d)`, or `None` without a turtle.
+            The segments of shape `(k, 2, d)`, or `None` without a word geometry.
 
         depths:
-            The branch depth of every segment, or `None` without a turtle.
+            The branch depth of every segment, or `None` without a word geometry.
 
     Examples:
         >>> import numpy as np
@@ -230,7 +230,7 @@ class WordStructure(Structure):
 
     @property
     def has_geometry(self) -> bool:
-        """Whether a turtle has drawn the word."""
+        """Whether a word geometry has drawn the word."""
         return self._segments is not None
 
     def modules(self) -> list[Module]:
@@ -276,11 +276,11 @@ class WordStructure(Structure):
         return int(np.count_nonzero(self.codes == self.alphabet.index(name)))
 
     def segments(self) -> Array:
-        """Return the turtle segments.
+        """Return the segments of the word geometry.
 
         Returns:
             segments:
-                The array of shape `(k, 2, d)`, empty without a turtle.
+                The array of shape `(k, 2, d)`, empty without a word geometry.
         """
         return np.zeros((0, 2, 2)) if self._segments is None else self._segments
 

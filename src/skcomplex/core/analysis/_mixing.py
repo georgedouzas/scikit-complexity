@@ -1,4 +1,4 @@
-"""Measure the segregation of categorical states on grids and networks."""
+"""Measure how categorical states mix or cluster on grids and networks."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

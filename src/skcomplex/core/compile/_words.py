@@ -1,4 +1,4 @@
-"""Compile string productions into vectorised passes over words, and interpret words with a turtle."""
+"""Compile string productions into vectorised passes over words, and interpret words as geometry."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -6,14 +6,14 @@
 import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
 from ..base import Expression, RewritingError, symbols_of
-from ..model import Module, Production, Turtle, Word
+from ..model import Module, Production, Word
 from ..model._rewriting import parse_word
 from ._printing import numpy_function
 from ._rewriting_kernels import (
@@ -30,9 +30,12 @@ from ._rewriting_kernels import (
     ROLL_LEFT,
     ROLL_RIGHT,
     neighbors,
-    turtle_walk,
+    walk_word,
 )
 from ._structures import WordStructure
+
+if TYPE_CHECKING:
+    from ..viz import WordGeometry
 
 IDENTIFIER = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 PROBABILITY_TOLERANCE = 1e-9
@@ -141,7 +144,7 @@ def _alphabet_of(word: Word, productions: Sequence[Production]) -> dict[str, int
 
 
 class CompiledWord:
-    """String rewriting system of one word: its alphabet, productions, and turtle, compiled to array passes.
+    """String rewriting system of one word: its alphabet, productions, and geometry, compiled to array passes.
 
     Args:
         path:
@@ -182,9 +185,9 @@ class CompiledWord:
         self.ignored[[self.names.index(module.name) for module in ignored]] = True
         self.opening = self.names.index('[') if '[' in self.names else -2
         self.closing = self.names.index(']') if ']' in self.names else -2
-        self.turtle = word.turtle
-        if word.turtle is not None:
-            meanings = word.turtle.meanings()
+        self.geometry = word.geometry
+        if word.geometry is not None:
+            meanings = word.geometry.meanings()
             self.actions = np.array(
                 [ACTION_CODES.get(meanings.get(name, ''), 0) for name in self.names],
                 dtype=np.int64,
@@ -414,24 +417,24 @@ class CompiledWord:
         table: npt.NDArray[np.float64],
         generation: int,
     ) -> WordStructure:
-        """Return a word with the geometry its turtle draws."""
-        if self.turtle is None:
+        """Return a word with the segments its geometry draws."""
+        if self.geometry is None:
             return WordStructure(self.names, codes, table, generation)
-        segments, depths = interpret(self.turtle, self.actions[codes], table, generation)
+        segments, depths = interpret(self.geometry, self.actions[codes], table, generation)
         return WordStructure(self.names, codes, table, generation, segments=segments, depths=depths)
 
 
 def interpret(
-    turtle: Turtle,
+    geometry: 'WordGeometry',
     actions: npt.NDArray[np.int64],
     table: npt.NDArray[np.float64],
     generation: int,
 ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.int64]]:
-    """Return the segments and branch depths a turtle draws for the actions of the modules of a word.
+    """Return the segments and branch depths a word geometry draws for the actions of the modules of a word.
 
     Args:
-        turtle:
-            The turtle.
+        geometry:
+            The word geometry.
 
         actions:
             The action code of every module.
@@ -449,14 +452,14 @@ def interpret(
         depths:
             The branch depth of every segment.
     """
-    step = turtle.step * turtle.contraction**generation
-    angle, heading = np.deg2rad(turtle.angle), np.deg2rad(turtle.heading)
+    step = geometry.step * geometry.contraction**generation
+    angle, heading = np.deg2rad(geometry.angle), np.deg2rad(geometry.heading)
     values = table[:, 0].copy() if table.shape[1] else np.full(len(actions), np.nan)
     turns = np.isin(actions, TURNS)
     values[turns] = np.deg2rad(values[turns])
-    if turtle.dimension == 3 or np.isin(actions, (PUSH, POP)).any():  # noqa: PLR2004
-        segments, depths = turtle_walk(actions, values, step, angle, heading)
-        return segments[..., : turtle.dimension], depths
+    if geometry.dimension == 3 or np.isin(actions, (PUSH, POP)).any():  # noqa: PLR2004
+        segments, depths = walk_word(actions, values, step, angle, heading)
+        return segments[..., : geometry.dimension], depths
     turn = np.where(np.isnan(values), angle, values)
     turn = np.select([actions == LEFT, actions == RIGHT, actions == REVERSE], [turn, -turn, np.pi], 0.0)
     headings = heading + np.cumsum(turn)

@@ -1,4 +1,4 @@
-"""Test rewriting systems: words, turtles, patches, host graphs, and their measures."""
+"""Test rewriting systems: words, word geometries, patches, host graphs, and their measures."""
 
 import time
 
@@ -30,10 +30,10 @@ from skcomplex.core.model import (
     Rewriting,
     Substitution,
     System,
-    Turtle,
     Word,
 )
 from skcomplex.core.runtime import Simulation
+from skcomplex.core.viz import WordGeometry
 from skcomplex.models.biology.ecology import Population
 
 X = symbol('x')
@@ -201,8 +201,11 @@ def test_malformed_systems():
 
 
 def test_koch_curve_length():
-    """Test the turtle geometry of the Koch L-system at generation 4."""
-    system = _system(Word('koch', axiom='F', turtle=Turtle(angle=60.0, contraction=1 / 3)), Production('F', 'F+F--F+F'))
+    """Test the word geometry of the Koch L-system at generation 4."""
+    system = _system(
+        Word('koch', axiom='F', geometry=WordGeometry(angle=60.0, contraction=1 / 3)),
+        Production('F', 'F+F--F+F'),
+    )
     trajectory = Simulation(system).run(until=4).trajectory_
     curve = trajectory.structure('koch', 4)
     segments = curve.segments()
@@ -214,8 +217,8 @@ def test_koch_curve_length():
 
 
 def test_branches_return():
-    """Test that a popped branch returns the turtle to where the branch began."""
-    curve = Simulation(System(components=[Word('plant', axiom='F[+F]F', turtle=Turtle())])).run(0).trajectory_
+    """Test that a popped branch returns the cursor to where the branch began."""
+    curve = Simulation(System(components=[Word('plant', axiom='F[+F]F', geometry=WordGeometry())])).run(0).trajectory_
     segments = curve.structure('plant', 0).segments()
     assert len(segments) == 3
     assert np.allclose(segments[2, 0], segments[1, 0])
@@ -223,29 +226,33 @@ def test_branches_return():
     assert curve.structure('plant', 0).depths.tolist() == [0, 1, 0]
 
 
-def test_three_dimensional_turtle():
-    """Test that pitching up and rolling move the turtle out of the plane."""
-    turtle = Turtle(angle=90.0, dimension=3)
-    curve = Simulation(System(components=[Word('plant', axiom='F&F/+F', turtle=turtle)])).run(0).trajectory_
+def test_three_dimensional_word_geometry():
+    """Test that pitching up and rolling move the cursor out of the plane."""
+    geometry = WordGeometry(angle=90.0, dimension=3)
+    curve = Simulation(System(components=[Word('plant', axiom='F&F/+F', geometry=geometry)])).run(0).trajectory_
     segments = curve.structure('plant', 0).segments()
     assert segments.shape == (3, 2, 3)
     assert np.allclose(segments[1, 1], [1, 0, -1])
     assert curve.structure('plant', 0).length() == pytest.approx(3.0)
 
 
-def test_module_parameters_override_the_turtle():
+def test_module_parameters_override_the_word_geometry():
     """Test that a module's first parameter overrides the step of a move and the angle of a turn."""
-    word = Word('plant', axiom=[Module('F', 2.0), Module('+', 90.0), Module('F', 1.0)], turtle=Turtle(angle=10.0))
+    word = Word(
+        'plant',
+        axiom=[Module('F', 2.0), Module('+', 90.0), Module('F', 1.0)],
+        geometry=WordGeometry(angle=10.0),
+    )
     segments = Simulation(System(components=[word])).run(0).trajectory_.structure('plant', 0).segments()
     assert np.allclose(segments[1], [[2, 0], [2, 1]])
 
 
-def test_turtle_errors():
+def test_word_geometry_errors():
     """Test that unknown actions and dimensions are refused."""
     with pytest.raises(RewritingError, match='has no action'):
-        Turtle(symbols={'G': 'jump'}).meanings()
+        WordGeometry(symbols={'G': 'jump'}).meanings()
     with pytest.raises(RewritingError, match='dimension 4'):
-        Turtle(dimension=4).meanings()
+        WordGeometry(dimension=4).meanings()
 
 
 def _cantor(generations):

@@ -19,6 +19,7 @@ from ._visuals import (
     register_visual,
     resolve_visual,
 )
+from ._words import WordGeometry
 
 __all__: list[str] = [
     'VISUALS',
@@ -35,6 +36,7 @@ __all__: list[str] = [
     'SiteVisual',
     'TraitsVisual',
     'Visual',
+    'WordGeometry',
     'agents_visual_of',
     'default_blueprint',
     'primary_view',
