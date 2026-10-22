@@ -2,7 +2,8 @@
 
 ## 1. Networks across scales
 
-- [ ] 1.1 Add the hyperbolic and popularity-similarity generators, seeded from the simulation
+- [ ] 1.1 Add the hyperbolic and popularity-similarity generators of network spaces to `skcomplex.core.space`, seeded
+  from the simulation
 - [ ] 1.2 Add `renormalize_network` with Laplacian and geometric renormalization, and verify the self-similar network
   scenario
 - [ ] 1.3 Add `scaling_law` over experiment sweeps, and verify the known exponent scenario

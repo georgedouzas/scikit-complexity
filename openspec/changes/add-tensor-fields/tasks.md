@@ -4,21 +4,25 @@
 
 - [ ] 1.1 Add `py-pde` 0.58 or later to the runtime dependencies in `pyproject.toml` and the Project Profile of the
   constitution, and verify `pdm install`, `deptry`, and `pip-audit` pass
-- [ ] 1.2 Add the adapter module in `skcomplex.core.compile` that builds a `py-pde` `CartesianGrid` from a lattice,
+- [ ] 1.2 Add the private adapter module of the NumPy and Numba backends in `skcomplex.core.backends` that builds a `py-pde` `CartesianGrid` from a lattice,
   translates periodic, zero-flux, and fixed tensor boundaries, and wraps compiled operators and Poisson solves as
   derived reads, and verify its tests against `py-pde` on a scalar Laplacian and a Poisson problem with a known solution
 
 ## 2. Tensor states
 
-- [ ] 2.1 Add the `rank` and `symmetry` keywords to `state`, the expansion into independent components, and the matrix
-  and vector views in the symbols namespace, and verify the two- and three-dimensional symmetric traceless scenarios
-- [ ] 2.2 Add the symmetry check of rate laws on tensor states with its numeric fallback, and verify the scenario of a
-  law that breaks the symmetry
-- [ ] 2.3 Add fixed tensor boundary values, and verify the anchoring scenario
+- [ ] 2.1 Give the existing `Tensor` domain its expansion into independent components and the matrix and vector views
+  in the symbols namespace, and verify the two- and three-dimensional symmetric traceless scenarios
+- [ ] 2.2 Add the validation issue `tensor-symmetry` for rate laws on tensor states with its numeric fallback, and the
+  check of tensor states outside the sites of a lattice, and verify the law that breaks the symmetry and tensor state on
+  a network scenarios
+- [ ] 2.3 Add `DomainKind.TENSOR` to the declared support of the ODE and stiff solvers, the spectral discretization,
+  and the NumPy and Numba backends, and the requirements of the tensor operators, and verify the solver without tensor
+  support and tensor operator on a scalar scenarios and the declaration test
+- [ ] 2.4 Add fixed tensor boundary values, and verify the anchoring scenario
 
 ## 3. Tensor calculus and objective derivatives
 
-- [ ] 3.1 Add `vector_gradient`, `tensor_divergence`, `strain_rate`, and `vorticity_tensor` with their lowering to
+- [ ] 3.1 Add `vector_gradient`, `tensor_divergence`, `strain_rate`, and `vorticity_tensor` to `skcomplex.core.laws` with their lowering to
   stencils, spectral multipliers, and the adapter, and verify the divergence of a tensor and the strain and vorticity
   scenarios on NumPy and Numba
 - [ ] 3.2 Add `corotational` and `upper_convected`, and verify the upper-convected identity and the uniform vorticity
@@ -39,9 +43,9 @@
 
 - [ ] 5.1 Add `principal_axis` and `axis_defects` to `skcomplex.core.analysis`, and verify the defect pair scenario and
   a polar `+1` vortex
-- [ ] 5.2 Add `DirectorVisual` under the kind `'director'`, and verify the nematic viewer scenario with a recorded
+- [ ] 5.2 Add `AxisVisual` under the kind `'axis'`, and verify the nematic viewer scenario with a recorded
   Rerun stream
-- [ ] 5.3 Document the analysis functions and the director visual with runnable examples, and verify the documentation
+- [ ] 5.3 Document the analysis functions and the axis visual with runnable examples, and verify the documentation
   test passes
 
 ## 6. Library

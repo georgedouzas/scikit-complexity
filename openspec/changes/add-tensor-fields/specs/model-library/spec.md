@@ -4,9 +4,9 @@
 
 ### Requirement: Dry active nematic
 The library SHALL provide the dry active nematic under the field path `physics/active_matter` as a registered factory
-built only from the public names of the core: a conserved density coupled to a symmetric traceless alignment tensor,
-with an active current along the divergence of the tensor (1207.2929 §II.2). The inventory SHALL list it as
-implemented.
+built only from the public names of the core, as a system of site groups on a lattice under continuous time: a
+conserved density coupled to a symmetric traceless alignment tensor, with an active current along the divergence of the
+tensor (1207.2929 §II.2). The inventory SHALL list it as implemented.
 
 #### Scenario: Dry active nematic conserves density
 - **WHEN** the dry active nematic runs on a periodic lattice for 100 time units

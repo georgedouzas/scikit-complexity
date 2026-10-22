@@ -9,11 +9,16 @@ measurable, with hyperbolic and popularity-similarity generators as the models t
 cities, a cross-sectional fit the toolkit does not have. The network analysis measures one network at one scale, and
 `fit_power_law` fits distributions, not quantities against size.
 
+**Rebased on `redesign-system-model`.** Only names and package placement change: the redesign covers none of this
+change's purpose. The generators are factories of `NetworkSpace` in `core.space`, beside the generators of the pending
+`add-adaptive-networks`, and add no space kind, so they need no new declaration. Renormalization and scaling fits are
+analysis functions, not primitives, solvers, or backends, so they declare nothing either.
+
 ## What Changes
 
 - Add network renormalization: Laplacian renormalization and geometric renormalization of embedded networks, returning
   the coarse-grained networks of each scale and their measures.
-- Add hyperbolic and popularity-similarity network generators, seeded from the simulation.
+- Add hyperbolic and popularity-similarity generators of network spaces in `core.space`, seeded from the simulation.
 - Add cross-sectional scaling fits of a quantity against system size over a sweep of runs, with exponents and their
   uncertainties.
 - Add the probe models `popularity_similarity_network` and `urban_scaling_interactions`.
@@ -31,5 +36,5 @@ None.
 
 ## Impact
 
-- `skcomplex.core.analysis` gains `renormalize_network` and `scaling_law`; `skcomplex.core.model` gains the hyperbolic
-  and popularity-similarity generators.
+- `skcomplex.core.analysis` gains `renormalize_network` and `scaling_law`; `skcomplex.core.space` gains the hyperbolic
+  and popularity-similarity generators of network spaces.

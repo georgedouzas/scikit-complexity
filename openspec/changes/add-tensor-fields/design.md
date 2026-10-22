@@ -2,9 +2,11 @@
 
 ## Context
 
-A `Field` holds one value per site for every state of its element. Laws are Sage expressions written for one site, and
-the operators `partial`, `laplacian`, `upwind`, and `inverse_laplacian` stay symbolic until `skcomplex.core.compile`
-lowers them. Finite differences become stencils on lattices and the graph Laplacian on networks. Spectral fields on
+After `redesign-system-model`, a site group, `Group(on='sites')` on a `LatticeSpace`, holds one value per site for every
+state of its element, as the former `Field` did. Laws are Sage expressions written for one site, and the operators
+`partial`, `laplacian`, `upwind`, and `inverse_laplacian` stay symbolic until `skcomplex.core.compile` lowers them. The
+redesign's inventory gate added the state domain `Tensor(rank, symmetry)`, of kind `DomainKind.TENSOR`, which
+validation reads but which nothing stores or lowers yet. Finite differences become stencils on lattices and the graph Laplacian on networks. Spectral fields on
 periodic lattices become Fourier multipliers, and a global operator such as `inverse_laplacian` becomes a derived read
 that the kernel evaluates once per rate evaluation. The stiff steppers split the linear part of a law from the
 remainder, and the Numba backend fuses the remainder into one kernel.
@@ -64,26 +66,41 @@ lattice. See proposal.md for the models this change unblocks.
 The change therefore wraps `py-pde` for the operators and solves on bounded finite-difference lattices, and keeps the
 existing NumPy FFT path for spectral fields, where the divergence of a tensor and the Leray projection are Fourier
 multipliers that the spectral discretization already applies. The core holds only the adapter that lowers symbolic
-operator calls to `py-pde` grids, fields, and compiled operators.
+operator calls to `py-pde` grids, fields, and compiled operators. The adapter serves the NumPy and Numba backends alike,
+so it is a private module of `core.backends` that both import, and `core.compile` stays free of backends.
 
 ### Tensor states
 
-`state(rank=2, symmetry='symmetric-traceless')` declares a tensor state, and `state(rank=1)` is the existing
-`vector=True` under a uniform keyword, which stays as an alias. The declaration expands into independent component
-states named by index, such as `Q_xx` and `Q_xy` in two dimensions, the way `order` expands into `<name>_d1`
-companions. The symbols namespace returns `s.Q` as a Sage matrix whose dependent entries are expressions of the
-independent ones, such as `Q_yy = -Q_xx`. A rate law on a tensor state gives one law per independent component, and
-the compiler checks that the right-hand side keeps the declared symmetry by simplifying the dependent entries against
-the independent ones. A mismatch raises `ValidationError` naming the state and the offending entry or trace.
+`state(domain=Tensor(2, 'traceless'))` declares a symmetric traceless tensor state with the redesign's existing domain,
+and a rank-1 tensor is the existing vector state, `state(vector=True)`. The declaration expands into independent
+component states named by index, such as `Q_xx` and `Q_xy` in two dimensions, the way `order` expands into
+`<name>_d1` companions. The symbols namespace returns `s.Q` as a Sage matrix whose dependent entries are expressions of
+the independent ones, such as `Q_yy = -Q_xx`. A rate law on a tensor state gives one law per independent component.
+
+Validation checks that the right-hand side keeps the declared symmetry by simplifying the dependent entries against the
+independent ones, and reports a mismatch with the code `tensor-symmetry`, naming the law, the state, and the offending
+entry or trace. It also reports a tensor state outside a site group of a lattice, with the existing code `law-space`,
+since tensors on networks and meshes are a non-goal.
+
+### Declarations
+
+- The ODE solvers, the stiff splitting solvers, and the spectral discretization add `DomainKind.TENSOR` to their
+  declared domains, so `validate()` accepts rate laws on tensor states with them and lists them when another solver is
+  chosen, with `solver-unsupported`.
+- The NumPy and Numba backends add `DomainKind.TENSOR`, and the `py-pde` adapter declares that it serves bounded
+  finite-difference lattices only.
+- The tensor operators, objective derivatives, and incompressible velocities declare
+  `Requires(space={SpaceKind.LATTICE}, domains={DomainKind.VECTOR, DomainKind.TENSOR})`, so a call on a scalar state or
+  outside a lattice is reported with `law-domain` or `law-space`.
 
 ### Tensor operators
 
-`vector_gradient`, `tensor_divergence`, `strain_rate`, `vorticity_tensor`, and the existing `laplacian` applied entry
-by entry expand into calls of the existing `partial` and `laplacian` functions on components. This keeps one symbolic
+`vector_gradient`, `tensor_divergence`, `strain_rate`, `vorticity_tensor`, in `core.laws` beside the existing
+differential operators, and the existing `laplacian` applied entry by entry expand into calls of the existing `partial` and `laplacian` functions on components. This keeps one symbolic
 form for scalar and tensor laws, so the stiff split still finds the linear elastic term `K ∇²Q`, and the Numba backend
 still fuses the kernel. On a bounded finite-difference lattice with tensor boundary conditions, the compiler groups the
 component calls of one operator on one state into a single derived read, evaluated by the `py-pde` operator of the
-same name on a `CartesianGrid` with the field's boundary conditions translated: `'periodic'` to periodic axes,
+same name on a `CartesianGrid` with the site group's boundary conditions translated: `'periodic'` to periodic axes,
 `'zero-flux'` to zero derivative, and `('fixed', value)` to a Dirichlet value per component.
 
 ### Objective derivatives
@@ -108,20 +125,22 @@ existing `symmetry` extensions.
 `principal_axis(field, state)` returns the largest eigenvalue and its eigenvector of a symmetric tensor at every site,
 with NumPy's batched `eigh`. `axis_defects(angle, period)` finds point defects by the winding of the axis angle around
 every plaquette, with `period=π` for nematic axes and `2π` for polar vectors. No library provides defect detection on
-lattice axis fields, and the computation is a few array operations. `DirectorVisual` logs Rerun `LineStrips2D` for
-headless axes or `Arrows2D` for vectors at a sampled subset of sites, over the existing image visual of a scalar. It
-registers under the kind `'director'`.
+lattice axis fields, and the computation is a few array operations. `AxisVisual` in `core.viz` logs Rerun
+`LineStrips2D` for headless axes or `Arrows2D` for vectors at a sampled subset of sites, over the existing image visual
+of a scalar. It registers under the kind `'axis'`. The name describes what it draws, rather than the liquid-crystal
+term director, to keep the core application agnostic.
 
 ### Runtime
 
-The new states are ordinary component states, so trajectories, observers, checkpoints, experiments, and the catalog
-need no change. Derived reads from `py-pde` run in the rate evaluation of the NumPy and Numba backends, and the explicit
+The new states are ordinary component states of site groups, so trajectories, observers, checkpoints, experiments, and
+the catalog need no change. Derived reads from `py-pde` run in the rate evaluation of the NumPy and Numba backends, and the explicit
 stability check gains the elastic diffusivity of tensor laws.
 
 ### Models
 
-The three factories live in `skcomplex.models.physics.active_matter` and use only public core names. The gel models
-use the Landau-de Gennes molecular field `H = -a Q - c tr(Q²) Q + K ∇²Q`, so a uniform two-dimensional state relaxes to
+The three factories live in `skcomplex.models.physics.active_matter` and use only public core names. Each returns a
+`System` with site groups on a `LatticeSpace` and `ContinuousTime()`. The Landau-de Gennes molecular field is a
+realization of the gel models, so it lives in their package, not in the core. The gel models use the molecular field `H = -a Q - c tr(Q²) Q + K ∇²Q`, so a uniform two-dimensional state relaxes to
 the scalar order `sqrt(-2 a / c)`. The active stress is `-ζ Q` for the nematic and `-ζ p p` for the polar gel.
 
 ## Risks / Trade-offs
