@@ -4,8 +4,8 @@
 
 ### Requirement: The form is inferred from the law kinds
 Compiling a validated system SHALL derive its form from the laws it lowers, and the form SHALL be an internal property
-of the compiled problem rather than part of the system's definition. A system whose nested systems have different law classes SHALL be split into
-partitions. Unsupported mixes SHALL be reported by validation before compilation, not by the compiler.
+of the compiled problem rather than part of the system's definition. A system whose nested systems have different law
+classes SHALL be split into partitions. Unsupported mixes SHALL be reported by validation before compilation, not by the compiler.
 
 #### Scenario: Deterministic ecology
 - **WHEN** a system contains only rate laws
