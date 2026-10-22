@@ -2,7 +2,8 @@
 
 ## 1. Inversion
 
-- [ ] 1.1 Add `inverse_helmholtz` to `skcomplex.core.model` with the screening check, and make `inverse_laplacian` its
+- [ ] 1.1 Add `inverse_helmholtz` to `skcomplex.core.laws` with its `Requires` declaration and the screening issue of
+  validation, and make `inverse_laplacian` its
   zero-screening case, and verify the negative screening scenario and that the existing spectral flow models still
   pass
 - [ ] 1.2 Lower the inversion on spectral fields and on finite-difference lattices with `scipy.fft` (`rfftn`, `dstn`,
@@ -23,19 +24,20 @@
 
 ## 3. Convolution
 
-- [ ] 3.1 Add `convolve` and the displacement symbols to `skcomplex.core.model`, with the check that kernels read no
-  state, and verify the kernel that reads a state scenario
+- [ ] 3.1 Add `convolve` and the displacement symbols to `skcomplex.core.laws`, with the `Requires` declaration and the
+  validation issue for kernels that read a state, and verify the kernel that reads a state scenario
 - [ ] 3.2 Sample kernels from the current parameters and lower them with `scipy.fft` on periodic lattices,
   `scipy.signal.oaconvolve` with padding at fixed and zero-flux edges, and `scipy.ndimage.convolve` for small kernels,
   and verify the Gaussian smoothing, truncated domain, and wider kernel scenarios
 - [ ] 3.3 Compose convolutions with other spectral multipliers on spectral fields, and verify a convolution of a
   Laplacian matches the Laplacian of the convolution within 1e-10
-- [ ] 3.4 Reject convolutions on networks and meshes, and verify the convolution on a network scenario
+- [ ] 3.4 Report convolutions and shifted reads on networks and meshes, spectral operators on non-periodic lattices,
+  and operands over several spaces as validation issues, and verify the convolution on a network scenario
 - [ ] 3.5 Document kernels and convolution in the user guide with a runnable example, and verify the docs build runs it
 
 ## 4. Shifted reads
 
-- [ ] 4.1 Add `shifted`, lowering whole-site displacements to neighbour tables, and verify the whole-site shift
+- [ ] 4.1 Add `shifted` to `skcomplex.core.laws` with its `Requires` declaration, lowering whole-site displacements to neighbour tables, and verify the whole-site shift
   scenario and that the kernel still compiles to Numba
 - [ ] 4.2 Lower other displacements to `scipy.ndimage.map_coordinates` with the boundary mapped to its modes, and
   verify the look-ahead interpolation and look-ahead beyond a fixed edge scenarios
@@ -47,7 +49,7 @@
 - [ ] 5.1 Add the Amari neural field under `skcomplex.models.biology.neuroscience`, registered at
   `biology/neuroscience` with its source, and verify the Amari bump scenario and the conformance suite
 - [ ] 5.2 Add the quasi-geostrophic double gyre under `skcomplex.models.earth.oceanography`, registered at
-  `earth/oceanography` with its source, streaming the streamfunction as an observable image, and verify the double
+  `earth/oceanography` with its source, streaming the streamfunction as an image observable of its catalog entry, and verify the double
   gyre circulation scenario and the conformance suite
 - [ ] 5.3 Add the gas-kinetic-based traffic model under `skcomplex.models.engineering.traffic`, registered at
   `engineering/traffic` with its source, and verify the stop-and-go waves scenario and the conformance suite

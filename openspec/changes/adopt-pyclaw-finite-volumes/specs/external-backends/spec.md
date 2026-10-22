@@ -4,8 +4,8 @@
 
 ### Requirement: PyClaw is an optional extra
 The PyClaw backend SHALL be available only through an optional `clawpack` extra, and the default install SHALL NOT
-need PyClaw. Asking for the PyClaw backend without the extra SHALL raise a named error before the first frame that
-names the extra, the conda-forge package, and the in-house solver that runs without it.
+need PyClaw. Asking for the PyClaw backend without the extra SHALL be reported by validation, before compilation, as an
+error whose fix names the extra, the conda-forge package, and the in-house solver that runs without it.
 
 #### Scenario: Default install
 - **WHEN** the package is installed without extras and a library finite-volume model runs with its default solver
@@ -13,20 +13,22 @@ names the extra, the conda-forge package, and the in-house solver that runs with
 
 #### Scenario: Missing extra
 - **WHEN** a user runs Burgers' equation with the PyClaw backend and `clawpack` is not installed
-- **THEN** a named error is raised that names the `clawpack` extra, the conda-forge package, and the native solver
+- **THEN** `Simulation` raises a `ValidationError` before compilation whose one issue has a fix that names the
+  `clawpack` extra, the conda-forge package, and the native solver
 
 ### Requirement: PyClaw runs finite-volume fields from their flux laws
-The PyClaw backend SHALL run the conservation laws of lattice finite-volume fields from the same flux laws as the
-native path, stepping frame by frame, and SHALL return trajectories with the same names and shapes. It SHALL reject
-every element, field, or law it cannot run before the first frame.
+The PyClaw backend SHALL run the conservation laws of lattice finite-volume fields, site groups on a lattice, from the
+same flux laws as the native path, stepping frame by frame, and SHALL return trajectories with the same names and
+shapes. It SHALL declare that it supports continuous time, lattice spaces, site groups, real states, and rate laws,
+and validation SHALL report every component, field, or law it cannot run before compilation.
 
 #### Scenario: Trajectory from PyClaw
 - **WHEN** the shallow-water dam break runs with the PyClaw backend
 - **THEN** its trajectory returns `channel.h` and `channel.q` with the same shapes and frame times as a native run
 
 #### Scenario: Unsupported problem
-- **WHEN** a field on a triangular mesh or a group of agents is given to the PyClaw backend
-- **THEN** a named error is raised that names the backend and each unsupported item
+- **WHEN** a field on a triangular mesh or a variable group with rule laws is validated with the PyClaw backend
+- **THEN** the report holds one issue per unsupported item, each naming the backend and the item's path
 
 ### Requirement: Flux laws lower to Riemann solvers with waves
 The PyClaw backend SHALL map fluxes of a known form to PyClaw's shipped solvers with their parameters. It SHALL

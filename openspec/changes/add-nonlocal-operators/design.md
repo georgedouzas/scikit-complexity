@@ -2,14 +2,16 @@
 
 ## Context
 
-Field laws are written for one site. `FieldLowering` in `skcomplex.core.compile` lowers `laplacian`, `partial`, and
+After `redesign-system-model`, a field is a group on the sites of a lattice, network, or mesh, `Group(on='sites')`,
+and its differential operators are expressions in `core.laws`. Field laws are written for one site. `FieldLowering` in `skcomplex.core.compile` lowers `laplacian`, `partial`, and
 `upwind` to stencils, whose neighbour reads are `NeighborRead` tables of member indices, and lowers spectral operators
 and the finite-element Laplacian to `DerivedRead`s: a new symbol whose value at every site is a global function, a
 Fourier multiplier or a sparse matrix, applied to the operand evaluated at every site. `inverse_laplacian` is a
 spectral multiplier, and on any other discretization it raises "needs a spectral field". A stencil cannot read a
 `DerivedRead` at a neighbour, so on finite differences an inverted streamfunction cannot be differentiated. The Numba
 backend compiles a kernel only when it has no `DerivedRead`, and otherwise the kernel runs on NumPy. Rerun streams the
-states of lattice fields as images.
+states of lattice site groups as images. Validation reads the `Requires` declarations of primitives and reports every
+invalid combination before compilation.
 
 The constitution requires a feature that a mature library implements to be built on it, with the core holding only
 the adapter, and requires a new runtime dependency to be justified.
@@ -81,7 +83,7 @@ zero-flux to `mirror`, and fixed to `constant` with `cval` the fixed value. A `D
 ### Modified-Helmholtz inversion
 
 `inverse_helmholtz(expression, screening, boundary=None)` returns a symbolic call, and `inverse_laplacian(u)` becomes
-`inverse_helmholtz(u, 0)`. The compiler checks that the screening's free symbols are parameters and that its square is
+`inverse_helmholtz(u, 0)`. Validation checks that the screening's free symbols are parameters and that its square is
 non-negative on their domains. The solver is chosen by the discretization and the boundary:
 - spectral fields multiply by `-1 / (k² + screening²)`, with the zero mode set to zero when the screening is zero;
 - finite-difference lattices with fixed edges use `scipy.fft.dstn` of type 1 on the interior, with the fixed value
@@ -103,6 +105,26 @@ A stencil read of a derived symbol needs its value at a neighbour. `FieldLowerin
 symbol by wrapping its `DerivedRead` so the neighbour table indexes the derived values, rather than the member
 columns. On spectral fields the existing chaining of multipliers covers convolution and inversion.
 
+### Declarations and validation
+
+The operators live in `core.laws` beside `laplacian` and `advection`. Each is an expression rather than a law kind, so
+it adds no `LawKind`, but it declares what it requires of the space, which validation reads wherever a law uses it:
+
+```text
+convolve:          Requires(space={lattice})
+shifted:           Requires(space={lattice})
+inverse_helmholtz: Requires(space={lattice, network, mesh})
+```
+
+Validation reports, each as an `Issue` with the law's path and a fix:
+- a convolution or a shifted read in a law of a group on a network or a mesh, with the fix of a lattice space;
+- a kernel that reads a state, naming the state;
+- a screening whose square can be negative or that depends on a state, naming the screening;
+- a spectral convolution or inversion on a lattice without periodic edges;
+- an operator whose operand reads groups of more than one space.
+
+These checks were compiler raises before the redesign, and they move to validation so a user sees all of them at once.
+
 ### Fit with the pipeline, runtime, and visualization
 
 - Symbolic layer: the three operators are Sage `BuiltinFunction`s like `laplacian`, so laws print, substitute, and
@@ -115,7 +137,7 @@ columns. On spectral fields the existing chaining of multipliers covers convolut
 - Runtime: operators are evaluated at every right-hand side call. The sparsity pattern of the Jacobian marks a
   convolution as coupling sites within its radius, and an inversion as dense, so implicit steppers stay correct.
 - Visualization: the operators add no state. A user streams a streamfunction or a synaptic input as an image by
-  declaring an observable of the field whose expression uses the operator.
+  passing an observable whose expression uses the operator to the simulation or the catalog entry.
 
 ## Risks / Trade-offs
 

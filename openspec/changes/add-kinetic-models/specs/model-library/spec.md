@@ -4,7 +4,8 @@
 
 ### Requirement: Kinetic models of active particles
 The library SHALL provide wealth and welfare dynamics, criminality against security forces, tumour-immune
-competition, and opinion formation as registered kinetic factories.
+competition, and opinion formation as registered kinetic factories built on site groups and encounter laws, with their
+transition tables in their model packages and their standard moments declared by their catalog entries.
 
 #### Scenario: Immune response
 - **WHEN** the tumour-immune model runs with an immune activity above its threshold

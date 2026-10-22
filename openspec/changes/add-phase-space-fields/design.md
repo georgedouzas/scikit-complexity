@@ -2,7 +2,8 @@
 
 ## Context
 
-A `Field` is a group over a `LatticeSpace`, a `NetworkSpace`, or a `Mesh`. Its laws are Sage expressions written for
+After `redesign-system-model`, a field is a group on the sites of a space, `Group(on='sites')` over a `LatticeSpace`, a
+`NetworkSpace`, or a `Mesh`, and its differential operators stay expressions. Its laws are Sage expressions written for
 one site, with `laplacian`, `gradient`, `divergence`, and `advection` reading neighbouring sites. The compiler lowers
 them to NumPy and Numba by finite differences, spectrally, by finite volumes with `Flux` laws, or by finite elements.
 The field lowering already handles lattices of any dimension, the stiff steppers split linear spectral parts from
@@ -16,20 +17,22 @@ What is missing for kinetic equations (see proposal.md, Why):
 
 ### Boundary with `add-kinetic-models`
 
-`add-kinetic-models` holds distributions over a discrete activity variable, without position or on network nodes,
-changed by encounter laws that compile to gain-loss ODEs, and lists spatial kinetic models with velocity and position
-as a non-goal. This change holds fields over a continuous position lattice times velocity or orientation axes,
-changed by transport and collision laws. The two do not overlap:
+`add-kinetic-models` holds distributions over a discrete activity variable, as site groups on a lattice over the
+activity grid, changed by encounter laws that compile to gain-loss ODEs, and lists spatial kinetic models with
+velocity and position as a non-goal. This change holds site groups over a continuous position lattice times velocity
+or orientation axes, changed by transport and collision laws. The redesign's inventory gate records both as site
+groups on a lattice over a product space, which this change makes explicit with `PhaseSpace`. The two do not overlap:
 - an activity grid is not a velocity axis, because nothing streams along it, and encounter tables are not collision
   integrals, because they conserve no momentum or energy;
 - this change adds no encounter law, and `add-kinetic-models` adds no transport or collision law;
-- the names differ. `add-kinetic-models` owns `Distribution`, `Encounter`, `Proliferation`, `Destruction`,
-  `Relaxation`, `ExternalAction`, and `ParticleKinetics`, and this change uses none of them;
-- the moment observables of both are quadratures. Whichever change lands second reuses the first one's quadrature
-  helper, with unit weights for an activity grid, so the fact lives in one place.
+- the names differ. `add-kinetic-models` owns `Encounter`, `Proliferation`, `Destruction`, `ParticleKinetics`,
+  `distribution_from`, and `members_from`, and this change uses none of them;
+- the moments of both are one reduction, `moment`, a quadrature over the axes of a lattice that are not positions.
+  Whichever change lands second reuses the first one's, with the activity values as coordinates for an activity grid,
+  so the fact lives in one place.
 
 The discrete-velocity Boltzmann model (Bellomo et al. 2017 §2.3.2), with a handful of velocities, stays an ordinary
-system of fields, as the inventory already records.
+system of site groups, as the inventory already records.
 
 ## Goals / Non-Goals
 
@@ -93,9 +96,10 @@ No new dependency is declared.
 
 ### Phase spaces
 
-`PhaseSpace(position, axes)` takes a `LatticeSpace` and a sequence of `VelocityAxis(bounds, size)` and
-`OrientationAxis(size)`. It behaves as the product lattice, with the position axes first, so `Field` and the existing
-lowering accept it unchanged: a velocity axis is a lattice axis with spacing `(high - low) / size` and zero-flux
+`PhaseSpace(position, axes)` in `core.space` takes a `LatticeSpace` and a sequence of `VelocityAxis(bounds, size)` and
+`OrientationAxis(size)`, also in `core.space`. It is a lattice space, of space kind `lattice`, and behaves as the
+product lattice, with the position axes first, so `Group(on='sites')` and the existing lowering accept it unchanged and
+no space kind is added: a velocity axis is a lattice axis with spacing `(high - low) / size` and zero-flux
 edges, an orientation axis a periodic one with spacing `2 π / size`. The phase space records which axes are which,
 and `coordinates` returns one array per axis. Sites stay in row-major order, so a slice at fixed position is
 contiguous.
@@ -112,11 +116,13 @@ site.
 
 ### Moments
 
-`moment(f, order)` is a symbolic reduction over the velocity or orientation axes. It lowers to a weighted sum over the
+`moment(f, order)` is a symbolic reduction over the velocity or orientation axes, exported beside the other
+reductions and shared with `add-kinetic-models`, which passes activity values as its coordinates. It lowers to a weighted sum over the
 trailing axes in NumPy and a loop in Numba. The weights are the cell widths, which make the discrete density,
 momentum, and energy exactly the quantities that discrete transport and BGK conserve. On an orientation axis, the
 first and second moments are the polarization `∫ e^{iθ} f` and the nematic order `∫ e^{2iθ} f`, returned as real
-components. A moment is also an `Observable`, recorded in trajectories under the field's path.
+components. A moment can also be passed as an observable to `Simulation(observables=...)` or a catalog entry, and is
+then recorded in trajectories under the group's path.
 
 ### Collision operators
 
@@ -131,12 +137,27 @@ components. A moment is also an `Observable`, recorded in trajectories under the
   Bertin, Droz, and Grégoire. In angular Fourier modes they are products of the noise distribution's characteristic
   function and convolutions of mode pairs, so they lower to `scipy.fft` along the orientation axis.
 
-Collision laws are nonlinear rate terms, so the method-of-lines steppers integrate them like any rate. They are kept
-out of the linear part of the stiff splitting.
+The three collision laws live in `core.laws`. They are nonlinear rate terms of the law kind `rate`, in the continuous
+class, so the method-of-lines steppers integrate them like any rate. They are kept out of the linear part of the stiff
+splitting. Each declares:
+
+```text
+Requires(time={continuous}, space={lattice}, domains={real})
+```
+
+Beyond the declaration, validation checks the axes of the phase space and reports:
+- a `BGK` or `Collision` law whose group lives on a lattice without velocity axes, with the fix of declaring a
+  `PhaseSpace` with a `VelocityAxis`;
+- an `AngularCollision` law on a lattice without an orientation axis, with the fix of adding an `OrientationAxis`;
+- a phase space larger than the declared size limit, with the size it would take.
+
+`streaming`, `acceleration`, and the phase coordinates are expressions, like `laplacian` and `advection`, so they need
+no declaration of their own; validation reports a `streaming` or `acceleration` read, or a phase coordinate, in a law
+whose group is not on a `PhaseSpace`.
 
 ### Mean-field coupling
 
-A law over a phase space may read a state of a field over its position lattice. The lowering broadcasts that state
+A law over a phase space may read a state of a site group over its position lattice. The lowering broadcasts that state
 along the velocity axes. A law over the position lattice may read `moment(...)` of a phase-space field in the same
 system. Vlasov-Poisson is then a phase-space field whose acceleration reads an electric field `-gradient(phi)`, with
 `phi = inverse_laplacian(1 - moment(f, 0))` on a spectral position field. No new solver is needed for the Poisson
@@ -151,16 +172,28 @@ step.
 - `StrangSplitting(transport, collision)` composes a half transport step, a full collision step, and a half transport
   step, each with its own stepper. Collision steps run per site, so the stepper vectorises them over positions.
 
-Both register in the solver registry, so they are chosen by name like the existing steppers.
+Both live in `core.solvers` and register in the solver registry, so they are chosen by name like the existing
+steppers. They declare:
+
+```text
+SemiLagrangian:  Supports(time={continuous}, space={lattice}, laws={rate}, domains={real}, components={site-group})
+StrangSplitting: Supports(time={continuous}, space={lattice}, laws={rate, noise}, domains={real},
+                          components={site-group})
+```
+
+`StrangSplitting` reports the support of its two inner steppers, so validation checks each against the laws it
+advances. Validation also reports `SemiLagrangian` chosen for a system whose site groups are not on a `PhaseSpace`, or
+whose laws are not transport, and lists the steppers that support the system. Both run on the NumPy backend, whose
+support they reuse.
 
 ### Compile pipeline, runtime, and visualization
 
 - Compile: phase coordinates, `streaming`, `acceleration`, and `moment` are Sage functions, like `laplacian`, so the
   symbolic layer, the stability check, and the printers see ordinary expressions. Collision operators are law objects,
   like `Flux`, that the lowering turns into calls to precomputed kernels.
-- Runtime: a phase-space field is one state vector, so `Simulation`, trajectories, observers, experiments, and
-  co-simulation handle it without change. Moments are observables and so reach every analysis tool.
-- Visualization: `ImageVisual` gains a `slice` argument naming two axes and fixed indices for the rest, so a phase-space
+- Runtime: a phase-space site group is one state vector, so `Simulation`, trajectories, observers, experiments, and
+  co-simulation handle it without change. Moments given as observables reach every analysis tool.
+- Visualization: `ImageVisual` in `core.viz` gains a `slice` argument naming two axes and fixed indices for the rest, so a phase-space
   field streams as the position-velocity image. Moments over a one-dimensional lattice stream as series, and over a
   two-dimensional one as images.
 
@@ -175,3 +208,14 @@ Both register in the solver registry, so they are chosen by name like the existi
   and a filamentation scenario in the tests bounds it. Positivity is not enforced, as in the references.
 - [The fast spectral weights are in-house code] → They are the one piece no surveyed library provides. They are tested
   against the BKW exact solution and against direct quadrature of the collision integral on a coarse grid.
+
+## Open Questions
+
+- Core or library for the collision operators. `BGK` and the Boltzmann `Collision` are the general collision operators
+  of kinetic equations, as `Dissipator` is the general Lindblad operator, so this design keeps them in `core.laws`.
+  `AngularCollision` implements the self-diffusion and binary alignment rule of Bertin, Droz, and Grégoire, which only
+  the flocking model uses and which may count as a realization under the redesign's rule. Should it move to the
+  `physics/active_matter` model package, which would need a general core hook for laws lowered to precomputed spectral
+  kernels, or stay in the core as a general angular collision operator? Is the name `BGK`, which names its authors
+  rather than its mathematics, acceptable under the application-agnostic rule, or should it be renamed, for example to
+  `Relaxation` toward a Maxwellian (a name the core already uses for threshold dynamics)?
