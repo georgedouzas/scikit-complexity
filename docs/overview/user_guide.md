@@ -2348,6 +2348,48 @@ currents = np.random.default_rng(0).normal(10.0, np.sqrt(30.0), 5000)
 print(uncertainty_relation(currents, entropy_production=10.0, random_state=0).holds)
 ```
 
+### Emergence and ergodicity
+
+`partition_coarse_grain` maps micro states to macro states by a partition, an integer label per state or a function of
+the state. It maps every frame of a discrete trajectory, or sums the transitions of a transition matrix within every
+block with `matrix=True`, weighting the states of a block uniformly or by the stationary distribution.
+`effective_information` measures how much a transition matrix constrains the next state: it is the mutual information
+in bits between a uniform intervention on the current state and the next state, and it equals the determinism of the
+matrix minus its degeneracy. Rows with no observed transition are left out with an `UnobservedStatesWarning` that names
+their states. `causal_emergence` reports the gain in effective information of a partition over the micro states, and
+without a partition it searches for one, greedily by merging the pair of blocks with the largest gain, or exhaustively
+for at most 10 states. In the chain of Hoel, Albantakis, and Tononi, seven noisy states merge into one deterministic
+macro state that carries more effective information than the micro states.
+
+```python
+from skcomplex.core.analysis import causal_emergence, effective_information, partition_coarse_grain
+
+noisy = np.zeros((8, 8))
+noisy[:7, :7], noisy[7, 7] = 1 / 7, 1.0
+print(round(effective_information(noisy).information, 3))
+found = causal_emergence(noisy)
+print(found.partition.tolist(), round(found.macro.information, 3), round(found.gain, 3))
+print(partition_coarse_grain(noisy, found.partition, matrix=True).tolist())
+```
+
+`ergodicity_breaking`, `fluctuation_metric`, and `ergodicity_distance` diagnose whether the runs of an ensemble, one row
+per run or an `Ensemble` from `ensemble_of`, explore the same states. The ergodicity-breaking parameter is the variance
+of the time averages across runs over the variance of all values, which tends to 0 for ergodic runs and stays near 1
+for runs frozen in separate states. The fluctuation metric of Thirumalai and Mountain is the variance of the running
+time averages, which decays as `1 / t` for ergodic runs and levels off for frozen ones. `ergodicity_distance` is the
+median total-variation distance between the values of one run over time and the values of the whole ensemble.
+
+```python
+from skcomplex.core.analysis import ergodicity_breaking, ergodicity_distance, fluctuation_metric
+
+rng = np.random.default_rng(0)
+mixing = rng.standard_normal((100, 5000))
+frozen = rng.choice([-1.0, 1.0], size=(100, 1)) + 0.1 * rng.standard_normal((100, 5000))
+print(ergodicity_breaking(mixing) < 0.01, ergodicity_breaking(frozen) > 0.9)
+print(round(fluctuation_metric(mixing).exponent, 1), abs(round(fluctuation_metric(frozen).exponent, 1)))
+print(ergodicity_distance(mixing) < 0.1, round(ergodicity_distance(frozen), 1))
+```
+
 ### Fields and lattices
 
 `structure_factor` averages the power of a field radially on a periodic grid of any dimension, and `correlation_length`

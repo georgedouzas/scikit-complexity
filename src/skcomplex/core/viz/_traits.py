@@ -1,4 +1,4 @@
-"""Draw the traits of agents without a space as histograms and statistics."""
+"""Draw the traits of agents and the states of groups without a space as histograms and statistics."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,6 +12,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ..compile import CompiledAgents, CompiledElement, Problem
+from ..runtime import Frame
 from ..solvers import AgentSnapshot
 from ..space import Space
 from ._visuals import SERIES_COLORS, AgentsVisual, _widened, register_visual, resolve_visual
@@ -52,7 +53,7 @@ def _histogram(
 
 
 class TraitsVisual(AgentsVisual):
-    """Visual that logs the traits of agents without a space as histograms and statistics.
+    """Visual that logs the traits of agents, or the states of a group, without a space as histograms and statistics.
 
     For every trait of the agents, a number per agent is taken: the value of a numeric trait, the total of a row of
     numbers such as the ones of a genome, or the size of a collection such as a vocabulary. The visual logs the
@@ -60,7 +61,8 @@ class TraitsVisual(AgentsVisual):
     logged so far, with one bar per value when the values are few integers, and their mean and standard deviation as
     series under `<path>/<trait>/mean` and `<path>/<trait>/std`. Integer numbers, such as type labels, also log their
     number of distinct values under `<path>/<trait>/distinct`, and a group of at most ten agents logs the number of
-    every agent as its own series under `<path>/<trait>/agents`. Traits of other kinds are left out.
+    every agent as its own series under `<path>/<trait>/agents`. Traits of other kinds are left out. The states of the
+    members of a group are logged the same way, one histogram per state.
 
     Args:
         color_by:
@@ -122,6 +124,24 @@ class TraitsVisual(AgentsVisual):
         if numbers.size <= MAX_AGENT_SERIES:
             recording.log(f'{path}/agents', rr.Scalars(numbers))
 
+    def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
+        """Log the histogram and the statistics of every state of the members of a group at one frame.
+
+        Args:
+            recording:
+                The Rerun recording.
+
+            element:
+                The compiled group, with its path and the dotted names of its states.
+
+            frame:
+                The frame.
+        """
+        for state, name in element.states.items():
+            numbers = _numbers_of(frame.value(name))
+            if numbers is not None and numbers.size:
+                self._log_trait(recording, f'{element.path}/{state}', numbers)
+
     def log_agents(
         self,
         recording: rr.RecordingStream,
@@ -156,7 +176,7 @@ class TraitsVisual(AgentsVisual):
 
         Args:
             element:
-                The compiled agents, with their path and the names of their states.
+                The compiled agents or group, with their path and the names of their states.
 
             problem:
                 The compiled problem.
@@ -166,10 +186,11 @@ class TraitsVisual(AgentsVisual):
                 A time series view of the shown series of `color_by`, or of the first state, and a bar chart view of
                 its histogram, in the chosen order, and a time series view of the statistics of every trait.
         """
-        if not isinstance(element, CompiledAgents) or not element.states:
+        states = list(element.states)
+        if not states:
             return []
         path = element.path
-        trait = self.color_by if self.color_by is not None else element.states[0]
+        trait = self.color_by if self.color_by is not None else states[0]
         contents = [f'+ /{path}/*/mean', f'+ /{path}/*/std']
         series = rrb.TimeSeriesView(
             origin='/',

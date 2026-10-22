@@ -1,12 +1,16 @@
-"""Test the visual of the traits of agents without a space."""
+"""Test the visual of the traits of agents and of the states of groups without a space."""
 
 import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
+from skcomplex.core.base import VisualSpec
 from skcomplex.core.compile import compile_system
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Update, uniform
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import AgentSnapshot
+from skcomplex.core.system import System
 from skcomplex.core.viz import AgentsVisual, RerunObserver, TraitsVisual, agents_visual_of, default_blueprint
 from skcomplex.models import create
 
@@ -142,3 +146,24 @@ def test_charbonneau_traffic_has_a_space_time_view():
     assert not isinstance(visual, TraitsVisual)
     views = visual.views(problem.agents[0], problem)
     assert (type(views[0]).__name__, str(views[0].origin)) == ('TimeSeriesView', 'cars/x')
+
+
+def test_traits_visual_logs_the_states_of_a_group(monkeypatch, tmp_path):
+    """Test that a group of members without a space logs the histogram of every state and can show it first."""
+    walker = Element.define('Walker', states={'x': 0.0}, laws=lambda s: [Update(s.x, s.x + uniform('step', -1, 1))])
+    visual = VisualSpec('traits', {'color_by': 'x', 'histogram_first': True})
+    system = System(components=[walker.group('walkers', 50, visual=visual)])
+    views = [type(view).__name__ for view in _views(default_blueprint(compile_system(system)))]
+    assert views[:2] == ['BarChartView', 'TimeSeriesView']
+    logged = []
+    original = rr.RecordingStream.log
+
+    def log(self, path, *args, **kwargs):
+        logged.append(path)
+        return original(self, path, *args, **kwargs)
+
+    monkeypatch.setattr(rr.RecordingStream, 'log', log)
+    observer = RerunObserver('walkers', save_path=tmp_path / 'walkers.rrd')
+    Simulation(system, observers=[observer], random_state=0).run(until=3)
+    assert 'walkers/x/histogram' in logged
+    assert 'walkers/x/mean' in logged

@@ -72,12 +72,20 @@ from ._embedding import (
     embed,
     false_nearest_neighbors,
 )
+from ._emergence import (
+    CausalEmergence,
+    EffectiveInformation,
+    causal_emergence,
+    effective_information,
+    partition_coarse_grain,
+)
 from ._emergence_criteria import (
     Closure,
     EmergenceCriteria,
     closure,
     emergence_criteria,
 )
+from ._ergodicity import FluctuationMetric, ergodicity_breaking, ergodicity_distance, fluctuation_metric
 from ._events import Events, detect_events
 from ._extremes import (
     ExtremeValueFit,
@@ -248,6 +256,7 @@ __all__: list[str] = [
     'AvalancheLaws',
     'Avalanches',
     'BasinStability',
+    'CausalEmergence',
     'Cloning',
     'Closure',
     'Clusters',
@@ -264,6 +273,7 @@ __all__: list[str] = [
     'DomainGrowth',
     'Dynamics',
     'EarlyWarning',
+    'EffectiveInformation',
     'Embedding',
     'EmergenceCriteria',
     'Ensemble',
@@ -274,6 +284,7 @@ __all__: list[str] = [
     'ExtremeValueFit',
     'FlowMatrix',
     'Fluctuation',
+    'FluctuationMetric',
     'FluctuationTheorem',
     'GoodnessOfFit',
     'JumpPath',
@@ -330,6 +341,7 @@ __all__: list[str] = [
     'box_counting_dimension',
     'branching_ratio',
     'break_ties',
+    'causal_emergence',
     'ccdf',
     'centrality',
     'clark_evans_ratio',
@@ -364,6 +376,7 @@ __all__: list[str] = [
     'dual_total_correlation',
     'dynamics_of',
     'early_warning',
+    'effective_information',
     'embed',
     'emergence_criteria',
     'ensemble_entropy',
@@ -373,6 +386,8 @@ __all__: list[str] = [
     'entropy_rate',
     'epsilon_machine',
     'equations_of',
+    'ergodicity_breaking',
+    'ergodicity_distance',
     'event_counts',
     'excess_entropy',
     'false_nearest_neighbors',
@@ -390,6 +405,7 @@ __all__: list[str] = [
     'fixed_points',
     'flow_matrix',
     'fluctuation_dissipation_ratio',
+    'fluctuation_metric',
     'fluctuation_theorem',
     'gini',
     'ground_state',
@@ -445,6 +461,7 @@ __all__: list[str] = [
     'order_parameter_sweep',
     'ordinal_patterns',
     'partial_information',
+    'partition_coarse_grain',
     'path_of',
     'pattern_wavelength',
     'percolation',

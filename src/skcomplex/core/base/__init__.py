@@ -17,6 +17,7 @@ from ._errors import (
     SkcomplexError,
     SolverError,
     SpaceError,
+    UnobservedStatesWarning,
     ValidationError,
 )
 from ._forms import Form
@@ -92,6 +93,7 @@ __all__: list[str] = [
     'SymbolicVector',
     'Tensor',
     'TimeKind',
+    'UnobservedStatesWarning',
     'ValidationError',
     'Variable',
     'VariableKind',
