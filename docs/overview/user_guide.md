@@ -2130,9 +2130,12 @@ print(round(recurrence_quantification(sine).determinism, 2))
 paths. `transition_matrix`, `stationary_distribution`, `spectral_gap`, `relaxation_times`, and `detailed_balance` read
 transition and rate matrices or estimate them from paths. `fano_factor`, `event_counts`, `relative_fluctuations`, and
 `kramers_moyal` describe fluctuations, the last with `kramersmoyal`. `entropy_production`, `jump_entropy_production`,
-`langevin_entropy_production`, `count_entropy_production`, and `fluctuation_theorem` measure irreversibility.
-`tilted_generating_function`, `block_generating_function`, `legendre_transform`, `histogram_rate_function`, and
-`reweight` give large deviations. `markov_state_model`, `implied_timescales`, `committor`, and
+`langevin_entropy_production`, `count_entropy_production`, and `fluctuation_theorem` measure irreversibility, and
+`uncertainty_relation` checks the thermodynamic uncertainty relation: the squared relative fluctuation of a current
+times the entropy produced is at least 2. `tilted_generating_function`, `block_generating_function`,
+`legendre_transform`, `histogram_rate_function`, and `reweight` give large deviations, and `cloning` estimates the scaled
+cumulant generating function of a model by cloning a population of its trajectories through the simulation's steppers,
+for systems whose tilted generators are too large to write down. `markov_state_model`, `implied_timescales`, `committor`, and
 `mean_first_passage_time` estimate Markov state models with `deeptime`. `two_time_correlation`, `aging_collapse`,
 `collapse_distributions`, `response`, and `fluctuation_dissipation_ratio` measure aging, and `fit_extreme_values`,
 `record_counts`, `fit_stable`, and `compare_with_law` describe extremes and limit laws.
@@ -2153,6 +2156,23 @@ tilts = np.linspace(-3, 3, 601)
 print(round(float(legendre_transform(tilts, tilted_generating_function([[2.0]], [[1.0]], tilts), 3.0)[0]), 3))
 ```
 
+Cloning advances every clone of a population by an interval, weights it by `exp(s A)` for the increment `A` of a
+time-additive observable, and resamples the population by the weights. The observable is the dotted name of a state
+whose increment is counted, or a function of the trajectory of each interval. A warning names a population whose
+effective size collapses, a sign that the estimate is biased.
+
+```python
+from skcomplex.core.analysis import cloning, uncertainty_relation
+from skcomplex.core.laws import Jump
+
+Counter = Element.define('Counter', states={'n': 0.0}, laws=lambda s: [Jump(1.0, {s.n: 1})])
+counter = System(components=[Counter('counter')])
+estimate = cloning(counter, 'counter.n', 0.5, population=200, until=10.0, random_state=0)
+print(round(estimate.scgf, 2), round(float(np.exp(0.5) - 1), 2))
+currents = np.random.default_rng(0).normal(10.0, np.sqrt(30.0), 5000)
+print(uncertainty_relation(currents, entropy_production=10.0, random_state=0).holds)
+```
+
 ### Fields and lattices
 
 `structure_factor` averages the power of a field radially on a periodic grid of any dimension, and `correlation_length`
@@ -2160,10 +2180,17 @@ fits its Ornstein-Zernike form or the decay of the correlation function. `domain
 coarsening, `pattern_wavelength` the wavelength and orientation of patterns, and `number_fluctuations` the giant number
 fluctuations of density fields. `cluster_sizes`, `percolation`, and `spanning_probability` describe clusters of grids
 and components of graphs, and `binder_cumulant`, `binder_crossings`, and `scaling_collapse` locate transitions by
-finite-size scaling.
+finite-size scaling. `dispersion_relation` predicts patterns from a field model's laws before running it: it
+linearises them around a uniform state, turns every Laplacian into its eigenvalue on each Fourier mode of the lattice,
+and returns the growth rate and frequency of every mode, exact for the model's discretization. A band of growing modes
+is a Turing instability, and a growing mode with a nonzero frequency travels.
 
 ```python
-from skcomplex.core.analysis import binder_cumulant, pattern_wavelength, percolation
+from skcomplex.core.analysis import binder_cumulant, dispersion_relation, pattern_wavelength, percolation
+from skcomplex.models.chemistry.pattern_formation import brusselator
+
+relation = dispersion_relation(brusselator((128,), b=1.9))
+print(relation.band.min().round(2), relation.band.max().round(2))
 
 stripes = np.cos(2 * np.pi * np.arange(64) / 8)[:, None] * np.ones(64)
 print(pattern_wavelength(stripes).wavelength)
