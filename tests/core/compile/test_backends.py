@@ -9,9 +9,9 @@ import numpy as np
 import pytest
 
 from skcomplex.core.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.base import BackendError, Domain, SolverError, parameter, role
+from skcomplex.core.base import BackendError, Domain, SolverError, parameter, role, vector
 from skcomplex.core.compile import compile_system
-from skcomplex.core.components import Particle
+from skcomplex.core.components import Element, Particle
 from skcomplex.core.interactions import Interaction, PairPotential
 from skcomplex.core.laws import Call, Jump, Noise, Rate, Update
 from skcomplex.core.runtime import Simulation
@@ -212,6 +212,22 @@ def test_compiled_call_runs_inside_kernels(numba_backend):
     x, p = reference.initial_state, reference.initial_parameters
     assert np.allclose(compiled.drift(0.0, x, p), reference.drift(0.0, x, p), rtol=1e-12)
     assert compiled.accelerated is not None
+
+
+def test_numpy_backend_calls_vector_call_once_per_step():
+    """Test that a call with a vector target runs once per step, not once per component."""
+    calls = []
+
+    def rotate(t, x, y):
+        calls.append(t)
+        return [-y, x]
+
+    Pair = Element.define(
+        'Pair', states={'x': 1.0, 'y': 0.0}, laws=lambda s: [Update(vector([s.x, s.y]), Call(rotate, s.x, s.y))],
+    )
+    trajectory = Simulation(System(components=[Pair('pair')]), backend='numpy').run(until=4).trajectory_
+    assert trajectory['pair.x'].tolist() == [1.0, 0.0, -1.0, 0.0, 1.0]
+    assert [calls.count(float(t)) for t in (1, 2, 3)] == [1, 1, 1]
 
 
 def test_python_callable_runs_on_python_path(numba_backend):
