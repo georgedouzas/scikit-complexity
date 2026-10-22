@@ -5,7 +5,7 @@
 ### Requirement: Fluxes are drawn as bars, graphs, and images
 A constraint network SHALL by default stream its fluxes each frame as a bar chart in process order, and its objective
 values as time series. A network of at most 100 processes SHALL also stream as a graph of pools and processes whose edge
-widths scale with the absolute flux. A network on a lattice SHALL stream a chosen flux per site as an image.
+widths scale with the absolute flux. A network in a group on the sites of a lattice SHALL stream a chosen flux per site as an image.
 
 #### Scenario: Flux bar chart
 - **WHEN** a static network of 10 processes runs with a Rerun observer

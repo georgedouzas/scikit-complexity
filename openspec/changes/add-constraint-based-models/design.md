@@ -2,17 +2,24 @@
 
 ## Context
 
-The parts of the framework that this change builds on:
-- Elements declare states and parameters, and interactions bind elements through roles and return laws.
-- The law kinds decide the form. Rate laws give an ODE and update laws give a map. Subsystems whose forms differ
-  co-simulate, and other partitions are read as inputs held between synchronisation points.
-- Fields put one copy of an element's laws on every lattice site.
+The parts of the framework that this change builds on, in the vocabulary of `redesign-system-model`:
+- A system is `System(label, components=, interactions=, space=, time=)`. Elements declare states and parameters, and
+  interactions bind components through roles and return laws.
+- Time is `ContinuousTime()`, `DiscreteTime(...)`, or `StaticTime()`. Static time holds only constraint laws, among them
+  `Equation`, `Boundary`, `Invariant`, and `Objective`, and its form and solvers are specified by `add-static-models`.
+- The compiler derives the form from the laws it lowers. Nested systems whose forms differ co-simulate, and other
+  partitions are read as inputs held between synchronisation points.
+- `Group(label, element=, on='sites')` on a `LatticeSpace` puts one member of an element on every site.
+- `parameter(adaptive=True)` declares a parameter that laws may change, compiled and recorded like a state.
+- Every primitive declares `Requires`, every solver and backend declares `Supports`, and `validate()` reports every
+  invalid combination as an `Issue` with a code, a path, and a fix before compilation.
 - `Call` evaluates a Python or Numba function inside a law, and drivers and live parameter changes reach laws between
   frames.
 - `biology/systems_biology` already has Boolean gene networks built from `Update` laws.
 
-Nothing in the core is a decision variable fixed by an optimisation at a point in time, and that is what all seven
-models need. Raman's static optimisation approach (Eqs. 9.8–9.9) solves the LP at `t_k`, holds the fluxes, and
+Nothing in the core is a decision variable fixed by a linear optimisation at a point in time, and that is what all
+seven models need. The `Objective` law kind exists in the vocabulary, but no solver minimises a linear objective under
+linear constraints. Raman's static optimisation approach (Eqs. 9.8–9.9) solves the LP at `t_k`, holds the fluxes, and
 integrates the exchange ODEs over `Δt`. This is the co-simulation contract with a new kind of partition.
 
 Two more models, elementary flux modes (Raman §9.8) and carbon-13 metabolic flux analysis (§9.7), were recorded as out of
@@ -26,12 +33,14 @@ indexed by what the computation produces: the modes, or the iterations of the fi
 
 - Declare a constraint network with the framework's symbols and solve it, in the default install, under the MIT
   licence.
-- Couple the solve to ODEs, maps, co-simulation, and lattice fields without new runtime machinery. The solve becomes a
-  law kind with a form.
+- Couple the solve to ODEs, maps, co-simulation, and site groups without new runtime machinery. A network contributes
+  `Equation`, `Bound`, and `Objective` laws, all of the constraint class, so it is valid under every time kind.
 - Take the established analyses, model formats, strain-design algorithms, and community methods from COBRApy,
-  StrainDesign, and MICOM through an optional extra, so the core holds only the adapters.
-- Keep the core domain-agnostic. Pools, processes, and switches mean metabolites, reactions, and genes in metabolism,
-  and goods, routes, and facilities in a supply chain.
+  StrainDesign, and MICOM through an optional extra, as realizations in `skcomplex.models.biology.realizations`, so the
+  core holds none of them.
+- Keep the core application agnostic. Pools, processes, and switches mean metabolites, reactions, and genes in
+  metabolism, and goods, routes, and facilities in a supply chain.
+- Declare the requirements and support of every new primitive and solver, so `validate()` reports misuse.
 - Enumerate the elementary modes and extreme pathways of a network exactly, and estimate fluxes from labelling data with
   intervals and a goodness-of-fit test, as runs whose frames are modes or fit iterations.
 
@@ -150,8 +159,8 @@ The project is MIT. COBRApy is dual LGPL-2.0+ or GPL-2.0+, and it always install
 - The default install SHALL hold no copyleft package, so COBRApy, StrainDesign, and MICOM go into an optional extra:
   `[project.optional-dependencies] metabolism = ["cobra>=0.32.1", "straindesign>=1.19.1", "micom>=0.39.1"]`.
   StrainDesign and MICOM are Apache-2.0, but both require `cobra`, so they share the extra.
-- Only `skcomplex.core.backends._cobra` imports them, lazily inside its functions. This is the one lazy import the
-  constitution allows, with a suppression whose reason names the extra.
+- Only `skcomplex.models.biology.realizations._cobra` imports them, lazily inside its functions. This is the one lazy
+  import the constitution allows, with a suppression whose reason names the extra. The core never imports them.
 - When the import fails, the adapter raises `MissingExtraError`, a `BackendError` defined in `skcomplex.core.base`.
   Its message names the function, the extra, and the command `pip install 'scikit-complexity[metabolism]'`, and says
   that `ConstraintNetwork` solves, `fseof`, and `steadycom` run without the extra.
@@ -160,7 +169,7 @@ The project is MIT. COBRApy is dual LGPL-2.0+ or GPL-2.0+, and it always install
   then governed by that licence, but the MIT source is not.
 - deptry learns that the three packages are optional imports.
 - `pplpy` is GPL-3.0+ and goes into its own extra, `polyhedra = ["pplpy>=0.9.0"]`, because enumeration is a general
-  polyhedral capability that does not need COBRApy. Only `skcomplex.core.backends._ppl` imports it, lazily, and a
+  polyhedral capability that does not need COBRApy. Only `skcomplex.core.analysis._cones` imports it, lazily, and a
   missing extra raises `MissingExtraError` naming `polyhedra`. The user guide states that the extra brings GPL-3.0 PPL
   and LGPL-3.0 `gmpy2` and `cysignals`.
 
@@ -185,7 +194,8 @@ Alternatives considered:
 ### Declaring a network
 
 ```python
-from skcomplex.core.model import ConstraintNetwork, Constraint, Process, Symbols, either, both, total_flux
+from skcomplex.core.components import ConstraintNetwork, Constraint, Process
+# Symbols, either, both, and total_flux are the core's expression helpers.
 
 A, B, C = Symbols('A B C')
 cell = ConstraintNetwork(
@@ -209,11 +219,12 @@ The parts of the declaration:
   `reversible=True`. Bounds are written in the units of the user's model.
 - Each process exposes a flux symbol, `cell.flux('convert')`. Laws of other elements read it through roles like a
   state, and observables reduce over it.
-- A switch is a parameter with the domain `{0, 1}`, default 1. A rule is a Boolean expression in `either`, `both`, and
-  switch names, the same functions laws already use. When its rule is false, a process's bounds become 0, which is
-  COBRApy's gene-reaction semantics.
-- A knock-out sets a switch to 0. This works as a parameter at construction, as a live parameter change, or as a
-  `Switch` law.
+- A switch is an adaptive parameter, `parameter(adaptive=True)`, with the domain `{0, 1}`, default 1. A rule is a
+  Boolean expression in `either`, `both`, and switch names, the same functions laws already use. When its rule is
+  false, a process's bounds become 0, which is COBRApy's gene-reaction semantics.
+- A knock-out sets a switch to 0. This works as a parameter at construction, as a live parameter change, or as an
+  algebraic `Equation` law of an interaction bound to the network, since the redesign lets such laws change adaptive
+  parameters. Like every adaptive parameter, a switch is recorded in the trajectory.
 - `Constraint(expression, lower=None, upper=None)` adds a row over flux symbols, such as an enzyme capacity or a
   maintenance demand.
 - `objectives` is a sequence of `(expression or process name, 'max' | 'min')`. The solve optimises them in order, and
@@ -221,27 +232,35 @@ The parts of the declaration:
   which the lowering splits into the positive and negative parts of reversible processes.
 - `infeasible='raise' | 'zero' | 'hold'` picks what an infeasible solve does: raise `InfeasibleError`, set all fluxes
   and the objective to 0, or keep the last fluxes.
-- `space=None | LatticeSpace | NetworkSpace` copies the network to every site.
+- A network has no `space=` argument. Placing it in `Group(label, element=network, on='sites')` of a system whose space
+  is a `LatticeSpace` or a `NetworkSpace` puts one copy on every site.
 - Construction validates the declaration against a schema. It rejects an unknown pool or switch, a lower bound above
   the upper bound, a rule over undeclared switches, and an objective that is not linear, naming the process or the
   constraint.
 
-`ConstraintNetwork` is an `Element` built without subclassing, so it stores its arguments unmodified. Its derived state
-is `stoichiometry_`, a SciPy sparse matrix, and `processes_`, `pools_`, and `switches_`.
+`ConstraintNetwork` is an `Element` of `core.components` built without subclassing, so it stores its arguments
+unmodified. Its derived state is `stoichiometry_`, a SciPy sparse matrix, and `processes_`, `pools_`, and `switches_`.
+Its fluxes are states of the real domain that only its constraint laws determine. The laws it contributes are:
+- one algebraic `Equation` per pool, `S v = b`;
+- one `Bound` per process for its declared bounds and rule;
+- one `Objective` per entry of `objectives`, with its position in the lexicographic order.
 
 Alternatives considered:
 - A table, a matrix and bound vectors, as the only input. It is kept as `ConstraintNetwork.from_arrays(S, lower,
   upper, ...)`, but symbols are the primary form, so bounds and rules can be expressions.
 - Reaction strings like COBRApy's. They are metabolism-specific, and import covers files.
 
-### Bound, switch, and solve laws
+### The bound law and switch equations
 
-- `Bound(flux, lower=None, upper=None)` is a law an interaction returns. Its expressions may read any state, parameter,
-  or input. At each solve, the effective bounds are the declared bounds intersected with every `Bound` on that flux:
-  the largest lower bound and the smallest upper bound.
-- `Switch(switch, value)` sets a switch from an expression, such as the state of a Boolean node. A value above 0.5
-  counts as on.
-- `Solve(network)` is the law each network contributes. The user never writes it.
+- `Bound(flux, lower=None, upper=None)` in `core.laws` is a law an interaction returns. Its expressions may read any
+  state, parameter, or input. At each solve, the effective bounds are the declared bounds intersected with every
+  `Bound` on that flux: the largest lower bound and the smallest upper bound. It is the new law kind `LawKind.BOUND`, of
+  the constraint class, so it is valid under every time kind and never changes the form.
+- A switch is set from an expression, such as the state of a Boolean node, by an algebraic `Equation` on the adaptive
+  switch parameter. A value above 0.5 counts as on. The redesign's adaptive parameters replace the `Switch` law this
+  change first planned.
+- The `Objective` laws of a network replace the `Solve` law this change first planned. The user never writes them; the
+  network contributes them from `objectives`.
 
 The compiler lowers the network to a `ConstraintProblem`:
 - the sparse matrix and the constant bounds;
@@ -259,14 +278,15 @@ names the network, the time, the site, and the processes and pools in that subse
 
 ### Forms and coupling
 
-The form is inferred from the law kinds, with `Bound` and `Switch` treated like `Boundary`, never changing the form:
+The form is derived from the laws the compiler lowers. A network's `Equation`, `Bound`, and `Objective` laws are all of
+the constraint class, so they never change the form of the system they are in; its time decides how often it is solved:
 
-| Law kinds in one subsystem | Form | Meaning |
-|---|---|---|
-| `Solve` | constraint | `ConstraintStepper` solves once per frame with the current parameters and drivers, so a parameter sweep makes a phenotype phase plane |
-| `Solve` and `Rate` | ODE | the drift solves first at each evaluation, caching on `(t, y)`, then evaluates the rates that read fluxes. This is the direct approach |
-| `Solve` and `Update` | map | each step solves with the switches of the last step, then applies the updates |
-| `Solve` in a sibling subsystem | co-simulation | the constraint partition solves at each synchronisation point, and other partitions read its fluxes as held inputs. This is the static optimisation approach, exact for the exchange ODEs over each interval |
+| Network in a system with | Time | Form | Meaning |
+|---|---|---|---|
+| nothing else | `StaticTime()`, inferred when only constraint laws are present | constraint | `ConstraintStepper` solves once per frame with the current parameters and drivers, so a sweep of `add-static-models` makes a phenotype phase plane |
+| `Rate` laws | `ContinuousTime()` | ODE | the drift solves first at each evaluation, caching on `(t, y)`, then evaluates the rates that read fluxes. This is the direct approach |
+| `Update` laws | `DiscreteTime()` | map | each step solves with the switches of the last step, then applies the updates |
+| a sibling nested system | the sibling's time | co-simulation | the constraint partition solves at each synchronisation point, and other partitions read its fluxes as held inputs. This is the static optimisation approach, exact for the exchange ODEs over each interval |
 
 The static optimisation approach is the default in the library's dynamic models, as in Raman's Eqs. 9.8–9.9 and
 DFBAlab's practice.
@@ -281,32 +301,33 @@ Alternatives considered:
 
 ### Per-site networks (COMETS)
 
-A network with `space=lattice` lowers to one `ConstraintProblem` and an array of bounds per site. Interactions with
-fields bind per site, as field laws do. In COMETS, uptake bounds are Michaelis-Menten in the site's metabolite
+A network in a `Group(on='sites')` of a system on a `LatticeSpace` lowers to one `ConstraintProblem` and an array of
+bounds per site. Interactions with the site groups of the metabolites bind per site, as other site-group laws do. In COMETS, uptake bounds are Michaelis-Menten in the site's metabolite
 concentrations, biomass grows by its growth flux, and metabolites and biomass diffuse with `laplacian`.
 - `ConstraintNetwork(active=expression)` skips the solve at sites where the expression is false, such as biomass below
   a threshold, and gives those sites zero fluxes. This is COMETS's own rule, and it keeps the cost proportional to the
   colony, not the lattice.
 - Each active site warm-starts from its own last basis, kept per site, and solves run in a loop over active sites.
-- The partition solves at synchronisation points, and the field partition integrates diffusion and exchange with the
-  held fluxes.
+- The partition solves at synchronisation points, and the partition of the metabolite site groups integrates diffusion
+  and exchange with the held fluxes.
 
-Alternative: cometspy drives the Java engine and is GPL-3.0. It cannot run the framework's fields or solvers, and it
+Alternative: cometspy drives the Java engine and is GPL-3.0. It cannot run the framework's site groups or solvers, and it
 adds a JVM.
 
 ### Regulatory FBA
 
-Regulation is a subsystem of Boolean nodes with `Update` laws, as in the library's gene networks. An interaction
-returns `Switch` laws that set the network's switches from the nodes, and `Update` laws that set a node's inputs from
-the external metabolite states and the fluxes, as in Covert et al. (2001). Raman's Eq. 9.7 alternates the regulatory
-step and the solve. It is the co-simulation of a map partition, a constraint partition, and an ODE partition for the
-medium, with Gauss-Seidel order and the regulatory time step as the synchronisation interval.
+Regulation is a nested system of Boolean nodes with `Update` laws under `DiscreteTime()`, as in the library's gene
+networks. An interaction returns `Equation` laws that set the network's adaptive switch parameters from the nodes, and
+`Update` laws that set a node's inputs from the external metabolite states and the fluxes, as in Covert et al. (2001).
+Raman's Eq. 9.7 alternates the regulatory step and the solve. It is the co-simulation of a map partition, a constraint
+partition, and an ODE partition for the medium, with Gauss-Seidel order and the regulatory time step as the
+synchronisation interval.
 
 ### Static analyses through the extra
 
-The private module `skcomplex.core.backends._cobra` holds the adapters. Each takes a network or a system holding one,
-and a solution or settings, and returns a tidy `pandas` result indexed by process, switch, or design. These names are
-public in `skcomplex.core.backends`:
+The private module `skcomplex.models.biology.realizations._cobra` holds the adapters. Each takes a network or a system
+holding one, and a solution or settings, and returns a tidy `pandas` result indexed by process, switch, or design. These
+names are public in `skcomplex.models.biology.realizations`, which the `systems_biology` and `ecology` packages import:
 - `to_cobra(network)` and `from_cobra(model)`. Pools become metabolites, processes become reactions, switches become
   genes, and rules become GPR strings.
   - Variable bounds are evaluated at a given state, `state=` and `parameters=`, default the initial values.
@@ -323,8 +344,10 @@ public in `skcomplex.core.backends`:
   models, written to a temporary directory because MICOM's taxonomy reads files. It returns the community and member
   growth rates and the exchange fluxes.
 
-These live in `backends`, because the layout reserves that package for translating models into third-party libraries
-and puts it above every other layer.
+These live in the library, not in `core.backends`: they are not execution backends of a solver, and they name
+metabolic methods (gene deletions, strain design, microbial communities, SBML), which the redesign's
+application-agnostic rule keeps out of the core. They declare no `Supports`, since they run no system; each validates
+its network with `validate()` before converting it.
 
 A parity test compares the core solve with COBRApy's `optimize` on the toy network and on E. coli core within 1e-7.
 It compares the core's `total_flux` objective with `pfba` the same way, so the in-house lexicographic objective cannot
@@ -332,7 +355,9 @@ drift from the reference.
 
 ### In-house analyses on the core solve
 
-`skcomplex.core.analysis` gains three functions, which need no extra:
+Three functions need no extra. `fseof` and `steadycom` are metabolic methods, so they are realizations in
+`skcomplex.models.biology.realizations`; `join_networks` is a general composition of networks, so it lives in
+`skcomplex.core.analysis`:
 - `fseof(network, target, steps=10)` enforces the target flux at `steps` levels between its value at maximal growth
   and its maximum, solves each level with the objectives of the network, and reports the processes whose absolute flux
   rises monotonically with the target. cameo is the only Python library with FSEOF, and it has been inactive since
@@ -348,9 +373,11 @@ drift from the reference.
 
 ### Enumerating the flux cone
 
-`skcomplex.core.backends._ppl` holds one general function, `extreme_rays(equalities, nonnegative)`. It takes an integer
-matrix of equalities and the indices of the non-negative columns, builds a `ppl.C_Polyhedron`, and returns the rays and
-lines of its minimised generators as integer arrays. It knows nothing of networks, so a cone of any field uses it.
+`skcomplex.core.analysis._cones` holds one general function, `extreme_rays(equalities, nonnegative)`. It takes an
+integer matrix of equalities and the indices of the non-negative columns, builds a `ppl.C_Polyhedron`, and returns the
+rays and lines of its minimised generators as integer arrays. It knows nothing of networks, so a cone of any field uses
+it. It is private to the analysis package rather than a module of `core.backends`, since it runs no system and the
+redesign keeps `core.backends` for execution backends.
 
 `skcomplex.core.analysis` builds on it:
 - `elementary_modes(network, normalise=None, timeout=60.0)` reads the directions from the bounds: a lower bound below 0
@@ -370,8 +397,8 @@ lines of its minimised generators as integer arrays. It knows nothing of network
   `SolverError`, names the network, its number of processes, and the limit, and suggests closing exchanges or
   enumerating a subnetwork.
 
-`FluxModes(network, kind='modes' | 'pathways', normalise=None, order=None)` is an element that contributes an
-`Enumerate` law. `order` is a ratio, such as `('vbio', 'b1')` for the growth yield, that sorts the modes in decreasing
+`FluxModes(network, kind='modes' | 'pathways', normalise=None, order=None)` is an element of `core.components` that
+contributes an `Enumerate` law, of the new law kind `LawKind.ENUMERATE` in the constraint class. `order` is a ratio, such as `('vbio', 'b1')` for the growth yield, that sorts the modes in decreasing
 order.
 
 ### Atom maps and labelling simulation
@@ -406,7 +433,8 @@ the forward model of the fit and the tool for choosing tracers by hand.
 ### Flux estimation
 
 `LabellingExperiment(network, tracers, measurements, fluxes=None, symmetric=(), starts=5, intervals='linear')` is an
-element that contributes an `Estimate` law. Several experiments with different tracers share one network and one flux
+element of `core.components` that contributes an `Estimate` law, of the new law kind `LawKind.ESTIMATE` in the
+constraint class. Several experiments with different tracers share one network and one flux
 vector, and are passed as a sequence.
 - Measurements map each fragment to a measured distribution and its standard deviations. `fluxes` maps measured or
   fixed fluxes to a value and a standard deviation, or to a value alone for a fixed flux.
@@ -432,18 +460,38 @@ uses the same `least_squares` settings.
 
 ### Runs that are not integrated in time
 
-An enumeration or an estimation is computed, not integrated, and both fit the `System`, `Simulation`, and `Trajectory`
-contract by indexing frames by what the computation produces:
+An enumeration or an estimation is computed, not integrated. Both are systems under `StaticTime()`, and both fit the
+`System`, `Simulation`, and `Trajectory` contract by indexing frames by what the computation produces:
 - `Enumerate` gives the enumeration form. `ModeStepper` enumerates at the first step and then emits one mode per step,
   in the declared order. The trajectory's `times` are the mode indices 0, 1, …, its axis is `mode`, and the run ends
   after the last mode, whatever `until` asks.
 - `Estimate` gives the estimation form. `EstimationStepper` runs `estimate_fluxes` at the first step with the
   `least_squares` callback, which SciPy 1.16 added, and buffers each accepted iterate with its start. It then emits one
   frame per iterate, and a last frame with the best estimate, its intervals, and its test. The axis is `iteration`.
-- Neither form can share a system with laws of another kind, because a frame of modes or iterations has no time to
-  synchronise with. Compiling such a system raises a named error.
-- `Trajectory` gains an `axis` attribute, `'time'` by default. Observers read it, and the analysis functions return the
+- Neither law can share a system or a partition with laws of another kind, because a frame of modes or iterations has
+  no time to synchronise with. `validate()` reports such a system with the issue `constraint.enumeration-alone` or
+  `constraint.estimation-alone`, whose path is the element and whose fix is to run it in a system of its own.
+- `Trajectory` gains an `axis` attribute, `'time'` by default, shared with `add-static-models`, which adds the same
+  attribute for sweeps; whichever change lands first adds it. Observers read it, and the analysis functions return the
   same values as the frames, since the steppers call them.
+
+### Declarations and validation
+
+Every new primitive and solver declares its requirements or support, so `validate()` reports misuse before compilation
+and the generated compatibility table lists them:
+
+| Primitive or solver | Declaration | Issue when misused |
+|---|---|---|
+| `ConstraintNetwork` | `Requires(time={STATIC, CONTINUOUS, DISCRETE}, space={NONE, LATTICE, NETWORK}, domains={REAL})` | a network in a continuous space or on edges, with the fix to place it in a site group |
+| `Bound` | `Requires(domains={REAL})`, law class constraint, valid under every time | a bound on a flux that no network of the system declares, naming the flux |
+| `Enumerate`, `Estimate` | `Requires(time={STATIC})` | the law under continuous or discrete time, or beside laws of another kind |
+| `HighsLP` | `Supports(time={STATIC, CONTINUOUS, DISCRETE}, laws={EQUATION, BOUND, OBJECTIVE}, domains={REAL})` | an objective that is not linear in the fluxes |
+| `ConstraintStepper` | `Supports(time={STATIC}, space={NONE, LATTICE, NETWORK}, laws={EQUATION, BOUND, OBJECTIVE}, components={ELEMENT, SITE_GROUP})` | a static system with laws it does not run |
+| `ModeStepper` | `Supports(time={STATIC}, laws={ENUMERATE})` | the `polyhedra` extra not importable, reported by the availability check with the install command |
+| `EmuSolver`, `EstimationStepper` | `Supports(time={STATIC}, laws={ESTIMATE})` | a pool without flux, naming the pool |
+
+Adaptive switch parameters need no declaration of their own: they are adaptive parameters of the redesign, and an
+`Equation` on one is validated like any law on an adaptive parameter.
 
 ### Results, observables, and trajectories
 
@@ -451,8 +499,8 @@ Fluxes, objective values, and switch values are recorded per frame under dotted 
 - `cell.flux.convert`, `cell.objective.0`, and `cell.switch.g1`;
 - per site, as arrays shaped like the lattice.
 
-Pool duals are recorded on request with `record_duals=True`, so dense duals do not bloat long recordings. Observables
-reduce over fluxes like over states.
+Pool duals are recorded on request with `record_duals=True`, so dense duals do not bloat long recordings. Observables,
+which `Simulation(observables=...)` and the models' catalog entries take, reduce over fluxes like over states.
 
 An enumeration records `cell.flux.<process>` per mode and `cell.mode.ratio` for the ordering ratio. An estimation
 records `tca.flux.<process>`, `tca.exchange.<process>`, `tca.rss`, `tca.start`, and `tca.mdv.<fragment>` per iteration,
@@ -468,8 +516,8 @@ and at the last frame `tca.lower.<process>`, `tca.upper.<process>`, `tca.chi2`, 
   `rerun.GraphEdges` from the coefficients, with edge widths proportional to `|flux|` and colours by sign. The node
   layout is computed once with `networkx.spring_layout`, seeded, so captures are reproducible.
 
-A network on a lattice defaults to `ImageVisual` of a chosen flux per site, `growth` by default, beside the field
-images. Rerun 0.39 has all three archetypes, which the spike checked.
+A network on a lattice defaults to `ImageVisual` of a chosen flux per site, `growth` by default, beside the images of the
+site groups. Rerun 0.39 has all three archetypes, which the spike checked.
 
 A run whose axis is not time sets the `step` timeline and a sequence timeline named by its axis, `mode` or
 `iteration`, instead of `sim_time`, and the blueprint's time panel follows that timeline. `FluxModes` uses `FluxVisual`
@@ -550,5 +598,16 @@ entries `elementary_flux_modes` and `carbon_13_mfa` move from out of scope to pe
 
 - Whether to add an `x3cflux` adapter for large labelling networks once its wheels cover Linux aarch64 and Intel macOS
   and `cyipopt` ships wheels. The in-house solver stays the default either way.
+- Whether the labelling primitives stay in the core. `AtomMap`, `Tracer`, `Fragment`, `LabellingExperiment`, the
+  elementary metabolite unit lowering, and `EmuSolver` are named after chemistry and metabolism (atoms, isotopes,
+  metabolite units), which the redesign's field-term test may forbid. The two settlements change the scope differently:
+  rename them to general terms (a label map over the units of a pool, a unit decomposition) and keep them in
+  `core.components`, `core.compile`, and `core.solvers`; or move the whole of `isotope-labelling` to
+  `skcomplex.models.biology.realizations`, with its own stepper registered from the library. This design keeps the
+  current names and core placement until that decision is made.
+- Which change defines the `Objective` law's lowering under static time. The redesign declares the law kind and leaves
+  static solvers to `add-static-models`; this change lowers linear objectives with lexicographic order to `HighsLP`.
+  If `add-static-models` lands first with its own objective lowering, the two must agree on how a solver claims an
+  objective, which the declarations alone do not decide.
 - Resolved: the toy network's optimum is in Raman section 8.6: with the bounds of the example (internal fluxes in [0, 1000],
   reversible ones in [-1000, 1000]), growth is 50 (Eq. 8.9), and FVA gives the ranges of Eq. 8.12.

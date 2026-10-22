@@ -14,46 +14,57 @@
 
 ## 2. Networks and the core solve
 
-- [ ] 2.1 Add `ConstraintNetwork`, `Process`, `Constraint`, `total_flux`, and `ConstraintNetwork.from_arrays` with
-  schema validation, and verify the stoichiometric matrix, inverted bounds, and undeclared switch scenarios
-- [ ] 2.2 Add `Bound`, `Switch`, and `Solve`, and the lowering to `ConstraintProblem` with compiled bound, switch, and
-  rule functions on NumPy and Numba. Verify the isozyme, Michaelis-Menten uptake, and two bound laws scenarios
+- [ ] 2.1 Add `ConstraintNetwork`, `Process`, and `Constraint` in `core.components`, `total_flux`, and
+  `ConstraintNetwork.from_arrays` with schema validation, with switches as adaptive parameters of the domain `{0, 1}`
+  and the network's balances and objectives contributed as `Equation` and `Objective` laws. Verify the stoichiometric
+  matrix, inverted bounds, and undeclared switch scenarios
+- [ ] 2.2 Add `Bound` in `core.laws` with the law kind `BOUND` of the constraint class, and the lowering to
+  `ConstraintProblem` with compiled bound, switch, and rule functions on NumPy and Numba. Verify the isozyme,
+  Michaelis-Menten uptake, switch set by an equation, and two bound laws scenarios
 - [ ] 2.3 Add `HighsLP` with warm-started bound changes, lexicographic objectives, duals, and the irreducible
   infeasible subset. Verify the toy network optimum, domain-agnostic flow network, lexicographic objectives, raised
   infeasibility, and zero policy scenarios
 - [ ] 2.4 Record fluxes, objectives, switches, and requested duals in trajectories, and verify the flux series
   scenario
+- [ ] 2.5 Add the `Requires` declarations of `ConstraintNetwork`, `Bound`, `Enumerate`, and `Estimate`, and the
+  `Supports` declarations of `HighsLP`, `ConstraintStepper`, `ModeStepper`, `EmuSolver`, and `EstimationStepper`, with
+  the validation issues of the design. Verify the bound without a network, network on edges, and enumeration beside
+  dynamics scenarios, and that the declaration test passes
 
 ## 3. Forms and coupling
 
-- [ ] 3.1 Extend form inference with the constraint form and `ConstraintStepper`, and verify the static network, live
-  knock-out, and modified form scenarios
+- [ ] 3.1 Lower networks under static time to the constraint form with `ConstraintStepper`, and verify the static
+  network, live knock-out, and modified form scenarios
 - [ ] 3.2 Solve once per drift evaluation for networks beside rate laws, and verify the one solve per evaluation and
   network with rate laws scenarios
-- [ ] 3.3 Add constraint partitions with held fluxes to co-simulation, and verify the static optimisation step and
-  agreement with the direct approach scenarios
-- [ ] 3.4 Add per-site networks with the activity condition and per-site warm starts, and verify the only occupied
-  sites and single site scenarios
-- [ ] 3.5 Couple switch laws with a map partition of Boolean nodes, and verify the regulation gates a process scenario
+- [ ] 3.3 Add constraint partitions of nested systems with held fluxes to co-simulation, and verify the static
+  optimisation step and agreement with the direct approach scenarios
+- [ ] 3.4 Add networks in site groups with the activity condition and per-site warm starts, and verify the only
+  occupied sites and single site scenarios
+- [ ] 3.5 Couple switch equations with a map partition of Boolean nodes, and verify the regulation gates a process
+  scenario
 
 ## 4. Analyses
 
-- [ ] 4.1 Add `to_cobra`, `from_cobra`, `read_network`, and `write_network` with the `hybrid` solver pinned, and verify
-  the bundled E. coli core and round trip scenarios. Add a `network`-marked test that downloads iNJ661
-- [ ] 4.2 Add `flux_variability`, `parsimonious_fluxes`, `deletions`, `moma`, `room`, and `synthetic_lethals`, and
+- [ ] 4.1 Add `skcomplex.models.biology.realizations` with `to_cobra`, `from_cobra`, `read_network`, and
+  `write_network`, with the `hybrid` solver pinned, and verify the bundled E. coli core and round trip scenarios. Add a
+  `network`-marked test that downloads iNJ661
+- [ ] 4.2 Add to the biology realizations `flux_variability`, `parsimonious_fluxes`, `deletions`, `moma`, `room`, and `synthetic_lethals`, and
   verify the flux variability, parity, and adjustment after a knock-out scenarios
-- [ ] 4.3 Add `strain_designs` on StrainDesign with SCIP, and verify the growth-coupled succinate scenario
-- [ ] 4.4 Add `fseof`, `steadycom`, and `join_networks` in `skcomplex.core.analysis`, and `cooperative_tradeoff` in
-  the backends. Verify the scan toward a product, identical members, and trade-off scenarios
+- [ ] 4.3 Add `strain_designs` to the biology realizations on StrainDesign with SCIP, and verify the growth-coupled succinate scenario
+- [ ] 4.4 Add `join_networks` in `skcomplex.core.analysis`, and `fseof`, `steadycom`, and `cooperative_tradeoff` in
+  the biology realizations. Verify the scan toward a product, identical members, and trade-off scenarios, and that the
+  core's field-term and import-graph tests still pass
 
 ## 5. Enumeration and labelling
 
-- [ ] 5.1 Add `extreme_rays` in `skcomplex.core.backends._ppl` with the `cysignals` time limit and
+- [ ] 5.1 Add `extreme_rays` in `skcomplex.core.analysis._cones` with the `cysignals` time limit and
   `EnumerationLimitError`, and verify the domain-agnostic circulation and genome-scale network scenarios
 - [ ] 5.2 Add `elementary_modes` and `extreme_pathways` in `skcomplex.core.analysis`, and verify the toy network modes,
   optimum as a combination of modes, knock-out removes modes, non-zero balance, and pathways and modes scenarios
-- [ ] 5.3 Add `FluxModes`, `Enumerate`, the enumeration form, `ModeStepper`, and the trajectory `axis`, and verify the
-  modes as frames and enumerated network scenarios
+- [ ] 5.3 Add `FluxModes`, `Enumerate` with the law kind `ENUMERATE`, its lowering under static time, `ModeStepper`,
+  and the trajectory `axis` unless `add-static-models` has added it, and verify the modes as frames and enumerated
+  network scenarios
 - [ ] 5.4 Add `AtomMap`, `Tracer`, and `Fragment` with schema validation, and verify the valid map, unbalanced letters,
   and inconsistent atom count scenarios
 - [ ] 5.5 Add the EMU lowering to `LabellingProblem`, `EmuSolver`, and `simulate_labelling`, and verify the published
@@ -61,7 +72,7 @@
 - [ ] 5.6 Add `LabellingExperiment`, `Estimate`, `estimate_fluxes` with seeded HiGHS starts, linear and profile
   intervals, and the chi-square test, and verify the noise-free data, reproducible starts, data that cannot be fitted,
   noisy data, and unidentifiable exchange scenarios
-- [ ] 5.7 Add the estimation form and `EstimationStepper` on the `least_squares` callback, and verify the iterations as
+- [ ] 5.7 Add `Estimate` with the law kind `ESTIMATE`, its lowering under static time, and `EstimationStepper` on the `least_squares` callback, and verify the iterations as
   frames, labelling experiment, and estimation beside dynamics scenarios
 
 ## 6. Visuals
@@ -88,7 +99,7 @@
 
 ## 8. Documentation and gate
 
-- [ ] 8.1 Document networks, switches, bound laws, the coupling forms, the analyses, elementary modes and extreme
+- [ ] 8.1 Document networks, switches as adaptive parameters, bound laws, the declarations and validation issues, the coupling forms, the analyses, elementary modes and extreme
   pathways, atom maps, labelling simulation, flux estimation, runs indexed by mode or iteration, the extras, and the
   licences of their environments in the user guide, and verify that the documentation test passes
 - [ ] 8.2 Add a CI job on a default install without the extras, and verify the default install stays importable

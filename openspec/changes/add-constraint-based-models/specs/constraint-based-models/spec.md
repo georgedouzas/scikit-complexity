@@ -9,10 +9,10 @@ them with established methods, and enumerate the elementary modes and extreme pa
 ## ADDED Requirements
 
 ### Requirement: Constraint networks are declared from symbols
-The modelling layer SHALL declare a constraint network from pools, processes with coefficients per pool and bounds,
-extra linear constraints, switches, Boolean rules over switches that gate processes, and objectives. Each process SHALL
-expose a flux symbol that laws and observables read. Invalid declarations SHALL raise a named error that names the
-offending part.
+The modelling layer SHALL declare a constraint network, an element of `core.components`, from pools, processes with
+coefficients per pool and bounds, extra linear constraints, switches, Boolean rules over switches that gate processes,
+and objectives. Each process SHALL expose a flux symbol that laws and observables read. Invalid declarations SHALL raise
+a named error that names the offending part.
 
 #### Scenario: Stoichiometric matrix
 - **WHEN** a user declares a network of 8 pools and 10 processes
@@ -25,6 +25,16 @@ offending part.
 #### Scenario: Rule over an undeclared switch
 - **WHEN** a rule names a switch that the network does not declare
 - **THEN** construction raises a named validation error that names the process and the switch
+
+### Requirement: Networks are made of general laws and adaptive parameters
+A constraint network SHALL contribute its pool balances as algebraic `Equation` laws, its declared bounds as bound laws,
+and its objectives as `Objective` laws, all of the constraint class, and SHALL hold its switches as adaptive parameters
+with the domain `{0, 1}`. It SHALL need no law kind of its own besides the bound law.
+
+#### Scenario: Laws of a network
+- **WHEN** a network of 3 pools, 4 processes, and 2 objectives is compiled
+- **THEN** it contributes 3 equation laws, 4 bound laws, and 2 objective laws, and its switches are listed among the
+  system's adaptive parameters
 
 ### Requirement: Networks solve in the default install
 A network SHALL be solved as a linear program in the default install, without the optional extra, and SHALL return the
@@ -47,7 +57,8 @@ in order, each keeping the earlier optima.
 
 ### Requirement: Switches and rules gate processes
 A process whose rule is false for the current switch values SHALL have both bounds set to zero. Switches SHALL change
-as parameters at construction, as live parameter changes, and through switch laws.
+as parameters at construction, as live parameter changes, and through algebraic `Equation` laws of interactions bound
+to the network, as adaptive parameters do.
 
 #### Scenario: Isozymes
 - **WHEN** a process has the rule `either(g1, g2)` and only `g1` is switched off
@@ -57,8 +68,13 @@ as parameters at construction, as live parameter changes, and through switch law
 - **WHEN** a running static network has the switch of an essential process set to 0 between frames
 - **THEN** the next frame's objective is zero within 1e-9
 
+#### Scenario: Switch set by an equation
+- **WHEN** an interaction returns an `Equation` that sets switch `g1` to the state of a Boolean node, and the node is 0
+- **THEN** the switch is 0 at the next solve, and the trajectory records `g1` as it records any adaptive parameter
+
 ### Requirement: Interactions bound fluxes from other elements
-Interactions SHALL return bound laws whose expressions read states, parameters, and inputs. The bounds in effect at a
+Interactions SHALL return bound laws whose expressions read states, parameters, and inputs. The bound law SHALL be a
+law kind of the constraint class, valid under every time kind, that never changes the form. The bounds in effect at a
 solve SHALL be the intersection of the declared bounds and every bound law on that flux.
 
 #### Scenario: Michaelis-Menten uptake
@@ -85,16 +101,17 @@ irreducible infeasible subset.
 - **THEN** the solve returns zero fluxes and a zero objective, and the run continues
 
 ### Requirement: Solves run inside ODE right-hand sides
-A network in the same subsystem as rate laws SHALL be solved at every evaluation of the drift, once per evaluation,
-before the rates that read its fluxes. This is the direct approach of dynamic FBA.
+A network in the same system as rate laws, under continuous time, SHALL be solved at every evaluation of the drift,
+once per evaluation, before the rates that read its fluxes. This is the direct approach of dynamic FBA.
 
 #### Scenario: One solve per evaluation
 - **WHEN** three rate laws read fluxes of one network and the drift is evaluated once
 - **THEN** the network is solved exactly once
 
-### Requirement: Separate subsystems hold fluxes between synchronisation points
-A network in a sibling subsystem of rate laws SHALL form its own partition, solved at every synchronisation point. Its
-fluxes SHALL be held as inputs until the next one, which is the static optimisation approach of dynamic FBA.
+### Requirement: Separate nested systems hold fluxes between synchronisation points
+A network in a nested system beside a sibling with rate laws SHALL form its own partition, solved at every
+synchronisation point. Its fluxes SHALL be held as inputs until the next one, which is the static optimisation approach
+of dynamic FBA.
 
 #### Scenario: Static optimisation step
 - **WHEN** biomass and substrate are co-simulated with held fluxes over one synchronisation interval
@@ -107,8 +124,9 @@ fluxes SHALL be held as inputs until the next one, which is the static optimisat
   the interval
 
 ### Requirement: Networks solve per lattice site
-A network on a lattice SHALL be solved at every site where its activity condition holds, with bound laws read per site
-from fields. Inactive sites SHALL have zero fluxes and SHALL NOT be solved.
+A network in a group on the sites of a lattice space SHALL be solved at every site where its activity condition holds,
+with bound laws read per site from the site groups of other elements. Inactive sites SHALL have zero fluxes and SHALL
+NOT be solved.
 
 #### Scenario: Only occupied sites are solved
 - **WHEN** a lattice of 25 by 25 sites has biomass above the threshold at 9 sites
@@ -119,81 +137,12 @@ from fields. Inactive sites SHALL have zero fluxes and SHALL NOT be solved.
 - **THEN** its biomass matches the well-mixed dynamic FBA within 1e-6 relative error
 
 ### Requirement: Boolean regulation alternates with solves
-Switch laws SHALL set switches from expressions such as Boolean node states, and a map partition of regulatory nodes
-SHALL alternate with the network's solve at the regulatory time step.
+Equation laws on adaptive switch parameters SHALL set switches from expressions such as Boolean node states, and a map
+partition of regulatory nodes under discrete time SHALL alternate with the network's solve at the regulatory time step.
 
 #### Scenario: Regulation gates a process
 - **WHEN** a regulatory node that represses a process is on
 - **THEN** the next solve has that process's flux at zero, and after the node turns off the process may carry flux
-
-### Requirement: Static analyses come with an optional extra
-With the extra `metabolism` installed, the library SHALL analyse a network with:
-- flux variability;
-- parsimonious fluxes;
-- single and double deletions of processes or switches;
-- MoMA and ROOM in their linear and quadratic or mixed-integer forms;
-- synthetic lethal pairs.
-
-Results SHALL be indexed by process or switch name.
-
-#### Scenario: Flux variability at the optimum
-- **WHEN** flux variability runs on the E. coli core model at 100% of the optimum
-- **THEN** the range of the biomass flux is 0.8739 within 1e-4 at both ends
-
-#### Scenario: Parity with the core solve
-- **WHEN** the E. coli core model is solved by the core and by the extra's analysis path
-- **THEN** the growth agrees within 1e-7, and the parsimonious total flux agrees with the core's lexicographic total
-  flux within 1e-6
-
-#### Scenario: Adjustment after a knock-out
-- **WHEN** the `pgi` gene (b4025) is knocked out against the wild-type solution
-- **THEN** FBA gives growth 0.8632 within 1e-3, and MoMA and ROOM give positive growth below it
-
-### Requirement: Strain designs are computed with the extra
-With the extra installed, the library SHALL compute OptKnock, RobustKnock, OptCouple, and minimal cut set designs with
-a maximum number of interventions. It SHALL return each design as sets of process or switch names.
-
-#### Scenario: Growth-coupled succinate
-- **WHEN** OptKnock designs succinate production in the E. coli core model with at most 3 knock-outs and growth of at
-  least 0.1
-- **THEN** a returned design, at maximal growth, secretes at least 9 mmol/gDW/h of succinate at its minimum, where the
-  wild type secretes none
-
-### Requirement: Flux scanning runs in the default install
-The library SHALL scan fluxes with enforced objective flux (FSEOF). It SHALL enforce a target flux at increasing
-levels, and report the processes whose absolute flux rises monotonically with it, without the optional extra.
-
-#### Scenario: Scan toward a product
-- **WHEN** FSEOF scans the succinate exchange of the E. coli core model in 10 steps
-- **THEN** the reported processes carry a flux that rises with every step, and the growth falls from its optimum
-
-### Requirement: Communities are modelled jointly and with trade-offs
-The library SHALL:
-- join member networks into one network with a shared compartment and an abundance-weighted growth objective;
-- compute SteadyCom with one common growth rate, without the optional extra;
-- compute MICOM's cooperative trade-off with the extra.
-
-#### Scenario: Identical members
-- **WHEN** two copies of the E. coli core model share one medium whose uptake allows each of them a glucose uptake of 10
-- **THEN** joint FBA gives each member growth 0.8739 within 1e-4, and SteadyCom gives the common rate 0.8739 within
-  1e-4 with abundances that sum to 1
-
-#### Scenario: Trade-off at full community growth
-- **WHEN** the cooperative trade-off runs at fraction 1
-- **THEN** the community growth equals the joint FBA optimum within 1e-5
-
-### Requirement: Models import and export standard formats
-With the extra installed, the library SHALL read SBML and BiGG JSON files and BiGG identifiers into networks, keeping
-the identifiers of reactions, metabolites, and genes, the bounds, the objective, and the gene rules. It SHALL write
-networks back to both formats.
-
-#### Scenario: Bundled E. coli core
-- **WHEN** a user reads the bundled E. coli core model and solves it in the core
-- **THEN** aerobic growth is 0.8739 within 1e-4, and with oxygen uptake bounded at 0 it is 0.2117 within 1e-4
-
-#### Scenario: Round trip
-- **WHEN** a network is written to SBML and to JSON and read back
-- **THEN** both copies have the same matrix, bounds, rules, and optimum as the original
 
 ### Requirement: Elementary modes of a network are enumerated
 With the extra `polyhedra` installed, the library SHALL enumerate the elementary modes of a network: the steady-state
@@ -245,8 +194,8 @@ network, its number of processes, and the limit, and suggests closing exchanges 
 - **THEN** the enumeration raises the named error within 6 s
 
 ### Requirement: Enumeration runs as a simulation
-A network declared for enumeration SHALL compile to an enumeration problem whose run records one frame per mode or
-pathway, ordered by a declared ratio such as the growth yield on a substrate, with the mode's fluxes and the ratio.
+A network declared for enumeration SHALL be a system under static time that compiles to an enumeration problem whose
+run records one frame per mode or pathway, ordered by a declared ratio such as the growth yield on a substrate, with the mode's fluxes and the ratio.
 
 #### Scenario: Modes as frames
 - **WHEN** the toy network's modes run through `Simulation`
@@ -262,7 +211,7 @@ estimation SHALL need neither extra.
 #### Scenario: Missing extra
 - **WHEN** a user without the extra calls flux variability
 - **THEN** a named error says that flux variability needs `pip install 'scikit-complexity[metabolism]'`, and that
-  network solves, FSEOF, SteadyCom, labelling simulation, and flux estimation run without it
+  network solves, joint networks, FSEOF, SteadyCom, labelling simulation, and flux estimation run without it
 
 #### Scenario: Missing polyhedra extra
 - **WHEN** a user without the extra `polyhedra` enumerates elementary modes
@@ -279,3 +228,27 @@ value per site for lattice networks. It SHALL record the pool duals only on requ
 #### Scenario: Flux series
 - **WHEN** a user asks a dynamic FBA trajectory for `cell.flux.EX_glc__D_e`
 - **THEN** it returns the glucose exchange flux at every frame, and it is zero after glucose depletion
+
+### Requirement: Constraint primitives declare their requirements and support
+The constraint network, the bound, enumerate, and estimate laws, and the solvers `HighsLP`, `ConstraintStepper`,
+`ModeStepper`, `EmuSolver`, and `EstimationStepper` SHALL declare their requirements or support, so that `validate()`
+reports their misuse before compilation, each issue with a stable code, the path of the element or law, and a fix. The
+enumerate and estimate laws SHALL require static time and SHALL NOT share a system with laws of another kind.
+
+#### Scenario: Bound without a network
+- **WHEN** an interaction returns a bound law on a flux that no network of the system declares
+- **THEN** `validate()` reports one error whose path is the law and whose message names the flux
+
+#### Scenario: Network on edges
+- **WHEN** a constraint network is placed in a group on the edges of a network space
+- **THEN** `validate()` reports that constraint networks live on sites, and its fix is a group on sites
+
+#### Scenario: Enumeration beside dynamics
+- **WHEN** a system holds a network declared for enumeration and a nested system with rate laws
+- **THEN** `validate()` reports the enumeration's path and says that an enumeration runs in a system of its own, before
+  compilation
+
+#### Scenario: Declared in the compatibility table
+- **WHEN** the documentation's compatibility table is generated
+- **THEN** it lists `HighsLP` as valid for equation, bound, and objective laws under static, continuous, and discrete
+  time
