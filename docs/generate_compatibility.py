@@ -3,6 +3,7 @@
 from skcomplex.core.base import LawKind
 from skcomplex.core.compile import BACKENDS, law_types
 from skcomplex.core.solvers import SOLVERS
+from skcomplex.core.space import Space
 
 
 def _terms(terms: frozenset[object], every: int | None = None) -> str:
@@ -93,6 +94,39 @@ def backend_lines() -> list[str]:
     return lines
 
 
+def _spaces(base: type) -> list[type]:
+    """Return every subclass of a space class that declares its kind, recursively."""
+    found = []
+    for subclass in base.__subclasses__():
+        found += [subclass, *_spaces(subclass)]
+    return [space for space in found if 'space_kind' in vars(space) or 'lacks' in vars(space)]
+
+
+def space_lines() -> list[str]:
+    """Return the kind of every space and the options of its kind that it lacks.
+
+    Returns:
+        lines:
+            The Markdown lines of the section.
+    """
+    lines = [
+        '',
+        '## Spaces',
+        '',
+        'Every space declares its kind, which the requirements of laws and the support of solvers name, and the',
+        'options of its kind it lacks. Validation reports a law or a visual that needs an option its space lacks, such',
+        'as the checkerboard schedule, which needs the regular geometry of a square lattice.',
+        '',
+        '| Space | Kind | Lacks |',
+        '|---|---|---|',
+    ]
+    for space in sorted(_spaces(Space), key=lambda item: item.__name__):
+        lines.append(
+            f'| `{space.__name__}` | `{space.space_kind}` | {_terms(space.lacks) if space.lacks else "none"} |',
+        )
+    return lines
+
+
 def compatibility_page() -> str:
     """Return the compatibility page of laws, solvers, and backends, generated from their declarations."""
     lines = [
@@ -102,6 +136,7 @@ def compatibility_page() -> str:
         'declarations that validation reads, so it always agrees with what `validate` accepts.',
         '',
         *law_lines(),
+        *space_lines(),
         *solver_lines(),
         *backend_lines(),
     ]

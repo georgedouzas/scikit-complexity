@@ -5,7 +5,7 @@ import pytest
 
 from skcomplex.core.analysis import Subshift
 from skcomplex.core.runtime import Frame, Simulation
-from skcomplex.core.space import GroupSpace, Memory, automaton_group, parse_word
+from skcomplex.core.space import GroupSpace, Memory, Neighborhood, automaton_group, parse_word
 from skcomplex.core.viz import CayleyVisual
 from skcomplex.models import catalog, create
 from skcomplex.models.computer_science.automata import (
@@ -164,19 +164,15 @@ def test_lamplighter_automaton_is_linear():
 
 def test_linear_ring_automaton_spreads_binomials():
     """Test that the Laplacian over GF(3) from one cell gives the coefficients of (x + 1/x - 2)^t modulo 3."""
-    simulation = _run(linear_ring_automaton(11, modulus=3), 2)
-    space = simulation.system.elements[0].space
-    values = simulation.trajectory_['cells.value'][-1]
-    expected = {'1': 6 % 3, 'a': -4 % 3, 'a^-1': -4 % 3, 'a*a': 1, 'a^-1*a^-1': 1}
-    for word, value in expected.items():
-        assert values[space.words.index(word)] == value
+    values = _run(linear_ring_automaton(11, modulus=3), 2).trajectory_['cells.value'][-1]
+    np.testing.assert_array_equal(values, [0, 0, 0, 1, 2, 0, 2, 1, 0, 0, 0])
 
 
 def test_subshifts_stay_admissible():
     """Test that the Markov chain on the golden mean shift never puts two ones side by side and fills about a fifth."""
     simulation = _run(subshifts(100), 30)
     space = simulation.system.elements[0].space
-    golden = Subshift(Memory(('1', 'a')), [(1, 1)])
+    golden = Subshift(Neighborhood(((0,), (1,))), [(1, 1)])
     alive = simulation.trajectory_['cells.alive']
     assert all(golden.is_admissible(row.astype(int), space) for row in alive)
     assert 0.1 < alive[-10:].mean() < 0.4
