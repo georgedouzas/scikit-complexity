@@ -6,7 +6,7 @@
   laws, with tests of their known behaviour, including the contract curve and conservation scenarios
 - [x] 1.2 Add `order_book`, `tragedy_of_the_commons`, and `ridesharing` with tests, including the commons collapse
   scenario, using the library's pairing realizations and, where the source has a regulator, an adaptive parameter
-- [ ] 1.3 Add a curated gallery example per model with a review row, declare each catalog entry's observables, and
+- [x] 1.3 Add a curated gallery example per model with a review row, declare each catalog entry's observables, and
   mark the six inventory entries implemented with their vocabulary tags
 
 ## 2. Gate
