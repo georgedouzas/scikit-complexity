@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 
+from skcomplex.core.analysis import dispersion_relation
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import ScipyODE
 from skcomplex.models.biology.ecology import generalized_lotka_volterra
@@ -10,7 +11,9 @@ from skcomplex.models.biology.systems_biology import (
     biochemical_systems_theory,
     boolean_repressilator,
     goodwin_oscillator,
+    hormone_cascade_amplifier,
     mammalian_cell_cycle,
+    min_protein_skeleton,
     phosphorylation_oscillator,
     three_gene_boolean_network,
 )
@@ -117,3 +120,33 @@ def test_generalized_lotka_volterra_reaches_coexistence():
     a = np.array([[-1.0, -0.3, 0.2], [-0.2, -1.0, -0.3], [0.1, -0.2, -1.0]])
     trajectory = _run(generalized_lotka_volterra(), until=60.0, dt=0.5, solver=PRECISE)
     assert np.allclose(trajectory['species.x'][-1], -np.linalg.solve(a, b), rtol=1e-4)
+
+
+def test_hormone_cascade_amplifier_multiplies_the_signal_by_the_gains_until_the_timer_ends_it():
+    """Test that the cascade amplifies the G-protein signal by the product of the gains and the GTPase ends it."""
+    runs = {}
+    for k_gtp in (0.5, 0.05):
+        trajectory = _run(hormone_cascade_amplifier(k_gtp=k_gtp), 60.0, 0.05, ScipyODE(rtol=1e-9, atol=1e-12))
+        runs[k_gtp] = (trajectory.times, trajectory['g_protein.g'], trajectory['phosphorylase.x'])
+    times, signal, output = runs[0.5]
+    gain = np.trapezoid(output, times) / np.trapezoid(signal, times)
+    assert gain == pytest.approx(10 * 50 * 2 * 10 * 10, rel=1e-3)
+    late = times >= 20.0
+    assert signal[late].max() < 1e-3 < runs[0.05][1][late].max()
+    assert runs[0.05][2].max() > 2 * output.max()
+
+
+def test_min_protein_skeleton_conserves_both_proteins_and_forms_oscillating_bands():
+    """Test that the Min skeleton model conserves MinD and MinE while an oscillatory instability forms bands."""
+    system = min_protein_skeleton(64)
+    relation = dispersion_relation(system)
+    unstable = relation.growth_rates > 0
+    assert unstable.any()
+    assert np.abs(relation.frequencies[unstable]).max() > 0.01
+    trajectory = _run(system, 200, 10.0, ScipyODE(method='BDF', jacobian='exact'))
+    states = {name: trajectory[f'cell.{name}'] for name in ('md', 'mde', 'cdt', 'cdd', 'ce')}
+    total_D = (states['md'] + states['mde'] + states['cdt'] + states['cdd']).sum(axis=1)
+    total_E = (states['mde'] + states['ce']).sum(axis=1)
+    np.testing.assert_allclose(total_D, total_D[0], rtol=1e-6)
+    np.testing.assert_allclose(total_E, total_E[0], rtol=1e-6)
+    assert np.ptp(states['md'][-1]) > 2 * states['md'][0].mean()

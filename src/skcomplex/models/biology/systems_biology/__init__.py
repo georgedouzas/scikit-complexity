@@ -1,4 +1,4 @@
-"""Systems biology: gene regulatory circuits, Boolean and probabilistic Boolean networks, and circadian clocks."""
+"""Systems biology: gene circuits, Boolean networks, circadian clocks, signalling cascades, and Min-protein waves."""
 
 from ._boolean import (
     BooleanFunction,
@@ -8,8 +8,10 @@ from ._boolean import (
     yeast_cell_cycle,
 )
 from ._boolean_models import boolean_repressilator, mammalian_cell_cycle, three_gene_boolean_network
+from ._cascades import Activation, CascadeStage, GProtein, hormone_cascade_amplifier
 from ._clocks import PerClock, circadian_clock
 from ._genes import Gene, Repression, negative_autoregulation, repressilator, toggle_switch
+from ._min_proteins import MinSkeleton, min_protein_skeleton
 from ._networks import (
     GeneralizedMassAction,
     GoodwinStage,
@@ -25,13 +27,17 @@ from ._networks import (
 from ._probabilistic import ProbabilisticFunction, ProbabilisticNode, probabilistic_boolean_network
 
 __all__: list[str] = [
+    'Activation',
     'BooleanFunction',
     'BooleanNode',
+    'CascadeStage',
+    'GProtein',
     'Gene',
     'GeneralizedMassAction',
     'GoodwinStage',
     'HillRepression',
     'Metabolite',
+    'MinSkeleton',
     'PerClock',
     'PhosphorylationLoop',
     'ProbabilisticFunction',
@@ -44,7 +50,9 @@ __all__: list[str] = [
     'boolean_repressilator',
     'circadian_clock',
     'goodwin_oscillator',
+    'hormone_cascade_amplifier',
     'mammalian_cell_cycle',
+    'min_protein_skeleton',
     'negative_autoregulation',
     'phosphorylation_oscillator',
     'probabilistic_boolean_network',

@@ -1,6 +1,7 @@
-"""Active matter: self-propelled particles, active clusters, flocking, and polar active fluids."""
+"""Active matter: self-propelled particles, active clusters, flocking, polar active fluids, and chemotaxis."""
 
 from ._alignment import PolarAlignment, aligning_active_brownian_particles
+from ._chemotaxis import Chemotaxis, keller_segel
 from ._collective import (
     CuckerSmaleAlignment,
     PhoreticAttraction,
@@ -27,6 +28,7 @@ from ._particles import (
 __all__: list[str] = [
     'ActiveParticle',
     'BinaryCollisions',
+    'Chemotaxis',
     'CuckerSmaleAlignment',
     'DepotParticle',
     'Flocker',
@@ -43,6 +45,7 @@ __all__: list[str] = [
     'chiral_active_particles',
     'cucker_smale_flocking',
     'depot_brownian_particles',
+    'keller_segel',
     'living_crystals',
     'motility_induced_phase_separation',
     'run_and_tumble',
