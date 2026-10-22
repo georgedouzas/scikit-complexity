@@ -5,8 +5,8 @@ import pytest
 
 from skcomplex.core.runtime import Simulation
 from skcomplex.models import describe
-from skcomplex.models.economics.macroeconomics import credit_networks, fractional_reserve_banking
-from skcomplex.models.economics.markets import double_auction, maximum_surplus
+from skcomplex.models.economics.macroeconomics import credit_networks, fractional_reserve_banking, metaphoria
+from skcomplex.models.economics.markets import double_auction, maximum_surplus, wilhite_trade_networks
 
 
 def _run(system, until, observables=()):
@@ -75,3 +75,61 @@ def test_fractional_reserve_money_multiplier():
     ratio = trajectory['banks.reserve_ratio']
     assert ratio[99] == pytest.approx(0.1)
     assert ratio[-1] == pytest.approx(0.2)
+
+
+def _barter(topology):
+    """Return the trajectory of Wilhite's barter of 100 traders in 5 groups on one topology."""
+    system = wilhite_trade_networks(100, topology=topology, n_groups=5, shortcuts=3, random_state=1)
+    return _run(system, 30, describe('wilhite_trade_networks').observables_of(system))
+
+
+def test_wilhite_trade_networks_small_world_converges_with_few_searches():
+    """Isolated groups keep different prices, a small world unifies them with a fraction of the complete searches."""
+    isolated, small_world, complete = (_barter(topology) for topology in ('isolated', 'small_world', 'complete'))
+    assert small_world['dispersion'][-1] < 0.1
+    assert isolated['dispersion'][-1] > 2 * small_world['dispersion'][-1]
+    assert complete['barter.searches'][1:].sum() > 4 * small_world['barter.searches'][1:].sum()
+    goods = [small_world.agents('traders', frame).values for frame in (0, 30)]
+    for good in ('good1', 'good2'):
+        np.testing.assert_allclose(np.sum(goods[1][good]), np.sum(goods[0][good]))
+    assert small_world['utility'][-1] > small_world['utility'][0]
+
+
+def test_wilhite_trade_networks_rejects_unknown_topology():
+    """An unknown topology raises an error."""
+    with pytest.raises(ValueError, match='topology'):
+        wilhite_trade_networks(10, topology='ring')
+
+
+def _metaphoria(until, **arguments):
+    """Return the trajectory of Metaphoria with its standard observables."""
+    system = metaphoria(100, random_state=0, **arguments)
+    return _run(system, until, describe('metaphoria').observables_of(system))
+
+
+def test_metaphoria_hunter_gatherers_thrive_where_money_dies_out():
+    """Hunter-gatherers keep a stable population on land where the monetary population dies out, as in Gooding."""
+    gatherers = _metaphoria(150)['population']
+    monetary = _metaphoria(150, mode='monetary')['population']
+    assert gatherers[100:].min() > 50
+    assert monetary[-1] < gatherers[-1] / 4
+
+
+def test_metaphoria_monetary_money_is_stock_flow_consistent():
+    """With abundant food the monetary economy lives with starvation, and all money held is matched by loans."""
+    trajectory = _metaphoria(100, mode='monetary', max_food=50.0, max_resistance=0.0)
+    assert trajectory['population'][-1] > 100
+    assert np.nansum(trajectory['census.starvations']) > 0
+    assert trajectory['money_gini'][-1] > 0.3
+    holders = [trajectory.agents(group, 100).values for group in ('people', 'businesses', 'bank')]
+    money = sum(np.sum(values['money']) for values in holders)
+    loans = sum(np.sum(values['loans']) for values in holders)
+    assert abs(money) < 1e-6 * np.sum(holders[2]['loans'])
+    assert abs(loans) < 1e-6 * np.sum(holders[2]['loans'])
+    assert np.sum(holders[2]['loans']) > 0
+
+
+def test_metaphoria_rejects_unknown_mode():
+    """An unknown mode raises an error."""
+    with pytest.raises(ValueError, match='mode'):
+        metaphoria(mode='barter')

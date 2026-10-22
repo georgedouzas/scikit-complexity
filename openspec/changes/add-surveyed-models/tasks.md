@@ -2,12 +2,12 @@
 
 ## 1. Core entries
 
-- [ ] 1.1 Implement the surveyed entries the inventory marks `core`, with tests of their known behaviour
+- [x] 1.1 Implement the surveyed entries the inventory marks `core`, with tests of their known behaviour
 
 ## 2. Example entries
 
 - [ ] 2.1 Implement the physics and mathematics entries, with tests
-- [ ] 2.2 Implement the biology, earth, and economics entries, with tests
+- [x] 2.2 Implement the biology, earth, and economics entries, with tests
 
 ## 3. Gallery and gate
 
