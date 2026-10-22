@@ -79,7 +79,7 @@ pdm install
 A predator and prey model assembles from ready-made interactions:
 
 ```python
-from skcomplex.core.model import System
+from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import LogisticGrowth, Mortality, Population, Predation
 
 system = System(
@@ -123,7 +123,8 @@ bound to its roles:
 ```python
 from skcomplex.core.analysis import equations_of
 from skcomplex.core.base import Domain, parameter, role
-from skcomplex.core.model import Interaction, Rate
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Rate
 
 
 class Harvest(Interaction):
