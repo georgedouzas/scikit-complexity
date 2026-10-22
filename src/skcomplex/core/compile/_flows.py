@@ -141,10 +141,19 @@ def _initial(item: Expression, spec: _Spec, declarations: _Declared) -> float:
     return float(SR(item).subs(values))
 
 
+def _delay_parts(kind: str) -> tuple[bool, int]:
+    """Return whether a delay function conserves its input, and its order, for a name known to be a delay."""
+    parts = delay_parts(kind)
+    if parts is None:
+        error_msg = f'{kind} is not a delay function.'
+        raise ValidationError(error_msg)
+    return parts
+
+
 def _delay_laws(kind: str, stages: list[Expression], value: Expression, time: Expression) -> list[Law]:
     """Return the rate laws of the hidden stocks of a delay or a smoothing."""
     each = time / len(stages)
-    if delay_parts(kind)[0]:
+    if _delay_parts(kind)[0]:
         inflows = [value, *(stage / each for stage in stages[:-1])]
         return [Rate(stage, inflow - stage / each) for stage, inflow in zip(stages, inflows, strict=True)]
     inputs = [value, *stages[:-1]]
@@ -389,7 +398,7 @@ class StockFlowPass:
             call = calls[0]
             kind = str(call.operator().name())
             value, time = call.operands()
-            material, order = delay_parts(kind)
+            material, order = _delay_parts(kind)
             owner = re.sub(r'[^0-9A-Za-z]', '_', spec.owner)
             stages = [symbol(f'_{kind}_{counter}_{owner}_{index}') for index in range(order)]
             start = _initial(value, spec, declarations)

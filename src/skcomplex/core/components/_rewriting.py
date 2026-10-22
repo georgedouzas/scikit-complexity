@@ -99,7 +99,7 @@ class Patch(Element):
 
     visual: ClassVar[VisualSpec] = VisualSpec('geometry')
     prototiles: Sequence[Prototile] = ()
-    tiles: Sequence[tuple[str, Affine]] | None = state(None, domain=Structure('tiling'))
+    tiles: Sequence[tuple[str, Affine]] | None = state(default=None, domain=Structure('tiling'))
     filled: bool = False
     max_size: int = 10_000_000
     bounds: Sequence[float] | None = None

@@ -11,6 +11,10 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
+from ._errors import ValidationError
+
+NORM_TOLERANCE = 1e-8
+
 
 def wrap_angle(values: npt.ArrayLike) -> npt.NDArray[np.float64]:
     """Return angles wrapped into one turn centred on zero, the half-open interval `(-pi, pi]`.
@@ -283,6 +287,60 @@ class HilbertSpace:
         """Name of the domain, used in error messages."""
         return f'Hilbert space of dimension {self.dimension}'
 
+    @property
+    def sage_domain(self) -> str:
+        """Sage domain of the symbols of the domain, complex for amplitudes."""
+        return 'complex'
+
+    def encode(self, value: object) -> npt.NDArray[Any]:
+        """Return a value as complex numbers.
+
+        Args:
+            value:
+                A vector of amplitudes.
+
+        Returns:
+            array:
+                The complex values.
+        """
+        return np.asarray(value, dtype=complex)
+
+    def decode(self, values: npt.NDArray[np.float64]) -> npt.NDArray[Any]:
+        """Return stored values unchanged.
+
+        Args:
+            values:
+                The stored values.
+
+        Returns:
+            values:
+                The values.
+        """
+        return np.asarray(values)
+
+    def contains(self, value: object) -> bool:
+        """Check that a value is a basis label or index, or a vector of unit norm of the space's dimension.
+
+        Args:
+            value:
+                The value.
+
+        Returns:
+            is_contained:
+                Whether the value is a state of the space.
+        """
+        if isinstance(value, str | int | np.integer) and not isinstance(value, bool):
+            try:
+                self.index(value)
+            except ValueError:
+                return False
+            return True
+        try:
+            vector = np.asarray(value, dtype=complex).ravel()
+        except (TypeError, ValueError):
+            return False
+        return vector.size == self.dimension and abs(float(np.linalg.norm(vector)) - 1) <= NORM_TOLERANCE
+
     def index(self, label: object) -> int:
         """Return the index of a basis state from its label or its index.
 
@@ -338,6 +396,55 @@ class HilbertFamily:
         """Name of the domain, used in error messages."""
         return 'Hilbert space'
 
+    @property
+    def sage_domain(self) -> str:
+        """Sage domain of the symbols of the domain, complex for amplitudes."""
+        return 'complex'
+
+    def encode(self, value: object) -> npt.NDArray[Any]:
+        """Return a value as complex numbers.
+
+        Args:
+            value:
+                A vector of amplitudes.
+
+        Returns:
+            array:
+                The complex values.
+        """
+        return np.asarray(value, dtype=complex)
+
+    def decode(self, values: npt.NDArray[np.float64]) -> npt.NDArray[Any]:
+        """Return stored values unchanged.
+
+        Args:
+            values:
+                The stored values.
+
+        Returns:
+            values:
+                The values.
+        """
+        return np.asarray(values)
+
+    def contains(self, value: object) -> bool:
+        """Check that a value is a basis label or index, or a finite vector, since the space depends on the element.
+
+        Args:
+            value:
+                The value.
+
+        Returns:
+            is_contained:
+                Whether the value can be a state of a space of the family.
+        """
+        if isinstance(value, str | int | np.integer) and not isinstance(value, bool):
+            return True
+        try:
+            return bool(np.all(np.isfinite(np.asarray(value, dtype=complex))))
+        except (TypeError, ValueError):
+            return False
+
     def of(self, element: object) -> HilbertSpace:
         """Return the Hilbert space of one element.
 
@@ -386,6 +493,55 @@ class Structure:
         """Name of the domain, used in error messages."""
         return self.kind
 
+    @property
+    def sage_domain(self) -> str:
+        """Sage domain of the symbols of the domain, which name structures but never take their values."""
+        return 'real'
+
+    def contains(self, value: object) -> bool:
+        """Check that a value is given, since the rewriting stepper checks the structure itself.
+
+        Args:
+            value:
+                The value.
+
+        Returns:
+            is_contained:
+                Whether the value is not `None`.
+        """
+        return value is not None
+
+    def encode(self, value: object) -> npt.NDArray[Any]:
+        """Raise an error, since structures live in the rewriting stepper and not in the state vector.
+
+        Args:
+            value:
+                The value.
+
+        Returns:
+            array:
+                Never, since a structure has no numeric encoding.
+
+        Raises:
+            ValidationError:
+                Always.
+        """
+        error_msg = f'A {self.kind} is rewritten as a whole by the rewriting stepper and has no numeric encoding.'
+        raise ValidationError(error_msg)
+
+    def decode(self, values: npt.NDArray[np.float64]) -> npt.NDArray[Any]:
+        """Return stored values unchanged.
+
+        Args:
+            values:
+                The stored values.
+
+        Returns:
+            values:
+                The values.
+        """
+        return np.asarray(values)
+
 
 @dataclass(frozen=True)
 class Tensor:
@@ -414,6 +570,54 @@ class Tensor:
         """Name of the domain, used in error messages."""
         kind = f'{self.symmetry} tensor' if self.symmetry else 'tensor'
         return f'{kind} of rank {self.rank}'
+
+    @property
+    def sage_domain(self) -> str:
+        """Sage domain of the symbols of the components, which are real."""
+        return 'real'
+
+    def encode(self, value: object) -> npt.NDArray[Any]:
+        """Return the components of a tensor as floats.
+
+        Args:
+            value:
+                The components.
+
+        Returns:
+            array:
+                The float values.
+        """
+        return np.asarray(value, dtype=float)
+
+    def decode(self, values: npt.NDArray[np.float64]) -> npt.NDArray[Any]:
+        """Return stored values unchanged.
+
+        Args:
+            values:
+                The stored values.
+
+        Returns:
+            values:
+                The values.
+        """
+        return np.asarray(values)
+
+    def contains(self, value: object) -> bool:
+        """Check that every component of a tensor is a finite real number.
+
+        Args:
+            value:
+                The components.
+
+        Returns:
+            is_contained:
+                Whether every component is finite and real.
+        """
+        try:
+            numbers = np.asarray(value, dtype=complex)
+        except (TypeError, ValueError):
+            return False
+        return bool(np.all(np.isfinite(numbers)) and np.all(numbers.imag == 0))
 
 
 type AnyDomain = Domain | Categorical | HilbertSpace | HilbertFamily | Structure | Tensor

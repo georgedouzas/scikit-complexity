@@ -879,11 +879,9 @@ def _state_name(spec: _KernelSpec, target: Expression) -> str:
     return reference.entry.name if reference is not None else str(target)
 
 
-def _unpacked(laws: object) -> object:
+def _unpacked(laws: Sequence[Any]) -> list[Any]:
     """Return laws with jumps on clocks of waiting times as renewals and samples as their energy, move, and sampler."""
-    if not isinstance(laws, list | tuple):
-        return laws
-    unpacked: list[object] = []
+    unpacked: list[Any] = []
     for law in laws:
         if isinstance(law, Jump) and law.renewal is not None:
             unpacked.append(law.renewal)
@@ -902,8 +900,9 @@ def _collect_laws(spec: _KernelSpec, component: object, flows: StockFlowPass, *,
     Jumps on clocks of waiting times become renewals and samples their energy, move, and sampler, as the steppers run
     them. Without `expand`, the laws are kept as declared, as the census of validation reads them.
     """
-    declared = component.laws(spec.namespace)  # type: ignore[attr-defined]
-    kinds = (Rate, Noise, Jump, Update, Transition, Emission, Boundary, Rule, Equation, Event, Sample, Match)
+    declared: Any = component.laws(spec.namespace)  # type: ignore[attr-defined]
+    kinds: tuple[type, ...] = (Rate, Noise, Jump, Update, Transition, Emission, Boundary, Rule, Equation, Event, Sample)
+    kinds = (*kinds, Match)
     kinds = (*kinds, *DECLARED_FREE)
     if not isinstance(declared, list | tuple) or not all(isinstance(law, kinds) for law in declared):
         error_msg = (
@@ -1089,7 +1088,7 @@ def _with_orders(spec: _KernelSpec, laws: list[Law], block: _Block, orders: _Ord
         return laws
     result: list[Any] = []
     for law in laws:
-        if isinstance(law, (Rule, Transition, Emission, *KERNEL_FREE)):
+        if isinstance(law, (Rule, Transition, Emission, Sample, *KERNEL_FREE)):
             result.append(law)
             continue
         if isinstance(law, Equation):
@@ -1331,7 +1330,7 @@ def _with_hybrid(
             rebuilt = replace(law, value=_substitute_delays(law.value, spec, declarations, hybrid))
             result.append(rebuilt)
             if isinstance(rebuilt, Noise):
-                result += _noise_corrections(spec, rebuilt, NOISE_CONVENTIONS[law.convention], hybrid)
+                result += _noise_corrections(spec, rebuilt, NOISE_CONVENTIONS[rebuilt.convention], hybrid)
         elif isinstance(law, Update | Boundary):
             result.append(type(law)(law.target, _substitute_delays(law.value, spec, declarations, hybrid)))
         else:
@@ -1991,7 +1990,7 @@ def _lower_laws(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Decla
                 lowered.jump_changes[id(output)] = changes
                 outputs[(Jump, False)].append(output)
                 continue
-            if isinstance(law, Equation | Transition | Emission):
+            if isinstance(law, Equation | Transition | Emission | Sample):
                 error_msg = f'A {type(law).__name__} law of {spec.owner} reached lowering before it was rewritten.'
                 raise ValidationError(error_msg)
             targets = _target_references(law.target, spec)
@@ -2524,7 +2523,7 @@ def _component_kind(node: Node) -> ComponentKind:
     if isinstance(node.component, Group):
         parts = {'sites': ComponentKind.SITE_GROUP, 'edges': ComponentKind.EDGE_GROUP}
         parts['hyperedges'] = ComponentKind.HYPEREDGE_GROUP
-        return parts.get(node.component.on, node.component.component_kind)
+        return parts.get(node.component.on or '', node.component.component_kind)
     return ComponentKind.ELEMENT
 
 

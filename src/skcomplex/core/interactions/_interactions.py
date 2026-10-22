@@ -59,7 +59,9 @@ class Interaction(Component):
             error_msg = f'{cls.__name__} binds its laws over {cls.over!r}. Use one of {", ".join(BINDINGS)}.'
             raise ValidationError(error_msg)
         states = [field.name for field in dataclasses.fields(cls) if _is_state(field)]
-        adaptive = [name for name in states if declaration_of(cls.__dataclass_fields__[name]).adaptive]
+        adaptive = [
+            name for name in states if getattr(declaration_of(cls.__dataclass_fields__[name]), 'adaptive', False)
+        ]
         if adaptive:
             error_msg = (
                 f'{cls.__name__} declares the adaptive parameters {", ".join(adaptive)}, which laws change as states, '

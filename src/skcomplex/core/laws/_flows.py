@@ -5,9 +5,9 @@
 
 import pickle  # nosec B403: pickles the invariant's function to check that it pickles, and never loads
 import re
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 from sage.all__sagemath_symbolics import SR
 from sage.symbolic.function import BuiltinFunction
@@ -248,6 +248,20 @@ class Invariant:
         """Whether the invariant is a function of each member of an agent group."""
         return callable(self.expression) and not isinstance(self.expression, Expression | SymbolicVector)
 
+    def value_of(self, member: Any) -> float:  # noqa: ANN401
+        """Return the value of the invariant of a member, for an invariant given as a function of a member.
+
+        Args:
+            member:
+                The member, as rules receive it.
+
+        Returns:
+            value:
+                The value of the function at the member.
+        """
+        function = cast('Callable[[Any], float]', self.expression)
+        return float(function(member))
+
     def check(self, member: Any, first: float, name: str) -> None:  # noqa: ANN401
         """Raise an error when the invariant of a member moved from its first value by more than the tolerance.
 
@@ -265,7 +279,7 @@ class Invariant:
             ConservationError:
                 The invariant changed by more than the tolerance.
         """
-        difference = float(self.expression(member)) - first
+        difference = self.value_of(member) - first
         if abs(difference) > self.tolerance:
             error_msg = (
                 f'The invariant {self.label!r} of {name} does not hold: it changed by {difference:.6g}. Change '

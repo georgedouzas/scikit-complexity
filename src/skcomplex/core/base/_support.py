@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Iterable
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field, fields
 from enum import StrEnum
 
@@ -168,10 +169,10 @@ class Requires:
         False
     """
 
-    time: frozenset[TimeKind] = field(default_factory=frozenset)
-    space: frozenset[SpaceKind] = field(default_factory=frozenset)
-    domains: frozenset[DomainKind] = field(default_factory=frozenset)
-    bindings: frozenset[Binding] = field(default_factory=frozenset)
+    time: AbstractSet[TimeKind] = field(default_factory=frozenset)
+    space: AbstractSet[SpaceKind] = field(default_factory=frozenset)
+    domains: AbstractSet[DomainKind] = field(default_factory=frozenset)
+    bindings: AbstractSet[Binding] = field(default_factory=frozenset)
 
     def __post_init__(self) -> None:
         """Freeze every field into a set of terms."""
@@ -224,11 +225,11 @@ class Supports:
         ['noise']
     """
 
-    time: frozenset[TimeKind] = field(default_factory=frozenset)
-    space: frozenset[SpaceKind] = field(default_factory=frozenset)
-    laws: frozenset[LawKind] = field(default_factory=frozenset)
-    domains: frozenset[DomainKind] = field(default_factory=frozenset)
-    components: frozenset[ComponentKind] = field(default_factory=frozenset)
+    time: AbstractSet[TimeKind] = field(default_factory=frozenset)
+    space: AbstractSet[SpaceKind] = field(default_factory=frozenset)
+    laws: AbstractSet[LawKind] = field(default_factory=frozenset)
+    domains: AbstractSet[DomainKind] = field(default_factory=frozenset)
+    components: AbstractSet[ComponentKind] = field(default_factory=frozenset)
 
     def __post_init__(self) -> None:
         """Freeze every field into a set of terms."""

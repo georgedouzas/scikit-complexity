@@ -19,7 +19,7 @@ from ..base import (
     TimeKind,
     ValidationError,
 )
-from ._lattices import Drive, Energy, Extremal, LocalRule, Move, Relaxation, Sampler
+from ._lattices import Drive, Energy, Extremal, LocalRule, Move, Relaxation, Sample, Sampler
 
 if TYPE_CHECKING:
     from ._fields import Flux
@@ -485,6 +485,9 @@ class FractionalNoise(Noise):
         order:
             The order of the derivative the noise drives, checked against the state's order, or `None` to use it.
 
+        convention:
+            The stochastic calculus of the law, `'ito'`, `'stratonovich'`, or `'anti-ito'`, as for `Noise`.
+
     Examples:
         >>> from skcomplex.core.base import symbol
         >>> from skcomplex.core.laws import FractionalNoise
@@ -639,6 +642,7 @@ type Law = (
     | Energy
     | Move
     | Sampler
+    | Sample
     | Flux
     | Transfer
     | Auxiliary

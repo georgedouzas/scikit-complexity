@@ -6,6 +6,7 @@
 import warnings
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
+from typing import Any, cast
 
 from ..base import (
     BackendError,
@@ -83,7 +84,7 @@ def _solver_registry() -> Registry:
     return SOLVERS
 
 
-def law_types() -> tuple[type, ...]:
+def law_types() -> tuple[Any, ...]:
     """Return every law type of the core.
 
     Returns:
@@ -121,8 +122,9 @@ def law_types() -> tuple[type, ...]:
 
 def _subclasses(base: type) -> list[type]:
     """Return every subclass of a class, recursively."""
-    found = []
-    for subclass in base.__subclasses__():
+    found: list[type] = []
+    subclasses: list[type] = base.__subclasses__()
+    for subclass in subclasses:
         found += [subclass, *_subclasses(subclass)]
     return found
 
@@ -157,7 +159,8 @@ def missing_declarations() -> list[str]:
     for key in solvers:
         solver = solvers.resolve(key)
         if not isinstance(getattr(solver, 'supports', None), Supports):
-            missing.append(f'The solver {key[1]!r} ({solver.__name__}) declares no support.')
+            _, name = cast('tuple[Form, str]', key)
+            missing.append(f'The solver {name!r} ({solver.__name__}) declares no support.')
     for key in BACKENDS:
         backend = BACKENDS.resolve(key)
         if not isinstance(getattr(backend, 'supports', None), Supports):
@@ -294,15 +297,16 @@ def domain_kind(entry: Entry, *, vector: bool = False) -> DomainKind:
     classes |= {HilbertSpace: DomainKind.HILBERT, HilbertFamily: DomainKind.HILBERT}
     if type(domain) in classes:
         return classes[type(domain)]
-    return {
+    kinds: dict[object, DomainKind] = {
         Domain.INTEGER: DomainKind.INTEGER,
         Domain.NONNEGATIVE_INTEGER: DomainKind.INTEGER,
         Domain.BOOLEAN: DomainKind.BOOLEAN,
         Domain.ANGLE: DomainKind.ANGLE,
-    }.get(domain, DomainKind.REAL)
+    }
+    return kinds.get(domain, DomainKind.REAL)
 
 
-def _space_kind(space: object) -> SpaceKind:
+def _space_kind(space: Space | None) -> SpaceKind:
     """Return the kind of a space, or `none` without one."""
     return SpaceKind.NONE if space is None else space.space_kind
 
@@ -312,13 +316,14 @@ def _names(terms: Iterable[object]) -> str:
     return ', '.join(sorted(str(term) for term in terms))
 
 
-def _solver_classes() -> dict[type, list[str]]:
+def _solver_classes() -> dict[Any, list[str]]:
     """Return every registered solver class with its names, without the `'auto'` aliases."""
-    classes: dict[type, list[str]] = {}
+    classes: dict[Any, list[str]] = {}
     solvers = _solver_registry()
     for key in solvers:
-        if key[1] != 'auto':
-            classes.setdefault(solvers.resolve(key), []).append(key[1])
+        _, name = cast('tuple[Form, str]', key)
+        if name != 'auto':
+            classes.setdefault(solvers.resolve(key), []).append(name)
     return classes
 
 
@@ -345,7 +350,7 @@ def _structure_issues(system: System) -> list[Issue]:
 
 def _declared_times(system: System, scope: str = '', inherited: TimeKind | None = None) -> dict[str, TimeKind | None]:
     """Return the declared time of every system of a tree by path, a nested system inheriting its parent's."""
-    time = system.time.kind if getattr(system, 'time', None) is not None else inherited
+    time = system.time.kind if system.time is not None else inherited
     times = {scope: time}
     for child in system.systems:
         times.update(_declared_times(child, f'{scope}/{child.label}' if scope else child.label, time))
@@ -522,9 +527,9 @@ def validate(
         return report
     held, _ = _with_held_observables(observed, _held_observables(observed))
     records, errors = law_census(held)
-    for path, error in errors:
-        code, fix = FIXES.get(type(error), ('value', 'Correct the component as the message describes.'))
-        report.issues.append(Issue(code, path, str(error), fix, error=type(error)))
+    for path, failure in errors:
+        code, fix = FIXES.get(type(failure), ('value', 'Correct the component as the message describes.'))
+        report.issues.append(Issue(code, path, str(failure), fix, error=type(failure)))
     report.issues += _binding_issues(system)
     report.issues += _law_issues(records, _declared_times(system))
     owners: dict[str, set[LawKind]] = {}

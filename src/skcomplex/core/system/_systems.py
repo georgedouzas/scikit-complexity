@@ -50,6 +50,9 @@ class System(BaseEstimator):
             The time the system evolves in, `ContinuousTime`, `DiscreteTime` with its schedule, or `StaticTime`, or
             `None` to infer it from the laws.
 
+        **legacy:
+            Arguments that systems no longer take, which raise an error naming where each moved.
+
     Raises:
         TypeError:
             An argument of the former signature is given, such as `elements` or `observables`. The message names the

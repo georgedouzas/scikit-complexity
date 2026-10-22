@@ -394,6 +394,9 @@ def _compiled(
     """Return the compiled rewriting system of one element from the laws that target it."""
     element = node.component
     kind = structure_of(type(element))
+    if kind is None:
+        error_msg = f'{node.path} holds no sequence, tiling, or graph that rewriting laws rewrite.'
+        raise ValidationError(error_msg)
     expected = LAWS_OF[kind]
     wrong = [law for law in laws if not isinstance(law, expected)]
     if wrong:

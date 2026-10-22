@@ -161,7 +161,7 @@ def neutral_clustering(
     """
     lattice = (shape,) if isinstance(shape, int) else tuple(shape)
     patches = Patch.lattice('patches', LatticeSpace(lattice), n=np.full(lattice, float(n)), alpha=alpha)
-    members = [f'patches[{index}]' for index in range(patches.size)]
+    members = [f'patches[{index}]' for index in range(int(np.prod(lattice)))]
     interactions = []
     if beta:
         interactions.append(Hopping('hopping', patches=members, links=_neighbour_pairs(lattice), beta=beta))

@@ -955,7 +955,7 @@ class MesaStepper(Stepper):
                 view = AgentView(agent, self)
                 for invariant in spec.invariants:
                     key = (agent.unique_id, spec.path, invariant.label)
-                    first = self._invariant_values.setdefault(key, float(invariant.expression(view)))
+                    first = self._invariant_values.setdefault(key, invariant.value_of(view))
                     invariant.check(view, first, f'agent {view.id} of {spec.path}')
 
     def _ordered_agents(self, phase: Phase) -> list[mesa.Agent]:

@@ -87,7 +87,11 @@ class QuantumView:
     def space(self) -> HilbertSpace:
         """Hilbert space of the element."""
         domain = declarations_of(type(self.element), VariableKind.STATE)[self.state].domain
-        return domain.of(self.element) if isinstance(domain, HilbertFamily) else domain
+        space = domain.of(self.element) if isinstance(domain, HilbertFamily) else domain
+        if not isinstance(space, HilbertSpace):
+            error_msg = f'The state {self.state} of {self.label!r} lies in {space.value}, not in a Hilbert space.'
+            raise ValidationError(error_msg)
+        return space
 
     @property
     def label(self) -> str:
@@ -175,8 +179,8 @@ class QuantumView:
                 A mapping from the name of every local operator to the operator acting on the subsystem.
         """
         names: dict[str, Any] = {name: Operator({((key, local),): 1}) for name, local in self.local_operators().items()}
-        extra = getattr(self.element, 'operator_namespace', None)
-        return {**names, **(extra(key, self) if extra is not None else {})}
+        additional = getattr(self.element, 'operator_namespace', None)
+        return {**names, **(additional(key, self) if additional is not None else {})}
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the laws of the element for a namespace of its operators.

@@ -410,8 +410,9 @@ def part_count(space: Space, on: str, label: str) -> int:
         return int(space.size)
     if on == 'edges' and graph is not None:
         return int(graph.number_of_edges())
-    if on == 'hyperedges' and getattr(space, 'hyperedges', ()):
-        return len(space.hyperedges)
+    hyperedges = getattr(space, 'hyperedges', None)
+    if on == 'hyperedges' and hyperedges:
+        return len(hyperedges)
     needs = 'a network space with hyperedges' if on == 'hyperedges' else 'a network space' if on == 'edges' else 'sites'
     error_msg = f'Group {label!r} lives on {on}, which need {needs}, but its space is {space!r}.'
     raise SpaceError(error_msg)
@@ -449,7 +450,7 @@ def probe_laws(component: object) -> list[Law] | None:
         ['Rule']
     """
     if isinstance(component, Group):
-        component_type: type = component.element
+        component_type: type[Component] = component.element
     elif isinstance(component, Component):
         component_type = type(component)
     else:

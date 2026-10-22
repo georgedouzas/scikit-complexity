@@ -113,9 +113,10 @@ def _members_of(node: Node) -> list[tuple[str, QuantumView]]:
     if not isinstance(component, Group):
         return [(node.path, QuantumView(component))]
     names = [item.name for item in dataclasses.fields(component.element) if item.init and item.name != 'label']
+    size = node.members or 0
     members = []
-    for member in range(component.size):
-        values = {name: _member_value(node.value_of(name), member, component.size) for name in names}
+    for member in range(size):
+        values = {name: _member_value(node.value_of(name), member, size) for name in names}
         element = component.element(label=f'{component.label}_{member}', **values)
         members.append((f'{node.path}[{member}]', QuantumView(element)))
     return members
@@ -632,14 +633,14 @@ def _interaction_laws(
     assert isinstance(interaction, Interaction)  # nosec B101: the caller passes interactions only
     parameters = {**_parameter_symbols(node, symbols, None), 't': symbol('t')}
     if type(interaction).over == 'neighbours':
-        roles = list(declarations_of(interaction, VariableKind.ROLE))
-        if len(roles) != 1:
+        role_names = list(declarations_of(interaction, VariableKind.ROLE))
+        if len(role_names) != 1:
             error_msg = (
-                f'Interaction {node.path} over neighbours declares the roles {roles}. Declare one role, bound to the '
-                'group whose neighbours it couples.'
+                f'Interaction {node.path} over neighbours declares the roles {role_names}. Declare one role, bound to '
+                'the group whose neighbours it couples.'
             )
             raise ValidationError(error_msg)
-        path = f'{node.scope}{getattr(interaction, roles[0])}'
+        path = f'{node.scope}{getattr(interaction, role_names[0])}'
         if path not in groups:
             error_msg = f'Interaction {node.path} over neighbours targets {path}, which is not a quantum group.'
             raise ValidationError(error_msg)

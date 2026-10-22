@@ -147,7 +147,12 @@ def _check_group(group: Group, scope: str) -> None:
         if space.size != group.size:
             error_msg = f'{where} has size {group.size}, but its lattice has {space.size} sites.'
             raise ValidationError(error_msg)
-    if isinstance(space, NetworkSpace) and not group.variable and group.on in {None, 'sites'}:
+    if (
+        isinstance(space, NetworkSpace)
+        and not group.variable
+        and group.on in {None, 'sites'}
+        and group.size is not None
+    ):
         _check_network_lattice(space, group.size, where)
     unknown = set(group.values or {}) - {field.name for field in dataclasses.fields(group.element)} - {'label'}
     if unknown:
@@ -187,7 +192,7 @@ def _sized(element: Element | Group, space: Space | None) -> Element | Group:
         error_msg = f'Group {element.label!r} lives on {element.on} but has neither a size nor a space.'
         raise SpaceError(error_msg)
     sized = copy.copy(element)
-    sized.size = part_count(space, element.on, element.label)
+    sized.size = part_count(space, element.on or 'sites', element.label)
     return sized
 
 

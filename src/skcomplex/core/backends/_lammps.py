@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import functools
 import math
 from collections import defaultdict
 from collections.abc import Callable
@@ -381,7 +382,8 @@ class LammpsBackend(ExternalBackend):
     def _pair_commands(self, problem: Problem, p: Vector) -> list[str]:
         """Return the commands of the pair style and of the coefficients of every pair interaction."""
         pairs = [item for item in problem.interactions if isinstance(item.interaction, PairPotential)]
-        styles, coefficients, counts = [], [], defaultdict(int)
+        styles, coefficients = [], []
+        counts: defaultdict[str, int] = defaultdict(int)
         largest = 1.0
         for item in pairs:
             cutoff = float(_parameter(problem, p, item.path, 'cutoff')[0])
@@ -392,9 +394,7 @@ class LammpsBackend(ExternalBackend):
             native = _native(NATIVE_PAIRS, item.interaction)
             if native is not None:
                 style, coefficients_of = native
-                arguments = (
-                    f'{coefficients_of(lambda name, path=item.path: _parameter(problem, p, path, name))} {cutoff}'
-                )
+                arguments = f'{coefficients_of(functools.partial(_parameter, problem, p, item.path))} {cutoff}'
             else:
                 style = 'lepton'
                 arguments = f'"{self._pair_expression(problem, p, item)}" {cutoff}'
@@ -428,18 +428,22 @@ class LammpsBackend(ExternalBackend):
             fix = LammpsFix(
                 name=f'fix{index}',
                 group=f'group{atoms.types[target]}' if target is not None else 'all',
-                value=lambda name, path=item.path: _parameter(problem, p, path, name),
-                mass=lambda target=target: _mass(
-                    problem,
-                    p,
-                    next(element for element in atoms.elements if element.path == target),
-                ),
-                seed=lambda: int(self.rng_.integers(1, MAX_SEED)),
+                value=functools.partial(_parameter, problem, p, item.path),
+                mass=functools.partial(self._target_mass, problem, p, target),
+                seed=self._seed,
             )
             commands.append(command(fix))
         if self.external_ is not None:
             commands.append('fix external all external pf/callback 1 1')
         return commands
+
+    def _target_mass(self, problem: Problem, p: Vector, target: str | None) -> float:
+        """Return the mass of the atoms of the element or group an interaction targets."""
+        return _mass(problem, p, next(element for element in self.atoms_.elements if element.path == target))
+
+    def _seed(self) -> int:
+        """Return a random seed for a LAMMPS fix."""
+        return int(self.rng_.integers(1, MAX_SEED))
 
     def _external_callback(self) -> Callable[..., None]:
         """Return the `fix external` callback that adds the forces of the external interactions."""
