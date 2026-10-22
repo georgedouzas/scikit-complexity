@@ -5,18 +5,18 @@ the naming and public-API rules of the constitution.
 
 ## 1. Coarse-graining and effective information
 
-- [ ] 1.1 Survey maintained libraries for effective information and causal emergence, record the result in the design,
+- [x] 1.1 Survey maintained libraries for effective information and causal emergence, record the result in the design,
   and wrap one if it qualifies
-- [ ] 1.2 Add `partition_coarse_grain` for trajectories and transition matrices with uniform and stationary weighting,
+- [x] 1.2 Add `partition_coarse_grain` for trajectories and transition matrices with uniform and stationary weighting,
   and verify the lumpable chain and trajectory scenarios
-- [ ] 1.3 Add `effective_information` with determinism and degeneracy and the named warning for unobserved states, and
+- [x] 1.3 Add `effective_information` with determinism and degeneracy and the named warning for unobserved states, and
   verify the permutation and fully noisy scenarios
-- [ ] 1.4 Add `causal_emergence` with the greedy and the small-exhaustive partition searches, and verify the noisy micro
+- [x] 1.4 Add `causal_emergence` with the greedy and the small-exhaustive partition searches, and verify the noisy micro
   states and permutation scenarios
 
 ## 2. Ergodicity breaking
 
-- [ ] 2.1 Add `ergodicity_breaking` and `fluctuation_metric`, and the total-variation distance of trait distributions,
+- [x] 2.1 Add `ergodicity_breaking` and `fluctuation_metric`, and the total-variation distance of trait distributions,
   reading trajectories through the adapters, and verify the ergodic diffusion and frozen disorder scenarios
 
 ## 3. Library

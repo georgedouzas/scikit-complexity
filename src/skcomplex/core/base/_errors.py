@@ -66,3 +66,7 @@ class RewritingError(SkcomplexError):
 
 class HilbertSpaceError(SkcomplexError):
     """A quantum system has a Hilbert space larger than its declared limit."""
+
+
+class UnobservedStatesWarning(UserWarning):
+    """An analysis drops states that have no observed transitions."""
