@@ -5,7 +5,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import numpy.typing as npt
@@ -15,6 +15,9 @@ from ..base import Expression
 from ..system import reduce_values
 from ._layout import Entry
 from ._printing import numpy_function
+
+if TYPE_CHECKING:
+    from ._neighbourhoods import CompiledNeighbourhood
 
 type Vector = npt.NDArray[np.float64]
 type Indices = npt.NDArray[np.intp]
@@ -189,19 +192,32 @@ class ReductionPass:
 
     Args:
         reductions:
-            The compiled reductions, every one after the reductions it reads.
+            The compiled reductions over groups, every one after the reductions it reads.
 
         parameters:
             The size of the parameter vector, where the reductions start.
+
+        neighbourhoods:
+            The compiled reductions over the neighbours of every member.
+
+        sequence:
+            Every reduction of both kinds in dependency order, or empty for the reductions over groups in their order.
     """
 
     reductions: tuple[CompiledReduction, ...] = ()
     parameters: int = 0
+    neighbourhoods: tuple['CompiledNeighbourhood', ...] = ()
+    sequence: tuple['CompiledReduction | CompiledNeighbourhood', ...] = ()
+
+    @property
+    def steps(self) -> tuple['CompiledReduction | CompiledNeighbourhood', ...]:
+        """Every reduction in the order it is evaluated."""
+        return self.sequence or (*self.reductions, *self.neighbourhoods)
 
     @property
     def extent(self) -> int:
         """Size of the extended parameter vector."""
-        return max((item.entry.start + item.entry.size for item in self.reductions), default=self.parameters)
+        return max((item.entry.start + item.entry.size for item in self.steps), default=self.parameters)
 
     def extend(self, t: float, x: Vector, p: Vector) -> Vector:
         """Return the parameter vector followed by the value of every reduction at a state.
@@ -220,9 +236,10 @@ class ReductionPass:
             extended:
                 The extended parameter vector.
         """
-        q = np.empty(self.extent)
-        q[: self.parameters] = p[: self.parameters]
-        for reduction in self.reductions:
+        q = np.zeros(self.extent)
+        given = min(p.size, self.parameters)
+        q[:given] = p[:given]
+        for reduction in self.steps:
             reduction.evaluate(t, x, q)
         return q
 
@@ -237,7 +254,7 @@ class ReductionPass:
             wrapped:
                 The function `f(t, x, p)`, or the function itself without reductions.
         """
-        if function is None or not self.reductions:
+        if function is None or not self.steps:
             return function
 
         def reduced(t: float, x: Vector, p: Vector) -> Any:  # noqa: ANN401

@@ -47,6 +47,7 @@ class Source(Enum):
     NEIGHBOR = 'neighbor'
     DERIVED = 'derived'
     REDUCED = 'reduced'
+    OTHER = 'other'
 
 
 @dataclass(frozen=True)
@@ -281,6 +282,13 @@ class Kernel:
             error_msg = (
                 f'A law of {self.owner} uses the symbols {names}, which are not declared. Declare them with `state` '
                 'or `parameter` and use them through the namespace `s` that `laws` receives.'
+            )
+            raise ValidationError(error_msg)
+        others = sorted(str(item) for item in used if self.references[item].source is Source.OTHER)
+        if others:
+            error_msg = (
+                f'A law of {self.owner} reads the neighbour symbols {", ".join(others)} outside a neighbourhood '
+                'reduction. Read `s.other` inside `neighbors`, which reduces over the neighbours of every member.'
             )
             raise ValidationError(error_msg)
         self._arguments = sorted(used, key=str)

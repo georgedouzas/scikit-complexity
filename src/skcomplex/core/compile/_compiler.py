@@ -78,12 +78,14 @@ from ..laws import (
     mean,
     minimum,
     mod,
+    neighbourhoods_in,
     reductions_in,
     total,
     variance,
     where,
 )
 from ..laws._laws import NOISE_CONVENTIONS, Renewal
+from ..laws._neighbourhoods import NeighbourReduction
 from ..space import ContinuousSpace, LatticeSpace, Mesh, NetworkSpace, Space
 from ..system import Observable, System
 from ._backends import Backend, resolve_backend
@@ -115,6 +117,7 @@ from ._lattices import (
 from ._layout import Entry, Layout
 from ._lowering import symbolic_components
 from ._members import MemberShifts
+from ._neighbourhoods import CompiledNeighbourhood, PairRead, default_neighbourhood, neighbour_search
 from ._observables import _join, _tree, observables_of, with_observables
 from ._printing import numpy_function
 from ._problem import (
@@ -542,9 +545,22 @@ def _resolve_set(node: Node, role: str, labels: Sequence[str], elements: dict[st
     return blocks
 
 
+def _with_other(block: _Block, namespace: Symbols, references: dict[Expression, Reference]) -> Symbols:
+    """Return the namespace of a group's member with `other`, the namespace of a neighbour in reductions over them.
+
+    A group that declares a variable named `other` keeps it, and its laws reduce over neighbours without it.
+    """
+    if block.node.members is None or 'other' in vars(namespace):
+        return namespace
+    other, other_references = block.namespace(Source.OTHER, alias='__other')
+    references.update(other_references)
+    return Symbols(**vars(namespace), other=other)
+
+
 def _member_spec(block: _Block, time: Expression) -> _KernelSpec:
     """Return the kernel spec of the intrinsic laws of an element or group."""
     namespace, references = block.namespace(Source.MEMBER)
+    namespace = _with_other(block, namespace, references)
     group = block.node.path if block.node.members is not None else None
     return _KernelSpec(block.node.path, Symbols(t=time, **vars(namespace)), references, block.rows, group=group)
 
@@ -760,9 +776,10 @@ def _interaction_specs(
             namespaces[role], role_references = member_block.member_namespace(position)
             references.update(role_references)
         for role, item in bound.items():
-            namespaces[role], role_references = item.namespace(
+            role_namespace, role_references = item.namespace(
                 Source.MEMBER if item.node.members is not None else Source.SINGLE,
             )
+            namespaces[role] = _with_other(item, role_namespace, role_references)
             references.update(role_references)
         specs.append(
             _KernelSpec(
@@ -1717,6 +1734,9 @@ class _Reductions:
     found: dict[tuple[Any, ...], CompiledReduction] = field(default_factory=dict)
     by_symbol: dict[Expression, CompiledReduction] = field(default_factory=dict)
     readers: dict[Expression, str | None] = field(default_factory=dict)
+    neighbourhoods: dict[tuple[Any, ...], CompiledNeighbourhood] = field(default_factory=dict)
+    local: dict[Expression, CompiledNeighbourhood] = field(default_factory=dict)
+    sequence: list[CompiledReduction | CompiledNeighbourhood] = field(default_factory=list)
 
     @property
     def parameters(self) -> int:
@@ -1726,7 +1746,7 @@ class _Reductions:
     @property
     def extent(self) -> int:
         """Size of the extended parameter vector."""
-        return max((item.entry.start + item.entry.size for item in self.found.values()), default=self.parameters)
+        return max((item.entry.start + item.entry.size for item in self.sequence), default=self.parameters)
 
     def lower(self, value: object, spec: _KernelSpec) -> object:
         """Return a law value with every reduction replaced by the placeholder that kernels read."""
@@ -1735,9 +1755,11 @@ class _Reductions:
         if not isinstance(value, Expression):
             return value
         found = reductions_in(value)
-        if not found:
+        local = neighbourhoods_in(value)
+        if not found and not local:
             return value
         placeholders = {item.call: self._placeholder(item, spec) for item in found}
+        placeholders.update({item.call: self._neighbourhood(item, spec) for item in local})
         lowered: Expression = value
         for call in sorted(placeholders, key=lambda item: -len(str(item))):
             lowered = lowered.subs({call: placeholders[call]})
@@ -1747,7 +1769,7 @@ class _Reductions:
         """Return the group, element set, or element whose members a symbol of a reduction stands for."""
         if item in spec.sets:
             return spec.sets[item].label
-        if item in self.by_symbol:
+        if item in self.by_symbol or item in self.local:
             return self.readers[item]
         reference = spec.references.get(item)
         if reference is None or reference.source not in {Source.MEMBER, Source.SINGLE}:
@@ -1796,6 +1818,15 @@ class _Reductions:
                 )
                 raise ValidationError(error_msg)
             return Read(False, (nested.entry.start + np.arange(nested.entry.size)).astype(np.intp), nested.entry)
+        if item in self.local:
+            local = self.local[item]
+            if local.group != group:
+                error_msg = (
+                    f'A reduction of {spec.owner} over {group} reads the neighbourhood reduction {local.symbol} of the '
+                    f'members of {local.group}. Read a neighbourhood reduction inside reductions over its members.'
+                )
+                raise ValidationError(error_msg)
+            return Read(False, (local.entry.start + np.arange(local.entry.size)).astype(np.intp), local.entry)
         reference = spec.references.get(item)
         if reference is None or reference.source not in {Source.MEMBER, Source.SINGLE}:
             error_msg = (
@@ -1888,12 +1919,113 @@ class _Reductions:
                 set_indices,
             )
             self.found[key] = compiled
+            self.sequence.append(compiled)
             self.by_symbol[placeholder] = compiled
             reading = spec.group or next((item.label for item in spec.sets.values()), None)
             self.readers[placeholder] = reading if weights is not None else None
         compiled = self.found[key]
         column = spec.set_index if compiled.weights is not None and spec.sets else 0
         spec.references[compiled.symbol] = Reference(compiled.entry, False, column, Source.REDUCED)
+        return compiled.symbol
+
+    def _neighbour_group(self, reduction: NeighbourReduction, spec: _KernelSpec, symbols: set[Expression]) -> str:
+        """Return the group whose members read a neighbourhood reduction and are each other's neighbours."""
+        groups = set()
+        for item in symbols:
+            reference = spec.references.get(item)
+            if item in self.local:
+                groups.add(self.local[item].group)
+            elif item in self.by_symbol and self.readers[item] is not None:
+                groups.add(str(self.readers[item]))
+            elif reference is not None and reference.source in {Source.MEMBER, Source.OTHER}:
+                groups.add(reference.entry.name.rpartition('.')[0])
+        groups = {group for group in groups if group in self.declarations.groups} or (
+            {spec.group} if spec.group is not None else set()
+        )
+        if len(groups) != 1:
+            names = ' and '.join(sorted(groups)) or 'no group'
+            error_msg = (
+                f'The neighbourhood reduction {reduction.call} of {spec.owner} reads {names}. A neighbourhood '
+                "reduction runs over the members of one group, which are each other's neighbours."
+            )
+            raise RoleError(error_msg)
+        return next(iter(groups))
+
+    def _pair_read(self, item: Expression, spec: _KernelSpec, group: str, search: Any) -> PairRead:  # noqa: ANN401
+        """Return how a neighbourhood reduction reads one symbol: shared, of the reading member, or of the neighbour."""
+        reference = spec.references.get(item)
+        if item in self.local or (item in self.by_symbol and self.readers[item] is not None):
+            return PairRead(self._read(item, spec, group, 0), 'reader')
+        if item in self.by_symbol:
+            return PairRead(self._read(item, spec, None, 1), 'shared')
+        if reference is None or reference.source not in {Source.MEMBER, Source.SINGLE, Source.OTHER}:
+            error_msg = (
+                f'A neighbourhood reduction of {spec.owner} reads {item}, which is not a state or parameter of a '
+                'member, of its neighbour, or of an element. Neighbourhood reductions read the namespaces `s` and '
+                '`s.other` of the law.'
+            )
+            raise ValidationError(error_msg)
+        if reference.source is Source.SINGLE:
+            read = Read(reference.is_state, reference.index, reference.entry, reference.column)
+            return PairRead(read, 'shared')
+        entry = reference.entry
+        if entry.name.rpartition('.')[0] != group:
+            error_msg = (
+                f'A neighbourhood reduction of {spec.owner} over the members of {group} reads {item} of another group. '
+                'Read the other group through a reduction over its members.'
+            )
+            raise RoleError(error_msg)
+        indices = (entry.start + np.arange(entry.rows) * entry.columns + reference.column).astype(np.intp)
+        read = Read(reference.is_state, indices, entry, reference.column, entry.columns)
+        if reference.source is Source.MEMBER:
+            return PairRead(read, 'reader')
+        image = getattr(search, 'periods', None) is not None and entry == getattr(search, 'positions', None)
+        return PairRead(read, 'other', image)
+
+    def _neighbourhood(self, reduction: NeighbourReduction, spec: _KernelSpec) -> Expression:
+        """Return the placeholder of a neighbourhood reduction, compiling it the first time it is found."""
+        argument = SR(self.lower(reduction.argument, spec))
+        weight = SR(1) if reduction.weight is None else SR(self.lower(reduction.weight, spec))
+        if argument.has(I) or weight.has(I):
+            error_msg = (
+                f'The neighbourhood reduction {reduction.call} of {spec.owner} reduces a complex expression. Reduce '
+                'its real and imaginary parts.'
+            )
+            raise ValidationError(error_msg)
+        symbols = symbols_of([argument, weight]) - {self.declarations.time}
+        group = self._neighbour_group(reduction, spec, symbols)
+        block = self.declarations.blocks[group]
+        over = reduction.over if reduction.over is not None else default_neighbourhood(block.node.space)
+        if over is None:
+            error_msg = (
+                f'The neighbourhood reduction {reduction.call} of {group} names no neighbourhood, but the group lives '
+                f'on {block.node.space!r}, which has none of its own. Reduce over Radius, Nearest, or Cone.'
+            )
+            raise ValidationError(error_msg)
+        key = ('neighbourhood', reduction.kind, str(argument), str(weight), repr(over), group)
+        if key not in self.neighbourhoods:
+            states = declarations_of(block.node.component_type, VariableKind.STATE)
+            search = neighbour_search(over, block.node.space, block.rows, block.entries, states)
+            reads = {item: self._pair_read(item, spec, group, search) for item in sorted(symbols, key=str)}
+            index = len(self.neighbourhoods)
+            entry = Entry(f'__neighbours_{index}', self.extent, (block.rows,), Domain.REAL, block.rows)
+            compiled = CompiledNeighbourhood(
+                symbol(f'_neighbours_{index}'),
+                reduction.kind,
+                argument,
+                weight,
+                entry,
+                group,
+                search,
+                reads,
+                self.declarations.time,
+            )
+            self.neighbourhoods[key] = compiled
+            self.sequence.append(compiled)
+            self.local[compiled.symbol] = compiled
+            self.readers[compiled.symbol] = group
+        compiled = self.neighbourhoods[key]
+        spec.references[compiled.symbol] = Reference(compiled.entry, False, 0, Source.REDUCED)
         return compiled.symbol
 
 
@@ -1949,7 +2081,12 @@ def _with_reductions(
     hybrid.events = events
     for spec, _ in lowered:
         _prune_foreign(spec, declarations)
-    return lowered, ReductionPass(tuple(reductions.found.values()), reductions.parameters)
+    return lowered, ReductionPass(
+        tuple(reductions.found.values()),
+        reductions.parameters,
+        tuple(reductions.neighbourhoods.values()),
+        tuple(reductions.sequence),
+    )
 
 
 def _is_once(spec: _KernelSpec, law: Law) -> bool:

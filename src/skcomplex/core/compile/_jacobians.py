@@ -205,6 +205,12 @@ class ExactJacobian:
             ValidationError:
                 A rate law holds a callable, a pair sum, or a spectral operator, or a field has conservation laws.
         """
+        if self.reductions.neighbourhoods:
+            error_msg = (
+                'The rate laws reduce over neighbourhoods, whose exact Jacobian is not derived. Use the automatic '
+                "option, jacobian='auto', which estimates it by finite differences."
+            )
+            raise ValidationError(error_msg)
         for volume in self.volumes:
             error_msg = (
                 f'The conservation laws of {volume.owner} have no exact Jacobian. Use the automatic option, '
@@ -399,7 +405,8 @@ class ExactJacobian:
         Returns:
             pattern:
                 A boolean sparse matrix that holds every entry the Jacobian can make nonzero and the diagonal of free
-                rows, with fixed rows empty, or `None` when the dense blocks exceed `PATTERN_LIMIT` entries.
+                rows, with fixed rows empty, or `None` when the dense blocks exceed `PATTERN_LIMIT` entries or the
+                laws reduce over neighbourhoods, whose neighbours can change.
         """
         if not self._patterned:
             try:
@@ -412,6 +419,8 @@ class ExactJacobian:
     def _build_pattern(self) -> Sparse:
         """Return the boolean structure of the Jacobian, raising `_TooDense` above the size limit."""
         self._dense = 0
+        if self.reductions.neighbourhoods:
+            raise _TooDense
         supports: dict[Expression, Sparse] = {}
         for reduction in self.reductions.reductions:
             supports[reduction.symbol] = self._reduction_support(reduction, supports)

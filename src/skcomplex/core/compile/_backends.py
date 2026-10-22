@@ -199,7 +199,7 @@ def with_reductions(lowering: Lowering, reductions: ReductionPass | None) -> Low
         lowering:
             The functions of the parameter vector.
     """
-    if reductions is None or not reductions.reductions:
+    if reductions is None or not reductions.steps:
         return lowering
     for name in ('drift', 'diffusion', 'propensities', 'update', 'boundary'):
         setattr(lowering, name, reductions.wrap(getattr(lowering, name)))
