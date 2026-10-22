@@ -8,7 +8,7 @@
 - An **interaction** couples elements through **roles** and describes its effect with **laws**.
 - A **law** says how a state changes. It is one of four kinds.
     - `Rate` adds a term to the time derivative of a state. Rates on one state add up.
-    - `Noise` drives a state with an independent Wiener process.
+    - `Noise` drives a state with a Wiener process, independent unless laws name a shared or correlated one.
     - `Jump` fires a random event that changes states by fixed increments.
     - `Update` gives the next value of a state after one discrete step.
 - A **space** gives vector states, such as positions, their dimension.
@@ -328,6 +328,54 @@ Growth = Element.define(
 growth = System(components=[Growth('asset')])
 print(Simulation(growth, solver=Milstein(dt=0.01), random_state=0).run(until=1).state_)
 ```
+
+**Shared and correlated noise.** `Noise(..., process=...)` names the Wiener process a law draws. Without a process,
+every component and every group member takes its own independent process. Laws of one component, or of one member,
+that name the same label share one increment, so a reaction can drive every species it changes with one process. A
+`Wiener(label, dimension, covariance)` element declares processes whose increments over a step `h` have the covariance
+`h C`. An interaction binds it to a role, and its noise laws name process `k` with `s.<role>.dW[k]`, which every
+component, and every member of a group, can share. The covariance is fixed when the system compiles, and NumPy factors
+it once, so the steppers scale standard normal increments drawn from the run's random generator.
+
+```python
+from skcomplex.core.base import role
+from skcomplex.core.components import Wiener
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.solvers import EulerMaruyama
+
+Stock = Element.define('Stock', states={'n': 0.0})
+
+
+class Market(Interaction):
+    first: str = role()
+    second: str = role()
+    noise: str = role()
+
+    def laws(self, s):
+        return [Noise(s.first.n, 1.0, process=s.noise.dW[0]), Noise(s.second.n, 1.0, process=s.noise.dW[1])]
+
+
+market = System(
+    components=[Stock('a'), Stock('b'), Wiener('market', dimension=2, covariance=[[1.0, 0.8], [0.8, 1.0]])],
+    interactions=[Market('drive', first='a', second='b', noise='market')],
+)
+trajectory = Simulation(market, solver=EulerMaruyama(dt=1.0), dt=1.0, random_state=0).run(until=2000).trajectory_
+print(np.corrcoef(np.diff(trajectory['a.n']), np.diff(trajectory['b.n']))[0, 1])
+```
+
+The Stratonovich and anti-Itô corrections of each law use the full diffusion matrix and the covariance, so a state
+that several laws drive and laws that share a process are corrected exactly. Laws that share a process declare one
+convention, and validation reports laws of different conventions on one process, a Stratonovich or anti-Itô amplitude
+that reads a state another component drives through its process, a covariance that is not symmetric positive
+semidefinite, and a handle `dW` used anywhere but as the process of a noise law.
+
+Solvers and backends declare the noise structures they draw: `'diagonal'`, one process per state, `'shared'`, a process
+that drives several states, and `'correlated'`, the processes of a `Wiener` element with a covariance. `EulerMaruyama`,
+`Heun`, and the NumPy and Numba backends support all three. `Milstein`, whose derivative-free correction holds for
+diagonal noise only, and the LAMMPS backend support diagonal noise, and validation reports a system with shared or
+correlated noise for them before compiling it. The compatibility page lists the declarations. In the library,
+`Binding` and `Dissociation` take `langevin=True` for chemical Langevin equations, as in `chemical_langevin_network`,
+and `correlated_geometric_brownian_motion` drives two assets with correlated processes.
 
 SciPy, RK4, Euler-Maruyama, Milstein, and Heun handle delays, events, and drivers. Velocity Verlet, Gillespie, and map
 iteration reject delays and events with an error that names the solvers to use. The library has these models ready:

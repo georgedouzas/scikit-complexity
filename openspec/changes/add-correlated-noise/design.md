@@ -168,3 +168,31 @@ since each of its channels changes one species.
   case by widening its declaration.
 - [A different draw order would change seeded runs] → Systems that name no process keep the identity path, and a
   regression test compares a seeded run against a stored trajectory.
+
+## Decisions Taken During Implementation
+
+- `NoiseKind` lives in `skcomplex.core.base` and `Supports` gains `noise`, but `NoiseKind` is not added to
+  `VOCABULARY`. That mapping is the system vocabulary of the inventory, and a new category there would require every
+  inventory entry to record a noise structure. The compatibility page lists the noise column instead.
+- A local label is keyed by the path of the component that returns the law, so the specs of one interaction over an
+  element set share it. A local label that drives groups of different sizes raises a `ValidationError`.
+- `Problem.draw_increments(rng, scale)` holds the scaled scatter of the Python steppers in one place: it draws
+  `n_processes` normals with `rng.normal(0, scale, n)`, applies every block factor, and indexes by `noise_columns`.
+  With identity columns and no blocks it returns exactly the draws of before, which the stored-trajectory test and a
+  bit-for-bit comparison of every catalog SDE model (NumPy and Numba with `EulerMaruyama`, NumPy with `Heun` and
+  `Milstein`) confirm.
+- The `'auto'` solver is checked as the registered SDE `'auto'` solver. The `'auto'` backend is not checked, since it
+  resolves to NumPy or Numba, which support every noise structure. The LAMMPS backend is registered as the solver
+  `'lammps'`, so validation checks it through the solver. `FractionalEulerMaruyama` and `RenewalStepper` declare
+  diagonal noise, and `CoSimulation` declares all three structures, since its partitions are checked by their own
+  solvers.
+- `Binding` and `Dissociation` raise the error for both `stochastic` and `langevin` from `laws`, so compiling and
+  validating report it with the interaction's label, while the constructor stores its arguments unmodified as the
+  estimator contract asks.
+- `correlated_geometric_brownian_motion` uses a new interaction `CorrelatedGeometricBrownianMotion` with the roles
+  `target` and `market` and the process `index`. Its inventory entry is an `example`, since it exercises the same
+  primitives as `chemical_langevin_network`.
+- An element without states, such as a `Wiener` element, draws no time series view, so default blueprints stay free of
+  empty views.
+- The changelog is generated from the commit messages at release, so the change documents itself through `feat`
+  commits and the user guide rather than a manual changelog entry. Both new models have gallery examples.
