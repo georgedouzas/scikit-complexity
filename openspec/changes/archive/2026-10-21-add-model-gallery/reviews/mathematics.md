@@ -49,3 +49,7 @@
 | fragmentation | fragments of every step sorted by size and laid end to end, ever finer down the rows | fragment count grows by 1.5 per step; mean ln L falls 0.5 and its variance grows ~0.75 per step; size conserved | 0.4 s, 15 frames, 26 KB |
 | weakening_ornstein_uhlenbeck | four particles jittering near 0 with excursions to ±3 | pooled density follows (1 + x²)^-2 out to abs(x) ≈ 5, far above the OU Gaussian | 12.7 s, 251 frames, 195 KB |
 | ageing_random_walk | six walkers drifting downward almost linearly after a few early up steps | mean up steps approach n^(1 / (1 + nu)) for nu = 0.5, 1, 2 | 10.6 s, 300 frames, 85 KB |
+| fractional_relaxation | decay curves of orders 1, 0.8, 0.6, 0.4: lower orders drop faster at first, then keep heavier tails | log-log curves on E_alpha(-t^alpha) and on the power law t^-alpha / Gamma(1 - alpha) | 3.1 s, 201 frames, 45 KB |
+| fractional_oscillator | orbit of order 0.8 spiralling into the origin inside the closed circle of order 1 | x of orders 1, 0.9, 0.8, 0.6 on E_2alpha(-t^2alpha) | 3.8 s, 151 frames, 63 KB |
+| fractional_van_der_pol | orbits from inside and outside winding onto one cycle at order 0.9 | cycle amplitude 2 at order 1, shrinking to ~0.5 at 0.7, same from both starts | 12.9 s, 201 frames, 76 KB |
+| fractional_lorenz | butterfly attractor in 3D at order 0.995, both wings | successive z maxima on a thin tent-shaped Lorenz map | 0.7 s, 201 frames, 102 KB |

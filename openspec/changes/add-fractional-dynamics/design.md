@@ -80,7 +80,29 @@ its integral representation otherwise. `solve_symbolically` returns `x0 E_α(-λ
 
 ## Open Questions
 
-- The original change made the order a parameter so that sweeps and running parameter changes could vary it. With the
-  order on the state declaration, as the redesign resolved, it is fixed per element type. Should a state's order accept
-  a parameter symbol, which the fractional solvers would read at run time and which would recompute the memory weights
-  when it changes, or is a fixed order per built system enough?
+- Resolved: the order of a state is fixed per built system. `state(order=...)` takes a number, not a parameter symbol,
+  so the memory weights are computed once per run, and a sweep over orders builds one system per order, which the
+  library factories make one call. A run-time order can follow as its own change if a model needs it.
+
+## Implementation Notes
+
+- The window of `memory` keeps the exact weights for the last `memory / dt` steps, and the older history enters
+  through about 40 exponential modes from a trapezoidal rule of the Laplace representation of the weights, updated by
+  one recursion per step. A plain truncation of the sum stays 2.4e-2 away from the full memory for relaxation of
+  order 0.6 at time 20 with a window of 10, far from the 1e-3 the short memory scenario asks for, and the modes bring
+  it to 1e-8. The modes fold only the history past the window, so they are not the FFT-based fast convolution of the
+  non-goals.
+- The explicit L1 scheme sums the differences of the L1 weights over the displacements from the initial state, which
+  decay as `j^(-1 - alpha)` like the Grünwald-Letnikov weights, so both schemes share one stepper base.
+- A change of a fractional state between frames starts a new history from the changed state, and states of order 1
+  take Euler or Heun steps from the state given at every frame, so co-simulation partitions and interventions work.
+- The steppers run in Python with NumPy dot products over the history and the drift of the backend, compiled by Numba
+  with the Numba backend. The Numba backend has no fused stepper loop for the fractional form.
+- `mittag_leffler` sums the power series in arbitrary precision with Sage's MPFR fields for `|z|^(1/alpha) <= 50`,
+  enough bits for the cancellations, and takes the asymptotic expansion beyond, instead of the integral
+  representation. No maintained Python library provides the function: SciPy and Sage lack it, mpmath has no
+  Mittag-Leffler function, and the small `mittag-leffler` package on PyPI is unmaintained.
+- `OrderKind` is in the vocabulary of `skcomplex.core.base` and in `Supports`, but not in `VOCABULARY`, the categories
+  of the system tags of the model inventory, since the inventory would then need an order tag on every entry.
+- The delay history buffer keeps interpolants over adaptive steps, so the fractional steppers keep their own history
+  on the fixed grid instead of reusing it.
