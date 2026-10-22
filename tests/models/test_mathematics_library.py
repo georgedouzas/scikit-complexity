@@ -18,7 +18,9 @@ from skcomplex.models.mathematics.dynamical_systems import (
     finite_time_blow_up,
     hopf_form,
     intermittency_map,
+    koopman_slow_manifold,
     newton_raphson_map,
+    ou_driven_rossler,
     saddle_node_form,
     standard_map,
     takens_bogdanov_form,
@@ -273,3 +275,23 @@ def test_network_structure_analysis_of_a_given_graph():
     assert len(np.unique(trajectory.agents('nodes', 0).values['community'])) >= 2
     assert trajectory['modularity'][-1] > 0.35
     assert trajectory['triangle_zscore'][-1] == 0.0
+
+
+def test_koopman_slow_manifold_eigenfunctions_decay_exponentially():
+    """Test that the Koopman eigenfunctions x1 and x2 - b x1^2 decay as exp(mu t) and exp(lam t)."""
+    mu, lam = -0.05, -1.0
+    trajectory = Simulation(koopman_slow_manifold(1.0, -1.0, mu=mu, lam=lam), dt=0.1).run(until=40.0).trajectory_
+    times = 0.1 * np.arange(len(trajectory['flow.x1']))
+    b = lam / (lam - 2 * mu)
+    fast = trajectory['flow.x2'] - b * trajectory['flow.x1'] ** 2
+    np.testing.assert_allclose(trajectory['flow.x1'], np.exp(mu * times), rtol=1e-5)
+    np.testing.assert_allclose(fast, (-1.0 - b) * np.exp(lam * times), atol=1e-5)
+
+
+def test_ou_driven_rossler_control_has_the_stationary_variance():
+    """Test that the control is an Ornstein-Uhlenbeck process of variance rho^2 / (2 tau) and the flow stays bounded."""
+    solver = describe('ou_driven_rossler').defaults['solver']
+    system = ou_driven_rossler(tau=1.0, rho=0.2)
+    trajectory = Simulation(system, dt=0.1, solver=solver, random_state=0).run(until=2000.0).trajectory_
+    assert trajectory['rossler.eta'].var() == pytest.approx(0.2**2 / 2, rel=0.1)
+    assert np.abs(trajectory['rossler.x']).max() < 20

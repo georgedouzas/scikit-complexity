@@ -31,7 +31,15 @@ from skcomplex.models.biology.neuroscience import (
     winners_take_all,
 )
 from skcomplex.models.biology.oncology import tumour_angiogenesis
-from skcomplex.models.biology.physiology import aliev_panfilov, cardiovascular
+from skcomplex.models.biology.physiology import (
+    adaptive_response_costs,
+    aliev_panfilov,
+    cardiovascular,
+    closed_contour_cell_exchange,
+    coagulation_positive_feedback,
+    glucose_dual_hormone_control,
+    nanotube_gap_junction_exchange,
+)
 from skcomplex.models.biology.systems_biology import (
     circadian_clock,
     negative_autoregulation,
@@ -435,3 +443,59 @@ def test_tumour_recruits_vessels_and_grows():
     assert trajectory.agents('cells/tumour', 50).values['hypoxic'].all()
     assert trajectory.agents('cells/sprouts', 120).locations[:, 0].mean() > 15
     assert len(trajectory.agents('cells/tumour', 120)) > 2 * len(trajectory.agents('cells/tumour', 0))
+
+
+def test_closed_contour_cell_exchange_synchronizes_in_the_stability_domain():
+    """Test that the contour cells synchronize at a stable equilibrium in its domain, and a chaotic one does not."""
+    stable = Simulation(closed_contour_cell_exchange(r=2.5), dt=1).run(200).trajectory_['cells.x']
+    chaotic = Simulation(closed_contour_cell_exchange(r=3.9), dt=1).run(200).trajectory_['cells.x']
+    equilibrium = stable[-1]
+    assert np.ptp(stable[-20:], axis=0).max() < 1e-9
+    assert np.ptp(equilibrium) < 1e-9
+    assert (2.5 - 1) / 5 < equilibrium[0] < (2.5 + 1) / 5
+    assert equilibrium[0] > 0.5 ** (1 / (1 - 0.5))
+    assert np.ptp(chaotic[-20:], axis=1).max() > 0.1
+
+
+def test_nanotube_gap_junction_exchange_destabilizes_past_the_threshold():
+    """Test that the substance dies out below the nanotube threshold alpha / (beta k) and grows above it."""
+    graph = nx.random_regular_graph(4, 30, seed=0)
+    critical = 1.0 / (10.0 * 4)
+    final = {}
+    for share in (0.8, 1.2):
+        system = nanotube_gap_junction_exchange(graph, xi=share * critical, x=0.1)
+        final[share] = Simulation(system, dt=0.5).run(200).trajectory_['cells.x'][-1].mean()
+    assert final[0.8] < 0.01
+    assert final[1.2] > 10
+
+
+def test_adaptive_response_costs_fall_with_adaptivity():
+    """Test that adaptive response costs less than stimulus-response, avoiding repairs, and anticipation less still."""
+    totals, repairs = {}, {}
+    for strategy in ('stimulus-response', 'adaptive', 'anticipatory'):
+        trajectory = Simulation(adaptive_response_costs(strategy), dt=0.1).run(200).trajectory_
+        costs = [trajectory[f'organism.{kind}_cost'][-1] for kind in ('response', 'restore', 'repair', 'prepare')]
+        totals[strategy], repairs[strategy] = sum(costs), costs[2]
+    assert totals['stimulus-response'] > totals['adaptive'] > totals['anticipatory']
+    assert repairs['adaptive'] < 0.01 * repairs['stimulus-response']
+
+
+def test_glucose_dual_hormone_control_attenuates_the_drop():
+    """Test that the glucagon loop limits the drop of glucose during exercise, which insulin alone cannot."""
+    dual = Simulation(glucose_dual_hormone_control(), dt=0.05).run(24).trajectory_['organism.G']
+    single = Simulation(glucose_dual_hormone_control(glucagon=False), dt=0.05).run(24).trajectory_['organism.G']
+    assert 1 - dual.min() < 0.8 * (1 - single.min())
+    assert dual[-1] == pytest.approx(1.0, abs=1e-3)
+    assert single[-1] == pytest.approx(1.0, abs=1e-3)
+
+
+def test_coagulation_positive_feedback_is_all_or_nothing():
+    """Test that a weak injury fades, a stronger one bursts to a similar peak, and fibrinolysis dissolves the clot."""
+    peaks, clots = {}, {}
+    for injury in (0.3, 0.7, 1.0):
+        trajectory = Simulation(coagulation_positive_feedback(injury=injury), dt=0.1).run(120).trajectory_
+        peaks[injury], clots[injury] = trajectory['blood.T'].max(), trajectory['blood.F']
+    threshold = (3 - math.sqrt(5)) / 2
+    assert peaks[0.3] < threshold < peaks[0.7]
+    assert peaks[1.0] < 1.2 * peaks[0.7]
+    assert clots[1.0][-1] < 0.01 * clots[1.0].max()

@@ -17,8 +17,10 @@ from skcomplex.models.earth.climate import (
     hasselmann,
     lorenz_84,
     lorenz_96,
+    ramped_stochastic_fold,
     saltzman_glaciation,
     soil_temperature,
+    sutera_fraedrich_tipping,
     tipping_cascade_network,
     van_der_pol_ice_ages,
 )
@@ -195,3 +197,24 @@ def test_tipping_cascade_network_cascades_to_neighbours():
     assert np.all(alone[1:] < 0)
     assert np.all(coupled > 0)
     assert np.all(held < 0)
+
+
+def test_sutera_fraedrich_tipping_has_a_critical_rate():
+    """Test that a slow ramp keeps the warm state and a fast one tips it, around the critical rate 0.175."""
+    solver = describe('sutera_fraedrich_tipping').defaults['solver']
+    slow = _run(sutera_fraedrich_tipping('rate', rho=0.16), until=300.0, dt=1.0, solver=solver)['earth.T']
+    fast = _run(sutera_fraedrich_tipping('rate', rho=0.2), until=300.0, dt=1.0, solver=solver)['earth.T']
+    assert slow.min() > 290
+    assert slow[-1] > 300
+    assert fast[-1] < 0
+
+
+def test_ramped_stochastic_fold_tips_late_for_fast_ramps():
+    """Test that the state tips after the control passes the static fold, later for faster ramps."""
+    fold = 2 / (3 * np.sqrt(3))
+    solver = describe('ramped_stochastic_fold').defaults['solver']
+    controls = []
+    for rate in (0.004, 0.02, 0.1):
+        x = _run(ramped_stochastic_fold(rate=rate), until=2.0 / rate, dt=0.1, solver=solver)['system.x']
+        controls.append(-1 + rate * 0.1 * np.argmax(x > 0))
+    assert fold < controls[0] < controls[1] < controls[2]
