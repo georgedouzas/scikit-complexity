@@ -1,10 +1,12 @@
 """Test element groups, pair interactions, and boundary laws in the model."""
 
+from typing import ClassVar
+
 import numpy as np
 import pytest
 from sklearn.base import clone
 
-from skcomplex.core.base import RoleError, ValidationError, VisualSpec
+from skcomplex.core.base import Domain, RoleError, ValidationError, VisualSpec, parameter, role
 from skcomplex.core.compile import compile_system
 from skcomplex.core.model import (
     Boundary,
@@ -13,7 +15,6 @@ from skcomplex.core.model import (
     Group,
     Interaction,
     LatticeSpace,
-    PairInteraction,
     Particle,
     Rate,
     System,
@@ -21,8 +22,15 @@ from skcomplex.core.model import (
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population, Predation
 
 
-class Attraction(PairInteraction):
+class Attraction(Interaction):
     """Pair interaction that returns a boundary law, which pair interactions do not take."""
+
+    over: ClassVar[str] = 'pairs'
+    position: ClassVar[str] = 'x'
+    first: str = role()
+    second: str = role()
+    cutoff: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    period: float | None = None
 
     def laws(self, s):
         """Return a boundary law."""
@@ -119,7 +127,7 @@ def test_interaction_reading_groups_of_different_sizes_raises_error():
         components=[Box.group('source', 5), Box.group('sink', 7)],
         interactions=[Flow('flow', source='source', sink='sink')],
     )
-    with pytest.raises(RoleError, match=r'sink of 7 members, source of 5 members.*PairInteraction'):
+    with pytest.raises(RoleError, match=r"sink of 7 members, source of 5 members.*over 'pairs'"):
         compile_system(system)
 
 
@@ -151,8 +159,13 @@ def test_pair_interaction_rejects_other_law_kinds():
 def test_pair_interaction_needs_vector_position():
     """Test that pair interactions need a vector position state."""
 
-    class Contact(PairInteraction):
+    class Contact(Interaction):
         """Pair interaction between populations, which have no position."""
+
+        over: ClassVar[str] = 'pairs'
+        first: str = role()
+        second: str = role()
+        cutoff: float = parameter(default=1.0, domain=Domain.POSITIVE)
 
         def laws(self, s):
             """Return a rate law."""

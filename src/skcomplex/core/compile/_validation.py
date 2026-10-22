@@ -31,6 +31,8 @@ from ..base import (
     Tensor,
     TimeKind,
     ValidationError,
+    VariableKind,
+    declarations_of,
 )
 from ..model import (
     Auxiliary,
@@ -47,9 +49,11 @@ from ..model import (
     GraphProduction,
     Hamiltonian,
     Jump,
+    LatticeSpace,
     LocalRule,
     MesaSystem,
     Move,
+    NetworkSpace,
     Noise,
     Observable,
     Production,
@@ -352,6 +356,41 @@ def _declared_times(system: System, scope: str = '', inherited: TimeKind | None 
     return times
 
 
+def _binding_issues(system: System) -> list[Issue]:
+    """Return the interactions whose binding lacks its roles and parameters, or that the space does not offer."""
+    nodes = flatten_system(system)
+    by_path = {node.path: node for node in nodes}
+    issues = []
+    for node in nodes:
+        interaction = node.component
+        over = getattr(type(interaction), 'over', None)
+        if over is None or over == 'members':
+            continue
+        roles = declarations_of(type(interaction), VariableKind.ROLE)
+        if over == 'pairs':
+            missing = [name for name in ('first', 'second') if name not in roles]
+            missing += [] if 'cutoff' in declarations_of(type(interaction), VariableKind.PARAMETER) else ['cutoff']
+            if missing:
+                message = 'The binding over pairs needs the roles first and second and the parameter cutoff.'
+                fix = f'Declare {", ".join(missing)} on {type(interaction).__name__}.'
+                issues.append(Issue('binding', node.path, message, fix))
+            continue
+        target = by_path.get(f'{node.scope}{getattr(interaction, "target", "")}')
+        space = target.space if target is not None else node.space
+        offered = (
+            isinstance(space, LatticeSpace | NetworkSpace)
+            if over == 'neighbours'
+            else bool(
+                getattr(space, 'hyperedges', ()),
+            )
+        )
+        if not offered:
+            needs = 'a lattice or network space' if over == 'neighbours' else 'a network space with hyperedges'
+            message = f'The binding over {over} needs {needs}, but the bound members live on {space!r}.'
+            issues.append(Issue('binding', node.path, message, f'Give the bound group {needs}.'))
+    return issues
+
+
 def _law_issues(records: list[CensusRecord], times: dict[str, TimeKind | None]) -> list[Issue]:
     """Return the laws whose targets, space, or time their requirements do not accept."""
     issues = []
@@ -491,6 +530,7 @@ def validate(
     for path, error in errors:
         code, fix = FIXES.get(type(error), ('value', 'Correct the component as the message describes.'))
         report.issues.append(Issue(code, path, str(error), fix, error=type(error)))
+    report.issues += _binding_issues(system)
     report.issues += _law_issues(records, _declared_times(system))
     owners: dict[str, set[LawKind]] = {}
     for record in records:

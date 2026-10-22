@@ -1,6 +1,6 @@
 """Describe models as elements, interactions, laws, spaces, and systems."""
 
-from ._components import AgentType, Aggregate, Element, Group, Interaction, PairInteraction
+from ._components import AgentType, Aggregate, Element, Group, Interaction
 from ._draws import Draw, bernoulli, categorical, draw, draws_in, is_draw, normal, uniform
 from ._ensembles import replicate
 from ._fields import Field, Flux, advection, divergence, gradient, inverse_laplacian, laplacian
@@ -192,7 +192,6 @@ __all__: list[
     'Order',
     'OrderBook',
     'OuterTotalistic',
-    'PairInteraction',
     'PairPotential',
     'Particle',
     'Patch',

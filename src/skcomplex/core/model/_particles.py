@@ -24,7 +24,7 @@ from ..base import (
     symbol,
     vector,
 )
-from ._components import Element, Interaction, PairInteraction
+from ._components import Element, Interaction
 from ._laws import Law, Noise, Rate
 from ._symbols import Symbols
 
@@ -327,7 +327,7 @@ class Gravity(Potential):
         return -s.G * s.first.m * s.second.m / _distance(s.first.x, s.second.x)
 
 
-class PairPotential(PairInteraction):
+class PairPotential(Interaction):
     """Base class of pair interactions between particles defined by a potential energy of their distance.
 
     Subclasses implement `pair_energy`. The force on each particle of a pair is minus the derivative of the energy
@@ -349,6 +349,13 @@ class PairPotential(PairInteraction):
         period:
             The side of a periodic box, for minimum image distances, or `None` for an open space.
     """
+
+    over: ClassVar[str] = 'pairs'
+    position: ClassVar[str] = 'x'
+    first: str = role()
+    second: str = role()
+    cutoff: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    period: float | None = None
 
     @abstractmethod
     def pair_energy(self, s: Symbols, r: Expression) -> Expression:

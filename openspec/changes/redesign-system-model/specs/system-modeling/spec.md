@@ -63,12 +63,16 @@ graphs, and tilings, and the domain of a state SHALL decide which laws may targe
 ### Requirement: Interactions bind roles with an arity and a binding
 An interaction SHALL declare roles, each binding one component, one member, or a sequence of them. Its binding SHALL
 be one of `'members'`, `'pairs'`, `'neighbours'`, or `'hyperedges'`, so one interaction type covers unary, pairwise,
-neighbourhood, and higher-order couplings, and validation SHALL report a binding the space does not offer. Laws that
-run once per hyperedge are specified by `add-higher-order-interactions`. Interactions SHALL hold no state.
+neighbourhood, and higher-order couplings, and validation SHALL report a binding the space does not offer.
+Interactions SHALL hold no state.
 
 #### Scenario: Neighbour coupling
-- **WHEN** an interaction with binding `'neighbours'` couples the members of a group on a lattice
+- **WHEN** an interaction with binding `'neighbours'` couples the members of a quantum group on a lattice
 - **THEN** its laws run once per pair of adjacent sites
+
+#### Scenario: Pairs within a cutoff
+- **WHEN** an interaction with binding `'pairs'` couples a group of particles
+- **THEN** its laws run once per pair of members closer than its cutoff, as the former pair interactions did
 
 #### Scenario: Hyperedges need a network that has them
 - **WHEN** an interaction with binding `'hyperedges'` couples a group on a lattice

@@ -4,12 +4,13 @@
 # License: MIT
 
 import math
+from typing import ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import I, exp, sin
 
-from ....core.base import Domain, Expression, VisualSpec, parameter
-from ....core.model import ContinuousSpace, Law, Observable, PairInteraction, Rate, Symbols, System
+from ....core.base import Domain, Expression, VisualSpec, parameter, role
+from ....core.model import ContinuousSpace, Interaction, Law, Observable, Rate, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import EulerMaruyama
 from ._particles import ActiveParticle
@@ -30,7 +31,7 @@ def _polarization(s: Symbols) -> Expression:
     return abs(s.mean_heading)
 
 
-class PolarAlignment(PairInteraction):
+class PolarAlignment(Interaction):
     """Alignment torque between two particles closer than the cutoff, `dtheta_i/dt = gamma sin(theta_j - theta_i)`.
 
     Summed over every neighbour `j` within the interaction range `d0`, the cutoff, the torque turns each particle
@@ -60,6 +61,13 @@ class PolarAlignment(PairInteraction):
         >>> PolarAlignment('align', first='swimmers', second='swimmers', gamma=0.5).gamma
         0.5
     """
+
+    over: ClassVar[str] = 'pairs'
+    position: ClassVar[str] = 'x'
+    first: str = role()
+    second: str = role()
+    cutoff: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    period: float | None = None
 
     gamma: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
 

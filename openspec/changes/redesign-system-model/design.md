@@ -108,8 +108,10 @@ The domain decides which laws and solvers are valid, through validation.
   `'hyperedges'`.
 
 `PairInteraction` becomes `over='pairs'` or `over='neighbours'`, and higher-order interactions are `over='hyperedges'`.
-This change declares the bindings and validates them; the dynamics of edge states, rewiring, and hyperedge laws are
-specified by `add-adaptive-networks` and `add-higher-order-interactions`, which build on these declarations.
+This change declares the bindings and validates them. The binding `'pairs'` keeps the cutoff search of the former pair
+interactions, and `'neighbours'` runs the laws of quantum groups once per bond, as `Exchange` did. Classical laws that
+reduce over neighbourhoods, the dynamics of edge states, rewiring, and hyperedge laws are specified by
+`add-adaptive-networks` and `add-higher-order-interactions`, which build on these declarations.
 
 Interactions hold no state. Rejected alternative: stateful interactions. These would duplicate state storage, group
 vectorisation, and variable size for couplings. Putting coupling state on edge groups reuses all three.

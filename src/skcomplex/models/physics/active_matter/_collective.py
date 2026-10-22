@@ -5,20 +5,21 @@
 
 import math
 from collections.abc import Sequence
+from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import sqrt
 
-from ....core.base import Domain, VisualSpec, parameter, state
+from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.model import (
     ContinuousSpace,
     Element,
     Field,
+    Interaction,
     LatticeSpace,
     Law,
     Noise,
-    PairInteraction,
     Particle,
     Rate,
     Symbols,
@@ -35,7 +36,7 @@ from ._particles import ActiveParticle
 type Array = npt.NDArray[np.float64]
 
 
-class SoftRepulsion(PairInteraction):
+class SoftRepulsion(Interaction):
     """Overdamped repulsion between overlapping disks, which pushes them apart at the speed `k (cutoff - r)`.
 
     Args:
@@ -63,6 +64,13 @@ class SoftRepulsion(PairInteraction):
         50.0
     """
 
+    over: ClassVar[str] = 'pairs'
+    position: ClassVar[str] = 'x'
+    first: str = role()
+    second: str = role()
+    cutoff: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    period: float | None = None
+
     k: float = parameter(default=100.0, domain=Domain.POSITIVE)
 
     def laws(self, s: Symbols) -> list[Law]:
@@ -82,7 +90,7 @@ class SoftRepulsion(PairInteraction):
         return [Rate(s.first.x, push), Rate(s.second.x, -push)]
 
 
-class PhoreticAttraction(PairInteraction):
+class PhoreticAttraction(Interaction):
     """Phoretic attraction between active colloids, a drift towards each other at the speed `v0 R^2 / r^2`.
 
     Args:
@@ -113,6 +121,13 @@ class PhoreticAttraction(PairInteraction):
         20.0
     """
 
+    over: ClassVar[str] = 'pairs'
+    position: ClassVar[str] = 'x'
+    first: str = role()
+    second: str = role()
+    cutoff: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    period: float | None = None
+
     v0: float = parameter(default=20.0, domain=Domain.NONNEGATIVE)
     R: float = parameter(default=1.0, domain=Domain.POSITIVE)
 
@@ -133,7 +148,7 @@ class PhoreticAttraction(PairInteraction):
         return [Rate(s.first.x, -drift), Rate(s.second.x, drift)]
 
 
-class CuckerSmaleAlignment(PairInteraction):
+class CuckerSmaleAlignment(Interaction):
     """Cucker-Smale alignment, `dv_i/dt = K / N sum_j psi(r_ij) (v_j - v_i)` with `psi(r) = (1 + r^2)^(-beta)`.
 
     Args:
@@ -166,6 +181,13 @@ class CuckerSmaleAlignment(PairInteraction):
         >>> CuckerSmaleAlignment('align', first='birds', second='birds', beta=0.25).beta
         0.25
     """
+
+    over: ClassVar[str] = 'pairs'
+    position: ClassVar[str] = 'x'
+    first: str = role()
+    second: str = role()
+    cutoff: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    period: float | None = None
 
     K: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
     beta: float = parameter(default=0.25, domain=Domain.NONNEGATIVE)

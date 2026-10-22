@@ -217,5 +217,7 @@ def stochastic_schelling(
     )
     moves = BlockMoves('moves', target='dwellers', width=width, height=height, side=side)
     return System(
-        components=[dwellers], interactions=[moves], space=LatticeSpace((width, height), boundary='fixed', capacity=1),
+        components=[dwellers],
+        interactions=[moves],
+        space=LatticeSpace((width, height), boundary='fixed', capacity=1),
     )

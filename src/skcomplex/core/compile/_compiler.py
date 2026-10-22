@@ -59,6 +59,7 @@ from ..model import (
     Flux,
     FractionalNoise,
     Group,
+    Interaction,
     Jump,
     LatticeSpace,
     Law,
@@ -69,7 +70,6 @@ from ..model import (
     NetworkSpace,
     Noise,
     Observable,
-    PairInteraction,
     Rate,
     Reduction,
     Relaxation,
@@ -792,7 +792,7 @@ def _check_aligned(spec: _KernelSpec, groups: list[str]) -> None:
     described = ', '.join(f'{group} of {size} members' for group, size in sizes.items())
     error_msg = (
         f'Interaction {spec.owner} reads the groups {described} member by member, which needs groups of one size. '
-        'Read the other groups through reductions, or couple every pair of members with a PairInteraction.'
+        "Read the other groups through reductions, or couple every pair of members with an interaction over 'pairs'."
     )
     raise RoleError(error_msg)
 
@@ -840,9 +840,9 @@ def _space_period(node: Node) -> float | None:
 def _pair_spec(block: _Block, elements: dict[str, _Block], time: Expression) -> _KernelSpec:
     """Return the kernel spec of a pair interaction that is evaluated once per pair within its cutoff."""
     node = block.node
-    interaction: PairInteraction = node.component
+    interaction: Interaction = node.component
     first, second = _resolve_role(node, 'first', elements), _resolve_role(node, 'second', elements)
-    position = type(interaction).position
+    position = getattr(type(interaction), 'position', 'x')
     for bound in (first, second):
         entry = bound.entries.get(position)
         if entry is None or not entry.member_shape:
@@ -853,7 +853,8 @@ def _pair_spec(block: _Block, elements: dict[str, _Block], time: Expression) -> 
     second_namespace, second_references = second.namespace(Source.SECOND, alias='_pair')
     references.update(first_references)
     references.update(second_references)
-    period = interaction.period if interaction.period is not None else _space_period(node)
+    period = getattr(interaction, 'period', None)
+    period = period if period is not None else _space_period(node)
     pairs = PairSearch(first.entries[position], second.entries[position], block.entries['cutoff'], period)
     namespace = Symbols(t=time, **vars(parameters), first=first_namespace, second=second_namespace)
     paths: dict[str, str | tuple[str, ...]] = {'first': first.node.path, 'second': second.node.path}
@@ -2310,7 +2311,7 @@ def _specs_of(block: _Block, elements: dict[str, _Block], time: Expression, obse
     """Return the kernel specs of a component: its intrinsic laws, its pairs, or its interaction laws."""
     if not _is_interaction(block.node):
         return [_member_spec(block, time)]
-    if isinstance(block.node.component, PairInteraction):
+    if type(block.node.component).over == 'pairs':
         return [_pair_spec(block, elements, time)]
     return _interaction_specs(block, elements, time, observe)
 

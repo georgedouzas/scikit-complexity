@@ -48,7 +48,7 @@ through the conformance suite.
   and rewiring are specified by `add-adaptive-networks`.
 - [x] 3.5 Add the structured state domains: Hilbert space, sequence, graph, and tiling. Dissolve the core's
   quantum-element, word, patch, and host-graph classes into elements with those domains.
-- [ ] 3.6 Add role arities and the bindings `'members'`, `'pairs'`, `'neighbours'`, and `'hyperedges'`, with their
+- [x] 3.6 Add role arities and the bindings `'members'`, `'pairs'`, `'neighbours'`, and `'hyperedges'`, with their
   validation. Replace `PairInteraction` with them, and reject states on interactions. Laws run once per hyperedge are
   specified by `add-higher-order-interactions`.
 

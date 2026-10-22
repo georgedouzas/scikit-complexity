@@ -4,17 +4,17 @@
 # License: MIT
 
 import math
+from typing import ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import cos, sin
 
-from ....core.base import Domain, Expression, VisualSpec, parameter, state
+from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
 from ....core.model import (
     ContinuousSpace,
     Element,
     Interaction,
     Law,
-    PairInteraction,
     Rate,
     Symbols,
     System,
@@ -86,7 +86,7 @@ def _spread_phases(size: int, seed: int) -> list[float]:
     return [float(phase) for phase in np.random.default_rng(seed).uniform(0, 2 * math.pi, size)]
 
 
-class PhaseCoupling(PairInteraction):
+class PhaseCoupling(Interaction):
     """Sine coupling with a phase lag between two phase oscillators, `theta_i' += K sin(theta_j - theta_i - alpha)`.
 
     Every pair of members closer than the cutoff couples both ways. The members carry the vector state `x`, their
@@ -119,6 +119,13 @@ class PhaseCoupling(PairInteraction):
         >>> PhaseCoupling('coupling', first='phases', second='phases', K=0.1).alpha
         0.0
     """
+
+    over: ClassVar[str] = 'pairs'
+    position: ClassVar[str] = 'x'
+    first: str = role()
+    second: str = role()
+    cutoff: float = parameter(default=1.0, domain=Domain.POSITIVE)
+    period: float | None = None
 
     K: float = parameter(default=1.0)
     alpha: float = parameter(default=0.0)

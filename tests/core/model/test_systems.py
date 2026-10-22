@@ -1,5 +1,7 @@
 """Test systems defined by their components, interactions, space, and time."""
 
+from typing import ClassVar
+
 import networkx as nx
 import numpy as np
 import pytest
@@ -276,3 +278,51 @@ def test_structured_domains_name_their_kind():
     assert Tensor(2, 'traceless').value == 'traceless tensor of rank 2'
     with pytest.raises(ValueError, match='structure'):
         Structure('tree')
+
+
+def test_state_on_an_interaction_is_rejected():
+    """Test that an interaction type declaring a state raises an error that suggests a group on edges."""
+    with pytest.raises(ValidationError, match='on="edges"'):
+        type('Weighted', (Interaction,), {'__annotations__': {'weight': float}, 'weight': state(1.0)})
+
+
+def test_unknown_binding_is_rejected():
+    """Test that an interaction type with an unknown binding raises an error that lists the bindings."""
+    with pytest.raises(ValidationError, match='members, pairs, neighbours, hyperedges'):
+
+        class Everywhere(Interaction):
+            """Interaction with an unknown binding."""
+
+            over: ClassVar[str] = 'everything'
+
+
+def test_pairs_binding_needs_its_roles_and_cutoff():
+    """Test that a binding over pairs without a cutoff is reported with the declarations it lacks."""
+
+    class Contact(Interaction):
+        """Pair interaction without a cutoff."""
+
+        over: ClassVar[str] = 'pairs'
+        first: str = role()
+        second: str = role()
+
+    system = System(components=[Stock.group('herd', 3)], interactions=[Contact('c', first='herd', second='herd')])
+    issue = next(issue for issue in validate(system).errors if issue.code == 'binding')
+    assert 'cutoff' in issue.fix
+
+
+def test_hyperedges_binding_needs_a_network_with_hyperedges():
+    """Test that a binding over hyperedges of a group on a lattice is reported."""
+
+    class Triadic(Interaction):
+        """Interaction over the hyperedges of its target."""
+
+        over: ClassVar[str] = 'hyperedges'
+        target: str = role()
+
+    system = System(
+        components=[Stock.lattice('nodes', LatticeSpace(4))],
+        interactions=[Triadic('triads', target='nodes')],
+    )
+    (issue,) = [issue for issue in validate(system).errors if issue.code == 'binding']
+    assert 'network space with hyperedges' in issue.message

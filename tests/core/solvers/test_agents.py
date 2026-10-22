@@ -425,7 +425,8 @@ def test_rules_read_model_time():
 def test_one_agent_takes_one_entry_values():
     """Test that a group of one agent reads a one-entry location and a one-entry value as its own."""
     system = System(
-        components=[Clocked.group('one', 1, location=[(1, 1)], n=[3.0])], space=LatticeSpace((5, 5), boundary='fixed'),
+        components=[Clocked.group('one', 1, location=[(1, 1)], n=[3.0])],
+        space=LatticeSpace((5, 5), boundary='fixed'),
     )
     snapshot = Simulation(system).run(until=0).trajectory_.agents('one', 0)
     assert snapshot.locations.tolist() == [[1, 1]]

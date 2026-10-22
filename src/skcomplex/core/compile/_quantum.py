@@ -30,7 +30,6 @@ from ..base import (
 )
 from ..model import (
     Dissipator,
-    Exchange,
     Group,
     Hamiltonian,
     Interaction,
@@ -46,6 +45,7 @@ from ..model import (
     reduce_values,
     view_of,
 )
+from ..model._quantum import _bonds
 from ._fields import spectral_multiplier
 from ._layout import Entry, Layout
 from ._printing import numpy_function
@@ -643,13 +643,13 @@ def _interaction_laws(
     interaction = node.component
     assert isinstance(interaction, Interaction)  # nosec B101: the caller passes interactions only
     parameters = {**_parameter_symbols(node, symbols, None), 't': symbol('t')}
-    if isinstance(interaction, Exchange):
+    if type(interaction).over == 'neighbours':
         path = f'{node.scope}{interaction.target}'
         if path not in groups:
-            error_msg = f'Exchange {node.path} targets {path}, which is not a quantum group.'
+            error_msg = f'Interaction {node.path} over neighbours targets {path}, which is not a quantum group.'
             raise ValidationError(error_msg)
         group = groups[path]
-        for first, second in interaction.pairs(group.space, group.members or 1):
+        for first, second in _bonds(group.space, group.members or 1):
             namespace = Symbols(first=members[path][first], second=members[path][second], **parameters)
             _collect_laws(laws, f'{node.path} on the bond ({first}, {second})', interaction.laws(namespace))
         return

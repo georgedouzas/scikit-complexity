@@ -13,10 +13,11 @@ from sklearn.base import BaseEstimator
 
 from ..base import (
     ComponentKind,
-    Domain,
     LabelError,
     Requires,
     SpaceError,
+    ValidationError,
+    VariableKind,
     VisualSpec,
     companions_of,
     declaration_of,
@@ -417,6 +418,13 @@ class Aggregate(Element):
 
 
 PARTS = ('sites', 'edges', 'hyperedges')
+BINDINGS = ('members', 'pairs', 'neighbours', 'hyperedges')
+
+
+def _is_state(item: dataclasses.Field) -> bool:
+    """Check whether a dataclass field is declared with `state`."""
+    declaration = declaration_of(item)
+    return declaration is not None and declaration.kind is VariableKind.STATE
 
 
 def part_count(space: Space, on: str, label: str) -> int:
@@ -558,7 +566,32 @@ class Interaction(Component):
         ...         return [Rate(s.target.n, s.r * s.target.n)]
         >>> Growth('growth', target='rabbits', r=0.5)
         Growth(label='growth', r=0.5, target='rabbits')
+
+    The class variable `over` is the binding of the laws: `'members'` runs them for the bound components or members,
+    `'pairs'` once per pair of members of the roles `first` and `second` closer than the parameter `cutoff`,
+    `'neighbours'` once per pair of adjacent members of the role `target`, and `'hyperedges'` once per hyperedge.
+    Interactions hold no state: state on couplings lives in groups on the edges or hyperedges of a network space.
+
+    Raises:
+        ValidationError:
+            The subclass declares a state, or an unknown binding.
     """
+
+    over: ClassVar[str] = 'members'
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:  # noqa: ANN401
+        """Reject states and unknown bindings when the subclass is created."""
+        super().__init_subclass__(**kwargs)
+        if cls.over not in BINDINGS:
+            error_msg = f'{cls.__name__} binds its laws over {cls.over!r}. Use one of {", ".join(BINDINGS)}.'
+            raise ValidationError(error_msg)
+        states = [field.name for field in dataclasses.fields(cls) if _is_state(field)]
+        if states:
+            error_msg = (
+                f'{cls.__name__} declares the states {", ".join(states)}, but interactions hold no state. Put state on '
+                'couplings in a group on the edges of a network space, `Group(..., on="edges")`.'
+            )
+            raise ValidationError(error_msg)
 
     @classmethod
     def define(
@@ -607,42 +640,3 @@ class Interaction(Component):
             **{key: value if _is_declaration(value) else parameter(value) for key, value in (parameters or {}).items()},
         }
         return _define(cls, name=name, fields=fields, laws=laws, attributes={}, module=_caller_module())
-
-
-class PairInteraction(Interaction):
-    """Base class of interactions between pairs of members within a cutoff distance.
-
-    The roles `first` and `second` bind to groups or elements, the same group for pairs inside one group. Subclasses
-    return rate laws from `laws`, written for one pair, where `s.first` and `s.second` are the two members. The
-    compiled system sums each law over every pair whose positions are closer than `cutoff`.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        first:
-            The path of the group or element of the first members.
-
-        second:
-            The path of the group or element of the second members.
-
-        cutoff:
-            The distance beyond which pairs do not interact.
-
-        period:
-            The side of a periodic box, for minimum image distances, or `None` for an open space.
-
-    Examples:
-        >>> from skcomplex.core.model import PairInteraction, Rate
-        >>> class Repulsion(PairInteraction):
-        ...     def laws(self, s):
-        ...         return [Rate(s.first.v, s.first.x - s.second.x)]
-        >>> Repulsion('push', first='gas', second='gas', cutoff=0.1).cutoff
-        0.1
-    """
-
-    position: ClassVar[str] = 'x'
-    first: str = role()
-    second: str = role()
-    cutoff: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    period: float | None = None

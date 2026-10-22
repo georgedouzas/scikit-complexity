@@ -545,5 +545,6 @@ def diffusion_limited_aggregation(
     stuck[0] = 1.0
     walkers = Walker.group('walkers', n_walkers, location=[tuple(map(int, cell)) for cell in cells], stuck=stuck)
     return System(
-        components=[walkers], space=LatticeSpace((size, size), boundary='periodic', neighborhood='von_neumann'),
+        components=[walkers],
+        space=LatticeSpace((size, size), boundary='periodic', neighborhood='von_neumann'),
     )

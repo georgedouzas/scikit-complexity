@@ -499,6 +499,7 @@ class Exchange(Interaction):
         'chain'
     """
 
+    over: ClassVar[str] = 'neighbours'
     target: str = role()
 
     def pairs(self, space: Space | None, size: int) -> list[tuple[int, int]]:

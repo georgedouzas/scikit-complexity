@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.compile import compile_system
-from skcomplex.core.model import PairInteraction
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import ScipyODE
 from skcomplex.models import describe
@@ -357,7 +356,7 @@ def test_kuramoto_in_linear_time():
     """Test that Kuramoto has no space and no pair interaction, and its drift is the all-to-all sum."""
     system = kuramoto(50)
     assert system.space is None
-    assert not any(isinstance(interaction, PairInteraction) for interaction in system.interactions)
+    assert not any(type(interaction).over == 'pairs' for interaction in system.interactions)
     problem, theta, rates = _random_drift(system)
     omega = problem.parameters.read(problem.initial_parameters, 'oscillators.omega')
     expected = omega + 4.0 / 50 * np.sin(theta[np.newaxis, :] - theta[:, np.newaxis]).sum(axis=1)
@@ -405,7 +404,7 @@ def test_winfree_mean_influence():
     """Test that the Winfree drift is the response to the mean influence, with no pair or self-influence term."""
     system = winfree(50)
     assert len(system.interactions) == 1
-    assert not isinstance(system.interactions[0], PairInteraction)
+    assert type(system.interactions[0]).over != 'pairs'
     problem, theta, rates = _random_drift(system)
     omega = problem.parameters.read(problem.initial_parameters, 'oscillators.omega')
     np.testing.assert_allclose(rates, omega - np.sin(theta) * 0.5 / 50 * (1 + np.cos(theta)).sum(), atol=1e-12)

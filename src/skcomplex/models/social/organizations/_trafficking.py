@@ -260,5 +260,7 @@ def trafficking(
     women = Traveller.group('women', n_victims + n_free, location=homes, victim=victim)
     day = DailyMovements('day', women='women', premises='premises', n_cities=n_cities)
     return System(
-        components=[premises, women], interactions=[day], space=LatticeSpace((width, height), boundary='fixed'),
+        components=[premises, women],
+        interactions=[day],
+        space=LatticeSpace((width, height), boundary='fixed'),
     )
