@@ -56,3 +56,15 @@ A coarse-graining is closed when the macro series predicts its own future as wel
 ## Risks / Trade-offs
 
 - [Estimators are biased for short series] → Every measure reports its estimator and accepts a surrogate test.
+
+## Decisions made during implementation
+
+- The proposal names one `local_information` function. The local measures are three functions instead,
+  `local_entropy`, `local_mutual_information`, and `local_transfer_entropy`, since each takes different arguments and
+  mirrors a global measure of the same name. Each takes the `'plugin'` or `'gaussian'` estimator, and its mean equals
+  the global measure of the same estimator exactly.
+- The multivariate measures take `'plugin'` through `dit`, `'gaussian'`, and `'knn'` through `ennemi`. The partial
+  information decomposition takes the redundancy measures `'mmi'`, `'williams_beer'`, `'broja'`, `'ccs'`, `'pm'`, and
+  `'dep'` of `dit`.
+- The surrogate test of the risks section is one function, `surrogate_test`, which takes any measure of many variables
+  and shuffles every variable independently, so every measure accepts it without a keyword of its own.

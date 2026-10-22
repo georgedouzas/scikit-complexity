@@ -6,7 +6,7 @@
   dependency if it qualifies
 - [x] 1.2 Add total and dual total correlation, O-information, and its gradients, and verify the XOR and copies scenarios
 - [x] 1.3 Add `partial_information`, and verify the AND gate scenario
-- [ ] 1.4 Add local information measures, and verify the local means scenario
+- [x] 1.4 Add local information measures, and verify the local means scenario
 
 ## 2. Emergence
 

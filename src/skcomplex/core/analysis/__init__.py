@@ -152,6 +152,11 @@ from ._large_deviations import (
     reweight,
     tilted_generating_function,
 )
+from ._local_information import (
+    local_entropy,
+    local_mutual_information,
+    local_transfer_entropy,
+)
 from ._loops import FlowMatrix, Loop, LoopDominance, Loops, conservation, flow_matrix, loop_dominance, loops
 from ._lyapunov import lyapunov_spectrum
 from ._markov import (
@@ -385,6 +390,9 @@ __all__: list[str] = [
     'legendre_transform',
     'lempel_ziv_complexity',
     'like_neighbor_share',
+    'local_entropy',
+    'local_mutual_information',
+    'local_transfer_entropy',
     'loop_dominance',
     'loops',
     'lyapunov_spectrum',
