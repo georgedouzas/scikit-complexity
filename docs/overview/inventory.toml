@@ -61,7 +61,7 @@ acausal-components = { description = "Components connected through ports with po
 network-generators = { description = "Network generators and states on edges of adaptive networks", change = "add-adaptive-networks" }
 constraint-networks = { description = "Stoichiometric constraint networks solved as linear programmes", change = "add-constraint-based-models" }
 correlated-noise = { description = "Wiener processes shared or correlated between noise laws", change = "add-correlated-noise" }
-fractional-derivatives = { description = "Caputo fractional rate laws with memory solvers", change = "add-fractional-dynamics" }
+fractional-derivatives = { description = "States of fractional order whose rate laws give Caputo derivatives, with memory solvers" }
 group-spaces = { description = "Cayley graphs of finitely presented groups as spaces", change = "add-group-cellular-automata" }
 distribution-states = { description = "States that are distributions over activity grids, with encounter laws", change = "add-kinetic-models" }
 learning = { description = "Parameters that evolve by optimising a loss of an inner model", change = "add-learning-dynamics" }
@@ -819,10 +819,10 @@ cantor_set = { title = "Cantor", sources = ["Th 3.5.2", "Tr 3.5"], primitives = 
 sierpinski_substitution = { title = "Sierpiński substitutions", sources = ["Th 3.5.2", "Tr 3.5"], primitives = ["discrete-states", "interactions", "rewriting"], system = { time = ["discrete"], space = ["none"], components = ["element"], bindings = ["members"], laws = ["rewrite"], domains = ["tiling"] }, priority = "example", status = "implemented" }
 
 [mathematics.fractional_dynamics]
-fractional_relaxation = { title = "Fractional relaxation", sources = ["Podlubny 1999"], primitives = ["fractional-derivatives"], system = { time = ["continuous"], space = ["none"], components = ["element"], bindings = [], laws = ["rate"], domains = ["real"] }, priority = "core", status = "pending add-fractional-dynamics" }
-fractional_oscillator = { title = "Fractional damped oscillator", sources = ["Podlubny 1999"], primitives = ["fractional-derivatives"], system = { time = ["continuous"], space = ["none"], components = ["element"], bindings = [], laws = ["rate"], domains = ["real"] }, priority = "core", status = "pending add-fractional-dynamics" }
-fractional_van_der_pol = { title = "Fractional Van der Pol", sources = ["Podlubny 1999"], primitives = ["fractional-derivatives"], system = { time = ["continuous"], space = ["none"], components = ["element"], bindings = [], laws = ["rate"], domains = ["real"] }, priority = "core", status = "pending add-fractional-dynamics" }
-fractional_lorenz = { title = "Fractional Lorenz", sources = ["Grigorenko and Grigorenko 2003"], primitives = ["fractional-derivatives"], system = { time = ["continuous"], space = ["none"], components = ["element"], bindings = [], laws = ["rate"], domains = ["real"] }, priority = "core", status = "pending add-fractional-dynamics" }
+fractional_relaxation = { title = "Fractional relaxation", sources = ["Podlubny 1999", "Tr 2.3.6"], primitives = ["fractional-derivatives"], system = { time = ["continuous"], space = ["none"], components = ["element"], bindings = [], laws = ["rate"], domains = ["real"] }, priority = "core", status = "implemented" }
+fractional_oscillator = { title = "Fractional damped oscillator", sources = ["Podlubny 1999", "Tr 2.3.6"], primitives = ["fractional-derivatives"], system = { time = ["continuous"], space = ["none"], components = ["element"], bindings = [], laws = ["rate"], domains = ["real"] }, priority = "example", status = "implemented" }
+fractional_van_der_pol = { title = "Fractional Van der Pol", sources = ["Podlubny 1999", "Tr 2.3.6"], primitives = ["fractional-derivatives"], system = { time = ["continuous"], space = ["none"], components = ["element"], bindings = [], laws = ["rate"], domains = ["real"] }, priority = "example", status = "implemented" }
+fractional_lorenz = { title = "Fractional Lorenz", sources = ["Grigorenko and Grigorenko 2003"], primitives = ["fractional-derivatives"], system = { time = ["continuous"], space = ["none"], components = ["element"], bindings = [], laws = ["rate"], domains = ["real"] }, priority = "example", status = "implemented" }
 
 [computer_science.automata]
 elementary_automaton = { title = "Elementary automata", sources = ["Ar 4.1", "Ch 2.1", "TC 5", "Li 4", "2402.09090 IV.A"], primitives = ["discrete-states", "groups", "lattices", "local-rules"], system = { time = ["discrete"], space = ["lattice"], components = ["group", "site-group"], bindings = [], laws = ["local-rule"], domains = ["boolean"] }, priority = "example", status = "implemented" }
