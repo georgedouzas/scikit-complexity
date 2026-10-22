@@ -238,8 +238,12 @@ Each problem is an `Issue(code, path, message, fix, severity)`:
 `compile_system` and `Simulation` call `validate` first and raise one `ValidationError` that lists every error. Warnings
 are emitted as named warnings.
 
-The compiler's `FORMS` table is replaced by the solvers' `Supports` declarations: the form is the label of the solver
-family whose support covers the system. Adding a solver or backend extends what is valid without editing the validator.
+Adding a solver or backend extends what is valid without editing the validator. The compiler keeps its table from the
+law types it lowers to forms: forms are a lowering choice below the system's definition, and they turn on distinctions
+the vocabulary deliberately does not carry, such as an extremal update that needs the lattice stepper against a plain
+update, or a jump on an exponential clock against one on a clock of waiting times. Deriving forms from the coarser
+declarations would pick wrong forms or force lowering detail into every declaration, so validation reads the
+declarations and the compiler reads the table.
 
 The documentation page of valid combinations is generated from the declarations, and a test fails if any registered
 primitive, solver, or backend has no declaration.

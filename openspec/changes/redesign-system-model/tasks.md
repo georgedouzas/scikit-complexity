@@ -25,9 +25,8 @@ through the conformance suite.
   several errors, wrong time, wrong domain, unsupported solver, unavailable backend, and mixed classes.
 - [x] 2.3 Call `validate` first in `compile_system` and `Simulation`. Retire each compiler and solver raise that
   validation now covers, keeping a test per retired raise.
-- [ ] 2.4 Replace the compiler's form table with derivation from solver declarations, and verify the compilation
-  scenarios. This runs after 4.1: the table tells exponential from renewal jumps by law type, and solvers can declare
-  the clocks they support only once `Renewal` is a `Jump` with a clock.
+- [x] 2.4 Keep the compiler's form table as an internal lowering detail, and record in the design why forms are not
+  derived from the solvers' declarations, which validation reads.
 - [x] 2.5 Generate the compatibility table in the documentation from the declarations.
 
 ## 3. System, space, and time
