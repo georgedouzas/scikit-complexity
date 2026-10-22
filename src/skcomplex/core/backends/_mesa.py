@@ -758,7 +758,8 @@ class MesaStepper(Stepper):
         self._views = {spec.path: ModelView(self, spec.path) for spec in problem.agents}
         self._rules = [(ModelView(self, owner, roles.get(owner)), rule) for owner, rule in problem.model_rules]
         self._model_invariants = [
-            (ModelView(self, owner, roles.get(owner)), owner, invariant) for owner, invariant in problem.model_invariants
+            (ModelView(self, owner, roles.get(owner)), owner, invariant)
+            for owner, invariant in problem.model_invariants
         ]
         time = getattr(problem.system, 'time', None)
         self._phases = _phase_plan(time.phases if isinstance(time, DiscreteTime) else (), problem)

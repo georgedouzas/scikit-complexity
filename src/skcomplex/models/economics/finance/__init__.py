@@ -11,12 +11,14 @@ from ._growth_processes import (
     kesten_process,
     multiplicative_process,
 )
+from ._order_book import Book, StockTrader, order_book
 from ._wealth import MeanFieldSaver, Saver, bouchaud_mezard_wealth
 
 __all__: list[str] = [
     'ArbitrageDensity',
     'Asset',
     'Bank',
+    'Book',
     'DebtRankCascade',
     'GeometricBrownianMotion',
     'GibratFirm',
@@ -24,6 +26,7 @@ __all__: list[str] = [
     'MeanFieldSaver',
     'ReflectingFloor',
     'Saver',
+    'StockTrader',
     'arbitrage_traders',
     'bouchaud_mezard_wealth',
     'debtrank',
@@ -31,4 +34,5 @@ __all__: list[str] = [
     'gibrat_process',
     'kesten_process',
     'multiplicative_process',
+    'order_book',
 ]
