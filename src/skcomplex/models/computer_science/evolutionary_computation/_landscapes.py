@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.model import AgentType, Interaction, Law, Rule, Symbols, System
+from ....core.model import Element, Interaction, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import ModelView
 
@@ -27,15 +27,12 @@ def _fitness_of(genomes: Array, zero_values: Array, one_values: Array) -> Array:
     return np.where(bits == 1, one_values, zero_values).mean(axis=1)
 
 
-class BitString(AgentType):
+class BitString(Element):
     """Agent whose genome is a string of bits, stored as the integer it spells, with the fitness of that genome.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            Unused, since genomes have no space.
+            The label of the agent or group.
 
         genome:
             The initial genome, an integer whose binary digits are the bits.

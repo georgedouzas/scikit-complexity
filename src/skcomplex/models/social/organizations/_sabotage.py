@@ -8,7 +8,7 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import AgentType, LatticeSpace, Law, Rule, Symbols, System
+from ....core.model import Element, LatticeSpace, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -55,15 +55,12 @@ def _rehire(agent: AgentView, model: ModelView) -> None:
     agent.days = agent.mean_feeling = agent.first = agent.expectation = 0.0
 
 
-class Supervisor(AgentType):
+class Supervisor(Element):
     """Supervisor of the insider sabotage model, who wanders between adjacent cells.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or `None` for a random cell.
+            The label of the agent or group.
 
     Examples:
         >>> from skcomplex.models.social.organizations import Supervisor
@@ -85,7 +82,7 @@ class Supervisor(AgentType):
         return [Rule(_wander)]
 
 
-class Employee(AgentType):
+class Employee(Element):
     """Employee of the insider sabotage model, whose risk is the sum of five factors.
 
     The risk is `R = P + D + S + K + A`: the predisposition `P`, the disgruntlement `D` of predisposed employees
@@ -96,10 +93,7 @@ class Employee(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or `None` for a random cell.
+            The label of the agent or group.
 
         predisposed:
             Whether the employee is predisposed to sabotage, 1, or not, 0.

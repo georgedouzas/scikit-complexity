@@ -8,18 +8,7 @@ from typing import ClassVar, cast
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import (
-    AgentType,
-    Element,
-    Field,
-    LatticeSpace,
-    Law,
-    Rate,
-    Rule,
-    Symbols,
-    System,
-    laplacian,
-)
+from ....core.model import Element, Field, LatticeSpace, Law, Rate, Rule, Symbols, System, laplacian
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -87,7 +76,7 @@ class Tissue(Element):
         ]
 
 
-class TumourCell(AgentType):
+class TumourCell(Element):
     """Tumour cell that consumes oxygen, divides when supplied, secretes VEGF when hypoxic, and dies without oxygen.
 
     Every step the cell takes up `consumption` oxygen at its site, or what is left. Above `proliferation` it divides
@@ -96,10 +85,7 @@ class TumourCell(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or one cell per tumour cell.
+            The label of the agent or group.
 
         consumption:
             The oxygen a cell takes up per step.
@@ -176,15 +162,12 @@ class TumourCell(AgentType):
             self._divide(agent, model)
 
 
-class Vessel(AgentType):
+class Vessel(Element):
     """Segment of a blood vessel, which supplies oxygen to its site every step.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or one cell per segment.
+            The label of the agent or group.
 
         supply:
             The oxygen supplied per step.
@@ -223,7 +206,7 @@ class Vessel(AgentType):
         model.deposit(OXYGEN, agent.location, agent.supply)
 
 
-class Sprout(AgentType):
+class Sprout(Element):
     """Endothelial tip cell that climbs the VEGF gradient and leaves a new vessel segment behind it.
 
     Every step the tip moves to a neighbouring cell with a probability that grows with `exp(chemotaxis * VEGF /
@@ -232,10 +215,7 @@ class Sprout(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or one cell per tip.
+            The label of the agent or group.
 
         chemotaxis:
             How strongly VEGF draws the tip.
@@ -353,9 +333,9 @@ def tumour_angiogenesis(
     ]
     tips = sorted(int(row) for row in rng.choice(height, size=n_sprouts, replace=False))
     groups = [
-        TumourCell.group('tumour', len(tumour), location=tumour),
-        Vessel.group('vessels', height, location=[(0, row) for row in range(height)]),
-        Sprout.group('sprouts', n_sprouts, location=[(0, row) for row in tips], chemotaxis=chemotaxis),
+        TumourCell.group('tumour', len(tumour), variable=True, location=tumour),
+        Vessel.group('vessels', height, variable=True, location=[(0, row) for row in range(height)]),
+        Sprout.group('sprouts', n_sprouts, variable=True, location=[(0, row) for row in tips], chemotaxis=chemotaxis),
     ]
     tissue = Field('tissue', Tissue, LatticeSpace((width, height), boundary='reflecting'))
     return System(

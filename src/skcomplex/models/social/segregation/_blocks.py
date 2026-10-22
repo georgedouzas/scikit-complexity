@@ -7,7 +7,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, parameter, role, state
-from ....core.model import AgentType, Interaction, LatticeSpace, Law, Rule, Symbols, System
+from ....core.model import Element, Interaction, LatticeSpace, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -20,15 +20,12 @@ def _block_of(location: object, side: int, columns: int) -> int:
     return (row // side) * columns + column // side
 
 
-class Dweller(AgentType):
+class Dweller(Element):
     """Agent of the stochastic Schelling model, whose utility `a * rho + b` depends on the density of its block.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or `None` for a random empty cell.
+            The label of the agent or group.
 
         block:
             The index of the agent's block, set by the moves.

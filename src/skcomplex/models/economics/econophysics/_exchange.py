@@ -4,20 +4,17 @@
 # License: MIT
 
 from ....core.base import Domain, state
-from ....core.model import AgentType, Law, Rule, Symbols, System
+from ....core.model import Element, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
 
-class Trader(AgentType):
+class Trader(Element):
     """Agent of the Boltzmann wealth model, who gives one unit of wealth to a random agent when it has any.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         wealth:
             The initial wealth.

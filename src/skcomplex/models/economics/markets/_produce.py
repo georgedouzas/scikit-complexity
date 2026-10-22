@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, state
-from ....core.model import AgentType, Law, Observable, Rule, Symbols, System
+from ....core.model import Element, Law, Observable, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -37,15 +37,12 @@ def _items_left(agent: AgentView) -> float:
     return float(len(_items_of(int(agent.wanted))))
 
 
-class Stall(AgentType):
+class Stall(Element):
     """Market stall that sells some kinds of produce at the wholesale price plus its markup.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         stall:
             The index of the stall.
@@ -80,17 +77,14 @@ class Stall(AgentType):
         return []
 
 
-class Shopper(AgentType):
+class Shopper(Element):
     """Shopper who visits one stall a step that it has not visited yet and buys what it wants there.
 
     A shopper gives up the items that it has not found once it has visited every stall.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         wanted:
             The bit mask of the items on the shopping list.

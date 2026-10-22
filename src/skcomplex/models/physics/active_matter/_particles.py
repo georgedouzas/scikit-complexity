@@ -11,7 +11,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import cos, sin, sqrt
 
 from ....core.base import Domain, VisualSpec, parameter, state, vector
-from ....core.model import AgentType, ContinuousSpace, Element, Law, Noise, Rate, Rule, Symbols, System
+from ....core.model import ContinuousSpace, Element, Law, Noise, Rate, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, EulerMaruyama, ModelView
 
@@ -208,7 +208,7 @@ class DepotParticle(Element):
         ]
 
 
-class Tumbler(AgentType):
+class Tumbler(Element):
     """Run-and-tumble agent in a periodic square, which runs straight and tumbles to a random direction.
 
     Every step the agent moves `speed` along its direction, then tumbles with probability `1 - exp(-tumble_rate)`
@@ -216,10 +216,7 @@ class Tumbler(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial position, or one position per agent of a group.
+            The label of the agent or group.
 
         theta:
             The initial direction.

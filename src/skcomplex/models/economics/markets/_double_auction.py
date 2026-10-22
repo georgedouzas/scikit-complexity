@@ -8,16 +8,7 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import Domain, parameter, state
-from ....core.model import (
-    AgentType,
-    DiscreteTime,
-    Law,
-    Phase,
-    Phases,
-    Rule,
-    Symbols,
-    System,
-)
+from ....core.model import DiscreteTime, Element, Law, Phase, Phases, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 from ..realizations import CallAuction, Institution, Market, OrderBook, Trade
@@ -57,7 +48,7 @@ def _book_profit(trade: Trade, model: ModelView) -> None:
     trade.seller.profit += trade.quantity * (trade.price - trade.seller.value)
 
 
-class ZeroIntelligenceBuyer(AgentType):
+class ZeroIntelligenceBuyer(Element):
     """Buyer of one unit per trading period who bids a random price, below its value under the budget constraint.
 
     In every round of a trading period, a buyer that has not bought yet bids a price drawn uniformly from 0 to its
@@ -65,10 +56,7 @@ class ZeroIntelligenceBuyer(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         value:
             The value of the unit to the buyer, its redemption value.
@@ -128,7 +116,7 @@ class ZeroIntelligenceBuyer(AgentType):
         agent.bid = float(model.rng.uniform(0.0, top))
 
 
-class ZeroIntelligenceSeller(AgentType):
+class ZeroIntelligenceSeller(Element):
     """Seller of one unit per trading period who asks a random price, above its cost under the budget constraint.
 
     In every round of a trading period, a seller that has not sold yet asks a price drawn uniformly from its cost, or
@@ -136,10 +124,7 @@ class ZeroIntelligenceSeller(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         value:
             The cost of the unit to the seller.

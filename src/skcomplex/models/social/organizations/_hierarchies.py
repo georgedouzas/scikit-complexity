@@ -8,12 +8,12 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import AgentType, LatticeSpace, Law, Rule, Symbols, System
+from ....core.model import Element, LatticeSpace, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
 
-class Contender(AgentType):
+class Contender(Element):
     """Agent of the Bonabeau model, who wanders on a grid and fights the agents it runs into.
 
     Every step an agent's strength relaxes by the factor `1 - relaxation`, and the agent tries to step into a random
@@ -23,10 +23,7 @@ class Contender(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or `None` for a random empty cell.
+            The label of the agent or group.
 
         strength:
             The initial strength `h`.

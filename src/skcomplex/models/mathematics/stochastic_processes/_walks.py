@@ -8,20 +8,7 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import (
-    AgentType,
-    Element,
-    Jump,
-    Law,
-    Noise,
-    Rate,
-    Rule,
-    Symbols,
-    System,
-    Update,
-    bernoulli,
-    normal,
-)
+from ....core.model import Element, Jump, Law, Noise, Rate, Rule, Symbols, System, Update, bernoulli, normal
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -61,17 +48,14 @@ WeakeningParticle = Element.define(
 )
 
 
-class AgeingWalker(AgentType):
+class AgeingWalker(Element):
     """Walker that steps up with a probability that decays with the number of its earlier up steps.
 
     After `k` up steps, the next step is up with probability `p / (1 + k)^nu` and down otherwise.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            Unused, since walkers have no space.
+            The label of the agent or group.
 
         x:
             The initial position.

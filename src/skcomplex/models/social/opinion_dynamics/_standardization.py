@@ -8,7 +8,7 @@ import numpy.typing as npt
 from scipy.special import expit
 
 from ....core.base import Domain, parameter, role, state
-from ....core.model import AgentType, Interaction, Law, Observable, Rule, Symbols, System
+from ....core.model import Element, Interaction, Law, Observable, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import ModelView
 
@@ -27,7 +27,7 @@ def _spins_of(configurations: Array) -> Array:
     return np.select([configurations == 0, configurations == 1], [1.0, -1.0], 0.0)
 
 
-class ComplexAgent(AgentType):
+class ComplexAgent(Element):
     """Agent with many internal configurations, of which two show a characteristic with the spin `1` or `-1`.
 
     Configuration 0 has the spin `S = 1`, configuration 1 the spin `S = -1`, and the configurations from 2 to `H + 1`
@@ -35,10 +35,7 @@ class ComplexAgent(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         configuration:
             The internal configuration, from 0 to `H + 1`.

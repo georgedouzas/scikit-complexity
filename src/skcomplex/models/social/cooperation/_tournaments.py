@@ -7,7 +7,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.model import AgentType, Interaction, Law, Rule, Symbols, System
+from ....core.model import Element, Interaction, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -74,15 +74,12 @@ def _offspring(parent: AgentView, rng: np.random.Generator) -> Array:
     return genome
 
 
-class Strategist(AgentType):
+class Strategist(Element):
     """Agent of the prisoner's dilemma tournament, with a genome of responses and the fitness of its last games.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         genome:
             The seven moves, 1 to cooperate and 0 to defect, for the opponent's last two moves: none, C, D, CC, CD,

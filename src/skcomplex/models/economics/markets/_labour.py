@@ -8,31 +8,18 @@ from typing import Any, ClassVar
 import numpy as np
 
 from ....core.base import Domain, parameter, role, state
-from ....core.model import (
-    AgentType,
-    DiscreteTime,
-    Law,
-    Observable,
-    Phase,
-    Phases,
-    Rule,
-    Symbols,
-    System,
-)
+from ....core.model import DiscreteTime, Element, Law, Observable, Phase, Phases, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 from ..realizations import DeferredAcceptance, Institution, Market, Trade
 
 
-class Employer(AgentType):
+class Employer(Element):
     """Firm that posts a vacancy with a random wage offer in some steps, filled by at most one worker.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         bid:
             The wage offered for the vacancy.
@@ -95,7 +82,7 @@ class Employer(AgentType):
             agent.posted = model.time
 
 
-class Jobseeker(AgentType):
+class Jobseeker(Element):
     """Worker who loses its job at the separation rate and, while unemployed, lowers its reservation wage.
 
     A worker who loses its job searches from the next step. An unemployed worker asks the reservation wage
@@ -103,10 +90,7 @@ class Jobseeker(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         ask:
             The reservation wage.

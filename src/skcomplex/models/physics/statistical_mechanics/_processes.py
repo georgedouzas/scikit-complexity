@@ -10,18 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import (
-    AgentType,
-    Drive,
-    Element,
-    LatticeSpace,
-    Law,
-    LocalRule,
-    Neighborhood,
-    Rule,
-    Symbols,
-    System,
-)
+from ....core.model import Drive, Element, LatticeSpace, Law, LocalRule, Neighborhood, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -248,15 +237,12 @@ class ExclusionSite(Element):
         return [Drive(s.occupied, _hop_ring if self.ring else _hop_open)]
 
 
-class Walker(AgentType):
+class Walker(Element):
     """Random walker of diffusion-limited aggregation, which sticks when it reaches a stuck walker.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or one cell per agent of a group.
+            The label of the agent or group.
 
         stuck:
             Whether the walker belongs to the aggregate.

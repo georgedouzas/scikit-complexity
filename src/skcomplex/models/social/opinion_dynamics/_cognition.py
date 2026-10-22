@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.model import AgentType, Interaction, Law, NetworkSpace, Rule, Symbols, System
+from ....core.model import Element, Interaction, Law, NetworkSpace, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import ModelView
 
@@ -61,15 +61,12 @@ def settle(valences: npt.ArrayLike, decay: float = 0.05) -> Array:
     return current
 
 
-class Thinker(AgentType):
+class Thinker(Element):
     """Agent of the cognitive consistency model, with the valences of the concepts of its belief network.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial node, or `None` for one agent per node in node order.
+            The label of the agent or group.
 
         valences:
             The initial valences of the concepts F1, X, and F2, between -1 and 1.

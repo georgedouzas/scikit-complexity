@@ -10,7 +10,7 @@ import numpy as np
 
 from ....core.analysis import assortativity, centrality, communities, motif_zscores, summarize_network
 from ....core.base import Domain, VisualSpec, state
-from ....core.model import AgentType, Element, Law, NetworkSpace, Observable, Rule, Symbols, System
+from ....core.model import Element, Law, NetworkSpace, Observable, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -31,15 +31,12 @@ NetworkMeasures = Element.define(
 )
 
 
-class NetworkNode(AgentType):
+class NetworkNode(Element):
     """Node of a network that carries its degree, clustering, betweenness, and community.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The node of the agent.
+            The label of the agent or group.
 
         degree:
             The degree of the node.

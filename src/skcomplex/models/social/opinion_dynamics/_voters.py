@@ -12,7 +12,6 @@ import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, parameter, state
 from ....core.model import (
-    AgentType,
     Element,
     LatticeSpace,
     Law,
@@ -32,15 +31,12 @@ type Array = npt.NDArray[np.float64]
 MAJORITY = 5
 
 
-class Voter(AgentType):
+class Voter(Element):
     """Agent of the voter model, who adopts the opinion of a random neighbour on a network.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial node, or `None` for one agent per node in node order.
+            The label of the agent or group.
 
         opinion:
             The initial opinion, 0 or 1.
@@ -116,7 +112,7 @@ class MajorityVoter(Element):
         ]
 
 
-class VariantVoter(AgentType):
+class VariantVoter(Element):
     """Agent of the voter model variants: an imitator, a threshold voter, or a contrarian.
 
     With a threshold of 0 the agent copies a random neighbour, as in the voter model. With a positive threshold it
@@ -125,10 +121,7 @@ class VariantVoter(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial node, or `None` for one agent per node in node order.
+            The label of the agent or group.
 
         opinion:
             The initial opinion, 0 or 1.

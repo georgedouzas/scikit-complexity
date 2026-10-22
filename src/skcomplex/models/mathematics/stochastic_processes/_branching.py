@@ -6,20 +6,17 @@
 from typing import ClassVar
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import AgentType, Law, Rule, Symbols, System
+from ....core.model import Element, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
 
-class Individual(AgentType):
+class Individual(Element):
     """Individual of a Galton-Watson process, replaced in the next generation by a Poisson number of offspring.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            Unused, since individuals have no space.
+            The label of the agent or group.
 
         generation:
             The initial generation.
@@ -93,4 +90,4 @@ def galton_watson(n_individuals: int = 10, *, m: float = 1.0) -> System:
         >>> galton_watson(5, m=1.2).elements[0].size
         5
     """
-    return System(components=[Individual.group('population', n_individuals, m=m)])
+    return System(components=[Individual.group('population', n_individuals, variable=True, m=m)])

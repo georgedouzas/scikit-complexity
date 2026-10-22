@@ -7,7 +7,7 @@
 import numpy as np
 
 from ....core.base import Domain, parameter, role, state
-from ....core.model import AgentType, Interaction, Law, Observable, Rule, Symbols, System
+from ....core.model import Element, Interaction, Law, Observable, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -20,15 +20,12 @@ def _size_observables() -> list[Observable]:
     ]
 
 
-class GibratFirm(AgentType):
+class GibratFirm(Element):
     """Firm whose size is multiplied every step by an independent normal growth factor, `x = lambda x`.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         x:
             The initial size.
@@ -80,15 +77,12 @@ class GibratFirm(AgentType):
         agent.x = agent.x * float(model.rng.normal(agent.mu, agent.sigma))
 
 
-class KestenFirm(AgentType):
+class KestenFirm(Element):
     """Firm whose size follows Kesten's process, `x = lambda x + b`, with uniform random `lambda` and `b`.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         x:
             The initial size.

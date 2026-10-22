@@ -8,7 +8,7 @@ from typing import ClassVar, cast
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.model import AgentType, ContinuousSpace, Interaction, Law, Rule, Symbols, System
+from ....core.model import ContinuousSpace, Element, Interaction, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -27,12 +27,12 @@ def _car_ahead(agent: AgentView, model: ModelView, n_cars: int) -> AgentView | N
     return next((car for car in model.agents(agent.group) if int(car.rank) == rank and car != agent), None)
 
 
-class Motorist(AgentType):
+class Motorist(Element):
     """Car of Charbonneau's traffic model, which brakes when it is closer than a safe distance to the car ahead.
 
     Args:
         label:
-            The label of the agent type or group.
+            The label of the agent or group.
 
         x:
             The position along the road.
@@ -168,7 +168,7 @@ class CarelessBraking(Interaction):
             car.x = min(moved, positions[index + 1] - gap) if index + 1 < len(cars) else moved
 
 
-class Driver(AgentType):
+class Driver(Element):
     """Driver on a ring road who accelerates as much as allowed and stops when the speed would cause a collision.
 
     The speed changes by the acceleration, bounded by `min_acc` and `max_acc`, is multiplied by a random factor between
@@ -177,10 +177,7 @@ class Driver(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial position on the ring road, as a point `(x, y)` of the road strip.
+            The label of the agent or group.
 
         speed:
             The speed.

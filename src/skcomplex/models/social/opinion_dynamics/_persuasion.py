@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.model import AgentType, Interaction, LatticeSpace, Law, NetworkSpace, Rule, Symbols, System
+from ....core.model import Element, Interaction, LatticeSpace, Law, NetworkSpace, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -22,7 +22,7 @@ def _shares(size: int, share: float, random_state: int | np.random.Generator | N
     return (np.random.default_rng(random_state).random(size) < share).astype(float)
 
 
-class Persuader(AgentType):
+class Persuader(Element):
     """Agent of the Sznajd model, who convinces the neighbours of an agreeing pair.
 
     A step of an agent picks a random neighbour, and when both share an opinion every neighbour of either adopts it.
@@ -30,10 +30,7 @@ class Persuader(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial node, or `None` for one agent per node in node order.
+            The label of the agent or group.
 
         opinion:
             The initial opinion, 0 or 1.
@@ -80,15 +77,12 @@ class Persuader(AgentType):
             other.opinion = agent.opinion
 
 
-class Citizen(AgentType):
+class Citizen(Element):
     """Agent of the Galam majority model, who holds a binary opinion.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         opinion:
             The initial opinion, 0 or 1.
@@ -158,15 +152,12 @@ class Discussions(Interaction):
                 member.opinion = majority
 
 
-class Influencee(AgentType):
+class Influencee(Element):
     """Agent of the social impact model, with an opinion of -1 or 1, a persuasiveness, and a supportiveness.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or `None` for a random empty cell.
+            The label of the agent or group.
 
         opinion:
             The initial opinion, -1 or 1.

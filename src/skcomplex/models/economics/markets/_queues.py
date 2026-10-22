@@ -6,7 +6,7 @@
 from typing import ClassVar
 
 from ....core.base import Domain, VariableKind, declarations_of, parameter, role, state
-from ....core.model import AgentType, Interaction, Law, Rule, Symbols, System
+from ....core.model import Element, Interaction, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -21,15 +21,12 @@ def _front(cars: list[AgentView], stage: int) -> AgentView | None:
     return min(waiting, key=lambda car: car.id) if waiting else None
 
 
-class Car(AgentType):
+class Car(Element):
     """Car at the wash, waiting for or receiving a wash or a valet.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         stage:
             0 for the wash and 1 for the valet.
@@ -64,7 +61,7 @@ class Car(AgentType):
         return []
 
 
-class Washer(AgentType):
+class Washer(Element):
     """Worker who joins the front car of the wash or of the valet while it has fewer than two workers.
 
     A worker who finds both areas staffed helps at a random one of them. One second of work removes one
@@ -72,10 +69,7 @@ class Washer(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
     Examples:
         >>> from skcomplex.models.economics.markets import Washer
@@ -118,15 +112,12 @@ class Washer(AgentType):
         car.work -= 1.0
 
 
-class Till(AgentType):
+class Till(Element):
     """Till of the car wash, which counts the revenue and the cars served and turned away.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         revenue:
             The money taken.
@@ -349,9 +340,9 @@ def car_wash(
     )
     return System(
         components=[
-            Washer.group('workers', n_workers),
-            Car.group('cars', n_cars, work=wash_work),
-            Till.group('till', 1),
+            Washer.group('workers', n_workers, variable=True),
+            Car.group('cars', n_cars, variable=True, work=wash_work),
+            Till.group('till', 1, variable=True),
         ],
         interactions=[operation],
     )

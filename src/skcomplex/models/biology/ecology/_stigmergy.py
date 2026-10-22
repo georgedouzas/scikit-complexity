@@ -9,7 +9,7 @@ from typing import Any, ClassVar
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import AgentType, Element, Field, LatticeSpace, Law, Rate, Rule, Symbols, System
+from ....core.model import Element, Field, LatticeSpace, Law, Rate, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -62,15 +62,12 @@ def _spawn(agent: AgentView, model: ModelView, **values: float) -> None:
         agent.age = 0.0
 
 
-class Plant(AgentType):
+class Plant(Element):
     """Plant that spreads into an empty neighbouring cell whenever it reaches maturity.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or `None` for a random cell.
+            The label of the agent or group.
 
         age:
             The steps since the plant last spread.
@@ -116,7 +113,7 @@ class Plant(AgentType):
             _spawn(agent, model)
 
 
-class Forager(AgentType):
+class Forager(Element):
     """Animal that hunts its food guided by its emotions and those its kind left on the ground, and breeds.
 
     Every step the animal ages and grows hungry, and starves when its hunger passes `starvation`. It moves to the
@@ -130,10 +127,7 @@ class Forager(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or `None` for a random cell.
+            The label of the agent or group.
 
         age:
             The steps since the animal last bred.
@@ -287,10 +281,7 @@ class StigmergicPrey(Forager):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or `None` for a random cell.
+            The label of the agent or group.
 
         age:
             The steps since the animal last bred.
@@ -351,10 +342,7 @@ class StigmergicPredator(Forager):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or `None` for a random cell.
+            The label of the agent or group.
 
         age:
             The steps since the animal last bred.
@@ -471,9 +459,22 @@ def stigmergic_predator_prey(
     life = System(
         'life',
         components=[
-            Plant.group(PLANTS, plants, location=plant_cells, age=rng.integers(0, 4, plants).astype(float)),
-            StigmergicPrey.group(PREY, prey, location=prey_cells, emotions=flag, **PREY_TRAITS),
-            StigmergicPredator.group(PREDATORS, predators, location=predator_cells, emotions=flag, **PREDATOR_TRAITS),
+            Plant.group(
+                PLANTS,
+                plants,
+                variable=True,
+                location=plant_cells,
+                age=rng.integers(0, 4, plants).astype(float),
+            ),
+            StigmergicPrey.group(PREY, prey, variable=True, location=prey_cells, emotions=flag, **PREY_TRAITS),
+            StigmergicPredator.group(
+                PREDATORS,
+                predators,
+                variable=True,
+                location=predator_cells,
+                emotions=flag,
+                **PREDATOR_TRAITS,
+            ),
         ],
         space=LatticeSpace((width, height), boundary='periodic'),
     )

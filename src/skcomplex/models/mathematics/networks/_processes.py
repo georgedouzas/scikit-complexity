@@ -9,19 +9,7 @@ import networkx as nx
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import (
-    AgentType,
-    Element,
-    Field,
-    Law,
-    NetworkSpace,
-    Rate,
-    Rule,
-    Symbols,
-    System,
-    Update,
-    laplacian,
-)
+from ....core.model import Element, Field, Law, NetworkSpace, Rate, Rule, Symbols, System, Update, laplacian
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -46,15 +34,12 @@ NodeRank = Element.define(
 )
 
 
-class NetworkWalker(AgentType):
+class NetworkWalker(Element):
     """Walker that moves to a uniformly random neighbouring node of a network at every step.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial node, or `None` for a random node.
+            The label of the agent or group.
 
         steps:
             The initial number of steps taken.

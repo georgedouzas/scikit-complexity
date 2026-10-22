@@ -6,17 +6,17 @@
 import numpy as np
 
 from ....core.base import Domain, parameter, role, state
-from ....core.model import AgentType, Interaction, Law, Rule, Symbols, System
+from ....core.model import Element, Interaction, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import ModelView
 
 
-class Word(AgentType):
+class Word(Element):
     """Distinct word of the Simon model, with the number of times it occurs in the text.
 
     Args:
         label:
-            The label of the agent type or group.
+            The label of the agent or group.
 
         location:
             The initial location, unused without a space.
@@ -128,5 +128,5 @@ def simon_yule(*, innovation: float = 0.1, words_per_step: int = 100) -> System:
         >>> simon_yule().elements[0].size
         1
     """
-    words = Word.group('words', 1, count=1.0, innovation=innovation)
+    words = Word.group('words', 1, variable=True, count=1.0, innovation=innovation)
     return System(components=[words], interactions=[Writing('writing', target='words', words_per_step=words_per_step)])

@@ -8,18 +8,7 @@ from typing import ClassVar, cast
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.model import (
-    AgentType,
-    Element,
-    Field,
-    LatticeSpace,
-    Law,
-    Rate,
-    Rule,
-    Symbols,
-    System,
-    laplacian,
-)
+from ....core.model import Element, Field, LatticeSpace, Law, Rate, Rule, Symbols, System, laplacian
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -36,7 +25,7 @@ Pheromone = Element.define(
 )
 
 
-class Ant(AgentType):
+class Ant(Element):
     """Ant that searches for food guided by pheromone and carries food home, marking the way with pheromone.
 
     A searching ant moves to a neighbouring cell with a probability that grows with its pheromone and, by `outward`,
@@ -45,10 +34,7 @@ class Ant(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or one cell per ant.
+            The label of the agent or group.
 
         carrying:
             Whether the ant carries food.

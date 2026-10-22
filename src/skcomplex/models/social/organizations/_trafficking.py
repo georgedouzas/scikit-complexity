@@ -8,7 +8,7 @@ from typing import ClassVar, cast
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, role, state
-from ....core.model import AgentType, Interaction, LatticeSpace, Law, Rule, Symbols, System
+from ....core.model import Element, Interaction, LatticeSpace, Law, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
@@ -22,7 +22,7 @@ def _cell(location: object) -> tuple[int, int]:
     return column, row
 
 
-class Premises(AgentType):
+class Premises(Element):
     """House or brothel of the brothel movement model, whose energy bills grow with the people inside.
 
     Every day the bills grow by `1 / (1 + exp(x0 - n))` for the `n` people in the premises' cell, and every quarter
@@ -30,10 +30,7 @@ class Premises(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The cell, or `None` for a random cell.
+            The label of the agent or group.
 
         brothel:
             Whether the premises are a brothel, 1, or a house, 0.
@@ -64,15 +61,12 @@ class Premises(AgentType):
     day: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
 
 
-class Traveller(AgentType):
+class Traveller(Element):
     """Woman of the brothel movement model: a trafficking victim, or a woman who travels freely.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial cell, or `None` for a random cell.
+            The label of the agent or group.
 
         victim:
             Whether the woman is a trafficking victim, 1, or not, 0.

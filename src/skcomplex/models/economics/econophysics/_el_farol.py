@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, parameter, state
-from ....core.model import AgentType, DiscreteTime, Law, Phase, Phases, Rule, Symbols, System
+from ....core.model import DiscreteTime, Element, Law, Phase, Phases, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 from ..realizations import Institution, heuristics
@@ -73,7 +73,7 @@ def forecasts(history: npt.ArrayLike) -> Array:
     return np.clip(predicted, 0.0, MAX_ATTENDANCE)
 
 
-class Patron(AgentType):
+class Patron(Element):
     """Patron of the El Farol bar, who goes when its most accurate predictor forecasts room in the bar.
 
     Every patron holds a few predictors of the pool, the set bits of `predictors`. The accuracy of a predictor is the
@@ -82,10 +82,7 @@ class Patron(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         predictors:
             The bit mask of the predictors of the pool that the patron holds.

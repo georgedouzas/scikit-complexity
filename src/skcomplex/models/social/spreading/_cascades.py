@@ -9,20 +9,17 @@ import networkx as nx
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, state
-from ....core.model import AgentType, Law, NetworkSpace, Rule, Symbols, System
+from ....core.model import Element, Law, NetworkSpace, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
 
-class ThresholdNode(AgentType):
+class ThresholdNode(Element):
     """Node of the Watts cascade model, which becomes active once the share of active neighbours reaches its threshold.
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial node, or `None` for one agent per node in node order.
+            The label of the agent or group.
 
         active:
             Whether the node starts active.

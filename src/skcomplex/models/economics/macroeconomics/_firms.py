@@ -6,12 +6,12 @@
 import numpy as np
 
 from ....core.base import Domain, parameter, state
-from ....core.model import AgentType, Law, Observable, Rule, Symbols, System
+from ....core.model import Element, Law, Observable, Rule, Symbols, System
 from ....core.runtime import register_model
 from ....core.solvers import AgentView, ModelView
 
 
-class InvestingFirm(AgentType):
+class InvestingFirm(Element):
     """Firm of the toy business-cycle model, which invests a share of its last profit and sells at a random price.
 
     Every period the firm invests `I = gamma * Z`, accumulates capital `K = K + I`, produces `Y = phi * K`, borrows
@@ -20,10 +20,7 @@ class InvestingFirm(AgentType):
 
     Args:
         label:
-            The label of the agent type or group.
-
-        location:
-            The initial location, unused without a space.
+            The label of the agent or group.
 
         A:
             The initial net worth.
