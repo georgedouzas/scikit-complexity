@@ -757,6 +757,9 @@ class MesaStepper(Stepper):
         roles = {item.path: item.roles for item in problem.interactions}
         self._views = {spec.path: ModelView(self, spec.path) for spec in problem.agents}
         self._rules = [(ModelView(self, owner, roles.get(owner)), rule) for owner, rule in problem.model_rules]
+        self._model_invariants = [
+            (ModelView(self, owner, roles.get(owner)), owner, invariant) for owner, invariant in problem.model_invariants
+        ]
         time = getattr(problem.system, 'time', None)
         self._phases = _phase_plan(time.phases if isinstance(time, DiscreteTime) else (), problem)
         owners = [(item.path, type(item.interaction)) for item in problem.interactions] + [
@@ -949,7 +952,7 @@ class MesaStepper(Stepper):
         self._check_invariants()
 
     def _check_invariants(self) -> None:
-        """Check the invariants of every agent against their values when the agent was first checked."""
+        """Check the invariants of every agent and interaction against their values when they were first checked."""
         for spec in self._specs.values():
             for agent in self.group_agents(spec.path) if spec.invariants else ():
                 view = AgentView(agent, self)
@@ -957,6 +960,9 @@ class MesaStepper(Stepper):
                     key = (agent.unique_id, spec.path, invariant.label)
                     first = self._invariant_values.setdefault(key, invariant.value_of(view))
                     invariant.check(view, first, f'agent {view.id} of {spec.path}')
+        for model, owner, invariant in self._model_invariants:
+            first = self._invariant_values.setdefault((-1, owner, invariant.label), invariant.value_of(model))
+            invariant.check(model, first, owner)
 
     def _ordered_agents(self, phase: Phase) -> list[mesa.Agent]:
         """Return the agents of a phase in the order of its activation policy."""

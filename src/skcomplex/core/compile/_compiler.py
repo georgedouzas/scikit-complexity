@@ -2690,7 +2690,13 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
             (spec.owner, law)
             for spec, laws in specs
             for law in laws
-            if isinstance(law, Rule) and spec.owner not in {block.node.path for block in blocks if block.node.is_agent}
+            if isinstance(law, Rule) and spec.owner not in agents
+        ),
+        model_invariants=tuple(
+            (spec.owner, law)
+            for spec, laws in specs
+            for law in laws
+            if isinstance(law, Invariant) and law.is_member and spec.owner not in agents
         ),
         agent_space=_agent_space(blocks),
         companions=_companions(blocks),

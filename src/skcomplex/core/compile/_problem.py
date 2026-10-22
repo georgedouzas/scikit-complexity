@@ -479,6 +479,10 @@ class Problem:
         model_rules:
             The rules of interactions of an agent-based problem, with the path of their interaction.
 
+        model_invariants:
+            The invariants of interactions of an agent-based problem, functions of the interaction's model view, with
+            the path of their interaction.
+
         agent_space:
             The space the agents of an agent-based problem live in, or `None`.
 
@@ -592,6 +596,7 @@ class Problem:
     system: System | None = field(default=None, repr=False)
     agents: tuple[CompiledAgents, ...] = ()
     model_rules: tuple[tuple[str, Rule], ...] = ()
+    model_invariants: tuple[tuple[str, Invariant], ...] = ()
     agent_space: Space | None = None
     partitions: tuple['Partition', ...] = ()
     companions: Mapping[str, tuple[str, str, int]] = field(default_factory=dict)
