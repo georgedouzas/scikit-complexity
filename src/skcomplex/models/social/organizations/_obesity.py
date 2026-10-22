@@ -8,11 +8,11 @@ from typing import ClassVar
 import numpy as np
 import numpy.typing as npt
 
+from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, VisualSpec, parameter, state
 from ....core.components import Element
 from ....core.laws import Law, Rule, Symbols
 from ....core.runtime import register_model
-from ....core.solvers import AgentView, ModelView
 from ....core.space import ContinuousSpace
 from ....core.system import System
 

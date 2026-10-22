@@ -9,9 +9,9 @@ import pytest
 from sage.all__sagemath_symbolics import I, arg, conjugate, exp, gamma, imag_part, real_part
 
 from skcomplex.core.analysis import power_spectrum
-from skcomplex.core.backends import LammpsBackend
+from skcomplex.core.backends import LammpsBackend, NumbaBackend
 from skcomplex.core.base import BackendError, Domain, ValidationError, parameter, state
-from skcomplex.core.compile import Entry, Layout, NumbaBackend, compile_system
+from skcomplex.core.compile import Entry, Layout, compile_system
 from skcomplex.core.components import Element, Field
 from skcomplex.core.laws import (
     Call,
@@ -275,7 +275,8 @@ def test_complex_kernels_are_cached_on_disk(tmp_path):
     script = textwrap.dedent(
         f"""
         import sys
-        from skcomplex.core.compile import NumbaBackend, compile_system
+        from skcomplex.core.compile import compile_system
+        from skcomplex.core.backends import NumbaBackend
         from skcomplex.models.mathematics.fractals import mandelbrot
         problem = compile_system(mandelbrot((64, 64)), backend=NumbaBackend(cache_dir={str(tmp_path)!r}))
         problem.update(0.0, problem.initial_state, problem.initial_parameters)

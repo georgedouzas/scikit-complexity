@@ -7,11 +7,11 @@ from typing import ClassVar
 
 import numpy as np
 
+from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, VisualSpec, parameter, state
 from ....core.components import Element
 from ....core.laws import Jump, Law, Noise, Rate, Rule, Symbols, Update, bernoulli, normal
 from ....core.runtime import register_model
-from ....core.solvers import AgentView, ModelView
 from ....core.system import System
 
 PersistentWalker = Element.define(

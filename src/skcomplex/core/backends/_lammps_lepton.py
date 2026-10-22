@@ -57,7 +57,7 @@ class LeptonPrinter:
 
     Examples:
         >>> from sage.all__sagemath_symbolics import exp
-        >>> from skcomplex.core.backends import LeptonPrinter
+        >>> from skcomplex.core.backends._lammps_lepton import LeptonPrinter
         >>> from skcomplex.core.base import symbol
         >>> r = symbol('r')
         >>> LeptonPrinter().doprint(2 * exp(-r / 3) + r**2)
@@ -101,7 +101,7 @@ def lepton_expression(expression: Expression, distance: Expression) -> str:
             The energy has symbols other than the distance or functions Lepton does not know.
 
     Examples:
-        >>> from skcomplex.core.backends import lepton_expression
+        >>> from skcomplex.core.backends._lammps_lepton import lepton_expression
         >>> from skcomplex.core.base import Domain, symbol
         >>> x = symbol('x', Domain.POSITIVE)
         >>> lepton_expression(4 * (x**-12 - x**-6), x)

@@ -9,11 +9,11 @@ from typing import ClassVar
 import numpy as np
 from sage.all__sagemath_symbolics import cos, exp, sin, sqrt
 
+from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, Expression, VisualSpec, parameter, state
 from ....core.components import Element
 from ....core.laws import Boundary, Law, Noise, Rate, Rule, Symbols, delayed, where
 from ....core.runtime import register_model
-from ....core.solvers import AgentView, ModelView
 from ....core.space import ContinuousSpace
 from ....core.system import System
 

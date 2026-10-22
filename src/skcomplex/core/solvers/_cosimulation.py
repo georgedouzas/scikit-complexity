@@ -24,7 +24,7 @@ from ..base import (
 from ..compile import Partition, Problem, Vector, partition_system
 from ..components import Aggregate
 from ..system import reduce_values
-from ._agents import AgentState, MesaStepper
+from ._agents import AgentState
 from ._base import Stepper, register_solver, resolve_solver
 
 STEPWISE_FORMS = (Form.DISCRETE, Form.AGENT)
@@ -206,7 +206,7 @@ class CoSimulation(Stepper):
     def _advance_partition(self, partition: Partition, source: Vector, p: Vector, start: float, end: float) -> Vector:
         """Advance one partition from the values of a source state vector and return its new state vector."""
         stepper = self.steppers_[partition.name]
-        if isinstance(stepper, MesaStepper):
+        if stepper.reads_inputs:
             stepper.inputs_ = self.problem_.states.values(source)
         state = stepper.advance(start, source.copy(), p, end)
         if partition.problem.boundary is not None:

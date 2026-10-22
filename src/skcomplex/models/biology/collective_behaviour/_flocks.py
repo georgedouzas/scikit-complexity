@@ -9,12 +9,12 @@ from typing import ClassVar, cast
 import numpy as np
 from sage.all__sagemath_symbolics import exp
 
+from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
 from ....core.components import Element, Particle
 from ....core.interactions import Interaction, PairPotential
 from ....core.laws import Law, Rate, Rule, Symbols
 from ....core.runtime import register_model
-from ....core.solvers import AgentView, ModelView
 from ....core.space import ContinuousSpace
 from ....core.system import System
 

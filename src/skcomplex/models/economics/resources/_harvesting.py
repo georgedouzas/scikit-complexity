@@ -3,12 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, parameter, role, state
 from ....core.components import Aggregate, Element
 from ....core.interactions import Interaction
 from ....core.laws import Law, Rate, Rule, Symbols
 from ....core.runtime import register_model
-from ....core.solvers import AgentView, ModelView
 from ....core.system import System
 
 Stock = Element.define(

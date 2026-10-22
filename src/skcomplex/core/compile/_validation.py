@@ -63,7 +63,7 @@ from ..laws import (
 )
 from ..space import LatticeSpace, NetworkSpace, Space
 from ..system import Observable, System
-from ._backends import BACKENDS
+from ._backends import BACKENDS, load_backends
 from ._compiler import CensusRecord, _held_observables, _with_held_observables, law_census
 from ._layout import Entry
 from ._observables import with_observables
@@ -77,6 +77,8 @@ OPTIONAL_SOLVERS = {'lammps': 'lammps'}
 def _solver_registry() -> Registry:
     """Return the registry of solvers, imported late since the solvers import the compiler."""
     from ..solvers import SOLVERS  # noqa: PLC0415
+
+    load_backends()
 
     return SOLVERS
 

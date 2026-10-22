@@ -27,7 +27,7 @@ from sage.all__sagemath_symbolics import (
     tanh,
 )
 
-from skcomplex.core.backends import LeptonPrinter
+from skcomplex.core.backends._lammps_lepton import LeptonPrinter
 from skcomplex.core.base import symbol
 from skcomplex.core.compile import NUMPY_DIALECT, SCALAR_DIALECT, print_expressions
 from skcomplex.core.laws import both, either, mod, where

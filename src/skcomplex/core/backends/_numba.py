@@ -31,8 +31,7 @@ from ..base import (
     ValidationError,
     symbols_of,
 )
-from ..laws import Boundary, Jump, Noise, Rate, Update
-from ._backends import (
+from ..compile._backends import (
     AUTO_MEMBERS,
     Backend,
     Lowering,
@@ -41,11 +40,12 @@ from ._backends import (
     concatenating_function,
     register_backend,
 )
-from ._kernels import Kernel, Output, Reference, Source, jump_channels, noise_rows
-from ._layout import Entry
-from ._printing import SCALAR_DIALECT, print_expressions
-from ._problem import Accelerated, Draws, Vector
-from ._reductions import CompiledReduction, Read, ReductionPass
+from ..compile._kernels import Kernel, Output, Reference, Source, jump_channels, noise_rows
+from ..compile._layout import Entry
+from ..compile._printing import SCALAR_DIALECT, print_expressions
+from ..compile._problem import Accelerated, Draws, Vector
+from ..compile._reductions import CompiledReduction, Read, ReductionPass
+from ..laws import Boundary, Jump, Noise, Rate, Update
 
 DEFAULT_CACHE_DIR = Path.home() / '.cache' / 'skcomplex' / 'kernels'
 FORM_KINDS: dict[Form, list[type]] = {
@@ -69,8 +69,8 @@ HEADER = """import math
 import numpy as np
 from numba import njit, prange
 
-from skcomplex.core.compile._numba_cells import build_cells
-from skcomplex.core.compile._numba_stencils import neighbor_value
+from skcomplex.core.backends._numba_cells import build_cells
+from skcomplex.core.backends._numba_stencils import neighbor_value
 """
 LOOPS = {
     'rk4': """

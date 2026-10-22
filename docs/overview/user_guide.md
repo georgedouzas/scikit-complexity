@@ -1297,7 +1297,7 @@ for `RK4`, `EulerMaruyama`, `Gillespie`, and `Iteration`. The default `'auto'` p
 hold at least 1000 members in total, because compiling takes a second or two that small systems do not win back.
 
 ```python
-from skcomplex.core.compile import NumbaBackend
+from skcomplex.core.backends import NumbaBackend
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 from skcomplex.core.solvers import RK4
 

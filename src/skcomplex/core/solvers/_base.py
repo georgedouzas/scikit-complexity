@@ -11,7 +11,7 @@ import numpy as np
 from sklearn.base import BaseEstimator
 
 from ..base import Form, Registry, SolverError, Supports
-from ..compile import EventRecord, ExtremalRecord, Problem, RelaxationRecord, RenewalRecord, Vector
+from ..compile import EventRecord, ExtremalRecord, Problem, RelaxationRecord, RenewalRecord, Vector, load_backends
 from ._hybrid import EventLocator, History
 from ._renewals import RenewalClock
 
@@ -32,6 +32,7 @@ class Stepper(BaseEstimator):
     implicit: ClassVar[bool] = False
     renews: ClassVar[bool] = False
     fractional: ClassVar[bool] = False
+    reads_inputs: ClassVar[bool] = False
 
     def _check_capabilities(self, problem: Problem) -> None:
         """Raise an error when a problem has renewal laws or fractional noise that the stepper does not integrate."""
@@ -225,6 +226,7 @@ def resolve_solver(problem: Problem, solver: str | Stepper) -> Stepper:
     """
     if isinstance(solver, Stepper):
         return solver
+    load_backends()
     try:
         return SOLVERS.resolve((problem.form, solver))()
     except KeyError as error:

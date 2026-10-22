@@ -8,11 +8,11 @@ from typing import ClassVar
 import numpy as np
 import numpy.typing as npt
 
+from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, state
 from ....core.components import Element
 from ....core.laws import Law, Rule, Symbols
 from ....core.runtime import register_model
-from ....core.solvers import AgentView, ModelView
 from ....core.system import Observable, System
 
 type Array = npt.NDArray[np.float64]

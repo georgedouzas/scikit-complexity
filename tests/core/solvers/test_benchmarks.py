@@ -6,8 +6,9 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
+from skcomplex.core.backends import NumbaBackend
 from skcomplex.core.base import Domain, parameter
-from skcomplex.core.compile import NumbaBackend, compile_system
+from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element, Field, Particle
 from skcomplex.core.interactions import Interaction, PairPotential
 from skcomplex.core.laws import Event, Rate, delayed, laplacian, total
