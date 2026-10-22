@@ -51,6 +51,7 @@ dependencies = [
     "mrestimator>=0.2.0",
     "kramersmoyal>=0.4.1",
     "deeptime>=0.4.5",
+    "dit>=2.3",
     "qutip<6,>=5.3",
     "matching>=1.4.3",
 ]
@@ -203,7 +204,9 @@ scikit-fem = "skfem"
 [tool.deptry.per_rule_ignores]
 # Maxima and cysignals are loaded by Sage, and MPI by LAMMPS, so the package never imports them. The analysis
 # libraries are imported on first use through `skcomplex.core.analysis._lazy.module`, by name.
-DEP002 = ["passagemath-maxima", "cysignals", "mpich", "antropy", "powerlaw", "mrestimator", "kramersmoyal", "deeptime"]
+DEP002 = [
+    "passagemath-maxima", "cysignals", "mpich", "antropy", "powerlaw", "mrestimator", "kramersmoyal", "deeptime", "dit",
+]
 # pandas is optional: `ExperimentResult.to_frame` imports it on demand and names it when it is missing.
 DEP004 = ["pandas"]
 

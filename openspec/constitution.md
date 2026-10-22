@@ -232,7 +232,8 @@ to fill in as the project takes shape.
   estimator contract. The analysis layer adds `antropy` for regularity entropies and Lempel-Ziv complexity, `ordpy`
   for ordinal patterns, `nolds` for fluctuation analyses and Rosenstein's exponent, `powerlaw` for power-law fits,
   `ennemi` for nearest-neighbour transfer entropy, `tidynamics` for displacements, `mrestimator` for branching
-  ratios, `kramersmoyal` for Kramers-Moyal coefficients, and `deeptime` for Markov state models. Rerun is a core dependency,
+  ratios, `kramersmoyal` for Kramers-Moyal coefficients, `deeptime` for Markov state models, and `dit` for discrete
+  multivariate information and partial information decomposition. Rerun is a core dependency,
   and spawning a local viewer happens only on request, so it is not a real-world side effect.
 - Model gallery: the `gallery` dependency group holds `pillow` 11.0 or later for encoding the screenshots and
   `playwright` 1.50 or later for the web capture backend in headless Chromium, next to `mkdocs-gallery` in the `docs`
