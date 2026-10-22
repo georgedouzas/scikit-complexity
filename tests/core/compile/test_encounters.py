@@ -214,3 +214,14 @@ def test_rk4_runs_encounters():
     first = Simulation(_wealth_system(), dt=1.0).run(until=5).trajectory_['wealth.f'][-1]
     second = Simulation(_wealth_system(), dt=1.0, solver=RK4(dt=0.01)).run(until=5).trajectory_['wealth.f'][-1]
     np.testing.assert_allclose(first, second, atol=1e-5)
+
+
+def test_encounter_without_a_lattice_is_reported():
+    """Test that an encounter of groups outside a lattice space is reported with the fix of declaring one."""
+    system = System(
+        components=[Group('wealth', element=Density, size=CLASSES, values={'f': _profile()})],
+        interactions=[_exchange(_exchange_table(CLASSES))('exchange', population='wealth')],
+        time=ContinuousTime(),
+    )
+    issue = next(item for item in validate(system).errors if item.code == 'law-space')
+    assert 'lattice' in issue.message
