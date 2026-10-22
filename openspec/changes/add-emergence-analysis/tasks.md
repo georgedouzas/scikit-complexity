@@ -28,6 +28,6 @@ the naming and public-API rules of the constitution.
 
 ## 4. Documentation and gate
 
-- [ ] 4.1 Document coarse-graining, effective information, causal emergence, and ergodicity breaking in the analysis
+- [x] 4.1 Document coarse-graining, effective information, causal emergence, and ergodicity breaking in the analysis
   section of the user guide, and verify the documentation test passes
 - [ ] 4.2 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass
