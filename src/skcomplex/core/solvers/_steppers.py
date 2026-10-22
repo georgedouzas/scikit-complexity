@@ -14,7 +14,19 @@ import numpy as np
 import numpy.typing as npt
 from scipy.integrate import BDF, DOP853, LSODA, RK23, RK45, OdeSolver, Radau
 
-from ..base import Expression, Form, SolverError, components_of
+from ..base import (
+    NUMERIC_DOMAINS,
+    ComponentKind,
+    DomainKind,
+    Expression,
+    Form,
+    LawKind,
+    SolverError,
+    SpaceKind,
+    Supports,
+    TimeKind,
+    components_of,
+)
 from ..compile import Problem, Vector, VectorFunction
 from ._base import Stepper, register_solver
 from ._hybrid import History, hermite, with_delays
@@ -208,6 +220,14 @@ class ScipyODE(Stepper):
         >>> round(float(x[0]), 4)
         2.7183
     """
+
+    supports: ClassVar[Supports] = Supports(
+        time={TimeKind.CONTINUOUS},
+        space=set(SpaceKind),
+        laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER},
+        domains=NUMERIC_DOMAINS,
+        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+    )
 
     form: ClassVar[Form] = Form.ODE
 
@@ -608,6 +628,14 @@ class RK4(Stepper):
         2.7182818285
     """
 
+    supports: ClassVar[Supports] = Supports(
+        time={TimeKind.CONTINUOUS},
+        space=set(SpaceKind),
+        laws={LawKind.JUMP, LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER},
+        domains=NUMERIC_DOMAINS,
+        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+    )
+
     form: ClassVar[Form] = Form.ODE
     renews: ClassVar[bool] = True
 
@@ -867,6 +895,14 @@ class VelocityVerlet(Stepper):
         [1.0, 2.0]
     """
 
+    supports: ClassVar[Supports] = Supports(
+        time={TimeKind.CONTINUOUS},
+        space=set(SpaceKind),
+        laws={LawKind.RATE, LawKind.EQUATION, LawKind.BOUNDARY},
+        domains=NUMERIC_DOMAINS,
+        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+    )
+
     form: ClassVar[Form] = Form.ODE
 
     def __init__(self, dt: float = 1e-3) -> None:
@@ -961,6 +997,22 @@ class EulerMaruyama(Stepper):
         >>> bool(stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)[0] > 0)
         True
     """
+
+    supports: ClassVar[Supports] = Supports(
+        time={TimeKind.CONTINUOUS},
+        space=set(SpaceKind),
+        laws={
+            LawKind.JUMP,
+            LawKind.RATE,
+            LawKind.EQUATION,
+            LawKind.EVENT,
+            LawKind.BOUNDARY,
+            LawKind.TRANSFER,
+            LawKind.NOISE,
+        },
+        domains=NUMERIC_DOMAINS,
+        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+    )
 
     form: ClassVar[Form] = Form.SDE
     renews: ClassVar[bool] = True
@@ -1066,6 +1118,14 @@ class Milstein(Stepper):
         True
     """
 
+    supports: ClassVar[Supports] = Supports(
+        time={TimeKind.CONTINUOUS},
+        space=set(SpaceKind),
+        laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.NOISE},
+        domains=NUMERIC_DOMAINS,
+        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+    )
+
     form: ClassVar[Form] = Form.SDE
 
     def __init__(self, dt: float = 1e-3) -> None:
@@ -1140,6 +1200,14 @@ class Heun(Stepper):
         True
     """
 
+    supports: ClassVar[Supports] = Supports(
+        time={TimeKind.CONTINUOUS},
+        space=set(SpaceKind),
+        laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.NOISE},
+        domains=NUMERIC_DOMAINS,
+        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+    )
+
     form: ClassVar[Form] = Form.SDE
 
     def __init__(self, dt: float = 1e-3) -> None:
@@ -1201,6 +1269,14 @@ class Gillespie(Stepper):
         >>> stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 100.0).tolist()
         [0.0, 10.0]
     """
+
+    supports: ClassVar[Supports] = Supports(
+        time={TimeKind.CONTINUOUS},
+        space=set(SpaceKind),
+        laws={LawKind.JUMP, LawKind.BOUNDARY, LawKind.TRANSFER},
+        domains=set(DomainKind) - {DomainKind.HILBERT},
+        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+    )
 
     form: ClassVar[Form] = Form.JUMP
 
@@ -1299,6 +1375,14 @@ class Iteration(Stepper):
         [4.0]
     """
 
+    supports: ClassVar[Supports] = Supports(
+        time={TimeKind.DISCRETE},
+        space=set(SpaceKind),
+        laws={LawKind.UPDATE, LawKind.TRANSITION, LawKind.BOUNDARY, LawKind.TRANSFER},
+        domains=set(DomainKind) - {DomainKind.HILBERT},
+        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+    )
+
     form: ClassVar[Form] = Form.DISCRETE
 
     def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
@@ -1373,6 +1457,14 @@ class RenewalStepper(Stepper):
         >>> bool(np.all(state[:3] > 50))
         True
     """
+
+    supports: ClassVar[Supports] = Supports(
+        time={TimeKind.CONTINUOUS},
+        space=set(SpaceKind),
+        laws={LawKind.JUMP, LawKind.RATE, LawKind.NOISE, LawKind.EQUATION, LawKind.BOUNDARY},
+        domains=set(DomainKind) - {DomainKind.HILBERT},
+        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+    )
 
     form: ClassVar[Form] = Form.RENEWAL
     renews: ClassVar[bool] = True

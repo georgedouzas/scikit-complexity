@@ -107,7 +107,7 @@ def test_compile_system_mixed_kinds_raises_error():
         elements=[Market('m'), Population('a')],
         interactions=[Cobweb('c', target='m'), ExponentialGrowth('g', target='a')],
     )
-    with pytest.raises(IncompatibleLawsError, match='Rate, Update'):
+    with pytest.raises(IncompatibleLawsError, match='rate: a; update: m'):
         compile_system(system)
 
 

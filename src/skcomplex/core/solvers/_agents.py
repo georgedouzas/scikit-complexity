@@ -19,7 +19,20 @@ from mesa.discrete_space import CellAgent, Network, OrthogonalMooreGrid, Orthogo
 from mesa.experimental.continuous_space import ContinuousSpace as MesaContinuousSpace
 from mesa.experimental.continuous_space import ContinuousSpaceAgent
 
-from ..base import ConservationError, Form, SimulationError, SpaceError, VariableKind, declarations_of
+from ..base import (
+    ComponentKind,
+    ConservationError,
+    DomainKind,
+    Form,
+    LawKind,
+    SimulationError,
+    SpaceError,
+    SpaceKind,
+    Supports,
+    TimeKind,
+    VariableKind,
+    declarations_of,
+)
 from ..compile import CompiledAgents, ObservableEvaluator, Problem, Vector
 from ..model import ContinuousSpace, GridSpace, Group, MesaSystem, NetworkSpace, Phase, Rule, Space
 from ..model._phases import DEFAULT_PHASE
@@ -712,6 +725,14 @@ class MesaStepper(Stepper):
         >>> trajectory.agents('counters', 4).values['count'].tolist()
         [4.0, 4.0, 4.0]
     """
+
+    supports: ClassVar[Supports] = Supports(
+        time={TimeKind.DISCRETE},
+        space=set(SpaceKind),
+        laws={LawKind.RULE, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.MATCH},
+        domains=set(DomainKind) - {DomainKind.HILBERT},
+        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.VARIABLE_GROUP, ComponentKind.SYSTEM},
+    )
 
     form: ClassVar[Form] = Form.AGENT
 

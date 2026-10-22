@@ -1,7 +1,7 @@
 """Compile systems into problems of one mathematical form with fast numeric functions."""
 
 from ._backends import BACKENDS, Backend, Lowering, NumpyBackend, register_backend, resolve_backend
-from ._compiler import compile_system, partition_system
+from ._compiler import CensusRecord, compile_system, law_census, partition_system
 from ._fields import mesh_laplacian, spectral_multiplier
 from ._hybrid import Breakpoints, CompiledEvent, Delay, EventRecord
 from ._lattices import (
@@ -39,9 +39,25 @@ from ._quantities import CompiledFlow, LoopTerm, Recorded, StockFlow
 from ._quantum import QuantumProblem, QuantumTerm
 from ._rewriting import CompiledGraph, CompiledPatch, compile_rewriting
 from ._structures import GraphStructure, PatchStructure, Structure, WordStructure
+from ._validation import (
+    Issue,
+    ValidationReport,
+    ValidationWarning,
+    domain_kind,
+    law_types,
+    missing_declarations,
+    validate,
+)
 from ._words import CompiledWord
 
-__all__: list[str] = [
+__all__: list[
+    'CensusRecord',
+    'Issue',
+    'ValidationReport',
+    'ValidationWarning',
+    'law_census',
+    'str',
+] = [
     'BACKENDS',
     'NUMPY_DIALECT',
     'SCALAR_DIALECT',
@@ -95,7 +111,10 @@ __all__: list[str] = [
     'WordStructure',
     'compile_rewriting',
     'compile_system',
+    'domain_kind',
+    'law_types',
     'mesh_laplacian',
+    'missing_declarations',
     'numpy_function',
     'observables_of',
     'partition_system',
@@ -103,4 +122,5 @@ __all__: list[str] = [
     'register_backend',
     'resolve_backend',
     'spectral_multiplier',
+    'validate',
 ]

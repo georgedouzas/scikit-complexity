@@ -13,7 +13,17 @@ import numpy.typing as npt
 from scipy.sparse import csr_matrix, diags, identity
 from scipy.sparse.linalg import splu
 
-from ..base import Form, SolverError, symbol
+from ..base import (
+    NUMERIC_DOMAINS,
+    ComponentKind,
+    Form,
+    LawKind,
+    SolverError,
+    SpaceKind,
+    Supports,
+    TimeKind,
+    symbol,
+)
 from ..compile import Problem, Vector, mesh_laplacian, numpy_function, spectral_multiplier
 from ..model import LatticeSpace, Mesh, Neighborhood, NetworkSpace
 from ._base import Stepper, register_solver
@@ -257,6 +267,14 @@ def _mesh_operator(space: Mesh, name: str) -> csr_matrix:
 
 class _SplitStepper(Stepper):
     """Base of steppers that treat the linear part of the rates of fields apart from the nonlinear remainder."""
+
+    supports: ClassVar[Supports] = Supports(
+        time={TimeKind.CONTINUOUS},
+        space=set(SpaceKind),
+        laws={LawKind.RATE, LawKind.BOUNDARY, LawKind.TRANSFER},
+        domains=NUMERIC_DOMAINS,
+        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+    )
 
     form: ClassVar[Form] = Form.ODE
     implicit: ClassVar[bool] = True
@@ -548,6 +566,14 @@ class SSPRK(Stepper):
         >>> bool(np.isclose(state.sum(), problem.initial_state.sum()))
         True
     """
+
+    supports: ClassVar[Supports] = Supports(
+        time={TimeKind.CONTINUOUS},
+        space=set(SpaceKind),
+        laws={LawKind.RATE, LawKind.BOUNDARY, LawKind.TRANSFER},
+        domains=NUMERIC_DOMAINS,
+        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+    )
 
     form: ClassVar[Form] = Form.ODE
 

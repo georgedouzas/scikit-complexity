@@ -11,7 +11,18 @@ import numpy.typing as npt
 import scipy.fft
 import scipy.linalg
 
-from ..base import Form, HorizonError, SolverError, ValidationError
+from ..base import (
+    NUMERIC_DOMAINS,
+    ComponentKind,
+    Form,
+    HorizonError,
+    LawKind,
+    SolverError,
+    SpaceKind,
+    Supports,
+    TimeKind,
+    ValidationError,
+)
 from ..compile import Problem, Vector
 from ._base import Stepper, register_solver
 
@@ -120,6 +131,14 @@ class FractionalEulerMaruyama(Stepper):
         >>> round(float(np.var(state)), 1)
         1.0
     """
+
+    supports: ClassVar[Supports] = Supports(
+        time={TimeKind.CONTINUOUS},
+        space=set(SpaceKind),
+        laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.NOISE},
+        domains=NUMERIC_DOMAINS,
+        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+    )
 
     form: ClassVar[Form] = Form.SDE
     fractional: ClassVar[bool] = True

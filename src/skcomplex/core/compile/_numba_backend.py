@@ -18,7 +18,19 @@ import numpy as np
 import scipy.sparse
 from numba.core.dispatcher import Dispatcher
 
-from ..base import Expression, Form, ValidationError, symbols_of
+from ..base import (
+    NUMERIC_DOMAINS,
+    ComponentKind,
+    DomainKind,
+    Expression,
+    Form,
+    LawKind,
+    SpaceKind,
+    Supports,
+    TimeKind,
+    ValidationError,
+    symbols_of,
+)
 from ..model import Boundary, Jump, Noise, Rate, Update
 from ._backends import (
     AUTO_MEMBERS,
@@ -737,6 +749,14 @@ class NumbaBackend(Backend):
         >>> problem.drift(0.0, problem.initial_state, problem.initial_parameters).tolist()
         [3.0, 6.0]
     """
+
+    supports: ClassVar[Supports] = Supports(
+        time=set(TimeKind),
+        space=set(SpaceKind),
+        laws=set(LawKind),
+        domains=NUMERIC_DOMAINS | {DomainKind.CATEGORICAL},
+        components=set(ComponentKind),
+    )
 
     name: ClassVar[str] = 'numba'
 

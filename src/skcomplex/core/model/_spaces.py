@@ -4,13 +4,14 @@
 # License: MIT
 
 from dataclasses import dataclass
+from typing import ClassVar
 
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
 from sklearn.base import BaseEstimator
 
-from ..base import ValidationError
+from ..base import SpaceKind, ValidationError
 
 
 class Space(BaseEstimator):
@@ -18,6 +19,8 @@ class Space(BaseEstimator):
 
     Subclasses expose the number of dimensions as `n_dim`.
     """
+
+    space_kind: ClassVar[SpaceKind]
 
     n_dim: int
 
@@ -46,6 +49,8 @@ class GridSpace(Space):
         >>> GridSpace(20, 20, capacity=1).n_dim
         2
     """
+
+    space_kind: ClassVar[SpaceKind] = SpaceKind.LATTICE
 
     n_dim = 2
 
@@ -105,6 +110,8 @@ class NetworkSpace(Space):
         >>> NetworkSpace(nx.cycle_graph(5)).graph.number_of_nodes()
         5
     """
+
+    space_kind: ClassVar[SpaceKind] = SpaceKind.NETWORK
 
     n_dim = 1
 
@@ -170,6 +177,8 @@ class ContinuousSpace(Space):
         5.0
     """
 
+    space_kind: ClassVar[SpaceKind] = SpaceKind.CONTINUOUS
+
     n_dim = 2
 
     def __init__(self, width: float, height: float, *, torus: bool = False) -> None:
@@ -190,6 +199,8 @@ class EuclideanSpace(Space):
         >>> EuclideanSpace(n_dim=2).n_dim
         2
     """
+
+    space_kind: ClassVar[SpaceKind] = SpaceKind.CONTINUOUS
 
     def __init__(self, n_dim: int = 3) -> None:
         self.n_dim = n_dim

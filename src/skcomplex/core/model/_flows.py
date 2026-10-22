@@ -5,12 +5,19 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 from sage.all__sagemath_symbolics import SR
 from sage.symbolic.function import BuiltinFunction
 
-from ..base import Expression, ValidationError, symbol
+from ..base import (
+    DomainKind,
+    Expression,
+    LawKind,
+    Requires,
+    ValidationError,
+    symbol,
+)
 from ._functions import series
 from ._laws import _check_value, _is_number
 
@@ -118,6 +125,9 @@ class Flow:
         'faucet'
     """
 
+    law_kind: ClassVar[LawKind] = LawKind.TRANSFER
+    requires: ClassVar[Requires] = Requires(domains={DomainKind.REAL})
+
     source: Holder
     sink: Holder
     amount: object
@@ -162,6 +172,9 @@ class Auxiliary:
         >>> births.symbol
         births__aux
     """
+
+    law_kind: ClassVar[LawKind] = LawKind.EQUATION
+    requires: ClassVar[Requires] = Requires()
 
     label: str
     expression: object

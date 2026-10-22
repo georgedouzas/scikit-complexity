@@ -32,6 +32,7 @@ def _load() -> tuple[dict[str, str], dict[str, Any]]:
     """Return the source keys and the inventory by field and subfield."""
     data = tomllib.loads(INVENTORY.read_text())
     data.pop('primitives')
+    data.pop('vocabulary')
     return data.pop('sources'), data
 
 
@@ -148,6 +149,38 @@ def primitive_lines(inventory: dict[str, Any]) -> list[str]:
     return lines
 
 
+def system_lines(inventory: dict[str, Any]) -> list[str]:
+    """Return the number of implemented and pending entries for every term of the system vocabulary.
+
+    Args:
+        inventory:
+            The inventory by field and subfield.
+
+    Returns:
+        lines:
+            The Markdown lines of the section.
+    """
+    vocabulary = tomllib.loads(INVENTORY.read_text())['vocabulary']
+    entries = [entry for subfields in inventory.values() for models in subfields.values() for entry in models.values()]
+    lines = [
+        '',
+        '## Coverage by system vocabulary',
+        '',
+        'A system is its components, interactions, space, and time, and its dynamics are laws. Every entry maps to',
+        'this vocabulary. A term no implemented entry uses is a general primitive the core still needs.',
+        '',
+        '| Category | Term | Description | Implemented | Pending |',
+        '|---|---|---|---|---|',
+    ]
+    for category, terms in vocabulary.items():
+        for term, item in terms.items():
+            description = item['description'] if isinstance(item, dict) else item
+            users = [entry['status'].split(' ')[0] for entry in entries if term in entry['system'][category]]
+            implemented = users.count('implemented')
+            lines.append(f'| {category} | `{term}` | {description} | {implemented} | {len(users) - implemented} |')
+    return lines
+
+
 def coverage_page() -> str:
     """Return the coverage page: the inventory grouped by field and subfield, with sources and status."""
     keys, inventory = _load()
@@ -165,6 +198,7 @@ def coverage_page() -> str:
         statuses = [entry['status'].split(' ')[0] for models in subfields.values() for entry in models.values()]
         counts = [statuses.count(status) for status in STATUS_LABELS]
         lines.append(f'| [{_title(field)}](#{field.replace("_", "-")}) | {" | ".join(map(str, counts))} |')
+    lines += system_lines(inventory)
     lines += primitive_lines(inventory)
     for field, subfields in inventory.items():
         lines += ['', f'## {_title(field)} {{#{field.replace("_", "-")}}}']

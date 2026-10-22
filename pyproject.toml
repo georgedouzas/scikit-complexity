@@ -207,7 +207,7 @@ DEP004 = ["pandas"]
 
 [tool.pytest.ini_options]
 python_files = ["test_*.py"]
-addopts = "--cov"
+addopts = "--cov=src --cov=tests"
 testpaths = ["tests"]
 
 [tool.coverage.run]

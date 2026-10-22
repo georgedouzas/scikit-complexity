@@ -6,14 +6,22 @@
 import itertools
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 from sage.symbolic.function import BuiltinFunction
 
-from ..base import Expression, SymbolicVector, vector
+from ..base import (
+    Expression,
+    LawKind,
+    Requires,
+    SpaceKind,
+    SymbolicVector,
+    TimeKind,
+    vector,
+)
 from ._spaces import Adjacency, Space
 
 BOUNDARIES = ('periodic', 'fixed', 'reflecting')
@@ -60,6 +68,8 @@ class LatticeSpace(Space):
         >>> space.size, space.n_dim
         (200, 2)
     """
+
+    space_kind: ClassVar[SpaceKind] = SpaceKind.LATTICE
 
     def __init__(
         self,
@@ -528,6 +538,9 @@ class LocalRule:
         'synchronous'
     """
 
+    law_kind: ClassVar[LawKind] = LawKind.LOCAL_RULE
+    requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
+
     target: Expression | tuple[Expression, ...]
     neighborhood: Neighborhood | Adjacency
     rule: RuleSpec
@@ -566,6 +579,9 @@ class Drive:
         >>> Drive(symbol('height'), lambda values, *, random: values + 1).target
         height
     """
+
+    law_kind: ClassVar[LawKind] = LawKind.UPDATE
+    requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
     target: Expression
     function: Callable[..., Any]
@@ -615,6 +631,9 @@ class Relaxation:
         >>> Relaxation([], [topple], lambda z: bool((z < 4).all())).max_iterations
         100000
     """
+
+    law_kind: ClassVar[LawKind] = LawKind.UPDATE
+    requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
     drive: Sequence[LocalRule | Drive]
     relax: Sequence[LocalRule | Drive]
@@ -706,6 +725,9 @@ class Energy:
         4
     """
 
+    law_kind: ClassVar[LawKind] = LawKind.SAMPLE
+    requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
+
     expression: object
     neighborhood: Neighborhood | Adjacency
 
@@ -734,6 +756,9 @@ class Move:
         >>> Move.random_value(symbol('color'), range(3)).values
         (0.0, 1.0, 2.0)
     """
+
+    law_kind: ClassVar[LawKind] = LawKind.SAMPLE
+    requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
     target: Expression
     kind: str = 'flip'
@@ -817,6 +842,9 @@ class Sampler:
         'checkerboard'
     """
 
+    law_kind: ClassVar[LawKind] = LawKind.SAMPLE
+    requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
+
     kind: str = 'metropolis'
     temperature: object = 1.0
     schedule: str = 'checkerboard'
@@ -870,6 +898,9 @@ class Extremal:
         >>> law.extremum, law.repeat
         ('min', 1)
     """
+
+    law_kind: ClassVar[LawKind] = LawKind.UPDATE
+    requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
     target: Expression | tuple[Expression, ...]
     neighborhood: Neighborhood | Adjacency

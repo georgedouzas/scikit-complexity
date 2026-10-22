@@ -11,7 +11,7 @@ import numpy.typing as npt
 import qutip
 import scipy.sparse as sp
 
-from ..base import Form, SolverError
+from ..base import ComponentKind, DomainKind, Form, LawKind, SolverError, SpaceKind, Supports, TimeKind
 from ..compile import Problem, QuantumProblem, QuantumTerm, Vector
 from ._base import Stepper, register_solver
 
@@ -46,6 +46,14 @@ class QuantumSolver(Stepper):
         nsteps:
             The largest number of internal steps between two frames.
     """
+
+    supports: ClassVar[Supports] = Supports(
+        time={TimeKind.CONTINUOUS},
+        space=set(SpaceKind),
+        laws={LawKind.GENERATOR, LawKind.DISSIPATOR},
+        domains={DomainKind.HILBERT},
+        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP},
+    )
 
     form: ClassVar[Form] = Form.QUANTUM
 

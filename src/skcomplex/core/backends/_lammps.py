@@ -12,7 +12,20 @@ import numpy as np
 import numpy.typing as npt
 from lammps import lammps
 
-from ..base import BackendError, Domain, Form, VariableKind, declarations_of, symbol
+from ..base import (
+    NUMERIC_DOMAINS,
+    BackendError,
+    ComponentKind,
+    Domain,
+    Form,
+    LawKind,
+    SpaceKind,
+    Supports,
+    TimeKind,
+    VariableKind,
+    declarations_of,
+    symbol,
+)
 from ..compile import CompiledElement, CompiledInteraction, Problem, Vector, compile_system
 from ..model import (
     ConstantForce,
@@ -170,6 +183,14 @@ class LammpsBackend(ExternalBackend):
         >>> bool(positions[-1, 1, 0] - positions[-1, 0, 0] < 1.5)
         True
     """
+
+    supports: ClassVar[Supports] = Supports(
+        time={TimeKind.CONTINUOUS},
+        space=set(SpaceKind),
+        laws={LawKind.RATE, LawKind.NOISE, LawKind.EQUATION, LawKind.BOUNDARY},
+        domains=NUMERIC_DOMAINS,
+        components={ComponentKind.ELEMENT, ComponentKind.GROUP},
+    )
 
     name: ClassVar[str] = 'LAMMPS'
     form: ClassVar[Form] = Form.ODE

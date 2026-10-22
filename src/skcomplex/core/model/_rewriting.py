@@ -11,7 +11,7 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ..base import RewritingError, VisualSpec, role
+from ..base import DomainKind, LawKind, Requires, RewritingError, TimeKind, VisualSpec, role
 from ._components import Element, Interaction
 from ._symbols import Symbols
 
@@ -150,6 +150,9 @@ class Production:
         >>> Production('F', 'F+F--F+F')
         F → F+F--F+F
     """
+
+    law_kind: ClassVar[LawKind] = LawKind.REWRITE
+    requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, domains={DomainKind.SEQUENCE})
 
     predecessor: str | Module
     successor: Letters
@@ -360,6 +363,9 @@ class Substitution:
         1
     """
 
+    law_kind: ClassVar[LawKind] = LawKind.REWRITE
+    requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, domains={DomainKind.TILING})
+
     prototile: str
     pieces: Sequence[tuple[str, Affine]]
 
@@ -396,6 +402,9 @@ class GraphProduction:
         >>> sorted(production.added())
         ['c']
     """
+
+    law_kind: ClassVar[LawKind] = LawKind.REWRITE
+    requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, domains={DomainKind.GRAPH})
 
     left: nx.Graph
     interface: nx.Graph

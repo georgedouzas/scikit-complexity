@@ -10,7 +10,7 @@ from typing import Any, ClassVar
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from ..base import Form, Registry, SolverError
+from ..base import Form, Registry, SolverError, Supports
 from ..compile import EventRecord, ExtremalRecord, Problem, RelaxationRecord, RenewalRecord, Vector
 from ._hybrid import EventLocator, History
 from ._renewals import RenewalClock
@@ -25,6 +25,8 @@ class Stepper(BaseEstimator):
     so they do not warn about the stability limit of explicit steps. Steppers that fire renewal laws set `renews`, and
     steppers that integrate fractional noise set `fractional`.
     """
+
+    supports: ClassVar[Supports]
 
     form: ClassVar[Form]
     implicit: ClassVar[bool] = False

@@ -12,6 +12,8 @@ from sage.all__sagemath_symbolics import SR, sqrt
 from ..base import (
     Domain,
     Expression,
+    Requires,
+    SpaceKind,
     SymbolicVector,
     VariableKind,
     VisualSpec,
@@ -57,6 +59,8 @@ class Particle(Element):
         >>> Particle('ball', x=[0, 1], m=2.0)
         Particle(label='ball', m=2.0, x=[0, 1])
     """
+
+    requires: ClassVar[Requires] = Requires(space={SpaceKind.CONTINUOUS})
 
     visual: ClassVar[VisualSpec] = VisualSpec('points', {'position': 'x'})
     x: npt.ArrayLike = state(default=0.0, vector=True)

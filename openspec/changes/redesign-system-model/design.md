@@ -94,7 +94,8 @@ State domains therefore grow to structured values:
 - Hilbert space of a dimension;
 - sequence over an alphabet;
 - graph;
-- tiling.
+- tiling;
+- tensor of a declared rank and symmetry over the space's dimension (added by the inventory gate).
 
 The domain decides which laws and solvers are valid, through validation.
 
@@ -143,7 +144,7 @@ static models of the pending changes.
 | Continuous | `Rate`, `Noise(convention=)`, `Equation` (implicit), `Generator` (unitary) and `Dissipator` (Lindblad) on Hilbert domains | continuous time |
 | Event | `Jump(clock=exponential or distribution)` (absorbs `Renewal`), `Event` (guard and reset) | continuous time |
 | Discrete | `Update`, `Transition` (Markov chain), `Rule` (imperative), `LocalRule` (neighbourhood table), `Rewrite` (productions on structured domains), `Sample` (energy, move, and acceptance; absorbs `Energy`, `Move`, `Sampler`) | discrete time |
-| Constraint | `Equation` (algebraic), `Boundary`, `Invariant`, and objectives (extension point for the pending changes) | any time |
+| Constraint | `Equation` (algebraic), `Boundary`, `Invariant`, `Objective` (minimised under static or continuous time) | any time |
 | Cross-cutting | `Transfer`, `Match` | lowered per time class |
 
 `Hamiltonian` keeps its mathematical meaning under the name `Generator`. Rejected alternative: keeping `Hamiltonian`
@@ -258,6 +259,30 @@ adds a general primitive to this design. The models most likely to strain the de
 - optimal-control objectives;
 - multiscale coupling across time classes;
 - dynamic hypergraphs.
+
+**Result of the gate.** All 537 entries are tagged: the 438 implemented models from their compiled systems, and the 99
+others from their curated primitives. Every implemented model built and compiled during the probe. Four terms did not
+map, and each was resolved by a general primitive:
+
+| Unmapped need | Pending change | Resolution |
+|---|---|---|
+| tensor-valued states | `add-tensor-fields` | the `tensor` domain, with rank and symmetry |
+| quantities to minimise | `add-optimal-control`, `add-constraint-based-models`, `add-static-models` | the `objective` law in the constraint class, valid under static time (optimisation) and continuous time (control over a horizon) |
+| Caputo derivatives | `add-fractional-dynamics` | a non-integer `order` of a state, which rate laws target unchanged; solvers declare support for fractional orders |
+| parameters fitted by an inner loss | `add-learning-dynamics` | `parameter(adaptive=True)` changed by update laws, the inner model a nested system |
+
+Four further needs mapped without a new primitive:
+- acausal ports are interactions over members with algebraic equations;
+- distribution states are site groups on a lattice over the product space;
+- link and plaquette states are edge and hyperedge groups;
+- variational mechanics derives equation laws.
+
+The vocabulary and the tags live in `docs/overview/inventory.toml`, and the inventory check fails on any term outside
+it.
+
+The baseline of the migration holds the trajectory of every catalog model run with random state 0 at commit
+`73093d9`: times, states, numeric observables, and reporters. It is stored outside the repository, in
+`~/.cache/skcomplex-work/baseline-73093d9`, with the script that records it, and every model recorded without error.
 
 ## Risks / Trade-offs
 

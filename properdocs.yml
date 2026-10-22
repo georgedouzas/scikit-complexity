@@ -20,6 +20,7 @@ nav:
   - Overview:
     - index.md
     - User guide: overview/user_guide.md
+    - Compatibility: overview/compatibility.md
     - Changelog: overview/changelog.md
     - License: overview/license.md
   - Models:
@@ -110,6 +111,7 @@ plugins:
       scripts:
       - docs/generate_api.py
       - docs/generate_models.py
+      - docs/generate_compatibility.py
   - literate-nav:
       nav_file: SUMMARY.md
   - section-index

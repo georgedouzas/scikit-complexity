@@ -1,4 +1,4 @@
-"""Shared vocabulary of the framework: errors, domains, declarations, forms, and registries."""
+"""Shared vocabulary of the framework: errors, domains, declarations, forms, support, and registries."""
 
 from ._domains import AnyDomain, Categorical, Domain, wrap_angle
 from ._errors import (
@@ -21,6 +21,20 @@ from ._errors import (
 )
 from ._forms import Form
 from ._registry import Registry
+from ._support import (
+    LAW_CLASSES,
+    NUMERIC_DOMAINS,
+    VOCABULARY,
+    Binding,
+    ComponentKind,
+    DomainKind,
+    LawClass,
+    LawKind,
+    Requires,
+    SpaceKind,
+    Supports,
+    TimeKind,
+)
 from ._symbolic import (
     Expression,
     SymbolicVector,
@@ -36,12 +50,18 @@ from ._variables import Variable, VariableKind, companions_of, declaration_of, d
 from ._visuals import VisualSpec
 
 __all__: list[str] = [
+    'LAW_CLASSES',
+    'NUMERIC_DOMAINS',
+    'VOCABULARY',
     'AnalysisError',
     'AnyDomain',
     'BackendError',
+    'Binding',
     'Categorical',
+    'ComponentKind',
     'ConservationError',
     'Domain',
+    'DomainKind',
     'ExperimentError',
     'Expression',
     'Form',
@@ -49,15 +69,21 @@ __all__: list[str] = [
     'HorizonError',
     'IncompatibleLawsError',
     'LabelError',
+    'LawClass',
+    'LawKind',
     'ParameterError',
     'Registry',
+    'Requires',
     'RewritingError',
     'RoleError',
     'SimulationError',
     'SkcomplexError',
     'SolverError',
     'SpaceError',
+    'SpaceKind',
+    'Supports',
     'SymbolicVector',
+    'TimeKind',
     'ValidationError',
     'Variable',
     'VariableKind',

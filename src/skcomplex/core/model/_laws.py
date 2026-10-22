@@ -5,12 +5,20 @@
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ..base import Expression, SymbolicVector, ValidationError
+from ..base import (
+    DomainKind,
+    Expression,
+    LawKind,
+    Requires,
+    SymbolicVector,
+    TimeKind,
+    ValidationError,
+)
 from ._lattices import Drive, Energy, Extremal, LocalRule, Move, Relaxation, Sampler
 
 if TYPE_CHECKING:
@@ -120,6 +128,12 @@ class Rate:
         2*n
     """
 
+    law_kind: ClassVar[LawKind] = LawKind.RATE
+    requires: ClassVar[Requires] = Requires(
+        time={TimeKind.CONTINUOUS},
+        domains={DomainKind.REAL, DomainKind.ANGLE, DomainKind.COMPLEX, DomainKind.VECTOR},
+    )
+
     target: Target
     value: object
     order: int | None = None
@@ -150,6 +164,12 @@ class Noise:
         >>> Noise(price, 0.2 * price).value
         0.2*price
     """
+
+    law_kind: ClassVar[LawKind] = LawKind.NOISE
+    requires: ClassVar[Requires] = Requires(
+        time={TimeKind.CONTINUOUS},
+        domains={DomainKind.REAL, DomainKind.ANGLE, DomainKind.VECTOR},
+    )
 
     target: Target
     value: object
@@ -186,6 +206,12 @@ class Jump:
         1
     """
 
+    law_kind: ClassVar[LawKind] = LawKind.JUMP
+    requires: ClassVar[Requires] = Requires(
+        time={TimeKind.CONTINUOUS},
+        domains={DomainKind.REAL, DomainKind.INTEGER, DomainKind.BOOLEAN, DomainKind.CATEGORICAL},
+    )
+
     rate: object
     changes: Mapping[Expression, float] = field(default_factory=dict)
 
@@ -219,6 +245,9 @@ class Update:
         >>> Update(x, 3.7 * x * (1 - x)).target
         x
     """
+
+    law_kind: ClassVar[LawKind] = LawKind.UPDATE
+    requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE})
 
     target: Target
     value: object
@@ -254,6 +283,12 @@ class Transition:
         >>> Transition(x, [[q, 1 - q], [0.4, 0.6]]).matrix[0]
         (q, -q + 1)
     """
+
+    law_kind: ClassVar[LawKind] = LawKind.TRANSITION
+    requires: ClassVar[Requires] = Requires(
+        time={TimeKind.DISCRETE},
+        domains={DomainKind.CATEGORICAL, DomainKind.INTEGER},
+    )
 
     target: Expression
     matrix: Sequence[Sequence[object]]
@@ -292,6 +327,12 @@ class Emission:
         2
     """
 
+    law_kind: ClassVar[LawKind] = LawKind.TRANSITION
+    requires: ClassVar[Requires] = Requires(
+        time={TimeKind.DISCRETE},
+        domains={DomainKind.CATEGORICAL, DomainKind.INTEGER},
+    )
+
     target: Expression
     source: Expression
     matrix: Sequence[Sequence[object]]
@@ -321,6 +362,9 @@ class Boundary:
         >>> Boundary(x, mod(x, 1)).value
         mod(x, 1)
     """
+
+    law_kind: ClassVar[LawKind] = LawKind.BOUNDARY
+    requires: ClassVar[Requires] = Requires()
 
     target: Target
     value: object
@@ -360,6 +404,9 @@ class Event:
         >>> Event(height, {velocity: -0.8 * velocity}, direction=-1).direction
         -1
     """
+
+    law_kind: ClassVar[LawKind] = LawKind.EVENT
+    requires: ClassVar[Requires] = Requires(time={TimeKind.CONTINUOUS})
 
     guard: object
     reset: Mapping[Any, object] | None = None
@@ -437,6 +484,12 @@ class Renewal:
         x + normal_jump(0, 1)
     """
 
+    law_kind: ClassVar[LawKind] = LawKind.JUMP
+    requires: ClassVar[Requires] = Requires(
+        time={TimeKind.CONTINUOUS},
+        domains={DomainKind.REAL, DomainKind.INTEGER, DomainKind.BOOLEAN, DomainKind.CATEGORICAL},
+    )
+
     waiting: object
     reset: Mapping[Any, object] | None = None
     label: str | None = None
@@ -468,6 +521,9 @@ class Rule:
         True
     """
 
+    law_kind: ClassVar[LawKind] = LawKind.RULE
+    requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE})
+
     function: Callable[..., None]
     phase: str | None = None
 
@@ -494,6 +550,12 @@ class Equation:
         >>> Equation(l * derivative(theta, 2) == -g * sin(theta)).rhs
         -g*sin(theta)
     """
+
+    law_kind: ClassVar[LawKind] = LawKind.EQUATION
+    requires: ClassVar[Requires] = Requires(
+        time={TimeKind.CONTINUOUS},
+        domains={DomainKind.REAL, DomainKind.ANGLE, DomainKind.COMPLEX, DomainKind.VECTOR},
+    )
 
     lhs: object
     rhs: object

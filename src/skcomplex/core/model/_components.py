@@ -11,7 +11,18 @@ from typing import Any, ClassVar, dataclass_transform
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from ..base import Domain, LabelError, VisualSpec, companions_of, declaration_of, parameter, role, state
+from ..base import (
+    ComponentKind,
+    Domain,
+    LabelError,
+    Requires,
+    VisualSpec,
+    companions_of,
+    declaration_of,
+    parameter,
+    role,
+    state,
+)
 from ._lattices import LatticeSpace
 from ._laws import Law
 from ._ledgers import Identity
@@ -166,6 +177,9 @@ class Element(Component):
         >>> Population('rabbits', n=40)
         Population(label='rabbits', n=40)
     """
+
+    component_kind: ClassVar[ComponentKind] = ComponentKind.ELEMENT
+    requires: ClassVar[Requires] = Requires()
 
     reserved_names: ClassVar[frozenset[str]] = frozenset({'label', 'visual'})
     visual: ClassVar[VisualSpec] = VisualSpec()
@@ -356,6 +370,8 @@ class AgentType(Element):
         Group('walkers', element=Walker, size=5)
     """
 
+    component_kind: ClassVar[ComponentKind] = ComponentKind.VARIABLE_GROUP
+
     reserved_names: ClassVar[frozenset[str]] = frozenset(
         {'label', 'visual', 'remembers', *AGENT_VIEW_NAMES, *MESA_AGENT_NAMES},
     )
@@ -431,6 +447,8 @@ class Group(BaseEstimator):
         >>> Group('herds', element=Population, size=3).size
         3
     """
+
+    component_kind: ClassVar[ComponentKind] = ComponentKind.GROUP
 
     def __init__(
         self,

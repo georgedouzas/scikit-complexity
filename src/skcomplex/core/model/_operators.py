@@ -5,14 +5,14 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 import qutip
 import scipy.sparse as sp
 from sage.all__sagemath_symbolics import SR
 
-from ..base import Expression, ValidationError
+from ..base import DomainKind, Expression, LawKind, Requires, TimeKind, ValidationError
 
 ADJOINT_NAMES = {'plus': 'minus', 'minus': 'plus', 'annihilate': 'create', 'create': 'annihilate'}
 ADJOINT_SUFFIX = '.dag'
@@ -244,6 +244,9 @@ class Hamiltonian:
         Hamiltonian(operator=0.5*q.z)
     """
 
+    law_kind: ClassVar[LawKind] = LawKind.GENERATOR
+    requires: ClassVar[Requires] = Requires(time={TimeKind.CONTINUOUS}, domains={DomainKind.HILBERT})
+
     operator: Operator
 
     def __post_init__(self) -> None:
@@ -279,6 +282,9 @@ class Dissipator:
         >>> Dissipator(Operator({(('q', minus),): 1}), 0.1).rate
         0.1
     """
+
+    law_kind: ClassVar[LawKind] = LawKind.DISSIPATOR
+    requires: ClassVar[Requires] = Requires(time={TimeKind.CONTINUOUS}, domains={DomainKind.HILBERT})
 
     operator: Operator
     rate: object = 1.0

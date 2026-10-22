@@ -6,28 +6,29 @@ through the conformance suite.
 
 ## 1. Inventory gate (no code changes)
 
-- [ ] 1.1 Re-tag every inventory entry, implemented and pending, with the following, and add the inventory check:
+- [x] 1.1 Re-tag every inventory entry, implemented and pending, with the following, and add the inventory check:
   - time kind;
   - space kind;
   - component kinds;
   - interaction bindings;
   - law classes.
-- [ ] 1.2 Review every entry the check reports as unmapped. Each one either maps or gains a general primitive in this
+- [x] 1.2 Review every entry the check reports as unmapped. Each one either maps or gains a general primitive in this
   change's design and specs. Record the decisions in the design.
-- [ ] 1.3 Record a baseline of trajectories: every catalog model with random state 0, stored outside the repository for
+- [x] 1.3 Record a baseline of trajectories: every catalog model with random state 0, stored outside the repository for
   the migration comparisons.
 
 ## 2. Declarations and validation
 
-- [ ] 2.1 Add the requirement and support declarations to every law kind, component kind, space kind, time kind,
+- [x] 2.1 Add the requirement and support declarations to every law kind, component kind, space kind, time kind,
   solver, and backend. Add the test that fails on a missing declaration.
-- [ ] 2.2 Add `validate`, `ValidationReport`, and `Issue` with stable codes for each check. Verify the scenarios of
+- [x] 2.2 Add `validate`, `ValidationReport`, and `Issue` with stable codes for each check. Verify the scenarios of
   several errors, wrong time, wrong domain, unsupported solver, unavailable backend, and mixed classes.
-- [ ] 2.3 Call `validate` first in `compile_system` and `Simulation`. Retire each compiler and solver raise that
+- [x] 2.3 Call `validate` first in `compile_system` and `Simulation`. Retire each compiler and solver raise that
   validation now covers, keeping a test per retired raise.
 - [ ] 2.4 Replace the compiler's form table with derivation from solver declarations, and verify the compilation
-  scenarios.
-- [ ] 2.5 Generate the compatibility table in the documentation from the declarations.
+  scenarios. This runs after 4.1: the table tells exponential from renewal jumps by law type, and solvers can declare
+  the clocks they support only once `Renewal` is a `Jump` with a clock.
+- [x] 2.5 Generate the compatibility table in the documentation from the declarations.
 
 ## 3. System, space, and time
 

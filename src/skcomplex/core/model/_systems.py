@@ -4,10 +4,11 @@
 # License: MIT
 
 from collections.abc import Callable, Mapping, Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from sklearn.base import BaseEstimator
 
+from ..base import ComponentKind
 from ._components import Element, Group, Interaction
 from ._observables import Observable
 from ._phases import Phase
@@ -62,6 +63,8 @@ class System(BaseEstimator):
         >>> system
         System(elements=1, interactions=1, systems=0)
     """
+
+    component_kind: ClassVar[ComponentKind] = ComponentKind.SYSTEM
 
     def __init__(
         self,

@@ -240,7 +240,7 @@ def test_relaxation_without_end_raises():
 
 def test_local_rule_needs_lattice_group():
     """Test that a local rule on a state outside a lattice group is rejected."""
-    with pytest.raises(ValidationError, match='not a state of a lattice group'):
+    with pytest.raises(ValidationError, match='LocalRule law of cells needs a lattice'):
         compile_system(System(elements=[Group('cells', element=Shift, size=3)]))
 
 

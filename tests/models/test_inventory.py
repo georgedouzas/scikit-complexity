@@ -23,6 +23,7 @@ def _load():
     data = tomllib.loads(INVENTORY.read_text())
     keys = data.pop('sources')
     data.pop('primitives')
+    data.pop('vocabulary')
     entries = [
         (name, f'{field}/{subfield}', entry)
         for field, subfields in data.items()
@@ -35,6 +36,11 @@ def _load():
 def _vocabulary():
     """Return the primitive vocabulary of the inventory, by name."""
     return tomllib.loads(INVENTORY.read_text())['primitives']
+
+
+def _system_vocabulary():
+    """Return the system vocabulary of the inventory, by category and term."""
+    return tomllib.loads(INVENTORY.read_text())['vocabulary']
 
 
 def _registered():
@@ -123,6 +129,42 @@ def _primitive_problems(entries, vocabulary, changes):
     return problems
 
 
+def _system_problems(entries, vocabulary):
+    """Return the entries that do not map to the system vocabulary.
+
+    Args:
+        entries:
+            The name, field path, and table of every entry.
+
+        vocabulary:
+            The terms of every category of the system vocabulary.
+
+    Returns:
+        problems:
+            One sentence per problem.
+    """
+    problems = []
+    for name, _, entry in entries:
+        system = entry.get('system')
+        if system is None:
+            problems.append(f'{name} does not map to the system vocabulary')
+            continue
+        for category, terms in vocabulary.items():
+            if category not in system:
+                problems.append(f'{name} records no {category}')
+                continue
+            problems.extend(
+                f'{name} names the {category} term {term}, which the vocabulary does not define; '
+                'specify the general primitive it needs'
+                for term in system[category]
+                if term not in terms
+            )
+            if category != 'bindings' and not system[category]:
+                problems.append(f'{name} records no {category}')
+        problems.extend(f'{name} records the unknown category {category}' for category in set(system) - set(vocabulary))
+    return problems
+
+
 def test_inventory_entries_are_well_formed():
     """Test that every entry has a unique name, a title, a known status, and sources that resolve."""
     keys, entries = _load()
@@ -167,6 +209,39 @@ def test_inventory_check_names_primitive_problems(entry, message):
     """Test that the inventory check names an unknown primitive, a missing primitive list, and an unknown priority."""
     vocabulary = {'rates': {'description': 'Rate laws'}}
     assert _primitive_problems([('model', 'physics/mechanics', entry)], vocabulary, set()) == [message]
+
+
+def test_inventory_entries_map_to_the_system_vocabulary():
+    """Test that every implemented and pending entry maps to the time, space, components, bindings, laws, and domains."""
+    _, entries = _load()
+    assert _system_problems(entries, _system_vocabulary()) == []
+
+
+@pytest.mark.parametrize(
+    ('system', 'message'),
+    [
+        (
+            {'time': ['continuous'], 'laws': ['telepathy']},
+            'model names the laws term telepathy, which the vocabulary does not define; '
+            'specify the general primitive it needs',
+        ),
+        ({'time': [], 'laws': ['rate']}, 'model records no time'),
+        ({'time': ['continuous']}, 'model records no laws'),
+    ],
+)
+def test_inventory_check_names_unmapped_entries(system, message):
+    """Test that the inventory check names an unknown term, an empty category, and a missing category."""
+    vocabulary = {'time': {'continuous': 'Continuous time'}, 'laws': {'rate': {'class': 'continuous'}}}
+    assert _system_problems([('model', 'physics/mechanics', {'system': system})], vocabulary) == [message]
+
+
+def test_inventory_system_of_a_book_model():
+    """Test that the Bak-Sneppen entry maps to discrete time on a lattice with one member per site."""
+    _, entries = _load()
+    system = next(entry for name, _, entry in entries if name == 'bak_sneppen')['system']
+    assert system['time'] == ['discrete']
+    assert system['space'] == ['lattice']
+    assert 'site-group' in system['components']
 
 
 def test_inventory_primitives_of_a_book_model():
@@ -276,6 +351,15 @@ def test_coverage_page_flags_uncovered_primitives():
     covered = next(line for line in page.splitlines() if line.startswith('| `extremal-updates` |'))
     assert 'Covered by 1' in covered
     assert '[bak_sneppen](biology.md#bak_sneppen)' in covered
+
+
+def test_coverage_page_counts_the_system_vocabulary():
+    """Test that the coverage page counts implemented and pending entries for every term of every category."""
+    page = _generator()['coverage_page']()
+    assert '## Coverage by system vocabulary' in page
+    for category, terms in _system_vocabulary().items():
+        for term in terms:
+            assert f'| {category} | `{term}` |' in page, (category, term)
 
 
 def test_field_page_shows_the_pattern_of_every_model():

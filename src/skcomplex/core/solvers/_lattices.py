@@ -6,7 +6,7 @@
 import math
 from typing import ClassVar
 
-from ..base import Form
+from ..base import ComponentKind, DomainKind, Form, LawKind, SpaceKind, Supports, TimeKind
 from ..compile import CompiledExtremal, CompiledRelaxation, Vector
 from ._base import Stepper, register_solver
 
@@ -28,6 +28,14 @@ class LatticeStepper(Stepper):
         >>> stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0).astype(int).tolist()
         [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0]
     """
+
+    supports: ClassVar[Supports] = Supports(
+        time={TimeKind.DISCRETE},
+        space={SpaceKind.LATTICE, SpaceKind.NETWORK},
+        laws={LawKind.LOCAL_RULE, LawKind.UPDATE, LawKind.BOUNDARY},
+        domains=set(DomainKind) - {DomainKind.HILBERT},
+        components={ComponentKind.GROUP, ComponentKind.SITE_GROUP},
+    )
 
     form: ClassVar[Form] = Form.LATTICE
 
@@ -81,6 +89,14 @@ class MonteCarlo(LatticeStepper):
         >>> bool(abs(state.mean()) > 0.9)
         True
     """
+
+    supports: ClassVar[Supports] = Supports(
+        time={TimeKind.DISCRETE},
+        space={SpaceKind.LATTICE, SpaceKind.NETWORK},
+        laws={LawKind.SAMPLE, LawKind.BOUNDARY},
+        domains=set(DomainKind) - {DomainKind.HILBERT},
+        components={ComponentKind.GROUP, ComponentKind.SITE_GROUP},
+    )
 
     form: ClassVar[Form] = Form.MONTE_CARLO
 

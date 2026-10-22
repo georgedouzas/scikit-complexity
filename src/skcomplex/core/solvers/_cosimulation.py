@@ -9,7 +9,18 @@ from typing import Any, ClassVar, cast
 import numpy as np
 from sklearn.base import clone
 
-from ..base import Domain, Form, SolverError, ValidationError
+from ..base import (
+    ComponentKind,
+    Domain,
+    DomainKind,
+    Form,
+    LawKind,
+    SolverError,
+    SpaceKind,
+    Supports,
+    TimeKind,
+    ValidationError,
+)
 from ..compile import Partition, Problem, Vector, partition_system
 from ..model import Aggregate, reduce_values
 from ._agents import AgentState, MesaStepper
@@ -61,6 +72,35 @@ class CoSimulation(Stepper):
         >>> sorted(simulation.stepper_.steppers_)
         ['a', 'b']
     """
+
+    supports: ClassVar[Supports] = Supports(
+        time={TimeKind.CONTINUOUS, TimeKind.DISCRETE},
+        space=set(SpaceKind),
+        laws={
+            LawKind.RATE,
+            LawKind.NOISE,
+            LawKind.EQUATION,
+            LawKind.JUMP,
+            LawKind.EVENT,
+            LawKind.UPDATE,
+            LawKind.TRANSITION,
+            LawKind.RULE,
+            LawKind.LOCAL_RULE,
+            LawKind.REWRITE,
+            LawKind.SAMPLE,
+            LawKind.MATCH,
+            LawKind.TRANSFER,
+            LawKind.BOUNDARY,
+        },
+        domains=set(DomainKind),
+        components={
+            ComponentKind.ELEMENT,
+            ComponentKind.GROUP,
+            ComponentKind.VARIABLE_GROUP,
+            ComponentKind.SITE_GROUP,
+            ComponentKind.SYSTEM,
+        },
+    )
 
     form: ClassVar[Form] = Form.COUPLED
 

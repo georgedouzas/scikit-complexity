@@ -48,8 +48,8 @@ edge, or hyperedge of the space, and a variable group on edges SHALL change the 
 
 ### Requirement: State domains cover structured values
 State domains SHALL include real, integer, Boolean, categorical, angle, and complex scalars, vectors of the space's
-dimension, Hilbert spaces of a declared dimension, sequences over an alphabet, graphs, and tilings, and the domain of a
-state SHALL decide which laws may target it.
+dimension, tensors of a declared rank and symmetry, Hilbert spaces of a declared dimension, sequences over an alphabet,
+graphs, and tilings, and the domain of a state SHALL decide which laws may target it.
 
 #### Scenario: Hilbert-space element
 - **WHEN** an element declares a state on a Hilbert space of dimension 2 and a generator law

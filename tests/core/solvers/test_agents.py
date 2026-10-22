@@ -170,7 +170,7 @@ def test_rules_mixed_with_rates_raise_error():
         interactions=[ExponentialGrowth('growth', target='herd')],
         space=GridSpace(5, 5),
     )
-    with pytest.raises(IncompatibleLawsError, match='Rate, Rule'):
+    with pytest.raises(IncompatibleLawsError, match='rate: herd; rule: walkers'):
         compile_system(system)
 
 

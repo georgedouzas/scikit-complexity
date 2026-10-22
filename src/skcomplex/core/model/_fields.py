@@ -5,12 +5,24 @@
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 from sage.all__sagemath_symbolics import SR
 from sage.symbolic.function import BuiltinFunction
 
-from ..base import Expression, SymbolicVector, VisualSpec, components_of, vector
+from ..base import (
+    ComponentKind,
+    DomainKind,
+    Expression,
+    LawKind,
+    Requires,
+    SpaceKind,
+    SymbolicVector,
+    TimeKind,
+    VisualSpec,
+    components_of,
+    vector,
+)
 from ._components import Element, Group
 from ._lattices import LatticeSpace
 from ._meshes import Mesh
@@ -191,6 +203,8 @@ class Field(Group):
         200
     """
 
+    component_kind: ClassVar[ComponentKind] = ComponentKind.SITE_GROUP
+
     def __init__(
         self,
         label: str,
@@ -278,6 +292,13 @@ class Flux:
         >>> Flux(u, u**2 / 2, riemann='godunov').limiter
         'minmod'
     """
+
+    law_kind: ClassVar[LawKind] = LawKind.RATE
+    requires: ClassVar[Requires] = Requires(
+        time={TimeKind.CONTINUOUS},
+        space={SpaceKind.LATTICE, SpaceKind.MESH},
+        domains={DomainKind.REAL},
+    )
 
     target: Expression
     flux: object

@@ -11,7 +11,7 @@ from typing import ClassVar
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from ..base import BackendError, Form, Registry
+from ..base import BackendError, ComponentKind, DomainKind, Form, LawKind, Registry, SpaceKind, Supports, TimeKind
 from ..model import Boundary, Jump, Noise, Rate, Update
 from ._kernels import Indices, Kernel, Reference, add_into, assign_into, jump_channels, noise_rows
 from ._problem import Accelerated, Draws, JumpChannels, Vector, VectorFunction
@@ -65,6 +65,8 @@ class Backend(BaseEstimator):
 
     Subclasses set the class variable `name` and implement `lower`.
     """
+
+    supports: ClassVar[Supports]
 
     name: ClassVar[str]
 
@@ -214,6 +216,14 @@ class NumpyBackend(Backend):
         >>> compile_system(System(elements=[Population('a')]), backend=NumpyBackend()).backend
         'numpy'
     """
+
+    supports: ClassVar[Supports] = Supports(
+        time=set(TimeKind),
+        space=set(SpaceKind),
+        laws=set(LawKind),
+        domains=set(DomainKind),
+        components=set(ComponentKind),
+    )
 
     name: ClassVar[str] = 'numpy'
 

@@ -9,26 +9,26 @@ class SkcomplexError(Exception):
 
 
 class ValidationError(SkcomplexError):
-    """A value does not belong to the domain of its variable."""
+    """A system, a value, or a combination of a system with its solver and backend is not valid."""
 
 
 class ConservationError(ValidationError):
     """A conserved quantity changes outside its flows, or a balance-sheet identity does not hold."""
 
 
-class LabelError(SkcomplexError):
+class LabelError(ValidationError):
     """A label is missing, duplicated, or produces a name collision."""
 
 
-class RoleError(SkcomplexError):
+class RoleError(ValidationError):
     """A role of an interaction refers to an element that does not exist."""
 
 
-class SpaceError(SkcomplexError):
+class SpaceError(ValidationError):
     """A vector variable has no space to take its dimension from."""
 
 
-class IncompatibleLawsError(SkcomplexError):
+class IncompatibleLawsError(ValidationError):
     """A system mixes law kinds that no single form supports."""
 
 

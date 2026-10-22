@@ -4,11 +4,12 @@
 # License: MIT
 
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 import numpy.typing as npt
 
+from ..base import SpaceKind
 from ._spaces import Space
 
 
@@ -35,6 +36,8 @@ class Mesh(Space):
         >>> mesh.size, mesh.n_dim
         (20, 2)
     """
+
+    space_kind: ClassVar[SpaceKind] = SpaceKind.MESH
 
     def __init__(self, points: npt.ArrayLike, cells: npt.ArrayLike) -> None:
         self.points = points

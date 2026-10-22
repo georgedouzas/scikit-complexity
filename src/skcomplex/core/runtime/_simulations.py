@@ -13,7 +13,7 @@ import numpy.typing as npt
 from sklearn.base import BaseEstimator
 
 from ..base import Domain, Form, ParameterError, SimulationError, ValidationError
-from ..compile import Backend, Entry, ObservableEvaluator, Problem, Vector, compile_system
+from ..compile import Backend, Entry, ObservableEvaluator, Problem, Vector, compile_system, validate
 from ..model import System
 from ..solvers import AgentState, RewritingState, Stepper, resolve_solver
 from ._clocks import AsFastAsPossible, Clock
@@ -164,6 +164,8 @@ class Simulation(BaseEstimator):
     def _prepare(self, until: float) -> None:
         """Compile the system, build the stepper, and notify the observers of the start."""
         previous = self._previous_parameters()
+        if not isinstance(self.system, Problem):
+            validate(self.system, solver=self.solver, backend=self.backend).raise_errors()
         self.problem_ = self.system if isinstance(self.system, Problem) else compile_system(self.system, self.backend)
         self._prepared_system = self.system
         self.dt_ = self._check_dt(self.problem_, until)

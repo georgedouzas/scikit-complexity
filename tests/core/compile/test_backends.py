@@ -147,7 +147,7 @@ def _epidemic():
 
 def test_compile_unknown_backend_raises_error():
     """Test that an unknown backend names the registered ones."""
-    with pytest.raises(BackendError, match='auto, numpy, numba'):
+    with pytest.raises(BackendError, match='numba, numpy'):
         compile_system(System(elements=[Population('a')]), backend='gpu')
 
 

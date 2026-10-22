@@ -413,7 +413,7 @@ def test_complex_equation_and_event_split_into_parts():
         (lambda s: [Rate(s.z, Call(_constant, s.z))], 'calls a function with complex values'),
         (lambda s: [Rate(s.z, mod(s.z, 2))], 'only real values'),
         (lambda s: [Rate(s.z, gamma(s.z))], 'cannot write with real and imaginary parts'),
-        (lambda s: [LocalRule(s.z, Neighborhood(((-1,),)), lambda left: left)], 'LocalRule laws take real'),
+        (lambda s: [LocalRule(s.z, Neighborhood(((-1,),)), lambda left: left)], 'LocalRule law of a needs a lattice'),
     ],
 )
 def test_unsupported_complex_laws_are_rejected(law, message):

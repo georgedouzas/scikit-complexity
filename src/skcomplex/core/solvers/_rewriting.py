@@ -9,7 +9,7 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from ..base import Form
+from ..base import ComponentKind, DomainKind, Form, LawKind, SpaceKind, Supports, TimeKind
 from ..compile import Problem, Structure, Vector
 from ._base import Stepper, register_solver
 
@@ -48,6 +48,14 @@ class Rewriter(Stepper):
         >>> trajectory['algae.size'].tolist()
         [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]
     """
+
+    supports: ClassVar[Supports] = Supports(
+        time={TimeKind.DISCRETE},
+        space=set(SpaceKind),
+        laws={LawKind.REWRITE},
+        domains={DomainKind.SEQUENCE, DomainKind.TILING, DomainKind.GRAPH, DomainKind.REAL, DomainKind.INTEGER},
+        components={ComponentKind.ELEMENT, ComponentKind.GROUP},
+    )
 
     form: ClassVar[Form] = Form.REWRITING
 

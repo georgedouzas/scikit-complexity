@@ -19,12 +19,14 @@ from sage.all__sagemath_symbolics import SR, I, matrix
 
 from ..base import (
     BackendError,
+    ComponentKind,
     Domain,
     Expression,
     Form,
     IncompatibleLawsError,
     LabelError,
     RoleError,
+    SkcomplexError,
     SymbolicVector,
     ValidationError,
     Variable,
@@ -844,8 +846,11 @@ def _state_name(spec: _KernelSpec, target: Expression) -> str:
     return reference.entry.name if reference is not None else str(target)
 
 
-def _collect_laws(spec: _KernelSpec, component: object, flows: StockFlowPass) -> list[Law]:
-    """Return the laws a component returns for its namespace after checking their kinds and expanding its flows."""
+def _collect_laws(spec: _KernelSpec, component: object, flows: StockFlowPass, *, expand: bool = True) -> list[Law]:
+    """Return the laws a component returns for its namespace after checking their kinds and expanding its flows.
+
+    Without `expand`, flows and auxiliaries are kept as declared, as the census of validation reads them.
+    """
     laws = component.laws(spec.namespace)  # type: ignore[attr-defined]
     kinds = (Rate, Noise, Jump, Update, Transition, Emission, Boundary, Rule, Equation, Event, Renewal, *KERNEL_FREE)
     if not isinstance(laws, list | tuple) or not all(isinstance(law, kinds) for law in laws):
@@ -858,6 +863,8 @@ def _collect_laws(spec: _KernelSpec, component: object, flows: StockFlowPass) ->
     if spec.pairs is not None and not all(isinstance(law, Rate) for law in laws):
         error_msg = f'Pair interaction {spec.owner} returns laws other than Rate, which pair interactions do not take.'
         raise ValidationError(error_msg)
+    if not expand:
+        return list(laws)
     laws = flows.expand(spec, list(laws))
     return [item for law in laws for item in split_law(law, spec.owner, lambda target: _state_name(spec, target))]
 
@@ -2388,6 +2395,111 @@ def _collected_laws(
     return collected, markov, stock_flow
 
 
+@dataclass(frozen=True)
+class CensusRecord:
+    """Law of a component with the element it changes and the states it targets.
+
+    Args:
+        path:
+            The path of the component that returns the law.
+
+        owner:
+            The path of the element or group whose state the law changes, or that a rule acts for.
+
+        law:
+            The law.
+
+        targets:
+            The layout entries of the states the law targets.
+
+        vectors:
+            The names of the targets declared as vector states.
+
+        component:
+            The kind of the owner: an element, a fixed or variable group, or a group on the sites of a space.
+
+        space:
+            The nearest space enclosing the component.
+    """
+
+    path: str
+    owner: str
+    law: Law
+    targets: tuple[Entry, ...]
+    vectors: frozenset[str]
+    component: ComponentKind
+    space: Space | None
+
+
+def _component_kind(node: Node) -> ComponentKind:
+    """Return the kind of the component of a node."""
+    if node.is_agent:
+        return ComponentKind.VARIABLE_GROUP
+    if isinstance(node.component, Group):
+        return node.component.component_kind
+    return ComponentKind.ELEMENT
+
+
+def _is_vector(entry: Entry, elements: dict[str, _Block]) -> bool:
+    """Check whether the state of a layout entry is declared as a vector of the space's dimension."""
+    path, _, name = entry.name.rpartition('.')
+    block = elements.get(path)
+    if block is None:
+        return False
+    declaration = declarations_of(block.node.component_type, VariableKind.STATE).get(name)
+    return declaration is not None and declaration.vector
+
+
+def law_census(system: System) -> tuple[list[CensusRecord], list[tuple[str, SkcomplexError]]]:
+    """Return every law of a system with its owner and targets, and the errors of the components that fail.
+
+    The census declares every component and collects its laws as compilation does, without lowering them, and keeps
+    going past a failing component, so validation reports every problem at once.
+
+    Args:
+        system:
+            The system.
+
+    Returns:
+        records:
+            The laws of the components that declare and collect without error.
+
+        errors:
+            The path of every failing component with its error.
+    """
+    nodes = flatten_system(system)
+    declarations = _Declarations(time=symbol('t'))
+    errors: list[tuple[str, SkcomplexError]] = []
+    blocks = []
+    for node in nodes:
+        try:
+            blocks.append(declarations.declare_component(node))
+        except SkcomplexError as error:
+            errors.append((node.path, error))
+    elements = {block.node.path: block for block in blocks if not _is_interaction(block.node)}
+    observe = _Observer(declarations, _lowerable_observables(system, nodes))
+    flows = StockFlowPass(quantities_of(declarations.blocks))
+    agents = {block.node.path for block in blocks if block.node.is_agent}
+    records = []
+    for block in blocks:
+        try:
+            for spec in _specs_of(block, elements, declarations.time, observe):
+                for law in _collect_laws(spec, _component_of(block.node), flows, expand=False):
+                    if isinstance(law, Auxiliary):
+                        continue
+                    target = getattr(law, 'target', None)
+                    items = components_of(target) if target is not None else []
+                    references = [spec.references.get(item) for item in items if isinstance(item, Expression)]
+                    targets = tuple(dict.fromkeys(item.entry for item in references if item is not None))
+                    owner = _law_owner(spec, law, agents)
+                    vectors = frozenset(entry.name for entry in targets if _is_vector(entry, elements))
+                    kind = _component_kind(elements.get(owner, block).node)
+                    records.append(CensusRecord(block.node.path, owner, law, targets, vectors, kind, block.node.space))
+        except SkcomplexError as error:
+            errors.append((block.node.path, error))
+    return records, errors
+
+
 def _compile(system: System, backend: str | Backend, owners: frozenset[str] | None) -> Problem:
     """Return the problem of a system, keeping only the laws of the elements in `owners` when it is given."""
     nodes = flatten_system(system)
@@ -2931,6 +3043,9 @@ def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
         BackendError:
             The backend is not registered, or an agent group declares a complex state.
 
+        ValidationError:
+            Validation finds problems of more than one kind, all listed in the message.
+
     Examples:
         >>> from skcomplex.core.compile import compile_system
         >>> from skcomplex.core.model import System
@@ -2946,6 +3061,9 @@ def compile_system(system: System, backend: str | Backend = 'auto') -> Problem:
         >>> problem.equations
         {'rabbits.n': n_rabbits*r_growth}
     """
+    from ._validation import validate  # noqa: PLC0415  # validation reads the compiler's census
+
+    validate(system, backend=backend).raise_errors()
     if isinstance(system, MesaSystem):
         return _compile_mesa(system)
     if is_rewriting(system):
