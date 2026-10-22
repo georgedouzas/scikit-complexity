@@ -155,6 +155,7 @@ from ._markov import (
     markov_state_model,
     mean_first_passage_time,
 )
+from ._mixing import dissimilarity_index, interface_density, like_neighbor_share
 from ._motifs import MotifScores, motif_counts, motif_zscores
 from ._networks import (
     Communities,
@@ -175,7 +176,6 @@ from ._quantum import Spectrum, entanglement_entropy, ground_state, hamiltonian_
 from ._recurrence import Recurrence, recurrence_matrix, recurrence_quantification
 from ._scaling import Collapse, binder_crossings, binder_cumulant, scaling_collapse
 from ._sections import Section, poincare_section, stroboscopic
-from ._segregation import dissimilarity_index, interface_density, like_neighbor_share
 from ._series import (
     Displacement,
     EarlyWarning,
