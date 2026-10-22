@@ -422,9 +422,11 @@ class _FreeSymbols(Symbols):
     """Namespace that returns a free symbol for every name, so laws can be listed before the states are declared."""
 
     def __getattr__(self, name: str) -> Any:  # noqa: ANN401
-        """Return a free symbol of the name."""
+        """Return a free symbol of the name, or a namespace of free symbols for `other`, the neighbour of a member."""
         if name.startswith('__'):
             raise AttributeError(name)
+        if name == 'other':
+            return _FreeSymbols()
         return symbol(name)
 
 
