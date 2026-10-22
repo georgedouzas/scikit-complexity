@@ -15,12 +15,11 @@ from ....core.model import (
     Law,
     LocalRule,
     Neighborhood,
-    OuterTotalistic,
     Symbols,
     System,
-    Wolfram,
 )
 from ....core.runtime import register_model
+from ._codes import Wolfram, life
 
 type Array = npt.NDArray[np.float64]
 
@@ -98,7 +97,7 @@ class LifeCell(Element):
             laws:
                 The laws of the component.
         """
-        return [LocalRule(s.alive, Neighborhood.moore(), OuterTotalistic.life(self.born, self.survive))]
+        return [LocalRule(s.alive, Neighborhood.moore(), life(self.born, self.survive))]
 
 
 def _ant_rule(*values: Array) -> tuple[Array, Array]:

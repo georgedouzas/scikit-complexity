@@ -32,7 +32,6 @@ from ..model import (
     Sampler,
     Table,
     Totalistic,
-    Wolfram,
 )
 from ._printing import numpy_function
 
@@ -288,13 +287,14 @@ class Lookup:
     columns: int = 1
 
 
+def _as_table(rule: object) -> object:
+    """Return a rule code as its table, through its `table()` method, and any other rule unchanged."""
+    convert = getattr(rule, 'table', None)
+    return convert() if not callable(rule) and callable(convert) else rule
+
+
 def _lookup_of(rule: object, n_offsets: int, owner: str) -> Lookup | None:
-    """Return the lookup array of a table, Wolfram, or totalistic rule, or `None` for a function rule."""
-    if isinstance(rule, Wolfram):
-        if n_offsets != 3:  # noqa: PLR2004
-            error_msg = f'{owner} uses a Wolfram rule, which reads 3 cells, with a neighbourhood of {n_offsets}.'
-            raise ValidationError(error_msg)
-        rule = rule.table()
+    """Return the lookup array of a table or totalistic rule, or `None` for a function rule."""
     if isinstance(rule, Table):
         base = int(rule.states)  # type: ignore[arg-type]
         values = np.full(base**n_offsets, float(rule.default))
@@ -1046,18 +1046,22 @@ def compile_rule(law: LocalRule, context: LatticeContext) -> CompiledRule:
         raise ValidationError(error_msg)
     space = targets[0].space
     table = _index_table(space, law.neighborhood, owner)
-    if isinstance(space, NetworkSpace) and isinstance(law.rule, Table | Wolfram):
+    rule = _as_table(law.rule)
+    if isinstance(space, NetworkSpace) and isinstance(rule, Table):
         error_msg = (
             f'{owner} uses a table of ordered patterns on a network, whose sites have different degrees. Use a '
             'totalistic or an outer totalistic rule, or a function rule.'
         )
         raise ValidationError(error_msg)
-    lookup = _lookup_of(law.rule, table.shape[1], owner)
+    lookup = _lookup_of(rule, table.shape[1], owner)
     if lookup is not None and (len(targets) > 1 or len(reads) > 1):
         error_msg = f'{owner} uses a lookup rule, which updates and reads a single state.'
         raise ValidationError(error_msg)
-    if lookup is None and not callable(law.rule):
-        error_msg = f'{owner} has the rule {law.rule!r}, which is not a function, Table, Wolfram, or totalistic rule.'
+    if lookup is None and not callable(rule):
+        error_msg = (
+            f'{owner} has the rule {law.rule!r}, which is not a function, a Table, a totalistic rule, or a rule code '
+            'with a table() method.'
+        )
         raise ValidationError(error_msg)
     reads_degree = lookup is None and 'degree' in _accepted(law.rule, ['degree'])  # type: ignore[arg-type]
     return CompiledRule(

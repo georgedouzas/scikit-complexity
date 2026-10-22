@@ -1011,7 +1011,8 @@ of an element type on every site, with values given as arrays of the lattice sha
 
 **Local rules.** `LocalRule(target, neighborhood, rule)` computes a cell's next value from the ordered values of its
 neighbourhood. `Neighborhood.moore`, `.von_neumann`, `.radius`, or `Neighborhood(offsets)` give the offsets. A rule is
-a `Wolfram` number, a `Table` of patterns, a `Totalistic` or `OuterTotalistic` rule, or a function of NumPy arrays,
+a `Table` of patterns, a `Totalistic` or `OuterTotalistic` rule, a rule code whose `table()` returns a table, such
+as `Wolfram` of the automata models, or a function of NumPy arrays,
 one per neighbour, that also receives the parameters it names and, for stochastic rules, uniform random numbers.
 Tables and totalistic rules run as lookups, fused into one compiled loop on the Numba backend.
 
@@ -1021,7 +1022,7 @@ from skcomplex.core.model import LatticeSpace, LocalRule, Neighborhood, OuterTot
 Life = Element.define(
     'Life',
     states={'alive': state(0, domain=Domain.BOOLEAN)},
-    laws=lambda s: [LocalRule(s.alive, Neighborhood.moore(), OuterTotalistic.life(born=(3,), survive=(2, 3)))],
+    laws=lambda s: [LocalRule(s.alive, Neighborhood.moore(), OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1}))],
 )
 glider = np.zeros((20, 20))
 glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1

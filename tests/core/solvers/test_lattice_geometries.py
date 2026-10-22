@@ -47,7 +47,7 @@ def _life(neighborhood):
     return Element.define(
         'Life',
         states={'alive': 0.0},
-        laws=lambda s: [LocalRule(s.alive, neighborhood, OuterTotalistic.life())],
+        laws=lambda s: [LocalRule(s.alive, neighborhood, OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1}))],
     )
 
 

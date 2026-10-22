@@ -63,7 +63,7 @@ through the conformance suite.
 
 ## 5. Move realizations to the library
 
-- [ ] 5.1 Move each group of realizations into its field module and rebuild it on core primitives:
+- [x] 5.1 Move each group of realizations into its field module and rebuild it on core primitives:
   - markets, protocols, institutions, and learning helpers to `economics` and `social`;
   - potentials, boxes, thermostats, quantum species, and sandpile and extremal rules to `physics`;
   - turtles, tilings, substitutions, and rule codes to `mathematics`;

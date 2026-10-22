@@ -417,38 +417,6 @@ class Table:
 
 
 @dataclass(frozen=True)
-class Wolfram:
-    """Elementary cellular automaton by its Wolfram number, on the left, centre, and right cells.
-
-    Args:
-        number:
-            The rule number from 0 to 255.
-
-    Examples:
-        >>> from skcomplex.core.model import Wolfram
-        >>> Wolfram(30).table().mapping[(1, 0, 0)]
-        1
-    """
-
-    number: int
-
-    def table(self) -> Table:
-        """Return the rule as a table of the eight patterns.
-
-        Returns:
-            table:
-                The table.
-        """
-        if not 0 <= self.number <= 255:  # noqa: PLR2004
-            error_msg = f'A Wolfram rule number is between 0 and 255, but it is {self.number}.'
-            raise ValueError(error_msg)
-        patterns = itertools.product((0, 1), repeat=3)
-        return Table(
-            {pattern: (self.number >> (4 * pattern[0] + 2 * pattern[1] + pattern[2])) & 1 for pattern in patterns},
-        )
-
-
-@dataclass(frozen=True)
 class Totalistic:
     """Rule given by the next value of every sum of the neighbourhood values.
 
@@ -489,34 +457,17 @@ class OuterTotalistic:
 
     Examples:
         >>> from skcomplex.core.model import OuterTotalistic
-        >>> life = OuterTotalistic.life()
-        >>> life.rule[(0, 3)], life.rule[(1, 2)], (1, 4) in life.rule
-        (1, 1, False)
+        >>> parity = OuterTotalistic(lambda center, total: (center + total) % 2)
+        >>> parity.states
+        2
     """
 
     rule: Mapping[tuple[int, int], float] | Callable[[Any, Any], Any]
     default: float = 0.0
     states: int = 2
 
-    @classmethod
-    def life(cls, born: Iterable[int] = (3,), survive: Iterable[int] = (2, 3)) -> 'OuterTotalistic':
-        """Return a life-like rule in the notation `B3/S23` of Conway's Game of Life.
 
-        Args:
-            born:
-                The numbers of live neighbours that bring a dead cell to life.
-
-            survive:
-                The numbers of live neighbours that keep a live cell alive.
-
-        Returns:
-            rule:
-                The rule.
-        """
-        return cls({**{(0, count): 1 for count in born}, **{(1, count): 1 for count in survive}})
-
-
-type RuleSpec = Table | Wolfram | Totalistic | OuterTotalistic | Callable[..., Any]
+type RuleSpec = Table | Totalistic | OuterTotalistic | Callable[..., Any] | Any
 
 
 def _targets(target: object) -> tuple[Expression, ...]:
@@ -543,7 +494,8 @@ class LocalRule:
             on a network.
 
         rule:
-            A function, a `Table`, a `Wolfram` number, a `Totalistic` rule, or an `OuterTotalistic` rule.
+            A function, a `Table`, a `Totalistic` rule, an `OuterTotalistic` rule, or an object whose `table()`
+                returns a `Table`, such as a rule code.
 
         reads:
             The lattice states whose neighbourhoods a function rule reads, by default the targets.
@@ -559,8 +511,8 @@ class LocalRule:
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.model import LocalRule, Neighborhood, Wolfram
-        >>> LocalRule(symbol('cell'), Neighborhood.radius(), Wolfram(30)).schedule
+        >>> from skcomplex.core.model import LocalRule, Neighborhood, Totalistic
+        >>> LocalRule(symbol('cell'), Neighborhood.radius(), Totalistic({2: 1})).schedule
         'synchronous'
     """
 

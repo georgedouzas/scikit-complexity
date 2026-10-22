@@ -226,11 +226,24 @@ These are library compositions, not core names:
 | markets, order books, auctions, institutions | `Match`, `Transfer`, `Invariant`, adaptive parameters, `Equation` |
 | `logit_choice`, `imitate`, `evolve`, `heuristics` | draws, lags, reductions |
 | `Gravity`, `Spring`, `LennardJones`, `SoftSphere`, `LinearDrag`, `ConstantForce`, `HarmonicPotential`, `LangevinThermostat` | `Potential`, pair interactions, noise |
-| `Spin`, `Qubit`, `Mode`, `Site`, `Exchange` | Hilbert domains, `Generator`, local operators |
-| `Turtle`, `Prototile`, `Affine`, `Substitution` | `Rewrite` on sequence and tiling domains; the turtle becomes a visual |
-| `Wolfram`, `Totalistic`, `OuterTotalistic` codes | `LocalRule` tables |
-| `Auxiliary`, `smooth`, `smooth3`, `delay1`, `delay3` | named expressions and the distributed-delay expression |
-| `Drive`, `Relaxation`, `Extremal` | `Update` with member selection and `Event` |
+| `Spin`, `Qubit`, `Mode`, `Site` | Hilbert domains, `Generator`, local operators |
+| `Wolfram` codes and life-like rules | `LocalRule` with a `Table` or an `OuterTotalistic` rule; a rule code is any object whose `table()` returns a table |
+| `smooth`, `smooth3`, `delay1`, `delay3` | the distributed-delay expression |
+
+Reviewing the moves against the code kept some names in the core, because they are general forms rather than
+realizations:
+- `Exchange` is removed, not moved: an interaction with `over = 'neighbours'` and one role does what it did, and
+  `neighbour_pairs` lists the bonds of a lattice or network.
+- `Table`, `Totalistic`, and `OuterTotalistic` are general lookup rules that the compiler fuses into kernels.
+- `Prototile`, `Affine`, and `Substitution` are the rewrite law of the tiling domain, as `Production` is of sequences
+  and `GraphProduction` of graphs; named tilings live in the models.
+- `Turtle` interprets words as geometry, so it moves to `core.viz` as a visual in the package restructuring.
+- `Drive`, `Relaxation`, and `Extremal` are general laws of driven, threshold, and extremal dynamics, which the lattice
+  stepper runs; lowering them to `Update` with member selection is left to a later change, since it would rewrite the
+  lattice compiler without changing what a model can say.
+- `Particle`, `Potential`, and `PairPotential` are the general forms the named forces build on.
+- Backends that run a realization natively read it from registries the realization fills, such as
+  `register_lammps_pair`, so no backend names a realization.
 
 ### The application-agnostic rule
 
