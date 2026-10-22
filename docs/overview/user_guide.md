@@ -2096,6 +2096,51 @@ y = np.concatenate([[0.0], 0.8 * x[:-1]]) + 0.6 * rng.standard_normal(5000)
 print(transfer_entropy(x, y, estimator='knn', base=math.e) > transfer_entropy(y, x, estimator='knn', base=math.e))
 ```
 
+### Higher-order information and emergence
+
+The measures of many variables take one row per sample and one column per variable. `total_correlation` counts the
+information shared at any order, `dual_total_correlation` the information shared by two or more variables, and
+`o_information`, their difference, is positive when the variables are redundant and negative when they are synergistic.
+`o_information_gradients` gives the share of every variable. They take the `'plugin'` estimator of `dit` for symbols,
+`'gaussian'` for the closed form of a fitted Gaussian, or `'knn'` for chains of `ennemi` estimates. `partial_information`
+splits what two sources of symbols tell about a target into redundant, unique, and synergistic parts with a redundancy
+measure of `dit`. `local_entropy`, `local_mutual_information`, and `local_transfer_entropy` return the value at every
+sample, and their means equal the global measures. `surrogate_test` compares any of these measures with its values on
+copies of the data whose variables are shuffled independently.
+
+```python
+from skcomplex.core.analysis import o_information, partial_information, surrogate_test
+
+bits = rng.integers(0, 2, (5000, 2))
+xor = np.column_stack([bits, bits[:, 0] ^ bits[:, 1]])
+print(round(o_information(xor), 2))
+parts = partial_information(bits[:, 0], bits[:, 1], bits[:, 0] & bits[:, 1])
+print(round(parts.redundancy, 2), round(parts.synergy, 2))
+print(surrogate_test(o_information, xor, n=19, alternative='less', random_state=0).p_value)
+```
+
+`emergence_criteria` computes the criteria of Rosas et al. (2020) for a macro feature of micro variables: Ψ is positive
+when the feature predicts its own future beyond what each micro variable predicts, Δ is positive when it predicts a micro
+variable beyond the micro variables, and Γ is zero for a feature decoupled from every micro variable. `closure` takes a
+partition of micro states, as a label per state or a function of the micro series, and compares how well the macro past
+and the micro past predict the macro future. A gap of zero means the coarse-graining is closed. `epsilon_machine`
+reconstructs the causal states of a discrete series by causal-state splitting, with their transitions, statistical
+complexity, and entropy rate.
+
+```python
+from skcomplex.core.analysis import closure, emergence_criteria, epsilon_machine
+
+parity = rng.integers(0, 2, (5000, 4))
+parity[:, -1] = (parity[:, :-1].sum(axis=1) + np.arange(5000) // 100) % 2
+print(emergence_criteria(parity, parity.sum(axis=1) % 2).psi > 0.5)
+print(round(closure(rng.integers(0, 4, 5000), [0, 0, 1, 1]).gap, 2))
+golden = [1]
+for _ in range(20_000):
+    golden.append(1 if golden[-1] == 0 else int(rng.random() < 0.5))
+machine = epsilon_machine(golden, 4)
+print(len(machine.histories), round(machine.statistical_complexity, 2))
+```
+
 ### Invariants of dynamics
 
 `embed` builds delay coordinates of a series, with the delay at the first minimum of `auto_mutual_information` and the

@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import block_entropies
+from skcomplex.core.analysis import block_entropies, epsilon_machine
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.viz import RerunObserver
 from skcomplex.models import create
@@ -54,5 +54,25 @@ rates.set_xlabel('block length m')
 rates.set_ylabel('bits per symbol')
 rates.set_title('Block entropies reach the entropy rate')
 rates.legend()
+fig.tight_layout()
+plt.show()
+
+# %%
+# Causal states
+# -------------
+# Causal-state splitting groups the pasts of the source by the law of the next symbol. The last symbol fixes that law,
+# so the ε-machine should have two causal states, one per symbol, visited 80 and 20 percent of the time. Its
+# statistical complexity is then the entropy of `pi`, about 0.722 bits, and its entropy rate is `h`.
+
+machine = epsilon_machine(symbols['source.symbol'].astype(int), 3)
+labels = [f'last symbol {state[0][-1]}' for state in machine.histories]
+fig, occupancy = plt.subplots(figsize=(5, 4))
+occupancy.bar(labels, machine.stationary)
+occupancy.set_ylabel('fraction of time')
+occupancy.set_title(
+    f'{len(machine.histories)} causal states, $C_\\mu$ = {machine.statistical_complexity:.3f} bits, '
+    f'$h_\\mu$ = {machine.entropy_rate:.3f} bits',
+    fontsize=10,
+)
 fig.tight_layout()
 plt.show()
