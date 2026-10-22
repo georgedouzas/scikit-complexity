@@ -19,6 +19,7 @@ from ..base import (
     TimeKind,
     vector,
 )
+from ..space._cayley import Memory
 from ..space._lattices import Neighborhood
 from ..space._spaces import Adjacency
 
@@ -133,8 +134,8 @@ class LocalRule:
             The symbol of a lattice state, or a tuple of them that the rule updates together.
 
         neighborhood:
-            The neighbourhood whose values the rule reads, a `Neighborhood` of offsets on a lattice or an `Adjacency`
-            on a network.
+            The neighbourhood whose values the rule reads, a `Neighborhood` of offsets on a lattice, an `Adjacency`
+            on a network, or a `Memory` of group elements on a group space.
 
         rule:
             A function, a `Table`, a `Totalistic` rule, an `OuterTotalistic` rule, or an object whose `table()`
@@ -164,7 +165,7 @@ class LocalRule:
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
     target: Expression | tuple[Expression, ...]
-    neighborhood: Neighborhood | Adjacency
+    neighborhood: Neighborhood | Adjacency | Memory
     rule: RuleSpec
     reads: tuple[Expression, ...] | None = None
     schedule: str = 'synchronous'
@@ -354,7 +355,7 @@ class Energy:
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
     expression: object
-    neighborhood: Neighborhood | Adjacency
+    neighborhood: Neighborhood | Adjacency | Memory
 
 
 @dataclass(frozen=True)
@@ -567,7 +568,7 @@ class Extremal:
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
     target: Expression | tuple[Expression, ...]
-    neighborhood: Neighborhood | Adjacency
+    neighborhood: Neighborhood | Adjacency | Memory
     rule: Callable[..., Any]
     key: Expression | None = None
     extremum: str = 'min'
