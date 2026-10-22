@@ -271,12 +271,16 @@ def fractional_lorenz(
     y: float = 1.0,
     z: float = 1.0,
     *,
-    order: float = 0.99,
+    order: float = 0.995,
     sigma: float = 10.0,
     rho: float = 28.0,
     beta: float = 8 / 3,
 ) -> System:
-    """Return the fractional Lorenz flow of Grigorenko and Grigorenko, chaotic for a total order of about 2.97.
+    """Return the fractional Lorenz flow of Grigorenko and Grigorenko, chaotic for orders close enough to 1.
+
+    Grigorenko and Grigorenko report chaos down to the total order 2.97. With Caputo derivatives from rest and the
+    predictor-corrector, the flow is chaotic for the order 0.995 of every state, a total of 2.985, and settles on a
+    fixed point of the two wings for 0.99 after a chaotic transient.
 
     Args:
         x:

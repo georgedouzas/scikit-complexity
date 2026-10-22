@@ -49,11 +49,11 @@ def test_fractional_van_der_pol_keeps_oscillating():
 
 
 def test_fractional_lorenz_stays_on_bounded_attractor():
-    """Test that the fractional Lorenz flow of order 0.99 stays bounded and switches between both wings."""
-    trajectory = Simulation(fractional_lorenz(), dt=0.05).run(until=30.0).trajectory_['lorenz.x']
+    """Test that the fractional Lorenz flow of order 0.995 stays bounded and keeps switching between both wings."""
+    trajectory = Simulation(fractional_lorenz(), dt=0.05).run(until=40.0).trajectory_['lorenz.x']
+    late = trajectory[-200:]
     assert np.all(np.abs(trajectory) < 30)
-    assert np.min(trajectory) < -5
-    assert np.max(trajectory) > 5
+    assert np.sum(np.diff(np.sign(late)) != 0) >= 2
 
 
 def test_element_types_of_orders_pickle_by_reference():
