@@ -40,9 +40,18 @@ The probe models use the redesigned vocabulary and existing primitives only:
 - `nonreciprocal_cahn_hilliard`: two site groups on a periodic `LatticeSpace` under `ContinuousTime()`, with rate laws
   that couple them nonreciprocally;
 - `nonreciprocal_vicsek`: two groups of self-propelled elements in a `ContinuousSpace(boundary='periodic')` under
-  `DiscreteTime()`, aligned by an interaction with the binding `'pairs'` within a cutoff;
+  `DiscreteTime()`, whose `Update` laws align each heading with the mean heading of the neighbours of each species
+  within a radius, `neighbors(..., over=Radius(r), reduce='mean')`, with a species coupling that differs one way from
+  the other;
 - `tipping_cascade_network`: a group of tipping elements on a `NetworkSpace` under `ContinuousTime()`, with rate laws
   coupled over neighbours.
+
+### Dependency on neighbourhood reductions
+
+A pair interaction takes only rate laws, which need continuous time, so the discrete Vicsek rule cannot be written as
+one. The neighbourhood reductions of `add-adaptive-networks` (its task 2.1) are the general primitive it needs: a law
+of any time class reduces an expression over the neighbours within a radius. `nonreciprocal_vicsek` is built after
+that task lands, and the other three probe models do not depend on it.
 
 ## Risks / Trade-offs
 

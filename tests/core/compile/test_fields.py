@@ -64,6 +64,14 @@ def test_diffusion_on_network():
     assert np.abs(values[-1] - initial.mean()).max() < 1e-4
 
 
+def test_diffusion_on_network_without_edges():
+    """Test that a field on nodes without edges compiles, with no diffusive step limit, and stays put."""
+    initial = np.array([0.2, 0.7])
+    system = System(components=[Field('net', Heat, NetworkSpace(nx.empty_graph(2)), values={'u': initial})])
+    values = Simulation(system, dt=1).run(until=3).trajectory_['net.u']
+    assert values[-1] == pytest.approx(initial)
+
+
 @pytest.mark.parametrize('backend', ['numpy', 'numba'])
 def test_zero_flux_conserves_mass(backend):
     """Test that a field diffusing with zero-flux edges keeps its total within 1e-10."""

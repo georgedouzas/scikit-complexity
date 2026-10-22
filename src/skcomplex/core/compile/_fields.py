@@ -585,6 +585,8 @@ class FieldLowering:
                 stiffness = max((item for _, item in space.graph.degree), default=1)
             else:
                 stiffness = sum(2 / step**2 for step in cast('LatticeSpace', space).spacings)
+            if stiffness == 0:
+                continue
             if place.discretization == 'finite-volume':
                 self._note_volume_limit(expression, stiffness)
                 continue
