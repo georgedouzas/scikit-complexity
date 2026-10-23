@@ -46,6 +46,11 @@ class Stray(Law):
     value: object
 
 
+@dataclass(frozen=True)
+class Undeclared(Law):
+    """Law class without a kind."""
+
+
 class Drifting(Element):
     """Element whose law is of an unregistered class."""
 
@@ -151,11 +156,6 @@ def test_register_rejects_cycle():
 
 def test_register_laws_rejects_classes_without_declarations():
     """Test that a class that is not a law class, or a law class without a kind, is not registered."""
-
-    @dataclass(frozen=True)
-    class Undeclared(Law):
-        """Law class without a kind."""
-
     with pytest.raises(RegistryError, match='not a law class'):
         register_laws(int)  # type: ignore[arg-type]
     with pytest.raises(RegistryError, match='law_kind'):

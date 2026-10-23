@@ -36,7 +36,7 @@ def register_laws(*classes: type['Law']) -> None:
     Registering a class again keeps it once.
 
     Args:
-        classes:
+        *classes:
             The law classes.
 
     Raises:

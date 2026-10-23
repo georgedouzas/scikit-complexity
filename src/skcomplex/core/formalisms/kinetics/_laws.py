@@ -4,7 +4,7 @@
 # License: MIT
 
 from dataclasses import dataclass
-from typing import Any, ClassVar, TypeIs
+from typing import Any, ClassVar, TypeGuard
 
 import numpy as np
 import numpy.typing as npt
@@ -43,7 +43,7 @@ def _check_sizes(rate: Table, outcomes: Table | None, description: str) -> None:
     raise ValidationError(error_msg)
 
 
-def is_encounter(law: Law) -> TypeIs[EncounterLaw]:
+def is_encounter(law: Law) -> TypeGuard[EncounterLaw]:
     """Check whether a law is an encounter law, a law of the encounter kind."""
     return law.law_kind is LawKind.ENCOUNTER
 

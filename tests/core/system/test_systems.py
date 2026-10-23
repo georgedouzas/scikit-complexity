@@ -272,7 +272,7 @@ def test_unknown_binding_is_rejected():
 
         over: ClassVar[str] = 'everything'
 
-    with pytest.raises(ValidationError, match='members, pairs, neighbours, hyperedges'):
+    with pytest.raises(ValidationError, match='members, pairs, neighbors, hyperedges'):
         Everywhere('everywhere')
 
 

@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import ClassVar, cast
 
 import numpy as np
 
@@ -112,7 +112,7 @@ class DecayPass(SystemPass):
         symbols = {entry.name: symbol(entry.name.replace('.', '_')) for entry in [*states, *parameters]}
         columns = {symbols[entry.name]: entry.start for entry in parameters}
         laws = [item.laws(Symbols(n=symbols[f'{item.label}.n'], k=symbols[f'{item.label}.k'])) for item in nuclei]
-        initial = [float(initial_state.get(f'{item.label}.n', item.n)) for item in nuclei]
+        initial = [float(cast('float', initial_state.get(f'{item.label}.n', item.n))) for item in nuclei]
         return DecayProblem(
             form=DECAYING,
             states=Layout(states),
@@ -148,7 +148,7 @@ class ExactDecay(Stepper):
 
     def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Return the states decayed from time `t` to time `until`."""
-        rates = p[np.asarray(self.problem_.rates, dtype=np.intp)]
+        rates = p[np.asarray(cast('DecayProblem', self.problem_).rates, dtype=np.intp)]
         return x * np.exp(-rates * (until - t))
 
 
