@@ -4,7 +4,8 @@
 # License: MIT
 
 import itertools
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
 from typing import Any, cast
 
 import networkx as nx
@@ -12,7 +13,7 @@ import numpy as np
 import numpy.typing as npt
 from networkx.algorithms import isomorphism
 
-from ..base import (
+from ...base import (
     Domain,
     Form,
     IncompatibleLawsError,
@@ -23,14 +24,23 @@ from ..base import (
     declarations_of,
     symbol,
 )
-from ..components import Element, Group, HostGraph, Patch, structure_of
-from ..interactions import Rewriting
-from ..laws import GraphProduction, Production, RewritingLaw, Substitution, Symbols
-from ..system import System
-from ._layout import Entry, Layout
-from ._problem import CompiledElement, CompiledInteraction, Problem
+from ...compile import (
+    CompiledElement,
+    CompiledInteraction,
+    Entry,
+    Layout,
+    Node,
+    Problem,
+    SystemPass,
+    flatten_system,
+)
+from ...components import Element, Group
+from ...laws import Symbols
+from ...system import System
+from ._components import HostGraph, Patch, structure_of
+from ._interactions import Rewriting
+from ._laws import GraphProduction, Production, RewritingLaw, Substitution
 from ._structures import GraphStructure, PatchStructure
-from ._tree import Node, flatten_system
 from ._words import IDENTIFIER, CompiledWord, Parameters
 
 LAWS_OF = {'sequence': Production, 'tiling': Substitution, 'graph': GraphProduction}
@@ -417,7 +427,7 @@ def _compiled(
     return CompiledGraph(node.path, element, [law for law in laws if isinstance(law, GraphProduction)])
 
 
-def compile_rewriting(system: System) -> Problem:
+def compile_rewriting(system: System) -> 'RewritingProblem':
     """Compile a system of words, patches, or host graphs and the interactions that rewrite them.
 
     Args:
@@ -440,9 +450,9 @@ def compile_rewriting(system: System) -> Problem:
 
     Examples:
         >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.core.components import Word
-        >>> from skcomplex.core.interactions import Rewrite
-        >>> from skcomplex.core.laws import Production
+        >>> from skcomplex.core.formalisms.rewriting import Word
+        >>> from skcomplex.core.formalisms.rewriting import Rewrite
+        >>> from skcomplex.core.formalisms.rewriting import Production
         >>> from skcomplex.core.system import System
         >>> system = System(
         ...     components=[Word('algae', axiom='A')],
@@ -500,7 +510,7 @@ def compile_rewriting(system: System) -> Problem:
         for name in names:
             states.append(Entry(f'{item.path}.{name}', len(states), (), Domain.NONNEGATIVE_INTEGER))
         initial += item.counts(item.initial(initial_parameters))  # type: ignore[arg-type]
-    return Problem(
+    return RewritingProblem(
         form=Form.REWRITING,
         states=Layout(states),
         parameters=Layout(entries),
@@ -517,3 +527,62 @@ def compile_rewriting(system: System) -> Problem:
         system=system,
         rewriting=compiled,
     )
+
+
+@dataclass(frozen=True)
+class RewritingProblem(Problem):
+    """Problem of the rewriting form, with the compiled rewriting system of every rewritten element.
+
+    Args:
+        rewriting:
+            The compiled rewriting systems of the words, patches, and host graphs.
+    """
+
+    rewriting: tuple[Compiled, ...] = field(default=(), repr=False)
+
+
+class RewritingPass(SystemPass):
+    """Pass that compiles a system of words, patches, or host graphs into a problem of the rewriting form."""
+
+    def claims(self, system: System) -> bool:
+        """Check whether a system holds a word, a patch, or a host graph.
+
+        Args:
+            system:
+                The system.
+
+        Returns:
+            claims:
+                Whether the system holds a rewritten element.
+        """
+        return is_rewriting(system)
+
+    def compile(
+        self,
+        system: System,
+        *,
+        backend: object,
+        solver: object,
+        initial_state: Mapping[str, object],
+    ) -> Problem:
+        """Compile a rewriting system into a problem of the rewriting form.
+
+        Args:
+            system:
+                The system, with the observables of the run.
+
+            backend:
+                The backend requested for the problem, which the rewriting form does not use.
+
+            solver:
+                The solver the problem runs on, which the rewriting form does not use.
+
+            initial_state:
+                Initial values by dotted state name, which the rewriting form does not use.
+
+        Returns:
+            problem:
+                The problem of the rewriting form.
+        """
+        del backend, solver, initial_state
+        return compile_rewriting(system)

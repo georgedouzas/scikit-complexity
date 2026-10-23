@@ -7,13 +7,30 @@ import numpy as np
 import pytest
 import qutip
 
-from skcomplex.core.base import Form, HilbertSpaceError, IncompatibleLawsError, ValidationError, parameter, role, symbol
-from skcomplex.core.compile import ObservableEvaluator, QuantumProblem, compile_system
+from skcomplex.core.base import (
+    Form,
+    HilbertSpaceError,
+    IncompatibleLawsError,
+    LawKind,
+    ValidationError,
+    parameter,
+    role,
+    symbol,
+)
+from skcomplex.core.compile import ObservableEvaluator, claiming_pass, compile_system
+from skcomplex.core.formalisms import registered_formalisms
+from skcomplex.core.formalisms.quantum import (
+    Dissipator,
+    Generator,
+    LindbladEvolution,
+    QuantumPass,
+    QuantumProblem,
+    expectation,
+)
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Dissipator, Generator, Rate
-from skcomplex.core.solvers import LindbladEvolution
+from skcomplex.core.laws import Rate
 from skcomplex.core.space import LatticeSpace
-from skcomplex.core.system import System, expectation
+from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import Population
 from skcomplex.models.physics.realizations import Mode, Qubit, Spin
 
@@ -177,3 +194,17 @@ def test_local_values_give_probabilities_and_expectations():
     values = problem.local_values('q', problem.initial_state)
     assert values['z'] == -1.0
     assert values['x'] == 0.0
+
+
+def test_quantum_pass_claims_quantum_systems():
+    """Test that the registered quantum pass claims a quantum system and leaves a classical one."""
+    assert isinstance(claiming_pass(System(components=[Spin.group('chain', 2)])), QuantumPass)
+    assert claiming_pass(System(components=[Population('rabbits', n=10)])) is None
+
+
+def test_registered_formalisms_list_quantum():
+    """Test that the quantum formalism is listed with its law kinds, its form, and its solvers."""
+    quantum = next(item for item in registered_formalisms() if item.name == 'quantum')
+    assert {law.law_kind for law in quantum.laws} == {LawKind.GENERATOR, LawKind.DISSIPATOR}
+    assert quantum.forms == (Form.QUANTUM,)
+    assert quantum.solvers['auto'] is LindbladEvolution

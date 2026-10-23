@@ -26,6 +26,7 @@ from ._problem import (
     CompiledInteraction,
     Draws,
     FractionalRows,
+    Getter,
     JumpChannels,
     MarkovMatrix,
     NetworkSnapshot,
@@ -38,10 +39,8 @@ from ._problem import (
     VectorFunction,
 )
 from ._quantities import CompiledFlow, CompiledObjective, LoopTerm, Recorded, StockFlow
-from ._quantum import DEFAULT_MAX_DIMENSION, QuantumProblem, QuantumTerm, contains_quantum
-from ._rewriting import CompiledGraph, CompiledPatch, compile_rewriting
-from ._structures import GraphStructure, PatchStructure, Structure, WordStructure
 from ._system_passes import SystemPass, claiming_pass, register_pass
+from ._tree import Node, coerce_value, flatten_system
 from ._validation import (
     Check,
     Issue,
@@ -52,11 +51,9 @@ from ._validation import (
     register_check,
     validate,
 )
-from ._words import CompiledWord
 
 __all__: list[str] = [
     'BACKENDS',
-    'DEFAULT_MAX_DIMENSION',
     'NUMPY_DIALECT',
     'SCALAR_DIALECT',
     'Accelerated',
@@ -71,14 +68,11 @@ __all__: list[str] = [
     'CompiledEvent',
     'CompiledExtremal',
     'CompiledFlow',
-    'CompiledGraph',
     'CompiledInteraction',
     'CompiledMonteCarlo',
     'CompiledObjective',
-    'CompiledPatch',
     'CompiledRelaxation',
     'CompiledRule',
-    'CompiledWord',
     'Delay',
     'Dialect',
     'Draws',
@@ -86,7 +80,7 @@ __all__: list[str] = [
     'EventRecord',
     'ExtremalRecord',
     'FractionalRows',
-    'GraphStructure',
+    'Getter',
     'Issue',
     'JumpChannels',
     'LatticeState',
@@ -96,18 +90,15 @@ __all__: list[str] = [
     'Lowering',
     'MarkovMatrix',
     'NetworkSnapshot',
+    'Node',
     'ObservableEvaluator',
     'Partition',
-    'PatchStructure',
     'Problem',
-    'QuantumProblem',
-    'QuantumTerm',
     'Recorded',
     'RelaxationRecord',
     'RenewalProcess',
     'RenewalRecord',
     'StockFlow',
-    'Structure',
     'SystemPass',
     'TableValues',
     'TopologyChanges',
@@ -115,12 +106,11 @@ __all__: list[str] = [
     'ValidationWarning',
     'Vector',
     'VectorFunction',
-    'WordStructure',
     'claiming_pass',
-    'compile_rewriting',
+    'coerce_value',
     'compile_system',
-    'contains_quantum',
     'domain_kind',
+    'flatten_system',
     'law_census',
     'load_backends',
     'mesh_laplacian',

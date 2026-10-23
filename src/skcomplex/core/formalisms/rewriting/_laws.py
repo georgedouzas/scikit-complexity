@@ -11,7 +11,7 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ..base import (
+from ...base import (
     DomainKind,
     LawClass,
     LawKind,
@@ -19,7 +19,7 @@ from ..base import (
     RewritingError,
     TimeKind,
 )
-from ._law import Law, register_laws
+from ...laws import Law
 
 
 class Module:
@@ -33,7 +33,7 @@ class Module:
             The parameters, numbers in a word and symbols or expressions in a production.
 
     Examples:
-        >>> from skcomplex.core.laws import Module
+        >>> from skcomplex.core.formalisms.rewriting import Module
         >>> Module('F', 0.5)
         F(0.5)
     """
@@ -78,8 +78,8 @@ def parse_word(value: Letters, names: Sequence[str] = ()) -> list[Module]:
             The modules of the word.
 
     Examples:
-        >>> from skcomplex.core.laws import Module
-        >>> from skcomplex.core.laws._rewriting import parse_word
+        >>> from skcomplex.core.formalisms.rewriting import Module
+        >>> from skcomplex.core.formalisms.rewriting._laws import parse_word
         >>> parse_word(['F', Module('A', 1.0), '+-'])
         [F, A(1.0), +, -]
     """
@@ -123,7 +123,7 @@ class Production(Law):
             stochastic productions of one predecessor, context, and condition sum to one.
 
     Examples:
-        >>> from skcomplex.core.laws import Production
+        >>> from skcomplex.core.formalisms.rewriting import Production
         >>> Production('F', 'F+F--F+F')
         F → F+F--F+F
     """
@@ -168,7 +168,7 @@ class Prototile:
             The vertices in the plane, two for a segment and at least three for a polygon.
 
     Examples:
-        >>> from skcomplex.core.laws import Prototile
+        >>> from skcomplex.core.formalisms.rewriting import Prototile
         >>> Prototile('interval', [(0, 0), (1, 0)]).is_segment
         True
     """
@@ -223,7 +223,7 @@ class Affine:
             A homogeneous 3 by 3 matrix that replaces the other arguments.
 
     Examples:
-        >>> from skcomplex.core.laws import Affine
+        >>> from skcomplex.core.formalisms.rewriting import Affine
         >>> Affine(scale=0.5, translation=(1, 0)).matrix_of({}).tolist()
         [[0.5, 0.0, 1.0], [0.0, 0.5, 0.0], [0.0, 0.0, 1.0]]
     """
@@ -272,7 +272,7 @@ class Substitution(Law):
             Pairs of a prototile name and the affine map from the parent tile's frame.
 
     Examples:
-        >>> from skcomplex.core.laws import Affine, Substitution
+        >>> from skcomplex.core.formalisms.rewriting import Affine, Substitution
         >>> len(Substitution('interval', [('interval', Affine(scale=1 / 3))]).pieces)
         1
     """
@@ -309,7 +309,7 @@ class GraphProduction(Law):
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.core.laws import GraphProduction
+        >>> from skcomplex.core.formalisms.rewriting import GraphProduction
         >>> left = nx.Graph([('a', 'b')])
         >>> interface = nx.Graph()
         >>> interface.add_nodes_from('ab')
@@ -342,6 +342,3 @@ class GraphProduction(Law):
 
 
 type RewritingLaw = Production | Substitution | GraphProduction
-
-
-register_laws(Production, Substitution, GraphProduction)

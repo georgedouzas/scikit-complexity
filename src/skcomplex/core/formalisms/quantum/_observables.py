@@ -6,8 +6,8 @@
 from collections.abc import Callable
 from typing import Any
 
-from ..components._quantum import _members
-from ._observables import Observable
+from ...system import Observable
+from ._components import _members
 
 
 def expectation(
@@ -42,7 +42,7 @@ def expectation(
             The observable.
 
     Examples:
-        >>> from skcomplex.core.system import expectation
+        >>> from skcomplex.core.formalisms.quantum import expectation
         >>> expectation('sz', abs, group='chain').group
         'chain'
     """

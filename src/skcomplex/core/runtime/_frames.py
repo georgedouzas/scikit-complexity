@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..compile import EventRecord, ExtremalRecord, Problem, RelaxationRecord, RenewalRecord, Structure, Vector
+from ..compile import EventRecord, ExtremalRecord, Problem, RelaxationRecord, RenewalRecord, Vector
 from ..solvers import AgentSnapshot
 
 
@@ -59,7 +59,7 @@ class Frame:
     reporters: Mapping[str, float] = field(default_factory=dict)
     observables: Mapping[str, Any] = field(default_factory=dict)
     events: tuple[EventRecord | RelaxationRecord | RenewalRecord | ExtremalRecord, ...] = ()
-    structures: Mapping[str, Structure] = field(default_factory=dict)
+    structures: Mapping[str, Any] = field(default_factory=dict)
 
     def value(self, name: str) -> npt.NDArray[Any] | float | complex:
         """Return the value of a state or a parameter by dotted name.

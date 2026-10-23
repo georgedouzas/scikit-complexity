@@ -6,10 +6,9 @@ import pytest
 import qutip
 
 from skcomplex.core.base import ValidationError, symbol
-from skcomplex.core.components import QuantumView
-from skcomplex.core.laws import Dissipator, Generator, LocalOperator, Operator, Symbols
+from skcomplex.core.formalisms.quantum import Dissipator, Generator, LocalOperator, Operator, QuantumView, expectation
+from skcomplex.core.laws import Symbols
 from skcomplex.core.space import LatticeSpace, NetworkSpace, neighbour_pairs
-from skcomplex.core.system import expectation
 from skcomplex.models.physics.realizations import Mode, Qubit, Site, Spin
 
 

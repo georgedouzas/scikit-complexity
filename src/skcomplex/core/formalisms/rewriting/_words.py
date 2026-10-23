@@ -6,18 +6,17 @@
 import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ..base import Expression, RewritingError, symbols_of
-from ..components import Word
-from ..laws import Module, Production
-from ..laws._rewriting import parse_word
-from ._printing import numpy_function
-from ._rewriting_kernels import (
+from ...base import Expression, RewritingError, symbols_of
+from ...compile import numpy_function
+from ._components import Word
+from ._geometry import WordGeometry
+from ._kernels import (
     ACTION_CODES,
     DRAW,
     LEFT,
@@ -33,10 +32,8 @@ from ._rewriting_kernels import (
     neighbors,
     walk_word,
 )
+from ._laws import Module, Production, parse_word
 from ._structures import WordStructure
-
-if TYPE_CHECKING:
-    from ..viz import WordGeometry
 
 IDENTIFIER = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 PROBABILITY_TOLERANCE = 1e-9

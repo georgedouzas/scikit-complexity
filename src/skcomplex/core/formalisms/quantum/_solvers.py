@@ -11,9 +11,10 @@ import numpy.typing as npt
 import qutip
 import scipy.sparse as sp
 
-from ..base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SolverError, SpaceKind, Supports, TimeKind
-from ..compile import DEFAULT_MAX_DIMENSION, Problem, QuantumProblem, QuantumTerm, Vector
-from ._base import Stepper, register_solver
+from ...base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SolverError, SpaceKind, Supports, TimeKind
+from ...compile import Problem, Vector
+from ...solvers import Stepper
+from ._passes import DEFAULT_MAX_DIMENSION, QuantumProblem, QuantumTerm
 
 MAX_SEED = 2**32
 PURITY_TOLERANCE = 1e-8
@@ -206,10 +207,11 @@ class UnitaryEvolution(QuantumSolver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.solvers import UnitaryEvolution
+        >>> from skcomplex.core.formalisms.quantum import UnitaryEvolution
         >>> from skcomplex.core.runtime import Simulation
-        >>> from skcomplex.core.laws import Generator
-        >>> from skcomplex.core.system import System, expectation
+        >>> from skcomplex.core.formalisms.quantum import Generator
+        >>> from skcomplex.core.system import System
+        >>> from skcomplex.core.formalisms.quantum import expectation
         >>> from skcomplex.models.physics.realizations import Qubit
         >>> from operator import attrgetter
         >>> Rabi = Qubit.define('Rabi', laws=lambda s: [Generator(s.x / 2)])
@@ -249,10 +251,11 @@ class LindbladEvolution(QuantumSolver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.solvers import LindbladEvolution
+        >>> from skcomplex.core.formalisms.quantum import LindbladEvolution
         >>> from skcomplex.core.runtime import Simulation
-        >>> from skcomplex.core.laws import Dissipator
-        >>> from skcomplex.core.system import System, expectation
+        >>> from skcomplex.core.formalisms.quantum import Dissipator
+        >>> from skcomplex.core.system import System
+        >>> from skcomplex.core.formalisms.quantum import expectation
         >>> from skcomplex.models.physics.realizations import Qubit
         >>> from operator import attrgetter
         >>> Decaying = Qubit.define('Decaying', laws=lambda s: [Dissipator(s.minus, 0.5)])
@@ -294,10 +297,11 @@ class QuantumTrajectories(QuantumSolver):
             The initial state is a mixed density matrix.
 
     Examples:
-        >>> from skcomplex.core.solvers import QuantumTrajectories
+        >>> from skcomplex.core.formalisms.quantum import QuantumTrajectories
         >>> from skcomplex.core.runtime import Simulation
-        >>> from skcomplex.core.laws import Dissipator
-        >>> from skcomplex.core.system import System, expectation
+        >>> from skcomplex.core.formalisms.quantum import Dissipator
+        >>> from skcomplex.core.system import System
+        >>> from skcomplex.core.formalisms.quantum import expectation
         >>> from skcomplex.models.physics.realizations import Qubit
         >>> from operator import attrgetter
         >>> Decaying = Qubit.define('Decaying', laws=lambda s: [Dissipator(s.minus, 1.0)])
@@ -334,8 +338,3 @@ class QuantumTrajectories(QuantumSolver):
     def _start(self, solver: Any, x: Vector, t: float) -> None:  # noqa: ANN401
         """Start the Monte Carlo solver from a state at a time with a seed drawn from the random number generator."""
         solver.start(self._start_state(x), t, seed=int(self.rng_.integers(MAX_SEED)))
-
-
-register_solver('unitary', UnitaryEvolution)
-register_solver('lindblad', LindbladEvolution, default=True)
-register_solver('quantum_trajectories', QuantumTrajectories)

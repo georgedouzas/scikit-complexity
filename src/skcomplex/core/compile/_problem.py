@@ -4,7 +4,7 @@
 # License: MIT
 
 import itertools
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -25,7 +25,7 @@ from ..components import Element, Group
 from ..interactions import Interaction
 from ..laws import Invariant, Rule
 from ..space import Space
-from ..system import System
+from ..system import Observable, System
 from ._contractions import CompiledEncounter
 from ._hybrid import Breakpoints, CompiledEvent, Delay
 from ._lattices import LatticeStep, lattice_shape
@@ -37,6 +37,7 @@ ROW_TOLERANCE = 1e-9
 
 type Vector = npt.NDArray[np.float64]
 type VectorFunction = Callable[[float, Vector, Vector], Vector]
+type Getter = Callable[[float, Vector, Vector, Mapping[str, Any]], Any]
 
 
 @dataclass(frozen=True)
@@ -680,9 +681,6 @@ class Problem:
         accelerated:
             The compiled stepper loops, or `None` when the backend has none for this problem.
 
-        rewriting:
-            The compiled rewriting systems of the words, patches, and host graphs of a rewriting system.
-
         topology:
             The topology requests of the laws and the networks they change, which the stepper applies between steps,
             or `None` for a problem without them.
@@ -740,7 +738,6 @@ class Problem:
     encounters: tuple[CompiledEncounter, ...] = field(default=(), repr=False)
     backend: str = 'numpy'
     accelerated: Accelerated | None = field(default=None, repr=False)
-    rewriting: tuple[Any, ...] = field(default=(), repr=False)
     topology: TopologyChanges | None = field(default=None, repr=False)
 
     def _flatten_symbols(self, layout: Layout) -> list[Expression]:
@@ -778,6 +775,20 @@ class Problem:
     def parameter_symbols(self) -> list[Expression]:
         """Symbols of the parameter components of interactions, single elements, and one member of every group."""
         return self._flatten_symbols(self.parameters)
+
+    def observable_getters(self, observables: Iterable[tuple[str, Observable]]) -> dict[str, Getter] | None:
+        """Return the getters of observables by path when the problem evaluates them itself, or `None` otherwise.
+
+        Args:
+            observables:
+                The path of the declaring system and the observable, for every observable of the system tree.
+
+        Returns:
+            getters:
+                The getters by observable path, or `None` for the evaluator of the shared core.
+        """
+        del observables
+        return None
 
     def max_speed(self, x: Vector, p: Vector) -> float | None:
         """Return the largest wave speed of the conservation laws, or `None` without them.

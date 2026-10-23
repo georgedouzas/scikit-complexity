@@ -10,8 +10,6 @@ from ._kinetics import ParticleKinetics
 from ._lattices import LatticeStepper, MonteCarlo
 from ._optimal import ControlSolution
 from ._pontryagin import Pontryagin
-from ._quantum import LindbladEvolution, QuantumSolver, QuantumTrajectories, UnitaryEvolution
-from ._rewriting import Rewriter, RewritingState
 from ._steppers import (
     RK4,
     EulerMaruyama,
@@ -24,6 +22,7 @@ from ._steppers import (
     VelocityVerlet,
 )
 from ._stiff import ETDRK4, IMEX2, SSPRK, CrankNicolson, IMEXEuler, SplitOperator
+from ._structures import StructureState
 
 __all__: list[str] = [
     'ETDRK4',
@@ -47,20 +46,15 @@ __all__: list[str] = [
     'Iteration',
     'L1Scheme',
     'LatticeStepper',
-    'LindbladEvolution',
     'Milstein',
     'MonteCarlo',
     'ParticleKinetics',
     'Pontryagin',
-    'QuantumSolver',
-    'QuantumTrajectories',
     'RenewalStepper',
-    'Rewriter',
-    'RewritingState',
     'ScipyODE',
     'SplitOperator',
     'Stepper',
-    'UnitaryEvolution',
+    'StructureState',
     'VelocityVerlet',
     'fractional_gaussian_noise',
     'register_solver',
