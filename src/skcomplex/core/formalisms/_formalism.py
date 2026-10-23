@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from ..base import Form, Registry, RegistryError
-from ..compile import Backend, Check, SystemPass, register_backend, register_check, register_pass
+from ..compile import Backend, Check, Pass, SystemPass, register_backend, register_check, register_pass
 from ..components import Component
 from ..laws import Law, register_laws
 from ..solvers import Stepper, register_solver
@@ -126,7 +126,8 @@ class Formalism:
             The space classes it defines.
 
         passes:
-            The passes that compile the systems they claim.
+            The passes that every compilation runs, ordered by the fields they read and write, and the passes that
+            compile the whole systems they claim.
 
         forms:
             The forms it defines.
@@ -154,7 +155,7 @@ class Formalism:
     laws: tuple[type[Law], ...] = ()
     components: tuple[type[Component], ...] = ()
     spaces: tuple[type[Space], ...] = ()
-    passes: tuple[SystemPass, ...] = ()
+    passes: tuple[Pass | SystemPass, ...] = ()
     forms: tuple[Form, ...] = ()
     solvers: Mapping[str, type[Stepper]] = field(default_factory=dict)
     backends: tuple[type[Backend], ...] = ()

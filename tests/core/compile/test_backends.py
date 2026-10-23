@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.backends import NumbaBackend, NumpyBackend, _numba
-from skcomplex.core.base import BackendError, Domain, SolverError, parameter, role, vector
+from skcomplex.core.base import BackendError, BackendWarning, Domain, SolverError, parameter, role, vector
 from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element, Particle
 from skcomplex.core.interactions import Interaction, PairPotential
@@ -18,6 +18,7 @@ from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4, EulerMaruyama, Gillespie, Iteration, VelocityVerlet
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
+from skcomplex.models import create
 from skcomplex.models.biology.ecology import Population
 from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
 from skcomplex.models.physics.realizations import HarmonicPotential
@@ -401,3 +402,19 @@ def test_velocity_verlet_needs_position_pairs():
     """Test that velocity Verlet names the states that are neither positions nor velocities."""
     with pytest.raises(SolverError, match=r'herds\.n are neither'):
         Simulation(_herds(CompiledGrowth('growth', target='herds')), solver=VelocityVerlet()).run(until=1)
+
+
+def test_backend_substituted_for_a_form_is_reported():
+    """Test that a lattice model compiled with Numba warns that its form runs on NumPy, and records NumPy for it."""
+    with pytest.warns(BackendWarning, match='lattice dynamics form runs on the numpy backend'):
+        problem = compile_system(create('contact_process'), backend='numba')
+    assert problem.backends['LATTICE'] == 'numpy'
+
+
+def test_kernel_falling_back_to_python_is_reported(numba_backend):
+    """Test that a kernel the Numba backend cannot compile warns once, naming the law kind, and records Python."""
+    system = _herds(PythonGrowth('growth', target='herds'))
+    with pytest.warns(BackendWarning, match='runs the rate laws in Python') as found:
+        problem = compile_system(system, backend=numba_backend)
+    assert len([item for item in found if item.category is BackendWarning]) == 1
+    assert problem.backends == {'ODE': 'numba', 'rate': 'python'}

@@ -17,6 +17,7 @@ from ..base import (
     Domain,
     LabelError,
     SpaceError,
+    TimeKind,
     ValidationError,
     Variable,
     VariableKind,
@@ -341,6 +342,30 @@ def flatten_system(system: System, scope: str = '', space: Space | None = None) 
     nodes = _flatten(system, scope, space)
     agents = agent_paths(nodes)
     return [dataclasses.replace(node, agent=node.path in agents) for node in nodes]
+
+
+def declared_times(system: System, scope: str = '', inherited: TimeKind | None = None) -> dict[str, TimeKind | None]:
+    """Return the declared time of every system of a tree by path, a nested system inheriting its parent's.
+
+    Args:
+        system:
+            The root of the tree.
+
+        scope:
+            The path of the system.
+
+        inherited:
+            The time of the parent system.
+
+    Returns:
+        times:
+            The time of every system by path, `None` for a system without a declared time.
+    """
+    time = system.time.kind if system.time is not None else inherited
+    times = {scope: time}
+    for child in system.systems:
+        times.update(declared_times(child, f'{scope}/{child.label}' if scope else child.label, time))
+    return times
 
 
 def shape_of(name: str, declaration: Variable, space: Space | None) -> tuple[int, ...]:

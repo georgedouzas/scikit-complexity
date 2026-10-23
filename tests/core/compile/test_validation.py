@@ -7,13 +7,13 @@ import pytest
 
 from skcomplex.core.backends import NumpyBackend
 from skcomplex.core.base import Domain, OrderKind, Supports, ValidationError, VisualSpec, parameter, role, state
-from skcomplex.core.compile import Issue, ValidationReport, ValidationWarning, validate
+from skcomplex.core.compile import Issue, ValidationReport, ValidationWarning, compile_system, validate
 from skcomplex.core.components import Element
 from skcomplex.core.formalisms.groups import GroupSpace, finitely_presented_group
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Energy, Move, Noise, Objective, Rate, Rule, Sample, Sampler, Update, neighbors
 from skcomplex.core.solvers import GrunwaldLetnikov
-from skcomplex.core.space import DiscreteTime, Memory
+from skcomplex.core.space import DiscreteTime, LatticeSpace, Memory
 from skcomplex.core.system import System
 
 
@@ -361,3 +361,32 @@ def test_group_space_reports_a_ball_above_the_site_limit(monkeypatch):
     issues = validate(System(space=space)).issues
     assert [issue.code for issue in issues] == ['space-too-large']
     assert 'largest radius that fits is 6' in issues[0].message
+
+
+def test_lattice_with_a_bad_boundary_is_reported():
+    """Test that a lattice whose boundary is not supported is a space-invalid error that lists the boundaries."""
+    space = LatticeSpace((4, 4), boundary='spherical')
+    (issue,) = validate(System(components=[Stock('rabbits')], space=space)).errors
+    assert issue.code == 'space-invalid'
+    assert "'spherical'" in issue.message
+    assert 'periodic, fixed, reflecting' in issue.message
+
+
+def test_invalid_space_among_other_errors_is_reported():
+    """Test that an invalid lattice and an unbound role are both reported, and compiling raises the validation error."""
+    system = System(
+        components=[Stock('rabbits')],
+        interactions=[Growth('growth', target='hares')],
+        space=LatticeSpace((4, 4), boundary='spherical'),
+    )
+    assert {issue.code for issue in validate(system).errors} == {'space-invalid', 'role'}
+    with pytest.raises(ValidationError, match='space-invalid'):
+        compile_system(system)
+
+
+def test_validation_keeps_the_planned_compilation():
+    """Test that validation returns the compilation state planned once, which holds the nodes and the plan."""
+    system = System(components=[Stock('rabbits')], interactions=[Growth('growth', target='rabbits')])
+    compilation = validate(system).compilation
+    assert [node.path for node in compilation.nodes] == ['rabbits', 'growth']
+    assert [partition.name for partition in compilation.plan.partitions] == [system.label]

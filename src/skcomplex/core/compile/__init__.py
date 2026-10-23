@@ -1,10 +1,13 @@
 """Compile systems into problems of one mathematical form with fast numeric functions."""
 
 from ._backends import BACKENDS, Backend, Lowering, load_backends, register_backend, resolve_backend
-from ._compiler import CensusRecord, compile_system, law_census, partition_system, with_initial_state
+from ._census import Census, CensusRecord, law_census
+from ._compilation import Compilation
+from ._compile import compile_system, partition_system
 from ._contractions import CompiledEncounter, TableValues
 from ._fields import mesh_laplacian, spectral_multiplier
 from ._hybrid import Breakpoints, CompiledEvent, Delay, EventRecord
+from ._issues import Issue, ValidationWarning
 from ._lattices import (
     CompiledDrive,
     CompiledExtremal,
@@ -18,6 +21,8 @@ from ._lattices import (
 )
 from ._layout import Entry, Layout
 from ._observables import ObservableEvaluator, observables_of, with_observables
+from ._pipeline import Check, Pass, order_passes, register_check, register_pass, registered_passes, run_passes
+from ._planner import Plan, PlannedPartition, plan_partitions
 from ._printing import NUMPY_DIALECT, SCALAR_DIALECT, Dialect, numpy_function, print_expressions
 from ._problem import (
     Accelerated,
@@ -37,20 +42,12 @@ from ._problem import (
     TopologyChanges,
     Vector,
     VectorFunction,
+    with_initial_state,
 )
 from ._quantities import CompiledFlow, CompiledObjective, LoopTerm, Recorded, StockFlow
-from ._system_passes import SystemPass, claiming_pass, register_pass
+from ._system_passes import SystemPass, claiming_pass
 from ._tree import Node, coerce_value, flatten_system
-from ._validation import (
-    Check,
-    Issue,
-    ValidationReport,
-    ValidationWarning,
-    domain_kind,
-    missing_declarations,
-    register_check,
-    validate,
-)
+from ._validation import ValidationReport, domain_kind, missing_declarations, validate
 
 __all__: list[str] = [
     'BACKENDS',
@@ -59,8 +56,10 @@ __all__: list[str] = [
     'Accelerated',
     'Backend',
     'Breakpoints',
+    'Census',
     'CensusRecord',
     'Check',
+    'Compilation',
     'CompiledAgents',
     'CompiledDrive',
     'CompiledElement',
@@ -93,6 +92,9 @@ __all__: list[str] = [
     'Node',
     'ObservableEvaluator',
     'Partition',
+    'Pass',
+    'Plan',
+    'PlannedPartition',
     'Problem',
     'Recorded',
     'RelaxationRecord',
@@ -117,12 +119,16 @@ __all__: list[str] = [
     'missing_declarations',
     'numpy_function',
     'observables_of',
+    'order_passes',
     'partition_system',
+    'plan_partitions',
     'print_expressions',
     'register_backend',
     'register_check',
     'register_pass',
+    'registered_passes',
     'resolve_backend',
+    'run_passes',
     'spectral_multiplier',
     'validate',
     'with_initial_state',

@@ -10,15 +10,17 @@ from ..base import Registry
 from ..system import System
 from ._problem import Problem
 
+SYSTEM_PASSES = Registry['SystemPass']('system pass')
 
-def register_pass(system_pass: 'SystemPass') -> None:
+
+def register_system_pass(system_pass: 'SystemPass') -> None:
     """Register a pass that compiles the systems it claims, keeping it once when registered again.
 
     Args:
         system_pass:
             The pass.
     """
-    PASSES.register(system_pass, system_pass)
+    SYSTEM_PASSES.register(system_pass, system_pass)
 
 
 def claiming_pass(system: System) -> 'SystemPass | None':
@@ -38,8 +40,8 @@ def claiming_pass(system: System) -> 'SystemPass | None':
         >>> claiming_pass(create('lotka_volterra')) is None
         True
     """
-    for key in PASSES:
-        system_pass = PASSES.resolve(key)
+    for key in SYSTEM_PASSES:
+        system_pass = SYSTEM_PASSES.resolve(key)
         if system_pass.claims(system):
             return system_pass
     return None
@@ -103,6 +105,3 @@ class SystemPass(ABC):
                 The subclass does not implement the method.
         """
         raise NotImplementedError
-
-
-PASSES = Registry[SystemPass]('system pass')

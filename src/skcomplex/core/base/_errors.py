@@ -52,6 +52,10 @@ class BackendError(SkcomplexError):
     """A backend is not registered or cannot compile a problem."""
 
 
+class PipelineError(SkcomplexError):
+    """The passes of a compilation cannot be ordered, or a pass reads a field that no pass writes."""
+
+
 class SolverError(SkcomplexError):
     """A solver does not fit the problem or fails to advance it."""
 
@@ -90,6 +94,10 @@ class RegistryError(SkcomplexError):
 
 class HilbertSpaceError(SkcomplexError):
     """A quantum system has a Hilbert space larger than its declared limit."""
+
+
+class BackendWarning(UserWarning):
+    """A part of a problem runs on another backend than the one requested, or a compiled kernel runs in Python."""
 
 
 class UnobservedStatesWarning(UserWarning):

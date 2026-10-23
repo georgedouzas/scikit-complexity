@@ -16,8 +16,10 @@ from ..base import Expression, SolverError, SymbolicVector, ValidationError, com
 from ..laws import Draw, draws_in, has_reductions, is_draw
 from ..laws._laws import Renewal
 from ._kernels import Reference, Source
+from ._layout import Entry
 from ._printing import numpy_function
 from ._problem import RenewalRecord
+from ._specs import KernelSpec
 from ._stochastic import distribution_of, sample_draw
 
 type Vector = npt.NDArray[np.float64]
@@ -445,3 +447,35 @@ def compile_renewal(
         before=samplers(first),
         after=samplers(later),
     )
+
+
+@dataclass(frozen=True)
+class RenewalLaw:
+    """Renewal law of a component with its label, the group it renews, and the hidden state that counts it.
+
+    Args:
+        spec:
+            The kernel spec of the component.
+
+        law:
+            The renewal law.
+
+        label:
+            The label of the renewal.
+
+        group:
+            The path of the element or group the renewal resets.
+
+        entry:
+            The hidden state that counts the renewals of every member.
+
+        symbol:
+            The symbol of the count.
+    """
+
+    spec: KernelSpec
+    law: Renewal
+    label: str
+    group: str
+    entry: Entry
+    symbol: Expression

@@ -4,17 +4,19 @@
 # License: MIT
 
 import importlib
+import warnings
 from abc import abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import ClassVar, cast
 
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from ..base import BackendError, Expression, Form, Registry, Supports
-from ..laws import Boundary, Jump, Noise, Rate, Update
+from ..base import BackendError, BackendWarning, Expression, Form, Registry, Supports, ValidationError
+from ..laws import Boundary, Jump, Law, Noise, Rate, Update
 from ._kernels import Indices, Kernel, Reference, Source, add_into, assign_into
+from ._printing import SCALAR_DIALECT, print_expressions
 from ._problem import Accelerated, Draws, JumpChannels, Vector, VectorFunction, WienerBlock
 from ._reductions import ReductionPass
 
@@ -65,6 +67,9 @@ class Lowering:
 
         accelerated:
             The compiled stepper loops, or `None` when the backend has none.
+
+        backends:
+            The backend that runs the kernels of every law kind, by the kind's name, when it differs by kind.
     """
 
     drift: VectorFunction | None = None
@@ -78,6 +83,7 @@ class Lowering:
     update: VectorFunction | None = None
     boundary: VectorFunction | None = None
     accelerated: Accelerated | None = None
+    backends: dict[str, str] = field(default_factory=dict)
 
 
 class Backend(BaseEstimator):
@@ -257,6 +263,63 @@ def with_reductions(
         if kernels is None or reads_reductions(kernels.get(kind, [])):
             setattr(lowering, name, reductions.wrap(getattr(lowering, name)))
     return lowering
+
+
+def _unprinted_reduction(reductions: ReductionPass) -> str | None:
+    """Return the first reduction that does not print in the scalar dialect, or `None` when every one prints."""
+    for reduction in reductions.reductions:
+        try:
+            print_expressions(
+                [reduction.argument, reduction.condition if reduction.condition is not None else 1],
+                SCALAR_DIALECT,
+            )
+        except ValidationError:
+            return f'the {reduction.kind} reduction {reduction.argument}'
+    for neighbourhood in reductions.neighbourhoods:
+        try:
+            print_expressions([neighbourhood.argument, neighbourhood.weight], SCALAR_DIALECT)
+        except ValidationError:
+            return f'the neighbourhood {neighbourhood.kind} reduction {neighbourhood.argument}'
+    return None
+
+
+def report_fallbacks(
+    name: str,
+    used: Mapping[type, list[Kernel]],
+    compiled: Mapping[type, bool],
+    reductions: ReductionPass,
+) -> dict[str, str]:
+    """Warn once about the law kinds whose kernels a compiling backend runs in Python, and return every kind's runner.
+
+    Args:
+        name:
+            The name of the compiling backend.
+
+        used:
+            The kernels of every law kind the backend lowers.
+
+        compiled:
+            Whether the backend compiles the kernels of every law kind.
+
+        reductions:
+            The reductions the kernels read.
+
+    Returns:
+        backends:
+            The backend name for every law kind with kernels, `'python'` for those that run in Python.
+    """
+    kinds = [kind for kind, items in used.items() if items]
+    fallen = [str(cast('type[Law]', kind).law_kind) for kind in kinds if not compiled[kind]]
+    if fallen:
+        unprinted = _unprinted_reduction(reductions)
+        reason = (
+            f'{unprinted} does not print in its dialect'
+            if unprinted is not None
+            else 'a law holds a Python callable or reads values it cannot compile'
+        )
+        message = f'The {name} backend runs the {", ".join(fallen)} laws in Python, because {reason}.'
+        warnings.warn(message, BackendWarning, stacklevel=3)
+    return {str(cast('type[Law]', kind).law_kind): name if compiled[kind] else 'python' for kind in kinds}
 
 
 BACKENDS = Registry[type[Backend]]('backend')
