@@ -69,7 +69,7 @@ def test_registered_formalisms_list_contributions():
         "    'solvers': sorted(item.solvers),\n"
         '}))\n',
     )
-    assert found == {'kinds': ['DECAY'], 'forms': ['DECAYING'], 'solvers': ['auto', 'exact-decay']}
+    assert found == {'kinds': ['DECAY'], 'forms': ['DECAYING'], 'solvers': ['exact-decay']}
 
 
 def test_register_adds_contributions_to_their_registries():

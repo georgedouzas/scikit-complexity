@@ -48,7 +48,8 @@ register(
         components=(Word, Patch, HostGraph, Rewriting, Rewrite),
         passes=(RewritingPass(),),
         forms=(Form.REWRITING,),
-        solvers={'rewriter': Rewriter, 'auto': Rewriter},
+        solvers={'rewriter': Rewriter},
+        defaults=(Rewriter,),
         visuals={'geometry': GeometryVisual},
     ),
 )

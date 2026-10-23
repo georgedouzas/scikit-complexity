@@ -207,4 +207,4 @@ def test_registered_formalisms_list_quantum():
     quantum = next(item for item in registered_formalisms() if item.name == 'quantum')
     assert {law.law_kind for law in quantum.laws} == {LawKind.GENERATOR, LawKind.DISSIPATOR}
     assert quantum.forms == (Form.QUANTUM,)
-    assert quantum.solvers['auto'] is LindbladEvolution
+    assert quantum.defaults == (LindbladEvolution,)

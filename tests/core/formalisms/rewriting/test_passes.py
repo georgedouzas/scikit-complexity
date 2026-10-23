@@ -439,7 +439,7 @@ def test_registered_formalisms_list_rewriting():
     rewriting = next(item for item in registered_formalisms() if item.name == 'rewriting')
     assert {law.law_kind for law in rewriting.laws} == {LawKind.REWRITE}
     assert rewriting.forms == (Form.REWRITING,)
-    assert rewriting.solvers['auto'] is Rewriter
+    assert rewriting.defaults == (Rewriter,)
 
 
 def test_snapshot_is_a_structure_state():

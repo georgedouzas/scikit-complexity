@@ -158,7 +158,8 @@ FORMALISM = Formalism(
     components=(Nucleus,),
     passes=(DecayPass(),),
     forms=(DECAYING,),
-    solvers={'exact-decay': ExactDecay, 'auto': ExactDecay},
+    solvers={'exact-decay': ExactDecay},
+    defaults=(ExactDecay,),
 )
 
 register(FORMALISM)
