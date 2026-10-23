@@ -9,6 +9,7 @@ from scipy.integrate import solve_ivp
 
 from skcomplex.core.analysis import autocorrelation
 from skcomplex.core.base import ValidationError
+from skcomplex.core.compile import compile_system
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4, ScipyODE
 from skcomplex.models.biology.collective_behaviour import (
@@ -499,3 +500,28 @@ def test_coagulation_positive_feedback_is_all_or_nothing():
     assert peaks[0.3] < threshold < peaks[0.7]
     assert peaks[1.0] < 1.2 * peaks[0.7]
     assert clots[1.0][-1] < 0.01 * clots[1.0].max()
+
+
+def _damage(k, seed, n_nodes=100, steps=40):
+    """Return the Hamming distance after `steps` updates between a random Boolean network and a copy with one flip."""
+    system = random_boolean_network(n_nodes, k, random_state=seed)
+    problem = compile_system(system)
+    start = problem.initial_state.copy()
+    flipped = start.copy()
+    flipped[0] = 1 - flipped[0]
+    finals = []
+    for initial in (start, flipped):
+        state = initial
+        for step in range(steps):
+            state = problem.update(float(step), state, problem.initial_parameters)
+        finals.append(state)
+    return float(np.abs(finals[0] - finals[1]).sum())
+
+
+def test_random_boolean_network_damage_follows_its_phase():
+    """Test that one flip dies out at in-degree 1, stays near constant at 2, and spreads at 3."""
+    damage = {k: np.mean([_damage(k, seed) for seed in range(12)]) for k in (1, 2, 3)}
+    assert damage[1] < 1.0
+    assert damage[2] < 5.0
+    assert damage[3] > 8.0
+    assert damage[1] < damage[2] < damage[3]
