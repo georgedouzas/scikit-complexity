@@ -53,7 +53,7 @@
 
 ## 4. Solvers and backends
 
-- [ ] 4.1 Split `_steppers.py` into `_stepper.py`, `_ode.py`, `_sde.py`, `_maps.py`, `_jumps.py`, and `_hybrid.py`.
+- [x] 4.1 Split `_steppers.py` into `_stepper.py`, `_ode.py`, `_sde.py`, `_maps.py`, `_jumps.py`, and `_hybrid.py`.
   Add `step_count`, and use it in the steppers, the Numba loop generator, and the LAMMPS backend. Make the inline
   loops call the shared step functions. Verify with the "Same seed on both backends" scenario and a parity test of
   every fixed-step stepper on both backends.
