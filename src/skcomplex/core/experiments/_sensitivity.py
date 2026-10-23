@@ -16,7 +16,9 @@ from SALib.sample import sobol as sobol_sample
 
 from ..base import ValidationError
 from ._designs import Rows
-from ._runner import Experiment, Output, Source
+from ._runner import Experiment
+from ._sources import Source
+from ._tasks import Output
 
 METHODS = ('oat', 'morris', 'sobol')
 
