@@ -7,7 +7,8 @@ from typing import ClassVar
 
 from ....core.base import Domain, VisualSpec, parameter, state
 from ....core.components import Element, Group
-from ....core.laws import Law, Symbols, Update, add_edge, add_node, neighbors, total, where
+from ....core.formalisms.topology import add_edge, add_node
+from ....core.laws import Law, Symbols, Update, neighbors, total, where
 from ....core.runtime import register_model
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import System

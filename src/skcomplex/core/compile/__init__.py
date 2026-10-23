@@ -1,6 +1,7 @@
 """Compile systems into problems of one mathematical form with fast numeric functions."""
 
-from ._backends import BACKENDS, Backend, Lowering, load_backends, register_backend, resolve_backend
+from ._backends import BACKENDS, Backend, Lowering, load_backends, reads_reductions, register_backend, resolve_backend
+from ._capacity import CapacityRows, capacity_rows
 from ._census import Census, CensusRecord, OwnerRule, law_census, register_owner
 from ._compilation import BlockLaws, Compilation, Laws
 from ._compile import compile_system, partition_system
@@ -9,7 +10,18 @@ from ._forms import register_combined, register_form
 from ._hybrid import Breakpoints, CompiledEvent, Delay, EventRecord
 from ._issues import Issue, ValidationWarning, names_of
 from ._jacobians import ConservationLaw
-from ._kernels import LATTICE_BOUNDARIES, MODES, Kernel, Lowered, NeighborRead, NoiseProcess, Output, Reference, Source
+from ._kernels import (
+    LATTICE_BOUNDARIES,
+    MODES,
+    EdgeSearch,
+    Kernel,
+    Lowered,
+    NeighborRead,
+    NoiseProcess,
+    Output,
+    Reference,
+    Source,
+)
 from ._layout import Entry, Layout
 from ._observables import ObservableEvaluator, observables_of, with_observables
 from ._pipeline import Check, Pass, order_passes, register_check, register_pass, registered_passes, run_passes
@@ -39,7 +51,18 @@ from ._problem import (
     with_initial_state,
 )
 from ._quantities import CompiledFlow, CompiledObjective, LoopTerm, Recorded, StockFlow
-from ._specs import Binding, KernelSpec, register_binding, state_name, target_references
+from ._reductions import ReductionPass
+from ._specs import (
+    Binding,
+    KernelSpec,
+    group_space,
+    mask_of,
+    masked_value,
+    member_spec,
+    register_binding,
+    state_name,
+    target_references,
+)
 from ._spectral import spectral_multiplier
 from ._system_passes import SystemPass, claiming_pass
 from ._tree import Node, coerce_value, declared_times, flatten_system
@@ -58,6 +81,7 @@ __all__: list[str] = [
     'Block',
     'BlockLaws',
     'Breakpoints',
+    'CapacityRows',
     'Census',
     'CensusRecord',
     'Check',
@@ -73,6 +97,7 @@ __all__: list[str] = [
     'Delay',
     'Dialect',
     'Draws',
+    'EdgeSearch',
     'Entry',
     'EventRecord',
     'FractionalRows',
@@ -101,6 +126,7 @@ __all__: list[str] = [
     'Problem',
     'Record',
     'Recorded',
+    'ReductionPass',
     'Reference',
     'RenewalProcess',
     'RenewalRecord',
@@ -114,16 +140,21 @@ __all__: list[str] = [
     'ValidationWarning',
     'Vector',
     'VectorFunction',
+    'capacity_rows',
     'claiming_pass',
     'coerce_value',
     'compile_system',
     'declared_times',
     'domain_kind',
     'flatten_system',
+    'group_space',
     'is_interaction',
     'law_census',
     'load_backends',
+    'mask_of',
+    'masked_value',
     'member_count',
+    'member_spec',
     'missing_declarations',
     'names_of',
     'numpy_function',
@@ -132,6 +163,7 @@ __all__: list[str] = [
     'partition_system',
     'plan_partitions',
     'print_expressions',
+    'reads_reductions',
     'register_backend',
     'register_binding',
     'register_check',

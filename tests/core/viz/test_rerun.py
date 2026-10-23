@@ -14,7 +14,8 @@ from skcomplex.core.components import Element, Group
 from skcomplex.core.formalisms.agents import Rule
 from skcomplex.core.formalisms.fields import Field
 from skcomplex.core.formalisms.particles import Particle
-from skcomplex.core.laws import Rate, Update, add_node
+from skcomplex.core.formalisms.topology import add_node
+from skcomplex.core.laws import Rate, Update
 from skcomplex.core.runtime import Frame, Simulation
 from skcomplex.core.space import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System

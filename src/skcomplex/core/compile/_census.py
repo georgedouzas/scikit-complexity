@@ -32,6 +32,7 @@ from ..laws import (
     Jump,
     Law,
     Noise,
+    Objective,
     Rate,
     Update,
     has_trait,
@@ -92,7 +93,7 @@ def _changed_target(spec: KernelSpec, law: Law) -> object:
 def law_owner(spec: KernelSpec, law: Law, agents: set[str]) -> str:
     """Return the path of the element or group whose state a law changes, or that a registered rule names.
 
-    Equations and events belong to their component.
+    Equations, events, and objectives belong to their component.
 
     Args:
         spec:
@@ -116,7 +117,7 @@ def law_owner(spec: KernelSpec, law: Law, agents: set[str]) -> str:
         owner = OWNER_RULES.resolve(key)(spec, law, agents)
         if owner is not None:
             return owner
-    if isinstance(law, Equation | Event):
+    if isinstance(law, Equation | Event | Objective):
         return spec.owner
     return target_references(_changed_target(spec, law), spec)[0].entry.name.rpartition('.')[0]
 

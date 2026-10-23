@@ -10,23 +10,9 @@ import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.components import Element, Group
+from ....core.formalisms.topology import add_edge, add_node, remove_node
 from ....core.interactions import Interaction
-from ....core.laws import (
-    Law,
-    Symbols,
-    Update,
-    add_edge,
-    add_node,
-    both,
-    minimum,
-    mod,
-    neighbors,
-    normal,
-    remove_node,
-    total,
-    uniform,
-    where,
-)
+from ....core.laws import Law, Symbols, Update, both, minimum, mod, neighbors, normal, total, uniform, where
 from ....core.runtime import register_model
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import System

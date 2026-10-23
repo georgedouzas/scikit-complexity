@@ -39,7 +39,6 @@ from ._neighbourhoods import NEIGHBOUR_REDUCTIONS, NeighbourReduction, neighbors
 from ._reductions import Reduction, count, has_reductions, maximum, mean, minimum, reductions_in, total, variance
 from ._symbols import Symbols
 from ._tables import OuterTotalistic, Table, Totalistic
-from ._topology import TopologyRequest, add_edge, add_node, remove_edge, remove_node, request_of, rewire
 from ._values import values_of
 
 __all__: list[str] = [
@@ -67,13 +66,10 @@ __all__: list[str] = [
     'Symbols',
     'Table',
     'Target',
-    'TopologyRequest',
     'Totalistic',
     'Transfer',
     'Transition',
     'Update',
-    'add_edge',
-    'add_node',
     'bernoulli',
     'both',
     'categorical',
@@ -103,10 +99,6 @@ __all__: list[str] = [
     'ramp',
     'reductions_in',
     'register_laws',
-    'remove_edge',
-    'remove_node',
-    'request_of',
-    'rewire',
     'series',
     'shift_arguments',
     'shift_member',

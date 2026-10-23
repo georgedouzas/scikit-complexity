@@ -7,9 +7,9 @@ from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, Expression, parameter, state
 from ....core.components import Element
+from ....core.formalisms.control import Collocation
 from ....core.laws import Law, Objective, Rate, Symbols
 from ....core.runtime import register_model
-from ....core.solvers import Collocation
 from ....core.system import Observable, System
 
 MAX_EFFORT = 1.0

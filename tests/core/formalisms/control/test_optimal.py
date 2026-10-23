@@ -4,9 +4,9 @@ import pytest
 
 from skcomplex.core.base import SolverError, parameter, state
 from skcomplex.core.components import Element
+from skcomplex.core.formalisms.control import Collocation, Pontryagin
 from skcomplex.core.laws import Rate
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import Collocation, Pontryagin
 from skcomplex.core.system import System
 
 

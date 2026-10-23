@@ -8,8 +8,8 @@ import pytest
 
 import skcomplex.core
 from skcomplex.core.analysis import controllability, linearize
+from skcomplex.core.formalisms.control import Pontryagin
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import Pontryagin
 from skcomplex.core.system import System
 from skcomplex.models import run
 from skcomplex.models.biology.oncology import KirschnerPanettaTumour, TumourImmuneChemotherapy

@@ -9,10 +9,19 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, solve
 
-from ..base import ComponentKind, DomainKind, Expression, LawKind, OrderKind, SolverError, SpaceKind, Supports, TimeKind
-from ..compile import Vector
+from ...base import (
+    ComponentKind,
+    DomainKind,
+    Expression,
+    LawKind,
+    OrderKind,
+    SolverError,
+    SpaceKind,
+    Supports,
+    TimeKind,
+)
+from ...compile import Vector
 from ._optimal import ControlSolution, GridFunction, OptimalControlSolver, _ControlProblem
-from ._stepper import register_solver
 
 MIN_RELAXATION = 1e-3
 
@@ -93,7 +102,7 @@ class Pontryagin(OptimalControlSolver):
         >>> from skcomplex.core.components import Element
         >>> from skcomplex.core.laws import Objective, Rate
         >>> from skcomplex.core.runtime import Simulation
-        >>> from skcomplex.core.solvers import Pontryagin
+        >>> from skcomplex.core.formalisms.control import Pontryagin
         >>> from skcomplex.core.system import System
         >>> Plant = Element.define(
         ...     'Plant',
@@ -228,6 +237,3 @@ class Pontryagin(OptimalControlSolver):
             'max_iterations, or use the Collocation solver.'
         )
         raise SolverError(error_msg)
-
-
-register_solver('pontryagin', Pontryagin)

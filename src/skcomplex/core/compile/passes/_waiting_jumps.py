@@ -1,4 +1,4 @@
-"""Compile the renewal laws of components, which reset their states after drawn waiting times on member clocks."""
+"""Lower the jumps on clocks of waiting times into renewals, which reset states after drawn waiting times."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

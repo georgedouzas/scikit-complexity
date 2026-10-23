@@ -5,9 +5,9 @@
 
 from ....core.base import Domain, Expression, parameter, state
 from ....core.components import Element
+from ....core.formalisms.control import Pontryagin
 from ....core.laws import Law, Objective, Rate, Symbols
 from ....core.runtime import register_model
-from ....core.solvers import Pontryagin
 from ....core.system import Observable, System
 
 MAX_RATE = 0.9
