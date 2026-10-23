@@ -59,7 +59,6 @@ from ._terms import Term
 from ._variables import (
     Variable,
     VariableKind,
-    companions_of,
     declaration_of,
     declarations_of,
     declared_fields,
@@ -123,7 +122,6 @@ __all__: list[str] = [
     'VariableKind',
     'VisualSpec',
     'WordProblemError',
-    'companions_of',
     'components_of',
     'declaration_of',
     'declarations_of',

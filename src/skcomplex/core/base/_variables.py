@@ -148,6 +148,38 @@ def _check_bounds(bounds: tuple[float, float], *, adaptive: bool) -> None:
         raise ValueError(error_msg)
 
 
+def _companions_of(name: str, declaration: Variable, default: Any) -> dict[str, Any]:
+    """Return the companion state fields of a state of higher order or with lags, by field name.
+
+    The derivatives of a complex state are complex, and those of any other state are real.
+
+    Args:
+        name:
+            The name of the state.
+
+        declaration:
+            The declaration of the state.
+
+        default:
+            The default value of the state, which missing past values take.
+
+    Returns:
+        fields:
+            The companion fields, empty for a first-order state without lags.
+    """
+    fields = {}
+    domain = Domain.COMPLEX if declaration.domain is Domain.COMPLEX else Domain.REAL
+    for index in range(1, declaration.derivatives + 1):
+        value = declaration.initial[index - 1] if index <= len(declaration.initial) else 0.0
+        companion = Variable(VariableKind.STATE, domain, declaration.vector, derivative_of=name, index=index)
+        fields[f'{name}_d{index}'] = _declare_field(value, companion)
+    for index in range(1, declaration.lags + 1):
+        value = declaration.initial[index - 1] if index <= len(declaration.initial) else default
+        companion = Variable(VariableKind.STATE, declaration.domain, declaration.vector, lag_of=name, index=index)
+        fields[f'{name}_lag{index}'] = _declare_field(value, companion)
+    return fields
+
+
 def state(
     default: Any = 0.0,
     *,
@@ -266,38 +298,6 @@ def declaration_of(value: object) -> Variable | None:
     if isinstance(value, dataclasses.Field):
         return value.metadata.get(METADATA_KEY)
     return None
-
-
-def companions_of(name: str, declaration: Variable, default: Any) -> dict[str, Any]:
-    """Return the companion state fields of a state of higher order or with lags, by field name.
-
-    The derivatives of a complex state are complex, and those of any other state are real.
-
-    Args:
-        name:
-            The name of the state.
-
-        declaration:
-            The declaration of the state.
-
-        default:
-            The default value of the state, which missing past values take.
-
-    Returns:
-        fields:
-            The companion fields, empty for a first-order state without lags.
-    """
-    fields = {}
-    domain = Domain.COMPLEX if declaration.domain is Domain.COMPLEX else Domain.REAL
-    for index in range(1, declaration.derivatives + 1):
-        value = declaration.initial[index - 1] if index <= len(declaration.initial) else 0.0
-        companion = Variable(VariableKind.STATE, domain, declaration.vector, derivative_of=name, index=index)
-        fields[f'{name}_d{index}'] = _declare_field(value, companion)
-    for index in range(1, declaration.lags + 1):
-        value = declaration.initial[index - 1] if index <= len(declaration.initial) else default
-        companion = Variable(VariableKind.STATE, declaration.domain, declaration.vector, lag_of=name, index=index)
-        fields[f'{name}_lag{index}'] = _declare_field(value, companion)
-    return fields
 
 
 def parameter(
@@ -443,7 +443,7 @@ def declared_fields(component: Any) -> dict[str, Any]:
         for name, value in own.items():
             declaration = cast('Variable', declaration_of(value))
             default = value.default if value.default is not dataclasses.MISSING else 0.0
-            companions = companions_of(name, declaration, default)
+            companions = _companions_of(name, declaration, default)
             fields.update({key: item for key, item in companions.items() if key not in vars(klass)})
     return fields
 
