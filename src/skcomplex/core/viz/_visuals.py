@@ -58,15 +58,6 @@ COLOR_SCALE = np.array(
 )
 
 
-def _colors_of(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
-    """Return one color per value on a scale from blue at `low` to yellow at `high`, bright enough to see on black."""
-    fractions = np.clip((values - low) / (high - low), 0.0, 1.0) if high > low else np.zeros_like(values)
-    fractions = POINT_FLOOR + (1.0 - POINT_FLOOR) * fractions
-    anchors = np.linspace(0.0, 1.0, len(COLOR_SCALE))
-    channels = [np.interp(fractions, anchors, COLOR_SCALE[:, channel]) for channel in range(3)]
-    return np.stack(channels, axis=-1).round().astype(np.uint8)
-
-
 PALETTE = (
     np.stack(
         [
@@ -86,8 +77,29 @@ def _widened(span: tuple[float, float] | None, values: npt.NDArray[np.float64]) 
     return (low, high) if span is None else (min(span[0], low), max(span[1], high))
 
 
-def _palette_colors(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
-    """Return the colors of an array of values from a palette of 256 levels, fast enough for large images."""
+def palette_colors(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
+    """Return the colors of an array of values from a palette of 256 levels, fast enough for large images.
+
+    Args:
+        values:
+            The values.
+
+        low:
+            The value of the darkest color.
+
+        high:
+            The value of the brightest color.
+
+    Returns:
+        colors:
+            One RGB color per value, the darkest one for every value when the range is empty.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.viz import palette_colors
+        >>> palette_colors(np.array([0.0, 1.0]), 0.0, 1.0).shape
+        (2, 3)
+    """
     if high <= low:
         return np.broadcast_to(PALETTE[0], (*values.shape, 3))
     levels = np.clip((values - low) * (255.0 / (high - low)), 0.0, 255.0).astype(np.uint8)
@@ -135,16 +147,6 @@ def _style_series(recording: rr.RecordingStream, path: str, value: object, index
         recording.log(entity, rr.SeriesLines(colors=colors), static=True)
 
 
-def _log_scalars(recording: rr.RecordingStream, path: str, value: object) -> None:
-    """Log the components of a value as scalar series, the real and imaginary parts of a complex value apart."""
-    values = np.ravel(np.asarray(value))
-    if not np.iscomplexobj(values):
-        recording.log(path, rr.Scalars(values))
-        return
-    for part, components in zip(PARTS, (values.real, values.imag), strict=True):
-        recording.log(f'{path}/{part}', rr.Scalars(components))
-
-
 def _radius_of(extent: float, count: int) -> float:
     """Return a point radius that is a share of the extent of a view, smaller for crowds so they do not overlap."""
     return POINT_SHARE * (extent if extent > 0 else 1.0) / max(count / CROWD_SIZE, 1.0) ** CROWD_EXPONENT
@@ -175,6 +177,62 @@ def _changes_topology(element: CompiledElement, problem: Problem) -> bool:
     """Check whether a group lies on the nodes of a network whose topology changes."""
     topology = problem.topology
     return topology is not None and element.path in {path for path, _ in topology.layers}
+
+
+def colors_of(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
+    """Return one color per value on a scale from blue at `low` to yellow at `high`, bright enough to see on black.
+
+    Args:
+        values:
+            The values.
+
+        low:
+            The value of the darkest color.
+
+        high:
+            The value of the brightest color.
+
+    Returns:
+        colors:
+            One RGB color per value.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.viz import colors_of
+        >>> colors_of(np.array([0.0, 1.0]), 0.0, 1.0).shape
+        (2, 3)
+    """
+    fractions = np.clip((values - low) / (high - low), 0.0, 1.0) if high > low else np.zeros_like(values)
+    fractions = POINT_FLOOR + (1.0 - POINT_FLOOR) * fractions
+    anchors = np.linspace(0.0, 1.0, len(COLOR_SCALE))
+    channels = [np.interp(fractions, anchors, COLOR_SCALE[:, channel]) for channel in range(3)]
+    return np.stack(channels, axis=-1).round().astype(np.uint8)
+
+
+def log_scalars(recording: rr.RecordingStream, path: str, value: object) -> None:
+    """Log the components of a value as scalar series, the real and imaginary parts of a complex value apart.
+
+    Args:
+        recording:
+            The Rerun recording.
+
+        path:
+            The entity path of the series.
+
+        value:
+            A number or an array of numbers, real or complex.
+
+    Examples:
+        >>> import rerun as rr
+        >>> from skcomplex.core.viz import log_scalars
+        >>> log_scalars(rr.RecordingStream('example'), 'value', 1.0 + 2.0j)
+    """
+    values = np.ravel(np.asarray(value))
+    if not np.iscomplexobj(values):
+        recording.log(path, rr.Scalars(values))
+        return
+    for part, components in zip(PARTS, (values.real, values.imag), strict=True):
+        recording.log(f'{path}/{part}', rr.Scalars(components))
 
 
 class Visual:
@@ -272,7 +330,7 @@ class ScalarsVisual(Visual):
             if path not in self._styled:
                 _style_series(recording, path, value, _series_index(frame.problem, element.path, state))
                 self._styled.add(path)
-            _log_scalars(recording, path, value)
+            log_scalars(recording, path, value)
 
     def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
         """Return one time series view of the states of the element.
@@ -366,9 +424,9 @@ class PointsVisual(Visual):
         values = np.asarray(frame.value(element.states[self.color_by]), dtype=float).reshape(count, -1)
         magnitudes = np.linalg.norm(values, axis=1)
         if self.color_range is not None:
-            return _colors_of(magnitudes, *self.color_range)
+            return colors_of(magnitudes, *self.color_range)
         self._span = _widened(self._span, magnitudes)
-        return _colors_of(magnitudes, *self._span)
+        return colors_of(magnitudes, *self._span)
 
     def _extent_radius(self, points: npt.NDArray[np.float64]) -> float:
         """Return a share of the extent of every position logged so far, keeping the bounds of the positions."""
@@ -445,7 +503,7 @@ class PointsVisual(Visual):
             self.states if self.states is not None else [state for state in element.states if state != self.position]
         )
         for state in others:
-            _log_scalars(recording, f'{element.path}/{state}', frame.value(element.states[state]))
+            log_scalars(recording, f'{element.path}/{state}', frame.value(element.states[state]))
 
     def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
         """Return a spatial view of the positions by their dimension, and a time series view of the other states.
@@ -553,9 +611,9 @@ class AgentsVisual(Visual):
             return None
         values = np.asarray(snapshot.values[self.color_by], dtype=float)
         if self.color_range is not None:
-            return _colors_of(values, *self.color_range)
+            return colors_of(values, *self.color_range)
         self._span = _widened(self._span, values)
-        return _colors_of(values, *self._span)
+        return colors_of(values, *self._span)
 
     def _radius(self, space: Space | None, positions: npt.NDArray[np.float64]) -> float:
         """Return the given radius, a radius in cells on grids and networks, or a share of the side of other spaces."""
@@ -776,7 +834,7 @@ class ImageVisual(Visual):
             recording.log(path, rr.Tensor(values))
             return
         values = np.atleast_2d(values)
-        colors = _phase_colors(values) if cyclic else _palette_colors(values, *self._range(values))
+        colors = _phase_colors(values) if cyclic else palette_colors(values, *self._range(values))
         height, width = values.shape
         recording.log(
             path,
@@ -910,7 +968,7 @@ class SiteVisual(Visual):
         """Return the colors of site values over the given range or the extremes of the values."""
         low = float(values.min()) if self.low is None else float(self.low)
         high = float(values.max()) if self.high is None else float(self.high)
-        return _palette_colors(values, low, high)
+        return palette_colors(values, low, high)
 
     def _layout(self, space: NetworkSpace) -> dict[str, npt.NDArray[np.float64]]:
         """Return the positions of the nodes of a network, computed once per network."""
@@ -1081,7 +1139,7 @@ class MeshVisual(Visual):
         """Return the colors of node values over the given range or the extremes of the values."""
         low = float(values.min()) if self.low is None else float(self.low)
         high = float(values.max()) if self.high is None else float(self.high)
-        return _palette_colors(values, low, high)
+        return palette_colors(values, low, high)
 
     @staticmethod
     def _log_mesh(

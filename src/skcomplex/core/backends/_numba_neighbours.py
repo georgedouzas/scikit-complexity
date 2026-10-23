@@ -1,4 +1,4 @@
-"""Find the neighbours of members within a radius, among the nearest, or inside a cone with cell lists in Numba."""
+"""Bin members into bounded cell grids and find their neighbours within a radius, among the nearest, or in a cone."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,8 +23,26 @@ FEWEST_CELLS = 64
 
 
 @njit(cache=True)
-def _coordinate(value: float, dimension: int, shape: Shape, box: Box) -> int:
-    """Return the cell coordinate of a position component, inside the grid of a shape of counts, sides, and origin."""
+def cell_coordinate(value: float, dimension: int, shape: Shape, box: Box) -> int:
+    """Return the cell coordinate of a position component, inside the grid of a shape of counts, sides, and origin.
+
+    Args:
+        value:
+            The position component.
+
+        dimension:
+            The dimension of the component.
+
+        shape:
+            The cell counts, sides, and origin of the grid.
+
+        box:
+            The sides of the periodic box and whether the space is periodic.
+
+    Returns:
+        coordinate:
+            The cell coordinate, clamped to the grid in an open space.
+    """
     counts, sides, origin = shape
     periods, periodic = box
     if periodic:
@@ -50,11 +68,26 @@ def _shape(side: float, low: Floats, high: Floats, box: Box) -> Shape:
 
 
 @njit(cache=True)
-def _grid(positions: Floats, side: float, box: Box) -> Grid:
+def build_grid(positions: Floats, side: float, box: Box) -> Grid:
     """Return a grid of cells of at least a side, coarsened to a few cells per member, with the members binned.
 
-    The grid is the shape of counts, sides, and origin, the strides, the start of every cell in the order, and the
-    members in cell order.
+    The grid holds at most eight cells per member, and at least 64, so members far apart do not allocate a cell for
+    every side between them.
+
+    Args:
+        positions:
+            One row of position components per member.
+
+        side:
+            The smallest side of a cell.
+
+        box:
+            The sides of the periodic box and whether the space is periodic.
+
+    Returns:
+        grid:
+            The shape of cell counts, sides, and origin, the strides, the start of every cell in the order, and the
+            members in cell order.
     """
     n_members, n_dim = positions.shape
     low, high = np.zeros(n_dim), np.zeros(n_dim)
@@ -77,7 +110,7 @@ def _grid(positions: Floats, side: float, box: Box) -> Grid:
     for member in range(n_members):
         flat = 0
         for dimension in range(n_dim):
-            flat += _coordinate(positions[member, dimension], dimension, shape, box) * strides[dimension]
+            flat += cell_coordinate(positions[member, dimension], dimension, shape, box) * strides[dimension]
         cells[member] = flat
         starts[flat + 1] += 1
     for cell in range(n_cells):
@@ -119,7 +152,7 @@ def _cells_around(positions: Floats, member: int, reach: float, context: Context
     low = np.empty(n_dim, dtype=np.int64)
     high = np.empty(n_dim, dtype=np.int64)
     for dimension in range(n_dim):
-        center = _coordinate(positions[member, dimension], dimension, shape, box)
+        center = cell_coordinate(positions[member, dimension], dimension, shape, box)
         steps = math.ceil(reach / sides[dimension])
         if box[1] and 2 * steps + 1 >= counts[dimension]:
             low[dimension], high[dimension] = 0, counts[dimension] - 1
@@ -178,7 +211,7 @@ def _within(positions: Floats, radius: float, aim: Aim, box: Box, center: bool) 
     cached one, and generated kernels call the searches that way.
     """
     n_members = positions.shape[0]
-    context = (_grid(positions, radius, box), aim, box)
+    context = (build_grid(positions, radius, box), aim, box)
     counts = np.zeros(n_members, dtype=np.int64)
     for member in range(n_members):
         counts[member] = _scan(positions, member, radius, context, (np.empty(0, dtype=np.int64), np.empty(0), False))
@@ -332,7 +365,7 @@ def nearest_neighbours(
     k = max(0, min(k, n_members - 1))
     box = (periods, periodic)
     side = _side(positions, k, box)
-    context = (_grid(positions, side, box), (np.zeros((1, 1)), 1.0, False), box)
+    context = (build_grid(positions, side, box), (np.zeros((1, 1)), 1.0, False), box)
     extra = 1 if center else 0
     indptr = np.arange(n_members + 1, dtype=np.int64) * (k + extra)
     indices = np.empty(indptr[n_members], dtype=np.int64)

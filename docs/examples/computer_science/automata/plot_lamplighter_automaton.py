@@ -12,8 +12,9 @@ of two elements, so a few ones spread into a growing, flickering pattern over th
 import matplotlib.pyplot as plt
 
 from skcomplex.core.analysis import LinearAutomaton
+from skcomplex.core.formalisms.groups import GroupSpace
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.space import GroupSpace, Memory
+from skcomplex.core.space import Memory
 from skcomplex.core.viz import RerunObserver
 from skcomplex.models import create
 from skcomplex.models.computer_science.automata import lamplighter

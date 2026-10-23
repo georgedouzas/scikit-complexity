@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import inspect
 import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -58,7 +59,7 @@ from ..laws import (
     values_of,
 )
 from ..laws._neighbourhoods import NeighbourReduction
-from ..space import Adjacency, Cone, GroupSpace, LatticeSpace, NetworkSpace, Space
+from ..space import Adjacency, Cone, LatticeSpace, NetworkSpace, SiteSpace, Space
 from ..system import Observable, System
 from ._backends import BACKENDS, Backend
 from ._census import Census, CensusRecord
@@ -70,8 +71,6 @@ from ._noise import process_covariance
 from ._observables import held_observables, with_held_observables, with_observables
 from ._pipeline import registered_checks, registered_passes, run_passes
 from ._planner import Plan, solver_classes, solver_registry
-from ._quantum import contains_quantum
-from ._rewriting import is_rewriting
 from ._system_passes import claiming_pass
 from ._tree import Node, declared_times
 from .passes._core import CORE_PASSES
@@ -124,7 +123,7 @@ def missing_declarations() -> list[str]:
     missing.extend(
         f'The space {space.__name__} declares no space kind.'
         for space in _subclasses(Space)
-        if not isinstance(getattr(space, 'space_kind', None), SpaceKind)
+        if not inspect.isabstract(space) and not isinstance(getattr(space, 'space_kind', None), SpaceKind)
     )
     solvers = solver_registry()
     for key in solvers:
@@ -285,7 +284,7 @@ def _binding_issues(nodes: list[Node]) -> list[Issue]:
         target = next(iter(members), None)
         space = target.space if target is not None else node.space
         offered = (
-            isinstance(space, LatticeSpace | NetworkSpace | GroupSpace)
+            isinstance(space, SiteSpace | NetworkSpace)
             if over == 'neighbours'
             else bool(
                 getattr(space, 'hyperedges', ()),
@@ -354,7 +353,8 @@ def _space_issues(system: System, nodes: list[Node], records: list[CensusRecord]
             message = (
                 f'The image visual of {node.path} needs a regular lattice, but its space is {type(space).__name__}.'
             )
-            issues.append(Issue('visual-unsupported', node.path, message, "Use the 'cayley' visual."))
+            fix = f'Use the {space.default_visual!r} visual.' if isinstance(space, SiteSpace) else 'Use another visual.'
+            issues.append(Issue('visual-unsupported', node.path, message, fix))
     if system.space is not None:
         spaces.setdefault(id(system.space), (system.label, system.space))
     for path, space in spaces.values():
@@ -880,8 +880,7 @@ def _counted(
 ) -> tuple[Compilation | None, list[Issue]]:
     """Return the compilation of a system through the census of its laws, or the issues that stop it before.
 
-    The compilation stops after flattening for a system that a whole-system pass, rewriting, or quantum dynamics
-    compiles.
+    The compilation stops after flattening for a system that a whole-system pass compiles.
     """
     try:
         observed = with_observables(system, observables)
@@ -897,7 +896,7 @@ def _counted(
             ('structure', 'Pass elements, groups, interactions, and systems as children.'),
         )
         return None, [Issue(code, system.label, str(error), fix, error=type(error))]
-    if claiming_pass(observed) is not None or is_rewriting(observed) or contains_quantum(observed):
+    if claiming_pass(observed) is not None:
         return compilation, []
     held = held_observables(observed, cast('list[Node]', compilation.nodes))
     if held:

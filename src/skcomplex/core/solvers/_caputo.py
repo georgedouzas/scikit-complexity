@@ -22,7 +22,7 @@ from ..base import (
     TimeKind,
 )
 from ..compile import Problem, Vector
-from ._base import Stepper, register_solver
+from ._stepper import Stepper, register_solver
 
 GRID_TOLERANCE = 1e-9
 CHANGE_TOLERANCE = 1e-12

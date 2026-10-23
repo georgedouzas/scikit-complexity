@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import GF, QQ, LaurentPolynomialRing, matrix
 
 from ..base import AnalysisError
 from ..laws import OuterTotalistic, Table, Totalistic
-from ..space import GroupSpace, LatticeSpace, Memory, Neighborhood
+from ..space import LatticeSpace, Memory, Neighborhood, SiteSpace
 from ._information import entropy_rate
 from ._kinds import DataKind, analysis
 from ._lazy import module
@@ -28,7 +28,7 @@ IDENTITY = '1'
 type Codes = npt.NDArray[np.int64]
 type Indices = npt.NDArray[np.intp]
 type Reach = Neighborhood | Memory
-type Sites = LatticeSpace | GroupSpace
+type Sites = SiteSpace
 
 
 def _rule_table(rule: object) -> object:
@@ -163,7 +163,7 @@ class Automaton:
             table:
                 One row per site and one column per cell of `reads`.
         """
-        return self.space.index_table(self.reads)  # type: ignore[arg-type]
+        return self.space.index_table(self.reads)
 
     def local_map(self) -> Codes:
         """Return the next value of every pattern of the cells the rule reads, indexed by the code of the pattern.
@@ -480,13 +480,10 @@ def garden_of_eden(
 
 def _ball_neighborhood(automaton: Automaton, radius: int) -> Reach:
     """Return the neighbourhood of every cell within a radius, a box of offsets or a ball of group elements."""
-    if isinstance(automaton.space, GroupSpace):
-        sizes = automaton.space.ball_sizes()
-        return Memory(tuple(automaton.space.words[: sizes[min(radius, len(sizes) - 1)]]))
-    if not isinstance(automaton.neighborhood, Neighborhood):
+    if isinstance(automaton.space, LatticeSpace) and not isinstance(automaton.neighborhood, Neighborhood):
         error_msg = 'An inverse is searched on a lattice with a neighbourhood of offsets or on a group space.'
         raise AnalysisError(error_msg)
-    return Neighborhood.radius(radius, n_dim=len(automaton.neighborhood.offsets[0]))
+    return automaton.space.compute_ball(radius)
 
 
 def inverse(automaton: Automaton, max_radius: int = 2) -> Automaton | None:
@@ -720,7 +717,7 @@ class Subshift:
 
     def _complete(self, space: Sites) -> tuple[Indices, npt.NDArray[np.bool_]]:
         """Return the neighbour table of a space and the sites whose patterns lie inside it."""
-        table = space.index_table(self.neighborhood)  # type: ignore[arg-type]
+        table = space.index_table(self.neighborhood)
         return table, (table < space.size).all(axis=1)
 
     def violations(self, configuration: npt.ArrayLike, space: Sites) -> npt.NDArray[np.bool_]:
@@ -959,7 +956,7 @@ class LinearAutomaton:
             image:
                 The next values, reduced modulo the field size over a prime field.
         """
-        table = self.space.index_table(self.neighborhood)  # type: ignore[arg-type]
+        table = self.space.index_table(self.neighborhood)
         values = np.append(np.asarray(configuration), getattr(self.space, 'fill', 0))
         image = values[table] @ np.asarray(self.coefficients)
         characteristic = int(_field_of(self.field).characteristic())
@@ -976,7 +973,7 @@ class LinearAutomaton:
             AnalysisError:
                 A site reads a cell outside the space.
         """
-        table = self.space.index_table(self.neighborhood)  # type: ignore[arg-type]
+        table = self.space.index_table(self.neighborhood)
         if (table >= self.space.size).any():
             error_msg = 'A linear automaton has a matrix on a periodic lattice or a finite group, not on a ball.'
             raise AnalysisError(error_msg)

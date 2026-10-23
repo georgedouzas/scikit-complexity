@@ -29,7 +29,7 @@ from ..base import (
 )
 from ..components import Group
 from ..laws import Jump, Law, Symbols, has_reductions, neighbourhoods_in, reductions_in
-from ..space import GroupSpace, LatticeSpace, NetworkSpace, Space, neighbour_pairs
+from ..space import NetworkSpace, SiteSpace, Space, neighbour_pairs
 from ._declarations import ACTIVE, ENDS, Block, Declarations, is_interaction
 from ._kernels import EdgeSearch, Reference, Search, Source
 from ._tree import Node
@@ -401,7 +401,7 @@ def _edge_search(
     if isinstance(space, NetworkSpace):
         sources, targets = space.list_edges(layer)
         size = space.size
-    elif isinstance(space, LatticeSpace | GroupSpace) and edges is None and layer is None:
+    elif isinstance(space, SiteSpace) and edges is None and layer is None:
         pairs = np.array(neighbour_pairs(space, space.size), dtype=np.intp).reshape(-1, 2)
         sources, targets = pairs[:, 0].copy(), pairs[:, 1].copy()
         size = space.size

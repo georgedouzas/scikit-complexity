@@ -9,7 +9,7 @@ from typing import cast
 
 from ...base import Form, Trait, ValidationError
 from ...laws import Drive, Energy, Extremal, Law, LocalRule, Move, Relaxation, Sample, Sampler, has_trait
-from ...space import GroupSpace, LatticeSpace, NetworkSpace
+from ...space import NetworkSpace, SiteSpace
 from .._backends import resolve_backend
 from .._compilation import BlockLaws, Compilation, Laws
 from .._declarations import Declarations, member_count
@@ -37,7 +37,7 @@ def _lattice_context(spec: KernelSpec, declarations: Declarations, fused: bool) 
         block = declarations.blocks.get(owner)
         space = block.node.space if block is not None else None
         is_lattice = (
-            isinstance(space, LatticeSpace | NetworkSpace | GroupSpace)
+            isinstance(space, SiteSpace | NetworkSpace)
             and block is not None
             and block.node.members is not None
             and not block.node.is_agent

@@ -26,7 +26,7 @@ from ..base import (
     ValidationError,
 )
 from ..compile import Problem, Vector
-from ._base import Stepper, register_solver
+from ._stepper import Stepper, register_solver
 
 EIGENVALUE_TOLERANCE = 1e-10
 GRID_TOLERANCE = 1e-9

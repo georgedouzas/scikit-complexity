@@ -16,9 +16,7 @@ from ._declarations import is_interaction
 from ._observables import check_held_reads, with_observables
 from ._pipeline import registered_passes, run_passes
 from ._planner import Plan
-from ._problem import Partition, Problem, _check_initial_names, with_initial_state
-from ._quantum import DEFAULT_MAX_DIMENSION, compile_quantum, contains_quantum
-from ._rewriting import compile_rewriting, is_rewriting
+from ._problem import Partition, Problem, with_initial_state
 from ._system_passes import claiming_pass
 from ._tree import Node
 from ._validation import validate
@@ -169,13 +167,6 @@ def compile_system(
     system_pass = claiming_pass(observed)
     if system_pass is not None:
         return system_pass.compile(observed, backend=backend, solver=solver, initial_state=initial)
-    if is_rewriting(observed):
-        return compile_rewriting(observed)
-    if contains_quantum(observed):
-        whole = f'{observed.label}.state'
-        _check_initial_names(set(initial) - {whole}, [whole])
-        limit = getattr(solver, 'max_dimension', DEFAULT_MAX_DIMENSION)
-        return compile_quantum(observed, initial=initial.get(whole), max_dimension=limit)
     compilation = cast('Compilation', report.compilation)
     problem = _planned_problem(compilation)
     check_held_reads(problem, list(compilation.held))

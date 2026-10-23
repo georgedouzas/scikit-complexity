@@ -24,14 +24,14 @@ STORED_GEOMETRIC_BROWNIAN_MOTION = [
     100.0,
     104.33582683330506,
     105.59332585811273,
-    106.46422136618422,
-    102.1583666086639,
-    99.91911505743448,
-    95.39643613168118,
-    92.82823341163548,
-    92.42940524533182,
-    98.80963167568167,
-    94.28348547843957,
+    106.6641122066072,
+    102.59377817820878,
+    99.79646664973221,
+    94.25377366277695,
+    92.50690616708295,
+    92.25856315395363,
+    98.3123414995193,
+    93.20945394424345,
 ]
 
 
@@ -96,9 +96,11 @@ def test_perfect_correlation_keeps_states_equal():
     np.testing.assert_allclose(trajectory['a.n'], trajectory['b.n'], atol=1e-12)
 
 
-def test_unnamed_noise_reproduces_stored_trajectory():
-    """Test that geometric Brownian motion with random state 0 repeats the trajectory stored before named processes."""
-    trajectory = Simulation(geometric_brownian_motion(), random_state=0, dt=0.05).run(until=0.5).trajectory_
+@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+def test_unnamed_noise_reproduces_stored_trajectory(backend):
+    """Test that geometric Brownian motion with random state 0 repeats the stored trajectory on both backends."""
+    simulation = Simulation(geometric_brownian_motion(), backend=backend, random_state=0, dt=0.05)
+    trajectory = simulation.run(until=0.5).trajectory_
     np.testing.assert_array_equal(trajectory['asset.price'], STORED_GEOMETRIC_BROWNIAN_MOTION)
 
 

@@ -1,0 +1,34 @@
+[[moves]]
+old = "skcomplex.core.space"
+new = "skcomplex.core.formalisms.groups"
+names = [
+    "FinitelyGeneratedGroup",
+    "GroupSpace",
+    "automaton_group",
+    "finitely_presented_group",
+    "matrix_group",
+    "parse_word",
+    "permutation_group",
+]
+
+[[moves]]
+old = "skcomplex.core.viz"
+new = "skcomplex.core.formalisms.groups"
+names = ["CayleyVisual"]
+
+[[moves]]
+old = "skcomplex.core.space._cayley"
+new = "skcomplex.core.space"
+names = ["Memory"]
+
+[[moves]]
+old = "skcomplex.core.space._cayley"
+new = "skcomplex.core.formalisms.groups._spaces"
+
+[[moves]]
+old = "skcomplex.core.space._groups"
+new = "skcomplex.core.formalisms.groups._groups"
+
+[[moves]]
+old = "skcomplex.core.viz._cayley"
+new = "skcomplex.core.formalisms.groups._visuals"

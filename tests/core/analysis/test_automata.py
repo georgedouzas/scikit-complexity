@@ -20,8 +20,9 @@ from skcomplex.core.analysis import (
     spatial_entropy_rates,
 )
 from skcomplex.core.base import AnalysisError
+from skcomplex.core.formalisms.groups import GroupSpace, permutation_group
 from skcomplex.core.laws import OuterTotalistic, Table, Totalistic
-from skcomplex.core.space import GroupSpace, LatticeSpace, Memory, Neighborhood, permutation_group
+from skcomplex.core.space import LatticeSpace, Memory, Neighborhood
 
 LIFE = OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1})
 GOLDEN_RATIO = (1 + np.sqrt(5)) / 2

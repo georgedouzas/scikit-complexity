@@ -23,7 +23,7 @@ from ..compile import (
     validate,
     with_initial_state,
 )
-from ..solvers import AgentState, RewritingState, Stepper, resolve_solver
+from ..solvers import AgentState, Stepper, StructureState, resolve_solver
 from ..system import Observable, System
 from ._clocks import AsFastAsPossible, Clock
 from ._conservation import InvariantMonitor
@@ -260,8 +260,8 @@ class Simulation(BaseEstimator):
         """Hand the current frame, with the events since the previous one, to every observer."""
         external = self.stepper_.snapshot()
         agents, reporters = (external.groups, external.reporters) if isinstance(external, AgentState) else ({}, {})
-        structures = external.structures if isinstance(external, RewritingState) else {}
-        reporters = external.reporters if isinstance(external, RewritingState) else reporters
+        structures = external.structures if isinstance(external, StructureState) else {}
+        reporters = external.reporters if isinstance(external, StructureState) else reporters
         observables = self.observables_.evaluate(self.time_, self.state_, self.parameters_, self.stepper_.agents_of)
         frame = Frame(
             step,

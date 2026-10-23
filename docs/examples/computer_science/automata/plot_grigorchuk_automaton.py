@@ -13,8 +13,8 @@ neighbours inside the ball, so the random start freezes into clusters of agreein
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.formalisms.groups import GroupSpace
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.space import GroupSpace
 from skcomplex.core.viz import RerunObserver
 from skcomplex.models import create
 from skcomplex.models.computer_science.automata import grigorchuk_group

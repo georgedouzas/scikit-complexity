@@ -1,10 +1,21 @@
 """Generate the compatibility page from the requirements of the laws and the support of the solvers and backends."""
 
+import pkgutil
+from importlib import import_module
+
+from skcomplex.core import formalisms
 from skcomplex.core.base import LawKind
 from skcomplex.core.compile import BACKENDS
 from skcomplex.core.laws import law_classes
 from skcomplex.core.solvers import SOLVERS
 from skcomplex.core.space import Space
+
+
+def _import_formalisms() -> None:
+    """Import every formalism, so its laws, spaces, solvers, and backends are registered."""
+    for module in pkgutil.iter_modules(formalisms.__path__):
+        if module.ispkg:
+            import_module(f'{formalisms.__name__}.{module.name}')
 
 
 def _terms(terms: frozenset[object], every: int | None = None) -> str:
@@ -145,6 +156,7 @@ def space_lines() -> list[str]:
 
 def compatibility_page() -> str:
     """Return the compatibility page of laws, solvers, and backends, generated from their declarations."""
+    _import_formalisms()
     lines = [
         '# Compatibility',
         '',

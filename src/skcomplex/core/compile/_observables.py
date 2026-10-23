@@ -35,15 +35,13 @@ from ._declarations import Block, Declarations
 from ._kernels import Reference, Source
 from ._layout import Entry
 from ._printing import numpy_function
-from ._problem import Problem, Vector
+from ._problem import Getter, Problem, Vector
 from ._quantities import Recorded
-from ._quantum import QuantumProblem, quantum_getters
 from ._reductions import CompiledReduction, Read, ReductionPass
 from ._specs import Observed
 from ._tree import Node
 
 type AgentsOf = Callable[[str], list[Any] | None]
-type Getter = Callable[[float, Vector, Vector, Mapping[str, Any]], Any]
 
 REDUCERS: dict[str, Callable[..., Expression]] = {
     'sum': total,
@@ -465,8 +463,9 @@ class ObservableEvaluator:
         self._scalars = self._scalar_sources()
         self.getters_: dict[str, Getter] = {}
         system = self.problem.system
-        if isinstance(self.problem, QuantumProblem):
-            self.getters_ = quantum_getters(self.problem, observables_of(system) if system is not None else ())
+        own = self.problem.observable_getters(observables_of(system) if system is not None else ())
+        if own is not None:
+            self.getters_ = own
             return
         for scope, observable in observables_of(system) if system is not None else ():
             path = _join(scope, observable.label)

@@ -245,7 +245,9 @@ print(len(simulation.extend(until=20).trajectory_))
 - `start(until)` runs in a background thread, and `pause`, `resume`, `stop`, and `wait` control it.
 - `update_parameters({'hunt.a': 0.05})` changes parameters before the next frame. Values set between runs stay in
   force for the later runs of the same simulation, and `clone(simulation).run(until)` starts afresh.
-- `random_state` makes stochastic runs reproducible.
+- `random_state` makes stochastic runs reproducible. A fixed-step solver splits every frame into
+  `step_count(t, until, dt)` equal steps on every backend, so the same `random_state` gives the same path on the NumPy
+  and Numba backends.
 - `extend(until)` continues a finished run from its last frame with the same stepper, clock, and observers, and
   appends the new frames to the trajectory, while `run` starts again from time 0.
 - `schedule={'hunt.a': lambda t: 0.02 + 0.001 * t}` sets parameters from functions of time at every frame, such as a
@@ -1777,8 +1779,8 @@ run reads only its neighbour table. Its sites are numbered by word length, `word
 `Memory` of words such as `'a'`, `'a^-1'`, or `'a*b'`, with `'1'` for the cell itself, and `Memory.generators(group)`
 gives the identity followed by every generator and its inverse.
 
-The general constructors of `skcomplex.core.space` give groups by any presentation whose word problem a library
-solves:
+The groups formalism, `skcomplex.core.formalisms.groups`, holds group spaces and the general constructors that give
+groups by any presentation whose word problem a library solves:
 
 - `finitely_presented_group(generators, relators)` takes words such as `'t*a*t^-1*a^-2'`. A free group, without
   relators, reduces its words directly, and otherwise KBMAG in GAP looks for a confluent rewriting system by
@@ -1798,8 +1800,9 @@ an image layout, so validation reports a checkerboard schedule as `schedule-unsu
 rings by word length, colored by state, with the edges of the generators logged once.
 
 ```python
+from skcomplex.core.formalisms.groups import GroupSpace, finitely_presented_group, permutation_group
 from skcomplex.core.laws import Totalistic
-from skcomplex.core.space import GroupSpace, Memory, finitely_presented_group, permutation_group
+from skcomplex.core.space import Memory
 
 free = finitely_presented_group(['a', 'b'])
 tree = GroupSpace(free, ball=4)
@@ -2301,9 +2304,7 @@ A `Rewrite` interaction rewrites its target with fixed rules. Strings are words 
 `Module` gives a symbol parameters.
 
 ```python
-from skcomplex.core.components import Word
-from skcomplex.core.interactions import Rewrite
-from skcomplex.core.laws import Module, Production
+from skcomplex.core.formalisms.rewriting import Module, Production, Rewrite, Word
 
 algae = System(
     components=[Word('algae', axiom='A')],
@@ -2322,7 +2323,7 @@ parameters written as expressions of them and of the parameters of a `Rewriting`
 
 ```python
 from skcomplex.core.base import parameter, symbol
-from skcomplex.core.interactions import Rewriting
+from skcomplex.core.formalisms.rewriting import Rewriting
 
 x = symbol('x')
 
@@ -2356,9 +2357,7 @@ relative to it. Structures with a geometry report `<element>.length` and
 
 ```python
 from skcomplex.core.analysis import box_counting_dimension
-from skcomplex.core.components import Patch
-from skcomplex.core.laws import Affine, Prototile, Substitution
-from skcomplex.core.viz import WordGeometry
+from skcomplex.core.formalisms.rewriting import Affine, Patch, Prototile, Substitution, WordGeometry
 
 koch = System(
     components=[Word('koch', axiom='F', geometry=WordGeometry(angle=60.0, contraction=1 / 3))],
@@ -2391,8 +2390,7 @@ drawn from the random stream, and skips matches whose deleted nodes would leave 
 ```python
 import networkx as nx
 
-from skcomplex.core.components import HostGraph
-from skcomplex.core.laws import GraphProduction
+from skcomplex.core.formalisms.rewriting import GraphProduction, HostGraph
 
 interface = nx.Graph()
 interface.add_nodes_from('ab')
@@ -2431,10 +2429,10 @@ import numpy as np
 from typing import ClassVar
 
 from skcomplex.core.base import parameter, role
+from skcomplex.core.formalisms.quantum import Generator, expectation
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Generator
 from skcomplex.core.space import LatticeSpace
-from skcomplex.core.system import System, expectation
+from skcomplex.core.system import System
 from skcomplex.core.runtime import Simulation
 from skcomplex.models.physics.realizations import Spin
 

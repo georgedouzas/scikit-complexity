@@ -9,10 +9,11 @@ from skcomplex.core.backends import NumpyBackend
 from skcomplex.core.base import Domain, OrderKind, Supports, ValidationError, VisualSpec, parameter, role, state
 from skcomplex.core.compile import Issue, ValidationReport, ValidationWarning, validate
 from skcomplex.core.components import Element
+from skcomplex.core.formalisms.groups import GroupSpace, finitely_presented_group
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Energy, Move, Noise, Objective, Rate, Rule, Sample, Sampler, Update, neighbors
 from skcomplex.core.solvers import GrunwaldLetnikov
-from skcomplex.core.space import DiscreteTime, GroupSpace, Memory, finitely_presented_group
+from skcomplex.core.space import DiscreteTime, Memory
 from skcomplex.core.system import System
 
 

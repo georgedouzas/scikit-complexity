@@ -11,8 +11,8 @@ from sage.all__sagemath_symbolics import SR, solve
 
 from ..base import ComponentKind, DomainKind, Expression, LawKind, OrderKind, SolverError, SpaceKind, Supports, TimeKind
 from ..compile import Vector
-from ._base import register_solver
 from ._optimal import ControlSolution, GridFunction, OptimalControlSolver, _ControlProblem
+from ._stepper import register_solver
 
 MIN_RELAXATION = 1e-3
 
