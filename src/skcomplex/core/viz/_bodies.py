@@ -15,7 +15,9 @@ import rerun.blueprint as rrb
 from ..base import ValidationError
 from ..compile import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
-from ._visuals import TRAIL_LENGTH, UPWARD, Visual, _radius_of, log_scalars, register_visual
+from ._points import TRAIL_LENGTH
+from ._utils import UPWARD, _radius_of, log_scalars
+from ._visuals import Visual, register_visual
 
 type Positions = Callable[..., npt.ArrayLike] | Sequence[str]
 type Outline = Callable[..., Sequence[npt.ArrayLike]] | Sequence[npt.ArrayLike]

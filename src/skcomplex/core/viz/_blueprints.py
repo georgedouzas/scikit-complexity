@@ -13,8 +13,10 @@ import rerun.blueprint as rrb
 from ..base import ValidationError
 from ..compile import CompiledAgents, CompiledElement, Problem, compile_system, observables_of
 from ..system import Observable, System
+from ._points import PointsVisual
+from ._scalars import ScalarsVisual
 from ._traits import agents_visual_of
-from ._visuals import PointsVisual, ScalarsVisual, resolve_visual
+from ._visuals import resolve_visual
 
 MAX_SERIES_PER_VIEW = 6
 MAX_VIEWS_PER_ROW = 3

@@ -13,7 +13,7 @@ from scipy.optimize import least_squares, minimize
 
 from ..base import ValidationError
 from ..runtime import Simulation
-from ._runner import Source, _problem, resolve_source, with_values
+from ._sources import Source, _problem, resolve_source, with_values
 
 LOSSES = ('squares', 'likelihood')
 
