@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
-from scipy import sparse
+from scipy import sparse, stats
 from scipy.spatial import cKDTree
 
 from ..base import AnalysisError
@@ -194,7 +194,6 @@ def recurrence_quantification(
     long_diagonals = diagonals[diagonals >= min_line]
     long_verticals = verticals[verticals >= min_line]
     _, counts = np.unique(long_diagonals, return_counts=True)
-    shares = counts / counts.sum() if counts.size else counts
     size = array.shape[0]
     allowed = size * size - size - 2 * sum(size - offset for offset in range(1, theiler))
     return Recurrence(
@@ -204,6 +203,6 @@ def recurrence_quantification(
         mean_diagonal=float(long_diagonals.mean()) if long_diagonals.size else 0.0,
         longest_diagonal=int(diagonals.max()),
         trapping_time=float(long_verticals.mean()) if long_verticals.size else 0.0,
-        entropy=float(-np.sum(shares * np.log(shares))) if shares.size else 0.0,
+        entropy=float(stats.entropy(counts)) if counts.size else 0.0,
         radius=chosen,
     )

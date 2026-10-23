@@ -133,14 +133,12 @@ class EpsilonMachine:
     @property
     def statistical_complexity(self) -> float:
         """Entropy of the stationary distribution of the causal states in bits."""
-        p = self.stationary[self.stationary > 0]
-        return float(np.sum(p * np.log2(1 / p)))
+        return float(stats.entropy(self.stationary, base=2))
 
     @property
     def entropy_rate(self) -> float:
         """Mean entropy of the next symbol given the causal state in bits."""
-        surprises = np.log2(1 / np.where(self.probabilities > 0, self.probabilities, 1.0))
-        return float(np.sum(self.stationary[:, None] * self.probabilities * surprises))
+        return float(self.stationary @ stats.entropy(self.probabilities, base=2, axis=1))
 
 
 @analysis(DataKind.SERIES)

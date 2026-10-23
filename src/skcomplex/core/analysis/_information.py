@@ -11,6 +11,7 @@ import ennemi
 import numpy as np
 import numpy.typing as npt
 import ordpy
+from scipy import stats
 
 from ..base import AnalysisError
 from ._kinds import DataKind, analysis
@@ -149,7 +150,7 @@ def shannon_entropy(values: npt.ArrayLike, *, base: float = 2.0, probabilities: 
         (1.0, 2.0)
     """
     p = _distribution(values, probabilities=probabilities)
-    return float(-np.sum(p * np.log(p)) / np.log(base))
+    return float(stats.entropy(p, base=base))
 
 
 @analysis(DataKind.SERIES)
@@ -244,11 +245,7 @@ def kl_divergence(p: npt.ArrayLike, q: npt.ArrayLike, *, base: float = 2.0) -> f
         >>> kl_divergence([0.5, 0.5], [0.5, 0.5])
         0.0
     """
-    first, second = np.asarray(p, dtype=float), np.asarray(q, dtype=float)
-    mask = first > 0
-    if np.any(second[mask] == 0):
-        return float('inf')
-    return float(np.sum(first[mask] * np.log(first[mask] / second[mask])) / np.log(base))
+    return float(stats.entropy(np.asarray(p, dtype=float), np.asarray(q, dtype=float), base=base))
 
 
 @analysis(DataKind.SERIES)
