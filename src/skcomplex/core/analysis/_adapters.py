@@ -36,110 +36,6 @@ KIND_ORDER = (
 )
 
 
-@dataclass(frozen=True)
-class Series:
-    """Named series on common times.
-
-    Args:
-        times:
-            The time of every frame.
-
-        values:
-            One row per frame and one column per series.
-
-        labels:
-            The name of every column.
-    """
-
-    times: Array
-    values: Array
-    labels: list[str]
-
-
-@dataclass(frozen=True)
-class JumpPath:
-    """Path of a discrete state with the time of every jump.
-
-    Args:
-        times:
-            The first time, then the time of every frame at which the state changed.
-
-        states:
-            The state at the first time and after every jump, one row per jump for vector states.
-
-        label:
-            The name of the state.
-    """
-
-    times: Array
-    states: Array
-    label: str
-
-
-@dataclass(frozen=True)
-class Snapshots:
-    """Agents of one group at every frame, aligned on the agents present in every frame.
-
-    Args:
-        times:
-            The time of every frame.
-
-        ids:
-            The id of every agent, in column order.
-
-        positions:
-            The unwrapped positions, frames by agents by dimensions, or `None` without a space with coordinates.
-
-        velocities:
-            The velocities, shaped like the positions, or `None` without them.
-
-        headings:
-            The heading angles, frames by agents, or `None` without them.
-
-        states:
-            Every other state of the agents, frames by agents.
-
-        box:
-            The sides of the space, or `None` for an unbounded space.
-
-        periodic:
-            Whether opposite sides of the box are joined.
-    """
-
-    times: Array
-    ids: npt.NDArray[np.int64]
-    positions: Array | None
-    velocities: Array | None
-    headings: Array | None
-    states: dict[str, npt.NDArray[Any]] = field(default_factory=dict)
-    box: Array | None = None
-    periodic: bool = False
-
-
-@dataclass(frozen=True)
-class Ensemble:
-    """One series of every run of an experiment on common times.
-
-    Args:
-        times:
-            The common times.
-
-        values:
-            One row per run and one column per common time.
-
-        rows:
-            The design row of every run.
-
-        seeds:
-            The index of the random stream of every run.
-    """
-
-    times: Array
-    values: Array
-    rows: list[dict[str, Any]]
-    seeds: npt.NDArray[np.int64]
-
-
 def _problem_of(source: Trajectory | System | Problem) -> Problem:
     """Return the compiled problem of a trajectory or a system."""
     if isinstance(source, Trajectory):
@@ -218,40 +114,6 @@ def _scalar_series(trajectory: Trajectory) -> list[str]:
     ]
 
 
-def data_kinds(source: Trajectory | System | ExperimentResult | npt.ArrayLike) -> list[DataKind]:
-    """Return the kinds of data that a trajectory, a system, an experiment result, or an array holds.
-
-    Args:
-        source:
-            The trajectory, the system, the experiment result, or the array.
-
-    Returns:
-        kinds:
-            The data kinds present, in the order agents, field, network, path, series, ensemble.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.analysis import data_kinds
-        >>> data_kinds(np.zeros((8, 8)))
-        [<DataKind.FIELD: 'field'>, <DataKind.SERIES: 'series'>]
-    """
-    if isinstance(source, ExperimentResult):
-        return [DataKind.ENSEMBLE]
-    if not isinstance(source, Trajectory | System | Problem):
-        dimensions = np.ndim(source)
-        return [DataKind.SERIES] if dimensions <= SERIES_DIMENSIONS else [DataKind.FIELD, DataKind.SERIES]
-    problem = _problem_of(source)
-    present = {
-        DataKind.AGENTS: bool(_agent_groups(problem)),
-        DataKind.FIELD: bool(_lattice_names(problem)),
-        DataKind.NETWORK: _network_space(problem) is not None
-        or (isinstance(source, Trajectory) and bool(_graph_observables(source))),
-        DataKind.PATH: bool(_path_names(problem)),
-        DataKind.SERIES: _has_series(source, problem),
-    }
-    return [kind for kind in KIND_ORDER if present.get(kind, False)]
-
-
 def _has_series(source: Trajectory | System | Problem, problem: Problem) -> bool:
     """Check whether a source records scalar series: observables, reporters, or scalar states."""
     if isinstance(source, Trajectory):
@@ -267,114 +129,6 @@ def _missing(trajectory: Trajectory, wanted: str) -> AnalysisError:
     kinds = ', '.join(kind.value for kind in data_kinds(trajectory)) or 'none'
     error_msg = f'The trajectory has no {wanted}. Its data kinds are: {kinds}.'
     return AnalysisError(error_msg)
-
-
-def series_of(trajectory: Trajectory, names: Sequence[str] | None = None) -> Series:
-    """Return named series of a trajectory: states, parameters, reporters, or observables, one column each.
-
-    Vector and group variables give one column per component, labelled `name[i]`.
-
-    Args:
-        trajectory:
-            The trajectory.
-
-        names:
-            The names, or `None` for every scalar observable and reporter, or every scalar state without them.
-
-    Returns:
-        series:
-            The times, the columns, and their labels.
-
-    Raises:
-        AnalysisError:
-            The trajectory has no scalar series and no names are given.
-
-    Examples:
-        >>> from skcomplex.core.analysis import series_of
-        >>> from skcomplex.models import run
-        >>> series = series_of(run('lotka_volterra', settings={'until': 1.0}).trajectory_)
-        >>> series.labels, series.values.shape[1]
-        (['prey.n', 'predators.n'], 2)
-    """
-    chosen = list(names) if names is not None else _scalar_series(trajectory)
-    if not chosen:
-        raise _missing(trajectory, 'scalar series')
-    columns, labels = [], []
-    for name in chosen:
-        values = np.asarray(trajectory[name], dtype=float).reshape(len(trajectory), -1)
-        columns.append(values)
-        labels.extend([name] if values.shape[1] == 1 else [f'{name}[{index}]' for index in range(values.shape[1])])
-    return Series(np.asarray(trajectory.times, dtype=float), np.concatenate(columns, axis=1), labels)
-
-
-def path_of(trajectory: Trajectory, name: str | None = None) -> JumpPath:
-    """Return the jump path of a discrete state, dropping the frames where it did not change.
-
-    Args:
-        trajectory:
-            The trajectory of a jump process, or of a map with discrete states.
-
-        name:
-            The dotted name of the state, or `None` for the first discrete state.
-
-    Returns:
-        path:
-            The jump times and the state after every jump.
-
-    Raises:
-        AnalysisError:
-            The trajectory has no discrete state.
-
-    Examples:
-        >>> from skcomplex.core.analysis import path_of
-        >>> from skcomplex.models import run
-        >>> path = path_of(run('poisson_process', settings={'until': 20.0, 'random_state': 0}).trajectory_)
-        >>> bool((path.states[1:] != path.states[:-1]).any(axis=1).all())
-        True
-    """
-    names = _path_names(trajectory.problem)
-    chosen = names[0] if name is None and names else name
-    if chosen is None:
-        raise _missing(trajectory, 'discrete state')
-    values = np.asarray(trajectory[chosen], dtype=float).reshape(len(trajectory), -1)
-    changed = np.concatenate([[True], np.any(values[1:] != values[:-1], axis=1)])
-    states = values[changed]
-    return JumpPath(
-        np.asarray(trajectory.times, dtype=float)[changed],
-        states[:, 0] if values.shape[1] == 1 else states,
-        chosen,
-    )
-
-
-def fields_of(trajectory: Trajectory, name: str | None = None) -> Array:
-    """Return the frames of a lattice or grid state in grid shape.
-
-    Args:
-        trajectory:
-            The trajectory.
-
-        name:
-            The dotted name of the state, or `None` for the first lattice state.
-
-    Returns:
-        frames:
-            One array of the grid shape per frame.
-
-    Raises:
-        AnalysisError:
-            The trajectory has no lattice or grid state.
-
-    Examples:
-        >>> from skcomplex.core.analysis import fields_of
-        >>> from skcomplex.models import run
-        >>> fields_of(run('ising', size=16, settings={'until': 3}).trajectory_).shape
-        (4, 16, 16)
-    """
-    names = _lattice_names(trajectory.problem)
-    chosen = names[0] if name is None and names else name
-    if chosen is None:
-        raise _missing(trajectory, 'lattice or grid state')
-    return np.asarray(trajectory.lattice(chosen), dtype=float)
 
 
 def _unwrap(positions: Array, box: Array | None, *, periodic: bool) -> Array:
@@ -393,6 +147,46 @@ def _space_box(space: object) -> tuple[Array | None, bool]:
     if isinstance(space, LatticeSpace):
         return np.asarray([space.width, space.height], dtype=float), bool(space.torus)
     return None, False
+
+
+@dataclass(frozen=True)
+class Snapshots:
+    """Agents of one group at every frame, aligned on the agents present in every frame.
+
+    Args:
+        times:
+            The time of every frame.
+
+        ids:
+            The id of every agent, in column order.
+
+        positions:
+            The unwrapped positions, frames by agents by dimensions, or `None` without a space with coordinates.
+
+        velocities:
+            The velocities, shaped like the positions, or `None` without them.
+
+        headings:
+            The heading angles, frames by agents, or `None` without them.
+
+        states:
+            Every other state of the agents, frames by agents.
+
+        box:
+            The sides of the space, or `None` for an unbounded space.
+
+        periodic:
+            Whether opposite sides of the box are joined.
+    """
+
+    times: Array
+    ids: npt.NDArray[np.int64]
+    positions: Array | None
+    velocities: Array | None
+    headings: Array | None
+    states: dict[str, npt.NDArray[Any]] = field(default_factory=dict)
+    box: Array | None = None
+    periodic: bool = False
 
 
 def _agent_snapshots(trajectory: Trajectory, group: str) -> Snapshots:
@@ -475,6 +269,197 @@ def _particle_snapshots(trajectory: Trajectory, group: str) -> Snapshots:
     )
 
 
+def _array_reading(kind: DataKind, dimensions: int) -> str:
+    """Return how an analysis of a kind reads a plain array of some dimensions."""
+    if kind is DataKind.FIELD:
+        return 'the array as one grid'
+    if dimensions > SERIES_DIMENSIONS:
+        return 'every column of the array as a series'
+    return 'the array as one series'
+
+
+def data_kinds(source: Trajectory | System | ExperimentResult | npt.ArrayLike) -> list[DataKind]:
+    """Return the kinds of data that a trajectory, a system, an experiment result, or an array holds.
+
+    Args:
+        source:
+            The trajectory, the system, the experiment result, or the array.
+
+    Returns:
+        kinds:
+            The data kinds present, in the order agents, field, network, path, series, ensemble.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.analysis import data_kinds
+        >>> data_kinds(np.zeros((8, 8)))
+        [<DataKind.FIELD: 'field'>, <DataKind.SERIES: 'series'>]
+    """
+    if isinstance(source, ExperimentResult):
+        return [DataKind.ENSEMBLE]
+    if not isinstance(source, Trajectory | System | Problem):
+        dimensions = np.ndim(source)
+        return [DataKind.SERIES] if dimensions <= SERIES_DIMENSIONS else [DataKind.FIELD, DataKind.SERIES]
+    problem = _problem_of(source)
+    present = {
+        DataKind.AGENTS: bool(_agent_groups(problem)),
+        DataKind.FIELD: bool(_lattice_names(problem)),
+        DataKind.NETWORK: _network_space(problem) is not None
+        or (isinstance(source, Trajectory) and bool(_graph_observables(source))),
+        DataKind.PATH: bool(_path_names(problem)),
+        DataKind.SERIES: _has_series(source, problem),
+    }
+    return [kind for kind in KIND_ORDER if present.get(kind, False)]
+
+
+@dataclass(frozen=True)
+class Series:
+    """Named series on common times.
+
+    Args:
+        times:
+            The time of every frame.
+
+        values:
+            One row per frame and one column per series.
+
+        labels:
+            The name of every column.
+    """
+
+    times: Array
+    values: Array
+    labels: list[str]
+
+
+def series_of(trajectory: Trajectory, names: Sequence[str] | None = None) -> Series:
+    """Return named series of a trajectory: states, parameters, reporters, or observables, one column each.
+
+    Vector and group variables give one column per component, labelled `name[i]`.
+
+    Args:
+        trajectory:
+            The trajectory.
+
+        names:
+            The names, or `None` for every scalar observable and reporter, or every scalar state without them.
+
+    Returns:
+        series:
+            The times, the columns, and their labels.
+
+    Raises:
+        AnalysisError:
+            The trajectory has no scalar series and no names are given.
+
+    Examples:
+        >>> from skcomplex.core.analysis import series_of
+        >>> from skcomplex.models import run
+        >>> series = series_of(run('lotka_volterra', settings={'until': 1.0}).trajectory_)
+        >>> series.labels, series.values.shape[1]
+        (['prey.n', 'predators.n'], 2)
+    """
+    chosen = list(names) if names is not None else _scalar_series(trajectory)
+    if not chosen:
+        raise _missing(trajectory, 'scalar series')
+    columns, labels = [], []
+    for name in chosen:
+        values = np.asarray(trajectory[name], dtype=float).reshape(len(trajectory), -1)
+        columns.append(values)
+        labels.extend([name] if values.shape[1] == 1 else [f'{name}[{index}]' for index in range(values.shape[1])])
+    return Series(np.asarray(trajectory.times, dtype=float), np.concatenate(columns, axis=1), labels)
+
+
+@dataclass(frozen=True)
+class JumpPath:
+    """Path of a discrete state with the time of every jump.
+
+    Args:
+        times:
+            The first time, then the time of every frame at which the state changed.
+
+        states:
+            The state at the first time and after every jump, one row per jump for vector states.
+
+        label:
+            The name of the state.
+    """
+
+    times: Array
+    states: Array
+    label: str
+
+
+def path_of(trajectory: Trajectory, name: str | None = None) -> JumpPath:
+    """Return the jump path of a discrete state, dropping the frames where it did not change.
+
+    Args:
+        trajectory:
+            The trajectory of a jump process, or of a map with discrete states.
+
+        name:
+            The dotted name of the state, or `None` for the first discrete state.
+
+    Returns:
+        path:
+            The jump times and the state after every jump.
+
+    Raises:
+        AnalysisError:
+            The trajectory has no discrete state.
+
+    Examples:
+        >>> from skcomplex.core.analysis import path_of
+        >>> from skcomplex.models import run
+        >>> path = path_of(run('poisson_process', settings={'until': 20.0, 'random_state': 0}).trajectory_)
+        >>> bool((path.states[1:] != path.states[:-1]).any(axis=1).all())
+        True
+    """
+    names = _path_names(trajectory.problem)
+    chosen = names[0] if name is None and names else name
+    if chosen is None:
+        raise _missing(trajectory, 'discrete state')
+    values = np.asarray(trajectory[chosen], dtype=float).reshape(len(trajectory), -1)
+    changed = np.concatenate([[True], np.any(values[1:] != values[:-1], axis=1)])
+    states = values[changed]
+    return JumpPath(
+        np.asarray(trajectory.times, dtype=float)[changed],
+        states[:, 0] if values.shape[1] == 1 else states,
+        chosen,
+    )
+
+
+def fields_of(trajectory: Trajectory, name: str | None = None) -> Array:
+    """Return the frames of a lattice or grid state in grid shape.
+
+    Args:
+        trajectory:
+            The trajectory.
+
+        name:
+            The dotted name of the state, or `None` for the first lattice state.
+
+    Returns:
+        frames:
+            One array of the grid shape per frame.
+
+    Raises:
+        AnalysisError:
+            The trajectory has no lattice or grid state.
+
+    Examples:
+        >>> from skcomplex.core.analysis import fields_of
+        >>> from skcomplex.models import run
+        >>> fields_of(run('ising', size=16, settings={'until': 3}).trajectory_).shape
+        (4, 16, 16)
+    """
+    names = _lattice_names(trajectory.problem)
+    chosen = names[0] if name is None and names else name
+    if chosen is None:
+        raise _missing(trajectory, 'lattice or grid state')
+    return np.asarray(trajectory.lattice(chosen), dtype=float)
+
+
 def snapshots_of(trajectory: Trajectory, group: str | None = None) -> Snapshots:
     """Return the agents of a group at every frame with unwrapped positions, velocities, headings, and states.
 
@@ -544,6 +529,30 @@ def networks_of(trajectory: Trajectory) -> list[nx.Graph]:
     return [space.graph] * len(trajectory)
 
 
+@dataclass(frozen=True)
+class Ensemble:
+    """One series of every run of an experiment on common times.
+
+    Args:
+        times:
+            The common times.
+
+        values:
+            One row per run and one column per common time.
+
+        rows:
+            The design row of every run.
+
+        seeds:
+            The index of the random stream of every run.
+    """
+
+    times: Array
+    values: Array
+    rows: list[dict[str, Any]]
+    seeds: npt.NDArray[np.int64]
+
+
 def ensemble_of(result: ExperimentResult, name: str) -> Ensemble:
     """Return one kept series of every run of an experiment, interpolated on the times of the shortest run.
 
@@ -599,15 +608,6 @@ class Applicable:
     kind: DataKind
     adapter: str
     reading: str
-
-
-def _array_reading(kind: DataKind, dimensions: int) -> str:
-    """Return how an analysis of a kind reads a plain array of some dimensions."""
-    if kind is DataKind.FIELD:
-        return 'the array as one grid'
-    if dimensions > SERIES_DIMENSIONS:
-        return 'every column of the array as a series'
-    return 'the array as one series'
 
 
 def analyses_for(source: Trajectory | System | ExperimentResult | npt.ArrayLike) -> list[Applicable]:

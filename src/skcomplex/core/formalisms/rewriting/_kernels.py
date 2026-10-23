@@ -24,6 +24,20 @@ ACTION_CODES = {
 
 
 @njit(cache=True)
+def _rotate(vector: npt.NDArray[np.float64], axis: npt.NDArray[np.float64], angle: float) -> npt.NDArray[np.float64]:
+    """Return a vector rotated about a unit axis by an angle with the formula of Rodrigues."""
+    cross = np.array(
+        [
+            axis[1] * vector[2] - axis[2] * vector[1],
+            axis[2] * vector[0] - axis[0] * vector[2],
+            axis[0] * vector[1] - axis[1] * vector[0],
+        ],
+    )
+    dot = axis[0] * vector[0] + axis[1] * vector[1] + axis[2] * vector[2]
+    return vector * np.cos(angle) + cross * np.sin(angle) + axis * dot * (1.0 - np.cos(angle))
+
+
+@njit(cache=True)
 def neighbors(  # noqa: C901
     codes: npt.NDArray[np.int64],
     ignored: npt.NDArray[np.bool_],
@@ -73,20 +87,6 @@ def neighbors(  # noqa: C901
             right[index] = following
             following = index
     return left, right
-
-
-@njit(cache=True)
-def _rotate(vector: npt.NDArray[np.float64], axis: npt.NDArray[np.float64], angle: float) -> npt.NDArray[np.float64]:
-    """Return a vector rotated about a unit axis by an angle with the formula of Rodrigues."""
-    cross = np.array(
-        [
-            axis[1] * vector[2] - axis[2] * vector[1],
-            axis[2] * vector[0] - axis[0] * vector[2],
-            axis[0] * vector[1] - axis[1] * vector[0],
-        ],
-    )
-    dot = axis[0] * vector[0] + axis[1] * vector[1] + axis[2] * vector[2]
-    return vector * np.cos(angle) + cross * np.sin(angle) + axis * dot * (1.0 - np.cos(angle))
 
 
 @njit(cache=True)

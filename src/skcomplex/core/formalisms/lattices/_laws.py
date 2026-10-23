@@ -31,6 +31,26 @@ EXTREMA = ('min', 'max')
 type RuleSpec = Table | Totalistic | OuterTotalistic | Callable[..., Any] | Any
 
 
+class _Adjacent(BuiltinFunction):
+    """Value of a lattice state at one neighbour inside a neighbour sum, `adjacent(x)`."""
+
+    def __init__(self) -> None:
+        super().__init__('adjacent', nargs=1)
+
+
+adjacent = _Adjacent()
+
+
+class _NeighborSum(BuiltinFunction):
+    """Sum of an expression over the real neighbours of a site, `neighbor_sum(f)`."""
+
+    def __init__(self) -> None:
+        super().__init__('neighbor_sum', nargs=1)
+
+
+neighbor_sum = _NeighborSum()
+
+
 def _targets(target: object) -> tuple[Expression, ...]:
     """Return the target symbols of a lattice law as a tuple."""
     return tuple(target) if isinstance(target, tuple | list) else (target,)
@@ -194,24 +214,6 @@ class Relaxation(Law):
     def targets(self) -> tuple[Expression, ...]:
         """Target symbols of the relaxation laws, in order of first appearance."""
         return tuple(dict.fromkeys(item for law in self.relax for item in law.targets))
-
-
-class _Adjacent(BuiltinFunction):
-    """Value of a lattice state at one neighbour inside a neighbour sum, `adjacent(x)`."""
-
-    def __init__(self) -> None:
-        super().__init__('adjacent', nargs=1)
-
-
-class _NeighborSum(BuiltinFunction):
-    """Sum of an expression over the real neighbours of a site, `neighbor_sum(f)`."""
-
-    def __init__(self) -> None:
-        super().__init__('neighbor_sum', nargs=1)
-
-
-adjacent = _Adjacent()
-neighbor_sum = _NeighborSum()
 
 
 @dataclass(frozen=True)

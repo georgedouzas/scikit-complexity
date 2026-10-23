@@ -89,6 +89,70 @@ def _coarse_matrix(matrix: Array, labels: Labels, weights: Array) -> Array:
     return np.divide(flows, totals, out=np.zeros_like(flows), where=totals > 0)
 
 
+def _canonical(labels: npt.ArrayLike) -> Labels:
+    """Return labels renumbered 0, 1, and so on in the order of their first state."""
+    _, first, inverse = np.unique(np.asarray(labels), return_index=True, return_inverse=True)
+    return np.argsort(np.argsort(first))[inverse].astype(np.int64)
+
+
+def _macro_information(matrix: Array, labels: Labels, weights: Array) -> float:
+    """Return the effective information of the macro matrix of a partition, without warnings on unobserved blocks."""
+    macro = _coarse_matrix(matrix, labels, weights)
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', UnobservedStatesWarning)
+        return effective_information(macro).information
+
+
+def _greedy(matrix: Array, weights: Array) -> Labels:
+    """Return the partition reached by merging the pair of blocks with the largest gain until no merge gains."""
+    labels = np.arange(matrix.shape[0], dtype=np.int64)
+    best = _macro_information(matrix, labels, weights)
+    while int(labels.max()) > 0:
+        merges = [
+            _canonical(np.where(labels == second, first, labels))
+            for first, second in itertools.combinations(range(int(labels.max()) + 1), 2)
+        ]
+        scores = [_macro_information(matrix, merged, weights) for merged in merges]
+        index = int(np.argmax(scores))
+        if scores[index] <= best + TOLERANCE:
+            break
+        labels, best = merges[index], scores[index]
+    return labels
+
+
+def _set_partitions(n_states: int) -> Iterator[Labels]:
+    """Yield every partition of the states as restricted growth labels."""
+    labels = np.zeros(n_states, dtype=np.int64)
+
+    def extend(position: int, blocks: int) -> Iterator[Labels]:
+        if position == n_states:
+            yield labels.copy()
+            return
+        for label in range(blocks + 1):
+            labels[position] = label
+            yield from extend(position + 1, max(blocks, label + 1))
+
+    if n_states:
+        yield from extend(1, 1)
+
+
+def _exhaustive(matrix: Array, weights: Array) -> Labels:
+    """Return the partition with the largest macro effective information, the finest of equal ones."""
+    if matrix.shape[0] > MAX_EXHAUSTIVE_STATES:
+        error_msg = (
+            f'The exhaustive search covers at most {MAX_EXHAUSTIVE_STATES} states, not {matrix.shape[0]}. '
+            "Use search='greedy'."
+        )
+        raise AnalysisError(error_msg)
+    best, best_score = np.arange(matrix.shape[0], dtype=np.int64), -np.inf
+    for labels in _set_partitions(matrix.shape[0]):
+        score = _macro_information(matrix, labels, weights)
+        blocks = int(labels.max())
+        if score > best_score + TOLERANCE or (score > best_score - TOLERANCE and blocks > int(best.max())):
+            best, best_score = labels, max(score, best_score)
+    return best
+
+
 @analysis(DataKind.PATH)
 def partition_coarse_grain(
     source: npt.ArrayLike,
@@ -237,70 +301,6 @@ class CausalEmergence:
     gain: float
     micro: EffectiveInformation
     macro: EffectiveInformation
-
-
-def _canonical(labels: npt.ArrayLike) -> Labels:
-    """Return labels renumbered 0, 1, and so on in the order of their first state."""
-    _, first, inverse = np.unique(np.asarray(labels), return_index=True, return_inverse=True)
-    return np.argsort(np.argsort(first))[inverse].astype(np.int64)
-
-
-def _macro_information(matrix: Array, labels: Labels, weights: Array) -> float:
-    """Return the effective information of the macro matrix of a partition, without warnings on unobserved blocks."""
-    macro = _coarse_matrix(matrix, labels, weights)
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore', UnobservedStatesWarning)
-        return effective_information(macro).information
-
-
-def _greedy(matrix: Array, weights: Array) -> Labels:
-    """Return the partition reached by merging the pair of blocks with the largest gain until no merge gains."""
-    labels = np.arange(matrix.shape[0], dtype=np.int64)
-    best = _macro_information(matrix, labels, weights)
-    while int(labels.max()) > 0:
-        merges = [
-            _canonical(np.where(labels == second, first, labels))
-            for first, second in itertools.combinations(range(int(labels.max()) + 1), 2)
-        ]
-        scores = [_macro_information(matrix, merged, weights) for merged in merges]
-        index = int(np.argmax(scores))
-        if scores[index] <= best + TOLERANCE:
-            break
-        labels, best = merges[index], scores[index]
-    return labels
-
-
-def _set_partitions(n_states: int) -> Iterator[Labels]:
-    """Yield every partition of the states as restricted growth labels."""
-    labels = np.zeros(n_states, dtype=np.int64)
-
-    def extend(position: int, blocks: int) -> Iterator[Labels]:
-        if position == n_states:
-            yield labels.copy()
-            return
-        for label in range(blocks + 1):
-            labels[position] = label
-            yield from extend(position + 1, max(blocks, label + 1))
-
-    if n_states:
-        yield from extend(1, 1)
-
-
-def _exhaustive(matrix: Array, weights: Array) -> Labels:
-    """Return the partition with the largest macro effective information, the finest of equal ones."""
-    if matrix.shape[0] > MAX_EXHAUSTIVE_STATES:
-        error_msg = (
-            f'The exhaustive search covers at most {MAX_EXHAUSTIVE_STATES} states, not {matrix.shape[0]}. '
-            "Use search='greedy'."
-        )
-        raise AnalysisError(error_msg)
-    best, best_score = np.arange(matrix.shape[0], dtype=np.int64), -np.inf
-    for labels in _set_partitions(matrix.shape[0]):
-        score = _macro_information(matrix, labels, weights)
-        blocks = int(labels.max())
-        if score > best_score + TOLERANCE or (score > best_score - TOLERANCE and blocks > int(best.max())):
-            best, best_score = labels, max(score, best_score)
-    return best
 
 
 @analysis(DataKind.PATH)

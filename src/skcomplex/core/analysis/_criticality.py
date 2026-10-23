@@ -28,13 +28,24 @@ def _records(source: object) -> list['_Relaxation']:
     return records if records and len(records) == len(source) else []
 
 
-@runtime_checkable
-class _Relaxation(Protocol):
-    """Record of the relaxation of a lattice within one step, with its size and its duration."""
+def _mean_shape(shapes: list[Array]) -> Array:
+    """Return the mean profile of avalanches of one duration, scaled by the mean height, on a grid of 0 to 1."""
+    profiles = np.asarray(shapes, dtype=float)
+    grid = np.linspace(0, 1, SHAPE_GRID)
+    steps = np.linspace(0, 1, profiles.shape[1])
+    mean = profiles.mean(axis=0)
+    return np.interp(grid, steps, mean / mean.mean())
 
-    size: int
-    duration: int
-    area: int
+
+def _refined_peak(grid: Array, values: Array) -> float:
+    """Return the abscissa of the vertex of the parabola through the largest value and its neighbours."""
+    index = int(np.argmax(values))
+    if index in (0, values.size - 1):
+        return float(grid[index])
+    coefficients = np.polyfit(grid[index - 1 : index + 2], values[index - 1 : index + 2], 2)
+    if coefficients[0] >= 0:
+        return float(grid[index])
+    return float(-coefficients[1] / (2 * coefficients[0]))
 
 
 @dataclass(frozen=True)
@@ -167,15 +178,6 @@ def fit_avalanches(
         )
 
     return AvalancheLaws(fit(found.sizes, size_range), fit(found.durations, duration_range))
-
-
-def _mean_shape(shapes: list[Array]) -> Array:
-    """Return the mean profile of avalanches of one duration, scaled by the mean height, on a grid of 0 to 1."""
-    profiles = np.asarray(shapes, dtype=float)
-    grid = np.linspace(0, 1, SHAPE_GRID)
-    steps = np.linspace(0, 1, profiles.shape[1])
-    mean = profiles.mean(axis=0)
-    return np.interp(grid, steps, mean / mean.mean())
 
 
 @dataclass(frozen=True)
@@ -341,17 +343,6 @@ class Sweep:
     peak: float
 
 
-def _refined_peak(grid: Array, values: Array) -> float:
-    """Return the abscissa of the vertex of the parabola through the largest value and its neighbours."""
-    index = int(np.argmax(values))
-    if index in (0, values.size - 1):
-        return float(grid[index])
-    coefficients = np.polyfit(grid[index - 1 : index + 2], values[index - 1 : index + 2], 2)
-    if coefficients[0] >= 0:
-        return float(grid[index])
-    return float(-coefficients[1] / (2 * coefficients[0]))
-
-
 @analysis(DataKind.ENSEMBLE)
 def order_parameter_sweep(
     parameters: npt.ArrayLike,
@@ -471,3 +462,12 @@ def fit_order_exponent(
         error_msg = f'Fewer than {MIN_POINTS} values with a positive order lie on the ordered side of {critical}.'
         raise AnalysisError(error_msg)
     return float(np.polyfit(np.log(distance[ordered]), np.log(values[ordered]), 1)[0])
+
+
+@runtime_checkable
+class _Relaxation(Protocol):
+    """Record of the relaxation of a lattice within one step, with its size and its duration."""
+
+    size: int
+    duration: int
+    area: int

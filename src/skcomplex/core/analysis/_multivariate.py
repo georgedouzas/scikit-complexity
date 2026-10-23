@@ -11,6 +11,7 @@ from typing import Any
 import ennemi
 import numpy as np
 import numpy.typing as npt
+from scipy import stats
 
 from ..base import AnalysisError
 from ._kinds import DataKind, analysis
@@ -44,9 +45,7 @@ def _row_codes(columns: npt.NDArray[Any]) -> npt.NDArray[np.int64]:
 
 def _plugin_entropy(columns: npt.NDArray[Any]) -> float:
     """Return the plug-in entropy of the rows of discrete columns in nats."""
-    counts = np.bincount(_row_codes(columns)).astype(float)
-    p = counts[counts > 0] / counts.sum()
-    return float(-np.sum(p * np.log(p)))
+    return float(stats.entropy(np.bincount(_row_codes(columns))))
 
 
 def _log_determinant(columns: Array) -> float:

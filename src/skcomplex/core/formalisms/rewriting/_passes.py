@@ -44,6 +44,191 @@ from ._structures import GraphStructure, PatchStructure
 from ._words import IDENTIFIER, CompiledWord, Parameters
 
 LAWS_OF = {'sequence': Production, 'tiling': Substitution, 'graph': GraphProduction}
+type Compiled = CompiledWord | CompiledPatch | CompiledGraph
+
+
+def _matches(attributes: dict[str, Any], pattern: dict[str, Any]) -> bool:
+    """Check that a host node or edge has the label of a pattern node or edge, where the pattern gives one."""
+    return 'label' not in pattern or attributes.get('label') == pattern['label']
+
+
+def _type_of(component: object) -> type:
+    """Return the element type of a group, or the type of any other component."""
+    return component.element if isinstance(component, Group) else type(component)
+
+
+def _parameters(nodes: list[Node]) -> tuple[list[Entry], list[float], dict[str, Symbols], dict[str, Any]]:
+    """Return the parameter entries and values of the rewriting interactions, with their namespaces and symbols."""
+    entries: list[Entry] = []
+    values: list[float] = []
+    namespaces: dict[str, Symbols] = {}
+    symbols: dict[str, Any] = {}
+    for node in nodes:
+        if not isinstance(node.component, Rewriting):
+            continue
+        names = {}
+        for name, declaration in declarations_of(type(node.component), VariableKind.PARAMETER).items():
+            value = node.value_of(name)
+            if np.ndim(value) or not declaration.domain.contains(value):
+                error_msg = f'{node.path}.{name} = {value!r} is not a number in the {declaration.domain.value} domain.'
+                raise ValidationError(error_msg)
+            dotted = f'{node.path}.{name}'
+            names[name] = symbol(f'{name}_{node.path}'.replace('/', '_').replace('-', '_'))
+            symbols[dotted] = names[name]
+            entries.append(Entry(dotted, len(entries), (), declaration.domain))
+            values.append(float(value))
+        namespaces[node.path] = Symbols(**names, t=symbol('t'))
+    return entries, values, namespaces, symbols
+
+
+def _compiled(
+    node: Node,
+    laws: list[RewritingLaw],
+    parameters: Parameters,
+    values: npt.NDArray[np.float64],
+) -> Compiled:
+    """Return the compiled rewriting system of one element from the laws that target it."""
+    element = node.component
+    kind = structure_of(type(element))
+    if kind is None:
+        error_msg = f'{node.path} holds no sequence, tiling, or graph that rewriting laws rewrite.'
+        raise ValidationError(error_msg)
+    expected = LAWS_OF[kind]
+    wrong = [law for law in laws if not isinstance(law, expected)]
+    if wrong:
+        error_msg = (
+            f'{type(element).__name__} {node.path!r} is rewritten by {expected.__name__} laws, but got {wrong[0]!r}.'
+        )
+        raise RewritingError(error_msg)
+    if kind == 'sequence':
+        return CompiledWord(
+            node.path,
+            element,
+            [law for law in laws if isinstance(law, Production)],
+            parameters,
+            values,
+        )
+    if kind == 'tiling':
+        return CompiledPatch(node.path, element, [law for law in laws if isinstance(law, Substitution)], parameters)
+    return CompiledGraph(node.path, element, [law for law in laws if isinstance(law, GraphProduction)])
+
+
+def is_rewriting(system: System) -> bool:
+    """Check whether a system holds a word, a patch, or a host graph.
+
+    Args:
+        system:
+            The system.
+
+    Returns:
+        found:
+            Whether one of its elements, at any depth, is rewritten.
+    """
+    return any(structure_of(_type_of(element)) for element in system.elements) or any(
+        is_rewriting(child) for child in system.systems
+    )
+
+
+def compile_rewriting(system: System) -> 'RewritingProblem':
+    """Compile a system of words, patches, or host graphs and the interactions that rewrite them.
+
+    Args:
+        system:
+            The system.
+
+    Returns:
+        problem:
+            The problem of the rewriting form, whose states are the counts and sizes of the structures.
+
+    Raises:
+        IncompatibleLawsError:
+            The system has elements or interactions that do not take part in rewriting.
+
+        RoleError:
+            A rewriting interaction targets a path that is not a word, a patch, or a host graph.
+
+        RewritingError:
+            A production, substitution, or graph production is malformed.
+
+    Examples:
+        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.core.formalisms.rewriting import Word
+        >>> from skcomplex.core.formalisms.rewriting import Rewrite
+        >>> from skcomplex.core.formalisms.rewriting import Production
+        >>> from skcomplex.core.system import System
+        >>> system = System(
+        ...     components=[Word('algae', axiom='A')],
+        ...     interactions=[Rewrite('rules', target='algae', rules=[Production('A', 'AB'), Production('B', 'A')])],
+        ... )
+        >>> problem = compile_system(system)
+        >>> problem.form.value, problem.states.names
+        ('rewriting system', ['algae.A', 'algae.B', 'algae.size'])
+    """
+    nodes = flatten_system(system)
+    elements = {node.path: node for node in nodes if structure_of(_type_of(node.component))}
+    for node in nodes:
+        if isinstance(node.component, Group) and structure_of(node.component.element):
+            error_msg = f'{node.path} is a group of rewritten elements. Declare one element per structure.'
+            raise RewritingError(error_msg)
+        if node.path not in elements and not isinstance(node.component, Rewriting):
+            error_msg = (
+                f'{node.path} takes no part in rewriting, but its system holds words, patches, or host graphs. A '
+                'rewriting system holds only rewritten elements and the interactions that rewrite them.'
+            )
+            raise IncompatibleLawsError(error_msg)
+    entries, values, namespaces, symbols = _parameters(nodes)
+    parameters = Parameters(tuple(symbols.values()), symbol('t'))
+    initial_parameters = np.asarray(values, dtype=float)
+    laws: dict[str, list[RewritingLaw]] = {path: [] for path in elements}
+    interactions = []
+    for node in nodes:
+        if not isinstance(node.component, Rewriting):
+            continue
+        target = f'{node.scope}{node.component.target}'
+        if target not in elements:
+            error_msg = (
+                f'{node.path} rewrites {target!r}, which is not a word, a patch, or a host graph. Rewritten elements '
+                f'are: {", ".join(elements) or "none"}.'
+            )
+            raise RoleError(error_msg)
+        laws[target] += list(node.component.productions(namespaces[node.path]))
+        interactions.append(CompiledInteraction(node.path, node.component, {'target': target}))
+    compiled = tuple(_compiled(elements[path], laws[path], parameters, initial_parameters) for path in elements)
+    states: list[Entry] = []
+    initial: list[float] = []
+    compiled_elements = []
+    for item in compiled:
+        names = [*item.counted, 'size']
+        component = cast('Element', elements[item.path].component)
+        compiled_elements.append(
+            CompiledElement(
+                path=item.path,
+                element=component,
+                states={name: f'{item.path}.{name}' for name in names},
+                parameters={},
+                visual=component.visual,
+            ),
+        )
+        for name in names:
+            states.append(Entry(f'{item.path}.{name}', len(states), (), Domain.NONNEGATIVE_INTEGER))
+        initial += item.counts(item.initial(initial_parameters))  # type: ignore[arg-type]
+    return RewritingProblem(
+        form=Form.REWRITING,
+        states=Layout(states),
+        parameters=Layout(entries),
+        initial_state=np.asarray(initial, dtype=float),
+        initial_parameters=initial_parameters,
+        time=symbol('t'),
+        symbols=symbols,
+        equations={},
+        equation_symbols={},
+        has_callables=False,
+        has_group_sums=False,
+        elements=tuple(compiled_elements),
+        interactions=tuple(interactions),
+        system=system,
+        rewriting=compiled,
+    )
 
 
 class CompiledPatch:
@@ -188,11 +373,6 @@ class CompiledPatch:
             new_matrices[places] = np.einsum('tij,pjk->tpik', matrices[rows], maps)
             new_codes[places] = [piece for piece, _ in pieces]
         return PatchStructure(self.prototiles, new_codes, new_matrices, patch.generation + 1)
-
-
-def _matches(attributes: dict[str, Any], pattern: dict[str, Any]) -> bool:
-    """Check that a host node or edge has the label of a pattern node or edge, where the pattern gives one."""
-    return 'label' not in pattern or attributes.get('label') == pattern['label']
 
 
 class CompiledGraph:
@@ -345,188 +525,6 @@ class CompiledGraph:
                 )
                 raise RewritingError(error_msg)
         return GraphStructure(graph, structure.generation + 1)
-
-
-type Compiled = CompiledWord | CompiledPatch | CompiledGraph
-
-
-def _type_of(component: object) -> type:
-    """Return the element type of a group, or the type of any other component."""
-    return component.element if isinstance(component, Group) else type(component)
-
-
-def is_rewriting(system: System) -> bool:
-    """Check whether a system holds a word, a patch, or a host graph.
-
-    Args:
-        system:
-            The system.
-
-    Returns:
-        found:
-            Whether one of its elements, at any depth, is rewritten.
-    """
-    return any(structure_of(_type_of(element)) for element in system.elements) or any(
-        is_rewriting(child) for child in system.systems
-    )
-
-
-def _parameters(nodes: list[Node]) -> tuple[list[Entry], list[float], dict[str, Symbols], dict[str, Any]]:
-    """Return the parameter entries and values of the rewriting interactions, with their namespaces and symbols."""
-    entries: list[Entry] = []
-    values: list[float] = []
-    namespaces: dict[str, Symbols] = {}
-    symbols: dict[str, Any] = {}
-    for node in nodes:
-        if not isinstance(node.component, Rewriting):
-            continue
-        names = {}
-        for name, declaration in declarations_of(type(node.component), VariableKind.PARAMETER).items():
-            value = node.value_of(name)
-            if np.ndim(value) or not declaration.domain.contains(value):
-                error_msg = f'{node.path}.{name} = {value!r} is not a number in the {declaration.domain.value} domain.'
-                raise ValidationError(error_msg)
-            dotted = f'{node.path}.{name}'
-            names[name] = symbol(f'{name}_{node.path}'.replace('/', '_').replace('-', '_'))
-            symbols[dotted] = names[name]
-            entries.append(Entry(dotted, len(entries), (), declaration.domain))
-            values.append(float(value))
-        namespaces[node.path] = Symbols(**names, t=symbol('t'))
-    return entries, values, namespaces, symbols
-
-
-def _compiled(
-    node: Node,
-    laws: list[RewritingLaw],
-    parameters: Parameters,
-    values: npt.NDArray[np.float64],
-) -> Compiled:
-    """Return the compiled rewriting system of one element from the laws that target it."""
-    element = node.component
-    kind = structure_of(type(element))
-    if kind is None:
-        error_msg = f'{node.path} holds no sequence, tiling, or graph that rewriting laws rewrite.'
-        raise ValidationError(error_msg)
-    expected = LAWS_OF[kind]
-    wrong = [law for law in laws if not isinstance(law, expected)]
-    if wrong:
-        error_msg = (
-            f'{type(element).__name__} {node.path!r} is rewritten by {expected.__name__} laws, but got {wrong[0]!r}.'
-        )
-        raise RewritingError(error_msg)
-    if kind == 'sequence':
-        return CompiledWord(
-            node.path,
-            element,
-            [law for law in laws if isinstance(law, Production)],
-            parameters,
-            values,
-        )
-    if kind == 'tiling':
-        return CompiledPatch(node.path, element, [law for law in laws if isinstance(law, Substitution)], parameters)
-    return CompiledGraph(node.path, element, [law for law in laws if isinstance(law, GraphProduction)])
-
-
-def compile_rewriting(system: System) -> 'RewritingProblem':
-    """Compile a system of words, patches, or host graphs and the interactions that rewrite them.
-
-    Args:
-        system:
-            The system.
-
-    Returns:
-        problem:
-            The problem of the rewriting form, whose states are the counts and sizes of the structures.
-
-    Raises:
-        IncompatibleLawsError:
-            The system has elements or interactions that do not take part in rewriting.
-
-        RoleError:
-            A rewriting interaction targets a path that is not a word, a patch, or a host graph.
-
-        RewritingError:
-            A production, substitution, or graph production is malformed.
-
-    Examples:
-        >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.core.formalisms.rewriting import Word
-        >>> from skcomplex.core.formalisms.rewriting import Rewrite
-        >>> from skcomplex.core.formalisms.rewriting import Production
-        >>> from skcomplex.core.system import System
-        >>> system = System(
-        ...     components=[Word('algae', axiom='A')],
-        ...     interactions=[Rewrite('rules', target='algae', rules=[Production('A', 'AB'), Production('B', 'A')])],
-        ... )
-        >>> problem = compile_system(system)
-        >>> problem.form.value, problem.states.names
-        ('rewriting system', ['algae.A', 'algae.B', 'algae.size'])
-    """
-    nodes = flatten_system(system)
-    elements = {node.path: node for node in nodes if structure_of(_type_of(node.component))}
-    for node in nodes:
-        if isinstance(node.component, Group) and structure_of(node.component.element):
-            error_msg = f'{node.path} is a group of rewritten elements. Declare one element per structure.'
-            raise RewritingError(error_msg)
-        if node.path not in elements and not isinstance(node.component, Rewriting):
-            error_msg = (
-                f'{node.path} takes no part in rewriting, but its system holds words, patches, or host graphs. A '
-                'rewriting system holds only rewritten elements and the interactions that rewrite them.'
-            )
-            raise IncompatibleLawsError(error_msg)
-    entries, values, namespaces, symbols = _parameters(nodes)
-    parameters = Parameters(tuple(symbols.values()), symbol('t'))
-    initial_parameters = np.asarray(values, dtype=float)
-    laws: dict[str, list[RewritingLaw]] = {path: [] for path in elements}
-    interactions = []
-    for node in nodes:
-        if not isinstance(node.component, Rewriting):
-            continue
-        target = f'{node.scope}{node.component.target}'
-        if target not in elements:
-            error_msg = (
-                f'{node.path} rewrites {target!r}, which is not a word, a patch, or a host graph. Rewritten elements '
-                f'are: {", ".join(elements) or "none"}.'
-            )
-            raise RoleError(error_msg)
-        laws[target] += list(node.component.productions(namespaces[node.path]))
-        interactions.append(CompiledInteraction(node.path, node.component, {'target': target}))
-    compiled = tuple(_compiled(elements[path], laws[path], parameters, initial_parameters) for path in elements)
-    states: list[Entry] = []
-    initial: list[float] = []
-    compiled_elements = []
-    for item in compiled:
-        names = [*item.counted, 'size']
-        component = cast('Element', elements[item.path].component)
-        compiled_elements.append(
-            CompiledElement(
-                path=item.path,
-                element=component,
-                states={name: f'{item.path}.{name}' for name in names},
-                parameters={},
-                visual=component.visual,
-            ),
-        )
-        for name in names:
-            states.append(Entry(f'{item.path}.{name}', len(states), (), Domain.NONNEGATIVE_INTEGER))
-        initial += item.counts(item.initial(initial_parameters))  # type: ignore[arg-type]
-    return RewritingProblem(
-        form=Form.REWRITING,
-        states=Layout(states),
-        parameters=Layout(entries),
-        initial_state=np.asarray(initial, dtype=float),
-        initial_parameters=initial_parameters,
-        time=symbol('t'),
-        symbols=symbols,
-        equations={},
-        equation_symbols={},
-        has_callables=False,
-        has_group_sums=False,
-        elements=tuple(compiled_elements),
-        interactions=tuple(interactions),
-        system=system,
-        rewriting=compiled,
-    )
 
 
 @dataclass(frozen=True)

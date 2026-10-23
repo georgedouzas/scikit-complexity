@@ -18,38 +18,6 @@ from ._components import Field
 type Indices = npt.NDArray[np.intp]
 
 
-def link_tables(dimensions: tuple[int, ...], periodic: bool) -> list[tuple[Indices, Indices]]:
-    """Return the links of every site along every dimension of a lattice, numbered `k n + i` for site `i`.
-
-    The link `(i, k)` joins site `i` to its next neighbour along dimension `k`. Without periodic edges, the links that
-    leave the lattice carry no process.
-
-    Args:
-        dimensions:
-            The number of sites along every dimension.
-
-        periodic:
-            Whether opposite edges are joined.
-
-    Returns:
-        tables:
-            For every dimension, the link to the next neighbour and the link from the previous neighbour of every site
-            in member order, or -1 where the link carries no process.
-    """
-    size = int(np.prod(dimensions))
-    sites = np.arange(size, dtype=np.intp).reshape(dimensions)
-    tables = []
-    for axis in range(len(dimensions)):
-        following = axis * size + sites
-        preceding = np.roll(following, 1, axis=axis)
-        if not periodic:
-            following = following.copy()
-            np.moveaxis(following, axis, 0)[-1] = -1
-            np.moveaxis(preceding, axis, 0)[0] = -1
-        tables.append((following.ravel(), preceding.ravel()))
-    return tables
-
-
 def _check_place(owner: str, reference: Reference, place: object) -> LatticeSpace:
     """Return the lattice of the field a conserved noise drives, or raise an error when there is none."""
     space = getattr(place, 'space', None)
@@ -83,6 +51,38 @@ def _amplitude(owner: str, law: Noise, references: Mapping[Expression, Reference
         )
         raise ValidationError(error_msg)
     return amplitude
+
+
+def link_tables(dimensions: tuple[int, ...], periodic: bool) -> list[tuple[Indices, Indices]]:
+    """Return the links of every site along every dimension of a lattice, numbered `k n + i` for site `i`.
+
+    The link `(i, k)` joins site `i` to its next neighbour along dimension `k`. Without periodic edges, the links that
+    leave the lattice carry no process.
+
+    Args:
+        dimensions:
+            The number of sites along every dimension.
+
+        periodic:
+            Whether opposite edges are joined.
+
+    Returns:
+        tables:
+            For every dimension, the link to the next neighbour and the link from the previous neighbour of every site
+            in member order, or -1 where the link carries no process.
+    """
+    size = int(np.prod(dimensions))
+    sites = np.arange(size, dtype=np.intp).reshape(dimensions)
+    tables = []
+    for axis in range(len(dimensions)):
+        following = axis * size + sites
+        preceding = np.roll(following, 1, axis=axis)
+        if not periodic:
+            following = following.copy()
+            np.moveaxis(following, axis, 0)[-1] = -1
+            np.moveaxis(preceding, axis, 0)[0] = -1
+        tables.append((following.ravel(), preceding.ravel()))
+    return tables
 
 
 def conserved_outputs(

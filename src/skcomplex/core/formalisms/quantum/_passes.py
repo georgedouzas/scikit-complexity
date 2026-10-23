@@ -59,23 +59,6 @@ REAL_TOLERANCE = 1e-10
 DEFAULT_MAX_DIMENSION = 2**20
 
 
-@dataclass(frozen=True)
-class _Subsystem:
-    """Quantum subsystem with its key, its element, and its index in the tensor product."""
-
-    key: str
-    element: QuantumView
-    index: int
-
-
-@dataclass
-class _Laws:
-    """Hamiltonian and dissipator laws collected from the components, with the description of their owner."""
-
-    hamiltonians: list[tuple[str, Operator]] = field(default_factory=list)
-    dissipators: list[tuple[str, Operator, object]] = field(default_factory=list)
-
-
 def _is_quantum_node(node: Node) -> bool:
     """Check whether a node is a quantum element or a group of quantum elements."""
     return not isinstance(node.component, Interaction) and is_quantum(node.component_type)
@@ -211,6 +194,124 @@ class QuantumTerm:
         return 1.0 if self.function is None else self.function(t, p)
 
 
+def _matrix_at(terms: Iterable[QuantumTerm], t: float, p: Vector, size: int) -> sp.csr_array:
+    """Return the sum of the terms at a time and a parameter vector."""
+    return _sum_matrices((term.value(t, p) * term.matrix for term in terms), size)
+
+
+def _parameters(nodes: list[Node]) -> tuple[list[Entry], list[Vector], dict[str, Any]]:
+    """Return the parameter entries, the initial values, and the symbols of every component, per member for groups."""
+    entries: list[Entry] = []
+    values: list[Vector] = []
+    symbols: dict[str, Any] = {}
+    for node in nodes:
+        for variable, declaration in declarations_of(node.component_type, VariableKind.PARAMETER).items():
+            name = f'{node.path}.{variable}'
+            if declaration.vector:
+                error_msg = f'{name} is a vector parameter, which quantum systems do not hold. Use scalar parameters.'
+                raise ValidationError(error_msg)
+            members = node.members
+            shape = () if members is None else (members,)
+            values.append(coerce_value(name, node.value_of(variable), (), declaration.domain, members))
+            entries.append(Entry(name, sum(item.size for item in entries), shape, declaration.domain, members))
+            base = f'{variable}_{"".join(char if char.isalnum() else "_" for char in node.path)}'
+            if members is None:
+                symbols[name] = symbol(base, declaration.domain)
+            else:
+                symbols[name] = vector([symbol(f'{base}_{member}', declaration.domain) for member in range(members)])
+    return entries, values, symbols
+
+
+def _parameter_symbols(node: Node, symbols: Mapping[str, Any], member: int | None) -> dict[str, Any]:
+    """Return the parameter symbols of a component, of one member for a group."""
+    found = {}
+    for variable in declarations_of(node.component_type, VariableKind.PARAMETER):
+        value = symbols[f'{node.path}.{variable}']
+        found[variable] = value if member is None else value[member]
+    return found
+
+
+def _role_namespace(
+    node: Node,
+    label: str,
+    members: Mapping[str, tuple[Symbols, ...]],
+    groups: set[str],
+) -> Symbols | tuple[Symbols, ...]:
+    """Return the namespace an interaction role binds to, one member's for an element and every member's for a group."""
+    path = f'{node.scope}{label}'
+    if path not in members:
+        error_msg = f'Interaction {node.path} binds a role to {path}, which is not a quantum element or group.'
+        raise ValidationError(error_msg)
+    return members[path] if path in groups else members[path][0]
+
+
+@dataclass
+class _Laws:
+    """Hamiltonian and dissipator laws collected from the components, with the description of their owner."""
+
+    hamiltonians: list[tuple[str, Operator]] = field(default_factory=list)
+    dissipators: list[tuple[str, Operator, object]] = field(default_factory=list)
+
+
+def _collect_laws(laws: _Laws, owner: str, items: Iterable[Any]) -> None:
+    """Add the Hamiltonian and dissipator laws of a component, rejecting every other law."""
+    for law in items:
+        if isinstance(law, Generator):
+            laws.hamiltonians.append((owner, law.operator))
+        elif isinstance(law, Dissipator):
+            laws.dissipators.append((owner, law.operator, law.rate))
+        else:
+            error_msg = (
+                f'{owner} returns the law {type(law).__name__}, which a quantum system cannot hold. Quantum systems '
+                'take Hamiltonian and Dissipator laws only.'
+            )
+            raise IncompatibleLawsError(error_msg)
+
+
+def _interaction_laws(
+    node: Node,
+    symbols: Mapping[str, Any],
+    members: Mapping[str, tuple[Symbols, ...]],
+    groups: dict[str, Node],
+    laws: _Laws,
+) -> None:
+    """Add the laws of an interaction, once per bond of its group for an exchange interaction."""
+    interaction = node.component
+    assert isinstance(interaction, Interaction)  # nosec B101: the caller passes interactions only
+    parameters = {**_parameter_symbols(node, symbols, None), 't': symbol('t')}
+    if type(interaction).over == 'neighbours':
+        role_names = list(declarations_of(interaction, VariableKind.ROLE))
+        if len(role_names) != 1:
+            error_msg = (
+                f'Interaction {node.path} over neighbours declares the roles {role_names}. Declare one role, bound to '
+                'the group whose neighbours it couples.'
+            )
+            raise ValidationError(error_msg)
+        path = f'{node.scope}{getattr(interaction, role_names[0])}'
+        if path not in groups:
+            error_msg = f'Interaction {node.path} over neighbours targets {path}, which is not a quantum group.'
+            raise ValidationError(error_msg)
+        group = groups[path]
+        for first, second in neighbour_pairs(group.space, group.members or 1, getattr(interaction, "layer", None)):
+            namespace = Symbols(first=members[path][first], second=members[path][second], **parameters)
+            _collect_laws(laws, f'{node.path} on the bond ({first}, {second})', interaction.laws(namespace))
+        return
+    roles = {
+        name: _role_namespace(node, getattr(interaction, name), members, set(groups))
+        for name in declarations_of(interaction, VariableKind.ROLE)
+    }
+    _collect_laws(laws, node.path, interaction.laws(Symbols(**roles, **parameters)))
+
+
+@dataclass(frozen=True)
+class _Subsystem:
+    """Quantum subsystem with its key, its element, and its index in the tensor product."""
+
+    key: str
+    element: QuantumView
+    index: int
+
+
 @dataclass(frozen=True)
 class _Lowering:
     """Lowering of operators to sparse matrices on the whole space and of coefficients to functions."""
@@ -337,9 +438,170 @@ class _Lowering:
         return tuple(terms)
 
 
-def _matrix_at(terms: Iterable[QuantumTerm], t: float, p: Vector, size: int) -> sp.csr_array:
-    """Return the sum of the terms at a time and a parameter vector."""
-    return _sum_matrices((term.value(t, p) * term.matrix for term in terms), size)
+def _check_hermitian(laws: _Laws, lowering: _Lowering, p: Vector) -> None:
+    """Raise an error when the Hamiltonian is not Hermitian at sampled parameter values."""
+    size = math.prod(lowering.dimensions)
+    rng = np.random.default_rng(0)
+    sample = p * (1 + 0.1 * rng.random(p.size)) + 0.01 * rng.random(p.size)
+
+    def asymmetry(terms: Iterable[QuantumTerm]) -> float:
+        matrix = _matrix_at(terms, SAMPLE_TIME, sample, size)
+        difference = matrix - matrix.conj().T
+        return float(abs(difference).max()) if difference.nnz else 0.0
+
+    total = [term for owner, operator in laws.hamiltonians for term in lowering.terms(operator, owner)]
+    if asymmetry(total) <= HERMITIAN_TOLERANCE:
+        return
+    owners = [owner for owner, operator in laws.hamiltonians if asymmetry(lowering.terms(operator, owner))]
+    error_msg = (
+        f'The Hamiltonian of {", ".join(owners)} is not Hermitian. Add the adjoint of every non-Hermitian '
+        'term, such as `s.minus` for `s.plus`, to the law.'
+    )
+    raise ValidationError(error_msg)
+
+
+def _dissipator_terms(laws: _Laws, lowering: _Lowering, p: Vector) -> tuple[tuple[QuantumTerm, ...], ...]:
+    """Return the terms of every collapse operator scaled by the square root of its rate."""
+    collapses = []
+    for owner, operator, rate in laws.dissipators:
+        value = SR(rate)
+        initial = lowering.function(value, owner)(0.0, p) if value.variables() else complex(value)
+        if initial.real < 0 or abs(initial.imag) > REAL_TOLERANCE:
+            error_msg = f'The dissipator of {owner} has the rate {initial}, which is not a non-negative number.'
+            raise ValidationError(error_msg)
+        collapses.append(lowering.terms(operator * value.sqrt(), owner))
+    return tuple(collapses)
+
+
+def _system_initial(
+    system: System,
+    initial: object,
+    product: npt.NDArray[np.complex128],
+    ground: Callable[[], npt.NDArray[np.complex128]],
+) -> npt.NDArray[np.complex128]:
+    """Return the initial state of the whole system, the product of the elements' states unless one is given."""
+    if initial is None:
+        return product
+    if isinstance(initial, str):
+        if initial != 'ground':
+            error_msg = f"System {system.label!r} has initial = {initial!r}. Use 'ground', a vector, or a matrix."
+            raise ValidationError(error_msg)
+        return ground()
+    state = np.asarray(initial, dtype=complex)
+    size = product.size
+    if state.shape not in {(size,), (size, size)}:
+        error_msg = (
+            f'The initial state of {system.label!r} has shape {state.shape}, but its space has dimension {size}.'
+        )
+        raise ValidationError(error_msg)
+    norm = float(np.linalg.norm(state)) if state.ndim == 1 else float(np.real(np.trace(state)))
+    if abs(norm - 1) > NORM_TOLERANCE:
+        quantity = 'norm' if state.ndim == 1 else 'trace'
+        error_msg = (
+            f'The initial state of system {system.label!r} has {quantity} {norm:.6g}, but states have {quantity} 1. '
+            'Normalise it.'
+        )
+        raise ValidationError(error_msg)
+    if state.ndim == 2 and not np.allclose(state, state.conj().T, atol=NORM_TOLERANCE):  # noqa: PLR2004
+        error_msg = f'The initial density matrix of system {system.label!r} is not Hermitian.'
+        raise ValidationError(error_msg)
+    return state
+
+
+def _namespaces(system: System, members: Mapping[str, tuple[Symbols, ...]], groups: set[str]) -> dict[str, Symbols]:
+    """Return the namespace of every system of the tree by path, with its quantum elements and child systems."""
+    namespaces: dict[str, Symbols] = {}
+
+    def build(current: System, scope: str) -> Symbols:
+        names: dict[str, Any] = {'t': symbol('t')}
+        for element in current.elements:
+            path = f'{scope}{element.label}'
+            names[element.label] = members[path] if path in groups else members[path][0]
+        for child in current.systems:
+            names[child.label] = build(child, f'{scope}{child.label}/')
+        namespace = Symbols(**names)
+        namespaces[scope.removesuffix('/')] = namespace
+        return namespace
+
+    build(system, '')
+    return namespaces
+
+
+def _subsystems_of(quantum: list[Node]) -> tuple[dict[str, _Subsystem], dict[str, Any]]:
+    """Return the subsystems of the quantum elements and groups in tensor product order, with their spaces."""
+    subsystems: dict[str, _Subsystem] = {}
+    spaces: dict[str, Any] = {}
+    for node in quantum:
+        for key, element in _members_of(node):
+            subsystems[key] = _Subsystem(key, element, len(subsystems))
+            spaces[key] = getattr(element.element, 'space', None) or node.space
+    return subsystems, spaces
+
+
+def _arguments_of(entries: list[Entry], symbols: Mapping[str, Any]) -> dict[Expression, int]:
+    """Return the index in the parameter vector of every parameter symbol."""
+    arguments = {}
+    for entry in entries:
+        components = symbols[entry.name]
+        for offset, item in enumerate(components if entry.members is not None else [components]):
+            arguments[item] = entry.start + offset
+    return arguments
+
+
+def _element_laws(
+    quantum: list[Node],
+    symbols: Mapping[str, Any],
+    time: Expression,
+    laws: _Laws,
+) -> dict[str, tuple[Symbols, ...]]:
+    """Add the laws of every quantum element and member, and return the member namespaces by path."""
+    members: dict[str, tuple[Symbols, ...]] = {}
+    for node in quantum:
+        namespaces = []
+        for member, (key, element) in enumerate(_members_of(node)):
+            index = member if node.members is not None else None
+            namespace = Symbols(**element.namespace(key), **_parameter_symbols(node, symbols, index), t=time)
+            namespaces.append(namespace)
+            _collect_laws(laws, key, element.laws(namespace))
+        members[node.path] = tuple(namespaces)
+    return members
+
+
+def _stored_state(  # noqa: PLR0917
+    system: System,
+    initial: object,
+    subsystems: Mapping[str, _Subsystem],
+    hamiltonian: tuple[QuantumTerm, ...],
+    p: Vector,
+    is_open: bool,
+) -> npt.NDArray[np.complex128]:
+    """Return the initial state as stored, a vector for a closed pure state and a density matrix otherwise."""
+    product = np.ones(1, dtype=complex)
+    for item in subsystems.values():
+        product = np.kron(product, item.element.initial_vector())
+    size = product.size
+
+    def ground() -> npt.NDArray[np.complex128]:
+        matrix = _matrix_at(hamiltonian, 0.0, p, size)
+        return np.asarray(qutip.Qobj(matrix).groundstate(sparse=size > DENSE_LIMIT)[1].full().ravel())
+
+    state = _system_initial(system, initial, product, ground)
+    return np.outer(state, state.conj()) if is_open and state.ndim == 1 else state
+
+
+def _compiled_element(node: Node) -> CompiledElement:
+    """Return the compiled element of a quantum element or group, with no states in the state vector of its own."""
+    component = node.component
+    visual = component.visual if isinstance(component, Group) and component.visual else node.component_type.visual
+    parameters = {name: f'{node.path}.{name}' for name in declarations_of(node.component_type, VariableKind.PARAMETER)}
+    return CompiledElement(node.path, component, {}, parameters, visual, node.members)
+
+
+def _compiled_interaction(node: Node) -> CompiledInteraction:
+    """Return the compiled interaction of a quantum system with the paths its roles bind to."""
+    component = node.component
+    roles = {name: f'{node.scope}{getattr(component, name)}' for name in declarations_of(component, VariableKind.ROLE)}
+    return CompiledInteraction(node.path, component, roles)
 
 
 @dataclass(frozen=True)
@@ -582,266 +844,52 @@ class QuantumProblem(Problem):
         }
 
 
-def _parameters(nodes: list[Node]) -> tuple[list[Entry], list[Vector], dict[str, Any]]:
-    """Return the parameter entries, the initial values, and the symbols of every component, per member for groups."""
-    entries: list[Entry] = []
-    values: list[Vector] = []
-    symbols: dict[str, Any] = {}
-    for node in nodes:
-        for variable, declaration in declarations_of(node.component_type, VariableKind.PARAMETER).items():
-            name = f'{node.path}.{variable}'
-            if declaration.vector:
-                error_msg = f'{name} is a vector parameter, which quantum systems do not hold. Use scalar parameters.'
-                raise ValidationError(error_msg)
-            members = node.members
-            shape = () if members is None else (members,)
-            values.append(coerce_value(name, node.value_of(variable), (), declaration.domain, members))
-            entries.append(Entry(name, sum(item.size for item in entries), shape, declaration.domain, members))
-            base = f'{variable}_{"".join(char if char.isalnum() else "_" for char in node.path)}'
-            if members is None:
-                symbols[name] = symbol(base, declaration.domain)
-            else:
-                symbols[name] = vector([symbol(f'{base}_{member}', declaration.domain) for member in range(members)])
-    return entries, values, symbols
-
-
-def _parameter_symbols(node: Node, symbols: Mapping[str, Any], member: int | None) -> dict[str, Any]:
-    """Return the parameter symbols of a component, of one member for a group."""
-    found = {}
-    for variable in declarations_of(node.component_type, VariableKind.PARAMETER):
-        value = symbols[f'{node.path}.{variable}']
-        found[variable] = value if member is None else value[member]
-    return found
-
-
-def _role_namespace(
-    node: Node,
-    label: str,
-    members: Mapping[str, tuple[Symbols, ...]],
-    groups: set[str],
-) -> Symbols | tuple[Symbols, ...]:
-    """Return the namespace an interaction role binds to, one member's for an element and every member's for a group."""
-    path = f'{node.scope}{label}'
-    if path not in members:
-        error_msg = f'Interaction {node.path} binds a role to {path}, which is not a quantum element or group.'
+def _member_getter(problem: QuantumProblem, path: str, observable: Observable, group: str) -> Getter:
+    """Return the getter of a quantum observable evaluated member by member and reduced."""
+    if group not in problem.members:
+        error_msg = f'Observable {path} reduces {group}, which is not a quantum group of the system.'
         raise ValidationError(error_msg)
-    return members[path] if path in groups else members[path][0]
-
-
-def _collect_laws(laws: _Laws, owner: str, items: Iterable[Any]) -> None:
-    """Add the Hamiltonian and dissipator laws of a component, rejecting every other law."""
-    for law in items:
-        if isinstance(law, Generator):
-            laws.hamiltonians.append((owner, law.operator))
-        elif isinstance(law, Dissipator):
-            laws.dissipators.append((owner, law.operator, law.rate))
-        else:
-            error_msg = (
-                f'{owner} returns the law {type(law).__name__}, which a quantum system cannot hold. Quantum systems '
-                'take Hamiltonian and Dissipator laws only.'
-            )
-            raise IncompatibleLawsError(error_msg)
-
-
-def _interaction_laws(
-    node: Node,
-    symbols: Mapping[str, Any],
-    members: Mapping[str, tuple[Symbols, ...]],
-    groups: dict[str, Node],
-    laws: _Laws,
-) -> None:
-    """Add the laws of an interaction, once per bond of its group for an exchange interaction."""
-    interaction = node.component
-    assert isinstance(interaction, Interaction)  # nosec B101: the caller passes interactions only
-    parameters = {**_parameter_symbols(node, symbols, None), 't': symbol('t')}
-    if type(interaction).over == 'neighbours':
-        role_names = list(declarations_of(interaction, VariableKind.ROLE))
-        if len(role_names) != 1:
-            error_msg = (
-                f'Interaction {node.path} over neighbours declares the roles {role_names}. Declare one role, bound to '
-                'the group whose neighbours it couples.'
-            )
-            raise ValidationError(error_msg)
-        path = f'{node.scope}{getattr(interaction, role_names[0])}'
-        if path not in groups:
-            error_msg = f'Interaction {node.path} over neighbours targets {path}, which is not a quantum group.'
-            raise ValidationError(error_msg)
-        group = groups[path]
-        for first, second in neighbour_pairs(group.space, group.members or 1, getattr(interaction, "layer", None)):
-            namespace = Symbols(first=members[path][first], second=members[path][second], **parameters)
-            _collect_laws(laws, f'{node.path} on the bond ({first}, {second})', interaction.laws(namespace))
-        return
-    roles = {
-        name: _role_namespace(node, getattr(interaction, name), members, set(groups))
-        for name in declarations_of(interaction, VariableKind.ROLE)
-    }
-    _collect_laws(laws, node.path, interaction.laws(Symbols(**roles, **parameters)))
-
-
-def _check_hermitian(laws: _Laws, lowering: _Lowering, p: Vector) -> None:
-    """Raise an error when the Hamiltonian is not Hermitian at sampled parameter values."""
-    size = math.prod(lowering.dimensions)
-    rng = np.random.default_rng(0)
-    sample = p * (1 + 0.1 * rng.random(p.size)) + 0.01 * rng.random(p.size)
-
-    def asymmetry(terms: Iterable[QuantumTerm]) -> float:
-        matrix = _matrix_at(terms, SAMPLE_TIME, sample, size)
-        difference = matrix - matrix.conj().T
-        return float(abs(difference).max()) if difference.nnz else 0.0
-
-    total = [term for owner, operator in laws.hamiltonians for term in lowering.terms(operator, owner)]
-    if asymmetry(total) <= HERMITIAN_TOLERANCE:
-        return
-    owners = [owner for owner, operator in laws.hamiltonians if asymmetry(lowering.terms(operator, owner))]
-    error_msg = (
-        f'The Hamiltonian of {", ".join(owners)} is not Hermitian. Add the adjoint of every non-Hermitian '
-        'term, such as `s.minus` for `s.plus`, to the law.'
-    )
-    raise ValidationError(error_msg)
-
-
-def _dissipator_terms(laws: _Laws, lowering: _Lowering, p: Vector) -> tuple[tuple[QuantumTerm, ...], ...]:
-    """Return the terms of every collapse operator scaled by the square root of its rate."""
-    collapses = []
-    for owner, operator, rate in laws.dissipators:
-        value = SR(rate)
-        initial = lowering.function(value, owner)(0.0, p) if value.variables() else complex(value)
-        if initial.real < 0 or abs(initial.imag) > REAL_TOLERANCE:
-            error_msg = f'The dissipator of {owner} has the rate {initial}, which is not a non-negative number.'
-            raise ValidationError(error_msg)
-        collapses.append(lowering.terms(operator * value.sqrt(), owner))
-    return tuple(collapses)
-
-
-def _system_initial(
-    system: System,
-    initial: object,
-    product: npt.NDArray[np.complex128],
-    ground: Callable[[], npt.NDArray[np.complex128]],
-) -> npt.NDArray[np.complex128]:
-    """Return the initial state of the whole system, the product of the elements' states unless one is given."""
-    if initial is None:
-        return product
-    if isinstance(initial, str):
-        if initial != 'ground':
-            error_msg = f"System {system.label!r} has initial = {initial!r}. Use 'ground', a vector, or a matrix."
-            raise ValidationError(error_msg)
-        return ground()
-    state = np.asarray(initial, dtype=complex)
-    size = product.size
-    if state.shape not in {(size,), (size, size)}:
-        error_msg = (
-            f'The initial state of {system.label!r} has shape {state.shape}, but its space has dimension {size}.'
-        )
+    expression = observable.expression
+    if not callable(expression):
+        error_msg = f'Observable {path} of a quantum group needs a function of a member namespace.'
         raise ValidationError(error_msg)
-    norm = float(np.linalg.norm(state)) if state.ndim == 1 else float(np.real(np.trace(state)))
-    if abs(norm - 1) > NORM_TOLERANCE:
-        quantity = 'norm' if state.ndim == 1 else 'trace'
-        error_msg = (
-            f'The initial state of system {system.label!r} has {quantity} {norm:.6g}, but states have {quantity} 1. '
-            'Normalise it.'
-        )
+    terms = [problem.operator_terms(_operator_of(path, expression(member)), path) for member in problem.members[group]]
+
+    def get(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
+        del done
+        values = np.asarray([problem.expect(item, t, x, p) for item in terms])
+        return reduce_values(values, observable.reduce)
+
+    return get
+
+
+def _operator_of(path: str, value: object) -> Operator:
+    """Return the operator an observable expression gives, after checking that it is one."""
+    if not isinstance(value, Operator):
+        error_msg = f'Observable {path} of a quantum system gives {value!r}, but it must give an operator.'
         raise ValidationError(error_msg)
-    if state.ndim == 2 and not np.allclose(state, state.conj().T, atol=NORM_TOLERANCE):  # noqa: PLR2004
-        error_msg = f'The initial density matrix of system {system.label!r} is not Hermitian.'
-        raise ValidationError(error_msg)
-    return state
+    return value
 
 
-def _namespaces(system: System, members: Mapping[str, tuple[Symbols, ...]], groups: set[str]) -> dict[str, Symbols]:
-    """Return the namespace of every system of the tree by path, with its quantum elements and child systems."""
-    namespaces: dict[str, Symbols] = {}
+def _expectation_getter(problem: QuantumProblem, terms: tuple[QuantumTerm, ...]) -> Getter:
+    """Return the getter of the expectation value of an operator."""
 
-    def build(current: System, scope: str) -> Symbols:
-        names: dict[str, Any] = {'t': symbol('t')}
-        for element in current.elements:
-            path = f'{scope}{element.label}'
-            names[element.label] = members[path] if path in groups else members[path][0]
-        for child in current.systems:
-            names[child.label] = build(child, f'{scope}{child.label}/')
-        namespace = Symbols(**names)
-        namespaces[scope.removesuffix('/')] = namespace
-        return namespace
+    def get(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
+        del done
+        return problem.expect(terms, t, x, p)
 
-    build(system, '')
-    return namespaces
+    return get
 
 
-def _subsystems_of(quantum: list[Node]) -> tuple[dict[str, _Subsystem], dict[str, Any]]:
-    """Return the subsystems of the quantum elements and groups in tensor product order, with their spaces."""
-    subsystems: dict[str, _Subsystem] = {}
-    spaces: dict[str, Any] = {}
-    for node in quantum:
-        for key, element in _members_of(node):
-            subsystems[key] = _Subsystem(key, element, len(subsystems))
-            spaces[key] = getattr(element.element, 'space', None) or node.space
-    return subsystems, spaces
+def _purity_getter(problem: QuantumProblem) -> Getter:
+    """Return the getter of the purity `Tr(rho^2)` of the state."""
 
+    def get(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
+        del t, p, done
+        state = problem.state_of(x)
+        return 1.0 if problem.pure else float(np.sum(np.abs(state) ** 2))
 
-def _arguments_of(entries: list[Entry], symbols: Mapping[str, Any]) -> dict[Expression, int]:
-    """Return the index in the parameter vector of every parameter symbol."""
-    arguments = {}
-    for entry in entries:
-        components = symbols[entry.name]
-        for offset, item in enumerate(components if entry.members is not None else [components]):
-            arguments[item] = entry.start + offset
-    return arguments
-
-
-def _element_laws(
-    quantum: list[Node],
-    symbols: Mapping[str, Any],
-    time: Expression,
-    laws: _Laws,
-) -> dict[str, tuple[Symbols, ...]]:
-    """Add the laws of every quantum element and member, and return the member namespaces by path."""
-    members: dict[str, tuple[Symbols, ...]] = {}
-    for node in quantum:
-        namespaces = []
-        for member, (key, element) in enumerate(_members_of(node)):
-            index = member if node.members is not None else None
-            namespace = Symbols(**element.namespace(key), **_parameter_symbols(node, symbols, index), t=time)
-            namespaces.append(namespace)
-            _collect_laws(laws, key, element.laws(namespace))
-        members[node.path] = tuple(namespaces)
-    return members
-
-
-def _stored_state(  # noqa: PLR0917
-    system: System,
-    initial: object,
-    subsystems: Mapping[str, _Subsystem],
-    hamiltonian: tuple[QuantumTerm, ...],
-    p: Vector,
-    is_open: bool,
-) -> npt.NDArray[np.complex128]:
-    """Return the initial state as stored, a vector for a closed pure state and a density matrix otherwise."""
-    product = np.ones(1, dtype=complex)
-    for item in subsystems.values():
-        product = np.kron(product, item.element.initial_vector())
-    size = product.size
-
-    def ground() -> npt.NDArray[np.complex128]:
-        matrix = _matrix_at(hamiltonian, 0.0, p, size)
-        return np.asarray(qutip.Qobj(matrix).groundstate(sparse=size > DENSE_LIMIT)[1].full().ravel())
-
-    state = _system_initial(system, initial, product, ground)
-    return np.outer(state, state.conj()) if is_open and state.ndim == 1 else state
-
-
-def _compiled_element(node: Node) -> CompiledElement:
-    """Return the compiled element of a quantum element or group, with no states in the state vector of its own."""
-    component = node.component
-    visual = component.visual if isinstance(component, Group) and component.visual else node.component_type.visual
-    parameters = {name: f'{node.path}.{name}' for name in declarations_of(node.component_type, VariableKind.PARAMETER)}
-    return CompiledElement(node.path, component, {}, parameters, visual, node.members)
-
-
-def _compiled_interaction(node: Node) -> CompiledInteraction:
-    """Return the compiled interaction of a quantum system with the paths its roles bind to."""
-    component = node.component
-    roles = {name: f'{node.scope}{getattr(component, name)}' for name in declarations_of(component, VariableKind.ROLE)}
-    return CompiledInteraction(node.path, component, roles)
+    return get
 
 
 def contains_quantum(system: System) -> bool:
@@ -946,54 +994,6 @@ def compile_quantum(
         lowering=lowering,
         hamiltonian_operator=total,
     )
-
-
-def _member_getter(problem: QuantumProblem, path: str, observable: Observable, group: str) -> Getter:
-    """Return the getter of a quantum observable evaluated member by member and reduced."""
-    if group not in problem.members:
-        error_msg = f'Observable {path} reduces {group}, which is not a quantum group of the system.'
-        raise ValidationError(error_msg)
-    expression = observable.expression
-    if not callable(expression):
-        error_msg = f'Observable {path} of a quantum group needs a function of a member namespace.'
-        raise ValidationError(error_msg)
-    terms = [problem.operator_terms(_operator_of(path, expression(member)), path) for member in problem.members[group]]
-
-    def get(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
-        del done
-        values = np.asarray([problem.expect(item, t, x, p) for item in terms])
-        return reduce_values(values, observable.reduce)
-
-    return get
-
-
-def _operator_of(path: str, value: object) -> Operator:
-    """Return the operator an observable expression gives, after checking that it is one."""
-    if not isinstance(value, Operator):
-        error_msg = f'Observable {path} of a quantum system gives {value!r}, but it must give an operator.'
-        raise ValidationError(error_msg)
-    return value
-
-
-def _expectation_getter(problem: QuantumProblem, terms: tuple[QuantumTerm, ...]) -> Getter:
-    """Return the getter of the expectation value of an operator."""
-
-    def get(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
-        del done
-        return problem.expect(terms, t, x, p)
-
-    return get
-
-
-def _purity_getter(problem: QuantumProblem) -> Getter:
-    """Return the getter of the purity `Tr(rho^2)` of the state."""
-
-    def get(t: float, x: Vector, p: Vector, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
-        del t, p, done
-        state = problem.state_of(x)
-        return 1.0 if problem.pure else float(np.sum(np.abs(state) ** 2))
-
-    return get
 
 
 def quantum_getters(problem: QuantumProblem, observables: Iterable[tuple[str, Observable]]) -> dict[str, Getter]:

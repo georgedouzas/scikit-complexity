@@ -35,6 +35,15 @@ def _limited(backward: Array, forward: Array, limiter: str | None) -> Array:
         return np.where(same, 2 * backward * forward / (backward + forward), 0.0)
 
 
+def _symbol(target: Expression, references: Mapping[Expression, Reference]) -> Expression:
+    """Return the member symbol of a flux target after checking it is a member state."""
+    reference = references.get(target)
+    if reference is None or not reference.is_state or reference.source is not Source.MEMBER:
+        error_msg = f'A flux targets {target}, which is not a state of a field.'
+        raise ValidationError(error_msg)
+    return target
+
+
 @dataclass(eq=False)
 class FiniteVolume:
     """Conservation laws of the states of one finite-volume field.
@@ -333,12 +342,3 @@ def compile_volumes(
         first.riemann,
         critical,
     )
-
-
-def _symbol(target: Expression, references: Mapping[Expression, Reference]) -> Expression:
-    """Return the member symbol of a flux target after checking it is a member state."""
-    reference = references.get(target)
-    if reference is None or not reference.is_state or reference.source is not Source.MEMBER:
-        error_msg = f'A flux targets {target}, which is not a state of a field.'
-        raise ValidationError(error_msg)
-    return target

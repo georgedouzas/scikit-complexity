@@ -20,6 +20,30 @@ from ._geometry import WordGeometry
 from ._laws import Affine, Letters, Prototile
 
 
+def structure_of(element_type: type) -> str | None:
+    """Return the kind of structure an element type rewrites, from the domain of its structured state.
+
+    Args:
+        element_type:
+            The element type.
+
+    Returns:
+        kind:
+            `'sequence'`, `'tiling'`, or `'graph'`, or `None` for a type without a structured state.
+
+    Examples:
+        >>> from skcomplex.core.formalisms.rewriting import Word, structure_of
+        >>> structure_of(Word)
+        'sequence'
+    """
+    if not (isinstance(element_type, type) and issubclass(element_type, Element)):
+        return None
+    for declaration in declarations_of(element_type, VariableKind.STATE).values():
+        if isinstance(declaration.domain, Structure):
+            return declaration.domain.kind
+    return None
+
+
 class Word(Element):
     """Element that holds a word of modules rewritten in parallel by string productions.
 
@@ -176,27 +200,3 @@ class HostGraph(Element):
         super().__init__(label, **values)
         self.max_size = max_size
         self.max_matches = max_matches
-
-
-def structure_of(element_type: type) -> str | None:
-    """Return the kind of structure an element type rewrites, from the domain of its structured state.
-
-    Args:
-        element_type:
-            The element type.
-
-    Returns:
-        kind:
-            `'sequence'`, `'tiling'`, or `'graph'`, or `None` for a type without a structured state.
-
-    Examples:
-        >>> from skcomplex.core.formalisms.rewriting import Word, structure_of
-        >>> structure_of(Word)
-        'sequence'
-    """
-    if not (isinstance(element_type, type) and issubclass(element_type, Element)):
-        return None
-    for declaration in declarations_of(element_type, VariableKind.STATE).values():
-        if isinstance(declaration.domain, Structure):
-            return declaration.domain.kind
-    return None

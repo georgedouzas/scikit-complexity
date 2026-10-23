@@ -29,6 +29,115 @@ OPERATOR_NAMES = ('laplacian', 'partial', 'upwind', 'inverse_laplacian')
 TIME = symbol('t')
 
 
+def _tag(offset: Offset | int) -> str:
+    """Return a name fragment for a lattice offset or a network neighbour slot."""
+    if isinstance(offset, int):
+        return f'k{offset}'
+    return '_'.join(f'{"m" if step < 0 else "p"}{abs(step)}' for step in offset)
+
+
+def _operator_calls(expression: Expression, name: str) -> list[Expression]:
+    """Return the calls of an operator by name inside an expression."""
+    found, stack = [], [SR(expression)]
+    while stack:
+        item = stack.pop()
+        if item.operator() is None:
+            continue
+        if getattr(item.operator(), 'name', lambda: '')() == name:
+            found.append(item)
+        stack.extend(item.operands())
+    return found
+
+
+@functools.cache
+def _mesh_matrices(
+    points: bytes,
+    cells: bytes,
+    shape: tuple[int, int],
+    cell_shape: tuple[int, int],
+) -> Any:  # noqa: ANN401
+    """Return the stiffness matrix and the lumped mass of a mesh, cached by its nodes and cells."""
+    from skfem import Basis, ElementTetP1, ElementTriP1, asm  # noqa: PLC0415  # only finite elements need scikit-fem
+    from skfem.models.poisson import laplace, mass  # noqa: PLC0415
+
+    nodes = np.frombuffer(points).reshape(shape)
+    elements = np.frombuffer(cells, dtype=np.int64).reshape(cell_shape)
+    space = Mesh(nodes, elements)
+    basis = Basis(space.skfem_mesh(), ElementTriP1() if shape[0] == 2 else ElementTetP1())  # noqa: PLR2004
+    stiffness = asm(laplace, basis).tocsr()
+    lumped = np.asarray(asm(mass, basis).sum(axis=1)).ravel()
+    return stiffness, lumped
+
+
+def spectral_apply(multiplier: npt.NDArray[np.complex128], dimensions: tuple[int, ...]) -> Callable[[Any], Any]:
+    """Return the function that applies a Fourier multiplier to the values of a periodic lattice.
+
+    Args:
+        multiplier:
+            The factor of every real Fourier mode.
+
+        dimensions:
+            The lattice shape.
+
+    Returns:
+        apply:
+            The function of the values at every site.
+    """
+
+    def apply(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+        transformed = np.fft.rfftn(np.reshape(values, dimensions)) * multiplier
+        return np.fft.irfftn(transformed, s=dimensions, axes=range(len(dimensions))).ravel()
+
+    return apply
+
+
+def has_operators(expression: object) -> bool:
+    """Check whether an expression applies a differential operator.
+
+    Args:
+        expression:
+            The expression.
+
+    Returns:
+        found:
+            Whether it calls `laplacian`, `partial`, `upwind`, or `inverse_laplacian`.
+    """
+    if not isinstance(expression, Expression):
+        return False
+    return bool(re.search(r'\b(laplacian|partial|upwind|inverse_laplacian)\(', str(expression)))
+
+
+def mesh_matrices(space: Mesh) -> tuple[Any, npt.NDArray[np.float64]]:
+    """Return the stiffness matrix and the lumped mass of the linear elements of a mesh.
+
+    Args:
+        space:
+            The mesh.
+
+    Returns:
+        matrices:
+            The stiffness matrix and the lumped mass of every node.
+    """
+    points = np.ascontiguousarray(np.asarray(space.points, dtype=float))
+    cells = np.ascontiguousarray(np.asarray(space.cells, dtype=np.int64))
+    return _mesh_matrices(points.tobytes(), cells.tobytes(), points.shape, cells.shape)
+
+
+def mesh_laplacian(space: Mesh) -> Any:  # noqa: ANN401
+    """Return the discrete Laplacian of linear elements with lumped mass, `-M^-1 K`, as a sparse matrix.
+
+    Args:
+        space:
+            The mesh.
+
+    Returns:
+        laplacian:
+            The sparse matrix that maps nodal values to the nodal Laplacian.
+    """
+    stiffness, lumped = mesh_matrices(space)
+    return -diags(1.0 / lumped) @ stiffness
+
+
 @dataclass(eq=False)
 class DerivedRead:
     """Value of a global operator, a spectral multiplier or a finite element matrix, applied to an expression.
@@ -83,35 +192,6 @@ class DerivedRead:
             self._function = numpy_function(symbol('t'), self.symbols, [self.operand])
         operand = np.broadcast_to(np.asarray(self._function(t, *values)[0], dtype=float), (size,))
         return self.apply(operand)
-
-
-def spectral_apply(multiplier: npt.NDArray[np.complex128], dimensions: tuple[int, ...]) -> Callable[[Any], Any]:
-    """Return the function that applies a Fourier multiplier to the values of a periodic lattice.
-
-    Args:
-        multiplier:
-            The factor of every real Fourier mode.
-
-        dimensions:
-            The lattice shape.
-
-    Returns:
-        apply:
-            The function of the values at every site.
-    """
-
-    def apply(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-        transformed = np.fft.rfftn(np.reshape(values, dimensions)) * multiplier
-        return np.fft.irfftn(transformed, s=dimensions, axes=range(len(dimensions))).ravel()
-
-    return apply
-
-
-def _tag(offset: Offset | int) -> str:
-    """Return a name fragment for a lattice offset or a network neighbour slot."""
-    if isinstance(offset, int):
-        return f'k{offset}'
-    return '_'.join(f'{"m" if step < 0 else "p"}{abs(step)}' for step in offset)
 
 
 @dataclass(frozen=True, eq=False)
@@ -471,83 +551,3 @@ class FieldLowering:
             if magnitude == 0:
                 continue
             self.limits.append(1 / (stiffness * magnitude))
-
-
-def _operator_calls(expression: Expression, name: str) -> list[Expression]:
-    """Return the calls of an operator by name inside an expression."""
-    found, stack = [], [SR(expression)]
-    while stack:
-        item = stack.pop()
-        if item.operator() is None:
-            continue
-        if getattr(item.operator(), 'name', lambda: '')() == name:
-            found.append(item)
-        stack.extend(item.operands())
-    return found
-
-
-def has_operators(expression: object) -> bool:
-    """Check whether an expression applies a differential operator.
-
-    Args:
-        expression:
-            The expression.
-
-    Returns:
-        found:
-            Whether it calls `laplacian`, `partial`, `upwind`, or `inverse_laplacian`.
-    """
-    if not isinstance(expression, Expression):
-        return False
-    return bool(re.search(r'\b(laplacian|partial|upwind|inverse_laplacian)\(', str(expression)))
-
-
-@functools.cache
-def _mesh_matrices(
-    points: bytes,
-    cells: bytes,
-    shape: tuple[int, int],
-    cell_shape: tuple[int, int],
-) -> Any:  # noqa: ANN401
-    """Return the stiffness matrix and the lumped mass of a mesh, cached by its nodes and cells."""
-    from skfem import Basis, ElementTetP1, ElementTriP1, asm  # noqa: PLC0415  # only finite elements need scikit-fem
-    from skfem.models.poisson import laplace, mass  # noqa: PLC0415
-
-    nodes = np.frombuffer(points).reshape(shape)
-    elements = np.frombuffer(cells, dtype=np.int64).reshape(cell_shape)
-    space = Mesh(nodes, elements)
-    basis = Basis(space.skfem_mesh(), ElementTriP1() if shape[0] == 2 else ElementTetP1())  # noqa: PLR2004
-    stiffness = asm(laplace, basis).tocsr()
-    lumped = np.asarray(asm(mass, basis).sum(axis=1)).ravel()
-    return stiffness, lumped
-
-
-def mesh_matrices(space: Mesh) -> tuple[Any, npt.NDArray[np.float64]]:
-    """Return the stiffness matrix and the lumped mass of the linear elements of a mesh.
-
-    Args:
-        space:
-            The mesh.
-
-    Returns:
-        matrices:
-            The stiffness matrix and the lumped mass of every node.
-    """
-    points = np.ascontiguousarray(np.asarray(space.points, dtype=float))
-    cells = np.ascontiguousarray(np.asarray(space.cells, dtype=np.int64))
-    return _mesh_matrices(points.tobytes(), cells.tobytes(), points.shape, cells.shape)
-
-
-def mesh_laplacian(space: Mesh) -> Any:  # noqa: ANN401
-    """Return the discrete Laplacian of linear elements with lumped mass, `-M^-1 K`, as a sparse matrix.
-
-    Args:
-        space:
-            The mesh.
-
-    Returns:
-        laplacian:
-            The sparse matrix that maps nodal values to the nodal Laplacian.
-    """
-    stiffness, lumped = mesh_matrices(space)
-    return -diags(1.0 / lumped) @ stiffness

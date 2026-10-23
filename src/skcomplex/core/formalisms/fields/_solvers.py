@@ -84,28 +84,6 @@ def _lattice_operator(name: str, axis: int, place: Any, reference: Any) -> csr_m
     raise SolverError(error_msg)
 
 
-@dataclass
-class _SpectralBlock:
-    """Linear terms of the states of one spectral field, a small matrix per Fourier mode."""
-
-    dimensions: tuple[int, ...]
-    rows: list[npt.NDArray[np.intp]]
-    matrix: Complex
-
-    def transform(self, x: Vector) -> Complex:
-        """Return the Fourier modes of every state of the block, stacked on the last axis."""
-        return np.stack([np.fft.rfftn(np.reshape(x[rows], self.dimensions)) for rows in self.rows], axis=-1)
-
-    def inverse(self, modes: Complex, out: Vector) -> None:
-        """Write the states of Fourier modes stacked on the last axis."""
-        for index, rows in enumerate(self.rows):
-            out[rows] = np.fft.irfftn(modes[..., index], s=self.dimensions, axes=range(len(self.dimensions))).ravel()
-
-    def apply(self, operator: Complex, x: Vector, out: Vector) -> None:
-        """Write a matrix of every mode applied to the block's states."""
-        self.inverse(np.einsum('...ij,...j->...i', operator, self.transform(x)), out)
-
-
 def _term_matrix(term: Any, coefficient: Any) -> csr_matrix:  # noqa: ANN401
     """Return the sparse matrix of a linear term of a finite-difference or finite element field."""
     place = term.place
@@ -159,111 +137,50 @@ def _spectral_block(terms: list[tuple[Any, complex]]) -> '_SpectralBlock':
     return _SpectralBlock(dimensions, [_rows(reference) for reference in states.values()], matrix)
 
 
-@dataclass
-class SplitOperator:
-    """Linear part of the rates of a problem, in Fourier blocks for spectral fields and a sparse matrix otherwise.
-
-    Args:
-        size:
-            The size of the state vector.
-
-        blocks:
-            The spectral blocks.
-
-        sparse:
-            The sparse matrix of the other linear terms, over the whole state vector.
-
-        covered:
-            The state indices of the spectral blocks.
-    """
-
-    size: int
-    blocks: list[_SpectralBlock] = field(default_factory=list)
-    sparse: csr_matrix | None = None
-    covered: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
-    _solvers: dict[float, Any] = field(default_factory=dict, repr=False)
-
-    @classmethod
-    def build(cls, problem: Problem, p: Vector) -> 'SplitOperator':
-        """Return the linear part of a problem's rates at parameter values.
-
-        Args:
-            problem:
-                The compiled problem.
-
-            p:
-                The parameter vector.
-
-        Returns:
-            operator:
-                The linear part.
-        """
-        operator = cls(problem.states.size)
-        groups: dict[int, list[Any]] = {}
-        triplets: list[tuple[Any, Any, csr_matrix]] = []
-        for term in problem.linear:
-            coefficient = _coefficient(term, p)
-            if term.place.discretization != 'spectral':
-                triplets.append((term.target, term.source, _term_matrix(term, coefficient)))
-            elif not np.ndim(coefficient) or np.ptp(coefficient) == 0:
-                groups.setdefault(id(term.place), []).append((term, complex(np.ravel(coefficient)[0])))
-        operator.sparse = _sparse(triplets, problem)
-        operator.blocks = [_spectral_block(terms) for terms in groups.values()]
-        rows = [row for block in operator.blocks for row in block.rows]
-        operator.covered = np.concatenate([np.zeros(0, dtype=np.intp), *rows]).astype(np.intp)
-        return operator
-
-    def apply(self, x: Vector) -> Vector:
-        """Return the linear part applied to a state vector.
-
-        Args:
-            x:
-                The state vector.
-
-        Returns:
-            values:
-                The linear part of the rates.
-        """
-        out = np.zeros(self.size)
-        if self.sparse is not None:
-            out += self.sparse @ x
-        for block in self.blocks:
-            block.apply(block.matrix, x, out)
-        return out
-
-    def solve(self, factor: float, rhs: Vector) -> Vector:
-        """Return the solution `y` of `(I - factor L) y = rhs`.
-
-        Args:
-            factor:
-                The factor of the linear part, such as the step for implicit Euler.
-
-            rhs:
-                The right-hand side.
-
-        Returns:
-            solution:
-                The solution.
-        """
-        if factor not in self._solvers:
-            sparse = None
-            if self.sparse is not None:
-                sparse = splu((identity(self.size, format='csc') - factor * self.sparse).tocsc())
-            inverses = [np.linalg.inv(np.eye(block.matrix.shape[-1]) - factor * block.matrix) for block in self.blocks]
-            self._solvers[factor] = (sparse, inverses)
-        sparse, inverses = self._solvers[factor]
-        out = sparse.solve(rhs) if sparse is not None else rhs.copy()
-        for block, inverse in zip(self.blocks, inverses, strict=True):
-            block.apply(inverse, rhs, out)
-        return out
-
-
 def _mesh_operator(space: Mesh, name: str) -> csr_matrix:
     """Return the finite element Laplacian of a mesh."""
     if name != 'laplacian':
         error_msg = f'Only Laplacians act on finite element fields, but a term takes the {name}.'
         raise SolverError(error_msg)
     return mesh_laplacian(space)
+
+
+def _phi(z: Complex, h: float) -> list[Complex]:
+    """Return `e^z`, `e^(z/2)`, and the coefficients `Q`, `f1`, `f2`, `f3` of ETDRK4 by contour integrals.
+
+    The integrals average over a full circle of radius 1 around every eigenvalue, which avoids the cancellation of the
+    formulas near zero for complex eigenvalues as well as real ones.
+    """
+    roots = np.exp(2j * np.pi * (np.arange(1, CONTOUR_POINTS + 1) - 0.5) / CONTOUR_POINTS)
+    points = z[..., None] + roots
+    exponential = np.exp(points)
+    q = h * np.mean((np.exp(points / 2) - 1) / points, axis=-1)
+    f1 = h * np.mean((-4 - points + exponential * (4 - 3 * points + points**2)) / points**3, axis=-1)
+    f2 = h * np.mean((2 + points + exponential * (-2 + points)) / points**3, axis=-1)
+    f3 = h * np.mean((-4 - 3 * points - points**2 + exponential * (4 - points)) / points**3, axis=-1)
+    return [np.exp(z), np.exp(z / 2), q, f1, f2, f3]
+
+
+@dataclass
+class _SpectralBlock:
+    """Linear terms of the states of one spectral field, a small matrix per Fourier mode."""
+
+    dimensions: tuple[int, ...]
+    rows: list[npt.NDArray[np.intp]]
+    matrix: Complex
+
+    def transform(self, x: Vector) -> Complex:
+        """Return the Fourier modes of every state of the block, stacked on the last axis."""
+        return np.stack([np.fft.rfftn(np.reshape(x[rows], self.dimensions)) for rows in self.rows], axis=-1)
+
+    def inverse(self, modes: Complex, out: Vector) -> None:
+        """Write the states of Fourier modes stacked on the last axis."""
+        for index, rows in enumerate(self.rows):
+            out[rows] = np.fft.irfftn(modes[..., index], s=self.dimensions, axes=range(len(self.dimensions))).ravel()
+
+    def apply(self, operator: Complex, x: Vector, out: Vector) -> None:
+        """Write a matrix of every mode applied to the block's states."""
+        self.inverse(np.einsum('...ij,...j->...i', operator, self.transform(x)), out)
 
 
 class _SplitStepper(Stepper):
@@ -384,6 +301,105 @@ class _SplitStepper(Stepper):
         return state
 
 
+@dataclass
+class SplitOperator:
+    """Linear part of the rates of a problem, in Fourier blocks for spectral fields and a sparse matrix otherwise.
+
+    Args:
+        size:
+            The size of the state vector.
+
+        blocks:
+            The spectral blocks.
+
+        sparse:
+            The sparse matrix of the other linear terms, over the whole state vector.
+
+        covered:
+            The state indices of the spectral blocks.
+    """
+
+    size: int
+    blocks: list[_SpectralBlock] = field(default_factory=list)
+    sparse: csr_matrix | None = None
+    covered: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
+    _solvers: dict[float, Any] = field(default_factory=dict, repr=False)
+
+    @classmethod
+    def build(cls, problem: Problem, p: Vector) -> 'SplitOperator':
+        """Return the linear part of a problem's rates at parameter values.
+
+        Args:
+            problem:
+                The compiled problem.
+
+            p:
+                The parameter vector.
+
+        Returns:
+            operator:
+                The linear part.
+        """
+        operator = cls(problem.states.size)
+        groups: dict[int, list[Any]] = {}
+        triplets: list[tuple[Any, Any, csr_matrix]] = []
+        for term in problem.linear:
+            coefficient = _coefficient(term, p)
+            if term.place.discretization != 'spectral':
+                triplets.append((term.target, term.source, _term_matrix(term, coefficient)))
+            elif not np.ndim(coefficient) or np.ptp(coefficient) == 0:
+                groups.setdefault(id(term.place), []).append((term, complex(np.ravel(coefficient)[0])))
+        operator.sparse = _sparse(triplets, problem)
+        operator.blocks = [_spectral_block(terms) for terms in groups.values()]
+        rows = [row for block in operator.blocks for row in block.rows]
+        operator.covered = np.concatenate([np.zeros(0, dtype=np.intp), *rows]).astype(np.intp)
+        return operator
+
+    def apply(self, x: Vector) -> Vector:
+        """Return the linear part applied to a state vector.
+
+        Args:
+            x:
+                The state vector.
+
+        Returns:
+            values:
+                The linear part of the rates.
+        """
+        out = np.zeros(self.size)
+        if self.sparse is not None:
+            out += self.sparse @ x
+        for block in self.blocks:
+            block.apply(block.matrix, x, out)
+        return out
+
+    def solve(self, factor: float, rhs: Vector) -> Vector:
+        """Return the solution `y` of `(I - factor L) y = rhs`.
+
+        Args:
+            factor:
+                The factor of the linear part, such as the step for implicit Euler.
+
+            rhs:
+                The right-hand side.
+
+        Returns:
+            solution:
+                The solution.
+        """
+        if factor not in self._solvers:
+            sparse = None
+            if self.sparse is not None:
+                sparse = splu((identity(self.size, format='csc') - factor * self.sparse).tocsc())
+            inverses = [np.linalg.inv(np.eye(block.matrix.shape[-1]) - factor * block.matrix) for block in self.blocks]
+            self._solvers[factor] = (sparse, inverses)
+        sparse, inverses = self._solvers[factor]
+        out = sparse.solve(rhs) if sparse is not None else rhs.copy()
+        for block, inverse in zip(self.blocks, inverses, strict=True):
+            block.apply(inverse, rhs, out)
+        return out
+
+
 class IMEXEuler(_SplitStepper):
     """Implicit-explicit Euler: the linear part implicit and the nonlinear remainder explicit, of first order.
 
@@ -468,22 +484,6 @@ class CrankNicolson(_SplitStepper):
         predicted = self.operator_.solve(h / 2, explicit + h * start)
         average = (start + self._remainder(t + h, predicted, p)) / 2
         return self.operator_.solve(h / 2, explicit + h * average)
-
-
-def _phi(z: Complex, h: float) -> list[Complex]:
-    """Return `e^z`, `e^(z/2)`, and the coefficients `Q`, `f1`, `f2`, `f3` of ETDRK4 by contour integrals.
-
-    The integrals average over a full circle of radius 1 around every eigenvalue, which avoids the cancellation of the
-    formulas near zero for complex eigenvalues as well as real ones.
-    """
-    roots = np.exp(2j * np.pi * (np.arange(1, CONTOUR_POINTS + 1) - 0.5) / CONTOUR_POINTS)
-    points = z[..., None] + roots
-    exponential = np.exp(points)
-    q = h * np.mean((np.exp(points / 2) - 1) / points, axis=-1)
-    f1 = h * np.mean((-4 - points + exponential * (4 - 3 * points + points**2)) / points**3, axis=-1)
-    f2 = h * np.mean((2 + points + exponential * (-2 + points)) / points**3, axis=-1)
-    f3 = h * np.mean((-4 - 3 * points - points**2 + exponential * (4 - points)) / points**3, axis=-1)
-    return [np.exp(z), np.exp(z / 2), q, f1, f2, f3]
 
 
 class ETDRK4(_SplitStepper):

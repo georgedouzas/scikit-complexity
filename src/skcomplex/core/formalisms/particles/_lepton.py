@@ -49,39 +49,6 @@ LEPTON = Dialect(
 )
 
 
-class LeptonPrinter:
-    """Printer of Sage expressions as Lepton expressions, with `^` for powers and Lepton function names.
-
-    Conditions become `step` and `select`, and remainders become `floor`, because Lepton has neither comparisons nor
-    a remainder.
-
-    Examples:
-        >>> from sage.all__sagemath_symbolics import exp
-        >>> from skcomplex.core.formalisms.particles._lepton import LeptonPrinter
-        >>> from skcomplex.core.base import symbol
-        >>> r = symbol('r')
-        >>> LeptonPrinter().doprint(2 * exp(-r / 3) + r**2)
-        'r^2 + 2*exp(-r/3)'
-    """
-
-    def doprint(self, expression: Expression) -> str:
-        """Return the Lepton code of an expression.
-
-        Args:
-            expression:
-                The expression.
-
-        Returns:
-            code:
-                The Lepton code.
-
-        Raises:
-            BackendError:
-                The expression uses a function Lepton does not know.
-        """
-        return print_expressions([expression], LEPTON, shared=False)[1][0]
-
-
 def lepton_expression(expression: Expression, distance: Expression) -> str:
     """Return a pair energy as a Lepton expression of the distance `r`.
 
@@ -114,3 +81,36 @@ def lepton_expression(expression: Expression, distance: Expression) -> str:
         error_msg = f'The pair energy depends on {names}, which have no value for LAMMPS.'
         raise BackendError(error_msg)
     return LeptonPrinter().doprint(expression.subs({distance: symbol('r', Domain.POSITIVE)}).expand())
+
+
+class LeptonPrinter:
+    """Printer of Sage expressions as Lepton expressions, with `^` for powers and Lepton function names.
+
+    Conditions become `step` and `select`, and remainders become `floor`, because Lepton has neither comparisons nor
+    a remainder.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import exp
+        >>> from skcomplex.core.formalisms.particles._lepton import LeptonPrinter
+        >>> from skcomplex.core.base import symbol
+        >>> r = symbol('r')
+        >>> LeptonPrinter().doprint(2 * exp(-r / 3) + r**2)
+        'r^2 + 2*exp(-r/3)'
+    """
+
+    def doprint(self, expression: Expression) -> str:
+        """Return the Lepton code of an expression.
+
+        Args:
+            expression:
+                The expression.
+
+        Returns:
+            code:
+                The Lepton code.
+
+        Raises:
+            BackendError:
+                The expression uses a function Lepton does not know.
+        """
+        return print_expressions([expression], LEPTON, shared=False)[1][0]

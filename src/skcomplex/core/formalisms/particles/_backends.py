@@ -44,89 +44,10 @@ LAMMPS_ARGUMENTS = ['-screen', 'none', '-log', 'none', '-nocite']
 DIMENSIONS = ('x', 'y', 'z')
 MAX_SEED = 900_000_000
 SUPPORTED_DIMENSIONS = (2, 3)
-
-
-@dataclass(frozen=True)
-class LammpsFix:
-    """Values the native fix of an interaction reads when the LAMMPS backend writes its command.
-
-    Args:
-        name:
-            The unique name of the fix.
-
-        group:
-            The LAMMPS group of the atoms the fix acts on.
-
-        value:
-            The function that returns the current value of a parameter of the interaction by name.
-
-        mass:
-            The function that returns the mass of the atoms of the interaction's target.
-
-        seed:
-            The function that draws a random seed.
-    """
-
-    name: str
-    group: str
-    value: Callable[[str], Vector]
-    mass: Callable[[], float]
-    seed: Callable[[], int]
-
-
 type PairArguments = Callable[[Callable[[str], Vector]], str]
 type FixCommand = Callable[[LammpsFix], str]
-
 NATIVE_PAIRS: dict[type[Interaction], tuple[str, PairArguments]] = {}
 NATIVE_FIXES: dict[type[Interaction], FixCommand] = {}
-
-
-def register_lammps_pair(interaction: type[PairPotential], style: str, arguments: PairArguments) -> None:
-    """Register the native LAMMPS pair style of a pair potential, which the backend uses instead of Lepton.
-
-    Args:
-        interaction:
-            The pair potential class.
-
-        style:
-            The LAMMPS pair style, such as `'lj/cut'`.
-
-        arguments:
-            The function of the parameter values that returns the coefficients of `pair_coeff`, without the cutoff,
-            which the backend appends.
-
-    Examples:
-        >>> from skcomplex.core.formalisms.particles import NATIVE_PAIRS, PairPotential, register_lammps_pair
-        >>> class Flat(PairPotential):
-        ...     def pair_energy(self, s, r):
-        ...         return 0 * r
-        >>> register_lammps_pair(Flat, 'zero', lambda value: '')
-        >>> NATIVE_PAIRS[Flat][0]
-        'zero'
-    """
-    NATIVE_PAIRS[interaction] = (style, arguments)
-
-
-def register_lammps_fix(interaction: type[Interaction], command: FixCommand) -> None:
-    """Register the native LAMMPS fix of an interaction, which the backend uses instead of `fix external`.
-
-    Args:
-        interaction:
-            The interaction class.
-
-        command:
-            The function of the values of the fix that returns its LAMMPS command.
-
-    Examples:
-        >>> from skcomplex.core.formalisms.particles import NATIVE_FIXES, register_lammps_fix
-        >>> from skcomplex.core.interactions import Interaction
-        >>> class Push(Interaction):
-        ...     pass
-        >>> register_lammps_fix(Push, lambda fix: f'fix {fix.name} {fix.group} addforce 1.0 0.0 0.0')
-        >>> Push in NATIVE_FIXES
-        True
-    """
-    NATIVE_FIXES[interaction] = command
 
 
 def _native[T](table: dict[type[Interaction], T], interaction: Interaction) -> T | None:
@@ -139,6 +60,12 @@ def _is_native(interaction: Interaction) -> bool:
     return isinstance(interaction, PairPotential) or _native(NATIVE_FIXES, interaction) is not None
 
 
+def _state_indices(problem: Problem, name: str) -> npt.NDArray[np.intp]:
+    """Return the flat indices of a vector state as one row per member."""
+    entry = problem.states.entry(name)
+    return (entry.start + np.arange(entry.size)).reshape(entry.rows, entry.columns)
+
+
 @dataclass
 class _Atoms:
     """Particle elements and groups as LAMMPS atom types, with the flat state indices of every atom."""
@@ -149,12 +76,6 @@ class _Atoms:
     velocities: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros((0, 0), dtype=np.intp))
     atom_types: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
     n_dim: int = 0
-
-
-def _state_indices(problem: Problem, name: str) -> npt.NDArray[np.intp]:
-    """Return the flat indices of a vector state as one row per member."""
-    entry = problem.states.entry(name)
-    return (entry.start + np.arange(entry.size)).reshape(entry.rows, entry.columns)
 
 
 def _atoms_of(problem: Problem) -> _Atoms:
@@ -232,6 +153,82 @@ def _box(problem: Problem) -> ContinuousSpace | None:
     """Return the continuous space of a problem when it is a box with walls or joined sides, or `None`."""
     space = getattr(problem.system, 'space', None)
     return space if isinstance(space, ContinuousSpace) and space.boundary != 'open' else None
+
+
+def register_lammps_pair(interaction: type[PairPotential], style: str, arguments: PairArguments) -> None:
+    """Register the native LAMMPS pair style of a pair potential, which the backend uses instead of Lepton.
+
+    Args:
+        interaction:
+            The pair potential class.
+
+        style:
+            The LAMMPS pair style, such as `'lj/cut'`.
+
+        arguments:
+            The function of the parameter values that returns the coefficients of `pair_coeff`, without the cutoff,
+            which the backend appends.
+
+    Examples:
+        >>> from skcomplex.core.formalisms.particles import NATIVE_PAIRS, PairPotential, register_lammps_pair
+        >>> class Flat(PairPotential):
+        ...     def pair_energy(self, s, r):
+        ...         return 0 * r
+        >>> register_lammps_pair(Flat, 'zero', lambda value: '')
+        >>> NATIVE_PAIRS[Flat][0]
+        'zero'
+    """
+    NATIVE_PAIRS[interaction] = (style, arguments)
+
+
+def register_lammps_fix(interaction: type[Interaction], command: FixCommand) -> None:
+    """Register the native LAMMPS fix of an interaction, which the backend uses instead of `fix external`.
+
+    Args:
+        interaction:
+            The interaction class.
+
+        command:
+            The function of the values of the fix that returns its LAMMPS command.
+
+    Examples:
+        >>> from skcomplex.core.formalisms.particles import NATIVE_FIXES, register_lammps_fix
+        >>> from skcomplex.core.interactions import Interaction
+        >>> class Push(Interaction):
+        ...     pass
+        >>> register_lammps_fix(Push, lambda fix: f'fix {fix.name} {fix.group} addforce 1.0 0.0 0.0')
+        >>> Push in NATIVE_FIXES
+        True
+    """
+    NATIVE_FIXES[interaction] = command
+
+
+@dataclass(frozen=True)
+class LammpsFix:
+    """Values the native fix of an interaction reads when the LAMMPS backend writes its command.
+
+    Args:
+        name:
+            The unique name of the fix.
+
+        group:
+            The LAMMPS group of the atoms the fix acts on.
+
+        value:
+            The function that returns the current value of a parameter of the interaction by name.
+
+        mass:
+            The function that returns the mass of the atoms of the interaction's target.
+
+        seed:
+            The function that draws a random seed.
+    """
+
+    name: str
+    group: str
+    value: Callable[[str], Vector]
+    mass: Callable[[], float]
+    seed: Callable[[], int]
 
 
 class LammpsBackend(ExternalBackend):

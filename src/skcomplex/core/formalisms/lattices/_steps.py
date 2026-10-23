@@ -28,6 +28,7 @@ type Sites = SiteSpace | NetworkSpace
 
 LOOKUP_KINDS = {'table': 0, 'totalistic': 1, 'outer': 2}
 COLORING_STRATEGY = 'largest_first'
+type LatticeStep = CompiledRule | CompiledDrive | CompiledRelaxation | CompiledMonteCarlo | CompiledExtremal
 
 
 def _shape_of(space: Sites) -> tuple[int, ...]:
@@ -74,32 +75,149 @@ def _color_classes(table: Indices) -> tuple[Indices, ...]:
     return tuple(np.flatnonzero(found == color) for color in range(int(found.max(initial=-1)) + 1))
 
 
+def _accepted(function: Callable[..., Any], names: Sequence[str]) -> tuple[str, ...]:
+    """Return the keyword names a function accepts among some names."""
+    try:
+        signature = inspect.signature(function)
+    except (TypeError, ValueError):
+        return tuple(names)
+    parameters = signature.parameters.values()
+    if any(item.kind is inspect.Parameter.VAR_KEYWORD for item in parameters):
+        return tuple(names)
+    keywords = {item.name for item in parameters if item.kind in {item.KEYWORD_ONLY, item.POSITIONAL_OR_KEYWORD}}
+    return tuple(name for name in names if name in keywords)
+
+
+@functools.cache
+def _sublattices(space: LatticeSpace) -> tuple[Indices, Indices]:
+    """Return the sites of even and of odd coordinate sum."""
+    colors = np.indices(space.dimensions).reshape(space.n_dim, -1).sum(axis=0) % 2
+    return np.flatnonzero(colors == 0), np.flatnonzero(colors == 1)
+
+
+def _check_checkerboard(space: Sites, neighborhood: Neighborhood | Adjacency | Memory, owner: str) -> LatticeSpace:
+    """Return the square lattice of a checkerboard update, or raise an error when neighbours could change together."""
+    if not isinstance(space, LatticeSpace) or space.geometry != 'square' or not isinstance(neighborhood, Neighborhood):
+        error_msg = (
+            f"{owner} uses a checkerboard schedule, which needs a square lattice. Use the 'colored' schedule, which "
+            'updates the classes of a proper coloring of the neighbour graph in turn.'
+        )
+        raise ValidationError(error_msg)
+    odd = all(sum(offset) % 2 for offset in neighborhood.offsets)
+    even = space.boundary != 'periodic' or all(size % 2 == 0 for size in space.dimensions)
+    if not (odd and even):
+        error_msg = (
+            f'{owner} uses a checkerboard schedule, which needs neighbours on the other sublattice and even sizes on '
+            "periodic lattices. Use the 'random-sequential' schedule instead."
+        )
+        raise ValidationError(error_msg)
+    return space
+
+
+@numba.njit(cache=True)
+def _fused_lookup(  # noqa: PLR0917
+    values: Vector,
+    centers: Vector,
+    fill: float,
+    table: Indices,
+    kind: int,
+    base: int,
+    lookup: Vector,
+    columns: int,
+) -> Vector:
+    """Return the next values of a lookup rule at every site in one compiled loop."""
+    n_sites, n_offsets = table.shape
+    following = np.empty(n_sites)
+    for site in range(n_sites):
+        code = 0
+        total = 0.0
+        for offset in range(n_offsets):
+            neighbour = table[site, offset]
+            value = values[neighbour] if neighbour < n_sites else fill
+            code = code * base + int(value)
+            total += value
+        if kind == 0:
+            following[site] = lookup[code]
+        elif kind == 1:
+            following[site] = lookup[int(total)]
+        else:
+            following[site] = lookup[int(centers[site]) * columns + int(total)]
+    return following
+
+
+def _as_table(rule: object) -> object:
+    """Return a rule code as its table, through its `table()` method, and any other rule unchanged."""
+    convert = getattr(rule, 'table', None)
+    return convert() if not callable(rule) and callable(convert) else rule
+
+
 @dataclass(frozen=True)
-class RelaxationRecord:
-    """Relaxation of a lattice within one step, such as an avalanche.
+class Lookup:
+    """Lookup array of a table or totalistic rule.
 
     Args:
-        label:
-            The label of the relaxation.
+        kind:
+            `'table'`, `'totalistic'`, or `'outer'`.
 
-        time:
-            The time of the step.
+        base:
+            The number of state values.
 
-        size:
-            The number of site updates.
+        values:
+            The next value by pattern code, by sum, or by cell value and sum in row-major order.
 
-        duration:
-            The number of relaxation iterations.
-
-        area:
-            The number of distinct sites that changed.
+        columns:
+            The number of sums of an outer totalistic rule.
     """
 
-    label: str
-    time: float
-    size: int
-    duration: int
-    area: int
+    kind: str
+    base: int
+    values: Vector
+    columns: int = 1
+
+
+def _lookup_of(rule: object, n_offsets: int, owner: str) -> Lookup | None:
+    """Return the lookup array of a table or totalistic rule, or `None` for a function rule."""
+    if isinstance(rule, Table):
+        base = int(rule.states)  # type: ignore[arg-type]
+        values = np.full(base**n_offsets, float(rule.default))
+        for pattern, value in rule.mapping.items():
+            if len(pattern) != n_offsets:
+                error_msg = f'{owner} has a table pattern {pattern} for a neighbourhood of {n_offsets} cells.'
+                raise ValidationError(error_msg)
+            values[int(np.ravel_multi_index(tuple(int(item) for item in pattern), (base,) * n_offsets))] = value
+        return Lookup('table', base, values)
+    if isinstance(rule, Totalistic | OuterTotalistic):
+        sums = np.arange(n_offsets * (rule.states - 1) + 1)
+        if isinstance(rule, Totalistic):
+            if callable(rule.rule):
+                values = np.broadcast_to(np.asarray(rule.rule(sums), dtype=float), sums.shape).copy()
+            else:
+                values = np.asarray([float(rule.rule.get(int(total), rule.default)) for total in sums])
+            return Lookup('totalistic', rule.states, values)
+        centers = np.arange(rule.states)[:, None]
+        if callable(rule.rule):
+            grid = np.broadcast_to(np.asarray(rule.rule(centers, sums[None, :]), dtype=float), (rule.states, sums.size))
+        else:
+            grid = np.asarray(
+                [
+                    [float(rule.rule.get((int(center), int(total)), rule.default)) for total in sums]
+                    for center in range(rule.states)
+                ],
+            )
+        return Lookup('outer', rule.states, grid.ravel().copy(), sums.size)
+    return None
+
+
+def _extremal_members(table: Indices) -> tuple[Indices, Indices]:
+    """Return every site followed by its real neighbours without duplicates, padded with -1, and their counts."""
+    size, width = table.shape
+    members = np.full((size, width + 1), -1, dtype=np.intp)
+    counts = np.zeros(size, dtype=np.intp)
+    for site in range(size):
+        unique = list(dict.fromkeys([site, *(int(item) for item in table[site] if item != size)]))
+        members[site, : len(unique)] = unique
+        counts[site] = len(unique)
+    return members, counts
 
 
 @dataclass(frozen=True)
@@ -182,137 +300,87 @@ class Arguments:
         return found
 
 
-def _accepted(function: Callable[..., Any], names: Sequence[str]) -> tuple[str, ...]:
-    """Return the keyword names a function accepts among some names."""
+def _extremal_source(targets: tuple[LatticeState, ...], key: LatticeState, maximum: bool, arguments: Arguments) -> str:
+    """Return the source of the compiled loop of the applications of an extremal law."""
+    values = ', '.join(f'x[{state.start} + sites]' for state in targets)
+    keywords = ''.join(
+        f', {name}=p[{start}]' if size == 1 else f', {name}=p[{start}:{start + size}][sites]'
+        for name, start, size in zip(arguments.names, arguments.starts, arguments.sizes, strict=True)
+    )
+    if len(targets) == 1:
+        assign = f'        x[{targets[0].start} + sites] = result\n'
+    else:
+        assign = ''.join(f'        x[{state.start} + sites] = result[{index}]\n' for index, state in enumerate(targets))
+    return (
+        'def loop(x, p, rng, members, counts, repeat, sites_out, values_out):\n'
+        '    for application in range(repeat):\n'
+        f'        keys = x[{key.start}:{key.start + key.size}]\n'
+        f'        best = keys.{"max" if maximum else "min"}()\n'
+        '        ties = np.flatnonzero(keys == best)\n'
+        '        site = ties[rng.integers(0, ties.size)] if ties.size > 1 else ties[0]\n'
+        '        sites = members[site, : counts[site]]\n'
+        '        random = rng.random(sites.size)\n'
+        f'        result = rule({values}, random=random{keywords})\n'
+        f'{assign}'
+        '        sites_out[application] = site\n'
+        '        values_out[application] = best\n'
+    )
+
+
+def _compiles_in_numba(rule: Callable[..., Any]) -> bool:
+    """Check whether a rule takes its arguments by position or keyword only, the form Numba compiles."""
     try:
-        signature = inspect.signature(function)
+        parameters = inspect.signature(rule).parameters.values()
     except (TypeError, ValueError):
-        return tuple(names)
-    parameters = signature.parameters.values()
-    if any(item.kind is inspect.Parameter.VAR_KEYWORD for item in parameters):
-        return tuple(names)
-    keywords = {item.name for item in parameters if item.kind in {item.KEYWORD_ONLY, item.POSITIONAL_OR_KEYWORD}}
-    return tuple(name for name in names if name in keywords)
+        return False
+    return all(item.kind is inspect.Parameter.POSITIONAL_OR_KEYWORD for item in parameters)
 
 
-@functools.cache
-def _sublattices(space: LatticeSpace) -> tuple[Indices, Indices]:
-    """Return the sites of even and of odd coordinate sum."""
-    colors = np.indices(space.dimensions).reshape(space.n_dim, -1).sum(axis=0) % 2
-    return np.flatnonzero(colors == 0), np.flatnonzero(colors == 1)
-
-
-def _check_checkerboard(space: Sites, neighborhood: Neighborhood | Adjacency | Memory, owner: str) -> LatticeSpace:
-    """Return the square lattice of a checkerboard update, or raise an error when neighbours could change together."""
-    if not isinstance(space, LatticeSpace) or space.geometry != 'square' or not isinstance(neighborhood, Neighborhood):
-        error_msg = (
-            f"{owner} uses a checkerboard schedule, which needs a square lattice. Use the 'colored' schedule, which "
-            'updates the classes of a proper coloring of the neighbour graph in turn.'
+def _extremal_loop(
+    rule: Callable[..., Any],
+    targets: tuple[LatticeState, ...],
+    key: LatticeState,
+    maximum: bool,
+    arguments: Arguments,
+) -> Callable[..., None] | None:
+    """Return the compiled loop of the applications of an extremal law, or `None` when Numba cannot compile the rule."""
+    if not _compiles_in_numba(rule):
+        return None
+    namespace: dict[str, Any] = {'np': np, 'rule': numba.njit(error_model='numpy')(rule)}
+    source = _extremal_source(targets, key, maximum, arguments)
+    exec(source, namespace)  # noqa: S102  # nosec B102: runs the loop source generated above
+    loop = numba.njit(namespace['loop'])
+    end = max(state.start + state.size for state in (*targets, key))
+    width = max((start + size for start, size in zip(arguments.starts, arguments.sizes, strict=True)), default=1)
+    try:
+        loop(
+            np.zeros(end),
+            np.zeros(width),
+            np.random.default_rng(0),
+            np.zeros((1, 1), dtype=np.intp),
+            np.zeros(1, dtype=np.intp),
+            0,
+            np.zeros(0, dtype=np.intp),
+            np.zeros(0),
         )
-        raise ValidationError(error_msg)
-    odd = all(sum(offset) % 2 for offset in neighborhood.offsets)
-    even = space.boundary != 'periodic' or all(size % 2 == 0 for size in space.dimensions)
-    if not (odd and even):
-        error_msg = (
-            f'{owner} uses a checkerboard schedule, which needs neighbours on the other sublattice and even sizes on '
-            "periodic lattices. Use the 'random-sequential' schedule instead."
-        )
-        raise ValidationError(error_msg)
-    return space
+    except numba.core.errors.NumbaError:
+        return None
+    return loop  # type: ignore[no-any-return, unused-ignore]
 
 
-@numba.njit(cache=True)
-def _fused_lookup(  # noqa: PLR0917
-    values: Vector,
-    centers: Vector,
-    fill: float,
+def _schedule_classes(
+    schedule: str,
+    space: Sites,
+    neighborhood: Neighborhood | Adjacency | Memory,
     table: Indices,
-    kind: int,
-    base: int,
-    lookup: Vector,
-    columns: int,
-) -> Vector:
-    """Return the next values of a lookup rule at every site in one compiled loop."""
-    n_sites, n_offsets = table.shape
-    following = np.empty(n_sites)
-    for site in range(n_sites):
-        code = 0
-        total = 0.0
-        for offset in range(n_offsets):
-            neighbour = table[site, offset]
-            value = values[neighbour] if neighbour < n_sites else fill
-            code = code * base + int(value)
-            total += value
-        if kind == 0:
-            following[site] = lookup[code]
-        elif kind == 1:
-            following[site] = lookup[int(total)]
-        else:
-            following[site] = lookup[int(centers[site]) * columns + int(total)]
-    return following
-
-
-@dataclass(frozen=True)
-class Lookup:
-    """Lookup array of a table or totalistic rule.
-
-    Args:
-        kind:
-            `'table'`, `'totalistic'`, or `'outer'`.
-
-        base:
-            The number of state values.
-
-        values:
-            The next value by pattern code, by sum, or by cell value and sum in row-major order.
-
-        columns:
-            The number of sums of an outer totalistic rule.
-    """
-
-    kind: str
-    base: int
-    values: Vector
-    columns: int = 1
-
-
-def _as_table(rule: object) -> object:
-    """Return a rule code as its table, through its `table()` method, and any other rule unchanged."""
-    convert = getattr(rule, 'table', None)
-    return convert() if not callable(rule) and callable(convert) else rule
-
-
-def _lookup_of(rule: object, n_offsets: int, owner: str) -> Lookup | None:
-    """Return the lookup array of a table or totalistic rule, or `None` for a function rule."""
-    if isinstance(rule, Table):
-        base = int(rule.states)  # type: ignore[arg-type]
-        values = np.full(base**n_offsets, float(rule.default))
-        for pattern, value in rule.mapping.items():
-            if len(pattern) != n_offsets:
-                error_msg = f'{owner} has a table pattern {pattern} for a neighbourhood of {n_offsets} cells.'
-                raise ValidationError(error_msg)
-            values[int(np.ravel_multi_index(tuple(int(item) for item in pattern), (base,) * n_offsets))] = value
-        return Lookup('table', base, values)
-    if isinstance(rule, Totalistic | OuterTotalistic):
-        sums = np.arange(n_offsets * (rule.states - 1) + 1)
-        if isinstance(rule, Totalistic):
-            if callable(rule.rule):
-                values = np.broadcast_to(np.asarray(rule.rule(sums), dtype=float), sums.shape).copy()
-            else:
-                values = np.asarray([float(rule.rule.get(int(total), rule.default)) for total in sums])
-            return Lookup('totalistic', rule.states, values)
-        centers = np.arange(rule.states)[:, None]
-        if callable(rule.rule):
-            grid = np.broadcast_to(np.asarray(rule.rule(centers, sums[None, :]), dtype=float), (rule.states, sums.size))
-        else:
-            grid = np.asarray(
-                [
-                    [float(rule.rule.get((int(center), int(total)), rule.default)) for total in sums]
-                    for center in range(rule.states)
-                ],
-            )
-        return Lookup('outer', rule.states, grid.ravel().copy(), sums.size)
-    return None
+    owner: str,
+) -> tuple[Indices, ...]:
+    """Return the classes of sites a checkerboard or colored schedule updates in turn, and none for other schedules."""
+    if schedule == 'checkerboard':
+        return _sublattices(_check_checkerboard(space, neighborhood, owner))
+    if schedule == 'colored':
+        return _color_classes(table)
+    return ()
 
 
 @dataclass(frozen=True)
@@ -537,6 +605,204 @@ class CompiledDrive:
         x[self.target.sites] = np.broadcast_to(np.asarray(result, dtype=float), shape).ravel()
 
 
+@dataclass
+class LatticeContext:
+    """What lattice laws are compiled against: the lattice of every state and the symbols a component reads.
+
+    Args:
+        owner:
+            The path of the component that declares the laws.
+
+        states:
+            The lattice state of every target symbol.
+
+        arguments:
+            The parameters and states the component reads, by symbol, with their keyword names.
+
+        fused:
+            Whether lookup rules run as compiled loops.
+    """
+
+    owner: str
+    states: Mapping[Expression, LatticeState]
+    arguments: Mapping[Expression, tuple[str, bool, int, int]]
+    fused: bool = False
+
+    def state(self, item: Expression, law: str) -> LatticeState:
+        """Return the lattice state of a target symbol, or raise an error naming the law."""
+        if item not in self.states:
+            error_msg = f'{law} of {self.owner} targets {item}, which is not a state of a lattice group.'
+            raise ValidationError(error_msg)
+        return self.states[item]
+
+    def keywords(self, function: Callable[..., Any]) -> Arguments:
+        """Return the parameters a function accepts by keyword."""
+        by_name = {
+            name: (is_state, start, size) for name, is_state, start, size in self.arguments.values() if not is_state
+        }
+        names = _accepted(function, list(by_name))
+        return Arguments(
+            names,
+            tuple(by_name[name][0] for name in names),
+            tuple(by_name[name][1] for name in names),
+            tuple(by_name[name][2] for name in names),
+        )
+
+
+def _compile_part(law: object, context: LatticeContext) -> CompiledRule | CompiledDrive:
+    """Return a law of a relaxation compiled."""
+    if isinstance(law, LocalRule):
+        return compile_rule(law, context)
+    if isinstance(law, Drive):
+        return compile_drive(law, context)
+    error_msg = f'A relaxation of {context.owner} holds {law!r}, which is not a local rule or a drive.'
+    raise ValidationError(error_msg)
+
+
+def _calls(expression: Expression, name: str) -> list[Expression]:
+    """Return the calls of a symbolic function by name inside an expression, outermost first."""
+    found, stack = [], [SR(expression)]
+    while stack:
+        item = stack.pop()
+        if item.operator() is None:
+            continue
+        if getattr(item.operator(), 'name', lambda: '')() == name:
+            found.append(item)
+            continue
+        stack.extend(item.operands())
+    return found
+
+
+def _lower_neighbor_sums(
+    expression: Expression,
+    target: Expression,
+    neighbours: Sequence[Expression],
+    masks: Sequence[Expression],
+    owner: str,
+) -> Expression:
+    """Return an expression with every neighbour sum written as the masked sum over the columns of the table."""
+    replacements = {}
+    for call in _calls(expression, 'neighbor_sum'):
+        inner = call.operands()[0]
+        reads = {}
+        for item in _calls(inner, 'adjacent'):
+            state = item.operands()[0]
+            if state != target:
+                error_msg = f'{owner} read the neighbours of {state}, but only the moved state {target} has them.'
+                raise ValidationError(error_msg)
+            reads[item] = state
+        columns = [inner.subs(dict.fromkeys(reads, neighbour)) for neighbour in neighbours]
+        replacements[call] = sum((mask * column for mask, column in zip(masks, columns, strict=True)), SR(0))
+    return SR(expression).subs(replacements) if replacements else SR(expression)
+
+
+def compile_rule(law: LocalRule, context: LatticeContext) -> CompiledRule:
+    """Return a local rule compiled for its lattice.
+
+    Args:
+        law:
+            The local rule.
+
+        context:
+            The lattice states and symbols of its component.
+
+    Returns:
+        rule:
+            The compiled rule.
+    """
+    owner = f'The local rule of {context.owner}'
+    targets = tuple(context.state(item, 'A local rule') for item in law.targets)
+    reads = tuple(context.state(item, 'A local rule') for item in (law.reads or law.targets))
+    spaces = {id(state.space) for state in (*targets, *reads)}
+    if len(spaces) > 1:
+        error_msg = f'{owner} reads and updates states of different lattices.'
+        raise ValidationError(error_msg)
+    space = targets[0].space
+    table = _index_table(space, law.neighborhood, owner)
+    rule = _as_table(law.rule)
+    if isinstance(space, NetworkSpace) and isinstance(rule, Table):
+        error_msg = (
+            f'{owner} uses a table of ordered patterns on a network, whose sites have different degrees. Use a '
+            'totalistic or an outer totalistic rule, or a function rule.'
+        )
+        raise ValidationError(error_msg)
+    lookup = _lookup_of(rule, table.shape[1], owner)
+    if lookup is not None and (len(targets) > 1 or len(reads) > 1):
+        error_msg = f'{owner} uses a lookup rule, which updates and reads a single state.'
+        raise ValidationError(error_msg)
+    if lookup is None and not callable(rule):
+        error_msg = (
+            f'{owner} has the rule {law.rule!r}, which is not a function, a Table, a totalistic rule, or a rule code '
+            'with a table() method.'
+        )
+        raise ValidationError(error_msg)
+    reads_degree = lookup is None and 'degree' in _accepted(law.rule, ['degree'])  # type: ignore[arg-type]
+    return CompiledRule(
+        context.owner,
+        targets,
+        reads,
+        table,
+        None if lookup is not None else law.rule,  # type: ignore[arg-type]
+        lookup,
+        law.schedule,
+        law.stochastic,
+        context.keywords(law.rule) if lookup is None else Arguments(),  # type: ignore[arg-type]
+        context.fused and lookup is not None and law.schedule == 'synchronous',
+        _degrees_of(table, law.neighborhood) if reads_degree else None,
+        _schedule_classes(law.schedule, space, law.neighborhood, table, owner),
+    )
+
+
+def compile_drive(law: Drive, context: LatticeContext) -> CompiledDrive:
+    """Return a drive compiled for its lattice state.
+
+    Args:
+        law:
+            The drive.
+
+        context:
+            The lattice states and symbols of its component.
+
+    Returns:
+        drive:
+            The compiled drive.
+    """
+    return CompiledDrive(
+        context.owner,
+        context.state(law.target, 'A drive'),
+        law.function,
+        context.keywords(law.function),
+    )
+
+
+@dataclass(frozen=True)
+class RelaxationRecord:
+    """Relaxation of a lattice within one step, such as an avalanche.
+
+    Args:
+        label:
+            The label of the relaxation.
+
+        time:
+            The time of the step.
+
+        size:
+            The number of site updates.
+
+        duration:
+            The number of relaxation iterations.
+
+        area:
+            The number of distinct sites that changed.
+    """
+
+    label: str
+    time: float
+    size: int
+    duration: int
+    area: int
+
+
 @dataclass(frozen=True)
 class CompiledRelaxation:
     """Relaxation compiled for a lattice, with its drive and relaxation laws.
@@ -633,6 +899,34 @@ class CompiledRelaxation:
             return None
         area = int(changed.sum()) if changed is not None else 0
         return RelaxationRecord(self.label, time, size, duration, area)
+
+
+def compile_relaxation(law: Relaxation, context: LatticeContext) -> CompiledRelaxation:
+    """Return a relaxation compiled for its lattice.
+
+    Args:
+        law:
+            The relaxation.
+
+        context:
+            The lattice states and symbols of its component.
+
+    Returns:
+        relaxation:
+            The compiled relaxation.
+    """
+    if not law.relax:
+        error_msg = f'A relaxation of {context.owner} has no relaxation laws.'
+        raise ValidationError(error_msg)
+    return CompiledRelaxation(
+        law.label or context.owner,
+        tuple(_compile_part(item, context) for item in law.drive),
+        tuple(_compile_part(item, context) for item in law.relax),
+        tuple(context.state(item, 'A relaxation') for item in law.targets),
+        law.stable,
+        int(law.max_iterations),
+        law.activity,
+    )
 
 
 @dataclass(frozen=True)
@@ -764,6 +1058,79 @@ class CompiledMonteCarlo:
             self._update(x, p, np.asarray([site]), rng)
 
 
+def compile_monte_carlo(energy: Energy, move: Move, sampler: Sampler, context: LatticeContext) -> CompiledMonteCarlo:
+    """Return Monte Carlo sampling compiled from a local energy, a move, and a sampler.
+
+    Args:
+        energy:
+            The local energy.
+
+        move:
+            The move.
+
+        sampler:
+            The sampler.
+
+        context:
+            The lattice states and symbols of their component.
+
+    Returns:
+        sampling:
+            The compiled sampling.
+    """
+    owner = f'The Monte Carlo laws of {context.owner}'
+    target = context.state(move.target, 'A move')
+    if sampler.kind == 'heat-bath' and move.kind == 'rotate':
+        error_msg = f'{owner} use a heat-bath sampler with a rotation, which has no finite set of values to draw from.'
+        raise ValidationError(error_msg)
+    space = target.space
+    table = _index_table(space, energy.neighborhood, owner)
+    classes = _schedule_classes(sampler.schedule, space, energy.neighborhood, table, owner)
+    neighbours = [symbol(f'_neighbor_{index}') for index in range(table.shape[1])]
+    masks = [symbol(f'_mask_{index}') for index in range(table.shape[1])]
+    expression = _lower_neighbor_sums(SR(energy.expression), move.target, neighbours, masks, owner)
+    masked = any(item in masks for item in expression.variables())
+    replacements = {}
+    for call in _calls(expression, 'neighbor'):
+        state, index = call.operands()
+        if state != move.target:
+            error_msg = f'{owner} read the neighbours of {state}, but only the moved state {move.target} has them.'
+            raise ValidationError(error_msg)
+        replacements[call] = neighbours[int(index)]
+    proposal = symbol('_proposal')
+    local = expression.subs(replacements)
+    change = local.subs({move.target: proposal}) - local
+    known = {move.target, proposal, *neighbours, *masks}
+    extra = sorted(
+        {item for item in (*change.variables(), *SR(sampler.temperature).variables()) if item not in known},
+        key=str,
+    )
+    for item in extra:
+        if item not in context.arguments:
+            error_msg = f'{owner} read {item}, which is not a parameter or state of the lattice group.'
+            raise ValidationError(error_msg)
+    found = [context.arguments[item] for item in extra]
+    arguments = Arguments(
+        tuple(str(item) for item in extra),
+        tuple(item[1] for item in found),
+        tuple(item[2] for item in found),
+        tuple(item[3] for item in found),
+    )
+    time = symbol('_time')
+    return CompiledMonteCarlo(
+        context.owner,
+        target,
+        table,
+        numpy_function(time, [move.target, *neighbours, proposal, *(masks if masked else []), *extra], [change]),
+        arguments,
+        numpy_function(time, extra, [SR(sampler.temperature)]),
+        move,
+        sampler,
+        classes,
+        masked,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class ExtremalRecord:
     """Application of an extremal law, such as the replacement of the least fit species.
@@ -786,86 +1153,6 @@ class ExtremalRecord:
     time: float
     site: int
     value: float
-
-
-def _extremal_members(table: Indices) -> tuple[Indices, Indices]:
-    """Return every site followed by its real neighbours without duplicates, padded with -1, and their counts."""
-    size, width = table.shape
-    members = np.full((size, width + 1), -1, dtype=np.intp)
-    counts = np.zeros(size, dtype=np.intp)
-    for site in range(size):
-        unique = list(dict.fromkeys([site, *(int(item) for item in table[site] if item != size)]))
-        members[site, : len(unique)] = unique
-        counts[site] = len(unique)
-    return members, counts
-
-
-def _extremal_source(targets: tuple[LatticeState, ...], key: LatticeState, maximum: bool, arguments: Arguments) -> str:
-    """Return the source of the compiled loop of the applications of an extremal law."""
-    values = ', '.join(f'x[{state.start} + sites]' for state in targets)
-    keywords = ''.join(
-        f', {name}=p[{start}]' if size == 1 else f', {name}=p[{start}:{start + size}][sites]'
-        for name, start, size in zip(arguments.names, arguments.starts, arguments.sizes, strict=True)
-    )
-    if len(targets) == 1:
-        assign = f'        x[{targets[0].start} + sites] = result\n'
-    else:
-        assign = ''.join(f'        x[{state.start} + sites] = result[{index}]\n' for index, state in enumerate(targets))
-    return (
-        'def loop(x, p, rng, members, counts, repeat, sites_out, values_out):\n'
-        '    for application in range(repeat):\n'
-        f'        keys = x[{key.start}:{key.start + key.size}]\n'
-        f'        best = keys.{"max" if maximum else "min"}()\n'
-        '        ties = np.flatnonzero(keys == best)\n'
-        '        site = ties[rng.integers(0, ties.size)] if ties.size > 1 else ties[0]\n'
-        '        sites = members[site, : counts[site]]\n'
-        '        random = rng.random(sites.size)\n'
-        f'        result = rule({values}, random=random{keywords})\n'
-        f'{assign}'
-        '        sites_out[application] = site\n'
-        '        values_out[application] = best\n'
-    )
-
-
-def _compiles_in_numba(rule: Callable[..., Any]) -> bool:
-    """Check whether a rule takes its arguments by position or keyword only, the form Numba compiles."""
-    try:
-        parameters = inspect.signature(rule).parameters.values()
-    except (TypeError, ValueError):
-        return False
-    return all(item.kind is inspect.Parameter.POSITIONAL_OR_KEYWORD for item in parameters)
-
-
-def _extremal_loop(
-    rule: Callable[..., Any],
-    targets: tuple[LatticeState, ...],
-    key: LatticeState,
-    maximum: bool,
-    arguments: Arguments,
-) -> Callable[..., None] | None:
-    """Return the compiled loop of the applications of an extremal law, or `None` when Numba cannot compile the rule."""
-    if not _compiles_in_numba(rule):
-        return None
-    namespace: dict[str, Any] = {'np': np, 'rule': numba.njit(error_model='numpy')(rule)}
-    source = _extremal_source(targets, key, maximum, arguments)
-    exec(source, namespace)  # noqa: S102  # nosec B102: runs the loop source generated above
-    loop = numba.njit(namespace['loop'])
-    end = max(state.start + state.size for state in (*targets, key))
-    width = max((start + size for start, size in zip(arguments.starts, arguments.sizes, strict=True)), default=1)
-    try:
-        loop(
-            np.zeros(end),
-            np.zeros(width),
-            np.random.default_rng(0),
-            np.zeros((1, 1), dtype=np.intp),
-            np.zeros(1, dtype=np.intp),
-            0,
-            np.zeros(0, dtype=np.intp),
-            np.zeros(0),
-        )
-    except numba.core.errors.NumbaError:
-        return None
-    return loop  # type: ignore[no-any-return, unused-ignore]
 
 
 @dataclass(frozen=True)
@@ -968,295 +1255,6 @@ class CompiledExtremal:
             ExtremalRecord(self.label, time, int(site), float(value))
             for site, value in zip(sites.tolist(), values.tolist(), strict=True)
         ]
-
-
-type LatticeStep = CompiledRule | CompiledDrive | CompiledRelaxation | CompiledMonteCarlo | CompiledExtremal
-
-
-@dataclass
-class LatticeContext:
-    """What lattice laws are compiled against: the lattice of every state and the symbols a component reads.
-
-    Args:
-        owner:
-            The path of the component that declares the laws.
-
-        states:
-            The lattice state of every target symbol.
-
-        arguments:
-            The parameters and states the component reads, by symbol, with their keyword names.
-
-        fused:
-            Whether lookup rules run as compiled loops.
-    """
-
-    owner: str
-    states: Mapping[Expression, LatticeState]
-    arguments: Mapping[Expression, tuple[str, bool, int, int]]
-    fused: bool = False
-
-    def state(self, item: Expression, law: str) -> LatticeState:
-        """Return the lattice state of a target symbol, or raise an error naming the law."""
-        if item not in self.states:
-            error_msg = f'{law} of {self.owner} targets {item}, which is not a state of a lattice group.'
-            raise ValidationError(error_msg)
-        return self.states[item]
-
-    def keywords(self, function: Callable[..., Any]) -> Arguments:
-        """Return the parameters a function accepts by keyword."""
-        by_name = {
-            name: (is_state, start, size) for name, is_state, start, size in self.arguments.values() if not is_state
-        }
-        names = _accepted(function, list(by_name))
-        return Arguments(
-            names,
-            tuple(by_name[name][0] for name in names),
-            tuple(by_name[name][1] for name in names),
-            tuple(by_name[name][2] for name in names),
-        )
-
-
-def compile_rule(law: LocalRule, context: LatticeContext) -> CompiledRule:
-    """Return a local rule compiled for its lattice.
-
-    Args:
-        law:
-            The local rule.
-
-        context:
-            The lattice states and symbols of its component.
-
-    Returns:
-        rule:
-            The compiled rule.
-    """
-    owner = f'The local rule of {context.owner}'
-    targets = tuple(context.state(item, 'A local rule') for item in law.targets)
-    reads = tuple(context.state(item, 'A local rule') for item in (law.reads or law.targets))
-    spaces = {id(state.space) for state in (*targets, *reads)}
-    if len(spaces) > 1:
-        error_msg = f'{owner} reads and updates states of different lattices.'
-        raise ValidationError(error_msg)
-    space = targets[0].space
-    table = _index_table(space, law.neighborhood, owner)
-    rule = _as_table(law.rule)
-    if isinstance(space, NetworkSpace) and isinstance(rule, Table):
-        error_msg = (
-            f'{owner} uses a table of ordered patterns on a network, whose sites have different degrees. Use a '
-            'totalistic or an outer totalistic rule, or a function rule.'
-        )
-        raise ValidationError(error_msg)
-    lookup = _lookup_of(rule, table.shape[1], owner)
-    if lookup is not None and (len(targets) > 1 or len(reads) > 1):
-        error_msg = f'{owner} uses a lookup rule, which updates and reads a single state.'
-        raise ValidationError(error_msg)
-    if lookup is None and not callable(rule):
-        error_msg = (
-            f'{owner} has the rule {law.rule!r}, which is not a function, a Table, a totalistic rule, or a rule code '
-            'with a table() method.'
-        )
-        raise ValidationError(error_msg)
-    reads_degree = lookup is None and 'degree' in _accepted(law.rule, ['degree'])  # type: ignore[arg-type]
-    return CompiledRule(
-        context.owner,
-        targets,
-        reads,
-        table,
-        None if lookup is not None else law.rule,  # type: ignore[arg-type]
-        lookup,
-        law.schedule,
-        law.stochastic,
-        context.keywords(law.rule) if lookup is None else Arguments(),  # type: ignore[arg-type]
-        context.fused and lookup is not None and law.schedule == 'synchronous',
-        _degrees_of(table, law.neighborhood) if reads_degree else None,
-        _schedule_classes(law.schedule, space, law.neighborhood, table, owner),
-    )
-
-
-def _schedule_classes(
-    schedule: str,
-    space: Sites,
-    neighborhood: Neighborhood | Adjacency | Memory,
-    table: Indices,
-    owner: str,
-) -> tuple[Indices, ...]:
-    """Return the classes of sites a checkerboard or colored schedule updates in turn, and none for other schedules."""
-    if schedule == 'checkerboard':
-        return _sublattices(_check_checkerboard(space, neighborhood, owner))
-    if schedule == 'colored':
-        return _color_classes(table)
-    return ()
-
-
-def compile_drive(law: Drive, context: LatticeContext) -> CompiledDrive:
-    """Return a drive compiled for its lattice state.
-
-    Args:
-        law:
-            The drive.
-
-        context:
-            The lattice states and symbols of its component.
-
-    Returns:
-        drive:
-            The compiled drive.
-    """
-    return CompiledDrive(
-        context.owner,
-        context.state(law.target, 'A drive'),
-        law.function,
-        context.keywords(law.function),
-    )
-
-
-def _compile_part(law: object, context: LatticeContext) -> CompiledRule | CompiledDrive:
-    """Return a law of a relaxation compiled."""
-    if isinstance(law, LocalRule):
-        return compile_rule(law, context)
-    if isinstance(law, Drive):
-        return compile_drive(law, context)
-    error_msg = f'A relaxation of {context.owner} holds {law!r}, which is not a local rule or a drive.'
-    raise ValidationError(error_msg)
-
-
-def compile_relaxation(law: Relaxation, context: LatticeContext) -> CompiledRelaxation:
-    """Return a relaxation compiled for its lattice.
-
-    Args:
-        law:
-            The relaxation.
-
-        context:
-            The lattice states and symbols of its component.
-
-    Returns:
-        relaxation:
-            The compiled relaxation.
-    """
-    if not law.relax:
-        error_msg = f'A relaxation of {context.owner} has no relaxation laws.'
-        raise ValidationError(error_msg)
-    return CompiledRelaxation(
-        law.label or context.owner,
-        tuple(_compile_part(item, context) for item in law.drive),
-        tuple(_compile_part(item, context) for item in law.relax),
-        tuple(context.state(item, 'A relaxation') for item in law.targets),
-        law.stable,
-        int(law.max_iterations),
-        law.activity,
-    )
-
-
-def _calls(expression: Expression, name: str) -> list[Expression]:
-    """Return the calls of a symbolic function by name inside an expression, outermost first."""
-    found, stack = [], [SR(expression)]
-    while stack:
-        item = stack.pop()
-        if item.operator() is None:
-            continue
-        if getattr(item.operator(), 'name', lambda: '')() == name:
-            found.append(item)
-            continue
-        stack.extend(item.operands())
-    return found
-
-
-def _lower_neighbor_sums(
-    expression: Expression,
-    target: Expression,
-    neighbours: Sequence[Expression],
-    masks: Sequence[Expression],
-    owner: str,
-) -> Expression:
-    """Return an expression with every neighbour sum written as the masked sum over the columns of the table."""
-    replacements = {}
-    for call in _calls(expression, 'neighbor_sum'):
-        inner = call.operands()[0]
-        reads = {}
-        for item in _calls(inner, 'adjacent'):
-            state = item.operands()[0]
-            if state != target:
-                error_msg = f'{owner} read the neighbours of {state}, but only the moved state {target} has them.'
-                raise ValidationError(error_msg)
-            reads[item] = state
-        columns = [inner.subs(dict.fromkeys(reads, neighbour)) for neighbour in neighbours]
-        replacements[call] = sum((mask * column for mask, column in zip(masks, columns, strict=True)), SR(0))
-    return SR(expression).subs(replacements) if replacements else SR(expression)
-
-
-def compile_monte_carlo(energy: Energy, move: Move, sampler: Sampler, context: LatticeContext) -> CompiledMonteCarlo:
-    """Return Monte Carlo sampling compiled from a local energy, a move, and a sampler.
-
-    Args:
-        energy:
-            The local energy.
-
-        move:
-            The move.
-
-        sampler:
-            The sampler.
-
-        context:
-            The lattice states and symbols of their component.
-
-    Returns:
-        sampling:
-            The compiled sampling.
-    """
-    owner = f'The Monte Carlo laws of {context.owner}'
-    target = context.state(move.target, 'A move')
-    if sampler.kind == 'heat-bath' and move.kind == 'rotate':
-        error_msg = f'{owner} use a heat-bath sampler with a rotation, which has no finite set of values to draw from.'
-        raise ValidationError(error_msg)
-    space = target.space
-    table = _index_table(space, energy.neighborhood, owner)
-    classes = _schedule_classes(sampler.schedule, space, energy.neighborhood, table, owner)
-    neighbours = [symbol(f'_neighbor_{index}') for index in range(table.shape[1])]
-    masks = [symbol(f'_mask_{index}') for index in range(table.shape[1])]
-    expression = _lower_neighbor_sums(SR(energy.expression), move.target, neighbours, masks, owner)
-    masked = any(item in masks for item in expression.variables())
-    replacements = {}
-    for call in _calls(expression, 'neighbor'):
-        state, index = call.operands()
-        if state != move.target:
-            error_msg = f'{owner} read the neighbours of {state}, but only the moved state {move.target} has them.'
-            raise ValidationError(error_msg)
-        replacements[call] = neighbours[int(index)]
-    proposal = symbol('_proposal')
-    local = expression.subs(replacements)
-    change = local.subs({move.target: proposal}) - local
-    known = {move.target, proposal, *neighbours, *masks}
-    extra = sorted(
-        {item for item in (*change.variables(), *SR(sampler.temperature).variables()) if item not in known},
-        key=str,
-    )
-    for item in extra:
-        if item not in context.arguments:
-            error_msg = f'{owner} read {item}, which is not a parameter or state of the lattice group.'
-            raise ValidationError(error_msg)
-    found = [context.arguments[item] for item in extra]
-    arguments = Arguments(
-        tuple(str(item) for item in extra),
-        tuple(item[1] for item in found),
-        tuple(item[2] for item in found),
-        tuple(item[3] for item in found),
-    )
-    time = symbol('_time')
-    return CompiledMonteCarlo(
-        context.owner,
-        target,
-        table,
-        numpy_function(time, [move.target, *neighbours, proposal, *(masks if masked else []), *extra], [change]),
-        arguments,
-        numpy_function(time, extra, [SR(sampler.temperature)]),
-        move,
-        sampler,
-        classes,
-        masked,
-    )
 
 
 def compile_extremal(law: Extremal, context: LatticeContext) -> CompiledExtremal:

@@ -11,6 +11,7 @@ import ennemi
 import numpy as np
 import numpy.typing as npt
 import ordpy
+from scipy import stats
 
 from ..base import AnalysisError
 from ._kinds import DataKind, analysis
@@ -30,6 +31,58 @@ def _rank_index(patterns: npt.NDArray[np.int64]) -> npt.NDArray[np.int64]:
     later_smaller = np.triu(patterns[:, None, :] < patterns[:, :, None], k=1).sum(axis=2)
     weights = np.asarray([math.factorial(order - 1 - position) for position in range(order)], dtype=np.int64)
     return later_smaller.astype(np.int64) @ weights
+
+
+def _probabilities(items: Sequence[Hashable]) -> Array:
+    """Return the empirical probabilities of distinct items."""
+    counts = np.asarray(list(Counter(items).values()), dtype=float)
+    return counts / counts.sum()
+
+
+def _distribution(values: npt.ArrayLike, *, probabilities: bool) -> Array:
+    """Return the nonzero probabilities of symbols, or of a probability vector."""
+    p = np.asarray(values, dtype=float) if probabilities else _probabilities(list(np.asarray(values).ravel()))
+    return p[p > 0]
+
+
+def _codes(items: Sequence[Hashable]) -> list[int]:
+    """Return one integer code per distinct item."""
+    table: dict[Hashable, int] = {}
+    return [table.setdefault(item, len(table)) for item in items]
+
+
+def _joint_entropy(*columns: Sequence[Hashable], base: float) -> float:
+    """Return the entropy of aligned columns taken together."""
+    return shannon_entropy(_codes(list(zip(*columns, strict=True))), base=base)
+
+
+def _histories(values: npt.NDArray[np.generic], history: int, start: int) -> list[tuple[object, ...]]:
+    """Return the `history` values before every time from `start` on."""
+    return [tuple(values[t - history : t]) for t in range(start, values.size)]
+
+
+def _knn_transfer(x: Array, y: Array, history: int, lag: int, k: int) -> float:
+    """Return the transfer entropy in nats by the nearest-neighbour conditional mutual information."""
+    start = max(history, lag)
+    past = np.column_stack([y[start - step : y.size - step] for step in range(1, history + 1)])
+    estimate = ennemi.estimate_mi(y[start:], x[start - lag : x.size - lag], cond=past, k=k)
+    return float(np.asarray(estimate).item())
+
+
+def _entropy_of(probabilities: Array, entropy: str, index: float) -> float:
+    """Return the Shannon or Rényi entropy in bits, or the Tsallis entropy, of probabilities."""
+    if entropy == 'renyi':
+        return renyi_entropy(probabilities, index, probabilities=True)
+    if entropy == 'tsallis':
+        return tsallis_entropy(probabilities, index, probabilities=True)
+    return shannon_entropy(probabilities, probabilities=True)
+
+
+def _largest_entropy(outcomes: int, entropy: str, index: float, base: float) -> float:
+    """Return the entropy of the uniform law on a number of outcomes."""
+    if entropy == 'tsallis':
+        return tsallis_entropy(np.full(outcomes, 1 / outcomes), index, probabilities=True)
+    return math.log(outcomes) / math.log(base)
 
 
 def ordinal_patterns(values: npt.ArrayLike, order: int = 3, *, delay: int = 1) -> npt.NDArray[np.int64]:
@@ -113,18 +166,6 @@ def symbolize(
     raise AnalysisError(error_msg)
 
 
-def _probabilities(items: Sequence[Hashable]) -> Array:
-    """Return the empirical probabilities of distinct items."""
-    counts = np.asarray(list(Counter(items).values()), dtype=float)
-    return counts / counts.sum()
-
-
-def _distribution(values: npt.ArrayLike, *, probabilities: bool) -> Array:
-    """Return the nonzero probabilities of symbols, or of a probability vector."""
-    p = np.asarray(values, dtype=float) if probabilities else _probabilities(list(np.asarray(values).ravel()))
-    return p[p > 0]
-
-
 @analysis(DataKind.SERIES)
 def shannon_entropy(values: npt.ArrayLike, *, base: float = 2.0, probabilities: bool = False) -> float:
     """Return the Shannon entropy of symbols, or of a probability vector.
@@ -149,7 +190,7 @@ def shannon_entropy(values: npt.ArrayLike, *, base: float = 2.0, probabilities: 
         (1.0, 2.0)
     """
     p = _distribution(values, probabilities=probabilities)
-    return float(-np.sum(p * np.log(p)) / np.log(base))
+    return float(stats.entropy(p, base=base))
 
 
 @analysis(DataKind.SERIES)
@@ -244,11 +285,7 @@ def kl_divergence(p: npt.ArrayLike, q: npt.ArrayLike, *, base: float = 2.0) -> f
         >>> kl_divergence([0.5, 0.5], [0.5, 0.5])
         0.0
     """
-    first, second = np.asarray(p, dtype=float), np.asarray(q, dtype=float)
-    mask = first > 0
-    if np.any(second[mask] == 0):
-        return float('inf')
-    return float(np.sum(first[mask] * np.log(first[mask] / second[mask])) / np.log(base))
+    return float(stats.entropy(np.asarray(p, dtype=float), np.asarray(q, dtype=float), base=base))
 
 
 @analysis(DataKind.SERIES)
@@ -408,22 +445,6 @@ def mutual_information(first: npt.ArrayLike, second: npt.ArrayLike, *, base: flo
     return shannon_entropy(x, base=base) + shannon_entropy(y, base=base) - shannon_entropy(_codes(joint), base=base)
 
 
-def _codes(items: Sequence[Hashable]) -> list[int]:
-    """Return one integer code per distinct item."""
-    table: dict[Hashable, int] = {}
-    return [table.setdefault(item, len(table)) for item in items]
-
-
-def _joint_entropy(*columns: Sequence[Hashable], base: float) -> float:
-    """Return the entropy of aligned columns taken together."""
-    return shannon_entropy(_codes(list(zip(*columns, strict=True))), base=base)
-
-
-def _histories(values: npt.NDArray[np.generic], history: int, start: int) -> list[tuple[object, ...]]:
-    """Return the `history` values before every time from `start` on."""
-    return [tuple(values[t - history : t]) for t in range(start, values.size)]
-
-
 @analysis(DataKind.SERIES)
 def active_information_storage(symbols: npt.ArrayLike, history: int = 1, *, base: float = 2.0) -> float:
     """Return the active information storage, the information the past `history` symbols hold about the next one.
@@ -453,14 +474,6 @@ def active_information_storage(symbols: npt.ArrayLike, history: int = 1, *, base
     return float(
         _joint_entropy(future, base=base) + _joint_entropy(past, base=base) - _joint_entropy(future, past, base=base),
     )
-
-
-def _knn_transfer(x: Array, y: Array, history: int, lag: int, k: int) -> float:
-    """Return the transfer entropy in nats by the nearest-neighbour conditional mutual information."""
-    start = max(history, lag)
-    past = np.column_stack([y[start - step : y.size - step] for step in range(1, history + 1)])
-    estimate = ennemi.estimate_mi(y[start:], x[start - lag : x.size - lag], cond=past, k=k)
-    return float(np.asarray(estimate).item())
 
 
 @analysis(DataKind.SERIES)
@@ -573,22 +586,6 @@ def break_ties(values: npt.ArrayLike, ties: str = 'random', random_state: int | 
     gaps = np.diff(np.unique(array))
     scale = gaps.min() / 4 if gaps.size else 1.0
     return array + np.random.default_rng(random_state).uniform(0, scale, array.shape)
-
-
-def _entropy_of(probabilities: Array, entropy: str, index: float) -> float:
-    """Return the Shannon or Rényi entropy in bits, or the Tsallis entropy, of probabilities."""
-    if entropy == 'renyi':
-        return renyi_entropy(probabilities, index, probabilities=True)
-    if entropy == 'tsallis':
-        return tsallis_entropy(probabilities, index, probabilities=True)
-    return shannon_entropy(probabilities, probabilities=True)
-
-
-def _largest_entropy(outcomes: int, entropy: str, index: float, base: float) -> float:
-    """Return the entropy of the uniform law on a number of outcomes."""
-    if entropy == 'tsallis':
-        return tsallis_entropy(np.full(outcomes, 1 / outcomes), index, probabilities=True)
-    return math.log(outcomes) / math.log(base)
 
 
 @analysis(DataKind.SERIES)

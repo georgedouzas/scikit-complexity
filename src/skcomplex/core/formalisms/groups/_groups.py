@@ -22,7 +22,6 @@ KNUTH_BENDIX_LIMITS = (('maxeqns', 5000), ('maxstates', 50000))
 ORDERINGS = ('shortlex', 'recursive')
 HASH_POINTS = 2**14
 INT64_HEADROOM = 2**62
-RINGS = ('ZZ', 'GF')
 IDENTITY_WORDS = ('', '1')
 TOKEN = re.compile(r'^([A-Za-z_]\w*)(?:\^(-?\d+))?$')
 
@@ -51,11 +50,6 @@ def _letters(n_generators: int) -> Word:
 def _column(letter: int) -> int:
     """Return the column of a letter in the order of `_letters`."""
     return 2 * (abs(letter) - 1) + (letter < 0)
-
-
-def _inverse_word(word: Word) -> Word:
-    """Return the inverse of a word."""
-    return tuple(-letter for letter in reversed(word))
 
 
 def _reduce_freely(word: Word) -> Word:
@@ -111,6 +105,28 @@ def _names_of(names: Sequence[str] | None, count: int) -> tuple[str, ...]:
     return _check_names(names)
 
 
+def _format_word(word: Word, generators: Sequence[str]) -> str:
+    """Return a word as text, `1` for the identity."""
+    if not word:
+        return '1'
+    return '*'.join(generators[abs(letter) - 1] + ('' if letter > 0 else '^-1') for letter in word)
+
+
+def _composed(permutations: Sequence[Permutation], word: Word, points: int) -> Permutation:
+    """Return the right action of a word on points, the first letter acting first."""
+    images = np.arange(points)
+    for letter in word:
+        images = permutations[_column(letter)][images]
+    return images
+
+
+def _inverse_permutation(images: Permutation) -> Permutation:
+    """Return the inverse of a permutation given by its images."""
+    inverse = np.empty_like(images)
+    inverse[images] = np.arange(images.size)
+    return inverse
+
+
 def parse_word(text: str, generators: Sequence[str]) -> Word:
     """Return a word of generators written as `a*b^-1*a^2`, with `1` for the identity, as signed generator numbers.
 
@@ -153,28 +169,6 @@ def parse_word(text: str, generators: Sequence[str]) -> Word:
         exponent = int(match.group(2) or 1)
         letters += [letter if exponent > 0 else -letter] * abs(exponent)
     return tuple(letters)
-
-
-def _format_word(word: Word, generators: Sequence[str]) -> str:
-    """Return a word as text, `1` for the identity."""
-    if not word:
-        return '1'
-    return '*'.join(generators[abs(letter) - 1] + ('' if letter > 0 else '^-1') for letter in word)
-
-
-def _composed(permutations: Sequence[Permutation], word: Word, points: int) -> Permutation:
-    """Return the right action of a word on points, the first letter acting first."""
-    images = np.arange(points)
-    for letter in word:
-        images = permutations[_column(letter)][images]
-    return images
-
-
-def _inverse_permutation(images: Permutation) -> Permutation:
-    """Return the inverse of a permutation given by its images."""
-    inverse = np.empty_like(images)
-    inverse[images] = np.arange(images.size)
-    return inverse
 
 
 class WordProblem:
@@ -249,6 +243,168 @@ class FinitelyGeneratedGroup:
         """
         error_msg = f'Only automaton groups have quotients by a level of their tree, not {type(self).__name__}.'
         raise ValidationError(error_msg)
+
+
+def finitely_presented_group(generators: Sequence[str], relators: Sequence[str] = ()) -> FinitelyGeneratedGroup:
+    """Return the group of generators and relators, whose balls are built by free reduction or Knuth-Bendix completion.
+
+    Without relators the group is free, and its words are reduced without GAP. With relators, KBMAG in GAP looks for a
+    confluent rewriting system, by the shortlex and then the recursive ordering.
+
+    Args:
+        generators:
+            The names of the generators.
+
+        relators:
+            The words that equal the identity, such as `'a*b*a^-1*b^-1'`.
+
+    Returns:
+        group:
+            The group.
+
+    Raises:
+        ValidationError:
+            A generator name is repeated or not an identifier, or a relator has a factor that is not a generator.
+
+    Examples:
+        >>> from skcomplex.core.formalisms.groups import finitely_presented_group
+        >>> finitely_presented_group(['a', 'b']).generators
+        ('a', 'b')
+    """
+    names = _check_names(generators)
+    return _PresentedGroup(names, tuple(parse_word(relator, names) for relator in relators))
+
+
+def automaton_group(
+    recursion: Mapping[str, tuple[Sequence[str | None], Sequence[int] | None]],
+) -> FinitelyGeneratedGroup:
+    """Return the self-similar group of a Mealy automaton, given by the wreath recursion of its states.
+
+    Every state is a generator, mapped to its sections, one state or `None` for the identity per letter of the
+    alphabet, and to its permutation of the alphabet, the images of the letters `0` to `n - 1`, or `None` for the
+    identity. Elements act on the right, so a word acts by its first letter first.
+
+    Args:
+        recursion:
+            The sections and the permutation of every state.
+
+    Returns:
+        group:
+            The group, whose balls are built from its action on a level of the tree and AutomGrp in GAP.
+
+    Raises:
+        ValidationError:
+            A section names an unknown state, the states have alphabets of different sizes, or a permutation is not a
+            permutation of the alphabet.
+
+    Examples:
+        >>> from skcomplex.core.formalisms.groups import automaton_group
+        >>> adding = automaton_group({'t': ((None, 't'), (1, 0))})
+        >>> adding.generators
+        ('t',)
+    """
+    names = _check_names(list(recursion))
+    degrees = {len(sections) for sections, _ in recursion.values()}
+    if len(degrees) != 1 or min(degrees) < 2:  # noqa: PLR2004
+        error_msg = f'Every state of an automaton has one section per letter of one alphabet, but they have {degrees}.'
+        raise ValidationError(error_msg)
+    degree = degrees.pop()
+    sections, actions = [], []
+    for name, (states, action) in recursion.items():
+        unknown = [state for state in states if state is not None and state not in names]
+        images = tuple(range(degree)) if action is None else tuple(int(image) for image in action)
+        if unknown or sorted(images) != list(range(degree)):
+            error_msg = (
+                f'The state {name} has the sections {tuple(states)} and the permutation {action}. Sections are states '
+                f'of {", ".join(names)} or None, and the permutation reorders 0 to {degree - 1}.'
+            )
+            raise ValidationError(error_msg)
+        sections.append(tuple(None if state is None else names.index(state) for state in states))
+        actions.append(images)
+    return _AutomatonGroup(names, tuple(sections), tuple(actions))
+
+
+def permutation_group(
+    generators: Sequence[Sequence[int]],
+    names: Sequence[str] | None = None,
+) -> FinitelyGeneratedGroup:
+    """Return the group of permutations of the points `0` to `n - 1`, given by the images of the points.
+
+    Elements act on the right, so the product `g h` acts by `g` first.
+
+    Args:
+        generators:
+            The images of the points under every generator.
+
+        names:
+            The names of the generators, or `None` for `a`, `b`, and so on.
+
+    Returns:
+        group:
+            The group.
+
+    Raises:
+        ValidationError:
+            A generator is not a permutation of the same points as the others.
+
+    Examples:
+        >>> from skcomplex.core.formalisms.groups import permutation_group
+        >>> permutation_group([[1, 0, 2], [1, 2, 0]]).generators
+        ('a', 'b')
+    """
+    images = tuple(tuple(int(point) for point in generator) for generator in generators)
+    sizes = {len(image) for image in images}
+    if len(sizes) != 1 or any(sorted(image) != list(range(len(image))) for image in images):
+        error_msg = f'Every generator permutes the same points 0 to n - 1, but the generators are {images}.'
+        raise ValidationError(error_msg)
+    return _PermutationGroup(_names_of(names, len(images)), images)
+
+
+def matrix_group(
+    generators: Sequence[npt.ArrayLike],
+    ring: str = 'ZZ',
+    names: Sequence[str] | None = None,
+) -> FinitelyGeneratedGroup:
+    """Return the group of invertible square matrices over the integers or a prime field, given by its generators.
+
+    Args:
+        generators:
+            The integer matrices.
+
+        ring:
+            `'ZZ'` for the integers, or `'GF(p)'` for the field of a prime number `p` of elements.
+
+        names:
+            The names of the generators, or `None` for `a`, `b`, and so on.
+
+    Returns:
+        group:
+            The group.
+
+    Raises:
+        ValidationError:
+            The ring is unknown, a generator is not a square integer matrix of the same size as the others, or it is
+            not invertible over the ring.
+
+    Examples:
+        >>> from skcomplex.core.formalisms.groups import matrix_group
+        >>> matrix_group([[[1, 2], [0, 1]], [[1, 0], [2, 1]]]).generators
+        ('a', 'b')
+    """
+    modulus = _modulus_of(ring)
+    arrays = [np.asarray(generator) for generator in generators]
+    shapes = {array.shape for array in arrays}
+    if len(shapes) != 1 or len(arrays[0].shape) != 2 or arrays[0].shape[0] != arrays[0].shape[1]:  # noqa: PLR2004
+        error_msg = f'The generators of a matrix group are square matrices of one size, but their shapes are {shapes}.'
+        raise ValidationError(error_msg)
+    for array in arrays:
+        determinant = round(float(np.linalg.det(array)))
+        invertible = abs(determinant) == 1 if modulus is None else determinant % modulus != 0
+        if not np.array_equal(array, np.rint(array)) or not invertible:
+            error_msg = f'The generator {array.tolist()} is not an invertible integer matrix over {ring}.'
+            raise ValidationError(error_msg)
+    entries = tuple(tuple(tuple(int(item) for item in row) for row in array) for array in arrays)
+    return _MatrixGroup(_names_of(names, len(arrays)), entries, modulus)
 
 
 class _FreeSolver(WordProblem):
@@ -570,165 +726,3 @@ class _AutomatonGroup(FinitelyGeneratedGroup):
             raise ValidationError(error_msg)
         images = self.level_permutations(level)[::2]
         return _PermutationGroup(self.generators, tuple(tuple(int(item) for item in image) for image in images))
-
-
-def finitely_presented_group(generators: Sequence[str], relators: Sequence[str] = ()) -> FinitelyGeneratedGroup:
-    """Return the group of generators and relators, whose balls are built by free reduction or Knuth-Bendix completion.
-
-    Without relators the group is free, and its words are reduced without GAP. With relators, KBMAG in GAP looks for a
-    confluent rewriting system, by the shortlex and then the recursive ordering.
-
-    Args:
-        generators:
-            The names of the generators.
-
-        relators:
-            The words that equal the identity, such as `'a*b*a^-1*b^-1'`.
-
-    Returns:
-        group:
-            The group.
-
-    Raises:
-        ValidationError:
-            A generator name is repeated or not an identifier, or a relator has a factor that is not a generator.
-
-    Examples:
-        >>> from skcomplex.core.formalisms.groups import finitely_presented_group
-        >>> finitely_presented_group(['a', 'b']).generators
-        ('a', 'b')
-    """
-    names = _check_names(generators)
-    return _PresentedGroup(names, tuple(parse_word(relator, names) for relator in relators))
-
-
-def automaton_group(
-    recursion: Mapping[str, tuple[Sequence[str | None], Sequence[int] | None]],
-) -> FinitelyGeneratedGroup:
-    """Return the self-similar group of a Mealy automaton, given by the wreath recursion of its states.
-
-    Every state is a generator, mapped to its sections, one state or `None` for the identity per letter of the
-    alphabet, and to its permutation of the alphabet, the images of the letters `0` to `n - 1`, or `None` for the
-    identity. Elements act on the right, so a word acts by its first letter first.
-
-    Args:
-        recursion:
-            The sections and the permutation of every state.
-
-    Returns:
-        group:
-            The group, whose balls are built from its action on a level of the tree and AutomGrp in GAP.
-
-    Raises:
-        ValidationError:
-            A section names an unknown state, the states have alphabets of different sizes, or a permutation is not a
-            permutation of the alphabet.
-
-    Examples:
-        >>> from skcomplex.core.formalisms.groups import automaton_group
-        >>> adding = automaton_group({'t': ((None, 't'), (1, 0))})
-        >>> adding.generators
-        ('t',)
-    """
-    names = _check_names(list(recursion))
-    degrees = {len(sections) for sections, _ in recursion.values()}
-    if len(degrees) != 1 or min(degrees) < 2:  # noqa: PLR2004
-        error_msg = f'Every state of an automaton has one section per letter of one alphabet, but they have {degrees}.'
-        raise ValidationError(error_msg)
-    degree = degrees.pop()
-    sections, actions = [], []
-    for name, (states, action) in recursion.items():
-        unknown = [state for state in states if state is not None and state not in names]
-        images = tuple(range(degree)) if action is None else tuple(int(image) for image in action)
-        if unknown or sorted(images) != list(range(degree)):
-            error_msg = (
-                f'The state {name} has the sections {tuple(states)} and the permutation {action}. Sections are states '
-                f'of {", ".join(names)} or None, and the permutation reorders 0 to {degree - 1}.'
-            )
-            raise ValidationError(error_msg)
-        sections.append(tuple(None if state is None else names.index(state) for state in states))
-        actions.append(images)
-    return _AutomatonGroup(names, tuple(sections), tuple(actions))
-
-
-def permutation_group(
-    generators: Sequence[Sequence[int]],
-    names: Sequence[str] | None = None,
-) -> FinitelyGeneratedGroup:
-    """Return the group of permutations of the points `0` to `n - 1`, given by the images of the points.
-
-    Elements act on the right, so the product `g h` acts by `g` first.
-
-    Args:
-        generators:
-            The images of the points under every generator.
-
-        names:
-            The names of the generators, or `None` for `a`, `b`, and so on.
-
-    Returns:
-        group:
-            The group.
-
-    Raises:
-        ValidationError:
-            A generator is not a permutation of the same points as the others.
-
-    Examples:
-        >>> from skcomplex.core.formalisms.groups import permutation_group
-        >>> permutation_group([[1, 0, 2], [1, 2, 0]]).generators
-        ('a', 'b')
-    """
-    images = tuple(tuple(int(point) for point in generator) for generator in generators)
-    sizes = {len(image) for image in images}
-    if len(sizes) != 1 or any(sorted(image) != list(range(len(image))) for image in images):
-        error_msg = f'Every generator permutes the same points 0 to n - 1, but the generators are {images}.'
-        raise ValidationError(error_msg)
-    return _PermutationGroup(_names_of(names, len(images)), images)
-
-
-def matrix_group(
-    generators: Sequence[npt.ArrayLike],
-    ring: str = 'ZZ',
-    names: Sequence[str] | None = None,
-) -> FinitelyGeneratedGroup:
-    """Return the group of invertible square matrices over the integers or a prime field, given by its generators.
-
-    Args:
-        generators:
-            The integer matrices.
-
-        ring:
-            `'ZZ'` for the integers, or `'GF(p)'` for the field of a prime number `p` of elements.
-
-        names:
-            The names of the generators, or `None` for `a`, `b`, and so on.
-
-    Returns:
-        group:
-            The group.
-
-    Raises:
-        ValidationError:
-            The ring is unknown, a generator is not a square integer matrix of the same size as the others, or it is
-            not invertible over the ring.
-
-    Examples:
-        >>> from skcomplex.core.formalisms.groups import matrix_group
-        >>> matrix_group([[[1, 2], [0, 1]], [[1, 0], [2, 1]]]).generators
-        ('a', 'b')
-    """
-    modulus = _modulus_of(ring)
-    arrays = [np.asarray(generator) for generator in generators]
-    shapes = {array.shape for array in arrays}
-    if len(shapes) != 1 or len(arrays[0].shape) != 2 or arrays[0].shape[0] != arrays[0].shape[1]:  # noqa: PLR2004
-        error_msg = f'The generators of a matrix group are square matrices of one size, but their shapes are {shapes}.'
-        raise ValidationError(error_msg)
-    for array in arrays:
-        determinant = round(float(np.linalg.det(array)))
-        invertible = abs(determinant) == 1 if modulus is None else determinant % modulus != 0
-        if not np.array_equal(array, np.rint(array)) or not invertible:
-            error_msg = f'The generator {array.tolist()} is not an invertible integer matrix over {ring}.'
-            raise ValidationError(error_msg)
-    entries = tuple(tuple(tuple(int(item) for item in row) for row in array) for array in arrays)
-    return _MatrixGroup(_names_of(names, len(arrays)), entries, modulus)
