@@ -2,9 +2,9 @@
 
 ## 1. Core
 
-- [ ] 1.1 Add `conserved` to `Noise` and `NoiseKind`, lower conserved noise to link processes on lattices for the
+- [x] 1.1 Add `conserved` to `Noise` and `NoiseKind`, lower conserved noise to link processes on lattices for the
   NumPy and Numba backends, and verify the conservation and variance scenarios
-- [ ] 1.2 Declare the support of the solvers and backends, and validate conserved noise on a state that is not a field
+- [x] 1.2 Declare the support of the solvers and backends, and validate conserved noise on a state that is not a field
   on a lattice
 
 ## 2. Library

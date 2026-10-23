@@ -28,6 +28,17 @@ is conserved there too. The amplitude is a number or an expression of parameters
 The lowering adds the link processes as columns of the noise matrix of `add-correlated-noise`, two nonzero entries per
 column, so every stepper that draws independent processes draws them.
 
+### Implementation choices
+
+- A conserved noise law lowers, for every dimension `k`, to two noise outputs per target component: `-a / h_k` on the
+  link to the next neighbour and `a / h_k` on the link from the previous one. The links of one target are numbered
+  `k n + i` within one block of `d n` processes, so the columns are those of `add-correlated-noise` with a table of
+  links per site.
+- A site on an edge that is not periodic draws its missing link from one process of zero variance, a block of
+  `add-correlated-noise` with the factor `0`, so the steppers and backends need no change.
+- Conserved noise holds on finite-difference fields of square lattices. A conserved law that names a process is
+  rejected when it is built, and one whose amplitude reads a state fails to compile, as the non-goals state.
+
 ### Declarations and validation
 
 `NoiseKind` gains `CONSERVED`. Euler-Maruyama, Heun, and the NumPy and Numba backends support it. A conserved noise
