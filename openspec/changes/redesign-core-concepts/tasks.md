@@ -30,7 +30,7 @@
 - [ ] 2.4 Move `groups`, `control`, and `fractional`. Verify with their tests and the catalog conformance tests.
 - [ ] 2.5 Move `flows`, `kinetics`, and `particles`, with LAMMPS moving into `particles`. Verify with their tests and
   the catalog conformance tests.
-- [ ] 2.6 Move `quantum` and `rewriting`. Verify with their tests and the catalog conformance tests.
+- [x] 2.6 Move `quantum` and `rewriting`. Verify with their tests and the catalog conformance tests.
 - [ ] 2.7 Move `lattices`, then `fields` with its declared dependency on `lattices`. Verify with their tests, the
   "Declared dependency" scenario, and the catalog conformance tests.
 - [ ] 2.8 Move `agents`, with Mesa moving into `agents`. Verify with the agent tests, the "Formalism imports",
