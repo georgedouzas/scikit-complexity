@@ -61,6 +61,17 @@ def test_rerun_observer_saves_recording(tmp_path):
     assert path.stat().st_size > 0
 
 
+def test_rerun_observers_release_the_threads_of_finished_recordings(tmp_path):
+    """Test that many observers in one process, as in the docs build, do not accumulate recording threads."""
+    psutil = pytest.importorskip('psutil')
+    system = System(components=[Population('a')], interactions=[ExponentialGrowth('g', target='a')])
+    _run(system, RerunObserver('test', save_path=tmp_path / 'first.rrd'))
+    before = psutil.Process().num_threads()
+    for index in range(20):
+        _run(system, RerunObserver('test', save_path=tmp_path / f'run{index}.rrd'))
+    assert psutil.Process().num_threads() - before < 10
+
+
 def test_rerun_observer_interval_thins_frames(tmp_path):
     """Test that only every n-th frame is logged."""
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', interval=10)

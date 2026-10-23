@@ -105,9 +105,9 @@ def backend_lines() -> list[str]:
     return lines
 
 
-def _spaces(base: type) -> list[type]:
+def _spaces(base: type[Space]) -> list[type[Space]]:
     """Return every subclass of a space class that declares its kind, recursively."""
-    found = []
+    found: list[type[Space]] = []
     for subclass in base.__subclasses__():
         found += [subclass, *_spaces(subclass)]
     return [space for space in found if 'space_kind' in vars(space) or 'lacks' in vars(space)]

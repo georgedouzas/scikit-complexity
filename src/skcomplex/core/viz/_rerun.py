@@ -11,6 +11,7 @@ from typing import Literal
 import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
+from rerun import bindings
 
 from ..base import ValidationError
 from ..compile import CompiledElement, Problem, RenewalRecord
@@ -143,6 +144,9 @@ class RerunObserver(Observer):
                 The compiled problem.
         """
         self.blueprint_ = self._resolve_blueprint(problem)
+        # Rerun keeps the threads of a recording until its orphans are cleaned up, so a process running many
+        # simulations, such as the docs build, would otherwise run out of threads.
+        bindings.flush_and_cleanup_orphaned_recordings()
         self.recording_ = rr.RecordingStream(self.application_id)
         if self.save_path is not None:
             self.recording_.save(self.save_path, default_blueprint=self.blueprint_)
