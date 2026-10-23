@@ -211,6 +211,10 @@ and `problem`.
   state. `compile_system` continues from that state, so the system is flattened once.
 - The planner is one function, `plan_partitions(census, solvers)`. It reads the registered forms and the solvers'
   `supports.laws`, and both validation and compilation call it.
+- The planner, `plan_partitions(census, kinds, solvers)`, needs both a registered form for the lowered law classes and
+  a solver for the declared law kinds, because a solver alone can accept a mix, such as a jump with a rate in the
+  renewal solver, that no form lowers. Validation therefore lowers every system without errors up to the `kinds` field,
+  and a lowering error becomes a validation issue.
 - The mutable accumulators `_Hybrid` and `_Fields` become fields of `Compilation` written by declared passes, so the
   order of the passes is explicit.
 
