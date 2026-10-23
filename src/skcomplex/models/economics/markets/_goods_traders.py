@@ -267,7 +267,7 @@ def goods_traders(
     locations = [cells[index] for index in rng.integers(len(cells), size=n_traders)]
     weights = rng.dirichlet(np.ones(goods), size=n_traders)
     holdings = rng.uniform(low, high, (n_traders, goods))
-    values = {GOODS[index]: holdings[:, index] for index in range(goods)}
+    values: dict[str, Any] = {GOODS[index]: holdings[:, index] for index in range(goods)}
     values |= {WEIGHTS[index]: weights[:, index] for index in range(goods)}
     traders = GoodsTrader.group('traders', n_traders, variable=True, location=locations, mobility=mobility, **values)
     return System(

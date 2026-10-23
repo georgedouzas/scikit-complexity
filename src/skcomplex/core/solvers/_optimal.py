@@ -54,7 +54,7 @@ def _check_supported(problem: Problem) -> None:
         raise SolverError(error_msg)
 
 
-def _lower_bounds(problem: Problem, indices: Sequence[int]) -> Vector:
+def _lower_bounds(problem: Problem, indices: Sequence[int] | npt.NDArray[np.intp]) -> Vector:
     """Return the lower bound of the states at indices: 0 for nonnegative domains and minus infinity for others."""
     lower = np.full(problem.states.size, -np.inf)
     for entry in problem.states:

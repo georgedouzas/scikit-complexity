@@ -277,7 +277,10 @@ def _rule_clauses(
 def _decode(model: list[int], variables: npt.NDArray[np.int64]) -> Codes:
     """Return the values of one-hot variables in a model."""
     true = set(model)
-    return np.asarray([next(value for value, item in enumerate(row) if item in true) for row in variables.tolist()])
+    return np.asarray(
+        [next(value for value, item in enumerate(row) if item in true) for row in variables.tolist()],
+        dtype=np.int64,
+    )
 
 
 def _collision(automaton: Automaton, window: Sequence[int]) -> tuple[Codes, Codes] | None:

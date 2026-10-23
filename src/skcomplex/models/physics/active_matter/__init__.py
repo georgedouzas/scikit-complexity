@@ -13,6 +13,7 @@ from ._collective import (
     toner_tu,
 )
 from ._collisions import BinaryCollisions, Flocker, binary_collision_flocking
+from ._nonreciprocal import NonreciprocalMover, nonreciprocal_vicsek
 from ._particles import (
     ActiveParticle,
     DepotParticle,
@@ -32,6 +33,7 @@ __all__: list[str] = [
     'CuckerSmaleAlignment',
     'DepotParticle',
     'Flocker',
+    'NonreciprocalMover',
     'OrnsteinUhlenbeckParticle',
     'PhoreticAttraction',
     'PolarAlignment',
@@ -48,6 +50,7 @@ __all__: list[str] = [
     'keller_segel',
     'living_crystals',
     'motility_induced_phase_separation',
+    'nonreciprocal_vicsek',
     'run_and_tumble',
     'toner_tu',
 ]

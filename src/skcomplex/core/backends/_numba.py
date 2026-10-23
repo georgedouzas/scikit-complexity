@@ -5,6 +5,7 @@
 
 import hashlib
 import importlib.util
+import inspect
 import os
 import re
 import sys
@@ -14,6 +15,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, ClassVar
 
+import numba
 import numpy as np
 import scipy.sparse
 from numba.core.dispatcher import Dispatcher
@@ -51,6 +53,7 @@ from ..compile._problem import Accelerated, Draws, Vector
 from ..compile._reductions import CompiledReduction, Read, ReductionPass
 from ..laws import Boundary, Jump, Noise, Rate, Update
 from ..space import Cone, Nearest
+from . import _numba_cells, _numba_neighbours, _numba_stencils
 
 DEFAULT_CACHE_DIR = Path.home() / '.cache' / 'skcomplex' / 'kernels'
 FORM_KINDS: dict[Form, list[type]] = {
@@ -870,9 +873,20 @@ def _entry_function(
     source.lines += ['', '', *lines]
 
 
+def _helpers_fingerprint() -> str:
+    """Return a digest of the compiled helpers that generated kernels import and of the Numba version.
+
+    Numba caches a kernel with the compiled helpers it calls, but checks only the kernel's own source, so a kernel
+    cached against other helpers, such as those of another version of the library, would run stale code. The digest
+    keys the cached kernels on the helpers too.
+    """
+    sources = [inspect.getsource(module).encode() for module in (_numba_cells, _numba_neighbours, _numba_stencils)]
+    return hashlib.sha256(b''.join([numba.__version__.encode(), *sources])).hexdigest()
+
+
 def _load(text: str, functions: Mapping[str, object], cache_dir: Path) -> ModuleType:
     """Return the module of generated source, from a cached file when it has no injected functions."""
-    digest = hashlib.sha256(text.encode()).hexdigest()[:24]
+    digest = hashlib.sha256((HELPERS_FINGERPRINT + text).encode()).hexdigest()[:24]
     name = f'skcomplex_kernels_{digest}'
     if functions:
         module = ModuleType(name)
@@ -893,6 +907,9 @@ def _load(text: str, functions: Mapping[str, object], cache_dir: Path) -> Module
     sys.modules[name] = module
     specification.loader.exec_module(module)  # type: ignore[union-attr]
     return module
+
+
+HELPERS_FINGERPRINT = _helpers_fingerprint()
 
 
 class NumbaBackend(Backend):

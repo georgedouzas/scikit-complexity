@@ -884,7 +884,7 @@ def metaphoria(
         regrowth=regrowth,
     )
     cells = rng.integers(0, shape, size=(n_people, len(shape)))
-    traits = {name: rng.uniform(0.0, bound, n_people) for name, bound in PROPENSITIES.items()}
+    traits: dict[str, Any] = {name: rng.uniform(0.0, bound, n_people) for name, bound in PROPENSITIES.items()}
     people = Settler.group(
         'people',
         n_people,

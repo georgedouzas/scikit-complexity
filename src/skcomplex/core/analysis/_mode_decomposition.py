@@ -184,7 +184,10 @@ def fit_dmd(
     after = np.concatenate([values[1:] for values in training]).T
     decomposition = module('pydmd').DMD(svd_rank=-1 if rank is None else rank, exact=True).fit(before, after)
     modes = np.asarray(decomposition.modes, dtype=complex)
-    eigenvalues = np.log(np.asarray(decomposition.eigs, dtype=complex)) / samples.dt
+    eigenvalues: ComplexArray = np.asarray(
+        np.log(np.asarray(decomposition.eigs, dtype=complex)) / samples.dt,
+        dtype=complex,
+    )
     generator = np.real(modes @ np.diag(eigenvalues) @ np.linalg.pinv(modes))
     amplitudes = np.linalg.lstsq(modes, lifted[0][0].astype(complex), rcond=None)[0]
 

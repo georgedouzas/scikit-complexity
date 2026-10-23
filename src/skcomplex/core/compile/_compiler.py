@@ -3353,7 +3353,7 @@ def _symmetries(blocks: list[_Block]) -> list[tuple[npt.NDArray[np.intp], tuple[
                     raise ValidationError(error_msg)
                 if parity is not None:
                     signs.append((axis, -1 if parity == 'odd' else 1))
-            indices = entry.start + np.arange(place.size) * entry.columns
+            indices = entry.start + np.arange(place.size or 0) * entry.columns
             found.append((indices, space.dimensions, signs))
     return found
 
