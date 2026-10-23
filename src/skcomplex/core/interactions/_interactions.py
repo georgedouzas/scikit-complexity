@@ -15,7 +15,7 @@ from ..base import (
     role,
 )
 from ..components._components import BINDINGS, Component, _caller_module, _define, _is_declaration, _is_state
-from ..laws._laws import Law
+from ..laws import Law
 
 
 class Interaction(Component):

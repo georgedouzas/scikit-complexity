@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ..base import HilbertFamily, HilbertSpace, ValidationError, VariableKind, declarations_of
-from ..laws._laws import Law
+from ..laws import Law
 from ..laws._operators import LocalOperator, Operator, sparse_matrix
 from ..laws._symbols import Symbols
 from ._components import Element, Group

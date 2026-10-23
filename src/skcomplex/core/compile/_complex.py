@@ -349,7 +349,9 @@ def _split_equation(equation: Equation, owner: str) -> list[Law]:
 
 def _law_fields(law: Law) -> list[object]:
     """Return the values of the fields of a law, with the arguments of a called function."""
-    values = [getattr(law, item.name) for item in dataclasses.fields(law)] if dataclasses.is_dataclass(law) else []
+    values: list[object] = (
+        [getattr(law, item.name) for item in dataclasses.fields(law)] if dataclasses.is_dataclass(law) else []
+    )
     return [item for value in values for item in (value.arguments if isinstance(value, Call) else (value,))]
 
 

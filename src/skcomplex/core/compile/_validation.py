@@ -22,6 +22,7 @@ from ..base import (
     HilbertSpace,
     IncompatibleLawsError,
     LabelError,
+    LawClass,
     LawKind,
     NoiseKind,
     OrderKind,
@@ -43,39 +44,18 @@ from ..base import (
     declarations_of,
 )
 from ..components import Element, Field, Group, Wiener
-from ..interactions import Match
 from ..laws import (
-    Auxiliary,
-    Boundary,
     Call,
-    Destruction,
-    Dissipator,
-    Drive,
-    Emission,
     Encounter,
-    Equation,
-    Event,
-    Extremal,
-    Flux,
-    Generator,
-    GraphProduction,
-    Invariant,
     Jump,
+    Law,
     LocalRule,
     Noise,
-    Objective,
-    Production,
     Proliferation,
-    Rate,
-    Relaxation,
-    Rule,
     Sample,
     Sampler,
-    Substitution,
     TopologyRequest,
-    Transfer,
-    Transition,
-    Update,
+    law_classes,
     neighbourhoods_in,
     outcome_sums,
     request_of,
@@ -113,46 +93,6 @@ def _solver_registry() -> Registry:
     return SOLVERS
 
 
-def law_types() -> tuple[Any, ...]:
-    """Return every law type of the core.
-
-    Returns:
-        types:
-            The law types, in declaration order.
-    """
-    return (
-        Rate,
-        Noise,
-        Jump,
-        Update,
-        Transition,
-        Emission,
-        Boundary,
-        Rule,
-        Equation,
-        Event,
-        LocalRule,
-        Drive,
-        Extremal,
-        Relaxation,
-        Sample,
-        Match,
-        Flux,
-        Transfer,
-        Auxiliary,
-        Invariant,
-        Objective,
-        Generator,
-        Dissipator,
-        Production,
-        Substitution,
-        GraphProduction,
-        Encounter,
-        Proliferation,
-        Destruction,
-    )
-
-
 def _subclasses(base: type) -> list[type]:
     """Return every subclass of a class, recursively."""
     found: list[type] = []
@@ -165,8 +105,9 @@ def _subclasses(base: type) -> list[type]:
 def missing_declarations() -> list[str]:
     """Return the primitives, solvers, and backends that do not declare their requirements or support.
 
-    Every law type declares its law kind and its requirements, every space its kind, every registered solver and
-    backend its support. Validation reads only these declarations, so a primitive without one cannot be validated.
+    Every law class declares its law kind, its time class, and its requirements, every space its kind, every registered
+    solver and backend its support. Validation reads only these declarations, so a primitive without one cannot be
+    validated.
 
     Returns:
         missing:
@@ -178,9 +119,11 @@ def missing_declarations() -> list[str]:
         []
     """
     missing = []
-    for law in law_types():
+    for law in _subclasses(Law):
         if not isinstance(getattr(law, 'law_kind', None), LawKind):
             missing.append(f'The law {law.__name__} declares no law kind.')
+        if not isinstance(getattr(law, 'time_class', None), LawClass):
+            missing.append(f'The law {law.__name__} declares no time class.')
         if not isinstance(getattr(law, 'requires', None), Requires):
             missing.append(f'The law {law.__name__} declares no requirements.')
     missing.extend(
@@ -532,9 +475,11 @@ def _law_issues(records: list[CensusRecord], times: dict[str, TimeKind | None]) 
             message = f'The {name} needs a {_names(requires.space)} space, but the component lives on {space}.'
             issues.append(Issue('law-space', record.path, message, 'Give the system a space of a supported kind.'))
         if time is not None and not requires.accepts('time', time):
-            message = f'The {name} is a {law.law_kind.law_class} law, which needs {_names(requires.time)} time.'
+            message = f'The {name} is a {law.time_class} law, which needs {_names(requires.time)} time.'
             kinds = {
-                str(item.law_kind) for item in law_types() if item.requires.time and item.requires.accepts('time', time)
+                str(item.law_kind)
+                for item in law_classes()
+                if item.requires.time and item.requires.accepts('time', time)
             }
             classes = ' or '.join(f'`{TIME_CLASSES[kind]}`' for kind in sorted(requires.time))
             fix = f'Declare {_names(requires.time)} time with {classes}, or use a law of {time} time: {_names(kinds)}.'

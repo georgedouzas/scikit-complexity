@@ -10,7 +10,8 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ..base import DomainKind, Expression, LawKind, Requires, SpaceKind, TimeKind, ValidationError
+from ..base import DomainKind, Expression, LawClass, LawKind, Requires, SpaceKind, TimeKind, Trait, ValidationError
+from ._law import Law
 
 ENCOUNTER_REQUIREMENTS = Requires(time={TimeKind.CONTINUOUS}, space={SpaceKind.LATTICE}, domains={DomainKind.REAL})
 
@@ -63,7 +64,7 @@ def outcome_sums(outcomes: Table) -> Table:
 
 
 @dataclass(frozen=True, init=False, eq=False)
-class Encounter:
+class Encounter(Law):
     """Conservative encounter of active particles, which moves a candidate particle to a new activity.
 
     A candidate particle at activity `h` meets a field particle at activity `k` at the encounter rate `eta[h, k]`, and
@@ -107,6 +108,8 @@ class Encounter:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.ENCOUNTER
+    time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.FORMLESS, Trait.KERNEL_FREE, Trait.DECLARABLE})
     requires: ClassVar[Requires] = ENCOUNTER_REQUIREMENTS
 
     candidate: Expression
@@ -143,7 +146,7 @@ class Encounter:
 
 
 @dataclass(frozen=True, init=False, eq=False)
-class Proliferation:
+class Proliferation(Law):
     """Proliferative encounter, which creates a particle in the test group without removing the candidate.
 
     A candidate particle at activity `h` that meets a field particle at activity `k` creates, at the rate `mu[h, k]`,
@@ -180,6 +183,8 @@ class Proliferation:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.ENCOUNTER
+    time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.FORMLESS, Trait.KERNEL_FREE, Trait.DECLARABLE})
     requires: ClassVar[Requires] = ENCOUNTER_REQUIREMENTS
 
     candidate: Expression
@@ -212,7 +217,7 @@ class Proliferation:
 
 
 @dataclass(frozen=True, init=False, eq=False)
-class Destruction:
+class Destruction(Law):
     """Destructive encounter, which removes the candidate particle.
 
     A candidate particle at activity `h` that meets a field particle at activity `k` is removed at the rate
@@ -241,6 +246,8 @@ class Destruction:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.ENCOUNTER
+    time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.FORMLESS, Trait.KERNEL_FREE, Trait.DECLARABLE})
     requires: ClassVar[Requires] = ENCOUNTER_REQUIREMENTS
 
     candidate: Expression

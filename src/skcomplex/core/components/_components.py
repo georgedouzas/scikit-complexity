@@ -26,7 +26,8 @@ from ..base import (
     state,
     symbol,
 )
-from ..laws._laws import Law, Rule
+from ..laws import Law
+from ..laws._laws import Rule
 from ..laws._symbols import Symbols
 from ..space._cayley import GroupSpace
 from ..space._lattices import LatticeSpace

@@ -18,7 +18,7 @@ from ..base import (
     symbol,
     vector,
 )
-from ..laws._laws import Law, Rate
+from ..laws import Law, Rate
 from ..laws._symbols import Symbols
 from ._interactions import Interaction
 

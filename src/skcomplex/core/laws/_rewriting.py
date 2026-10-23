@@ -13,11 +13,13 @@ import numpy.typing as npt
 
 from ..base import (
     DomainKind,
+    LawClass,
     LawKind,
     Requires,
     RewritingError,
     TimeKind,
 )
+from ._law import Law
 
 
 class Module:
@@ -92,7 +94,7 @@ def parse_word(value: Letters, names: Sequence[str] = ()) -> list[Module]:
 
 
 @dataclass(frozen=True, eq=False)
-class Production:
+class Production(Law):
     """Production of a string rewriting system, which replaces every matching module of a word by a successor.
 
     The predecessor's parameters are symbols bound to the parameters of each matching module. The condition, the
@@ -127,6 +129,7 @@ class Production:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.REWRITE
+    time_class: ClassVar[LawClass] = LawClass.DISCRETE
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, domains={DomainKind.SEQUENCE})
 
     predecessor: str | Module
@@ -258,7 +261,7 @@ class Affine:
 
 
 @dataclass(frozen=True, eq=False)
-class Substitution:
+class Substitution(Law):
     """Substitution that replaces every tile of a prototile by pieces placed relative to the tile.
 
     Args:
@@ -275,6 +278,7 @@ class Substitution:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.REWRITE
+    time_class: ClassVar[LawClass] = LawClass.DISCRETE
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, domains={DomainKind.TILING})
 
     prototile: str
@@ -286,7 +290,7 @@ class Substitution:
 
 
 @dataclass(frozen=True, eq=False)
-class GraphProduction:
+class GraphProduction(Law):
     """Double-pushout graph production: a left graph, an interface, and a right graph that share nodes by name.
 
     A match of the left graph in a host graph deletes the nodes and edges of the left graph that are not in the
@@ -315,6 +319,7 @@ class GraphProduction:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.REWRITE
+    time_class: ClassVar[LawClass] = LawClass.DISCRETE
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, domains={DomainKind.GRAPH})
 
     left: nx.Graph

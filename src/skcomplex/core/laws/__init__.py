@@ -35,6 +35,7 @@ from ._lattices import (
     adjacent,
     neighbor_sum,
 )
+from ._law import Law, has_trait, law_classes
 from ._laws import (
     Boundary,
     Call,
@@ -43,7 +44,6 @@ from ._laws import (
     Event,
     FractionalNoise,
     Jump,
-    Law,
     Noise,
     NumericFunction,
     Objective,
@@ -132,10 +132,12 @@ __all__: list[str] = [
     'either',
     'gradient',
     'has_reductions',
+    'has_trait',
     'inverse_laplacian',
     'is_draw',
     'lag',
     'laplacian',
+    'law_classes',
     'lookup',
     'maximum',
     'mean',

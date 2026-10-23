@@ -12,7 +12,8 @@ import qutip
 import scipy.sparse as sp
 from sage.all__sagemath_symbolics import SR
 
-from ..base import DomainKind, Expression, LawKind, Requires, TimeKind, ValidationError
+from ..base import DomainKind, Expression, LawClass, LawKind, Requires, TimeKind, ValidationError
+from ._law import Law
 
 ADJOINT_NAMES = {'plus': 'minus', 'minus': 'plus', 'annihilate': 'create', 'create': 'annihilate'}
 ADJOINT_SUFFIX = '.dag'
@@ -225,7 +226,7 @@ class Operator:
 
 
 @dataclass(frozen=True)
-class Generator:
+class Generator(Law):
     """Law that adds an operator to the Hamiltonian of a quantum system, with `ħ = 1`.
 
     Args:
@@ -245,6 +246,7 @@ class Generator:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.GENERATOR
+    time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
     requires: ClassVar[Requires] = Requires(time={TimeKind.CONTINUOUS}, domains={DomainKind.HILBERT})
 
     operator: Operator
@@ -259,7 +261,7 @@ class Generator:
 
 
 @dataclass(frozen=True)
-class Dissipator:
+class Dissipator(Law):
     """Law that adds a Lindblad dissipator with a collapse operator and a rate, which makes a quantum system open.
 
     The master equation gains `rate * (L rho L^† - (L^† L rho + rho L^† L) / 2)`.
@@ -284,6 +286,7 @@ class Dissipator:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.DISSIPATOR
+    time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
     requires: ClassVar[Requires] = Requires(time={TimeKind.CONTINUOUS}, domains={DomainKind.HILBERT})
 
     operator: Operator

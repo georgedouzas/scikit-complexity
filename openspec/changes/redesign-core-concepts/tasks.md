@@ -5,7 +5,7 @@
 - [x] 1.1 Replace the closed enums `LawKind`, `Form`, `SpaceKind`, and the hand-kept trait tuples with open registries
   of named values in `base`, keeping the current member names as constants. Verify that mypy is clean and that the
   full suite passes unchanged.
-- [ ] 1.2 Add the `Law` base in `laws/_law.py`, which imports only `base`. Make every law class an explicit frozen
+- [x] 1.2 Add the `Law` base in `laws/_law.py`, which imports only `base`. Make every law class an explicit frozen
   dataclass that derives from it and declares its `kind`, `time_class`, and `traits`. Make `Jump` reject options of
   the other clock. Verify with the "Every law shares the base" and "Option of the other clock" scenarios.
 - [ ] 1.3 Add `values_of(law, *, include=...)` to `laws`. Replace the four law-value walkers in `compile` with it.

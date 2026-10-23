@@ -15,7 +15,7 @@ from ..base import (
     parameter,
     state,
 )
-from ..laws._laws import Law, Rate
+from ..laws import Law, Rate
 from ..laws._symbols import Symbols
 from ._components import Element
 

@@ -75,7 +75,7 @@ class SpaceKind(Term):
 
 
 class LawKind(Term):
-    """Kind of law, a term of an open vocabulary, with the class of its time semantics as `law_class`.
+    """Kind of law, a term of an open vocabulary.
 
     Args:
         name:
@@ -109,11 +109,6 @@ class LawKind(Term):
     INVARIANT: ClassVar['LawKind']
     OBJECTIVE: ClassVar['LawKind']
     ENCOUNTER: ClassVar['LawKind']
-
-    @property
-    def law_class(self) -> LawClass:
-        """Return the time semantics of the law kind."""
-        return LAW_CLASSES[self]
 
 
 class Trait(Term):
@@ -166,27 +161,6 @@ Trait.FORMLESS = Trait('FORMLESS', 'formless')
 Trait.KERNEL_FREE = Trait('KERNEL_FREE', 'kernel-free')
 Trait.LATTICE = Trait('LATTICE', 'lattice')
 Trait.DECLARABLE = Trait('DECLARABLE', 'declarable')
-LAW_CLASSES: dict[LawKind, LawClass] = {
-    LawKind.RATE: LawClass.CONTINUOUS,
-    LawKind.NOISE: LawClass.CONTINUOUS,
-    LawKind.EQUATION: LawClass.CONTINUOUS,
-    LawKind.GENERATOR: LawClass.CONTINUOUS,
-    LawKind.DISSIPATOR: LawClass.CONTINUOUS,
-    LawKind.JUMP: LawClass.EVENT,
-    LawKind.EVENT: LawClass.EVENT,
-    LawKind.UPDATE: LawClass.DISCRETE,
-    LawKind.TRANSITION: LawClass.DISCRETE,
-    LawKind.RULE: LawClass.DISCRETE,
-    LawKind.LOCAL_RULE: LawClass.DISCRETE,
-    LawKind.REWRITE: LawClass.DISCRETE,
-    LawKind.SAMPLE: LawClass.DISCRETE,
-    LawKind.MATCH: LawClass.DISCRETE,
-    LawKind.TRANSFER: LawClass.ANY,
-    LawKind.BOUNDARY: LawClass.CONSTRAINT,
-    LawKind.INVARIANT: LawClass.CONSTRAINT,
-    LawKind.OBJECTIVE: LawClass.CONSTRAINT,
-    LawKind.ENCOUNTER: LawClass.CONTINUOUS,
-}
 
 
 class OrderKind(StrEnum):

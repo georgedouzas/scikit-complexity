@@ -1,7 +1,8 @@
 """Generate the compatibility page from the requirements of the laws and the support of the solvers and backends."""
 
 from skcomplex.core.base import LawKind
-from skcomplex.core.compile import BACKENDS, law_types
+from skcomplex.core.compile import BACKENDS
+from skcomplex.core.laws import law_classes
 from skcomplex.core.solvers import SOLVERS
 from skcomplex.core.space import Space
 
@@ -34,10 +35,10 @@ def law_lines() -> list[str]:
         '| Law | Kind | Class | Time | Space | Domains |',
         '|---|---|---|---|---|---|',
     ]
-    for law in law_types():
+    for law in law_classes():
         requires = law.requires
         lines.append(
-            f'| `{law.__name__}` | `{law.law_kind}` | {law.law_kind.law_class} | {_terms(requires.time)} | '
+            f'| `{law.__name__}` | `{law.law_kind}` | {law.time_class} | {_terms(requires.time)} | '
             f'{_terms(requires.space)} | {_terms(requires.domains)} |',
         )
     return lines
@@ -100,7 +101,11 @@ def backend_lines() -> list[str]:
     ]
     for key in sorted(BACKENDS):
         supports = BACKENDS.resolve(key).supports
-        cells = [_terms(supports.laws, len(LawKind.registered())), _terms(supports.domains, 12), _noise_terms(supports.noise)]
+        cells = [
+            _terms(supports.laws, len(LawKind.registered())),
+            _terms(supports.domains, 12),
+            _noise_terms(supports.noise),
+        ]
         lines.append(f'| `{key}` | {" | ".join(cells)} |')
     return lines
 

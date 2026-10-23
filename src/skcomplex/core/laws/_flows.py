@@ -16,13 +16,16 @@ from ..base import (
     ConservationError,
     DomainKind,
     Expression,
+    LawClass,
     LawKind,
     Requires,
     SymbolicVector,
+    Trait,
     ValidationError,
     symbol,
 )
 from ._functions import series
+from ._law import Law
 from ._laws import _check_value, _is_number
 
 DELAY_NAME = re.compile(r'^(?P<kind>material|smoothing)_delay(?P<order>[1-9][0-9]*)$')
@@ -91,7 +94,7 @@ def _check_holder(name: str, holder: object, environment: type) -> None:
 
 
 @dataclass(frozen=True)
-class Transfer:
+class Transfer(Law):
     """Movement of an amount of a quantity from a source holder to a sink holder.
 
     A transfer is one outflow of its source and one inflow of its sink. Its amount is a rate in a system of rate laws,
@@ -129,6 +132,8 @@ class Transfer:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.TRANSFER
+    time_class: ClassVar[LawClass] = LawClass.ANY
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.KERNEL_FREE, Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(domains={DomainKind.REAL})
 
     source: Holder
@@ -157,7 +162,7 @@ class Transfer:
 
 
 @dataclass(frozen=True)
-class Auxiliary:
+class Auxiliary(Law):
     """Named intermediate expression that laws reuse through its symbol and that trajectories record.
 
     Laws use `auxiliary.symbol` where the expression belongs, and the compiler substitutes the expression. The loop
@@ -181,6 +186,8 @@ class Auxiliary:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.EQUATION
+    time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.KERNEL_FREE, Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires()
 
     label: str
@@ -197,7 +204,7 @@ class Auxiliary:
 
 
 @dataclass(frozen=True)
-class Invariant:
+class Invariant(Law):
     """Expression of the states of a component that stays constant during a run, such as a conserved total.
 
     The trajectory records the expression under `<component path>.<label>`, and every run checks at every frame that it
@@ -227,6 +234,8 @@ class Invariant:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.INVARIANT
+    time_class: ClassVar[LawClass] = LawClass.CONSTRAINT
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.KERNEL_FREE, Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires()
 
     label: str

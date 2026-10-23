@@ -27,7 +27,6 @@ from ._errors import (
 from ._forms import Form
 from ._registry import Registry
 from ._support import (
-    LAW_CLASSES,
     NUMERIC_DOMAINS,
     Binding,
     ComponentKind,
@@ -59,7 +58,6 @@ from ._variables import Variable, VariableKind, companions_of, declaration_of, d
 from ._visuals import VisualSpec
 
 __all__: list[str] = [
-    'LAW_CLASSES',
     'NUMERIC_DOMAINS',
     'AnalysisError',
     'AnyDomain',

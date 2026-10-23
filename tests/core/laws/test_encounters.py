@@ -11,7 +11,7 @@ from skcomplex.core.laws import Destruction, Encounter, Proliferation, outcome_s
 def test_encounter_laws_declare_continuous_encounter_kind(law):
     """Test that every encounter law is of the encounter kind, continuous, and needs continuous time and a lattice."""
     assert law.law_kind is LawKind.ENCOUNTER
-    assert law.law_kind.law_class is LawClass.CONTINUOUS
+    assert law.time_class is LawClass.CONTINUOUS
     assert law.requires.time == {TimeKind.CONTINUOUS}
     assert law.requires.space == {SpaceKind.LATTICE}
 

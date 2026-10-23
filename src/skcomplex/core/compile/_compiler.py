@@ -29,6 +29,7 @@ from ..base import (
     RoleError,
     SkcomplexError,
     SymbolicVector,
+    Trait,
     ValidationError,
     Variable,
     VariableKind,
@@ -48,8 +49,10 @@ from ..laws import (
     Auxiliary,
     Boundary,
     Call,
+    Destruction,
     Drive,
     Emission,
+    Encounter,
     Energy,
     Equation,
     Event,
@@ -63,6 +66,7 @@ from ..laws import (
     Move,
     Noise,
     Objective,
+    Proliferation,
     Rate,
     Reduction,
     Relaxation,
@@ -78,6 +82,8 @@ from ..laws import (
     count,
     either,
     has_reductions,
+    has_trait,
+    law_classes,
     maximum,
     mean,
     minimum,
@@ -174,24 +180,9 @@ FORMS: dict[frozenset[type], Form] = {
     frozenset({Energy, Move, Sampler}): Form.MONTE_CARLO,
     frozenset({Renewal}): Form.RENEWAL,
 }
-FORMLESS = frozenset({Boundary, Event, Flux, *ENCOUNTER_LAWS})
 CONTINUOUS = frozenset({Rate, Noise})
 ASSIGNED_KINDS = (Update, Boundary)
 MEMBER_REFERENCE = re.compile(r'^(?P<path>.+)\[(?P<index>-?\d+)\]$')
-LATTICE_LAWS = (LocalRule, Drive, Relaxation, Extremal, Energy, Move, Sampler)
-KERNEL_FREE = (*LATTICE_LAWS, Flux, Transfer, Auxiliary, Invariant, Objective, *ENCOUNTER_LAWS)
-DECLARED_FREE = (
-    LocalRule,
-    Drive,
-    Relaxation,
-    Extremal,
-    Flux,
-    Transfer,
-    Auxiliary,
-    Invariant,
-    Objective,
-    *ENCOUNTER_LAWS,
-)
 AGENT_VIEW_NAMES = frozenset(
     {
         'id',
@@ -1181,15 +1172,9 @@ def _collect_laws(spec: _KernelSpec, component: object, flows: StockFlowPass, *,
     them. Without `expand`, the laws are kept as declared, as the census of validation reads them.
     """
     declared: Any = component.laws(spec.namespace)  # type: ignore[attr-defined]
-    kinds: tuple[type, ...] = (Rate, Noise, Jump, Update, Transition, Emission, Boundary, Rule, Equation, Event, Sample)
-    kinds = (*kinds, Match)
-    kinds = (*kinds, *DECLARED_FREE)
-    if not isinstance(declared, list | tuple) or not all(isinstance(law, kinds) for law in declared):
-        error_msg = (
-            f'`laws` of {spec.owner} must return a list of Rate, Noise, FractionalNoise, Jump, Update, Transition, '
-            'Emission, Boundary, Rule, Equation, Event, LocalRule, Drive, Relaxation, Extremal, Sample, Flux, '
-            'Transfer, Auxiliary, Invariant, Objective, Encounter, Proliferation, or Destruction laws.'
-        )
+    if not isinstance(declared, list | tuple) or not all(has_trait(law, Trait.DECLARABLE) for law in declared):
+        names = [law.__name__ for law in law_classes(Trait.DECLARABLE)]
+        error_msg = f'`laws` of {spec.owner} must return a list of {", ".join(names[:-1])}, or {names[-1]} laws.'
         raise ValidationError(error_msg)
     if isinstance(spec.pairs, PairSearch) and not all(isinstance(law, Rate) for law in declared):
         error_msg = f'Pair interaction {spec.owner} returns laws other than Rate, which pair interactions do not take.'
@@ -1369,41 +1354,40 @@ def _relation(spec: _KernelSpec, law: Equation, orders: _Orders) -> _Relation:
     return _Relation(spec, SR(lhs) - SR(rhs), highest, description)
 
 
+def _ordered_law(spec: _KernelSpec, law: Law, orders: _Orders) -> object:
+    """Return a jump, event, renewal, or assignment law with derivatives and lags substituted and rates retargeted."""
+    owner = f'A {type(law).__name__} law of {spec.owner}'
+    if isinstance(law, Jump):
+        return Jump(_substitute(law.rate, spec, orders, owner), law.changes)
+    if isinstance(law, Event | Renewal):
+        reset = {
+            _substitute(SR(target), spec, orders, owner): _substitute(SR(value), spec, orders, owner)
+            for target, value in (law.reset or {}).items()
+        }
+        reset_value = reset if law.reset is not None else None
+        if isinstance(law, Renewal):
+            return replace(law, waiting=_substitute(SR(law.waiting), spec, orders, owner), reset=reset_value)
+        return replace(law, guard=_substitute(SR(law.guard), spec, orders, owner), reset=reset_value)
+    if not isinstance(law, Rate | Noise | Update | Boundary):
+        return law
+    value = _substitute(law.value, spec, orders, owner)
+    if isinstance(law, Rate | Noise):
+        return _retarget(replace(law, value=value), spec, orders)
+    return type(law)(law.target, value)
+
+
 def _with_orders(spec: _KernelSpec, laws: list[Law], block: _Block, orders: _Orders) -> list[Any]:
     """Return laws with derivatives and lags substituted, rates retargeted, equations as relations, and chains added."""
     if not orders.orders and not orders.lags and not any(isinstance(law, Equation) for law in laws):
         return laws
     result: list[Any] = []
     for law in laws:
-        if isinstance(law, (Rule, Transition, Emission, Sample, *KERNEL_FREE)):
+        if isinstance(law, Rule | Transition | Emission | Sample) or has_trait(law, Trait.KERNEL_FREE):
             result.append(law)
-            continue
-        if isinstance(law, Equation):
+        elif isinstance(law, Equation):
             result.append(_relation(spec, law, orders))
-            continue
-        owner = f'A {type(law).__name__} law of {spec.owner}'
-        if isinstance(law, Jump):
-            result.append(Jump(_substitute(law.rate, spec, orders, owner), law.changes))
-            continue
-        if isinstance(law, Event | Renewal):
-            reset = {
-                _substitute(SR(target), spec, orders, owner): _substitute(SR(value), spec, orders, owner)
-                for target, value in (law.reset or {}).items()
-            }
-            reset_value = reset if law.reset is not None else None
-            if isinstance(law, Renewal):
-                result.append(
-                    replace(law, waiting=_substitute(SR(law.waiting), spec, orders, owner), reset=reset_value),
-                )
-                continue
-            guard = _substitute(SR(law.guard), spec, orders, owner)
-            result.append(replace(law, guard=guard, reset=reset_value))
-            continue
-        value = _substitute(law.value, spec, orders, owner)
-        if isinstance(law, Rate | Noise):
-            result.append(_retarget(replace(law, value=value), spec, orders))
         else:
-            result.append(type(law)(law.target, value))
+            result.append(_ordered_law(spec, law, orders))
     if not _is_interaction(block.node):
         result += [
             item
@@ -2881,11 +2865,16 @@ def _noise_process(key: ProcessKey | None, wieners: Mapping[str, Wiener]) -> Noi
     return NoiseProcess(owner, item, wiener.dimension, factor)
 
 
-def _law_outputs(spec: _KernelSpec, law: Law, targets: list[Reference], declarations: _Declarations) -> list[Output]:
+def _law_outputs(
+    spec: _KernelSpec,
+    law: Rate | Noise | Update | Boundary,
+    targets: list[Reference],
+    declarations: _Declarations,
+) -> list[Output]:
     """Return the outputs of a law for its target components, with the named Wiener process of a noise law."""
     if isinstance(law, Noise) and law.conserved:
         return conserved_outputs(spec.owner, law, targets, declarations.places, spec.references)
-    outputs = _outputs_of(law.value, targets, f'{type(law).__name__} law of {spec.owner}')  # type: ignore[arg-type, union-attr]
+    outputs = _outputs_of(law.value, targets, f'{type(law).__name__} law of {spec.owner}')  # type: ignore[arg-type]
     if isinstance(law, Noise) and law.process is not None:
         for item, key in zip(outputs, _process_keys(spec, law, declarations), strict=True):
             item.process = _noise_process(key, declarations.wieners)
@@ -2900,7 +2889,7 @@ def _lower_laws(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Decla
     for spec, laws in specs:
         outputs: dict[tuple[type, bool], list[Output]] = defaultdict(list)
         for law in laws:
-            if isinstance(law, (Rule, Event, Renewal, *KERNEL_FREE)):
+            if isinstance(law, Rule | Event | Renewal) or has_trait(law, Trait.KERNEL_FREE):
                 continue
             if isinstance(law, Jump):
                 output = _outputs_of(law.rate, [None], f'Jump law of {spec.owner}')[0]
@@ -2915,7 +2904,7 @@ def _lower_laws(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Decla
                 lowered.jump_changes[id(output)] = changes
                 outputs[(Jump, False)].append(output)
                 continue
-            if isinstance(law, Equation | Transition | Emission | Sample):
+            if not isinstance(law, Rate | Noise | Update | Boundary):
                 error_msg = f'A {type(law).__name__} law of {spec.owner} reached lowering before it was rewritten.'
                 raise ValidationError(error_msg)
             targets = _target_references(law.target, spec)
@@ -2955,7 +2944,7 @@ def _form_kinds(owners: Iterable[set[type]]) -> frozenset[type]:
     component with renewal laws alone next to components with other laws keeps them, so the system does not fit one form
     and runs as partitions.
     """
-    owned = [set(kinds) - FORMLESS for kinds in owners]
+    owned = [{kind for kind in kinds if not has_trait(kind, Trait.FORMLESS)} for kinds in owners]
     kinds: set[type] = set().union(*owned)
     rest = kinds - {Renewal}
     if Renewal not in kinds or not rest:
@@ -3167,6 +3156,18 @@ def _visual_of(node: Node) -> VisualSpec:
     return declared
 
 
+def _changed_target(spec: _KernelSpec, law: Law) -> object:
+    """Return the target of a law, or the first state a jump changes."""
+    if isinstance(law, Jump):
+        return next(iter(law.changes))
+    if isinstance(law, Rate | Noise | Update | Boundary | Transition | Emission | Drive | Move | Flux):
+        return law.target
+    if isinstance(law, Encounter | Proliferation | Destruction):
+        return law.target
+    error_msg = f'A {type(law).__name__} law of {spec.owner} changes no state of its component.'
+    raise ValidationError(error_msg)
+
+
 def _state_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
     """Return the path of the element or group whose state a law changes, or that a rule acts for.
 
@@ -3188,10 +3189,7 @@ def _state_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
         return spec.owner if target is None else _target_references(target, spec)[0].entry.name.rpartition('.')[0]
     if isinstance(law, LocalRule | Extremal):
         return _target_references(law.targets[0], spec)[0].entry.name.rpartition('.')[0]
-    if isinstance(law, Flux):
-        return _target_references(law.target, spec)[0].entry.name.rpartition('.')[0]
-    target = next(iter(law.changes)) if isinstance(law, Jump) else law.target
-    return _target_references(target, spec)[0].entry.name.rpartition('.')[0]
+    return _target_references(_changed_target(spec, law), spec)[0].entry.name.rpartition('.')[0]
 
 
 def _law_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
@@ -3870,7 +3868,7 @@ def _compile_lattice(
         Extremal: compile_extremal,
     }
     for spec, laws in specs:
-        if not any(isinstance(law, LATTICE_LAWS) for law in laws):
+        if not any(has_trait(law, Trait.LATTICE) for law in laws):
             continue
         context = _lattice_context(spec, declarations, fused)
         steps += [compilers[type(law)](law, context) for law in laws if type(law) in compilers]  # type: ignore[operator]

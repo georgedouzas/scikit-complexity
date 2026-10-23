@@ -5,7 +5,7 @@
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import Any, ClassVar, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR
@@ -13,18 +13,15 @@ from sage.all__sagemath_symbolics import SR
 from ..base import (
     DomainKind,
     Expression,
+    LawClass,
     LawKind,
     Requires,
     SymbolicVector,
     TimeKind,
+    Trait,
     ValidationError,
 )
-from ._encounters import Destruction, Encounter, Proliferation
-from ._lattices import Drive, Energy, Extremal, LocalRule, Move, Relaxation, Sample, Sampler
-
-if TYPE_CHECKING:
-    from ._fields import Flux
-    from ._flows import Auxiliary, Transfer
+from ._law import Law
 
 type Target = Expression | SymbolicVector
 type Process = str | tuple[str, ...] | Expression | SymbolicVector | None
@@ -72,6 +69,23 @@ def _is_process(process: object) -> bool:
     return isinstance(process, tuple) and bool(process) and all(isinstance(item, str) for item in process)
 
 
+def _check_clock_options(jump: 'Jump') -> None:
+    """Raise an error for a jump that takes an option of the clock it does not use."""
+    if jump.waiting is not None and jump.changes:
+        given, fix = 'changes', 'Give the new values of the states as `reset`.'
+    elif jump.waiting is None and (jump.reset is not None or jump.label is not None):
+        given = 'a reset' if jump.reset is not None else 'a label'
+        fix = 'Give the increments of the states as `changes`, or a waiting time instead of the rate.'
+    else:
+        return
+    clock = 'a waiting-time clock' if jump.waiting is not None else 'an exponential clock'
+    error_msg = (
+        f'A jump on {clock} takes {given}, but changes belong to the exponential clock of a rate, and resets and '
+        f'labels to the waiting-time clock. {fix}'
+    )
+    raise ValidationError(error_msg)
+
+
 def _is_number(value: object) -> bool:
     """Check whether a value is a number, with no symbol in it."""
     try:
@@ -114,7 +128,7 @@ class Call:
 
 
 @dataclass(frozen=True)
-class Rate:
+class Rate(Law):
     """Contribution to the highest time derivative of a state, the first for states of order 1.
 
     Rates on the same state add up, so a system with only rate laws is a system of ordinary differential equations. On
@@ -140,6 +154,8 @@ class Rate:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.RATE
+    time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(
         time={TimeKind.CONTINUOUS},
         domains={DomainKind.REAL, DomainKind.ANGLE, DomainKind.COMPLEX, DomainKind.VECTOR},
@@ -155,7 +171,7 @@ class Rate:
 
 
 @dataclass(frozen=True)
-class Noise:
+class Noise(Law):
     """Amplitude of a Wiener process that drives the highest time derivative of a state.
 
     Without a process, every component of the target and every member of a group gets its own independent Wiener
@@ -207,6 +223,8 @@ class Noise:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.NOISE
+    time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(
         time={TimeKind.CONTINUOUS},
         domains={DomainKind.REAL, DomainKind.ANGLE, DomainKind.VECTOR},
@@ -240,7 +258,7 @@ class Noise:
 
 
 @dataclass(frozen=True)
-class Jump:
+class Jump(Law):
     """Random event that changes states, on an exponential clock of a given rate or on a clock of drawn waiting times.
 
     With a `rate`, the event fires at the times of a Poisson process of that propensity and changes states by fixed
@@ -274,7 +292,8 @@ class Jump:
 
     Raises:
         ValidationError:
-            The jump has both or neither of a rate and a waiting time, or an increment holds a symbol.
+            The jump has both or neither of a rate and a waiting time, takes an option of the other clock, or an
+            increment holds a symbol.
 
     Examples:
         >>> from skcomplex.core.base import symbol
@@ -296,6 +315,8 @@ class Jump:
         return None if self.waiting is None else Renewal(self.waiting, self.reset, self.label)
 
     law_kind: ClassVar[LawKind] = LawKind.JUMP
+    time_class: ClassVar[LawClass] = LawClass.EVENT
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(
         time={TimeKind.CONTINUOUS},
         domains={DomainKind.REAL, DomainKind.INTEGER, DomainKind.BOOLEAN, DomainKind.CATEGORICAL},
@@ -312,6 +333,7 @@ class Jump:
         if (self.rate is None) == (self.waiting is None):
             error_msg = 'A jump fires at a rate or after a waiting time. Give exactly one of them.'
             raise ValidationError(error_msg)
+        _check_clock_options(self)
         if self.waiting is not None:
             _check_value(self, 'waiting', 'waiting time of a jump')
             return
@@ -326,7 +348,7 @@ class Jump:
 
 
 @dataclass(frozen=True)
-class Update:
+class Update(Law):
     """Next value of a state after one discrete time step.
 
     Args:
@@ -345,6 +367,8 @@ class Update:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.UPDATE
+    time_class: ClassVar[LawClass] = LawClass.DISCRETE
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE})
 
     target: Target
@@ -356,7 +380,7 @@ class Update:
 
 
 @dataclass(frozen=True)
-class Transition:
+class Transition(Law):
     """Step of a discrete-time Markov chain, a state over a finite alphabet drawn from a row of a transition matrix.
 
     The state's current value selects the row, and the next value is drawn from it. The state takes a categorical
@@ -383,6 +407,8 @@ class Transition:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.TRANSITION
+    time_class: ClassVar[LawClass] = LawClass.DISCRETE
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(
         time={TimeKind.DISCRETE},
         domains={DomainKind.CATEGORICAL, DomainKind.INTEGER},
@@ -397,7 +423,7 @@ class Transition:
 
 
 @dataclass(frozen=True)
-class Emission:
+class Emission(Law):
     """Observation of a hidden Markov source, a state drawn from the row of an emission matrix a hidden state selects.
 
     The emission reads the hidden state's value after the same step, so the hidden and observed sequences align.
@@ -426,6 +452,8 @@ class Emission:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.TRANSITION
+    time_class: ClassVar[LawClass] = LawClass.DISCRETE
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(
         time={TimeKind.DISCRETE},
         domains={DomainKind.CATEGORICAL, DomainKind.INTEGER},
@@ -441,7 +469,7 @@ class Emission:
 
 
 @dataclass(frozen=True)
-class Boundary:
+class Boundary(Law):
     """Value a state takes after every solver step, such as a reflection at a wall or a wrap around a periodic box.
 
     Boundary laws do not change the form of a system, so they combine with every other law kind.
@@ -462,6 +490,8 @@ class Boundary:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.BOUNDARY
+    time_class: ClassVar[LawClass] = LawClass.CONSTRAINT
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.FORMLESS, Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires()
 
     target: Target
@@ -473,7 +503,7 @@ class Boundary:
 
 
 @dataclass(frozen=True)
-class Objective:
+class Objective(Law):
     """Cost or gain of a system that optimal control solvers minimise or maximise over its controls.
 
     Under continuous time the value of a run is the integral of the running value `expression` over the run plus the
@@ -507,6 +537,8 @@ class Objective:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.OBJECTIVE
+    time_class: ClassVar[LawClass] = LawClass.CONSTRAINT
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.KERNEL_FREE, Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(time={TimeKind.STATIC, TimeKind.CONTINUOUS})
 
     expression: object
@@ -524,7 +556,7 @@ class Objective:
 
 
 @dataclass(frozen=True)
-class Event:
+class Event(Law):
     """Discrete event: when a guard crosses zero, states take new values, or the run ends.
 
     Solvers locate the crossing within their tolerance. Events do not change the form of a system, so they combine with
@@ -555,6 +587,8 @@ class Event:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.EVENT
+    time_class: ClassVar[LawClass] = LawClass.EVENT
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.FORMLESS, Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(time={TimeKind.CONTINUOUS})
 
     guard: object
@@ -620,7 +654,7 @@ class FractionalNoise(Noise):
 
 
 @dataclass(frozen=True)
-class Renewal:
+class Renewal(Law):
     """Renewal of states after waiting times drawn anew at every renewal, which the compiler runs for a waiting `Jump`.
 
     Every member of a group renews on its own clock. A renewal applies its reset to the states all at once, then
@@ -641,6 +675,7 @@ class Renewal:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.JUMP
+    time_class: ClassVar[LawClass] = LawClass.EVENT
     requires: ClassVar[Requires] = Requires(
         time={TimeKind.CONTINUOUS},
         domains={DomainKind.REAL, DomainKind.INTEGER, DomainKind.BOOLEAN, DomainKind.CATEGORICAL},
@@ -656,7 +691,7 @@ class Renewal:
 
 
 @dataclass(frozen=True)
-class Rule:
+class Rule(Law):
     """Behaviour written as code, run once per step for every member of an agent group, or once per step for a model.
 
     An element whose laws include rules is an agent, alone or in a group. A rule of an element receives the agent and
@@ -679,6 +714,8 @@ class Rule:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.RULE
+    time_class: ClassVar[LawClass] = LawClass.DISCRETE
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE})
 
     function: Callable[..., None]
@@ -686,7 +723,7 @@ class Rule:
 
 
 @dataclass(frozen=True, init=False)
-class Equation:
+class Equation(Law):
     """Implicit relation in which the highest time derivatives of states appear, such as Newton's second law.
 
     The compiler solves all equations of a system jointly for the highest derivatives, which must appear linearly, and
@@ -709,6 +746,8 @@ class Equation:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.EQUATION
+    time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(
         time={TimeKind.CONTINUOUS, TimeKind.STATIC},
         domains={DomainKind.REAL, DomainKind.ANGLE, DomainKind.COMPLEX, DomainKind.VECTOR},
@@ -726,33 +765,3 @@ class Equation:
             raise ValueError(error_msg)
         object.__setattr__(self, 'lhs', lhs)
         object.__setattr__(self, 'rhs', rhs)
-
-
-type Law = (
-    Rate
-    | Noise
-    | Jump
-    | Update
-    | Transition
-    | Emission
-    | Boundary
-    | Objective
-    | Rule
-    | Equation
-    | Event
-    | Renewal
-    | LocalRule
-    | Drive
-    | Extremal
-    | Relaxation
-    | Energy
-    | Move
-    | Sampler
-    | Sample
-    | Flux
-    | Transfer
-    | Auxiliary
-    | Encounter
-    | Proliferation
-    | Destruction
-)

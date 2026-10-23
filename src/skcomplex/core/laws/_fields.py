@@ -13,14 +13,17 @@ from sage.symbolic.function import BuiltinFunction
 from ..base import (
     DomainKind,
     Expression,
+    LawClass,
     LawKind,
     Requires,
     SpaceKind,
     SymbolicVector,
     TimeKind,
+    Trait,
     components_of,
     vector,
 )
+from ._law import Law
 
 FIELD_BOUNDARIES = ('periodic', 'zero-flux', 'fixed')
 DISCRETIZATIONS = ('finite-difference', 'spectral', 'finite-volume', 'finite-element')
@@ -146,7 +149,7 @@ def advection(expression: object, velocity: Sequence[Any] | SymbolicVector) -> E
 
 
 @dataclass(frozen=True)
-class Flux:
+class Flux(Law):
     """Physical flux of a conserved state of a finite-volume field, `du/dt + divergence(flux) = 0`.
 
     The flux is a symbolic expression of the field's states for one dimension, or one expression per dimension. The
@@ -175,6 +178,8 @@ class Flux:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.RATE
+    time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.FORMLESS, Trait.KERNEL_FREE, Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(
         time={TimeKind.CONTINUOUS},
         space={SpaceKind.LATTICE, SpaceKind.MESH},

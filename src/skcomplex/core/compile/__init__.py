@@ -46,7 +46,6 @@ from ._validation import (
     ValidationReport,
     ValidationWarning,
     domain_kind,
-    law_types,
     missing_declarations,
     validate,
 )
@@ -117,7 +116,6 @@ __all__: list[str] = [
     'contains_quantum',
     'domain_kind',
     'law_census',
-    'law_types',
     'load_backends',
     'mesh_laplacian',
     'missing_declarations',

@@ -9,7 +9,8 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from ..base import LawKind, Requires, TimeKind, ValidationError
+from ..base import LawClass, LawKind, Requires, TimeKind, Trait, ValidationError
+from ..laws import Law
 from ..laws._laws import Rule
 
 type Pairing = Callable[[Sequence[Any], Sequence[Any], np.random.Generator, int], list[tuple[Any, Any]]]
@@ -63,7 +64,7 @@ def random_pairing(left: Sequence[Any], right: Sequence[Any], rng: np.random.Gen
 
 
 @dataclass(frozen=True)
-class Match:
+class Match(Law):
     """Pairing of the members of one agent group, or of two, every step, which the rules of the step read.
 
     The core pairs members uniformly at random. Any other pairing, such as stable matching, an order book, or an
@@ -101,6 +102,8 @@ class Match:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.MATCH
+    time_class: ClassVar[LawClass] = LawClass.DISCRETE
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE})
 
     left: str

@@ -11,13 +11,16 @@ from sage.symbolic.function import BuiltinFunction
 
 from ..base import (
     Expression,
+    LawClass,
     LawKind,
     Requires,
     SpaceKind,
     TimeKind,
+    Trait,
 )
 from ..space import Adjacency, Neighborhood
 from ..space._cayley import Memory
+from ._law import Law
 
 SCHEDULES = ('synchronous', 'random-sequential', 'random-site', 'checkerboard', 'colored')
 MONTE_CARLO_SCHEDULES = ('checkerboard', 'random-sequential', 'colored')
@@ -116,7 +119,7 @@ def _targets(target: object) -> tuple[Expression, ...]:
 
 
 @dataclass(frozen=True)
-class LocalRule:
+class LocalRule(Law):
     """Law that computes the next value of lattice cells from the ordered values of their neighbourhoods.
 
     A function rule receives one array per neighbour of every read state, in neighbourhood order, with one value per
@@ -158,6 +161,8 @@ class LocalRule:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.LOCAL_RULE
+    time_class: ClassVar[LawClass] = LawClass.DISCRETE
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.LATTICE, Trait.KERNEL_FREE, Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
     target: Expression | tuple[Expression, ...]
@@ -179,7 +184,7 @@ class LocalRule:
 
 
 @dataclass(frozen=True)
-class Drive:
+class Drive(Law):
     """Law that changes a whole lattice state at once, such as dropping a grain on a random site.
 
     The function receives the state as an array of the lattice shape, keyword arguments for the parameters of the
@@ -200,6 +205,8 @@ class Drive:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.UPDATE
+    time_class: ClassVar[LawClass] = LawClass.DISCRETE
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.LATTICE, Trait.KERNEL_FREE, Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
     target: Expression
@@ -212,7 +219,7 @@ class Drive:
 
 
 @dataclass(frozen=True)
-class Relaxation:
+class Relaxation(Law):
     """Slow drive and fast relaxation: drive laws once per step, then relaxation laws until the lattice is stable.
 
     Every relaxation that changes the lattice is recorded as an event with its size, the number of site updates, its
@@ -253,6 +260,8 @@ class Relaxation:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.UPDATE
+    time_class: ClassVar[LawClass] = LawClass.DISCRETE
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.LATTICE, Trait.KERNEL_FREE, Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
     drive: Sequence[LocalRule | Drive]
@@ -295,7 +304,7 @@ neighbor_sum = _NeighborSum()
 
 
 @dataclass(frozen=True)
-class Energy:
+class Energy(Law):
     """Local energy of a lattice site: every term of the total energy that involves the site's value.
 
     The energy change of a move is the difference of the local energy at the proposed and the current value, derived
@@ -322,6 +331,8 @@ class Energy:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.SAMPLE
+    time_class: ClassVar[LawClass] = LawClass.DISCRETE
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.LATTICE, Trait.KERNEL_FREE})
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
     expression: object
@@ -329,7 +340,7 @@ class Energy:
 
 
 @dataclass(frozen=True)
-class Move:
+class Move(Law):
     """Proposed change of the value of a lattice site.
 
     Args:
@@ -354,6 +365,8 @@ class Move:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.SAMPLE
+    time_class: ClassVar[LawClass] = LawClass.DISCRETE
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.LATTICE, Trait.KERNEL_FREE})
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
     target: Expression
@@ -416,7 +429,7 @@ class Move:
 
 
 @dataclass(frozen=True)
-class Sampler:
+class Sampler(Law):
     """Acceptance of Monte Carlo moves at a temperature, with one sweep of the lattice per unit of time.
 
     Args:
@@ -439,6 +452,8 @@ class Sampler:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.SAMPLE
+    time_class: ClassVar[LawClass] = LawClass.DISCRETE
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.LATTICE, Trait.KERNEL_FREE})
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
     kind: str = 'metropolis'
@@ -457,7 +472,7 @@ class Sampler:
 
 
 @dataclass(frozen=True)
-class Sample:
+class Sample(Law):
     """Monte Carlo law that samples states by moves accepted from the change of an energy, one sweep per unit of time.
 
     Args:
@@ -482,6 +497,8 @@ class Sample:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.SAMPLE
+    time_class: ClassVar[LawClass] = LawClass.DISCRETE
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
     energy: Energy
@@ -495,7 +512,7 @@ class Sample:
 
 
 @dataclass(frozen=True)
-class Extremal:
+class Extremal(Law):
     """Law that applies a rule to the site with the smallest or largest value of a key state and to its neighbours.
 
     Every application finds the extremal site, with ties broken by the simulation's random stream, gathers the site
@@ -535,6 +552,8 @@ class Extremal:
     """
 
     law_kind: ClassVar[LawKind] = LawKind.UPDATE
+    time_class: ClassVar[LawClass] = LawClass.DISCRETE
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.LATTICE, Trait.KERNEL_FREE, Trait.DECLARABLE})
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
     target: Expression | tuple[Expression, ...]
@@ -562,7 +581,3 @@ class Extremal:
     def key_state(self) -> Expression:
         """Symbol of the lattice state whose extremum is searched."""
         return self.targets[0] if self.key is None else self.key
-
-
-LATTICE_LAWS = (LocalRule, Drive, Relaxation, Extremal)
-MONTE_CARLO_LAWS = (Energy, Move, Sampler)

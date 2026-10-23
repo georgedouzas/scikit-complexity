@@ -19,9 +19,9 @@ from skcomplex.core.base import (
     TimeKind,
     vocabulary,
 )
-from skcomplex.core.compile import BACKENDS, law_types, missing_declarations
+from skcomplex.core.compile import BACKENDS, missing_declarations
 from skcomplex.core.components import Field
-from skcomplex.core.laws import Generator, Rate, Rule, Sampler, Update
+from skcomplex.core.laws import Generator, Rate, Rule, Sampler, Update, law_classes
 from skcomplex.core.solvers import SOLVERS, Stepper
 from skcomplex.core.space import ContinuousSpace, LatticeSpace, Mesh, NetworkSpace
 
@@ -39,8 +39,8 @@ def test_vocabulary_matches_inventory():
 def test_inventory_law_classes_match_core():
     """Test that every law of the inventory vocabulary has the time semantics of the core law kind."""
     laws = tomllib.loads(INVENTORY.read_text())['vocabulary']['laws']
-    for kind in LawKind.registered():
-        assert laws[str(kind)]['class'] == str(kind.law_class), kind
+    for law in law_classes():
+        assert laws[str(law.law_kind)]['class'] == str(law.time_class), law
 
 
 def test_every_primitive_solver_and_backend_declares():
@@ -75,7 +75,7 @@ def test_missing_solver_declaration_is_named(monkeypatch):
 def test_law_kinds_and_classes(law, kind, law_class):
     """Test that law types declare their kind and the time semantics of the kind."""
     assert law.law_kind is kind
-    assert law.law_kind.law_class is law_class
+    assert law.time_class is law_class
 
 
 def test_law_requirements():
@@ -111,7 +111,7 @@ def test_solver_support_names_missing_terms():
     support = SOLVERS.resolve((Form.ODE, 'auto')).supports
     assert support.missing('laws', {LawKind.RATE, LawKind.NOISE}) == ['noise']
     assert Supports().missing('time', {TimeKind.STATIC}) == ['static']
-    assert len(law_types()) == len(set(law_types()))
+    assert len(law_classes()) == len(set(law_classes()))
 
 
 def test_every_solver_and_backend_declares_orders():
