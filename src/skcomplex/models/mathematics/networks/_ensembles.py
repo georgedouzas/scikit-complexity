@@ -10,8 +10,9 @@ import numpy as np
 
 from ....core.base import Domain, ValidationError, VisualSpec, parameter, role, state
 from ....core.components import Element, Group
+from ....core.formalisms.topology import add_edge, remove_node, rewire
 from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols, Update, add_edge, maximum, neighbors, remove_node, rewire, where
+from ....core.laws import Law, Symbols, Update, maximum, neighbors, where
 from ....core.runtime import register_model
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import System

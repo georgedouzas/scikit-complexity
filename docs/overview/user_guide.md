@@ -839,8 +839,8 @@ arcs, and saddle paths on which the sweep diverges. Both solve the problem over 
 `simulation.stepper_.solution_` holds the solution on its grid, its cost, and, for `Pontryagin`, the costates.
 
 ```python
+from skcomplex.core.formalisms.control import Collocation, Pontryagin
 from skcomplex.core.laws import Objective
-from skcomplex.core.solvers import Collocation, Pontryagin
 
 Plant = Element.define(
     'Plant',
@@ -1554,7 +1554,8 @@ adds one node with two edges at every step:
 import numpy as np
 
 from skcomplex.core.components import Element, Group
-from skcomplex.core.laws import Update, add_node, neighbors
+from skcomplex.core.formalisms.topology import add_node
+from skcomplex.core.laws import Update, neighbors
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.space import DiscreteTime, NetworkSpace
 from skcomplex.core.system import System

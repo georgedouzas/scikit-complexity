@@ -3,25 +3,37 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import dataclasses
 from dataclasses import dataclass, replace
 from typing import Any, cast
 
 from sage.all__sagemath_symbolics import SR
 
-from ...base import ValidationError, VariableKind, declarations_of
-from ...laws import Jump, Law, TopologyRequest, Update, request_of
+from ...base import ValidationError
+from ...compile import (
+    Block,
+    BlockLaws,
+    Compilation,
+    Declarations,
+    EdgeSearch,
+    Kernel,
+    KernelSpec,
+    Laws,
+    Layout,
+    Lowered,
+    Output,
+    Pass,
+    Problem,
+    ReductionPass,
+    capacity_rows,
+    group_space,
+    mask_of,
+    masked_value,
+    member_spec,
+)
+from ...laws import Jump, Law, Update
 from ...space import NetworkSpace
-from .._compilation import BlockLaws, Compilation, Laws
-from .._declarations import ACTIVE, ENDS, Block, Declarations
-from .._kernels import EdgeSearch, Kernel, Lowered, Output
-from .._layout import Entry, Layout
-from .._pipeline import Pass
-from .._problem import Problem, Vector
-from .._reductions import ReductionPass
-from .._specs import KernelSpec, group_space, mask_of, masked_value, member_spec
-from .._topology import CapacityRows, CompiledRequest, NetworkRows, Topology
-from .._tree import coerce_value
+from ._changes import CompiledRequest, NetworkRows, Topology
+from ._requests import TopologyRequest, request_of
 
 
 def _request_network(spec: KernelSpec, declarations: Declarations) -> tuple[object, str]:
@@ -67,31 +79,13 @@ def _toward_specs(specs: list[tuple[KernelSpec, list[Law]]], declarations: Decla
     return towards
 
 
-def _variables(block: Block, declarations: Declarations) -> CapacityRows:
-    """Return the rows of a capacity group with the values of one new member."""
-    node = block.node
-    element = node.component_type
-    states = declarations_of(element, VariableKind.STATE)
-    variables: dict[str, tuple[Entry, bool]] = {}
-    defaults: dict[str, Vector] = {}
-    for name, entry in block.entries.items():
-        if name in {ACTIVE, *ENDS}:
-            continue
-        variables[name] = (entry, name in states)
-        default = element.get_default(name) if name in element.declarations() else 0.0
-        default = 0.0 if default is dataclasses.MISSING else default
-        defaults[name] = coerce_value(entry.name, default, entry.member_shape, entry.domain, None)
-    source, target = block.entries.get(ENDS[0]), block.entries.get(ENDS[1])
-    return CapacityRows(node.path, variables, defaults, block.entries[ACTIVE], source, target)
-
-
 def _networks(declarations: Declarations) -> dict[int, NetworkRows]:
     """Return the variable groups of every network whose groups are variable, by the identity of the space."""
     spaces = {id(block.node.space): block.node.space for block in declarations.capacity.values()}
     networks = {}
     for key, space in spaces.items():
         nodes = tuple(
-            _variables(block, declarations)
+            capacity_rows(block, declarations)
             for block in declarations.capacity.values()
             if block.node.space is space and getattr(block.node.component, 'on', None) == 'sites'
         )
@@ -104,7 +98,9 @@ def _networks(declarations: Declarations) -> dict[int, NetworkRows]:
                 'different capacities. Give them one capacity.'
             )
             raise ValidationError(error_msg)
-        edges = {layer: _variables(block, declarations) for layer, block in declarations.changing_edges(space).items()}
+        edges = {
+            layer: capacity_rows(block, declarations) for layer, block in declarations.changing_edges(space).items()
+        }
         directed = {layer: cast('NetworkSpace', space).resolve_graph(layer).is_directed() for layer in edges}
         networks[key] = NetworkRows(nodes, edges, directed)
     return networks
@@ -361,14 +357,3 @@ class TopologyProblemPass(Pass):
                 The compilation state.
         """
         compilation.problem = replace(cast('Problem', compilation.problem), topology=compilation.facts['topology'])
-
-
-PASSES = (
-    SplitRequestsPass(),
-    MaskRequestsPass(),
-    TowardsPass(),
-    RequestJumpsPass(),
-    TopologyFunctionsPass(),
-    TopologyProblemPass(),
-)
-OWNER_RULES = (_request_owner,)

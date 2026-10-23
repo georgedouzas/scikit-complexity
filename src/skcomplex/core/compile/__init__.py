@@ -1,14 +1,17 @@
 """Compile systems into problems of one mathematical form with fast numeric functions."""
 
-from ._backends import BACKENDS, Backend, Lowering, load_backends, register_backend, resolve_backend
+from ._backends import BACKENDS, Backend, Lowering, load_backends, reads_reductions, register_backend, resolve_backend
+from ._capacity import CapacityRows, capacity_rows
 from ._census import Census, CensusRecord, OwnerRule, law_census, register_owner
-from ._compilation import Compilation
+from ._compilation import BlockLaws, Compilation, Laws
 from ._compile import compile_system, partition_system
 from ._contractions import CompiledEncounter, TableValues
+from ._declarations import Block, Declarations
 from ._fields import mesh_laplacian, spectral_multiplier
 from ._forms import register_combined, register_form
 from ._hybrid import Breakpoints, CompiledEvent, Delay, EventRecord
 from ._issues import Issue, ValidationWarning
+from ._kernels import EdgeSearch, Kernel, Lowered, Output
 from ._lattices import (
     CompiledDrive,
     CompiledExtremal,
@@ -46,7 +49,8 @@ from ._problem import (
     with_initial_state,
 )
 from ._quantities import CompiledFlow, CompiledObjective, LoopTerm, Recorded, StockFlow
-from ._specs import Binding, register_binding
+from ._reductions import ReductionPass
+from ._specs import Binding, KernelSpec, group_space, mask_of, masked_value, member_spec, register_binding
 from ._system_passes import SystemPass, claiming_pass
 from ._tree import Node, coerce_value, flatten_system
 from ._validation import ValidationReport, domain_kind, missing_declarations, validate
@@ -58,7 +62,10 @@ __all__: list[str] = [
     'Accelerated',
     'Backend',
     'Binding',
+    'Block',
+    'BlockLaws',
     'Breakpoints',
+    'CapacityRows',
     'Census',
     'CensusRecord',
     'Check',
@@ -75,9 +82,11 @@ __all__: list[str] = [
     'CompiledObjective',
     'CompiledRelaxation',
     'CompiledRule',
+    'Declarations',
     'Delay',
     'Dialect',
     'Draws',
+    'EdgeSearch',
     'Entry',
     'EventRecord',
     'ExtremalRecord',
@@ -85,15 +94,20 @@ __all__: list[str] = [
     'Getter',
     'Issue',
     'JumpChannels',
+    'Kernel',
+    'KernelSpec',
     'LatticeState',
     'LatticeStep',
+    'Laws',
     'Layout',
     'LoopTerm',
+    'Lowered',
     'Lowering',
     'MarkovMatrix',
     'NetworkSnapshot',
     'Node',
     'ObservableEvaluator',
+    'Output',
     'OwnerRule',
     'Partition',
     'Pass',
@@ -101,6 +115,7 @@ __all__: list[str] = [
     'PlannedPartition',
     'Problem',
     'Recorded',
+    'ReductionPass',
     'RelaxationRecord',
     'RenewalProcess',
     'RenewalRecord',
@@ -112,13 +127,18 @@ __all__: list[str] = [
     'ValidationWarning',
     'Vector',
     'VectorFunction',
+    'capacity_rows',
     'claiming_pass',
     'coerce_value',
     'compile_system',
     'domain_kind',
     'flatten_system',
+    'group_space',
     'law_census',
     'load_backends',
+    'mask_of',
+    'masked_value',
+    'member_spec',
     'mesh_laplacian',
     'missing_declarations',
     'numpy_function',
@@ -127,6 +147,7 @@ __all__: list[str] = [
     'partition_system',
     'plan_partitions',
     'print_expressions',
+    'reads_reductions',
     'register_backend',
     'register_binding',
     'register_check',

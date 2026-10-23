@@ -42,7 +42,7 @@ from ..base import (
     VariableKind,
     declarations_of,
 )
-from ..components import Field, Group, Wiener
+from ..components import Field, Wiener
 from ..laws import (
     Encounter,
     Jump,
@@ -51,11 +51,9 @@ from ..laws import (
     Proliferation,
     Sample,
     Sampler,
-    TopologyRequest,
     law_classes,
     neighbourhoods_in,
     outcome_sums,
-    request_of,
     values_of,
 )
 from ..laws._neighbourhoods import NeighbourReduction
@@ -539,56 +537,6 @@ def _neighbourhood_issues(records: list[CensusRecord], nodes: list[Node]) -> lis
     return issues
 
 
-def _fixed_groups(request: TopologyRequest, owner: Any, groups: list[Any]) -> tuple[list[str], bool]:  # noqa: ANN401
-    """Return the fixed groups a request changes, and whether its layer lacks an edge group."""
-    edges = [node for node in groups if node.component.on == 'edges' and node.component.layer == request.layer]
-    sites = [node for node in groups if node.component.on == 'sites']
-    changed = []
-    if request.on_edges or request.edges:
-        changed += edges
-    if request.kind in {'add-node', 'remove-node'}:
-        changed += sites
-    if owner is not None:
-        changed.append(owner)
-    fixed = list(dict.fromkeys(node.path for node in changed if not node.component.variable))
-    return fixed, (request.on_edges or bool(request.edges)) and not edges
-
-
-def _topology_issues(records: list[CensusRecord], nodes: list[Node]) -> list[Issue]:
-    """Return the topology requests that change fixed groups, or edges of a layer without a variable edge group."""
-    by_path = {node.path: node for node in nodes}
-    issues = []
-    for record in records:
-        try:
-            request = request_of(record.law)
-        except ValidationError as error:
-            issues.append(Issue('value', record.path, str(error), 'Fire one request per jump, with increment 1.'))
-            continue
-        if request is None:
-            continue
-        space = record.space
-        if not isinstance(space, NetworkSpace):
-            spaces = {id(node.space): node.space for node in nodes if isinstance(node.space, NetworkSpace)}
-            space = next(iter(spaces.values())) if len(spaces) == 1 else space
-        groups = [node for node in nodes if isinstance(node.component, Group) and node.space is space]
-        owner = by_path.get(record.owner)
-        owner = owner if owner is not None and isinstance(owner.component, Group) else None
-        fixed, missing = _fixed_groups(request, owner, [node for node in groups if node.component.on])
-        if not fixed and not missing:
-            continue
-        listed = ', '.join(fixed) or 'none'
-        where = f'the layer {request.layer!r}' if request.layer is not None else 'the network'
-        message = f'The {_law_name(record)} requests {request!r}, which changes the fixed groups {listed}.'
-        if missing:
-            message += f' {where[0].upper()}{where[1:]} has no group on its edges.'
-        fix = (
-            'Give the groups on the nodes and the edges of the network `variable=True`, with a group on the edges '
-            'of every layer the request changes, `Group(..., on="edges", variable=True)`.'
-        )
-        issues.append(Issue('group-fixed', record.path, message, fix))
-    return issues
-
-
 def _solver_issues(solver: object, records: list[CensusRecord], system: System) -> list[Issue]:
     """Return the requirements of a system that a chosen solver does not support."""
     classes = solver_classes()
@@ -940,7 +888,6 @@ def _issues_of(compilation: Compilation) -> list[Issue]:
     issues += _law_issues(records, declared_times(system))
     issues += _encounter_issues(records)
     issues += _neighbourhood_issues(records, nodes)
-    issues += _topology_issues(records, nodes)
     issues += _space_issues(system, nodes, records)
     issues += [issue for check in registered_checks() for issue in check(compilation)]
     if solver != 'auto':

@@ -1,0 +1,16 @@
+[[moves]]
+old = "skcomplex.core.laws"
+new = "skcomplex.core.formalisms.topology"
+names = ["TopologyRequest", "add_edge", "add_node", "remove_edge", "remove_node", "request_of", "rewire"]
+
+[[moves]]
+old = "skcomplex.core.laws._topology"
+new = "skcomplex.core.formalisms.topology._requests"
+
+[[moves]]
+old = "skcomplex.core.compile._topology"
+new = "skcomplex.core.formalisms.topology._changes"
+
+[[moves]]
+old = "skcomplex.core.compile.passes._topology"
+new = "skcomplex.core.formalisms.topology._passes"

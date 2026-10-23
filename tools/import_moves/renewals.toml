@@ -1,0 +1,3 @@
+[[moves]]
+old = "skcomplex.core.compile.passes._renewals"
+new = "skcomplex.core.compile.passes._waiting_jumps"

@@ -112,7 +112,7 @@ class Collocation(OptimalControlSolver):
         >>> from skcomplex.core.components import Element
         >>> from skcomplex.core.laws import Objective, Rate
         >>> from skcomplex.core.runtime import Simulation
-        >>> from skcomplex.core.solvers import Collocation
+        >>> from skcomplex.core.formalisms.control import Collocation
         >>> from skcomplex.core.system import System
         >>> Plant = Element.define(
         ...     'Plant',
