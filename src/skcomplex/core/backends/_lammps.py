@@ -4,7 +4,6 @@
 # License: MIT
 
 import functools
-import math
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -34,7 +33,7 @@ from ..compile import CompiledElement, CompiledInteraction, Problem, Vector, com
 from ..components import Particle
 from ..interactions import Interaction, PairPotential
 from ..laws import Symbols
-from ..solvers import SOLVERS, register_solver
+from ..solvers import SOLVERS, register_solver, step_count
 from ..space import ContinuousSpace
 from ..system import System
 from ._base import ExternalBackend
@@ -595,7 +594,7 @@ class LammpsBackend(ExternalBackend):
         order, positions, velocities = self._local_atoms()
         positions[:, : atoms.n_dim] = x[atoms.positions[order]]
         velocities[:, : atoms.n_dim] = x[atoms.velocities[order]]
-        n_steps = max(1, math.ceil((until - t) / self.dt - 1e-9))
+        n_steps = step_count(t, until, self.dt)
         timestep = (until - t) / n_steps
         if timestep != self.timestep_:
             self.lammps_.command(f'timestep {timestep}')

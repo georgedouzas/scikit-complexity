@@ -1,19 +1,53 @@
-"""Define the stepper contract and the registry of solvers per form."""
+"""Define the stepper contract, the count of fixed steps, and the registry of solvers per form."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
 import warnings
 from abc import abstractmethod
+from collections.abc import Callable
 from typing import Any, ClassVar
 
 import numpy as np
+from numba.extending import register_jitable
 from sklearn.base import BaseEstimator
 
 from ..base import Form, LawKind, Registry, SolverError, Supports
 from ..compile import EventRecord, ExtremalRecord, Problem, RelaxationRecord, RenewalRecord, Vector, load_backends
-from ._hybrid import EventLocator, History
+from ._hybrid import RESTART, EventLocator, History, find_bounds
 from ._renewals import RenewalClock
+
+STEP_TOLERANCE = 1e-9
+
+
+@register_jitable
+def step_count(t: float, until: float, dt: float) -> int:
+    """Return the number of equal steps no longer than `dt` from time `t` to time `until`, at least one.
+
+    A span within `1e-9` steps above a whole number of steps takes that whole number, so rounding in the span does not
+    add a step. The compiled loops of the Numba backend call the same function.
+
+    Args:
+        t:
+            The start time.
+
+        until:
+            The end time.
+
+        dt:
+            The largest step.
+
+    Returns:
+        count:
+            The number of steps.
+
+    Examples:
+        >>> from skcomplex.core.solvers import step_count
+        >>> step_count(0.1, 0.4, 0.1)
+        3
+    """
+    return max(1, math.ceil((until - t) / dt - STEP_TOLERANCE))
 
 
 class Stepper(BaseEstimator):
@@ -62,6 +96,35 @@ class Stepper(BaseEstimator):
         """Return a state after the boundary laws of the problem, or the state itself without boundary laws."""
         boundary = self.problem_.boundary
         return x if boundary is None else boundary(t, x, p)
+
+    def _advance_renewals(
+        self,
+        t: float,
+        x: Vector,
+        p: Vector,
+        until: float,
+        *,
+        dt: float,
+        step: Callable[[float, Vector, Vector, Vector], Vector],
+    ) -> Vector:
+        """Integrate with fixed steps that stop at the renewals of every member and at the breakpoints of inputs.
+
+        Members that do not interact take steps on their own clocks, and interacting members split every step at each
+        renewal time inside it.
+        """
+        problem, clock = self.problem_, self.renewals_
+        if problem.delays or problem.events or clock is None:
+            error_msg = f'{type(self).__name__} does not combine renewal laws with delays or events in one system.'
+            raise SolverError(error_msg)
+        clock.begin(t, x, p)
+        advance = clock.advance_split if problem.has_group_sums else clock.advance_members
+        state, time = x.copy(), t
+        for bound in find_bounds(problem, t, until):
+            while time < bound - RESTART * max(1.0, abs(bound)):
+                end = min(time + dt, bound)
+                state, time = advance(time, end, state, p, step), end
+            time = bound
+        return state
 
     def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
         """Prepare the stepper for a problem.

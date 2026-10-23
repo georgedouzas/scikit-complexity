@@ -8,7 +8,7 @@ from typing import ClassVar
 
 from ..base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind
 from ..compile import CompiledExtremal, CompiledRelaxation, Vector
-from ._base import Stepper, register_solver
+from ._stepper import Stepper, register_solver
 
 
 class LatticeStepper(Stepper):

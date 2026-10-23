@@ -1,4 +1,4 @@
-"""Test the steppers and the solver registry."""
+"""Test the integrators of ordinary differential equations."""
 
 import dataclasses
 import time
@@ -14,13 +14,10 @@ from skcomplex.core.components import Element
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Rate, mean, step, where
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import RK4, EulerMaruyama, Gillespie, Iteration, ScipyODE, resolve_solver
+from skcomplex.core.solvers import RK4, ScipyODE
 from skcomplex.core.system import System
 from skcomplex.models import create, run
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population
-from skcomplex.models.biology.epidemiology import Compartment, Recovery
-from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion
-from skcomplex.models.economics.markets import Cobweb, Market
 from skcomplex.models.physics.heat import heat_diffusion
 from skcomplex.models.physics.mechanics import harmonic_oscillator
 
@@ -60,23 +57,6 @@ def test_scipy_ode_failure_raises_error():
     stepper.initialize(problem, np.random.default_rng(0))
     with pytest.raises(SolverError, match='failed'):
         stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 2.0)
-
-
-def test_stepper_wrong_form_raises_error():
-    """Test that a stepper refuses a problem of another form."""
-    with pytest.raises(SolverError, match='jump process form'):
-        Gillespie().initialize(_growth_problem(), np.random.default_rng(0))
-
-
-def test_resolve_solver_by_name_and_instance():
-    """Test that solvers resolve from names, the default, and instances."""
-    problem = _growth_problem()
-    assert isinstance(resolve_solver(problem, 'auto'), ScipyODE)
-    assert isinstance(resolve_solver(problem, 'scipy'), ScipyODE)
-    stepper = ScipyODE()
-    assert resolve_solver(problem, stepper) is stepper
-    with pytest.raises(SolverError, match='Available names are'):
-        resolve_solver(problem, 'gillespie')
 
 
 def test_simulation_runs_stiff_model_with_default_solver():
@@ -143,56 +123,6 @@ def test_default_solver_starts_from_rest_with_a_vanishing_drift():
     times = simulation.trajectory_.times
     expected = (np.sin(times) - np.sin(2 * times) / 2) / 3
     np.testing.assert_allclose(simulation.trajectory_['oscillator.x'], expected, atol=1e-6)
-
-
-def test_euler_maruyama_without_noise_matches_ode():
-    """Test that zero noise reduces Euler-Maruyama to the deterministic solution."""
-    system = System(
-        components=[Asset('s', price=1.0)],
-        interactions=[GeometricBrownianMotion('gbm', target='s', mu=1.0, sigma=0.0)],
-    )
-    problem = compile_system(system)
-    stepper = EulerMaruyama(dt=1e-4)
-    stepper.initialize(problem, np.random.default_rng(0))
-    state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)
-    assert state[0] == pytest.approx(np.e, rel=1e-3)
-
-
-def test_euler_maruyama_nonpositive_dt_raises_error():
-    """Test that the internal step must be positive."""
-    problem = compile_system(
-        System(components=[Asset('s')], interactions=[GeometricBrownianMotion('gbm', target='s')]),
-    )
-    stepper = EulerMaruyama(dt=0.0)
-    stepper.initialize(problem, np.random.default_rng(0))
-    with pytest.raises(SolverError, match='positive'):
-        stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)
-
-
-def test_gillespie_conserves_individuals():
-    """Test that recoveries move individuals without creating or destroying them."""
-    problem = compile_system(
-        System(
-            components=[Compartment('I', n=50), Compartment('R')],
-            interactions=[Recovery('rec', infected='I', recovered='R', gamma=0.5, stochastic=True)],
-        ),
-    )
-    stepper = Gillespie()
-    stepper.initialize(problem, np.random.default_rng(1))
-    state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)
-    assert state.sum() == 50
-    assert 0 < state[0] < 50
-    assert np.all(state == np.round(state))
-
-
-def test_iteration_applies_one_step_per_unit_time():
-    """Test that the discrete stepper applies the map once per integer step."""
-    problem = compile_system(
-        System(components=[Market('m', price=1.0)], interactions=[Cobweb('c', target='m', a=10, b=2, c=1, d=1)]),
-    )
-    stepper = Iteration()
-    stepper.initialize(problem, np.random.default_rng(0))
-    assert stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 2.0).tolist() == [2.5]
 
 
 def _decay():

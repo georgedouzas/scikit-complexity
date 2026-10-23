@@ -245,7 +245,9 @@ print(len(simulation.extend(until=20).trajectory_))
 - `start(until)` runs in a background thread, and `pause`, `resume`, `stop`, and `wait` control it.
 - `update_parameters({'hunt.a': 0.05})` changes parameters before the next frame. Values set between runs stay in
   force for the later runs of the same simulation, and `clone(simulation).run(until)` starts afresh.
-- `random_state` makes stochastic runs reproducible.
+- `random_state` makes stochastic runs reproducible. A fixed-step solver splits every frame into
+  `step_count(t, until, dt)` equal steps on every backend, so the same `random_state` gives the same path on the NumPy
+  and Numba backends.
 - `extend(until)` continues a finished run from its last frame with the same stepper, clock, and observers, and
   appends the new frames to the trajectory, while `run` starts again from time 0.
 - `schedule={'hunt.a': lambda t: 0.02 + 0.001 * t}` sets parameters from functions of time at every frame, such as a
