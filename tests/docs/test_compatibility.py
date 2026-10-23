@@ -47,6 +47,29 @@ def test_table_follows_declarations(monkeypatch):
     assert '`noise`' in _row(_generator()['compatibility_page'](), '| `iteration` |')
 
 
+def test_page_lists_the_contributions_of_every_formalism():
+    """Test that the page has a row for every formalism with its dependencies, laws, forms, and solvers."""
+    page = _generator()['compatibility_page']()
+    names = [row.split('`')[1] for row in page.split('## Formalisms')[1].splitlines() if row.startswith('| `')]
+    assert set(names) >= {
+        'agents',
+        'control',
+        'fields',
+        'fractional',
+        'groups',
+        'kinetics',
+        'lattices',
+        'particles',
+        'quantum',
+        'rewriting',
+        'topology',
+    }
+    assert _row(page, '| `fields` |').startswith('| `fields` | `lattices` | `Flux` | `Field` | none |')
+    assert _row(page, '| `quantum` |').startswith(
+        '| `quantum` | none | `Generator`, `Dissipator` | none | `quantum dynamics` | `QuantumPass` | `unitary`,',
+    )
+
+
 def test_tables_list_noise_support():
     """Test that the solver table lists the noise structures each solver declares."""
     page = _generator()['compatibility_page']()
