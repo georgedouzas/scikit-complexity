@@ -6,9 +6,9 @@ import sys
 
 import pytest
 
-from skcomplex.core.base import Domain, ValidationError, VisualSpec, parameter, role, state
-from skcomplex.core.compile import Issue, ValidationReport, ValidationWarning, compile_system, validate
-from skcomplex.core.components import Element
+from skcomplex.core.base import Domain, Form, NoiseKind, ValidationError, VisualSpec, parameter, role, state
+from skcomplex.core.compile import SOLVERS, Issue, ValidationReport, ValidationWarning, compile_system, validate
+from skcomplex.core.components import Element, Wiener
 from skcomplex.core.formalisms.agents import Rule
 from skcomplex.core.formalisms.groups import GroupSpace, finitely_presented_group
 from skcomplex.core.formalisms.lattices import Energy, Move, Sample, Sampler
@@ -16,6 +16,9 @@ from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Noise, Objective, Rate, Update, neighbors
 from skcomplex.core.space import DiscreteTime, LatticeSpace, Memory
 from skcomplex.core.system import System
+
+from ..conftest import Holding, _correlated
+from .conftest import _pair
 
 
 class Stock(Element):
@@ -323,3 +326,122 @@ def test_validate_fractional_state_without_its_formalism_names_the_formalism():
     output = subprocess.run(command, capture_output=True, text=True, check=True).stdout  # noqa: S603  # nosec B603
     assert output.startswith('order-unsupported')
     assert 'skcomplex.core.formalisms.fractional' in output
+
+
+class Misuse(Interaction):
+    """Rate law that uses the handle of a Wiener process as a value."""
+
+    target: str = role()
+    noise: str = role()
+
+    def laws(self, s):
+        """Return the rate."""
+        return [Rate(s.target.n, s.noise.dW)]
+
+
+class Coupled(Interaction):
+    """Stratonovich noise on a state, through a Wiener process another component also draws."""
+
+    target: str = role()
+    other: str = role()
+    noise: str = role()
+
+    def laws(self, s):
+        """Return the noise of the target, whose amplitude reads the other state."""
+        return [Noise(s.target.n, s.other.n, convention='stratonovich', process=s.noise.dW)]
+
+
+class Single(Interaction):
+    """Itô noise on one element from a Wiener process."""
+
+    target: str = role()
+    noise: str = role()
+
+    def laws(self, s):
+        """Return the noise."""
+        return [Noise(s.target.n, 1.0, process=s.noise.dW)]
+
+
+def test_validate_reports_mixed_conventions():
+    """Test that laws of different conventions on one process are reported with both laws and the process."""
+    issues = validate(System(components=[_pair(conventions=('ito', 'stratonovich'))('pair')])).issues
+    (issue,) = [issue for issue in issues if issue.code == 'noise-convention-mixed']
+    assert 'ito Noise law of pair' in issue.message
+    assert 'stratonovich Noise law of pair' in issue.message
+    assert "'common'" in issue.message
+    assert 'one convention' in issue.fix
+
+
+def test_validate_reports_correction_out_of_scope():
+    """Test that a Stratonovich law reading a state another component drives on its process is reported."""
+    system = System(
+        components=[Holding('a'), Holding('b', n=1.0), Wiener('market')],
+        interactions=[
+            Coupled('coupled', target='a', other='b', noise='market'),
+            Single('single', target='b', noise='market'),
+        ],
+    )
+    (issue,) = [issue for issue in validate(system).issues if issue.code == 'noise-correction-scope']
+    assert 'Noise law of coupled' in issue.message
+    assert 'Noise law of single' in issue.message
+    assert 'Itô' in issue.fix
+
+
+def test_validate_reports_invalid_covariance():
+    """Test that a covariance with a negative eigenvalue is reported with the element and the eigenvalue."""
+    (issue,) = validate(_correlated([[1.0, 2.0], [2.0, 1.0]])).issues
+    assert issue.code == 'wiener-covariance'
+    assert issue.path == 'market'
+    assert '-1' in issue.message
+
+
+@pytest.mark.parametrize(
+    'covariance',
+    [[[1.0, 0.0, 0.0]], [[1.0, 0.5], [0.0, 1.0]]],
+)
+def test_validate_reports_covariance_shape_and_symmetry(covariance):
+    """Test that a covariance that is not square of the dimension or not symmetric is reported."""
+    assert [issue.code for issue in validate(_correlated(covariance)).issues] == ['wiener-covariance']
+
+
+def test_validate_reports_handle_as_value():
+    """Test that a Wiener handle used inside a rate law is reported with the law."""
+    system = System(
+        components=[Holding('a'), Wiener('market')],
+        interactions=[Misuse('misuse', target='a', noise='market')],
+    )
+    (issue,) = [issue for issue in validate(system).issues if issue.code == 'wiener-handle']
+    assert 'Rate law of misuse' in issue.message
+    assert 'only the process of a noise law' in issue.message
+
+
+def test_validate_reports_wiener_under_discrete_time():
+    """Test that a Wiener element in a system of discrete time is reported with the fix of continuous time."""
+    Counter = Element.define('Counter', states={'k': state(0.0, domain=Domain.REAL)}, laws=lambda s: [Update(s.k, 1)])
+    system = System(components=[Counter('counter'), Wiener('market')], time=DiscreteTime())
+    (issue,) = [issue for issue in validate(system).issues if issue.code == 'wiener-time']
+    assert issue.path == 'market'
+    assert 'continuous time' in issue.fix
+
+
+def test_validate_reports_milstein_with_shared_process():
+    """Test that Milstein with a shared process gives one error that names the law and suggests other solvers."""
+    (issue,) = validate(System(components=[_pair()('pair')]), solver='milstein').issues
+    assert issue.code == 'noise-unsupported'
+    assert 'Noise law of pair' in issue.message
+    assert 'euler-maruyama' in issue.fix
+    assert 'heun' in issue.fix
+
+
+def test_validate_reports_lammps_with_shared_process():
+    """Test that the LAMMPS backend with a shared process is reported with the backends that support it."""
+    issues = validate(System(components=[_pair()('pair')]), solver='lammps').issues
+    (issue,) = [issue for issue in issues if issue.code == 'noise-unsupported']
+    assert 'Noise law of pair' in issue.message
+    assert 'numba, numpy' in issue.fix
+
+
+def test_validate_accepts_correlated_noise_with_automatic_solver():
+    """Test that the automatic SDE solver declares correlated noise, so validation accepts it."""
+    assert validate(_correlated([[1.0, 0.5], [0.5, 1.0]])).ok
+    assert NoiseKind.CORRELATED in SOLVERS.resolve((Form.SDE, 'auto')).supports.noise

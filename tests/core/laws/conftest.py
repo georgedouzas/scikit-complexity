@@ -1,0 +1,10 @@
+"""Share the helpers and fixtures of the tests below this directory."""
+
+from skcomplex.core.base import parameter, state
+from skcomplex.core.components import Element
+from skcomplex.core.solvers import ScipyODE
+
+PRECISE = ScipyODE(rtol=1e-10, atol=1e-12)
+
+
+Mass = Element.define('Mass', states={'x': state(default=1.0, order=2)}, parameters={'m': parameter(default=2.0)})

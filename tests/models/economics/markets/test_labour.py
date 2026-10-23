@@ -1,0 +1,30 @@
+"""Test the `_labour` module of `skcomplex.models.economics.markets`."""
+
+import numpy as np
+
+from skcomplex.core.runtime import Simulation
+from skcomplex.models import describe
+from skcomplex.models.economics.markets import labour_market
+
+
+def test_labour_market_flow_balance():
+    """Unemployment settles at s / (s + f) and every hire takes an offer of the same step."""
+    separation = 0.05
+    trajectory = (
+        Simulation(
+            built := labour_market(150, 30, separation=separation),
+            random_state=0,
+            observables=describe('labour_market').observables_of(built),
+        )
+        .run(until=150)
+        .trajectory_
+    )
+    window = slice(50, None)
+    finding = np.nansum(trajectory['labour.volume'][window]) / np.nansum(trajectory['office.searching'][window])
+    unemployment = trajectory['unemployment'][window].mean()
+    assert 0.05 < finding < 0.95
+    assert abs(unemployment - separation / (separation + finding)) < 0.03
+    workers = trajectory.agents('workers', 150)
+    hired = workers.values['hired'] >= 0
+    assert hired.sum() > 50
+    np.testing.assert_array_equal(workers.values['hired'][hired], workers.values['offer'][hired])

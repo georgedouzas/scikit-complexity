@@ -1,11 +1,16 @@
 """Test the exact simulation of jump processes."""
 
-import numpy as np
+import time
 
+import numpy as np
+import pytest
+
+from skcomplex.core.backends import NumbaBackend
 from skcomplex.core.compile import compile_system
+from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import Gillespie
 from skcomplex.core.system import System
-from skcomplex.models.biology.epidemiology import Compartment, Recovery
+from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
 
 
 def test_gillespie_conserves_individuals():
@@ -22,3 +27,32 @@ def test_gillespie_conserves_individuals():
     assert state.sum() == 50
     assert 0 < state[0] < 50
     assert np.all(state == np.round(state))
+
+
+def _epidemic():
+    """Return a stochastic epidemic of 1000 individuals."""
+    return System(
+        components=[Compartment('S', n=990), Compartment('I', n=10), Compartment('R')],
+        interactions=[
+            Infection('infection', susceptible='S', infected='I', beta=0.0003, stochastic=True),
+            Recovery('recovery', infected='I', recovered='R', gamma=0.1, stochastic=True),
+        ],
+    )
+
+
+def _gillespie_run(backend):
+    """Return the duration and the trajectory of a compiled Gillespie run after a warm-up run."""
+    simulation = Simulation(_epidemic(), backend=backend, solver=Gillespie(), dt=1.0, random_state=0)
+    simulation.run(until=50)
+    start = time.perf_counter()
+    trajectory = simulation.run(until=50).trajectory_
+    return time.perf_counter() - start, trajectory
+
+
+@pytest.mark.benchmark
+def test_compiled_gillespie_runs_serial_kernels():
+    """Test that the default Numba backend runs a compiled Gillespie epidemic as fast as a serial one."""
+    default, first = _gillespie_run(NumbaBackend())
+    serial, second = _gillespie_run(NumbaBackend(parallel=False))
+    assert np.array_equal(first.states, second.states)
+    assert default <= 1.5 * serial + 0.005

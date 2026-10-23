@@ -4,12 +4,19 @@ A model package imports the core and the shared realizations of its own field, a
 """
 
 import ast
+import importlib
 import importlib.util
 import subprocess  # nosec B404: the tests run the interpreter on code they write
 import sys
 from pathlib import Path
 
 import pytest
+
+from skcomplex.core.components import Element
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Rate
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
 
 from .layout_checks import (
     definition_order,
@@ -18,6 +25,7 @@ from .layout_checks import (
     leaking_exports,
     misordered_definitions,
     undeclared_formalism_imports,
+    unmirrored_tests,
     upward_imports,
     wide_base_imports,
 )
@@ -211,11 +219,7 @@ def test_modelling_packages_import_downward():
 
 def test_primitives_import_from_their_part_of_a_system():
     """Test that primitives import from the package of their part: system, components, interactions, space, laws."""
-    from skcomplex.core.components import Element  # noqa: PLC0415
-    from skcomplex.core.interactions import Interaction  # noqa: PLC0415
-    from skcomplex.core.laws import Rate  # noqa: PLC0415
     from skcomplex.core.space import DiscreteTime, LatticeSpace  # noqa: PLC0415
-    from skcomplex.core.system import System  # noqa: PLC0415
 
     assert importlib.util.find_spec('skcomplex.core.model') is None
     modules = {
@@ -227,8 +231,6 @@ def test_primitives_import_from_their_part_of_a_system():
 def test_framework_imports_from_core():
     """Test that the framework's names import from the packages of the core."""
     from skcomplex.core.base import Domain  # noqa: PLC0415
-    from skcomplex.core.components import Element  # noqa: PLC0415
-    from skcomplex.core.runtime import Simulation  # noqa: PLC0415
     from skcomplex.core.solvers import RK4  # noqa: PLC0415
 
     assert all(item is not None for item in (Domain, Element, Simulation, RK4))
@@ -585,3 +587,51 @@ def test_compiler_internal_leak_is_found(tmp_path):
 def test_core_exports_do_not_leak():
     """Test that no core package exports a name that one other core package alone uses."""
     assert leaking_exports(ROOT, _clients(), concepts=CONCEPTS) == []
+
+
+@pytest.mark.parametrize(
+    ('package', 'names'),
+    [
+        ('skcomplex.models.physics.fluids', ['burgers']),
+        ('skcomplex.models.biology.ecology', ['lotka_volterra']),
+        ('skcomplex.models.chemistry.pattern_formation', ['gray_scott']),
+    ],
+)
+def test_import_by_field(package, names):
+    """Test that a subfield package exports the factories of its subfield."""
+    module = importlib.import_module(package)
+    assert all(callable(getattr(module, name)) for name in names)
+
+
+@pytest.mark.parametrize('package', ['fluids', 'lattices', 'fields', 'nonlinear'])
+def test_technique_packages_are_gone(package):
+    """Test that the technique-based model packages no longer exist."""
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module(f'skcomplex.models.{package}')
+
+
+def test_unmirrored_test_module_is_found(tmp_path):
+    """Test that a test module without a source module of its name is named, and mirrored ones are not."""
+    root = _plant(
+        tmp_path,
+        {
+            'skcomplex/core/compile/_compile.py': '',
+            'skcomplex/models/physics/mechanics/_springs.py': '',
+            'tests/test_layout.py': '',
+            'tests/docs/test_gallery_hooks.py': '',
+            'tests/core/compile/test_compile.py': '',
+            'tests/core/compile/test_compiler.py': '',
+            'tests/core/compile/conftest.py': '',
+            'tests/models/physics/mechanics/test_springs.py': '',
+            'tests/models/test_physics_matter.py': '',
+        },
+    )
+    assert unmirrored_tests(root, root / 'tests') == [
+        'tests/core/compile/test_compiler.py: no source module skcomplex.core.compile._compiler to test',
+        'tests/models/test_physics_matter.py: no source module skcomplex.models._physics_matter to test',
+    ]
+
+
+def test_test_tree_mirrors_source_tree():
+    """Test that every test module outside the repository-wide checks and the documentation tests a source module."""
+    assert unmirrored_tests(ROOT, TESTS) == []

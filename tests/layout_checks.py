@@ -32,6 +32,7 @@ BASE_CLASSES = frozenset({'Component', 'Law'})
 KINDS = ('private function', 'public function', 'private class', 'public class')
 DEFINITIONS = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
 CLIENT_SUFFIXES = frozenset({'.py', '.md'})
+MIRRORED_ELSEWHERE = frozenset({'docs'})
 
 
 def _module_of(path: Path, root: Path) -> tuple[str, bool]:
@@ -448,4 +449,34 @@ def leaking_exports(root: Path, clients: Iterable[Path], concepts: Collection[st
             extension = any(item.startswith('formalisms') for item in using)
             if len(using) == 1 and name not in words and not concept and not extension:
                 found.append(f'{CORE}.{package}: exports {name}, which only {CORE}.{next(iter(using))} uses')
+    return found
+
+
+def unmirrored_tests(root: Path, tests: Path) -> list[str]:
+    """Return the test modules that do not mirror a source module.
+
+    A test module `tests/<path>/test_<name>.py` mirrors the source module `skcomplex/<path>/_<name>.py`. The
+    repository-wide checks at the root of the tests, and the tests of the documentation under `tests/docs`, which
+    mirror `docs`, are left out.
+
+    Args:
+        root:
+            The directory that holds the `skcomplex` package.
+
+        tests:
+            The directory of the tests.
+
+    Returns:
+        violations:
+            One message per test module, naming it and the source module it would test.
+    """
+    found = []
+    for path in sorted(tests.rglob('test_*.py')):
+        relative = path.relative_to(tests)
+        if len(relative.parts) == 1 or relative.parts[0] in MIRRORED_ELSEWHERE:
+            continue
+        module = relative.parent / f'_{path.stem.removeprefix("test_")}.py'
+        if not root.joinpath('skcomplex', module).is_file():
+            dotted = '.'.join(('skcomplex', *module.with_suffix('').parts))
+            found.append(f'{tests.name}/{relative.as_posix()}: no source module {dotted} to test')
     return found

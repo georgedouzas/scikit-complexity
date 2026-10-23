@@ -20,14 +20,16 @@ from skcomplex.core.base import (
 from skcomplex.core.compile import compile_system, validate
 from skcomplex.core.components import Element, Group
 from skcomplex.core.formalisms.agents import Rule
-from skcomplex.core.formalisms.particles import Particle
+from skcomplex.core.formalisms.particles import PairPotential, Particle
 from skcomplex.core.formalisms.quantum import Generator, QuantumView, is_quantum
 from skcomplex.core.formalisms.rewriting import Production, Rewrite, Word, structure_of
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Rate, Update
 from skcomplex.core.runtime import Simulation
+from skcomplex.core.solvers import ScipyODE
 from skcomplex.core.space import ContinuousSpace, ContinuousTime, DiscreteTime, LatticeSpace, NetworkSpace, StaticTime
 from skcomplex.core.system import System
+from skcomplex.models.biology.ecology import Population
 
 
 class Stock(Element):
@@ -304,3 +306,43 @@ def test_hyperedges_binding_needs_a_network_with_hyperedges():
     )
     (issue,) = [issue for issue in validate(system).errors if issue.code == 'binding']
     assert 'network space with hyperedges' in issue.message
+
+
+class SoftSphere(PairPotential):
+    """Soft repulsion `k * (cutoff - r) ** 2 / 2`."""
+
+    k: float = parameter(50.0, domain=Domain.POSITIVE)
+
+    def pair_energy(self, s, r):
+        """Return the soft repulsion energy."""
+        return s.k * (s.cutoff - r) ** 2 / 2
+
+
+def test_system_repr_counts_children():
+    """Test that a system shows its label and the number of each child kind."""
+    system = System('meadow', components=[Population('rabbits')], space=ContinuousSpace(n_dim=2))
+    assert repr(system) == "System('meadow', components=1, interactions=0)"
+
+
+def test_periodic_box_wraps_member_with_same_velocity():
+    """Test that a member leaving one side reappears at the opposite side with the same velocity."""
+    system = System(
+        components=[Particle.group('gas', 1, x=[[0.95, 0.5]], v=[[1.0, 0.0]])],
+        space=ContinuousSpace(1.0, 1.0, boundary='periodic'),
+    )
+    trajectory = Simulation(system, dt=0.1).run(until=0.2).trajectory_
+    assert np.allclose(trajectory['gas.x'][-1], [[0.15, 0.5]])
+    assert np.allclose(trajectory['gas.v'][-1], [[1.0, 0.0]])
+
+
+def test_pair_interaction_conserves_momentum():
+    """Test that soft-sphere collisions inside an isolated group keep the total momentum."""
+    rng = np.random.default_rng(0)
+    system = System(
+        components=[Particle.group('gas', 200, x=rng.uniform(0, 3, (200, 2)), v=rng.normal(0, 1, (200, 2)))],
+        interactions=[SoftSphere('soft', first='gas', second='gas', cutoff=0.2)],
+        space=ContinuousSpace(n_dim=2),
+    )
+    trajectory = Simulation(system, solver=ScipyODE(rtol=1e-9, atol=1e-12), dt=0.05).run(until=2).trajectory_
+    momentum = trajectory['gas.v'].sum(axis=1)
+    assert np.allclose(momentum, momentum[0], atol=1e-8)

@@ -1,0 +1,19 @@
+"""Share the run helpers and solvers of the oncology model tests."""
+
+from skcomplex.core.runtime import Simulation, Trajectory
+from skcomplex.core.solvers import ScipyODE, Stepper
+from skcomplex.core.system import System
+
+PRECISE = ScipyODE(rtol=1e-9, atol=1e-12)
+STIFF = ScipyODE(method='LSODA', rtol=1e-8, atol=1e-10)
+
+
+def _run(system: System, until: float, dt: float) -> Trajectory:
+    """Return the trajectory of a system integrated tightly."""
+    return Simulation(system, dt=dt, solver=PRECISE).run(until=until).trajectory_
+
+
+def _run_optional_solver(system: System, until: float, dt: float, solver: Stepper | None = None) -> Trajectory:
+    """Return the trajectory of a system."""
+    settings = {} if solver is None else {'solver': solver}
+    return Simulation(system, dt=dt, random_state=0, **settings).run(until=until).trajectory_

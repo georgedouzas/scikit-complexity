@@ -1,0 +1,35 @@
+"""Test the `_harvesters` module of `skcomplex.models.engineering.circuits`."""
+
+import numpy as np
+import pytest
+
+from skcomplex.core.runtime import Simulation
+from skcomplex.models import describe
+from skcomplex.models.engineering.circuits import (
+    vibration_energy_harvester,
+)
+
+
+def test_vibration_energy_harvester_steady_response():
+    """Test that the sprung mass settles on the amplitude of the linear response, and the voltage follows the stroke."""
+    trajectory = (
+        Simulation(
+            built := vibration_energy_harvester(),
+            dt=0.01,
+            observables=describe('vibration_energy_harvester').observables_of(built),
+        )
+        .run(until=30)
+        .trajectory_
+    )
+    m1, m2, k1, k2, b, A, omega = 40.0, 400.0, 2.0e5, 2.0e4, 1500.0, 0.01, 9.42
+    stiffness = np.array(
+        [
+            [k1 + k2 - m1 * omega**2 + 1j * omega * b, -k2 - 1j * omega * b],
+            [-k2 - 1j * omega * b, k2 - m2 * omega**2 + 1j * omega * b],
+        ],
+    )
+    amplitude = abs(np.linalg.solve(stiffness, [k1 * A, 0.0])[1])
+    sprung = trajectory['harvester.y2'][-1000:]
+    assert np.ptp(sprung) / 2 == pytest.approx(amplitude, rel=0.01)
+    stroke = trajectory['harvester.y2'] - trajectory['harvester.y1']
+    assert trajectory['voltage'] == pytest.approx(10.0 * 4.0e-10 * 2.0e4 * stroke / 1.0e-8)

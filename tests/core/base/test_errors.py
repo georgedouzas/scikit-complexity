@@ -1,0 +1,18 @@
+"""Test the `_errors` module of `skcomplex.core.base`."""
+
+import pytest
+
+from skcomplex.core.base import ValidationError
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
+from .conftest import Person, Progression
+
+
+def test_checked_mode_catches_values_outside_alphabet():
+    """Test that checked mode names the state when a law leaves the alphabet."""
+    system = System(components=[Person('ann', health='recovered')], interactions=[Progression('p', target='ann')])
+    with pytest.raises(ValidationError, match=r'ann\.health .*categorical'):
+        Simulation(system, checked=True).run(until=1)
+    unchecked = Simulation(system).run(until=1).trajectory_
+    assert unchecked.states[-1, 0] == 3.0
