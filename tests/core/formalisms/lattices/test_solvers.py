@@ -239,7 +239,9 @@ def test_monte_carlo_energy_change_is_symbolic():
         'Spin',
         states={'spin': state(1.0, domain=Domain.INTEGER)},
         parameters={'J': 1.0, 'temperature': 1.0},
-        laws=lambda s: [Sample(Energy(-s.J * s.spin * sum(neighbors(s.spin, nearest)), nearest), Move.flip(s.spin))],
+        laws=lambda s: [
+            Sample(Energy(-s.J * s.spin * sum(neighbors(s.spin, nearest, reduce='each')), nearest), Move.flip(s.spin)),
+        ],
     )
     problem = compile_system(System(components=[Spin.lattice('spins', LatticeSpace((4, 4)))]))
     sampling = problem.lattice[0]
@@ -257,8 +259,8 @@ def test_monte_carlo_needs_one_energy_and_move():
         states={'spin': 1.0},
         parameters={'temperature': 1.0},
         laws=lambda s: [
-            Sample(Energy(-s.spin * sum(neighbors(s.spin, nearest)), nearest), Move.flip(s.spin)),
-            Sample(Energy(-s.spin * sum(neighbors(s.spin, nearest)), nearest), Move.flip(s.spin)),
+            Sample(Energy(-s.spin * sum(neighbors(s.spin, nearest, reduce='each')), nearest), Move.flip(s.spin)),
+            Sample(Energy(-s.spin * sum(neighbors(s.spin, nearest, reduce='each')), nearest), Move.flip(s.spin)),
         ],
     )
     with pytest.raises(ValidationError, match='one energy, one move'):

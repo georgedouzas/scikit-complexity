@@ -20,8 +20,6 @@ from skcomplex.core.formalisms.lattices import (
     Move,
     Sample,
     Sampler,
-    adjacent,
-    neighbor_sum,
 )
 from skcomplex.core.laws import OuterTotalistic, Table, Totalistic, neighbors
 from skcomplex.core.runtime import Frame, Simulation
@@ -184,7 +182,7 @@ def test_neighbor_sum_ignores_padding():
         parameters={'J': 1.3, 'temperature': 0.5},
         laws=lambda s: [
             Sample(
-                Energy(-s.J * neighbor_sum(cos(s.theta - adjacent(s.theta))), Adjacency()),
+                Energy(-s.J * neighbors(cos(s.theta - s.other.theta), reduce='sum'), Adjacency()),
                 Move.rotate(s.theta, 1.0),
                 Sampler('metropolis', s.temperature, schedule='colored'),
             ),
@@ -232,7 +230,10 @@ def test_colored_schedule_partitions_triangular_lattice():
         parameters={'temperature': 2.0},
         laws=lambda s: [
             Sample(
-                Energy(-s.spin * sum(neighbors(s.spin, Neighborhood.triangular())), Neighborhood.triangular()),
+                Energy(
+                    -s.spin * sum(neighbors(s.spin, Neighborhood.triangular(), reduce='each')),
+                    Neighborhood.triangular(),
+                ),
                 Move.flip(s.spin),
                 Sampler('metropolis', s.temperature, schedule='colored'),
             ),

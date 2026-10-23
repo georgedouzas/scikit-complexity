@@ -103,7 +103,7 @@ system = "A nested system"
 [vocabulary.bindings]
 members = "Roles bound to components or members"
 pairs = "Laws run once per pair of members"
-neighbours = "Laws run once per pair of adjacent members in the space"
+neighbors = "Laws run once per pair of adjacent members in the space"
 hyperedges = "Laws run once per hyperedge of the space"
 
 [vocabulary.laws]

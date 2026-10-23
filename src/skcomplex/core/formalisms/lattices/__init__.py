@@ -2,7 +2,7 @@
 
 from ...base import Form
 from .._formalism import Formalism, register
-from ._laws import Drive, Energy, Extremal, LocalRule, Move, Relaxation, Sample, Sampler, adjacent, neighbor_sum
+from ._laws import Drive, Energy, Extremal, LocalRule, Move, Relaxation, Sample, Sampler
 from ._passes import CHECKS, OWNER_RULES, STEPWISE_FORMS, LatticeProblemPass, UnpackSamplesPass
 from ._solvers import LatticeStepper, MonteCarlo
 from ._steps import (
@@ -39,8 +39,6 @@ __all__: list[str] = [
     'Sample',
     'Sampler',
     'UnpackSamplesPass',
-    'adjacent',
-    'neighbor_sum',
 ]
 
 register(

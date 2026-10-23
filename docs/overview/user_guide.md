@@ -1256,7 +1256,7 @@ Cellular automata, sandpiles, and spin models live on lattices. `LatticeSpace(sh
 with `'periodic'`, `'fixed'`, or `'reflecting'` edges, and `Element.lattice(label, space, **values)` puts one member
 of an element type on every site, with values given as arrays of the lattice shape. Laws are written for one cell.
 
-**Local rules.** `LocalRule(target, neighborhood, rule)` computes a cell's next value from the ordered values of its
+**Local rules.** `LocalRule(target, over, rule)` computes a cell's next value from the ordered values of its
 neighbourhood. `Neighborhood.moore`, `.von_neumann`, `.radius`, or `Neighborhood(offsets)` give the offsets. A rule is
 a `Table` of patterns, a `Totalistic` or `OuterTotalistic` rule, a rule code whose `table()` returns a table, such
 as `Wolfram` of the automata models, or a function of NumPy arrays,
@@ -1298,7 +1298,7 @@ trajectory = Simulation(sandpile((20, 20)), dt=100, random_state=0).run(until=20
 print(max(event.size for event in trajectory.events))
 ```
 
-**Monte Carlo.** A `Sample(energy, move, sampler)` law samples states. `Energy(expression, neighborhood)` is the local energy of a site, every term of the total energy
+**Monte Carlo.** A `Sample(energy, move, sampler)` law samples states. `Energy(expression, over)` is the local energy of a site, every term of the total energy
 that involves it, with neighbour values read through `neighbors`. `Move.flip`, `Move.random_value`, and `Move.rotate`
 propose changes, and `Sampler('metropolis' | 'glauber' | 'heat-bath', temperature)` accepts them. The energy change of
 a move is derived symbolically, sweeps update the two sublattices in turn, and the temperature is a parameter that
@@ -1315,7 +1315,7 @@ Spin = Element.define(
     parameters={'J': 1.0, 'temperature': 1.5},
     laws=lambda s: [
         Sample(
-            Energy(-s.J * s.spin * sum(neighbors(s.spin, nearest)), nearest),
+            Energy(-s.J * s.spin * sum(neighbors(s.spin, nearest, reduce='each')), nearest),
             Move.flip(s.spin),
             Sampler('metropolis', s.temperature),
         ),
@@ -1352,16 +1352,16 @@ on graphs take the totalistic forms, and a function rule that names the keyword 
 neighbours of every site. The padded table grows with the largest degree, so graphs with hubs of very high degree,
 beyond scale-free graphs of about 10^5 nodes, use much memory.
 
-**Neighbour sums and colored schedules.** `neighbor_sum(expression)` sums an expression of a site and one neighbour,
-read with `adjacent(state)`, over the real neighbours of the site, so local energies are exact on sites of any degree
-and outside fixed edges. `schedule='colored'` on local rules and samplers updates the classes of a proper coloring of
+**Neighbour sums and colored schedules.** `neighbors(expression, reduce='sum')` sums an expression of a site and one
+neighbour, read through `s.other`, over the real neighbours of the site, so local energies are exact on sites of any
+degree and outside fixed edges. `schedule='colored'` on local rules and samplers updates the classes of a proper coloring of
 the neighbour graph in turn, which NetworkX computes once per law. The checkerboard schedule stays the two-color case
 of square lattices.
 
 ```python
 import networkx as nx
 
-from skcomplex.core.formalisms.lattices import adjacent, neighbor_sum
+from skcomplex.core.laws import neighbors
 from skcomplex.core.space import Adjacency, NetworkSpace
 
 GraphSpin = Element.define(
@@ -1370,7 +1370,7 @@ GraphSpin = Element.define(
     parameters={'J': 1.0, 'temperature': 1.0},
     laws=lambda s: [
         Sample(
-            Energy(-s.J * s.spin * neighbor_sum(adjacent(s.spin)), Adjacency()),
+            Energy(-s.J * s.spin * neighbors(s.other.spin, reduce='sum'), Adjacency()),
             Move.flip(s.spin),
             Sampler('metropolis', s.temperature, schedule='colored'),
         ),
@@ -1381,7 +1381,7 @@ spins = System(components=[GraphSpin.lattice('spins', NetworkSpace(graph))])
 print(abs(Simulation(spins, dt=50, random_state=0).run(until=200).state_.mean()) > 0.9)
 ```
 
-**Extremal updates.** `Extremal(target, neighborhood, rule, key=None, extremum='min', repeat=1)` finds the site with
+**Extremal updates.** `Extremal(target, over, rule, key=None, extremum='min', repeat=1)` finds the site with
 the smallest or largest value of a key state, breaking ties with the simulation's random stream, and applies
 `rule(*values, random, **parameters)` to the site and its real neighbours, `repeat` times per step. Every application
 is recorded among the trajectory's events as an `ExtremalRecord` with its time, site, and extremal value. On the Numba

@@ -89,7 +89,7 @@ neighbor = _Neighbor()
 def neighbors(
     expression: object,
     over: NeighborhoodSpec | Layer | None = None,
-    reduce: str | None = None,
+    reduce: str = 'sum',
     weight: object = None,
 ) -> Expression | SymbolicVector:
     """Return the reduction of an expression over the neighbours of every member of a group.
@@ -109,8 +109,8 @@ def neighbors(
     - `'max'` and `'min'`, the largest and smallest `w_j f_j`;
     - `'normalized-mean'`, the weighted mean `sum_j w_j f_j / sum_j w_j`.
 
-    A lattice neighbourhood without a reduction keeps the lattice case of local energies: the values of a lattice state
-    at every offset, in neighbourhood order.
+    On a lattice neighbourhood, `reduce='each'` keeps the lattice case of local energies: the values of a lattice state
+    at every offset, in neighbourhood order, without reducing them.
 
     Args:
         expression:
@@ -120,8 +120,8 @@ def neighbors(
             The neighbourhood, or `None` for the neighbours of the network or lattice the group lives on.
 
         reduce:
-            `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, or `'normalized-mean'`, or `None` for the sum, or for the
-            values at every offset of a lattice neighbourhood.
+            `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, or `'normalized-mean'`, or `'each'` for the values at every
+            offset of a lattice neighbourhood or a memory.
 
         weight:
             The weight of one neighbour, an expression of the same symbols, or `None` for 1. On a network it may read
@@ -130,8 +130,8 @@ def neighbors(
 
     Returns:
         reduction:
-            The unevaluated reduction, one per component of a vector expression, or the values of a lattice state at
-            the offsets of a lattice neighbourhood.
+            The unevaluated reduction, one per component of a vector expression, or with `reduce='each'` the values of
+            a lattice state at the offsets of a lattice neighbourhood.
 
     Raises:
         ValidationError:
@@ -164,18 +164,21 @@ def neighbors(
         >>> neighbors(sin(symbol('theta_other')), over=Radius(1.0), reduce='mean')
         neighbors(sin(theta_other), over=Radius(radius=1.0, center=False), reduce='mean')
 
-        A lattice neighbourhood without a reduction gives the values at its offsets:
+        A lattice neighbourhood gives the values at its offsets with `reduce='each'`:
 
         >>> spin = symbol('spin')
-        >>> values = neighbors(spin, Neighborhood.von_neumann())
+        >>> values = neighbors(spin, Neighborhood.von_neumann(), reduce='each')
         >>> len(values), values[0]
         (4, neighbor(spin, 0))
     """
-    if reduce is None and isinstance(over, Neighborhood | Memory):
+    kind = reduce
+    if kind == 'each':
+        if not isinstance(over, Neighborhood | Memory):
+            error_msg = f"The reduction 'each' reads the offsets of a Neighborhood or a Memory, not {over!r}."
+            raise ValidationError(error_msg)
         return vector(neighbor(expression, SR(index)) for index in range(len(over)))
-    kind = 'sum' if reduce is None else reduce
     if kind not in NEIGHBOR_REDUCTIONS:
-        error_msg = f'Unknown neighbourhood reduction {kind!r}. Use one of {", ".join(NEIGHBOR_REDUCTIONS)}.'
+        error_msg = f'Unknown neighbourhood reduction {kind!r}. Use one of {", ".join((*NEIGHBOR_REDUCTIONS, "each"))}.'
         raise ValidationError(error_msg)
     over_symbol = _over_symbol(over)
     code = SR(NEIGHBOR_REDUCTIONS.index(kind))

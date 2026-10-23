@@ -103,7 +103,10 @@ class BondSpin(Element):
                 The laws of the component.
         """
         couplings = (s.J_up, s.J_left, s.J_right, s.J_down)
-        field = sum(coupling * other for coupling, other in zip(couplings, neighbors(s.spin, NEAREST), strict=True))
+        field = sum(
+            coupling * other
+            for coupling, other in zip(couplings, neighbors(s.spin, NEAREST, reduce='each'), strict=True)
+        )
         return [
             Sample(Energy(-s.spin * (field + s.h), NEAREST), Move.flip(s.spin), Sampler('metropolis', s.temperature)),
         ]

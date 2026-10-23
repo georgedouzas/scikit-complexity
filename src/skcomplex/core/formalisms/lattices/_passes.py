@@ -18,6 +18,7 @@ from ...compile import (
     Laws,
     Pass,
     Problem,
+    Source,
     member_count,
     resolve_backend,
     target_references,
@@ -38,8 +39,8 @@ from ._steps import (
 
 
 def _lattice_context(spec: KernelSpec, declarations: Declarations, fused: bool) -> LatticeContext:
-    """Return the lattice states and the arguments of the symbols a component's laws read."""
-    states, arguments = {}, {}
+    """Return the lattice states, the arguments, and the neighbour symbols of the symbols a component's laws read."""
+    states, arguments, others = {}, {}, {}
     for item, reference in spec.references.items():
         entry = reference.entry
         owner, _, variable = entry.name.rpartition('.')
@@ -55,7 +56,9 @@ def _lattice_context(spec: KernelSpec, declarations: Declarations, fused: bool) 
             states[item] = LatticeState(entry.name, entry.start, space)  # type: ignore[arg-type]
         if not entry.member_shape:
             arguments[item] = (variable, reference.is_state, entry.start, entry.size)
-    return LatticeContext(spec.owner, states, arguments, fused)
+        if reference.source is Source.OTHER:
+            others[item] = entry.name
+    return LatticeContext(spec.owner, states, arguments, fused, others)
 
 
 def _monte_carlo_step(spec: KernelSpec, laws: list[Law], context: LatticeContext) -> LatticeStep | None:

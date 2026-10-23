@@ -249,7 +249,7 @@ class GroupSpin(Element):
     def laws(self, s):
         """Return the Glauber sampling of a ferromagnetic energy on the generators."""
         memory = Memory(('a', 'a^-1', 'b', 'b^-1'))
-        energy = Energy(-s.spin * sum(neighbors(s.spin, memory)), memory)
+        energy = Energy(-s.spin * sum(neighbors(s.spin, memory, reduce='each')), memory)
         return [Sample(energy, Move.flip(s.spin), Sampler('glauber', 2.0))]
 
 

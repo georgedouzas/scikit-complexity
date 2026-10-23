@@ -7,8 +7,6 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
-from sage.symbolic.function import BuiltinFunction
-
 from ...base import (
     Expression,
     LawClass,
@@ -31,26 +29,6 @@ EXTREMA = ('min', 'max')
 type RuleSpec = Table | Totalistic | OuterTotalistic | Callable[..., Any] | Any
 
 
-class _Adjacent(BuiltinFunction):
-    """Value of a lattice state at one neighbour inside a neighbour sum, `adjacent(x)`."""
-
-    def __init__(self) -> None:
-        super().__init__('adjacent', nargs=1)
-
-
-adjacent = _Adjacent()
-
-
-class _NeighborSum(BuiltinFunction):
-    """Sum of an expression over the real neighbours of a site, `neighbor_sum(f)`."""
-
-    def __init__(self) -> None:
-        super().__init__('neighbor_sum', nargs=1)
-
-
-neighbor_sum = _NeighborSum()
-
-
 def _targets(target: object) -> tuple[Expression, ...]:
     """Return the target symbols of a lattice law as a tuple."""
     return tuple(target) if isinstance(target, tuple | list) else (target,)
@@ -70,7 +48,7 @@ class LocalRule(Law):
         target:
             The symbol of a lattice state, or a tuple of them that the rule updates together.
 
-        neighborhood:
+        over:
             The neighbourhood whose values the rule reads, a `Neighborhood` of offsets on a lattice, an `Adjacency`
             on a network, or a `Memory` of group elements on a group space.
 
@@ -105,7 +83,7 @@ class LocalRule(Law):
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
     target: Expression | tuple[Expression, ...]
-    neighborhood: Neighborhood | Adjacency | Memory
+    over: Neighborhood | Adjacency | Memory
     rule: RuleSpec
     reads: tuple[Expression, ...] | None = None
     schedule: str = 'synchronous'
@@ -221,17 +199,16 @@ class Energy(Law):
     """Local energy of a lattice site: every term of the total energy that involves the site's value.
 
     The energy change of a move is the difference of the local energy at the proposed and the current value, derived
-    symbolically. Neighbour values are read with `neighbors` in neighbourhood order, or summed over the real
-    neighbours of the site with `neighbor_sum`, which reads one neighbour's value with `adjacent`. A neighbour sum
-    leaves out the padding of a graph and the sites outside fixed edges.
+    symbolically. Neighbour values are read with `neighbors(..., reduce='each')` in neighbourhood order, or summed over
+    the real neighbours of the site with `neighbors(..., reduce='sum')`, which reads one neighbour's value through
+    `s.other`. A neighbour sum leaves out the padding of a graph and the sites outside fixed edges.
 
     Args:
         expression:
             The local energy, a symbolic expression of the site's states, its neighbours' values, and parameters.
 
-        neighborhood:
-            The neighbourhood that `neighbors` and `neighbor_sum` read in the expression, an `Adjacency` on a
-            network.
+        over:
+            The neighbourhood that `neighbors` reads in the expression, an `Adjacency` on a network.
 
     Examples:
         >>> from skcomplex.core.base import symbol
@@ -240,7 +217,7 @@ class Energy(Law):
         >>> from skcomplex.core.space import Neighborhood
         >>> spin, J = symbol('spin'), symbol('J')
         >>> nearest = Neighborhood.von_neumann()
-        >>> len(Energy(-J * spin * sum(neighbors(spin, nearest)), nearest).neighborhood)
+        >>> len(Energy(-J * spin * sum(neighbors(spin, nearest, reduce='each')), nearest).over)
         4
     """
 
@@ -250,7 +227,7 @@ class Energy(Law):
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
     expression: object
-    neighborhood: Neighborhood | Adjacency | Memory
+    over: Neighborhood | Adjacency | Memory
 
 
 @dataclass(frozen=True)
@@ -438,7 +415,7 @@ class Extremal(Law):
         target:
             The symbol of a lattice state, or a tuple of them that the rule updates together.
 
-        neighborhood:
+        over:
             The neighbourhood of the extremal site that the rule also updates.
 
         rule:
@@ -471,7 +448,7 @@ class Extremal(Law):
     requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE}, space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
     target: Expression | tuple[Expression, ...]
-    neighborhood: Neighborhood | Adjacency | Memory
+    over: Neighborhood | Adjacency | Memory
     rule: Callable[..., Any]
     key: Expression | None = None
     extremum: str = 'min'

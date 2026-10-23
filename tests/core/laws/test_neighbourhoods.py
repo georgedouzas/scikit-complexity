@@ -71,7 +71,7 @@ def _minimum_image(difference, side):
 
 def test_neighbors_keeps_the_values_at_lattice_offsets():
     """Test that a lattice neighbourhood without a reduction gives the values at every offset, for local energies."""
-    values = neighbors(symbol('spin'), Neighborhood.von_neumann())
+    values = neighbors(symbol('spin'), Neighborhood.von_neumann(), reduce='each')
     assert [str(item) for item in values] == [f'neighbor(spin, {index})' for index in range(4)]
 
 

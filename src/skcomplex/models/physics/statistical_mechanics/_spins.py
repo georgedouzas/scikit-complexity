@@ -77,7 +77,7 @@ class IsingSpin(Element):
             laws:
                 The laws of the component.
         """
-        energy = -s.J * s.spin * sum(neighbors(s.spin, NEAREST)) - s.h * s.spin
+        energy = -s.J * s.spin * sum(neighbors(s.spin, NEAREST, reduce='each')) - s.h * s.spin
         return [Sample(Energy(energy, NEAREST), Move.flip(s.spin), Sampler(self.sampler, s.temperature))]
 
 
@@ -139,7 +139,7 @@ class PottsSpin(Element):
             laws:
                 The laws of the component.
         """
-        energy = -s.J * sum(where(s.color == item, 1, 0) for item in neighbors(s.color, NEAREST))
+        energy = -s.J * sum(where(s.color == item, 1, 0) for item in neighbors(s.color, NEAREST, reduce='each'))
         return [
             Sample(
                 Energy(energy, NEAREST),
@@ -202,7 +202,7 @@ class XYSpin(Element):
             laws:
                 The laws of the component.
         """
-        energy = -s.J * sum(cos(s.theta - item) for item in neighbors(s.theta, NEAREST))
+        energy = -s.J * sum(cos(s.theta - item) for item in neighbors(s.theta, NEAREST, reduce='each'))
         return [Sample(Energy(energy, NEAREST), Move.rotate(s.theta, self.width), Sampler('metropolis', s.temperature))]
 
 
