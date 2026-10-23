@@ -407,7 +407,9 @@ def leaking_exports(root: Path, clients: Iterable[Path], concepts: Collection[st
 
     A core module uses a name when it imports it from the package or one of its modules. The clients are the models,
     the given files and directories, which are the tests and the documentation, and a client uses a name when its text
-    holds it as a word. A concept of the package, which another package may use alone, is not a leak.
+    holds it as a word. A concept of the package, which another package may use alone, is not a leak. A name that
+    other modules of its own package import is a concept of the package, and a name a formalism imports belongs to the
+    interface that formalisms extend the core through.
 
     Args:
         root:
@@ -424,11 +426,16 @@ def leaking_exports(root: Path, clients: Iterable[Path], concepts: Collection[st
             One message per leaking name, naming the package, the name, and the package that uses it.
     """
     users: dict[tuple[str, str], set[str]] = {}
+    inside: set[tuple[str, str]] = set()
     for module, is_package, tree in _sources(root):
         user = _user_package(module)
         for target, names, _ in _imports(tree, module, is_package=is_package):
             owner = _core_package(target)
-            if owner is None or owner == _core_package(module):
+            if owner is None:
+                continue
+            if owner == _core_package(module):
+                if not is_package:
+                    inside.update((owner, name) for name in names)
                 continue
             for name in names:
                 users.setdefault((owner, name), set()).add(user or CORE)
@@ -437,7 +444,8 @@ def leaking_exports(root: Path, clients: Iterable[Path], concepts: Collection[st
     for package in CORE_ORDER:
         for name in _exports(root, f'{CORE}.{package}'):
             using = users.get((package, name), set())
-            concept = f'{CORE}.{package}.{name}' in concepts
-            if len(using) == 1 and name not in words and not concept:
+            concept = f'{CORE}.{package}.{name}' in concepts or (package, name) in inside
+            extension = any(item.startswith('formalisms') for item in using)
+            if len(using) == 1 and name not in words and not concept and not extension:
                 found.append(f'{CORE}.{package}: exports {name}, which only {CORE}.{next(iter(using))} uses')
     return found

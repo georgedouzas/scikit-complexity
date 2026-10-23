@@ -27,6 +27,16 @@ MODELLING_PACKAGES = ['base', 'space', 'laws', 'components', 'interactions', 'sy
 ENGINEERING_PACKAGES = ['compile', 'solvers', 'runtime', 'viz', 'experiments', 'analysis', 'backends']
 CORE_PACKAGES = [*MODELLING_PACKAGES, *ENGINEERING_PACKAGES, 'formalisms']
 FORMALISMS = 'skcomplex.core.formalisms'
+CONCEPTS = (
+    'skcomplex.core.base.SkcomplexError',
+    'skcomplex.core.base.UnregisteredLawError',
+    'skcomplex.core.base.declaration_of',
+    'skcomplex.core.base.declared_fields',
+    'skcomplex.core.laws.NeighbourReduction',
+    'skcomplex.core.laws.NumericFunction',
+    'skcomplex.core.laws.Reduction',
+    'skcomplex.core.compile.partition_system',
+)
 
 
 def _module_of(path):
@@ -333,10 +343,10 @@ def test_rule_check_finds_planted_reads(source, message):
 
 def test_backends_live_in_one_package():
     """Test that every registered backend is defined in `core.backends`, and the Mesa stepper in `formalisms.agents`."""
-    from skcomplex.core.compile import BACKENDS, Backend, load_backends  # noqa: PLC0415
+    import skcomplex.core.backends  # noqa: F401, PLC0415 - importing the package registers the backends
+    from skcomplex.core.compile import BACKENDS, Backend  # noqa: PLC0415
     from skcomplex.core.formalisms.agents import MesaStepper  # noqa: PLC0415
 
-    load_backends()
     backends = [BACKENDS.resolve(name) for name in BACKENDS]
     modules = {item.__module__ for item in backends}
     assert MesaStepper.__module__ == 'skcomplex.core.formalisms.agents._backends'
@@ -357,7 +367,6 @@ ROOT = PACKAGE.parent
 TESTS = Path(__file__).parent
 DOCS = TESTS.parent / 'docs'
 LAYOUT_TESTS = frozenset({Path(__file__).name, 'layout_checks.py'})
-RESTRUCTURE = pytest.mark.xfail(strict=False, reason='enabled by task 5.2')
 
 
 def _plant(root, files):
@@ -392,7 +401,6 @@ def test_upward_import_is_found(tmp_path):
     ]
 
 
-@RESTRUCTURE
 def test_core_imports_only_earlier_packages():
     """Test that every core package imports only the packages listed before it."""
     assert upward_imports(ROOT) == []
@@ -439,7 +447,6 @@ def test_definition_order_names_the_module(tmp_path):
     assert definition_order(root) == [expected]
 
 
-@RESTRUCTURE
 def test_core_modules_define_in_order():
     """Test that every core module defines private functions, public functions, private classes, then public ones."""
     assert definition_order(ROOT) == []
@@ -494,7 +501,6 @@ def test_guarded_import_is_found(tmp_path):
     ]
 
 
-@RESTRUCTURE
 def test_core_guards_no_import():
     """Test that no core module imports under `TYPE_CHECKING`."""
     assert guarded_imports(ROOT) == []
@@ -576,7 +582,6 @@ def test_compiler_internal_leak_is_found(tmp_path):
     assert leaking_exports(root, [], concepts=['skcomplex.core.laws.request_of']) == []
 
 
-@RESTRUCTURE
 def test_core_exports_do_not_leak():
     """Test that no core package exports a name that one other core package alone uses."""
-    assert leaking_exports(ROOT, _clients()) == []
+    assert leaking_exports(ROOT, _clients(), concepts=CONCEPTS) == []

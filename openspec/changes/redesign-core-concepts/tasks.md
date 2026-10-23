@@ -66,7 +66,7 @@
 
 ## 5. Module order, hoisting, and names
 
-- [ ] 5.1 Extend the layout test with the checks of the package-layout and formalism-plugins specs:
+- [x] 5.1 Extend the layout test with the checks of the package-layout and formalism-plugins specs:
   - the order of definitions;
   - the imports of base-class modules;
   - imports guarded by type checks;
@@ -75,7 +75,7 @@
 
   Verify with the "Upward import", "Helper between classes", "Base class with wide imports", "Guarded import",
   "Planted import", "Undeclared import", and "Compiler internal leaks" scenarios.
-- [ ] 5.2 Reorder and hoist every core module until the layout test passes. Move each helper to the concept that owns
+- [x] 5.2 Reorder and hoist every core module until the layout test passes. Move each helper to the concept that owns
   it, and drop the internals from `__all__`. Verify with the layout test and the full suite.
 - [ ] 5.3 Unify the public spelling to `neighbors`, `Neighborhood`, and `over='neighbors'`. Fold `neighbor_sum` and
   `adjacent` into `neighbors(..., reduce='sum')`, rename `reduce=None` on lattice neighbourhoods to `reduce='each'`,
