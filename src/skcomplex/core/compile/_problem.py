@@ -4,8 +4,8 @@
 # License: MIT
 
 import itertools
-from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, field, replace
 from typing import Any, Protocol
 
 import numpy as np
@@ -15,6 +15,7 @@ from ..base import (
     Expression,
     Form,
     SymbolicVector,
+    ValidationError,
     Variable,
     VariableKind,
     VisualSpec,
@@ -37,6 +38,48 @@ ROW_TOLERANCE = 1e-9
 
 type Vector = npt.NDArray[np.float64]
 type VectorFunction = Callable[[float, Vector, Vector], Vector]
+
+
+def _check_initial_names(unknown: set[str], names: Sequence[str]) -> None:
+    """Raise an error for initial values of states the problem does not have."""
+    if unknown:
+        error_msg = (
+            f'The initial state names {", ".join(sorted(unknown))}, which are not states of the system. Use the dotted '
+            f'names of states, such as {", ".join(list(names)[:3])}.'
+        )
+        raise ValidationError(error_msg)
+
+
+def with_initial_state(problem: 'Problem', initial_state: Mapping[str, object]) -> 'Problem':
+    """Return a problem whose initial state takes given values of some states.
+
+    Args:
+        problem:
+            The compiled problem.
+
+        initial_state:
+            The initial values by dotted state name.
+
+    Returns:
+        problem:
+            The problem with the new initial state, or the same problem when no value is given.
+
+    Raises:
+        ValidationError:
+            A name is not a state of the problem, or a value has the wrong shape.
+    """
+    if not initial_state:
+        return problem
+    _check_initial_names(set(initial_state) - set(problem.states.names), problem.states.names)
+    state = problem.initial_state.copy()
+    for name, value in initial_state.items():
+        entry = problem.states.entry(name)
+        try:
+            state[entry.indices] = entry.encode(value)
+        except ValueError as error:
+            error_msg = f'The initial value of {name} does not fit its shape {entry.shape}: {error}'
+            raise ValidationError(error_msg) from error
+    return replace(problem, initial_state=state)
 
 
 @dataclass(frozen=True)
@@ -677,6 +720,10 @@ class Problem:
         backend:
             The name of the backend that produced the numeric functions.
 
+        backends:
+            The backend that runs every part of the problem: its form by the form's name, and the kernels of every law
+            kind by the kind's name, `'python'` for kernels that a compiling backend runs in Python.
+
         accelerated:
             The compiled stepper loops, or `None` when the backend has none for this problem.
 
@@ -739,6 +786,7 @@ class Problem:
     stock_flow: StockFlow | None = field(default=None, repr=False)
     encounters: tuple[CompiledEncounter, ...] = field(default=(), repr=False)
     backend: str = 'numpy'
+    backends: Mapping[str, str] = field(default_factory=dict)
     accelerated: Accelerated | None = field(default=None, repr=False)
     rewriting: tuple[Any, ...] = field(default=(), repr=False)
     topology: TopologyChanges | None = field(default=None, repr=False)

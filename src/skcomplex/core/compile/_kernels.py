@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections import defaultdict
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from enum import Enum
@@ -13,7 +14,7 @@ import numpy.typing as npt
 from scipy.spatial import cKDTree
 
 from ..base import Expression, ValidationError, symbols_of
-from ..laws import NumericFunction
+from ..laws import Law, NumericFunction
 from ._layout import Entry, Layout
 from ._printing import numpy_function
 from ._problem import JumpChannels, Vector, WienerBlock
@@ -555,6 +556,26 @@ class Kernel:
         if result.size == size * output.components:
             return result.reshape(size, output.components)
         return np.broadcast_to(result.reshape(-1)[: output.components], (size, output.components))
+
+
+@dataclass
+class Lowered:
+    """Kernels of every law kind, with the changes of every jump output and the law of every output.
+
+    Args:
+        kernels:
+            The kernels of every law kind, in evaluation order.
+
+        jump_changes:
+            The state changes of every jump output, keyed by the output's identity.
+
+        laws:
+            The kernel spec and the law every output was lowered from, keyed by the output's identity.
+    """
+
+    kernels: dict[type, list[Kernel]] = field(default_factory=lambda: defaultdict(list))
+    jump_changes: dict[int, list[tuple[Reference, float]]] = field(default_factory=dict)
+    laws: dict[int, tuple[Any, Law]] = field(default_factory=dict)
 
 
 def add_into(output: Vector, target: Reference, values: Vector, pairs: tuple[Indices, Indices] | None) -> None:

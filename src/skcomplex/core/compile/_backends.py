@@ -65,6 +65,9 @@ class Lowering:
 
         accelerated:
             The compiled stepper loops, or `None` when the backend has none.
+
+        backends:
+            The backend that runs the kernels of every law kind, by the kind's name, when it differs by kind.
     """
 
     drift: VectorFunction | None = None
@@ -78,6 +81,7 @@ class Lowering:
     update: VectorFunction | None = None
     boundary: VectorFunction | None = None
     accelerated: Accelerated | None = None
+    backends: dict[str, str] = field(default_factory=dict)
 
 
 class Backend(BaseEstimator):

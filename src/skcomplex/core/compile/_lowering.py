@@ -86,3 +86,28 @@ def symbolic_components(value: object, size: int, owner: str) -> list[Expression
         error_msg = f'A {owner} has a value with {len(expressions)} components for a target with {size}.'
         raise ValidationError(error_msg)
     return expressions
+
+
+def calls_of(expression: Expression, name: str) -> list[Expression]:
+    """Return the calls of a symbolic function by name inside an expression.
+
+    Args:
+        expression:
+            The expression.
+
+        name:
+            The name of the function.
+
+    Returns:
+        calls:
+            The calls, nested calls included.
+    """
+    found, stack = [], [expression]
+    while stack:
+        item = stack.pop()
+        if item.operator() is None:
+            continue
+        if getattr(item.operator(), 'name', lambda: '')() == name:
+            found.append(item)
+        stack.extend(item.operands())
+    return found

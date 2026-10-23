@@ -22,7 +22,7 @@ from skcomplex.core.base import (
     state,
 )
 from skcomplex.core.compile import compile_system, validate
-from skcomplex.core.compile._compiler import AGENT_RESERVED_NAMES
+from skcomplex.core.compile.passes._agents import AGENT_RESERVED_NAMES
 from skcomplex.core.components import Element, Group, runs_rules
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Rule

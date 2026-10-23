@@ -58,7 +58,7 @@ def test_missing_solver_declaration_is_named(monkeypatch):
 
     registry = Registry[type[Stepper]]('solver')
     registry.register((Form.ODE, 'undeclared'), Undeclared)
-    monkeypatch.setattr(validation, '_solver_registry', lambda: registry)
+    monkeypatch.setattr(validation, 'solver_registry', lambda: registry)
     assert missing_declarations() == ["The solver 'undeclared' (Undeclared) declares no support."]
 
 
