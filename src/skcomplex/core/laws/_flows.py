@@ -29,6 +29,160 @@ from ._law import Law, register_laws
 from ._laws import _check_value, _is_number
 
 DELAY_NAME = re.compile(r'^(?P<kind>material|smoothing)_delay(?P<order>[1-9][0-9]*)$')
+DELAY_FUNCTIONS: dict[str, BuiltinFunction] = {}
+
+
+def _check_holder(name: str, holder: object, environment: type) -> None:
+    """Raise an error for a holder that is neither a scalar symbol nor the environment marker of its side."""
+    if isinstance(holder, environment):
+        return
+    if isinstance(holder, Source | Sink) or not isinstance(holder, Expression) or holder.operator() is not None:
+        error_msg = (
+            f'The {name} of a flow must be the symbol of a scalar state or `{environment.__name__}()`, but got '
+            f'{holder!r}.'
+        )
+        raise ValidationError(error_msg)
+
+
+def transfer(source: Any, sink: Any, amount: float, state: str, sink_state: str | None = None) -> None:  # noqa: ANN401
+    """Move an amount of a quantity from one agent to another at once, inside a rule.
+
+    It is the imperative form of `Transfer` for agent rules. Both holdings change together, so the total of the quantity
+    over all agents is unchanged, and a negative holding is an amount the agent owes.
+
+    Args:
+        source:
+            The agent the amount leaves, as the rule receives it.
+
+        sink:
+            The agent the amount enters.
+
+        amount:
+            The amount moved, negative to move it the other way.
+
+        state:
+            The state of the source that holds the quantity.
+
+        sink_state:
+            The state of the sink that holds the quantity, or `None` for `state`.
+
+    Raises:
+        ValidationError:
+            An agent has no such state.
+
+    Examples:
+        >>> from types import SimpleNamespace
+        >>> from skcomplex.core.laws import transfer
+        >>> first, second = SimpleNamespace(level=10.0), SimpleNamespace(level=0.0)
+        >>> transfer(first, second, 4.0, 'level')
+        >>> first.level, second.level
+        (6.0, 4.0)
+    """
+    target = state if sink_state is None else sink_state
+    for agent, name in ((source, state), (sink, target)):
+        if not hasattr(agent, name):
+            error_msg = f'The transfer of {amount} reads the state {name!r}, which the agent {agent!r} does not have.'
+            raise ValidationError(error_msg)
+    if source is sink and state == target:
+        return
+    source_value, sink_value = getattr(source, state), getattr(sink, target)
+    setattr(source, state, source_value - amount)
+    setattr(sink, target, sink_value + amount)
+
+
+def lookup(value: object, points: Sequence[Sequence[float]]) -> Expression:
+    """Return a table function, the piecewise-linear interpolation of a value between points, flat outside them.
+
+    Args:
+        value:
+            The symbolic input of the table.
+
+        points:
+            The points `(x, y)` of the table, with increasing `x`.
+
+    Returns:
+        output:
+            The symbolic output, nested conditions that every backend lowers.
+
+    Raises:
+        ValueError:
+            The points are empty or their inputs do not increase.
+
+    Examples:
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.laws import lookup
+        >>> food = symbol('food')
+        >>> fertility = lookup(food, [(0, 0.0), (1, 2.0), (2, 3.0)])
+        >>> [float(fertility.subs({food: value})) for value in (-1, 0.5, 1.5, 5)]
+        [0.0, 1.0, 2.5, 3.0]
+    """
+    table = [(float(x), float(y)) for x, y in points]
+    return series(SR(value), [x for x, _ in table], [y for _, y in table])
+
+
+def delay_parts(name: str) -> tuple[bool, int] | None:
+    """Return whether a delay function conserves its input, and its order, from its name, or `None` for no delay.
+
+    Args:
+        name:
+            The name of a function.
+
+    Returns:
+        parts:
+            Whether the delay is material, and its order.
+    """
+    match = DELAY_NAME.match(name)
+    return None if match is None else (match['kind'] == 'material', int(match['order']))
+
+
+def distributed_delay(value: object, time: object, order: int = 1, *, conserved: bool = True) -> Expression:
+    """Return the output of a distributed delay of a value: hidden stages in series, each with a share of the time.
+
+    A conserved delay passes its input through the stages like a material, so its output is the outflow of the last
+    stage, `stage / (time / order)`, and its response to a pulse is the Erlang distribution of the order with the mean
+    `time`. A delay that does not conserve its input smooths it, each stage adjusting to the previous one at
+    `gap / (time / order)`, and its output starts at the value. The compiler adds the stages as hidden stocks.
+
+    Args:
+        value:
+            The symbolic input.
+
+        time:
+            The mean delay time, a positive number or an expression of parameters.
+
+        order:
+            The number of stages.
+
+        conserved:
+            Whether the delay conserves its input, as a material delay, or smooths it, as an information delay.
+
+    Returns:
+        output:
+            The symbolic output.
+
+    Raises:
+        ValueError:
+            The order is not a positive integer, or the delay time is a number that is not positive.
+
+    Examples:
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.laws import distributed_delay
+        >>> distributed_delay(symbol('orders'), 4, order=3)
+        material_delay3(orders, 4)
+        >>> distributed_delay(symbol('sales'), 2, conserved=False)
+        smoothing_delay1(sales, 2)
+    """
+    if isinstance(order, bool) or not isinstance(order, int) or order < 1:
+        error_msg = f'A distributed delay has a positive integer order, but got {order!r}.'
+        raise ValueError(error_msg)
+    name = f'{"material" if conserved else "smoothing"}_delay{order}'
+    if _is_number(time) and float(time) <= 0:  # type: ignore[arg-type]
+        error_msg = f'The delay time of {name} must be positive, but got {time}.'
+        raise ValueError(error_msg)
+    if name not in DELAY_FUNCTIONS:
+        DELAY_FUNCTIONS[name] = _DelayFunction(name)
+    function: Any = DELAY_FUNCTIONS[name]
+    return function(value, time)
 
 
 class _DelayFunction(BuiltinFunction):
@@ -79,18 +233,6 @@ class Sink:
 
 
 type Holder = Expression | Source | Sink
-
-
-def _check_holder(name: str, holder: object, environment: type) -> None:
-    """Raise an error for a holder that is neither a scalar symbol nor the environment marker of its side."""
-    if isinstance(holder, environment):
-        return
-    if isinstance(holder, Source | Sink) or not isinstance(holder, Expression) or holder.operator() is not None:
-        error_msg = (
-            f'The {name} of a flow must be the symbol of a scalar state or `{environment.__name__}()`, but got '
-            f'{holder!r}.'
-        )
-        raise ValidationError(error_msg)
 
 
 @dataclass(frozen=True)
@@ -298,150 +440,6 @@ class Invariant(Law):
                 'the states it reads with transfers, or change all of them in the same rule.'
             )
             raise ConservationError(error_msg)
-
-
-def transfer(source: Any, sink: Any, amount: float, state: str, sink_state: str | None = None) -> None:  # noqa: ANN401
-    """Move an amount of a quantity from one agent to another at once, inside a rule.
-
-    It is the imperative form of `Transfer` for agent rules. Both holdings change together, so the total of the quantity
-    over all agents is unchanged, and a negative holding is an amount the agent owes.
-
-    Args:
-        source:
-            The agent the amount leaves, as the rule receives it.
-
-        sink:
-            The agent the amount enters.
-
-        amount:
-            The amount moved, negative to move it the other way.
-
-        state:
-            The state of the source that holds the quantity.
-
-        sink_state:
-            The state of the sink that holds the quantity, or `None` for `state`.
-
-    Raises:
-        ValidationError:
-            An agent has no such state.
-
-    Examples:
-        >>> from types import SimpleNamespace
-        >>> from skcomplex.core.laws import transfer
-        >>> first, second = SimpleNamespace(level=10.0), SimpleNamespace(level=0.0)
-        >>> transfer(first, second, 4.0, 'level')
-        >>> first.level, second.level
-        (6.0, 4.0)
-    """
-    target = state if sink_state is None else sink_state
-    for agent, name in ((source, state), (sink, target)):
-        if not hasattr(agent, name):
-            error_msg = f'The transfer of {amount} reads the state {name!r}, which the agent {agent!r} does not have.'
-            raise ValidationError(error_msg)
-    if source is sink and state == target:
-        return
-    source_value, sink_value = getattr(source, state), getattr(sink, target)
-    setattr(source, state, source_value - amount)
-    setattr(sink, target, sink_value + amount)
-
-
-def lookup(value: object, points: Sequence[Sequence[float]]) -> Expression:
-    """Return a table function, the piecewise-linear interpolation of a value between points, flat outside them.
-
-    Args:
-        value:
-            The symbolic input of the table.
-
-        points:
-            The points `(x, y)` of the table, with increasing `x`.
-
-    Returns:
-        output:
-            The symbolic output, nested conditions that every backend lowers.
-
-    Raises:
-        ValueError:
-            The points are empty or their inputs do not increase.
-
-    Examples:
-        >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import lookup
-        >>> food = symbol('food')
-        >>> fertility = lookup(food, [(0, 0.0), (1, 2.0), (2, 3.0)])
-        >>> [float(fertility.subs({food: value})) for value in (-1, 0.5, 1.5, 5)]
-        [0.0, 1.0, 2.5, 3.0]
-    """
-    table = [(float(x), float(y)) for x, y in points]
-    return series(SR(value), [x for x, _ in table], [y for _, y in table])
-
-
-DELAY_FUNCTIONS: dict[str, _DelayFunction] = {}
-
-
-def delay_parts(name: str) -> tuple[bool, int] | None:
-    """Return whether a delay function conserves its input, and its order, from its name, or `None` for no delay.
-
-    Args:
-        name:
-            The name of a function.
-
-    Returns:
-        parts:
-            Whether the delay is material, and its order.
-    """
-    match = DELAY_NAME.match(name)
-    return None if match is None else (match['kind'] == 'material', int(match['order']))
-
-
-def distributed_delay(value: object, time: object, order: int = 1, *, conserved: bool = True) -> Expression:
-    """Return the output of a distributed delay of a value: hidden stages in series, each with a share of the time.
-
-    A conserved delay passes its input through the stages like a material, so its output is the outflow of the last
-    stage, `stage / (time / order)`, and its response to a pulse is the Erlang distribution of the order with the mean
-    `time`. A delay that does not conserve its input smooths it, each stage adjusting to the previous one at
-    `gap / (time / order)`, and its output starts at the value. The compiler adds the stages as hidden stocks.
-
-    Args:
-        value:
-            The symbolic input.
-
-        time:
-            The mean delay time, a positive number or an expression of parameters.
-
-        order:
-            The number of stages.
-
-        conserved:
-            Whether the delay conserves its input, as a material delay, or smooths it, as an information delay.
-
-    Returns:
-        output:
-            The symbolic output.
-
-    Raises:
-        ValueError:
-            The order is not a positive integer, or the delay time is a number that is not positive.
-
-    Examples:
-        >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import distributed_delay
-        >>> distributed_delay(symbol('orders'), 4, order=3)
-        material_delay3(orders, 4)
-        >>> distributed_delay(symbol('sales'), 2, conserved=False)
-        smoothing_delay1(sales, 2)
-    """
-    if isinstance(order, bool) or not isinstance(order, int) or order < 1:
-        error_msg = f'A distributed delay has a positive integer order, but got {order!r}.'
-        raise ValueError(error_msg)
-    name = f'{"material" if conserved else "smoothing"}_delay{order}'
-    if _is_number(time) and float(time) <= 0:  # type: ignore[arg-type]
-        error_msg = f'The delay time of {name} must be positive, but got {time}.'
-        raise ValueError(error_msg)
-    if name not in DELAY_FUNCTIONS:
-        DELAY_FUNCTIONS[name] = _DelayFunction(name)
-    function: Any = DELAY_FUNCTIONS[name]
-    return function(value, time)
 
 
 register_laws(Transfer, Auxiliary, Invariant)

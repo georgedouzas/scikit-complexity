@@ -63,6 +63,18 @@ def _is_number(item: Expression, value: int) -> bool:
     return bool(item.is_numeric() and item == value)
 
 
+def _reduction_of(call: Expression) -> 'NeighbourReduction':
+    """Return the parts of a neighbourhood reduction call."""
+    argument, weight, over, kind = call.operands()
+    return NeighbourReduction(
+        call=call,
+        kind=NEIGHBOUR_REDUCTIONS[int(SR(kind))],
+        argument=argument,
+        weight=None if _is_number(weight, 1) else weight,
+        over=None if _is_number(over, 0) else NEIGHBOURHOODS[str(over)],  # type: ignore[arg-type]
+    )
+
+
 class _Neighbor(BuiltinFunction):
     """Value of a lattice state at the `k`-th offset of a neighbourhood, `neighbor(x, k)`."""
 
@@ -205,18 +217,6 @@ class NeighbourReduction:
     argument: Expression
     weight: Expression | None
     over: NeighbourhoodSpec | None
-
-
-def _reduction_of(call: Expression) -> NeighbourReduction:
-    """Return the parts of a neighbourhood reduction call."""
-    argument, weight, over, kind = call.operands()
-    return NeighbourReduction(
-        call=call,
-        kind=NEIGHBOUR_REDUCTIONS[int(SR(kind))],
-        argument=argument,
-        weight=None if _is_number(weight, 1) else weight,
-        over=None if _is_number(over, 0) else NEIGHBOURHOODS[str(over)],  # type: ignore[arg-type]
-    )
 
 
 def neighbourhoods_in(expression: object) -> list[NeighbourReduction]:

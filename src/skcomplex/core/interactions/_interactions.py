@@ -6,16 +6,11 @@
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any, ClassVar
 
-from ..base import (
-    ValidationError,
-    Variable,
-    VariableKind,
-    parameter,
-    role,
-)
-from ..components._component import Component
-from ..components._components import BINDINGS, _caller_module, _define, _is_declaration
+from ..base import ValidationError, Variable, VariableKind
+from ..components import Component
 from ..laws import Law
+
+BINDINGS = ('members', 'pairs', 'neighbours', 'hyperedges')
 
 
 class Interaction(Component):
@@ -163,9 +158,5 @@ class Interaction(Component):
             >>> Growth('growth', target='rabbits', r=0.5)
             Growth(label='growth', r=0.5, target='rabbits')
         """
-        fields = {
-            **{key: role() for key in roles},
-            **{key: value if _is_declaration(value) else parameter(value) for key, value in (parameters or {}).items()},
-        }
         attributes = {} if over is None else {'over': over}
-        return _define(cls, name=name, fields=fields, laws=laws, attributes=attributes, module=_caller_module())
+        return cls._define(name, roles=roles, parameters=parameters, laws=laws, attributes=attributes)

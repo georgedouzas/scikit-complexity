@@ -8,9 +8,8 @@ from typing import Any, ClassVar
 
 from ..base import ComponentKind
 from ..components import Component, Element, Group
-from ..interactions._interactions import Interaction
-from ..space._spaces import Space
-from ..space._time import Time
+from ..interactions import Interaction
+from ..space import Space, Time
 
 LEGACY_ARGUMENTS = {
     'elements': 'Pass elements and groups in `components`.',

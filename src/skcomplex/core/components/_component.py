@@ -5,11 +5,22 @@
 
 import dataclasses
 import inspect
-from typing import Any, ClassVar, cast
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any, ClassVar, Self, cast
 
 from sklearn.base import BaseEstimator
 
-from ..base import ArgumentError, LabelError, Variable, declaration_of, declared_fields, default_of
+from ..base import (
+    ArgumentError,
+    LabelError,
+    Variable,
+    declaration_of,
+    declared_fields,
+    default_of,
+    parameter,
+    role,
+    state,
+)
 
 UNSET = (inspect.Parameter.empty, dataclasses.MISSING)
 
@@ -17,6 +28,32 @@ UNSET = (inspect.Parameter.empty, dataclasses.MISSING)
 def _is_required(field: Any) -> bool:  # noqa: ANN401
     """Check whether a declared field has no default."""
     return field.default is dataclasses.MISSING and field.default_factory is dataclasses.MISSING
+
+
+def _is_declaration(value: object) -> bool:
+    """Check whether a value is a field declared with `state`, `parameter`, or `role`."""
+    return isinstance(value, dataclasses.Field)
+
+
+def _method(laws: Callable[..., list[Any]]) -> Callable[..., list[Any]]:
+    """Return a `laws` method from a function of the namespace, or of the component and the namespace."""
+    if len(inspect.signature(laws).parameters) >= 2:  # noqa: PLR2004
+        return laws
+
+    def method(self: 'Component', s: Any) -> list[Any]:  # noqa: ANN401
+        """Return the laws of the function."""
+        return laws(s)
+
+    method.__doc__ = laws.__doc__ or 'Return the laws of the component.'
+    return method
+
+
+def _caller_module() -> str:
+    """Return the module of the code that called `define`, two calls above `_define`, so the type pickles there."""
+    frame = inspect.currentframe()
+    for _ in range(3):
+        frame = frame.f_back if frame is not None else None
+    return frame.f_globals.get('__name__', __name__) if frame is not None else __name__
 
 
 class Component(BaseEstimator):
@@ -95,12 +132,41 @@ class Component(BaseEstimator):
             if init is None:
                 continue
             parameters = list(inspect.signature(init).parameters.values())[1:]
-            for parameter in parameters:
-                if parameter.kind not in {parameter.VAR_KEYWORD, parameter.VAR_POSITIONAL}:
-                    found.setdefault(parameter.name, parameter)
+            for setting in parameters:
+                if setting.kind not in {setting.VAR_KEYWORD, setting.VAR_POSITIONAL}:
+                    found.setdefault(setting.name, setting)
             if klass is Component or not any(item.kind is item.VAR_KEYWORD for item in parameters):
                 break
         return found
+
+    @classmethod
+    def _define(
+        cls,
+        name: str,
+        *,
+        roles: Sequence[str] = (),
+        states: Mapping[str, Any] | None = None,
+        parameters: Mapping[str, Any] | None = None,
+        laws: Callable[..., list[Any]] | None = None,
+        attributes: Mapping[str, Any] | None = None,
+    ) -> type[Self]:
+        """Return a subclass of the type built from declarations, a laws function, and class attributes.
+
+        The `define` of a subclass calls it, and the new type lives in the module of the code that called `define`. A
+        state or a parameter given as a plain value is declared with that value as its default.
+        """
+        fields = {
+            **{key: role() for key in roles},
+            **{key: value if _is_declaration(value) else state(value) for key, value in (states or {}).items()},
+            **{key: value if _is_declaration(value) else parameter(value) for key, value in (parameters or {}).items()},
+        }
+        namespace: dict[str, Any] = {'__module__': _caller_module(), **(attributes or {}), **fields}
+        namespace['__qualname__'] = name
+        if laws is not None:
+            namespace['laws'] = _method(laws)
+        component_type: type[Self] = type(name, (cls,), namespace)
+        component_type.declarations()
+        return component_type
 
     @classmethod
     def declarations(cls) -> dict[str, Variable]:

@@ -12,6 +12,33 @@ from typing import ClassVar
 from ._terms import Term
 
 
+def _terms(values: Iterable[StrEnum | Term]) -> frozenset[StrEnum | Term]:
+    """Return the terms of a declaration as a frozen set."""
+    return frozenset(values)
+
+
+def vocabulary() -> dict[str, tuple[StrEnum | Term, ...]]:
+    """Return the terms of every category of the system vocabulary, with the registered space and law kinds.
+
+    Returns:
+        vocabulary:
+            A mapping from category, such as `'laws'`, to its terms.
+
+    Examples:
+        >>> from skcomplex.core.base import vocabulary
+        >>> [str(term) for term in vocabulary()['time']]
+        ['continuous', 'discrete', 'static']
+    """
+    return {
+        'time': tuple(TimeKind),
+        'space': SpaceKind.registered(),
+        'components': tuple(ComponentKind),
+        'bindings': tuple(Binding),
+        'laws': LawKind.registered(),
+        'domains': tuple(DomainKind),
+    }
+
+
 class TimeKind(StrEnum):
     """Kind of time a system evolves in."""
 
@@ -201,33 +228,6 @@ class NoiseKind(StrEnum):
 NUMERIC_DOMAINS = frozenset(
     {DomainKind.REAL, DomainKind.INTEGER, DomainKind.BOOLEAN, DomainKind.ANGLE, DomainKind.COMPLEX, DomainKind.VECTOR},
 )
-
-
-def _terms(values: Iterable[StrEnum | Term]) -> frozenset[StrEnum | Term]:
-    """Return the terms of a declaration as a frozen set."""
-    return frozenset(values)
-
-
-def vocabulary() -> dict[str, tuple[StrEnum | Term, ...]]:
-    """Return the terms of every category of the system vocabulary, with the registered space and law kinds.
-
-    Returns:
-        vocabulary:
-            A mapping from category, such as `'laws'`, to its terms.
-
-    Examples:
-        >>> from skcomplex.core.base import vocabulary
-        >>> [str(term) for term in vocabulary()['time']]
-        ['continuous', 'discrete', 'static']
-    """
-    return {
-        'time': tuple(TimeKind),
-        'space': SpaceKind.registered(),
-        'components': tuple(ComponentKind),
-        'bindings': tuple(Binding),
-        'laws': LawKind.registered(),
-        'domains': tuple(DomainKind),
-    }
 
 
 @dataclass(frozen=True)

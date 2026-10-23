@@ -1,10 +1,8 @@
-"""Define the components systems are built from: elements, aggregates, and groups of elements."""
+"""Define the components systems are built from: elements, and groups of identical elements."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import dataclasses
-import inspect
 from collections.abc import Callable, Mapping
 from typing import Any, ClassVar
 
@@ -19,53 +17,12 @@ from ..base import (
     VariableKind,
     VisualSpec,
     declarations_of,
-    parameter,
-    state,
-    symbol,
 )
 from ..laws import Law
-from ..laws._symbols import Symbols
-from ..space._lattices import LatticeSpace
-from ..space._networks import NetworkSpace, part_count
-from ..space._spaces import SiteSpace, Space
+from ..space import LatticeSpace, NetworkSpace, SiteSpace, Space, part_count
 from ._component import Component
 
-
-def _is_declaration(value: object) -> bool:
-    """Check whether a value is a field declared with `state`, `parameter`, or `role`."""
-    return isinstance(value, dataclasses.Field)
-
-
-def _method(laws: Callable[..., list[Law]]) -> Callable[..., list[Law]]:
-    """Return a `laws` method from a function of the namespace, or of the component and the namespace."""
-    if len(inspect.signature(laws).parameters) >= 2:  # noqa: PLR2004
-        return laws
-
-    def method(self: Component, s: Symbols) -> list[Law]:
-        """Return the laws of the function."""
-        return laws(s)
-
-    method.__doc__ = laws.__doc__ or 'Return the laws of the component.'
-    return method
-
-
-def _define(
-    base: type[Component],
-    *,
-    name: str,
-    fields: Mapping[str, Any],
-    laws: Callable[..., list[Law]] | None,
-    attributes: Mapping[str, Any],
-    module: str,
-) -> type:
-    """Return a new component type with declared fields, a laws function, and class attributes."""
-    namespace: dict[str, Any] = {'__module__': module, **attributes, **fields}
-    namespace['__qualname__'] = name
-    if laws is not None:
-        namespace['laws'] = _method(laws)
-    component_type: type[Component] = type(name, (base,), namespace)
-    component_type.declarations()
-    return component_type
+PARTS = ('sites', 'edges', 'hyperedges')
 
 
 def _lattice_visual(element: type, visual: VisualSpec | None, default: str) -> VisualSpec:
@@ -76,11 +33,69 @@ def _lattice_visual(element: type, visual: VisualSpec | None, default: str) -> V
     return VisualSpec(default) if declared == VisualSpec() else declared
 
 
-def _caller_module() -> str:
-    """Return the module name of the code that defines a component type, so the type pickles by reference there."""
-    frame = inspect.currentframe()
-    caller = frame.f_back.f_back if frame is not None and frame.f_back is not None else None
-    return caller.f_globals.get('__name__', __name__) if caller is not None else __name__
+def _check_element(label: str, element: object) -> None:
+    """Raise an error for a group whose element type is not an `Element` subclass."""
+    if isinstance(element, type) and issubclass(element, Element):
+        return
+    error_msg = f'Group {label!r} has element {element!r}, which is not an Element subclass.'
+    raise ValidationError(error_msg)
+
+
+def _check_size(group: 'Group') -> None:
+    """Raise an error for a group whose size is not a positive integer, except an empty variable group on parts."""
+    if group.size is None and group.on is not None:
+        return
+    empty = group.variable and group.on in {'sites', 'edges'} and group.size == 0
+    if empty or (Domain.POSITIVE.contains(group.size) and Domain.INTEGER.contains(group.size)):
+        return
+    error_msg = f'Group {group.label!r} has size {group.size!r}, which is not a positive integer.'
+    raise ValidationError(error_msg)
+
+
+def _check_value_names(group: 'Group') -> None:
+    """Raise an error for a value whose name the element type of a group does not declare."""
+    unknown = sorted(set(group.values or {}) - set(group.element.get_argument_names()))
+    if not unknown:
+        return
+    states = ', '.join(declarations_of(group.element, VariableKind.STATE)) or 'none'
+    parameters = ', '.join(declarations_of(group.element, VariableKind.PARAMETER)) or 'none'
+    error_msg = (
+        f'Group {group.label!r} sets {", ".join(unknown)}, which {group.element.__name__} does not declare. Its '
+        f'states are {states}, and its parameters are {parameters}.'
+    )
+    raise ValidationError(error_msg)
+
+
+def _check_value_rows(group: 'Group') -> None:
+    """Raise an error for a numeric per-member value whose first dimension is not the size of a group."""
+    if group.size is None:
+        return
+    declarations = group.element.declarations()
+    dimensions = group.space.dimensions if isinstance(group.space, LatticeSpace) else None
+    for name, value in (group.values or {}).items():
+        declaration = declarations.get(name)
+        if declaration is None or not isinstance(declaration.domain, Domain):
+            continue
+        try:
+            shape = np.shape(value)
+        except ValueError:
+            continue
+        shared = 1 if declaration.vector else 0
+        if len(shape) <= shared or shape[0] == group.size or shape == dimensions:
+            continue
+        error_msg = (
+            f'Group {group.label!r} has {shape[0]} values of {name} for {group.size} members. Give one value per '
+            'member, or one value shared by every member.'
+        )
+        raise ValidationError(error_msg)
+
+
+def _check_group(group: 'Group') -> None:
+    """Raise an error for a group whose element type, size, value names, or value rows are not valid."""
+    _check_element(group.label, group.element)
+    _check_size(group)
+    _check_value_names(group)
+    _check_value_rows(group)
 
 
 class Element(Component):
@@ -164,12 +179,8 @@ class Element(Component):
             >>> Decaying('atoms', n=10.0)
             Decaying(label='atoms', n=10.0)
         """
-        fields = {
-            **{key: value if _is_declaration(value) else state(value) for key, value in (states or {}).items()},
-            **{key: value if _is_declaration(value) else parameter(value) for key, value in (parameters or {}).items()},
-        }
         attributes = {} if visual is None else {'visual': visual}
-        return _define(cls, name=name, fields=fields, laws=laws, attributes=attributes, module=_caller_module())
+        return cls._define(name, states=states, parameters=parameters, laws=laws, attributes=attributes)
 
     @classmethod
     def group(
@@ -278,177 +289,6 @@ class Element(Component):
         }
         visual = _lattice_visual(cls, visual, space.default_visual)
         return Group(label, element=cls, size=space.size, values=flat, visual=visual, space=space, on='sites')
-
-
-class Aggregate(Element):
-    """Summary of a group, the count of its members or a reduction of one of its states, held in the state `value`.
-
-    In a co-simulation the scheduler computes the value at every synchronisation point, so partitions that cannot
-    see a group's members, such as differential equations next to agents, read the group through the aggregate.
-
-    Args:
-        label:
-            The label of the aggregate.
-
-        group:
-            The path of the agent group or element group, relative to the system that holds the aggregate.
-
-        reduce:
-            `'count'`, `'sum'`, `'mean'`, or a function of the array of the variable's values.
-
-        variable:
-            The state the reduction reads, unused for `'count'`.
-
-        **values:
-            The values of the declared variables by name:
-
-            value:
-                The initial value, before the first synchronisation point.
-
-    Examples:
-        >>> from skcomplex.core.components import Aggregate
-        >>> Aggregate('size', group='farmers').reduce
-        'count'
-    """
-
-    value: float = state(default=0.0)
-    group: str  # type: ignore[assignment]  # the summarised group's label replaces the group constructor
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        group: str = '',
-        reduce: str | Callable[[Any], float] = 'count',
-        variable: str | None = None,
-        **values: Any,  # noqa: ANN401
-    ) -> None:
-        super().__init__(label, **values)
-        self.group = group
-        self.reduce = reduce
-        self.variable = variable
-
-
-PARTS = ('sites', 'edges', 'hyperedges')
-BINDINGS = ('members', 'pairs', 'neighbours', 'hyperedges')
-
-
-class _FreeSymbols(Symbols):
-    """Namespace that returns a free symbol for every name, so laws can be listed before the states are declared."""
-
-    def __getattr__(self, name: str) -> Any:  # noqa: ANN401
-        """Return a free symbol of the name, or a namespace of free symbols for `other`, the neighbour of a member."""
-        if name.startswith('__'):
-            raise AttributeError(name)
-        if name == 'other':
-            return _FreeSymbols()
-        return symbol(name)
-
-
-def probe_laws(component: object) -> list[Law] | None:
-    """Return the laws of a component for a namespace of free symbols, before its states are declared.
-
-    A group returns the laws of a representative member, and an interaction reads one namespace of free symbols per
-    role. Laws that cannot be written with free symbols, such as laws that index a vector state, are not listed.
-
-    Args:
-        component:
-            The element, group, or interaction.
-
-    Returns:
-        laws:
-            The laws, or `None` when they cannot be listed.
-
-    Examples:
-        >>> from skcomplex.core.components import Element, probe_laws
-        >>> from skcomplex.core.laws import Rate
-        >>> Decay = Element.define('Decay', laws=lambda s: [Rate(s.x, -s.x)])
-        >>> [type(law).__name__ for law in probe_laws(Decay('decay'))]
-        ['Rate']
-    """
-    if isinstance(component, Group):
-        component_type: type[Component] = component.element
-    elif isinstance(component, Component):
-        component_type = type(component)
-    else:
-        return None
-    if component_type.laws is Component.laws:
-        return []
-    roles = declarations_of(component_type, VariableKind.ROLE)
-    try:
-        member = (
-            component.element(component.label, **(component.values or {}))
-            if isinstance(component, Group)
-            else component
-        )
-        return list(member.laws(_FreeSymbols(**{name: _FreeSymbols() for name in roles})))
-    except Exception:  # noqa: BLE001
-        return None
-
-
-def _check_element(label: str, element: object) -> None:
-    """Raise an error for a group whose element type is not an `Element` subclass."""
-    if isinstance(element, type) and issubclass(element, Element):
-        return
-    error_msg = f'Group {label!r} has element {element!r}, which is not an Element subclass.'
-    raise ValidationError(error_msg)
-
-
-def _check_size(group: 'Group') -> None:
-    """Raise an error for a group whose size is not a positive integer, except an empty variable group on parts."""
-    if group.size is None and group.on is not None:
-        return
-    empty = group.variable and group.on in {'sites', 'edges'} and group.size == 0
-    if empty or (Domain.POSITIVE.contains(group.size) and Domain.INTEGER.contains(group.size)):
-        return
-    error_msg = f'Group {group.label!r} has size {group.size!r}, which is not a positive integer.'
-    raise ValidationError(error_msg)
-
-
-def _check_value_names(group: 'Group') -> None:
-    """Raise an error for a value whose name the element type of a group does not declare."""
-    unknown = sorted(set(group.values or {}) - set(group.element.get_argument_names()))
-    if not unknown:
-        return
-    states = ', '.join(declarations_of(group.element, VariableKind.STATE)) or 'none'
-    parameters = ', '.join(declarations_of(group.element, VariableKind.PARAMETER)) or 'none'
-    error_msg = (
-        f'Group {group.label!r} sets {", ".join(unknown)}, which {group.element.__name__} does not declare. Its '
-        f'states are {states}, and its parameters are {parameters}.'
-    )
-    raise ValidationError(error_msg)
-
-
-def _check_value_rows(group: 'Group') -> None:
-    """Raise an error for a numeric per-member value whose first dimension is not the size of a group."""
-    if group.size is None:
-        return
-    declarations = group.element.declarations()
-    dimensions = group.space.dimensions if isinstance(group.space, LatticeSpace) else None
-    for name, value in (group.values or {}).items():
-        declaration = declarations.get(name)
-        if declaration is None or not isinstance(declaration.domain, Domain):
-            continue
-        try:
-            shape = np.shape(value)
-        except ValueError:
-            continue
-        shared = 1 if declaration.vector else 0
-        if len(shape) <= shared or shape[0] == group.size or shape == dimensions:
-            continue
-        error_msg = (
-            f'Group {group.label!r} has {shape[0]} values of {name} for {group.size} members. Give one value per '
-            'member, or one value shared by every member.'
-        )
-        raise ValidationError(error_msg)
-
-
-def _check_group(group: 'Group') -> None:
-    """Raise an error for a group whose element type, size, value names, or value rows are not valid."""
-    _check_element(group.label, group.element)
-    _check_size(group)
-    _check_value_names(group)
-    _check_value_rows(group)
 
 
 class Group(Component):

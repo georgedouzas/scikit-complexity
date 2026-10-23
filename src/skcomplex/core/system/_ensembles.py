@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ..base import Trait, ValidationError
-from ..components._components import Element, Group, probe_laws
+from ..components import Element, Group, probe_laws
 from ..laws import has_trait
 from ._systems import System
 

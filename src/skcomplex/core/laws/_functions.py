@@ -35,6 +35,22 @@ def _is_decided(*arguments: Any) -> bool:  # noqa: ANN401
     )
 
 
+def _search(t: Expression, points: list[float], levels: list[float], kind: str, span: tuple[int, int]) -> Expression:
+    """Return the pieces of a series in a span of indices as a balanced binary search of conditions on time."""
+    low, high = span
+    if low == high:
+        if kind == 'previous' or low == len(points) - 1:
+            return SR(levels[low])
+        start, end = points[low], points[low + 1]
+        return levels[low] + (levels[low + 1] - levels[low]) * (t - start) / (end - start)
+    middle = (low + high + 1) // 2
+    return where(
+        t < points[middle],
+        _search(t, points, levels, kind, (low, middle - 1)),
+        _search(t, points, levels, kind, (middle, high)),
+    )
+
+
 class _Where(BuiltinFunction):
     """Value chosen by a condition, `where(condition, then, otherwise)`."""
 
@@ -528,22 +544,6 @@ def pulse_train(t: Expression, period: float, width: float, height: float = 1.0,
         [1.0, 0.0, 1.0]
     """
     return where(both(t >= start, mod(t - start, period) < width), height, 0)
-
-
-def _search(t: Expression, points: list[float], levels: list[float], kind: str, span: tuple[int, int]) -> Expression:
-    """Return the pieces of a series in a span of indices as a balanced binary search of conditions on time."""
-    low, high = span
-    if low == high:
-        if kind == 'previous' or low == len(points) - 1:
-            return SR(levels[low])
-        start, end = points[low], points[low + 1]
-        return levels[low] + (levels[low + 1] - levels[low]) * (t - start) / (end - start)
-    middle = (low + high + 1) // 2
-    return where(
-        t < points[middle],
-        _search(t, points, levels, kind, (low, middle - 1)),
-        _search(t, points, levels, kind, (middle, high)),
-    )
 
 
 def series(t: Expression, times: Sequence[float], values: Sequence[float], kind: str = 'linear') -> Expression:
