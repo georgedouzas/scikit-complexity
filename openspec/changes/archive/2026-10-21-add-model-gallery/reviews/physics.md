@@ -68,6 +68,7 @@
 | rotating_swing | chain angle and stand speed oscillating in opposition (workaround view) | chain angle swings about the steady angle at the conserved momentum; L drift below 2e-5 | 1.2 s, 201 frames, 128 KB |
 | absorbing_birth_death | particle number fluctuating around the active density | histogram matches the quasi-stationary law; time-averaged density follows max(0, (kappa - nu) / lambda) | 0.8 s, 201 frames, 0.06 MB |
 | aligning_active_brownian_particles | swimmers gathered in aligned clusters of one heading colour | polar order stays near 1 / sqrt(N) below the alignment threshold and rises above it | 5.9 s, 101 frames, 0.5 MB |
+| nonreciprocal_vicsek | 400 movers of two species (colour) streaming through each other in the periodic box | reciprocal coupling: species headings 0.01 rad apart and fixed; J_ab = -J_ba: 1.56 rad apart (quarter turn) with A turning steadily, about 108 rad over 150 steps | 4.3 s, 251 frames, 1.8 MB |
 | annealed_transient_time_motion | dark slow walkers near the origin, bright fast ones spread out | ensemble MSD subdiffusive, t^0.5, approaching the predicted law | 0.6 s, 201 frames, 1.1 MB |
 | asep | space-time image of particles streaming right at low density | flat profiles at alpha, 1 - gamma, 1/2 and currents matching the three phases | 0.6 s, 251 frames, 0.7 MB |
 | biased_trap_walk | rows of crossed sites growing in bursts to very different lengths | mean displacement approaches t^alpha laws; displacements spread broadly | 8.0 s, 300 frames, 0.3 MB |
