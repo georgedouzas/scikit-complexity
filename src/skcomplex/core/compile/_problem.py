@@ -28,9 +28,9 @@ from ..laws import Invariant, Law
 from ..space import Space
 from ..system import Observable, System
 from ._arrays import Vector
-from ._hybrid import Breakpoints, CompiledEvent, Delay
+from ._hybrid import CompiledEvent, _Breakpoints, _Delay
 from ._layout import Layout
-from ._quantities import CompiledObjective, StockFlow
+from ._quantities import StockFlow, _CompiledObjective
 from ._reductions import CompiledReduction
 
 ROW_TOLERANCE = 1e-9
@@ -130,7 +130,7 @@ class RenewalRecord:
         return float(np.max(self.times))
 
 
-class RenewalProcess(Protocol):
+class _RenewalProcess(Protocol):
     """Renewal law compiled for the members of its component, which renew on their own clocks."""
 
     @property
@@ -187,7 +187,7 @@ class NetworkSnapshot:
     edges: npt.NDArray[np.intp]
 
 
-class TopologyChanges(Protocol):
+class _TopologyChanges(Protocol):
     """Topology requests of a problem, which the stepper applies between steps, and the networks they change."""
 
     @property
@@ -352,20 +352,8 @@ class CompiledInteraction:
 
 
 @dataclass(frozen=True)
-class JumpChannels:
-    """Random events of one jump law, one channel per evaluation index.
-
-    Args:
-        offset:
-            The index of the first channel among all channels of the problem.
-
-        targets:
-            The flat state index changed by each change, one row per change and one column per channel, or -1 where
-            a change at a member offset falls past a fixed end and changes nothing.
-
-        increments:
-            The increment of each change.
-    """
+class _JumpChannels:
+    """Random events of one jump law, one channel per evaluation index."""
 
     offset: int
     targets: npt.NDArray[np.intp]
@@ -487,19 +475,8 @@ class Draws:
 
 
 @dataclass(frozen=True)
-class MarkovMatrix:
-    """Transition or emission matrix of a law, evaluated from the parameter vector to check its rows.
-
-    Args:
-        law:
-            The description of the law, such as `transition law of chain.x`.
-
-        function:
-            The function `f(p)` that returns the matrix of every evaluation row, of shape `(rows, n, m)`.
-
-        reads:
-            The indices of the parameter vector that the matrix reads.
-    """
+class _MarkovMatrix:
+    """Transition or emission matrix of a law, evaluated from the parameter vector to check its rows."""
 
     law: str
     function: Callable[[Vector], npt.NDArray[np.float64]]
@@ -561,7 +538,7 @@ class Accelerated:
     iterate: Callable[..., Vector] | None = None
 
 
-class SiteState(Protocol):
+class _SiteState(Protocol):
     """State of a group whose members sit at the sites of a lattice or the nodes of a network."""
 
     @property
@@ -573,11 +550,11 @@ class SiteState(Protocol):
         """Number of sites along every dimension."""
 
 
-class SiteStep(Protocol):
+class _SiteStep(Protocol):
     """Step that changes the states of the sites of a group once per step of a stepwise form."""
 
     @property
-    def targets(self) -> tuple[SiteState, ...]:
+    def targets(self) -> tuple[_SiteState, ...]:
         """States the step changes."""
 
 
@@ -780,11 +757,11 @@ class Problem:
     agent_space: Space | None = None
     partitions: tuple['Partition', ...] = ()
     companions: Mapping[str, tuple[str, str, int]] = field(default_factory=dict)
-    delays: tuple[Delay, ...] = ()
+    delays: tuple[_Delay, ...] = ()
     events: tuple[CompiledEvent, ...] = ()
-    breakpoints: Breakpoints = field(default_factory=Breakpoints)
+    breakpoints: _Breakpoints = field(default_factory=_Breakpoints)
     history: Mapping[str, Any] = field(default_factory=dict)
-    lattice: tuple[SiteStep, ...] = field(default=(), repr=False)
+    lattice: tuple[_SiteStep, ...] = field(default=(), repr=False)
     stable_step: float | None = None
     diffusive_limits: tuple[Any, ...] = field(default=(), repr=False)
     linear: tuple[Any, ...] = field(default=(), repr=False)
@@ -799,12 +776,12 @@ class Problem:
     n_processes: int = 0
     noise_blocks: tuple[WienerBlock, ...] = field(default=(), repr=False)
     propensities: VectorFunction | None = field(default=None, repr=False)
-    jumps: tuple[JumpChannels, ...] = field(default=(), repr=False)
+    jumps: tuple[_JumpChannels, ...] = field(default=(), repr=False)
     update: Callable[..., Vector] | None = field(default=None, repr=False)
     boundary: VectorFunction | None = field(default=None, repr=False)
     draws: Draws | None = field(default=None, repr=False)
-    matrices: tuple[MarkovMatrix, ...] = field(default=(), repr=False)
-    renewals: tuple[RenewalProcess, ...] = field(default=(), repr=False)
+    matrices: tuple[_MarkovMatrix, ...] = field(default=(), repr=False)
+    renewals: tuple[_RenewalProcess, ...] = field(default=(), repr=False)
     fractional: tuple[FractionalRows, ...] = field(default=(), repr=False)
     orders: Vector = field(default_factory=lambda: np.zeros(0), repr=False)
 
@@ -812,14 +789,14 @@ class Problem:
     backend: str = 'numpy'
     backends: Mapping[str, str] = field(default_factory=dict)
     accelerated: Accelerated | None = field(default=None, repr=False)
-    topology: TopologyChanges | None = field(default=None, repr=False)
+    topology: _TopologyChanges | None = field(default=None, repr=False)
 
     def _flatten_symbols(self, layout: Layout) -> list[Expression]:
         """Return the symbols of the entries of a layout as a flat list."""
         return [item for entry in layout for item in real_components_of(self.symbols[entry.name])]
 
     @property
-    def objectives(self) -> tuple[CompiledObjective, ...]:
+    def objectives(self) -> tuple[_CompiledObjective, ...]:
         """Objectives of the system, which optimal control solvers optimise."""
         return () if self.stock_flow is None else self.stock_flow.objectives
 

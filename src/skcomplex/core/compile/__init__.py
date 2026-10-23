@@ -3,14 +3,13 @@
 from ._arrays import Vector
 from ._backends import BACKENDS, Backend, Lowering, reads_reductions, register_backend, resolve_backend
 from ._capacity import CapacityRows, capacity_rows
-from ._census import Census, CensusRecord, OwnerRule, law_census, register_owner
+from ._census import Census, CensusRecord, OwnerRule, register_owner
 from ._compilation import BlockLaws, Compilation, Laws
 from ._compile import compile_system, partition_system
 from ._declarations import Block, Declarations, is_interaction, member_count
 from ._forms import register_combined, register_form
-from ._hybrid import Breakpoints, CompiledEvent, Delay, EventRecord
+from ._hybrid import CompiledEvent, EventRecord
 from ._issues import Issue, ValidationWarning, names_of
-from ._jacobians import ConservationLaw
 from ._kernels import (
     LATTICE_BOUNDARIES,
     MODES,
@@ -24,9 +23,9 @@ from ._kernels import (
     Source,
 )
 from ._layout import Entry, Layout
-from ._observables import ObservableEvaluator, observables_of, with_observables
-from ._pipeline import Check, Pass, order_passes, register_check, register_pass, registered_passes, run_passes
-from ._planner import SOLVERS, Plan, PlannedPartition, plan_partitions, solver_classes, solver_registry
+from ._observables import ObservableEvaluator, observables_of
+from ._pipeline import Check, Pass, order_passes, register_check, register_pass, run_passes
+from ._planner import SOLVERS, solver_classes, solver_registry
 from ._printing import NUMPY_DIALECT, SCALAR_DIALECT, Dialect, numpy_function, print_expressions
 from ._problem import (
     Accelerated,
@@ -36,21 +35,15 @@ from ._problem import (
     Draws,
     FractionalRows,
     Getter,
-    JumpChannels,
-    MarkovMatrix,
     NetworkSnapshot,
     Partition,
     Problem,
     Record,
-    RenewalProcess,
     RenewalRecord,
-    SiteState,
-    SiteStep,
-    TopologyChanges,
     VectorFunction,
     with_initial_state,
 )
-from ._quantities import CompiledFlow, CompiledObjective, LoopTerm, Recorded, StockFlow
+from ._quantities import LoopTerm, StockFlow
 from ._reductions import ReductionPass
 from ._specs import (
     Binding,
@@ -66,7 +59,7 @@ from ._specs import (
 from ._spectral import spectral_multiplier
 from ._system_passes import SystemPass, claiming_pass
 from ._tree import Node, coerce_value, declared_times, flatten_system
-from ._validation import ValidationReport, domain_kind, missing_declarations, validate
+from ._validation import ValidationReport, missing_declarations, validate
 from .passes._problem import visual_of
 
 __all__: list[str] = [
@@ -81,7 +74,6 @@ __all__: list[str] = [
     'Binding',
     'Block',
     'BlockLaws',
-    'Breakpoints',
     'CapacityRows',
     'Census',
     'CensusRecord',
@@ -90,12 +82,8 @@ __all__: list[str] = [
     'CompiledAgents',
     'CompiledElement',
     'CompiledEvent',
-    'CompiledFlow',
     'CompiledInteraction',
-    'CompiledObjective',
-    'ConservationLaw',
     'Declarations',
-    'Delay',
     'Dialect',
     'Draws',
     'EdgeSearch',
@@ -104,7 +92,6 @@ __all__: list[str] = [
     'FractionalRows',
     'Getter',
     'Issue',
-    'JumpChannels',
     'Kernel',
     'KernelSpec',
     'Laws',
@@ -112,7 +99,6 @@ __all__: list[str] = [
     'LoopTerm',
     'Lowered',
     'Lowering',
-    'MarkovMatrix',
     'NeighborRead',
     'NetworkSnapshot',
     'Node',
@@ -122,21 +108,14 @@ __all__: list[str] = [
     'OwnerRule',
     'Partition',
     'Pass',
-    'Plan',
-    'PlannedPartition',
     'Problem',
     'Record',
-    'Recorded',
     'ReductionPass',
     'Reference',
-    'RenewalProcess',
     'RenewalRecord',
-    'SiteState',
-    'SiteStep',
     'Source',
     'StockFlow',
     'SystemPass',
-    'TopologyChanges',
     'ValidationReport',
     'ValidationWarning',
     'Vector',
@@ -146,11 +125,9 @@ __all__: list[str] = [
     'coerce_value',
     'compile_system',
     'declared_times',
-    'domain_kind',
     'flatten_system',
     'group_space',
     'is_interaction',
-    'law_census',
     'mask_of',
     'masked_value',
     'member_count',
@@ -161,7 +138,6 @@ __all__: list[str] = [
     'observables_of',
     'order_passes',
     'partition_system',
-    'plan_partitions',
     'print_expressions',
     'reads_reductions',
     'register_backend',
@@ -171,7 +147,6 @@ __all__: list[str] = [
     'register_form',
     'register_owner',
     'register_pass',
-    'registered_passes',
     'resolve_backend',
     'run_passes',
     'solver_classes',
@@ -182,5 +157,4 @@ __all__: list[str] = [
     'validate',
     'visual_of',
     'with_initial_state',
-    'with_observables',
 ]

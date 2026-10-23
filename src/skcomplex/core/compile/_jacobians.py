@@ -117,7 +117,7 @@ def _mirror_projections(symmetries: Sequence[Symmetry], size: int) -> list[Spars
     return projections
 
 
-class ConservationLaw(Protocol):
+class _ConservationLaw(Protocol):
     """Part of a drift that conserves quantities between cells, whose Jacobian is known only by its pattern."""
 
     @property
@@ -179,7 +179,7 @@ class ExactJacobian:
     reductions: ReductionPass
     size: int
     time: Expression
-    volumes: tuple[ConservationLaw, ...] = ()
+    volumes: tuple[_ConservationLaw, ...] = ()
     symmetries: tuple[Symmetry, ...] = ()
     constrained: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
     _kernel_partials: list[_Partials] | None = field(default=None, init=False, repr=False)

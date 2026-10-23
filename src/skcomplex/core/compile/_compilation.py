@@ -15,8 +15,8 @@ from ._census import Census
 from ._declarations import Block, Declarations
 from ._jacobians import ExactJacobian
 from ._kernels import Lowered, Output
-from ._planner import Plan
-from ._problem import MarkovMatrix, Problem
+from ._planner import _Plan
+from ._problem import Problem, _MarkovMatrix
 from ._reductions import ReductionPass
 from ._renewals import RenewalLaw
 from ._specs import KernelSpec
@@ -161,14 +161,14 @@ class Compilation:
     held: tuple[str, ...] = ()
     nodes: list[Node] | None = None
     census: Census | None = None
-    plan: Plan | None = None
+    plan: _Plan | None = None
     layout: Declarations | None = None
     specs: list[tuple[KernelSpec, Block]] | None = None
     collected: BlockLaws | None = None
     apart: Laws | None = None
     lowered: BlockLaws | None = None
     markov: list[tuple[KernelSpec, MatrixLaw]] | None = None
-    matrices: tuple[MarkovMatrix, ...] | None = None
+    matrices: tuple[_MarkovMatrix, ...] | None = None
     ordered: Laws | None = None
     delayed: Laws | None = None
     corrected: Laws | None = None

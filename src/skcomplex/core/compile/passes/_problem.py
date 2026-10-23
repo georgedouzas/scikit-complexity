@@ -13,7 +13,7 @@ from .._compilation import Compilation, Laws
 from .._declarations import Block, Declarations, is_interaction
 from .._layout import Layout
 from .._pipeline import Pass
-from .._problem import CompiledElement, CompiledInteraction, MarkovMatrix, Problem
+from .._problem import CompiledElement, CompiledInteraction, Problem, _MarkovMatrix
 from .._reductions import ReductionPass
 from .._specs import KernelSpec
 from .._tree import Node
@@ -128,7 +128,7 @@ def _problem_of(compilation: Compilation) -> Problem:
         jacobian=compilation.jacobian,
         breakpoints=breakpoints_in(reduced, compilation.events, time),
         history=_history(blocks),
-        matrices=cast('tuple[MarkovMatrix, ...]', compilation.matrices),
+        matrices=cast('tuple[_MarkovMatrix, ...]', compilation.matrices),
         **functions,
     )
 

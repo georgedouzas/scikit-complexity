@@ -193,17 +193,8 @@ def register_pass(item: 'Pass | SystemPass') -> None:
         PASSES.register(item, item)
 
 
-def registered_passes(passes: Iterable['Pass'] = ()) -> list['Pass']:
-    """Return passes followed by the registered passes, in registration order.
-
-    Args:
-        passes:
-            The passes of the shared core, which run before registered passes that the fields leave unordered.
-
-    Returns:
-        passes:
-            The passes.
-    """
+def _registered_passes(passes: Iterable['Pass'] = ()) -> list['Pass']:
+    """Return passes followed by the registered passes, in registration order."""
     return [*passes, *(PASSES.resolve(key) for key in PASSES)]
 
 

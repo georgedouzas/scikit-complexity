@@ -37,7 +37,7 @@ from ._kernels import Reference, Source
 from ._layout import Entry
 from ._printing import numpy_function
 from ._problem import Getter, Problem
-from ._quantities import Recorded
+from ._quantities import _Recorded
 from ._reads import Read
 from ._reductions import CompiledReduction, ReductionPass
 from ._specs import Observed
@@ -92,27 +92,8 @@ def _join(scope: str, path: str) -> str:
     return f'{scope}/{path}' if scope else path
 
 
-def with_observables(system: System, observables: Sequence[Observable]) -> System:
-    """Return a copy of a system tree that declares observables in the systems their labels name.
-
-    An observable whose label is a path, such as `village/mean_wealth`, belongs to the nested system `village`, and
-    reads the symbols of that system as an observable of it. The system itself is left unchanged.
-
-    Args:
-        system:
-            The root system.
-
-        observables:
-            The observables, labelled by their path from the root.
-
-    Returns:
-        system:
-            The system itself without observables, or a copy of the tree whose systems hold them.
-
-    Raises:
-        ValidationError:
-            A label names a nested system that does not exist.
-    """
+def _with_observables(system: System, observables: Sequence[Observable]) -> System:
+    """Return a copy of a system tree that declares observables in the systems their labels name."""
     if not observables:
         return system
     by_scope: dict[str, list[Observable]] = {}
@@ -533,7 +514,7 @@ class ObservableEvaluator:
 
         return get
 
-    def _recorded_getter(self, recorded: Recorded) -> Getter:
+    def _recorded_getter(self, recorded: _Recorded) -> Getter:
         """Return the getter of a flow or an auxiliary, one value for a single component and one per group member."""
         members: dict[Expression, Callable[[Vector, Vector], Any]] = {}
         for item in symbols_of([recorded.expression]) - {self.problem.time}:

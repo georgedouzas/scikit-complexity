@@ -15,31 +15,8 @@ from ._arrays import Vector
 
 
 @dataclass(frozen=True)
-class Delay:
-    """Delayed state read by laws through a hidden parameter that solvers fill from the run's history.
-
-    Args:
-        parameters:
-            The flat indices of the hidden parameter, one per member.
-
-        states:
-            The flat indices of the delayed state component, aligned with `parameters`.
-
-        tau:
-            The function `tau(t, x, p)` that returns the delay.
-
-        minimum:
-            The smallest value of the delay, which bounds the steps of the method of steps.
-
-        symbol:
-            The symbol that replaces the delayed value in the equations.
-
-        state:
-            The symbol of the delayed state.
-
-        delay:
-            The symbolic delay.
-    """
+class _Delay:
+    """Delayed state read by laws through a hidden parameter that solvers fill from the run's history."""
 
     parameters: npt.NDArray[np.intp]
     states: npt.NDArray[np.intp]
@@ -108,20 +85,8 @@ class EventRecord:
 
 
 @dataclass(frozen=True)
-class Breakpoints:
-    """Times where time-dependent inputs jump, at which solvers restart.
-
-    Args:
-        fixed:
-            Single times.
-
-        periodic:
-            Pairs of an origin and a period, each giving the times `origin + k period`.
-
-        unresolved:
-            Whether a condition on time has jumps at times that depend on parameters, so solvers restart at every
-            frame instead.
-    """
+class _Breakpoints:
+    """Times where time-dependent inputs jump, at which solvers restart."""
 
     fixed: tuple[float, ...] = ()
     periodic: tuple[tuple[float, float], ...] = field(default=())
@@ -166,5 +131,3 @@ class Breakpoints:
             last = math.ceil((end - origin) / period)
             times.update(origin + k * period for k in range(first, last) if start < origin + k * period < end)
         return sorted(times)
-
-

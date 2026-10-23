@@ -31,10 +31,9 @@ from ._arrays import Vector
 from ._kernels import Reference
 from ._kernels import Source as Read
 from ._layout import Entry
-from ._quantities import CompiledFlow, CompiledObjective, LoopTerm, Recorded, StockFlow
+from ._quantities import LoopTerm, StockFlow, _CompiledFlow, _CompiledObjective, _Recorded
 
 BOUNDARY_PREFIX = '__boundary'
-
 
 
 class _Spec(Protocol):
@@ -80,7 +79,7 @@ class _Born:
     """Transfer of a spec with the amount it moves and its compiled holders."""
 
     spec: _Spec
-    flow: CompiledFlow
+    flow: _CompiledFlow
     amount: Expression
     sign: int
 
@@ -218,7 +217,7 @@ class StockFlowPass:
             )
             raise ConservationError(error_msg)
         path = f'{spec.owner}.{label}'
-        compiled = CompiledFlow(path, source, sink, source_label, sink_label, next(iter(tags)))
+        compiled = _CompiledFlow(path, source, sink, source_label, sink_label, next(iter(tags)))
         amount = SR(_substituted(flow.amount, mapping))
         holders = [(item, sign) for item, sign in ((flow.source, -1), (flow.sink, 1)) if isinstance(item, Expression)]
         if flow.rate is not None:
@@ -460,7 +459,7 @@ class StockFlowPass:
             quantities={quantity: tuple(names) for quantity, names in quantities.items()},
             flows=tuple(born.flow for born in self._flows),
             recorded=tuple(
-                Recorded(record.path, record.expression, dict(record.spec.references)) for record in self._records
+                _Recorded(record.path, record.expression, dict(record.spec.references)) for record in self._records
             ),
             boundary=boundary,
             terms=tuple(
@@ -470,7 +469,7 @@ class StockFlowPass:
             discrete=discrete,
             invariants=dict(self._invariants),
             objectives=tuple(
-                CompiledObjective(record.path, record.expression, terminal, sense, dict(record.spec.references))
+                _CompiledObjective(record.path, record.expression, terminal, sense, dict(record.spec.references))
                 for record, terminal, sense in self._objectives
             ),
         )

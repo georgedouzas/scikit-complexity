@@ -59,9 +59,9 @@ from ._issues import ERROR, WARNING, Issue, ValidationWarning, names_of
 from ._layout import Entry
 from ._neighbourhoods import cone_heading, position_state
 from ._noise import process_covariance
-from ._observables import held_observables, with_held_observables, with_observables
-from ._pipeline import registered_checks, registered_passes, run_passes
-from ._planner import Plan, solver_classes, solver_registry
+from ._observables import _with_observables, held_observables, with_held_observables
+from ._pipeline import _registered_passes, registered_checks, run_passes
+from ._planner import _Plan, solver_classes, solver_registry
 from ._system_passes import claiming_pass
 from ._tree import Node, declared_times
 from .passes._core import CORE_PASSES
@@ -198,21 +198,8 @@ class ValidationReport:
             raise (classes.pop() if len(classes) == 1 else ValidationError)(error_msg)
 
 
-def domain_kind(entry: Entry, *, vector: bool = False) -> DomainKind:
-    """Return the kind of value a state of the layout holds.
-
-    Args:
-        entry:
-            The layout entry of the state.
-
-        vector:
-            Whether the state is declared as a vector of the space's dimension. The shape of an entry does not tell,
-            since a field holds one value per site.
-
-    Returns:
-        kind:
-            The domain kind.
-    """
+def _domain_kind(entry: Entry, *, vector: bool = False) -> DomainKind:
+    """Return the kind of value a state of the layout holds."""
     domain = entry.domain
     if vector or entry.is_complex or domain is Domain.COMPLEX:
         return DomainKind.VECTOR if vector else DomainKind.COMPLEX
@@ -346,7 +333,7 @@ def _law_issues(records: list[CensusRecord], times: dict[str, TimeKind | None]) 
         law, requires = record.law, record.law.requires
         name = f'{type(law).__name__} law of {record.path}'
         for entry in record.targets:
-            kind = domain_kind(entry, vector=entry.name in record.vectors)
+            kind = _domain_kind(entry, vector=entry.name in record.vectors)
             if not requires.accepts('domains', kind):
                 fix = f'Use {REPLACEMENTS[kind]}.' if kind in REPLACEMENTS else 'Target a state of a supported domain.'
                 message = (
@@ -477,7 +464,7 @@ def _solver_issues(solver: object, records: list[CensusRecord], system: System) 
         'time': {kind for kind in declared_times(system).values() if kind is not None},
         'laws': {record.law.law_kind for record in records},
         'domains': {
-            domain_kind(entry, vector=entry.name in record.vectors) for record in records for entry in record.targets
+            _domain_kind(entry, vector=entry.name in record.vectors) for record in records for entry in record.targets
         },
         'space': {_space_kind(record.space) for record in records},
         'components': {record.component for record in records},
@@ -750,10 +737,10 @@ def _counted(
     The compilation stops after flattening for a system that a whole-system pass compiles.
     """
     try:
-        observed = with_observables(system, observables)
+        observed = _with_observables(system, observables)
     except ValidationError as error:
         return None, [Issue('observable-path', system.label, str(error), 'Label observables by their path.')]
-    passes = registered_passes(CORE_PASSES)
+    passes = _registered_passes(CORE_PASSES)
     compilation = Compilation(observed, cast('str | Backend', backend), solver)
     try:
         run_passes(compilation, passes, until='nodes')
@@ -775,11 +762,11 @@ def _counted(
 def _plan_issues(compilation: Compilation) -> list[Issue]:
     """Return the issues of the partitions of a system, lowering its laws as far as their classes decide its form."""
     try:
-        run_passes(compilation, registered_passes(CORE_PASSES), until='plan')
+        run_passes(compilation, _registered_passes(CORE_PASSES), until='plan')
     except SkcomplexError as error:
         code, fix = FIXES.get(type(error), ('value', 'Correct the component as the message describes.'))
         return [Issue(code, compilation.system.label, str(error), fix, error=type(error))]
-    return list(cast('Plan', compilation.plan).issues)
+    return list(cast('_Plan', compilation.plan).issues)
 
 
 def _census_issues(compilation: Compilation) -> list[Issue]:

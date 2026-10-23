@@ -11,8 +11,7 @@ from ..base import Expression, SymbolicVector, ValidationError, domain_of, symbo
 from ..laws import shift_arguments
 from ..space import LatticeSpace, Neighborhood
 from ._kernels import LATTICE_BOUNDARIES, MODES, NeighborRead, Reference, Source
-
-SHIFT_NAME = 'shift_member'
+from ._lowering import SHIFT
 
 
 def _has_shifts(expression: Expression) -> bool:
@@ -23,7 +22,7 @@ def _has_shifts(expression: Expression) -> bool:
         operator = item.operator()
         if operator is None:
             continue
-        if getattr(operator, 'name', lambda: '')() == SHIFT_NAME:
+        if getattr(operator, 'name', lambda: '')() == SHIFT:
             return True
         stack.extend(item.operands())
     return False
@@ -153,7 +152,7 @@ class MemberShifts:
         if not isinstance(value, Expression) or not _has_shifts(value):
             return value
         operator = value.operator()
-        if getattr(operator, 'name', lambda: '')() != SHIFT_NAME:
+        if getattr(operator, 'name', lambda: '')() != SHIFT:
             return operator(*(self.lower(item) for item in value.operands()))
         expression, offset, boundary, fill = shift_arguments(value)
         return self.shift(SR(self.lower(expression)), offset, boundary, fill)

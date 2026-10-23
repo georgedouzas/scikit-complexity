@@ -21,7 +21,6 @@ from ._reads import Read
 type Rows = tuple[Indices, Indices]
 type Found = tuple[Indices, Indices, Indices | None]
 
-SIDES = ('shared', 'reader', 'other', 'edge')
 ACTIVE_THRESHOLD = 0.5
 
 

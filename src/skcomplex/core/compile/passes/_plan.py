@@ -8,7 +8,7 @@ from typing import cast
 from .._census import Census
 from .._compilation import Compilation
 from .._pipeline import Pass
-from .._planner import plan_partitions
+from .._planner import _plan_partitions
 
 
 class PlanPass(Pass):
@@ -24,7 +24,7 @@ class PlanPass(Pass):
             compilation:
                 The compilation state.
         """
-        compilation.plan = plan_partitions(
+        compilation.plan = _plan_partitions(
             cast('Census', compilation.census),
             cast('dict[str, set[type]]', compilation.kinds),
         )

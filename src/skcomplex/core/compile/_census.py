@@ -48,7 +48,7 @@ from ._layout import Entry
 from ._noise import ProcessKey, process_keys
 from ._observables import Observer, lowerable_observables
 from ._specs import KernelSpec, component_of, group_space, specs_of, target_references
-from ._tree import Node, flatten_system
+from ._tree import Node
 
 type OwnerRule = Callable[[KernelSpec, Law, set[str]], str | None]
 
@@ -302,24 +302,6 @@ def census_of(system: System, nodes: list[Node]) -> Census:
         except SkcomplexError as error:
             errors.append((block.node.path, error))
     return Census(system, records, errors)
-
-
-def law_census(system: System) -> tuple[list[CensusRecord], list[tuple[str, SkcomplexError]]]:
-    """Return every law of a system with its owner and targets, and the errors of the components that fail.
-
-    Args:
-        system:
-            The system.
-
-    Returns:
-        records:
-            The laws of the components that declare and collect without error.
-
-        errors:
-            The path of every failing component with its error.
-    """
-    census = census_of(system, flatten_system(system))
-    return census.records, census.errors
 
 
 @dataclass(frozen=True)

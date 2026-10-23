@@ -18,7 +18,7 @@ from ...laws import Boundary, Event, Jump, Law, Noise, Rate, Update, values_of
 from .._arrays import Vector
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
-from .._hybrid import Breakpoints, CompiledEvent, Delay
+from .._hybrid import CompiledEvent, _Breakpoints, _Delay
 from .._kernels import Reference, Source
 from .._layout import Entry
 from .._lowering import calls_of
@@ -76,7 +76,7 @@ def _linear_root(expression: Expression, time: Expression) -> float | None:
     return float(-expression.subs({time: 0}) / slope)
 
 
-def _breakpoints_of(expressions: Iterable[Any], time: Expression) -> Breakpoints:
+def _breakpoints_of(expressions: Iterable[Any], time: Expression) -> _Breakpoints:
     """Return the times where conditions on time in expressions change, as from step, pulse, and series inputs."""
     fixed: set[float] = set()
     periodic: set[tuple[float, float]] = set()
@@ -109,7 +109,7 @@ def _breakpoints_of(expressions: Iterable[Any], time: Expression) -> Breakpoints
                     resolved = True
             unresolved = unresolved or not resolved
         stack.extend(item.operands())
-    return Breakpoints(tuple(sorted(fixed)), tuple(sorted(periodic)), unresolved=unresolved)
+    return _Breakpoints(tuple(sorted(fixed)), tuple(sorted(periodic)), unresolved=unresolved)
 
 
 def _same_zeros(first: Expression, second: Expression) -> bool:
@@ -400,7 +400,7 @@ def hidden_events(
     return tuple(compiled)
 
 
-def compile_delays(delays: list[dict[str, Any]], time: Expression) -> tuple[Delay, ...]:
+def compile_delays(delays: list[dict[str, Any]], time: Expression) -> tuple[_Delay, ...]:
     """Return the delays of a system with their delay functions compiled.
 
     Args:
@@ -420,7 +420,7 @@ def compile_delays(delays: list[dict[str, Any]], time: Expression) -> tuple[Dela
         tau = _scalar_function([item['tau']], _flat_sources(spec.references, spec.owner), time, spec.owner)
         hidden = item['entry']
         compiled.append(
-            Delay(
+            _Delay(
                 parameters=hidden.start + np.arange(hidden.size),
                 states=np.asarray(item['states'], dtype=np.intp),
                 tau=_first_value(tau),
@@ -437,7 +437,7 @@ def breakpoints_in(
     specs: list[tuple[KernelSpec, list[Law]]],
     events: list[tuple[KernelSpec, Event]],
     time: Expression,
-) -> Breakpoints:
+) -> _Breakpoints:
     """Return the breakpoints of the time-dependent inputs in every law and event guard.
 
     Args:

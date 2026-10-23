@@ -13,9 +13,9 @@ from ..system import Observable, System
 from ._backends import Backend
 from ._compilation import Compilation
 from ._declarations import is_interaction
-from ._observables import check_held_reads, with_observables
-from ._pipeline import registered_passes, run_passes
-from ._planner import Plan
+from ._observables import _with_observables, check_held_reads
+from ._pipeline import _registered_passes, run_passes
+from ._planner import _Plan
 from ._problem import Partition, Problem, with_initial_state
 from ._system_passes import claiming_pass
 from ._tree import Node
@@ -25,7 +25,7 @@ from .passes._core import CORE_PASSES
 
 def _compiled(compilation: Compilation) -> Problem:
     """Return the problem of a compilation, running every pass it has not run yet."""
-    return cast('Problem', run_passes(compilation, registered_passes(CORE_PASSES)).problem)
+    return cast('Problem', run_passes(compilation, _registered_passes(CORE_PASSES)).problem)
 
 
 def _partitioned(compilation: Compilation, plan: list[tuple[str, frozenset[str]]]) -> Problem:
@@ -75,10 +75,10 @@ def _planned_problem(compilation: Compilation) -> Problem:
 
     The owners of a partition are the elements and groups of its subsystem whose lowered laws it holds.
     """
-    plan = cast('Plan', compilation.plan)
+    plan = cast('_Plan', compilation.plan)
     if len(plan.partitions) <= 1:
         return _compiled(compilation)
-    kinds = cast('dict[str, set[type]]', run_passes(compilation, registered_passes(CORE_PASSES), until='kinds').kinds)
+    kinds = cast('dict[str, set[type]]', run_passes(compilation, _registered_passes(CORE_PASSES), until='kinds').kinds)
     owners = [(item.name, frozenset(owner for owner in kinds if item.holds(owner))) for item in plan.partitions]
     return _partitioned(compilation, owners)
 
@@ -162,7 +162,7 @@ def compile_system(
     """
     report = validate(system, backend=backend, observables=observables)
     report.raise_errors()
-    observed = with_observables(system, observables)
+    observed = _with_observables(system, observables)
     initial = dict(initial_state or {})
     system_pass = claiming_pass(observed)
     if system_pass is not None:
@@ -207,7 +207,7 @@ def partition_system(system: System, backend: str | Backend = 'auto') -> Problem
         >>> [partition.name for partition in partition_system(system).partitions]
         ['a', 'b']
     """
-    compilation = run_passes(Compilation(system, backend), registered_passes(CORE_PASSES), until='nodes')
+    compilation = run_passes(Compilation(system, backend), _registered_passes(CORE_PASSES), until='nodes')
     elements = {node.path for node in cast('list[Node]', compilation.nodes) if not is_interaction(node)}
     own = frozenset(path for path in elements if '/' not in path)
     plan = [(system.label, own)] if own else []

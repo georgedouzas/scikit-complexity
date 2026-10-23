@@ -18,7 +18,7 @@ from ..laws import Boundary, Jump, Law, Noise, Rate, Update
 from ._arrays import Indices, Vector
 from ._kernels import Kernel, Reference, Source, add_into, assign_into
 from ._printing import SCALAR_DIALECT, print_expressions
-from ._problem import Accelerated, Draws, JumpChannels, VectorFunction, WienerBlock
+from ._problem import Accelerated, Draws, VectorFunction, WienerBlock, _JumpChannels
 from ._reductions import ReductionPass
 
 AUTO_MEMBERS = 1000
@@ -80,7 +80,7 @@ class Lowering:
     n_processes: int = 0
     noise_blocks: tuple[WienerBlock, ...] = ()
     propensities: VectorFunction | None = None
-    jumps: tuple[JumpChannels, ...] = ()
+    jumps: tuple[_JumpChannels, ...] = ()
     update: VectorFunction | None = None
     boundary: VectorFunction | None = None
     accelerated: Accelerated | None = None

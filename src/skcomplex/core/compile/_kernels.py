@@ -18,7 +18,7 @@ from ..laws import Law, NumericFunction
 from ._arrays import Indices, Vector
 from ._layout import Entry, Layout
 from ._printing import numpy_function
-from ._problem import JumpChannels, WienerBlock
+from ._problem import WienerBlock, _JumpChannels
 
 type Pairs = tuple[Indices, Indices] | None
 type Reader = Callable[[Vector, Vector, Pairs, float], Any]
@@ -812,7 +812,7 @@ def lower_noise(kernels: list[Kernel]) -> tuple[Indices, Indices, int, tuple[Wie
 def jump_channels(
     kernels: list[Kernel],
     changes: Mapping[int, list[tuple[Reference, float]]],
-) -> tuple[JumpChannels, ...]:
+) -> tuple[_JumpChannels, ...]:
     """Return the channels of every jump law of jump kernels.
 
     Args:
@@ -835,6 +835,6 @@ def jump_channels(
                 dtype=np.intp,
             ).reshape(len(law_changes), kernel.rows)
             increments = np.array([increment for _, increment in law_changes], dtype=float)
-            channels.append(JumpChannels(offset, targets, increments))
+            channels.append(_JumpChannels(offset, targets, increments))
             offset += kernel.rows
     return tuple(channels)

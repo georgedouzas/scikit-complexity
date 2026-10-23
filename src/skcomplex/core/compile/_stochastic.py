@@ -49,7 +49,7 @@ from ._arrays import Vector
 from ._kernels import Reference, Source
 from ._layout import Entry
 from ._printing import numpy_function
-from ._problem import Draws, MarkovMatrix, SampledDraw
+from ._problem import Draws, SampledDraw, _MarkovMatrix
 
 ALPHABET_DOMAINS = (Domain.INTEGER, Domain.NONNEGATIVE_INTEGER, Domain.BOOLEAN)
 NORMAL_KINDS = frozenset({'normal'})
@@ -346,7 +346,7 @@ def compile_matrix(
     references: dict[Expression, Reference],
     rows: int,
     time: Expression,
-) -> MarkovMatrix:
+) -> _MarkovMatrix:
     """Return the matrix of a Markov law as a function of the parameter vector.
 
     Args:
@@ -396,7 +396,7 @@ def compile_matrix(
         stacked = np.stack([np.broadcast_to(np.asarray(value, dtype=float), (rows,)) for value in values], axis=-1)
         return stacked.reshape(rows, *shape)
 
-    return MarkovMatrix(law.description, evaluate, reads)
+    return _MarkovMatrix(law.description, evaluate, reads)
 
 
 def _replacement(draw: Draw, arguments: list[Expression], slot: Expression) -> Expression:

@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import SR, I, arctan2, sqrt
 
 from ..base import Expression, SymbolicVector, Trait, ValidationError, components_of
 from ..laws import Boundary, Call, Equation, Event, Jump, Law, Noise, Rate, Update, has_trait, values_of
-from ._lowering import symbolic_components
+from ._lowering import SHIFT, symbolic_components
 
 LINEAR = frozenset({'laplacian', 'inverse_laplacian', 'partial', 'upwind', 'derivative', 'lag', 'delayed'})
 SUMS = frozenset({'total', 'mean'})
@@ -35,7 +35,6 @@ REAL_OPERANDS = frozenset(
         'max_symbolic',
     },
 )
-SHIFT = 'shift_member'
 WHERE = 'where'
 UNSPLIT = frozenset({'real_part', 'imag_part', 'conjugate', 'arg', 'abs'})
 LEFTOVER = UNSPLIT - {'abs'}
