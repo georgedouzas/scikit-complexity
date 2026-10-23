@@ -110,7 +110,7 @@ def register(formalism: 'Formalism') -> None:
     register_laws(*formalism.laws)
     _register_compilation(formalism)
     for name, stepper in formalism.solvers.items():
-        register_solver(name, stepper)
+        register_solver(name, stepper, default=stepper in formalism.defaults)
     for backend in formalism.backends:
         register_backend(backend)
     for kind, visual in formalism.visuals.items():
@@ -161,7 +161,10 @@ class Formalism:
             The forms it defines.
 
         solvers:
-            The solver classes by the name users select them with, where `'auto'` names the default of a form.
+            The solver classes by the name users select them with.
+
+        defaults:
+            The solver classes, each also listed in `solvers`, that are the default of their form.
 
         backends:
             The backend classes.
@@ -199,6 +202,7 @@ class Formalism:
     passes: tuple[Pass | SystemPass, ...] = ()
     forms: tuple[Form, ...] = ()
     solvers: Mapping[str, type[Stepper]] = field(default_factory=dict)
+    defaults: tuple[type[Stepper], ...] = ()
     backends: tuple[type[Backend], ...] = ()
     visuals: Mapping[str, type[Visual]] = field(default_factory=dict)
     checks: tuple[Check, ...] = ()

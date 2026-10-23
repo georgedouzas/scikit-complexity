@@ -42,8 +42,8 @@ register(
             'unitary': UnitaryEvolution,
             'lindblad': LindbladEvolution,
             'quantum_trajectories': QuantumTrajectories,
-            'auto': LindbladEvolution,
         },
+        defaults=(LindbladEvolution,),
         visuals={'expectations': ExpectationVisual},
     ),
 )
