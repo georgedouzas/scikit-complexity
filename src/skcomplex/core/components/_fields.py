@@ -14,7 +14,7 @@ from ..laws._fields import FIELD_BOUNDARIES
 from ..space._lattices import LatticeSpace
 from ..space._meshes import Mesh
 from ..space._networks import NetworkSpace
-from ._components import Element, Group
+from ._components import Element, Group, _check_group
 
 
 class Field(Group):
@@ -96,6 +96,7 @@ class Field(Group):
         self.size = space.graph.number_of_nodes() if isinstance(space, NetworkSpace) else space.size
         self.variable = False
         self.on = 'sites'
+        _check_group(self)
 
     def __repr__(self, N_CHAR_MAX: int = 700) -> str:
         """Return the label, element type, and size."""

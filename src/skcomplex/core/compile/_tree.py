@@ -139,15 +139,8 @@ def _check_network_lattice(space: NetworkSpace, size: int, where: str) -> None:
 def _check_group(group: Group, scope: str) -> None:
     """Raise an error for a group with an element type or size that is not valid."""
     where = f'Group {group.label!r} in {scope or "the root system"}'
-    if not (isinstance(group.element, type) and issubclass(group.element, Element)):
-        error_msg = f'{where} has element {group.element!r}, which is not an Element subclass.'
-        raise ValidationError(error_msg)
     if group.size is None and group.on is not None:
         return
-    empty = group.variable and group.on in {'sites', 'edges'} and group.size == 0
-    if not empty and not (Domain.POSITIVE.contains(group.size) and Domain.INTEGER.contains(group.size)):
-        error_msg = f'{where} has size {group.size!r}, which is not a positive integer.'
-        raise ValidationError(error_msg)
     space = getattr(group, 'space', None)
     if isinstance(space, LatticeSpace):
         try:
@@ -165,10 +158,6 @@ def _check_group(group: Group, scope: str) -> None:
         and group.size is not None
     ):
         _check_network_lattice(space, group.size, where)
-    unknown = set(group.values or {}) - {field.name for field in dataclasses.fields(group.element)} - {'label'}
-    if unknown:
-        error_msg = f'{where} sets {", ".join(sorted(unknown))}, which {group.element.__name__} does not declare.'
-        raise ValidationError(error_msg)
 
 
 def _check_children(system: System, scope: str) -> None:

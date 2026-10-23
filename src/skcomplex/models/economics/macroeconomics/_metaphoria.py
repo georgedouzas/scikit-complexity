@@ -407,8 +407,8 @@ class Business(Element):
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import Business
-        >>> Business.group('businesses', 0, variable=True).size
-        0
+        >>> Business.group('businesses', 2, variable=True).size
+        2
     """
 
     money: float = state(default=0.0, quantity='money')

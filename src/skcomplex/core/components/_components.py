@@ -13,9 +13,11 @@ from sklearn.base import BaseEstimator
 
 from ..base import (
     ComponentKind,
+    Domain,
     LabelError,
     Requires,
     SpaceError,
+    ValidationError,
     VariableKind,
     VisualSpec,
     companions_of,
@@ -506,6 +508,72 @@ def runs_rules(component: object) -> bool:
     return any(isinstance(law, Rule) for law in probe_laws(component) or [])
 
 
+def _check_element(label: str, element: object) -> None:
+    """Raise an error for a group whose element type is not an `Element` subclass."""
+    if isinstance(element, type) and issubclass(element, Element):
+        return
+    error_msg = f'Group {label!r} has element {element!r}, which is not an Element subclass.'
+    raise ValidationError(error_msg)
+
+
+def _check_size(group: 'Group') -> None:
+    """Raise an error for a group whose size is not a positive integer, except an empty variable group on parts."""
+    if group.size is None and group.on is not None:
+        return
+    empty = group.variable and group.on in {'sites', 'edges'} and group.size == 0
+    if empty or (Domain.POSITIVE.contains(group.size) and Domain.INTEGER.contains(group.size)):
+        return
+    error_msg = f'Group {group.label!r} has size {group.size!r}, which is not a positive integer.'
+    raise ValidationError(error_msg)
+
+
+def _check_value_names(group: 'Group') -> None:
+    """Raise an error for a value whose name the element type of a group does not declare."""
+    declared = {item.name for item in dataclasses.fields(group.element)} - {'label'}
+    unknown = sorted(set(group.values or {}) - declared)
+    if not unknown:
+        return
+    states = ', '.join(declarations_of(group.element, VariableKind.STATE)) or 'none'
+    parameters = ', '.join(declarations_of(group.element, VariableKind.PARAMETER)) or 'none'
+    error_msg = (
+        f'Group {group.label!r} sets {", ".join(unknown)}, which {group.element.__name__} does not declare. Its '
+        f'states are {states}, and its parameters are {parameters}.'
+    )
+    raise ValidationError(error_msg)
+
+
+def _check_value_rows(group: 'Group') -> None:
+    """Raise an error for a numeric per-member value whose first dimension is not the size of a group."""
+    if group.size is None:
+        return
+    declarations = {item.name: declaration_of(item) for item in dataclasses.fields(group.element)}
+    dimensions = group.space.dimensions if isinstance(group.space, LatticeSpace) else None
+    for name, value in (group.values or {}).items():
+        declaration = declarations.get(name)
+        if declaration is None or not isinstance(declaration.domain, Domain):
+            continue
+        try:
+            shape = np.shape(value)
+        except ValueError:
+            continue
+        shared = 1 if declaration.vector else 0
+        if len(shape) <= shared or shape[0] == group.size or shape == dimensions:
+            continue
+        error_msg = (
+            f'Group {group.label!r} has {shape[0]} values of {name} for {group.size} members. Give one value per '
+            'member, or one value shared by every member.'
+        )
+        raise ValidationError(error_msg)
+
+
+def _check_group(group: 'Group') -> None:
+    """Raise an error for a group whose element type, size, value names, or value rows are not valid."""
+    _check_element(group.label, group.element)
+    _check_size(group)
+    _check_value_names(group)
+    _check_value_rows(group)
+
+
 class Group(BaseEstimator):
     """Group of identical elements of one type, whose variables are arrays with one row per member.
 
@@ -554,6 +622,10 @@ class Group(BaseEstimator):
         SpaceError:
             The part is unknown, or the space does not have it, such as edges outside a network.
 
+        ValidationError:
+            The element type is not an `Element` subclass, the size is not a positive integer, a value names a
+            variable the element type does not declare, or a per-member value does not have one row per member.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.core.components import Group
@@ -600,6 +672,7 @@ class Group(BaseEstimator):
         if on is not None and on not in PARTS:
             error_msg = f'Group {label!r} lives on {on!r}. Use one of {", ".join(PARTS)}.'
             raise SpaceError(error_msg)
+        _check_group(self)
 
     def __repr__(self, N_CHAR_MAX: int = 700) -> str:
         """Return the label, element type, and size."""

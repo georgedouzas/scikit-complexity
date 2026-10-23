@@ -48,29 +48,38 @@ def test_group_position_state_has_member_shape():
 
 
 def test_group_wrong_number_of_values_raises_error():
-    """Test that a group with the wrong number of values names the group, variable, and sizes."""
-    system = System(components=[Particle.group('gas', 1000, x=np.zeros((999, 2)))], space=ContinuousSpace(n_dim=2))
-    with pytest.raises(ValidationError, match=r'gas\.x .*999 values .* 1000 members'):
-        compile_system(system)
+    """Test that creating a group with the wrong number of values names the group, the variable, and both sizes."""
+    with pytest.raises(ValidationError, match=r"'gas' has 999 values of x for 1000 members"):
+        Particle.group('gas', 1000, x=np.zeros((999, 2)))
+
+
+def test_group_shared_and_lattice_values_are_accepted():
+    """Test that shared values, per-member arrays, and lattice-shaped arrays pass the checks of group creation."""
+    assert Particle.group('gas', 3, x=[0.5, 0.5]).size == 3
+    assert Population.group('herds', 3, n=[1.0, 2.0, 3.0]).size == 3
+    assert (
+        Group('cells', element=Population, space=LatticeSpace((2, 3)), on='sites', values={'n': np.ones((2, 3))}).size
+        == 6
+    )
 
 
 @pytest.mark.parametrize(('size', 'match'), [(0, 'positive integer'), (2.5, 'positive integer')])
 def test_group_invalid_size_raises_error(size, match):
-    """Test that a group size must be a positive integer."""
+    """Test that creating a group checks that its size is a positive integer."""
     with pytest.raises(ValidationError, match=match):
-        compile_system(System(components=[Population.group('herds', size)]))
+        Population.group('herds', size)
 
 
 def test_group_unknown_value_raises_error():
-    """Test that a group can only set variables of its element type."""
-    with pytest.raises(ValidationError, match='does not declare'):
-        compile_system(System(components=[Population.group('herds', 3, mass=1.0)]))
+    """Test that creating a group with an undeclared value names it and lists the declared states and parameters."""
+    with pytest.raises(ValidationError, match=r'sets foo, which Population does not declare\. Its states are n'):
+        Population.group('herds', 3, foo=1)
 
 
 def test_group_non_element_type_raises_error():
-    """Test that a group's element must be an Element subclass."""
+    """Test that creating a group checks that its element is an Element subclass."""
     with pytest.raises(ValidationError, match='not an Element subclass'):
-        compile_system(System(components=[Group('herds', element=int, size=3)]))
+        Group('herds', element=int, size=3)
 
 
 def test_role_binds_to_group_and_applies_to_every_member():

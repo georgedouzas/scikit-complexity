@@ -15,7 +15,7 @@
   drops `__init_subclass__`. Make `Element`, `Group`, `Interaction`, and `System` derive from it. Verify with the
   "Hierarchy", "No generated attributes", "Clone keeps declared values", and "System is a component" scenarios, and
   with the existing tests for order, lags, and `define`.
-- [ ] 1.5 Make group creation check the size, the value names, and the shapes at once. Verify with the "Wrong number
+- [x] 1.5 Make group creation check the size, the value names, and the shapes at once. Verify with the "Wrong number
   of values" and "Unknown value name" scenarios.
 
 ## 2. Formalism registration and the first moves
