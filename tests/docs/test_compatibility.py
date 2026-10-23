@@ -50,5 +50,5 @@ def test_table_follows_declarations(monkeypatch):
 def test_tables_list_noise_support():
     """Test that the solver table lists the noise structures each solver declares."""
     page = _generator()['compatibility_page']()
-    assert _row(page, '| `euler-maruyama` |').endswith('| `correlated`, `diagonal`, `shared` |')
+    assert _row(page, '| `euler-maruyama` |').endswith('| `conserved`, `correlated`, `diagonal`, `shared` |')
     assert _row(page, '| `milstein` |').endswith('| `diagonal` |')
