@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.optimize import Bounds, minimize
 
-from ..base import (
+from ...base import (
     ComponentKind,
     DomainKind,
     LawKind,
@@ -20,9 +20,8 @@ from ..base import (
     TimeKind,
     ValidationError,
 )
-from ..compile import Vector
+from ...compile import Vector
 from ._optimal import ControlSolution, GridFunction, OptimalControlSolver, _ControlProblem
-from ._stepper import register_solver
 
 SCHEMES = ('trapezoidal', 'hermite-simpson')
 METHODS = ('SLSQP', 'trust-constr')
@@ -293,6 +292,3 @@ class Collocation(OptimalControlSolver):
             raise SolverError(error_msg)
         x, u = self._unpack(result.x, points.size)
         return self._solution(x0, points, x, u, p, iterations=int(result.nit))
-
-
-register_solver('collocation', Collocation)

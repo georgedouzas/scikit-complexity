@@ -13,9 +13,9 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ..base import Domain, Expression, Form, SolverError, symbols_of
-from ..compile import Problem, Vector, numpy_function
-from ._stepper import Stepper
+from ...base import Domain, Expression, Form, SolverError, symbols_of
+from ...compile import Problem, Vector, numpy_function
+from ...solvers import Stepper
 
 TIME_TOLERANCE = 1e-9
 NONNEGATIVE_DOMAINS = frozenset({Domain.POSITIVE, Domain.NONNEGATIVE, Domain.NONNEGATIVE_INTEGER})
