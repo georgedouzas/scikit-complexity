@@ -2894,8 +2894,8 @@ print(np.sort(decomposition.eigenvalues.imag).round(3), validate(decomposition.s
 sparse = fit_sindy(spiral, degree=1, threshold=0.05)
 print(sparse.features, sparse.coefficients.round(2).tolist())
 reservoir = fit_reservoir(spiral)
-run = Simulation(reservoir.system).run(until=50).trajectory_
-print(type(reservoir.system.time).__name__, np.allclose(run['surrogate.x'], reservoir.forecast(50)[:, 0]))
+forecast = Simulation(reservoir.system).run(until=50).trajectory_
+print(type(reservoir.system.time).__name__, np.allclose(forecast['surrogate.x'], reservoir.forecast(50)[:, 0]))
 ```
 
 ### Stochastic processes
