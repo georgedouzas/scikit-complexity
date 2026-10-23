@@ -35,7 +35,7 @@
 | two_mass_spring_damper | quasi-periodic beating of the first mass | spectrum peaks at the normal modes 1 and sqrt(3) | 4.5 s, 251 frames, 201 KB |
 | sitnikov | irregular bobbing of the light body (e = 0.2) | stroboscopic section: invariant curves near the centre, chaotic band outside | 19.0 s, 251 frames, 47 KB |
 | restricted_three_body | precessing rosette around the Earth, Moon aside (custom path view) | path outside the Jacobi forbidden region; C drift below 2e-5 | 0.3 s, 251 frames, 121 KB |
-| ising | up and down domains coarsening on a 256 x 256 torus at T = 2.0 | \|m\|(T) on 48 x 48 follows Onsager below T_c, rounded tail above | 5.4 s, 101 frames, 3.3 MB |
+| ising | up and down domains coarsening on a 256 x 256 torus at T = 2.0 | \|m\|(T) on 48 x 48 follows Onsager below T_c, rounded tail above; O-information of 2 x 2 blocks positive throughout, peaking at 0.59 bits at T = 2.25 next to T_c | 5.4 s, 101 frames, 3.3 MB |
 | potts | q = 5 domains of five colors after a quench | energy per site passes the exact e_c at T_c; smooth for q = 3, jump for q = 8 | 30.6 s, 101 frames, 4.2 MB |
 | tasep | space-time image of jams drifting backwards on a ring | ring current matches the exact parallel-update formula for p = 0.5, 0.9 | 2.0 s, 251 frames, 3.1 MB |
 | contact_process | sparse infected clusters just above lambda_c | steady density zero below 1.65, rising above, under mean field | 5.9 s, 251 frames, 3.7 MB |
