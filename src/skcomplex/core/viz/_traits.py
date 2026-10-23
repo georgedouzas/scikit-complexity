@@ -15,7 +15,9 @@ from ..compile import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
 from ..space import Space
-from ._visuals import SERIES_COLORS, AgentsVisual, _widened, register_visual, resolve_visual
+from ._agents import AgentsVisual
+from ._colors import SERIES_COLORS, _widened
+from ._visuals import register_visual, resolve_visual
 
 BINS = 20
 MAX_LEVELS = 50

@@ -17,8 +17,6 @@ HAS_BOUNDARY = False
 def boundary(t, x, p, L):
     return x
 """
-
-
 LOOPS = {
     'rk4': """
 @njit(cache=CACHE)

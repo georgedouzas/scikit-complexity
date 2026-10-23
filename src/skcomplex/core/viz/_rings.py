@@ -10,7 +10,9 @@ import rerun.blueprint as rrb
 from ..base import wrap_angle
 from ..compile import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
-from ._visuals import UPWARD, Visual, _phase_colors, _radius_of, log_scalars, register_visual
+from ._colors import _phase_colors
+from ._utils import UPWARD, _radius_of, log_scalars
+from ._visuals import Visual, register_visual
 
 PHASE_MARGIN = 0.1
 HEIGHT_SHARE = 0.6

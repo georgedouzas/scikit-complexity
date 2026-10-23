@@ -17,9 +17,11 @@ from ..base import ValidationError
 from ..compile import CompiledElement, Problem, RenewalRecord
 from ..runtime import Frame, Observer
 from ..space import NetworkSpace
+from ._agents import AgentsVisual
 from ._blueprints import default_blueprint, save_blueprint
 from ._traits import agents_visual_of
-from ._visuals import AgentsVisual, Visual, log_scalars, resolve_visual
+from ._utils import log_scalars
+from ._visuals import Visual, resolve_visual
 
 RENEWAL_MEMBERS = 20
 EXTRA = 'extra'

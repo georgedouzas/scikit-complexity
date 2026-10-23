@@ -13,8 +13,6 @@ from ..runtime import MODELS
 from ..system import Observable, System
 
 type Source = str | Callable[..., System] | System
-
-
 PROBLEMS: dict[tuple[Any, ...], Problem] = {}
 
 
