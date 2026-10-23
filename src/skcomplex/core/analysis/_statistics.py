@@ -5,15 +5,11 @@
 
 import warnings
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
+import powerlaw
 
-from ._lazy import module
-
-if TYPE_CHECKING:
-    import powerlaw
 from ..base import AnalysisError
 from ._kinds import DataKind, analysis
 from ._utils import real_array
@@ -85,9 +81,9 @@ def ccdf(values: npt.ArrayLike) -> tuple[Array, Array]:
     return distinct, 1 - first / array.size
 
 
-def _fit_at(array: Array, xmin: float, xmax: float | None, *, discrete: bool) -> 'powerlaw.Fit':
+def _fit_at(array: Array, xmin: float, xmax: float | None, *, discrete: bool) -> powerlaw.Fit:
     """Return the maximum-likelihood power law of the samples between the cutoffs."""
-    return module('powerlaw').Fit(
+    return powerlaw.Fit(
         array,
         xmin=xmin,
         xmax=xmax,
@@ -108,7 +104,7 @@ def _cutoffs(array: Array, xmax: float | None, candidates: int) -> Array:
     return distinct
 
 
-def _best_fit(array: Array, xmax: float | None, *, discrete: bool, candidates: int) -> 'powerlaw.Fit':
+def _best_fit(array: Array, xmax: float | None, *, discrete: bool, candidates: int) -> powerlaw.Fit:
     """Return the power law whose lower cutoff minimises the Kolmogorov-Smirnov distance over the candidates."""
     cutoffs = _cutoffs(array, xmax, candidates)
     if cutoffs.size == 0:
@@ -140,7 +136,7 @@ def _bootstrap_distance(
     return float(_fit_at(synthetic, xmin, xmax, discrete=discrete).power_law.D)
 
 
-def _comparison(fit: 'powerlaw.Fit', alternative: str) -> tuple[float, float]:
+def _comparison(fit: powerlaw.Fit, alternative: str) -> tuple[float, float]:
     """Return the log-likelihood ratio of the power law against an alternative and its p-value."""
     ratio, p_value = fit.distribution_compare('power_law', alternative)
     return float(ratio), float(p_value)

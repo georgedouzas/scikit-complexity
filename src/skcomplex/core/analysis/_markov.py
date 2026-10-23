@@ -5,36 +5,25 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
+from deeptime.markov import TransitionCountEstimator
+from deeptime.markov.msm import MarkovStateModel as DeeptimeModel
+from deeptime.markov.msm import MaximumLikelihoodMSM
+from deeptime.markov.tools import analysis as msm_analysis
 
-from ._lazy import module
-
-if TYPE_CHECKING:
-    from deeptime.markov.msm import MarkovStateModel as DeeptimeModel
 from ._kinds import DataKind, analysis
 
 type Array = npt.NDArray[np.float64]
 
 
-def _fit(states: npt.ArrayLike, lag: int, *, reversible: bool) -> 'DeeptimeModel':
+def _fit(states: npt.ArrayLike, lag: int, *, reversible: bool) -> DeeptimeModel:
     """Return the maximum-likelihood model of the largest connected set of states at a lag."""
     paths = np.asarray(states, dtype=np.int32)
     trajectories = list(paths) if paths.ndim > 1 else paths
-    counts = (
-        module('deeptime.markov')
-        .TransitionCountEstimator(lagtime=lag, count_mode='sliding')
-        .fit(trajectories)
-        .fetch_model()
-    )
-    return (
-        module('deeptime.markov.msm')
-        .MaximumLikelihoodMSM(reversible=reversible)
-        .fit(counts.submodel_largest())
-        .fetch_model()
-    )
+    counts = TransitionCountEstimator(lagtime=lag, count_mode='sliding').fit(trajectories).fetch_model()
+    return MaximumLikelihoodMSM(reversible=reversible).fit(counts.submodel_largest()).fetch_model()
 
 
 @dataclass(frozen=True)
@@ -189,7 +178,7 @@ def committor(matrix: npt.ArrayLike, source: Sequence[int], target: Sequence[int
         [0.0, 0.5, 1.0]
     """
     return np.asarray(
-        module('deeptime.markov.tools.analysis').committor(np.asarray(matrix, dtype=float), list(source), list(target)),
+        msm_analysis.committor(np.asarray(matrix, dtype=float), list(source), list(target)),
     )
 
 
@@ -230,4 +219,4 @@ def mean_first_passage_time(
         2.0
     """
     array = np.asarray(matrix, dtype=float)
-    return float(module('deeptime.markov.tools.analysis').mfpt(array, list(target), origin=list(source), tau=lag) * dt)
+    return float(msm_analysis.mfpt(array, list(target), origin=list(source), tau=lag) * dt)
