@@ -15,8 +15,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import hurst_exponent
+from skcomplex.core.formalisms.fractional import FractionalEulerMaruyama
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import FractionalEulerMaruyama
 from skcomplex.core.viz import RerunObserver
 from skcomplex.models import create
 

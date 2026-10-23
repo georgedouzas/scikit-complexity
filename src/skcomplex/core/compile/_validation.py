@@ -25,6 +25,7 @@ from ..base import (
     LawClass,
     LawKind,
     NoiseKind,
+    OrderKind,
     ParameterError,
     Requires,
     RoleError,
@@ -42,7 +43,7 @@ from ..base import (
     VariableKind,
     declarations_of,
 )
-from ..components import Field, Group, Wiener
+from ..components import Element, Field, Group, Wiener
 from ..laws import (
     Encounter,
     Jump,
@@ -625,6 +626,31 @@ def _solver_issues(solver: object, records: list[CensusRecord], system: System) 
     return issues
 
 
+def _order_issues(nodes: list[Node]) -> list[Issue]:
+    """Return the states of a fractional order when no registered solver integrates fractional orders."""
+    if any(OrderKind.FRACTIONAL in cls.supports.orders and cls.form is not Form.COUPLED for cls in solver_classes()):
+        return []
+    fractional = [
+        (node.path, name, declaration.order)
+        for node in nodes
+        if isinstance(node.component, Element | Group)
+        for name, declaration in declarations_of(node.component_type, VariableKind.STATE).items()
+        if declaration.is_fractional
+    ]
+    fix = 'Import the formalism of fractional orders, `skcomplex.core.formalisms.fractional`.'
+    return [
+        Issue(
+            'order-unsupported',
+            path,
+            f'The state {path}.{name} declares the fractional order {order}, but no registered solver integrates '
+            'fractional orders.',
+            fix,
+            error=SolverError,
+        )
+        for path, name, order in fractional
+    ]
+
+
 def _wiener_nodes(nodes: list[Node]) -> list[tuple[str, Wiener]]:
     """Return the path and the element of every Wiener element of a system."""
     return [(node.path, node.component) for node in nodes if isinstance(node.component, Wiener)]
@@ -942,6 +968,7 @@ def _issues_of(compilation: Compilation) -> list[Issue]:
     issues += _neighbourhood_issues(records, nodes)
     issues += _topology_issues(records, nodes)
     issues += _space_issues(system, nodes, records)
+    issues += _order_issues(nodes)
     issues += [issue for check in registered_checks() for issue in check(compilation)]
     if solver != 'auto':
         issues += _solver_issues(solver, records, system)

@@ -6,9 +6,9 @@
 from ...base import Form
 from .._census import register_owner
 from .._forms import register_combined, register_form
-from .._pipeline import register_check, register_pass
+from .._pipeline import register_pass
 from .._specs import register_binding
-from . import _control, _fields, _flows, _fractional, _kinetics, _lattices, _particles, _renewals, _topology
+from . import _control, _fields, _flows, _kinetics, _lattices, _particles, _renewals, _topology
 from ._census import CensusPass
 from ._collect import CollectPass
 from ._complex import LowerComplexPass
@@ -60,7 +60,6 @@ FORMALISM_PASSES = (
     *_flows.PASSES,
     *_particles.PASSES,
     *_topology.PASSES,
-    *_fractional.PASSES,
     *_fields.PASSES,
     *_kinetics.PASSES,
 )
@@ -78,7 +77,7 @@ OWNER_RULES = (
 
 
 def register_formalisms() -> None:
-    """Register the passes, forms, owner rules, bindings, and checks of the formalisms that still compile here.
+    """Register the passes, forms, owner rules, and bindings of the formalisms that still compile here.
 
     Each formalism registers its own contributions once its passes move into its package.
     """
@@ -92,8 +91,6 @@ def register_formalisms() -> None:
         register_owner(rule)
     for over, binding in _particles.BINDINGS.items():
         register_binding(over, binding)
-    for check in _fractional.CHECKS:
-        register_check(check)
 
 
 register_formalisms()

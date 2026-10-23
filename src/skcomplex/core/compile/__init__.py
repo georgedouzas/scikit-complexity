@@ -5,11 +5,12 @@ from ._census import Census, CensusRecord, OwnerRule, law_census, register_owner
 from ._compilation import BlockLaws, Compilation, Laws
 from ._compile import compile_system, partition_system
 from ._contractions import CompiledEncounter, TableValues
-from ._declarations import Block, Declarations
+from ._declarations import Block, Declarations, is_interaction
 from ._fields import mesh_laplacian, spectral_multiplier
 from ._forms import register_combined, register_form
 from ._hybrid import Breakpoints, CompiledEvent, Delay, EventRecord
-from ._issues import Issue, ValidationWarning
+from ._issues import Issue, ValidationWarning, names_of
+from ._kernels import Kernel, Lowered
 from ._lattices import (
     CompiledDrive,
     CompiledExtremal,
@@ -24,7 +25,7 @@ from ._lattices import (
 from ._layout import Entry, Layout
 from ._observables import ObservableEvaluator, observables_of, with_observables
 from ._pipeline import Check, Pass, order_passes, register_check, register_pass, registered_passes, run_passes
-from ._planner import Plan, PlannedPartition, plan_partitions
+from ._planner import Plan, PlannedPartition, plan_partitions, solver_classes
 from ._printing import NUMPY_DIALECT, SCALAR_DIALECT, Dialect, numpy_function, print_expressions
 from ._problem import (
     Accelerated,
@@ -47,9 +48,9 @@ from ._problem import (
     with_initial_state,
 )
 from ._quantities import CompiledFlow, CompiledObjective, LoopTerm, Recorded, StockFlow
-from ._specs import Binding, KernelSpec, register_binding
+from ._specs import Binding, KernelSpec, register_binding, state_name
 from ._system_passes import SystemPass, claiming_pass
-from ._tree import Node, coerce_value, flatten_system
+from ._tree import Node, coerce_value, declared_times, flatten_system
 from ._validation import ValidationReport, domain_kind, missing_declarations, validate
 from .passes._problem import visual_of
 
@@ -90,12 +91,14 @@ __all__: list[str] = [
     'Getter',
     'Issue',
     'JumpChannels',
+    'Kernel',
     'KernelSpec',
     'LatticeState',
     'LatticeStep',
     'Laws',
     'Layout',
     'LoopTerm',
+    'Lowered',
     'Lowering',
     'MarkovMatrix',
     'NetworkSnapshot',
@@ -122,12 +125,15 @@ __all__: list[str] = [
     'claiming_pass',
     'coerce_value',
     'compile_system',
+    'declared_times',
     'domain_kind',
     'flatten_system',
+    'is_interaction',
     'law_census',
     'load_backends',
     'mesh_laplacian',
     'missing_declarations',
+    'names_of',
     'numpy_function',
     'observables_of',
     'order_passes',
@@ -144,7 +150,9 @@ __all__: list[str] = [
     'registered_passes',
     'resolve_backend',
     'run_passes',
+    'solver_classes',
     'spectral_multiplier',
+    'state_name',
     'validate',
     'visual_of',
     'with_initial_state',

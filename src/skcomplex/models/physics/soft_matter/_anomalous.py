@@ -11,9 +11,10 @@ from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, state, vector
 from ....core.components import Element
-from ....core.laws import FractionalNoise, Jump, Law, Noise, Rate, Symbols, Update, draw, normal
+from ....core.formalisms.fractional import FractionalEulerMaruyama, FractionalNoise
+from ....core.laws import Jump, Law, Noise, Rate, Symbols, Update, draw, normal
 from ....core.runtime import register_model
-from ....core.solvers import RK4, EulerMaruyama, FractionalEulerMaruyama
+from ....core.solvers import RK4, EulerMaruyama
 from ....core.space import ContinuousSpace
 from ....core.system import System
 
