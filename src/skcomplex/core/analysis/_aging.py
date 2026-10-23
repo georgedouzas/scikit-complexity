@@ -16,6 +16,17 @@ type Array = npt.NDArray[np.float64]
 GRID = 50
 
 
+def _spread(curves: list[tuple[Array, Array]]) -> float:
+    """Return the largest difference between curves interpolated on the overlap of their abscissas."""
+    low = max(float(x.min()) for x, _ in curves)
+    high = min(float(x.max()) for x, _ in curves)
+    if low >= high:
+        return float('nan')
+    grid = np.linspace(low, high, GRID)
+    values = np.asarray([np.interp(grid, x, y) for x, y in curves])
+    return float(np.max(values.max(axis=0) - values.min(axis=0)))
+
+
 @analysis(DataKind.ENSEMBLE)
 def two_time_correlation(
     ensemble: npt.ArrayLike,
@@ -66,17 +77,6 @@ def two_time_correlation(
         row = np.mean(first * later, axis=(0, 2))
         rows.append(row - first.mean() * later.mean(axis=(0, 2)) if connected else row)
     return np.asarray(rows, dtype=float)
-
-
-def _spread(curves: list[tuple[Array, Array]]) -> float:
-    """Return the largest difference between curves interpolated on the overlap of their abscissas."""
-    low = max(float(x.min()) for x, _ in curves)
-    high = min(float(x.max()) for x, _ in curves)
-    if low >= high:
-        return float('nan')
-    grid = np.linspace(low, high, GRID)
-    values = np.asarray([np.interp(grid, x, y) for x, y in curves])
-    return float(np.max(values.max(axis=0) - values.min(axis=0)))
 
 
 @dataclass(frozen=True)

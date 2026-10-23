@@ -42,6 +42,101 @@ TURNS = (LEFT, RIGHT, REVERSE, PITCH_DOWN, PITCH_UP, ROLL_LEFT, ROLL_RIGHT)
 type Arrays = list[npt.NDArray[Any]]
 
 
+def _alphabet_of(word: Word, productions: Sequence[Production]) -> dict[str, int]:
+    """Return the arity of every symbol, declared or taken from the axiom and the productions."""
+    if isinstance(word.alphabet, Mapping):
+        return {str(name): int(arity) for name, arity in word.alphabet.items()}
+    declared = dict.fromkeys(word.alphabet, 0) if isinstance(word.alphabet, str) else {}
+    found: dict[str, int] = {}
+    parts: list[Any] = [word.axiom, *word.ignore]
+    for production in productions:
+        parts += [production.predecessor, production.successor, production.left or '', production.right or '']
+    for part in parts:
+        for module in parse_word(part, list(declared)):
+            found[module.name] = max(found.get(module.name, 0), len(module.parameters))
+    if word.alphabet is None:
+        return found
+    unknown = sorted(set(found) - set(declared))
+    if unknown:
+        error_msg = (
+            f'Word {word.label!r} uses the symbol {unknown[0]!r}, which is not in its alphabet {word.alphabet!r}.'
+        )
+        raise RewritingError(error_msg)
+    return {name: found.get(name, 0) for name in declared}
+
+
+def interpret(
+    geometry: 'WordGeometry',
+    actions: npt.NDArray[np.int64],
+    table: npt.NDArray[np.float64],
+    generation: int,
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.int64]]:
+    """Return the segments and branch depths a word geometry draws for the actions of the modules of a word.
+
+    Args:
+        geometry:
+            The word geometry.
+
+        actions:
+            The action code of every module.
+
+        table:
+            The parameters of every module, whose first column overrides the step or the angle.
+
+        generation:
+            The generation, which scales the step by the contraction.
+
+    Returns:
+        segments:
+            The segments of shape `(k, 2, d)`.
+
+        depths:
+            The branch depth of every segment.
+    """
+    step = geometry.step * geometry.contraction**generation
+    angle, heading = np.deg2rad(geometry.angle), np.deg2rad(geometry.heading)
+    values = table[:, 0].copy() if table.shape[1] else np.full(len(actions), np.nan)
+    turns = np.isin(actions, TURNS)
+    values[turns] = np.deg2rad(values[turns])
+    if geometry.dimension == 3 or np.isin(actions, (PUSH, POP)).any():  # noqa: PLR2004
+        segments, depths = walk_word(actions, values, step, angle, heading)
+        return segments[..., : geometry.dimension], depths
+    turn = np.where(np.isnan(values), angle, values)
+    turn = np.select([actions == LEFT, actions == RIGHT, actions == REVERSE], [turn, -turn, np.pi], 0.0)
+    headings = heading + np.cumsum(turn)
+    moves = (actions == DRAW) | (actions == MOVE)
+    lengths = np.where(moves, np.where(np.isnan(values), step, values), 0.0)
+    steps = lengths[:, None] * np.stack([np.cos(headings), np.sin(headings)], axis=1)
+    ends = np.cumsum(steps, axis=0)
+    drawn = actions == DRAW
+    segments = np.stack([(ends - steps)[drawn], ends[drawn]], axis=1)
+    return segments, np.zeros(len(segments), dtype=np.int64)
+
+
+@dataclass
+class _Group:
+    """Productions of one predecessor, context, and condition, one of which a matching module takes."""
+
+    code: int
+    left: tuple[int, ...]
+    right: tuple[int, ...]
+    condition: Callable[..., Arrays] | None
+    variables: int
+    successors: list[int] = field(default_factory=list)
+    probabilities: list[Callable[..., Arrays] | None] = field(default_factory=list)
+    rank: tuple[int, int, int] = (0, 0, 0)
+
+
+@dataclass
+class _Successor:
+    """Successor of a production, as symbol codes and the function of its parameters."""
+
+    codes: npt.NDArray[np.int64]
+    slots: list[tuple[int, int]]
+    values: Callable[..., Arrays] | None
+    variables: int
+
+
 @dataclass(frozen=True)
 class Parameters:
     """Parameter symbols of the rewriting interactions, in the order of the parameter vector.
@@ -92,53 +187,6 @@ class Parameters:
             )
             raise RewritingError(error_msg)
         return numpy_function(self.time, [*variables, *self.symbols], values)
-
-
-@dataclass
-class _Group:
-    """Productions of one predecessor, context, and condition, one of which a matching module takes."""
-
-    code: int
-    left: tuple[int, ...]
-    right: tuple[int, ...]
-    condition: Callable[..., Arrays] | None
-    variables: int
-    successors: list[int] = field(default_factory=list)
-    probabilities: list[Callable[..., Arrays] | None] = field(default_factory=list)
-    rank: tuple[int, int, int] = (0, 0, 0)
-
-
-@dataclass
-class _Successor:
-    """Successor of a production, as symbol codes and the function of its parameters."""
-
-    codes: npt.NDArray[np.int64]
-    slots: list[tuple[int, int]]
-    values: Callable[..., Arrays] | None
-    variables: int
-
-
-def _alphabet_of(word: Word, productions: Sequence[Production]) -> dict[str, int]:
-    """Return the arity of every symbol, declared or taken from the axiom and the productions."""
-    if isinstance(word.alphabet, Mapping):
-        return {str(name): int(arity) for name, arity in word.alphabet.items()}
-    declared = dict.fromkeys(word.alphabet, 0) if isinstance(word.alphabet, str) else {}
-    found: dict[str, int] = {}
-    parts: list[Any] = [word.axiom, *word.ignore]
-    for production in productions:
-        parts += [production.predecessor, production.successor, production.left or '', production.right or '']
-    for part in parts:
-        for module in parse_word(part, list(declared)):
-            found[module.name] = max(found.get(module.name, 0), len(module.parameters))
-    if word.alphabet is None:
-        return found
-    unknown = sorted(set(found) - set(declared))
-    if unknown:
-        error_msg = (
-            f'Word {word.label!r} uses the symbol {unknown[0]!r}, which is not in its alphabet {word.alphabet!r}.'
-        )
-        raise RewritingError(error_msg)
-    return {name: found.get(name, 0) for name in declared}
 
 
 class CompiledWord:
@@ -420,51 +468,3 @@ class CompiledWord:
             return WordStructure(self.names, codes, table, generation)
         segments, depths = interpret(self.geometry, self.actions[codes], table, generation)
         return WordStructure(self.names, codes, table, generation, segments=segments, depths=depths)
-
-
-def interpret(
-    geometry: 'WordGeometry',
-    actions: npt.NDArray[np.int64],
-    table: npt.NDArray[np.float64],
-    generation: int,
-) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.int64]]:
-    """Return the segments and branch depths a word geometry draws for the actions of the modules of a word.
-
-    Args:
-        geometry:
-            The word geometry.
-
-        actions:
-            The action code of every module.
-
-        table:
-            The parameters of every module, whose first column overrides the step or the angle.
-
-        generation:
-            The generation, which scales the step by the contraction.
-
-    Returns:
-        segments:
-            The segments of shape `(k, 2, d)`.
-
-        depths:
-            The branch depth of every segment.
-    """
-    step = geometry.step * geometry.contraction**generation
-    angle, heading = np.deg2rad(geometry.angle), np.deg2rad(geometry.heading)
-    values = table[:, 0].copy() if table.shape[1] else np.full(len(actions), np.nan)
-    turns = np.isin(actions, TURNS)
-    values[turns] = np.deg2rad(values[turns])
-    if geometry.dimension == 3 or np.isin(actions, (PUSH, POP)).any():  # noqa: PLR2004
-        segments, depths = walk_word(actions, values, step, angle, heading)
-        return segments[..., : geometry.dimension], depths
-    turn = np.where(np.isnan(values), angle, values)
-    turn = np.select([actions == LEFT, actions == RIGHT, actions == REVERSE], [turn, -turn, np.pi], 0.0)
-    headings = heading + np.cumsum(turn)
-    moves = (actions == DRAW) | (actions == MOVE)
-    lengths = np.where(moves, np.where(np.isnan(values), step, values), 0.0)
-    steps = lengths[:, None] * np.stack([np.cos(headings), np.sin(headings)], axis=1)
-    ends = np.cumsum(steps, axis=0)
-    drawn = actions == DRAW
-    segments = np.stack([(ends - steps)[drawn], ends[drawn]], axis=1)
-    return segments, np.zeros(len(segments), dtype=np.int64)

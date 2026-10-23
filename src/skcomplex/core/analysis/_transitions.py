@@ -22,6 +22,24 @@ def _paths(states: npt.ArrayLike) -> npt.NDArray[np.int64]:
     return array.reshape(1, -1) if array.ndim == 1 else array
 
 
+def _generator(matrix: npt.ArrayLike, *, rates: bool) -> Array:
+    """Return a rate matrix with diagonal minus the escape rates, or a transition matrix minus the identity."""
+    array = np.asarray(matrix, dtype=float)
+    if array.ndim != 2 or array.shape[0] != array.shape[1]:  # noqa: PLR2004
+        error_msg = f'A transition or rate matrix is square, not of shape {array.shape}.'
+        raise AnalysisError(error_msg)
+    if not rates:
+        return array - np.eye(array.shape[0])
+    off = array - np.diag(np.diag(array))
+    return off - np.diag(off.sum(axis=1))
+
+
+def _eigenvalues(matrix: npt.ArrayLike, *, rates: bool) -> npt.NDArray[np.complex128]:
+    """Return the eigenvalues of the generator, the stationary 0 first, then by falling real part."""
+    values = linalg.eigvals(_generator(matrix, rates=rates))
+    return values[np.argsort(-values.real)]
+
+
 @analysis(DataKind.PATH)
 def transition_counts(states: npt.ArrayLike, n_states: int | None = None, lag: int = 1) -> npt.NDArray[np.int64]:
     """Return the number of transitions from every state to every state after `lag` steps along discrete paths.
@@ -81,18 +99,6 @@ def transition_matrix(states: npt.ArrayLike, n_states: int | None = None, lag: i
     return counts / counts.sum(axis=1, keepdims=True)
 
 
-def _generator(matrix: npt.ArrayLike, *, rates: bool) -> Array:
-    """Return a rate matrix with diagonal minus the escape rates, or a transition matrix minus the identity."""
-    array = np.asarray(matrix, dtype=float)
-    if array.ndim != 2 or array.shape[0] != array.shape[1]:  # noqa: PLR2004
-        error_msg = f'A transition or rate matrix is square, not of shape {array.shape}.'
-        raise AnalysisError(error_msg)
-    if not rates:
-        return array - np.eye(array.shape[0])
-    off = array - np.diag(np.diag(array))
-    return off - np.diag(off.sum(axis=1))
-
-
 @analysis(DataKind.PATH)
 def stationary_distribution(matrix: npt.ArrayLike, *, rates: bool = False) -> Array:
     """Return the stationary distribution `pi` of a transition matrix, `pi P = pi`, or of a rate matrix, `pi Q = 0`.
@@ -121,12 +127,6 @@ def stationary_distribution(matrix: npt.ArrayLike, *, rates: bool = False) -> Ar
     null = linalg.null_space(generator.T, rcond=TOLERANCE)
     vector = np.abs(null[:, 0]) if null.size else np.abs(linalg.eig(generator.T)[1][:, 0].real)
     return vector / vector.sum()
-
-
-def _eigenvalues(matrix: npt.ArrayLike, *, rates: bool) -> npt.NDArray[np.complex128]:
-    """Return the eigenvalues of the generator, the stationary 0 first, then by falling real part."""
-    values = linalg.eigvals(_generator(matrix, rates=rates))
-    return values[np.argsort(-values.real)]
 
 
 @analysis(DataKind.PATH)

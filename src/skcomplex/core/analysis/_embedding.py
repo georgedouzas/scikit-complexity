@@ -16,6 +16,12 @@ from ._kinds import DataKind, analysis
 type Array = npt.NDArray[np.float64]
 
 
+def _first_minimum(values: Array) -> int:
+    """Return the index of the first local minimum, or of the global minimum without one."""
+    falls = np.flatnonzero((values[1:-1] <= values[:-2]) & (values[1:-1] < values[2:]))
+    return int(falls[0] + 1) if falls.size else int(values.argmin())
+
+
 @analysis(DataKind.SERIES)
 def delay_embedding(values: npt.ArrayLike, dimension: int, delay: int = 1) -> Array:
     """Return the delay vectors `(x_t, x_{t+delay}, ..., x_{t+(dimension-1) delay})` of a series.
@@ -80,12 +86,6 @@ def auto_mutual_information(values: npt.ArrayLike, max_delay: int = 100, bins: i
     return np.asarray(
         [mutual_information(symbols[: symbols.size - delay], symbols[delay:]) for delay in range(max_delay + 1)],
     )
-
-
-def _first_minimum(values: Array) -> int:
-    """Return the index of the first local minimum, or of the global minimum without one."""
-    falls = np.flatnonzero((values[1:-1] <= values[:-2]) & (values[1:-1] < values[2:]))
-    return int(falls[0] + 1) if falls.size else int(values.argmin())
 
 
 @analysis(DataKind.SERIES)

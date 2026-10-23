@@ -22,13 +22,6 @@ type Factor = tuple[str, 'LocalOperator']
 type Term = tuple[Factor, ...]
 
 
-def sparse_matrix(matrix: Any) -> sp.csr_array:  # noqa: ANN401
-    """Return a matrix, a QuTiP object, or an array as a complex sparse array."""
-    if isinstance(matrix, qutip.Qobj):
-        matrix = matrix.full()
-    return sp.csr_array(np.asarray(matrix.toarray() if sp.issparse(matrix) else matrix, dtype=complex))
-
-
 def _coefficient(value: object) -> Expression | None:
     """Return a number or a symbolic expression as a Sage expression, or `None` for any other value."""
     if isinstance(value, np.ndarray | Operator | str):
@@ -44,6 +37,13 @@ def _coefficient(value: object) -> Expression | None:
 def _added(terms: dict[Term, Expression], key: Term, coefficient: Expression) -> None:
     """Add a coefficient to the term of a key, in place."""
     terms[key] = terms[key] + coefficient if key in terms else coefficient
+
+
+def sparse_matrix(matrix: Any) -> sp.csr_array:  # noqa: ANN401
+    """Return a matrix, a QuTiP object, or an array as a complex sparse array."""
+    if isinstance(matrix, qutip.Qobj):
+        matrix = matrix.full()
+    return sp.csr_array(np.asarray(matrix.toarray() if sp.issparse(matrix) else matrix, dtype=complex))
 
 
 @dataclass(frozen=True)

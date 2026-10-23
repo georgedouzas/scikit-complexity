@@ -18,6 +18,32 @@ type Array = npt.NDArray[np.float64]
 MIN_SIZES = 2
 
 
+def _scaled(
+    grid: Array,
+    curves: Mapping[int, Array],
+    critical: float,
+    nu: float,
+    exponent: float,
+) -> list[tuple[Array, Array]]:
+    """Return every curve against `(p - p_c) L^(1/nu)` and scaled by `L^-exponent`."""
+    return [
+        ((grid - critical) * size ** (1 / nu), curve * float(size) ** (-exponent)) for size, curve in curves.items()
+    ]
+
+
+def _quality(scaled: list[tuple[Array, Array]]) -> float:
+    """Return the mean squared relative distance of every point to the other curves where they overlap."""
+    residuals = []
+    for (x, y), (u, v) in itertools.permutations(scaled, 2):
+        inside = (x >= u.min()) & (x <= u.max())
+        residuals.append((y[inside] - np.interp(x[inside], u, v)) ** 2)
+    joined = np.concatenate(residuals) if residuals else np.zeros(0)
+    if not joined.size:
+        return float('inf')
+    scale = np.mean(np.concatenate([y for _, y in scaled]) ** 2)
+    return float(joined.mean() / scale)
+
+
 @analysis(DataKind.FIELD)
 def binder_cumulant(samples: npt.ArrayLike) -> float:
     """Return the Binder cumulant `1 - <m^4> / (3 <m^2>^2)` of samples of an order parameter.
@@ -80,32 +106,6 @@ def binder_crossings(parameters: npt.ArrayLike, cumulants: Mapping[int, npt.Arra
         share = left / (left - right) if left != right else 0.0
         crossings.append(grid[index] + share * (grid[index + 1] - grid[index]))
     return np.asarray(crossings, dtype=float)
-
-
-def _scaled(
-    grid: Array,
-    curves: Mapping[int, Array],
-    critical: float,
-    nu: float,
-    exponent: float,
-) -> list[tuple[Array, Array]]:
-    """Return every curve against `(p - p_c) L^(1/nu)` and scaled by `L^-exponent`."""
-    return [
-        ((grid - critical) * size ** (1 / nu), curve * float(size) ** (-exponent)) for size, curve in curves.items()
-    ]
-
-
-def _quality(scaled: list[tuple[Array, Array]]) -> float:
-    """Return the mean squared relative distance of every point to the other curves where they overlap."""
-    residuals = []
-    for (x, y), (u, v) in itertools.permutations(scaled, 2):
-        inside = (x >= u.min()) & (x <= u.max())
-        residuals.append((y[inside] - np.interp(x[inside], u, v)) ** 2)
-    joined = np.concatenate(residuals) if residuals else np.zeros(0)
-    if not joined.size:
-        return float('inf')
-    scale = np.mean(np.concatenate([y for _, y in scaled]) ** 2)
-    return float(joined.mean() / scale)
 
 
 @dataclass(frozen=True)

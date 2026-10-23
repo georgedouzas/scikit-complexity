@@ -19,68 +19,6 @@ MIN_TAIL = 10
 ALTERNATIVES = ('exponential', 'lognormal', 'stretched_exponential', 'truncated_power_law')
 
 
-@analysis(DataKind.SERIES)
-def histogram(values: npt.ArrayLike, bins: int = 30, *, log: bool = False) -> tuple[Array, Array]:
-    """Return the edges and the probability density of a histogram, with logarithmic bins for heavy tails.
-
-    Args:
-        values:
-            The samples.
-
-        bins:
-            The number of bins.
-
-        log:
-            Whether the bins are equally spaced in the logarithm of the values, which needs positive values.
-
-    Returns:
-        histogram:
-            The bin edges and the density in every bin.
-
-    Raises:
-        AnalysisError:
-            Logarithmic bins are asked for samples that are not all positive.
-
-    Examples:
-        >>> from skcomplex.core.analysis import histogram
-        >>> edges, density = histogram([1, 2, 4, 8], bins=3, log=True)
-        >>> edges.round(2).tolist()
-        [1.0, 2.0, 4.0, 8.0]
-    """
-    array = real_array(values, 'values')
-    if log:
-        if np.any(array <= 0):
-            error_msg = 'Logarithmic bins need positive values. Drop zeros or use linear bins.'
-            raise AnalysisError(error_msg)
-        edges = np.logspace(np.log10(array.min()), np.log10(array.max()), bins + 1)
-    else:
-        edges = np.linspace(array.min(), array.max(), bins + 1)
-    density, edges = np.histogram(array, bins=edges, density=True)
-    return edges, density
-
-
-@analysis(DataKind.SERIES)
-def ccdf(values: npt.ArrayLike) -> tuple[Array, Array]:
-    """Return the complementary cumulative distribution, the share of samples at or above each distinct value.
-
-    Args:
-        values:
-            The samples.
-
-    Returns:
-        ccdf:
-            The sorted distinct values and `P(X >= x)` at each of them.
-
-    Examples:
-        >>> from skcomplex.core.analysis import ccdf
-        >>> ccdf([1, 1, 2, 4])[1].tolist()
-        [1.0, 0.5, 0.25]
-    """
-    array = np.sort(real_array(values, 'values'))
-    distinct, first = np.unique(array, return_index=True)
-    return distinct, 1 - first / array.size
-
-
 def _fit_at(array: Array, xmin: float, xmax: float | None, *, discrete: bool) -> powerlaw.Fit:
     """Return the maximum-likelihood power law of the samples between the cutoffs."""
     return powerlaw.Fit(
@@ -219,6 +157,68 @@ def _fit_power_law(
         p_value = exceed / bootstrap
     comparisons = {name: _comparison(fit, name) for name in ALTERNATIVES}
     return PowerLawFit(alpha, cutoff, distance, p_value, int(tail.size), comparisons, xmax)
+
+
+@analysis(DataKind.SERIES)
+def histogram(values: npt.ArrayLike, bins: int = 30, *, log: bool = False) -> tuple[Array, Array]:
+    """Return the edges and the probability density of a histogram, with logarithmic bins for heavy tails.
+
+    Args:
+        values:
+            The samples.
+
+        bins:
+            The number of bins.
+
+        log:
+            Whether the bins are equally spaced in the logarithm of the values, which needs positive values.
+
+    Returns:
+        histogram:
+            The bin edges and the density in every bin.
+
+    Raises:
+        AnalysisError:
+            Logarithmic bins are asked for samples that are not all positive.
+
+    Examples:
+        >>> from skcomplex.core.analysis import histogram
+        >>> edges, density = histogram([1, 2, 4, 8], bins=3, log=True)
+        >>> edges.round(2).tolist()
+        [1.0, 2.0, 4.0, 8.0]
+    """
+    array = real_array(values, 'values')
+    if log:
+        if np.any(array <= 0):
+            error_msg = 'Logarithmic bins need positive values. Drop zeros or use linear bins.'
+            raise AnalysisError(error_msg)
+        edges = np.logspace(np.log10(array.min()), np.log10(array.max()), bins + 1)
+    else:
+        edges = np.linspace(array.min(), array.max(), bins + 1)
+    density, edges = np.histogram(array, bins=edges, density=True)
+    return edges, density
+
+
+@analysis(DataKind.SERIES)
+def ccdf(values: npt.ArrayLike) -> tuple[Array, Array]:
+    """Return the complementary cumulative distribution, the share of samples at or above each distinct value.
+
+    Args:
+        values:
+            The samples.
+
+    Returns:
+        ccdf:
+            The sorted distinct values and `P(X >= x)` at each of them.
+
+    Examples:
+        >>> from skcomplex.core.analysis import ccdf
+        >>> ccdf([1, 1, 2, 4])[1].tolist()
+        [1.0, 0.5, 0.25]
+    """
+    array = np.sort(real_array(values, 'values'))
+    distinct, first = np.unique(array, return_index=True)
+    return distinct, 1 - first / array.size
 
 
 @analysis(DataKind.SERIES)

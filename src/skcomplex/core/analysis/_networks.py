@@ -24,6 +24,22 @@ HEAVY_TAIL = 5
 FIT_CANDIDATES = 20
 
 
+def _degree_exponent(graph: nx.Graph) -> float:
+    """Return the fitted exponent of a heavy-tailed degree distribution, or `nan` for a small or narrow one."""
+    values = degrees(graph)
+    if values.size < MIN_FIT_NODES or values.max() < HEAVY_TAIL * max(values.mean(), 1.0):
+        return float('nan')
+    return fit_power_law(values[values > 0], discrete=True, bootstrap=0, candidates=FIT_CANDIDATES).alpha
+
+
+def _safe_assortativity(graph: nx.Graph) -> float:
+    """Return the degree assortativity, or `nan` when every node has the same degree."""
+    values = degrees(graph)
+    if values.size < 2 or values.min() == values.max():  # noqa: PLR2004
+        return float('nan')
+    return float(nx.degree_assortativity_coefficient(graph))
+
+
 def as_graph(network: object) -> nx.Graph:
     """Return the NetworkX graph of a graph, a network space, or a snapshot of a changing network.
 
@@ -50,6 +66,27 @@ def as_graph(network: object) -> nx.Graph:
         return graph
     error_msg = f'A network is a NetworkX graph, a network space, or a snapshot, not {type(network).__name__}.'
     raise AnalysisError(error_msg)
+
+
+@analysis(DataKind.NETWORK)
+def degrees(network: object) -> npt.NDArray[np.int64]:
+    """Return the degree of every node, in node order.
+
+    Args:
+        network:
+            A NetworkX graph or a network space.
+
+    Returns:
+        degrees:
+            The degrees.
+
+    Examples:
+        >>> import networkx as nx
+        >>> from skcomplex.core.analysis import degrees
+        >>> degrees(nx.star_graph(3)).tolist()
+        [3, 1, 1, 1]
+    """
+    return np.asarray([degree for _, degree in as_graph(network).degree()], dtype=int)
 
 
 @dataclass(frozen=True)
@@ -86,27 +123,6 @@ class NetworkSummary:
     path_length: float
     diameter: int
     components: list[int]
-
-
-@analysis(DataKind.NETWORK)
-def degrees(network: object) -> npt.NDArray[np.int64]:
-    """Return the degree of every node, in node order.
-
-    Args:
-        network:
-            A NetworkX graph or a network space.
-
-    Returns:
-        degrees:
-            The degrees.
-
-    Examples:
-        >>> import networkx as nx
-        >>> from skcomplex.core.analysis import degrees
-        >>> degrees(nx.star_graph(3)).tolist()
-        [3, 1, 1, 1]
-    """
-    return np.asarray([degree for _, degree in as_graph(network).degree()], dtype=int)
 
 
 @analysis(DataKind.NETWORK)
@@ -339,22 +355,6 @@ def communities(
         return Communities(labels, modularity, None)
     truth = [graph.nodes[node][reference] for node in graph.nodes()] if isinstance(reference, str) else reference
     return Communities(labels, modularity, float(normalized_mutual_info_score(list(truth), labels)))
-
-
-def _degree_exponent(graph: nx.Graph) -> float:
-    """Return the fitted exponent of a heavy-tailed degree distribution, or `nan` for a small or narrow one."""
-    values = degrees(graph)
-    if values.size < MIN_FIT_NODES or values.max() < HEAVY_TAIL * max(values.mean(), 1.0):
-        return float('nan')
-    return fit_power_law(values[values > 0], discrete=True, bootstrap=0, candidates=FIT_CANDIDATES).alpha
-
-
-def _safe_assortativity(graph: nx.Graph) -> float:
-    """Return the degree assortativity, or `nan` when every node has the same degree."""
-    values = degrees(graph)
-    if values.size < 2 or values.min() == values.max():  # noqa: PLR2004
-        return float('nan')
-    return float(nx.degree_assortativity_coefficient(graph))
 
 
 @analysis(DataKind.NETWORK)

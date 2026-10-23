@@ -109,6 +109,35 @@ def _shifted(element: Any, base: Any) -> Any:  # noqa: ANN401
     return tuple(first + second for first, second in zip(base, element, strict=True))
 
 
+class _Clauses:
+    """Clauses of a SAT problem over one-hot variables of site values."""
+
+    def __init__(self) -> None:
+        self.clauses: list[list[int]] = []
+        self.count = 0
+
+    def one_hot(self, sites: int, states: int, *, exactly: bool = True) -> npt.NDArray[np.int64]:
+        """Return one variable per site and value, with exactly one, or at most one, true per site."""
+        variables = np.arange(self.count + 1, self.count + 1 + sites * states, dtype=np.int64).reshape(sites, states)
+        self.count += sites * states
+        for row in variables.tolist():
+            if exactly:
+                self.clauses.append(row)
+            self.clauses += [[-first, -second] for first, second in itertools.combinations(row, 2)]
+        return variables
+
+    def fresh(self) -> int:
+        """Return a new variable."""
+        self.count += 1
+        return self.count
+
+    def solve(self) -> list[int] | None:
+        """Return a model of the clauses, or `None` when they are unsatisfiable."""
+        solvers = module('pysat.solvers')
+        with solvers.Solver(name=SAT_SOLVER, bootstrap_with=self.clauses) as solver:
+            return solver.get_model() if solver.solve() else None
+
+
 @dataclass(frozen=True)
 class Automaton:
     """Cellular automaton on a finite universe: a periodic lattice, a finite quotient of a group, or a ball.
@@ -219,35 +248,6 @@ class Automaton:
         return np.stack(rows)
 
 
-class _Clauses:
-    """Clauses of a SAT problem over one-hot variables of site values."""
-
-    def __init__(self) -> None:
-        self.clauses: list[list[int]] = []
-        self.count = 0
-
-    def one_hot(self, sites: int, states: int, *, exactly: bool = True) -> npt.NDArray[np.int64]:
-        """Return one variable per site and value, with exactly one, or at most one, true per site."""
-        variables = np.arange(self.count + 1, self.count + 1 + sites * states, dtype=np.int64).reshape(sites, states)
-        self.count += sites * states
-        for row in variables.tolist():
-            if exactly:
-                self.clauses.append(row)
-            self.clauses += [[-first, -second] for first, second in itertools.combinations(row, 2)]
-        return variables
-
-    def fresh(self) -> int:
-        """Return a new variable."""
-        self.count += 1
-        return self.count
-
-    def solve(self) -> list[int] | None:
-        """Return a model of the clauses, or `None` when they are unsatisfiable."""
-        solvers = module('pysat.solvers')
-        with solvers.Solver(name=SAT_SOLVER, bootstrap_with=self.clauses) as solver:
-            return solver.get_model() if solver.solve() else None
-
-
 def _rule_clauses(
     clauses: _Clauses,
     automaton: Automaton,
@@ -325,6 +325,25 @@ def _images(automaton: Automaton) -> tuple[Codes, Codes]:
     """Return every configuration and the code of its image."""
     configurations = _configurations(automaton.states, automaton.size)
     return configurations, _codes(automaton.step(configurations), automaton.states)
+
+
+def _ball_neighborhood(automaton: Automaton, radius: int) -> Reach:
+    """Return the neighbourhood of every cell within a radius, a box of offsets or a ball of group elements."""
+    if isinstance(automaton.space, LatticeSpace) and not isinstance(automaton.neighborhood, Neighborhood):
+        error_msg = 'An inverse is searched on a lattice with a neighbourhood of offsets or on a group space.'
+        raise AnalysisError(error_msg)
+    return automaton.space.compute_ball(radius)
+
+
+def _field_of(field: str) -> Any:  # noqa: ANN401
+    """Return the Sage field of `'GF(p)'` or `'QQ'`."""
+    if field == 'QQ':
+        return QQ
+    text = field.replace(' ', '')
+    if text.startswith('GF(') and text.endswith(')') and text[3:-1].isdigit():
+        return GF(int(text[3:-1]))
+    error_msg = f"Unknown field {field!r}. Use 'QQ' or 'GF(p)' for a prime p."
+    raise AnalysisError(error_msg)
 
 
 def is_injective(automaton: Automaton, *, method: str = 'auto') -> bool:
@@ -478,14 +497,6 @@ def garden_of_eden(
     return None
 
 
-def _ball_neighborhood(automaton: Automaton, radius: int) -> Reach:
-    """Return the neighbourhood of every cell within a radius, a box of offsets or a ball of group elements."""
-    if isinstance(automaton.space, LatticeSpace) and not isinstance(automaton.neighborhood, Neighborhood):
-        error_msg = 'An inverse is searched on a lattice with a neighbourhood of offsets or on a group space.'
-        raise AnalysisError(error_msg)
-    return automaton.space.compute_ball(radius)
-
-
 def inverse(automaton: Automaton, max_radius: int = 2) -> Automaton | None:
     """Return an automaton whose composition with a reversible automaton is the identity, with the smallest memory.
 
@@ -532,22 +543,6 @@ def inverse(automaton: Automaton, max_radius: int = 2) -> Automaton | None:
         mapping = {tuple(int(item) for item in rows[code]): int(value) for code, value in pairs}
         return Automaton(automaton.space, candidate.reads, Table(mapping, states=automaton.states), automaton.states)
     return None
-
-
-@dataclass(frozen=True)
-class _ComposedRule:
-    """Rule of the composition of two automata, on the composite neighbourhood."""
-
-    first: Codes
-    second: Codes
-    columns: tuple[tuple[int, ...], ...]
-    states: int
-
-    def __call__(self, *values: npt.NDArray[Any]) -> npt.NDArray[np.int64]:
-        """Return the value of the second rule on the values of the first rule around every cell."""
-        cells = np.stack([np.asarray(value, dtype=np.int64) for value in values], axis=-1)
-        inner = [self.first[_codes(cells[..., list(columns)], self.states)] for columns in self.columns]
-        return self.second[_codes(np.stack(inner, axis=-1), self.states)]
 
 
 def compose(first: Automaton, second: Automaton) -> Automaton:
@@ -897,15 +892,20 @@ def configuration_entropy(
     return np.asarray(entropies) / np.log(base)
 
 
-def _field_of(field: str) -> Any:  # noqa: ANN401
-    """Return the Sage field of `'GF(p)'` or `'QQ'`."""
-    if field == 'QQ':
-        return QQ
-    text = field.replace(' ', '')
-    if text.startswith('GF(') and text.endswith(')') and text[3:-1].isdigit():
-        return GF(int(text[3:-1]))
-    error_msg = f"Unknown field {field!r}. Use 'QQ' or 'GF(p)' for a prime p."
-    raise AnalysisError(error_msg)
+@dataclass(frozen=True)
+class _ComposedRule:
+    """Rule of the composition of two automata, on the composite neighbourhood."""
+
+    first: Codes
+    second: Codes
+    columns: tuple[tuple[int, ...], ...]
+    states: int
+
+    def __call__(self, *values: npt.NDArray[Any]) -> npt.NDArray[np.int64]:
+        """Return the value of the second rule on the values of the first rule around every cell."""
+        cells = np.stack([np.asarray(value, dtype=np.int64) for value in values], axis=-1)
+        inner = [self.first[_codes(cells[..., list(columns)], self.states)] for columns in self.columns]
+        return self.second[_codes(np.stack(inner, axis=-1), self.states)]
 
 
 @dataclass(frozen=True)

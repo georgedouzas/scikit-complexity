@@ -27,6 +27,16 @@ def _unit_vectors(headings: npt.ArrayLike, *, vectors: bool) -> Array:
     return array / np.where(norms > 0, norms, 1.0)
 
 
+def _tree(positions: npt.ArrayLike, box: npt.ArrayLike | None) -> tuple[Array, cKDTree]:
+    """Return the positions and their tree, periodic in a box when one is given."""
+    array = np.asarray(positions, dtype=float)
+    array = array.reshape(array.shape[0], -1)
+    if box is None:
+        return array, cKDTree(array)
+    sides = np.asarray(box, dtype=float)
+    return np.mod(array, sides), cKDTree(np.mod(array, sides), boxsize=sides)
+
+
 @analysis(DataKind.AGENTS)
 def polar_order(headings: npt.ArrayLike, *, vectors: bool = False) -> Array | float:
     """Return the polar order, the length of the mean heading, of one snapshot or of every frame.
@@ -186,16 +196,6 @@ def maxwell_boltzmann_test(
     law = stats.chi(df=array.shape[-1], scale=math.sqrt(chosen / mass))
     test = stats.kstest(speeds, law.cdf)
     return GoodnessOfFit('maxwell-boltzmann', {'temperature': chosen}, float(test.statistic), float(test.pvalue))
-
-
-def _tree(positions: npt.ArrayLike, box: npt.ArrayLike | None) -> tuple[Array, cKDTree]:
-    """Return the positions and their tree, periodic in a box when one is given."""
-    array = np.asarray(positions, dtype=float)
-    array = array.reshape(array.shape[0], -1)
-    if box is None:
-        return array, cKDTree(array)
-    sides = np.asarray(box, dtype=float)
-    return np.mod(array, sides), cKDTree(np.mod(array, sides), boxsize=sides)
 
 
 @analysis(DataKind.AGENTS)

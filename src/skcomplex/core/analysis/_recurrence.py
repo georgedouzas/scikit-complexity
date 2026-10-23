@@ -36,6 +36,22 @@ def _radius_for_rate(array: Array, rate: float, random_state: int | None) -> flo
     return float(np.quantile(np.linalg.norm(array[first] - array[second], axis=1), rate))
 
 
+def _run_lengths(keys: npt.NDArray[np.int64], positions: npt.NDArray[np.int64]) -> npt.NDArray[np.int64]:
+    """Return the lengths of runs of consecutive positions that share a key."""
+    if not keys.size:
+        return np.zeros(0, dtype=np.int64)
+    order = np.lexsort((positions, keys))
+    keys, positions = keys[order], positions[order]
+    breaks = np.flatnonzero((np.diff(keys) != 0) | (np.diff(positions) != 1)) + 1
+    edges = np.concatenate([[0], breaks, [keys.size]])
+    return np.diff(edges)
+
+
+def _line_share(lengths: npt.NDArray[np.int64], minimum: int, total: int) -> float:
+    """Return the share of recurrent points on lines at least `minimum` long."""
+    return float(lengths[lengths >= minimum].sum() / total) if total else 0.0
+
+
 @analysis(DataKind.SERIES)
 def recurrence_matrix(
     points: npt.ArrayLike,
@@ -76,22 +92,6 @@ def recurrence_matrix(
     rows = np.concatenate([pairs[:, 0], pairs[:, 1], np.arange(size)])
     columns = np.concatenate([pairs[:, 1], pairs[:, 0], np.arange(size)])
     return sparse.csr_array((np.ones(rows.size, dtype=bool), (rows, columns)), shape=(size, size))
-
-
-def _run_lengths(keys: npt.NDArray[np.int64], positions: npt.NDArray[np.int64]) -> npt.NDArray[np.int64]:
-    """Return the lengths of runs of consecutive positions that share a key."""
-    if not keys.size:
-        return np.zeros(0, dtype=np.int64)
-    order = np.lexsort((positions, keys))
-    keys, positions = keys[order], positions[order]
-    breaks = np.flatnonzero((np.diff(keys) != 0) | (np.diff(positions) != 1)) + 1
-    edges = np.concatenate([[0], breaks, [keys.size]])
-    return np.diff(edges)
-
-
-def _line_share(lengths: npt.NDArray[np.int64], minimum: int, total: int) -> float:
-    """Return the share of recurrent points on lines at least `minimum` long."""
-    return float(lengths[lengths >= minimum].sum() / total) if total else 0.0
 
 
 @dataclass(frozen=True)

@@ -85,6 +85,25 @@ def _three_node_counts(graph: nx.Graph) -> dict[str, int]:
     return {'path': int(wedges - 3 * triangles), 'triangle': int(triangles)}
 
 
+def _null_graph(graph: nx.Graph, null: str, rng: np.random.Generator) -> nx.Graph:
+    """Return a random graph with the degrees of a graph, by edge switches or by the configuration model."""
+    seed = int(rng.integers(2**31))
+    swaps = SWAPS_PER_EDGE * graph.number_of_edges()
+    if null == 'switch' and graph.is_directed():
+        return nx.directed_edge_swap(graph.copy(), nswap=swaps, max_tries=100 * swaps, seed=seed)
+    if null == 'switch':
+        return nx.double_edge_swap(graph.copy(), nswap=swaps, max_tries=100 * swaps, seed=seed)
+    if graph.is_directed():
+        ins = [degree for _, degree in graph.in_degree()]
+        outs = [degree for _, degree in graph.out_degree()]
+        multigraph = nx.directed_configuration_model(ins, outs, seed=seed)
+        simple = nx.DiGraph(multigraph)
+    else:
+        simple = nx.Graph(nx.configuration_model([degree for _, degree in graph.degree()], seed=seed))
+    simple.remove_edges_from(nx.selfloop_edges(simple))
+    return simple
+
+
 @analysis(DataKind.NETWORK)
 def motif_counts(network: object, size: int = 3) -> dict[str, int]:
     """Return the number of connected induced subgraphs of three or four nodes of every kind in a network.
@@ -122,25 +141,6 @@ def motif_counts(network: object, size: int = 3) -> dict[str, int]:
     if size == 3:  # noqa: PLR2004
         return _three_node_counts(graph)
     return dict(Counter(_four_node_name(graph, nodes) for nodes in _connected_sets(graph, size)))
-
-
-def _null_graph(graph: nx.Graph, null: str, rng: np.random.Generator) -> nx.Graph:
-    """Return a random graph with the degrees of a graph, by edge switches or by the configuration model."""
-    seed = int(rng.integers(2**31))
-    swaps = SWAPS_PER_EDGE * graph.number_of_edges()
-    if null == 'switch' and graph.is_directed():
-        return nx.directed_edge_swap(graph.copy(), nswap=swaps, max_tries=100 * swaps, seed=seed)
-    if null == 'switch':
-        return nx.double_edge_swap(graph.copy(), nswap=swaps, max_tries=100 * swaps, seed=seed)
-    if graph.is_directed():
-        ins = [degree for _, degree in graph.in_degree()]
-        outs = [degree for _, degree in graph.out_degree()]
-        multigraph = nx.directed_configuration_model(ins, outs, seed=seed)
-        simple = nx.DiGraph(multigraph)
-    else:
-        simple = nx.Graph(nx.configuration_model([degree for _, degree in graph.degree()], seed=seed))
-    simple.remove_edges_from(nx.selfloop_edges(simple))
-    return simple
 
 
 @dataclass(frozen=True)
