@@ -13,9 +13,10 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, matrix, solve
 from scipy.optimize import root
 
-from ..base import AnalysisError, Expression, Form, components_of, declare_domains
+from ..base import AnalysisError, Expression, Form, components_of
 from ..compile import Problem, compile_system
 from ..system import System
+from ._assumptions import declare_domains
 from ._groups import expand_groups
 
 ZERO = 1e-9

@@ -8,9 +8,9 @@ from dataclasses import dataclass, field
 from sage.all__sagemath_symbolics import SR
 
 from ..base import Expression, SymbolicVector, ValidationError, domain_of, symbol, vector
-from ..laws import shift_arguments
 from ..space import LatticeSpace, Neighborhood
 from ._kernels import LATTICE_BOUNDARIES, MODES, NeighborRead, Reference, Source
+from ._shifts import shift_arguments
 
 SHIFT_NAME = 'shift_member'
 

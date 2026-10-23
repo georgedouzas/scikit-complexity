@@ -16,7 +16,6 @@ from ..base import (
     Variable,
     declaration_of,
     declared_fields,
-    default_of,
     parameter,
     role,
     state,
@@ -28,6 +27,12 @@ UNSET = (inspect.Parameter.empty, dataclasses.MISSING)
 def _is_required(field: Any) -> bool:  # noqa: ANN401
     """Check whether a declared field has no default."""
     return field.default is dataclasses.MISSING and field.default_factory is dataclasses.MISSING
+
+
+def _default_of(field: Any) -> Any:  # noqa: ANN401
+    """Return the default value a declared field carries, a fresh copy for a mutable default."""
+    factory = field.default_factory
+    return factory() if callable(factory) else field.default
 
 
 def _is_declaration(value: object) -> bool:
@@ -108,7 +113,7 @@ class Component(BaseEstimator):
             raise ArgumentError(error_msg)
         self.label = label
         for name, field in fields.items():
-            setattr(self, name, values[name] if name in values else default_of(field))
+            setattr(self, name, values[name] if name in values else _default_of(field))
 
     @classmethod
     def _fields(cls) -> dict[str, Any]:
@@ -212,7 +217,7 @@ class Component(BaseEstimator):
         """
         fields = cls._fields()
         if name in fields:
-            return default_of(fields[name])
+            return _default_of(fields[name])
         setting = cls._settings().get(name)
         if setting is None or setting.default is inspect.Parameter.empty:
             error_msg = f'{cls.__name__} has no default for {name!r}.'
@@ -261,7 +266,7 @@ class Component(BaseEstimator):
     def __repr__(self, N_CHAR_MAX: int = 700) -> str:
         """Return the type, the label, and the arguments that differ from their defaults."""
         defaults = {name: item.default for name, item in type(self)._settings().items()}
-        defaults.update({name: default_of(field) for name, field in type(self)._fields().items()})
+        defaults.update({name: _default_of(field) for name, field in type(self)._fields().items()})
         shown = [
             f'{name}={value!r}'
             for name, value in self.get_params(deep=False).items()

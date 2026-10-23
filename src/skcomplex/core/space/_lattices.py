@@ -65,6 +65,7 @@ class LatticeSpace(SiteSpace['Neighborhood']):
     """
 
     space_kind: ClassVar[SpaceKind] = SpaceKind.LATTICE
+    boundaries: ClassVar[tuple[str, ...]] = BOUNDARIES
 
     def __init__(
         self,

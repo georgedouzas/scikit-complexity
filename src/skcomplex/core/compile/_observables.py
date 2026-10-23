@@ -22,7 +22,6 @@ from ..base import (
     ValidationError,
     VariableKind,
     declarations_of,
-    real_components_of,
     symbol,
     symbols_of,
     vector,
@@ -37,6 +36,7 @@ from ._layout import Entry
 from ._printing import numpy_function
 from ._problem import Getter, Problem, Vector
 from ._quantities import Recorded
+from ._real_parts import real_components_of
 from ._reductions import CompiledReduction, Read, ReductionPass
 from ._specs import Observed
 from ._tree import Node

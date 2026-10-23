@@ -11,9 +11,10 @@ from typing import Any
 from sage.all__sagemath_symbolics import SR, desolve, desolve_laplace, desolve_system, diff, function
 from sage.symbolic.function_factory import function as formal_function
 
-from ..base import AnalysisError, Expression, Form, components_of, declare_domains
+from ..base import AnalysisError, Expression, Form, components_of
 from ..compile import Problem, compile_system
 from ..system import System
+from ._assumptions import declare_domains
 from ._fractional import mittag_leffler
 
 UNEVALUATED = frozenset({'ilt', 'laplace', 'integrate', 'integral'})

@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import SR, floor
 from sage.symbolic.function import BuiltinFunction
 
 from ..base import Expression, ValidationError
-from ..space._lattices import BOUNDARIES
+from ..space import LatticeSpace
 from ._draws import draws_in
 
 
@@ -395,35 +395,14 @@ def shift_member(
         >>> shift_member(x, 0)
         x
     """
-    if boundary not in BOUNDARIES or isinstance(offset, bool) or not isinstance(offset, numbers.Integral):
+    boundaries = LatticeSpace.boundaries
+    if boundary not in boundaries or isinstance(offset, bool) or not isinstance(offset, numbers.Integral):
         error_msg = (
-            f'shift_member takes a whole number of members and a boundary among {", ".join(BOUNDARIES)}, but '
+            f'shift_member takes a whole number of members and a boundary among {", ".join(boundaries)}, but '
             f'got the offset {offset!r} and the boundary {boundary!r}.'
         )
         raise ValidationError(error_msg)
-    return SHIFT_MEMBER(expression, int(offset), BOUNDARIES.index(boundary), float(fill))
-
-
-def shift_arguments(call: Expression) -> tuple[Expression, int, str, float]:
-    """Return the expression, the offset, the boundary, and the fill of a member offset read.
-
-    Args:
-        call:
-            A call returned by `shift_member`.
-
-    Returns:
-        arguments:
-            The expression of member symbols, the number of members along the group order, the boundary, and the
-            value read past the ends of a fixed boundary.
-
-    Examples:
-        >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import shift_arguments, shift_member
-        >>> shift_arguments(shift_member(symbol('x'), -2, boundary='fixed', fill=1.0))
-        (x, -2, 'fixed', 1.0)
-    """
-    expression, offset, boundary, fill = call.operands()
-    return expression, int(offset), BOUNDARIES[int(boundary)], float(fill)
+    return SHIFT_MEMBER(expression, int(offset), boundaries.index(boundary), float(fill))
 
 
 def step(t: Expression, at: float, height: float = 1.0) -> Expression:

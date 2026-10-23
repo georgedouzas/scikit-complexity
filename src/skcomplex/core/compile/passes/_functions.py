@@ -12,7 +12,7 @@ from typing import cast
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ...base import BackendWarning, Domain, Expression, Form, real_components_of, wrap_angle
+from ...base import BackendWarning, Domain, Expression, Form, wrap_angle
 from ...laws import Jump, Law, Noise, Rate, Update
 from .._backends import Backend, Lowering, resolve_backend
 from .._compilation import Compilation
@@ -22,6 +22,7 @@ from .._kernels import Kernel, Lowered, Output, Source
 from .._layout import Layout
 from .._pipeline import Pass
 from .._problem import Accelerated, Vector, VectorFunction
+from .._real_parts import real_components_of
 from .._reductions import ReductionPass
 from .._stochastic import DrawLowering, stochastic_update
 

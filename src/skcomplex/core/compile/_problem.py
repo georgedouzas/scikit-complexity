@@ -20,7 +20,6 @@ from ..base import (
     VariableKind,
     VisualSpec,
     declarations_of,
-    real_components_of,
 )
 from ..components import Element, Group
 from ..interactions import Interaction
@@ -30,6 +29,7 @@ from ..system import Observable, System
 from ._hybrid import Breakpoints, CompiledEvent, Delay
 from ._layout import Layout
 from ._quantities import CompiledObjective, StockFlow
+from ._real_parts import real_components_of
 from ._reductions import CompiledReduction
 
 ROW_TOLERANCE = 1e-9

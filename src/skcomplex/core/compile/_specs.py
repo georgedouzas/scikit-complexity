@@ -23,7 +23,6 @@ from ..base import (
     VariableKind,
     components_of,
     declarations_of,
-    real_components_of,
     symbol,
     vector,
 )
@@ -32,6 +31,7 @@ from ..laws import Jump, Law, Symbols, has_reductions, neighbourhoods_in, reduct
 from ..space import NetworkSpace, SiteSpace, Space, neighbour_pairs
 from ._declarations import ACTIVE, ENDS, Block, Declarations, is_interaction
 from ._kernels import EdgeSearch, Reference, Search, Source
+from ._real_parts import real_components_of
 from ._tree import Node
 
 MEMBER_REFERENCE = re.compile(r'^(?P<path>.+)\[(?P<index>-?\d+)\]$')

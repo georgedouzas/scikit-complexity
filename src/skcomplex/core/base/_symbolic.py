@@ -3,20 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 from typing import Any
 
-from sage.all__sagemath_symbolics import SR, I
+from sage.all__sagemath_symbolics import SR
 from sage.all__sagemath_symbolics import vector as sage_vector
 from sage.modules.free_module_element import FreeModuleElement as SymbolicVector
-from sage.symbolic.assumptions import assume, forget
 from sage.symbolic.expression import Expression
 
-from ._domains import AnyDomain, Categorical, Domain
+from ._domains import AnyDomain, Domain
 
 _DOMAINS: dict[str, AnyDomain] = {}
-_DECLARED: set[str] = set()
-_SIGNS: dict[str, Expression] = {}
 
 
 def symbol(name: str, domain: AnyDomain = Domain.REAL) -> Expression:
@@ -25,7 +22,7 @@ def symbol(name: str, domain: AnyDomain = Domain.REAL) -> Expression:
     The symbol is declared real or integer without Maxima, which Sage would otherwise load to record the domain, so
     compiling stays fast. A symbol of the complex domain is left undeclared, which Sage treats as complex. Sage keeps
     one symbol per name, so a name declared before with another domain is redeclared.
-    `declare_domains` gives Maxima the full domains before an exact solution.
+    The symbolic analysis gives Maxima the full domains before an exact solution.
 
     Args:
         name:
@@ -91,33 +88,6 @@ def components_of(value: Any) -> list[Any]:  # noqa: ANN401
     return list(value) if isinstance(value, SymbolicVector) else [value]
 
 
-def real_components_of(value: Any) -> list[Any]:  # noqa: ANN401
-    """Return the components of a value with every complex component split into its real and imaginary parts.
-
-    Args:
-        value:
-            A vector, an expression, or a number.
-
-    Returns:
-        components:
-            The components, two in a row for a complex component.
-
-    Examples:
-        >>> from sage.all__sagemath_symbolics import I
-        >>> from skcomplex.core.base import real_components_of, symbol, vector
-        >>> x, y = symbol('x'), symbol('y')
-        >>> real_components_of(vector([x + I * y, 2 * x]))
-        [x, y, 2*x]
-    """
-    components = []
-    for item in components_of(value):
-        if isinstance(item, Expression) and item.has(I):
-            components += [item.real_part(), item.imag_part()]
-        else:
-            components.append(item)
-    return components
-
-
 def symbols_of(expressions: Iterable[Expression]) -> set[Expression]:
     """Return the symbols that occur in expressions.
 
@@ -144,54 +114,3 @@ def domain_of(item: Expression) -> AnyDomain:
             The domain the symbol was created with, or `REAL` for a symbol the framework did not create.
     """
     return _DOMAINS.get(str(item), Domain.REAL)
-
-
-def declare_domains(items: Iterable[Expression], values: Mapping[Expression, float] | None = None) -> None:
-    """Give Maxima the domains of symbols, once per symbol, so exact solutions use them.
-
-    A symbol of a real domain with a nonzero value also gets the sign of its value, which replaces the sign of an
-    earlier value.
-
-    Args:
-        items:
-            The symbols.
-
-        values:
-            Current values of symbols whose sign Maxima takes when their domain is real.
-
-    Raises:
-        ValueError:
-            A domain contradicts an assumption Maxima already holds.
-    """
-    for item in items:
-        name = str(item)
-        domain = domain_of(item)
-        if name not in _DECLARED:
-            if isinstance(domain, Categorical) or domain in {
-                Domain.INTEGER,
-                Domain.NONNEGATIVE_INTEGER,
-                Domain.BOOLEAN,
-            }:
-                assume(item, 'integer')
-            elif domain in {Domain.REAL, Domain.ANGLE}:
-                assume(item, 'real')
-            if domain is Domain.POSITIVE:
-                assume(item > 0)
-            elif isinstance(domain, Categorical) or domain in {
-                Domain.NONNEGATIVE,
-                Domain.NONNEGATIVE_INTEGER,
-                Domain.BOOLEAN,
-            }:
-                assume(item >= 0)
-            _DECLARED.add(name)
-        value = (values or {}).get(item)
-        if domain is not Domain.REAL or not value:
-            continue
-        sign = item > 0 if value > 0 else item < 0
-        previous = _SIGNS.get(name)
-        if previous is not None and str(previous) == str(sign):
-            continue
-        if previous is not None:
-            forget(previous)
-        assume(sign)
-        _SIGNS[name] = sign

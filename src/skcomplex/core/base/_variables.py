@@ -448,26 +448,6 @@ def declared_fields(component: Any) -> dict[str, Any]:
     return fields
 
 
-def default_of(field: Any) -> Any:
-    """Return the default value a declared field carries, a fresh copy for a mutable default.
-
-    Args:
-        field:
-            A field made by `state`, `parameter`, or `role`.
-
-    Returns:
-        default:
-            The default value, or `dataclasses.MISSING` for a field without one.
-
-    Examples:
-        >>> from skcomplex.core.base import default_of, state
-        >>> default_of(state([0.0, 1.0]))
-        [0.0, 1.0]
-    """
-    factory = field.default_factory
-    return factory() if callable(factory) else field.default
-
-
 def declarations_of(component: Any, kind: VariableKind) -> dict[str, Variable]:
     """Return the declared fields of one kind of a component, in declaration order.
 
