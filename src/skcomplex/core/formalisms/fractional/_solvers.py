@@ -10,7 +10,7 @@ from typing import ClassVar
 import numpy as np
 from scipy.special import gamma
 
-from ..base import (
+from ...base import (
     NUMERIC_DOMAINS,
     ComponentKind,
     Form,
@@ -21,8 +21,8 @@ from ..base import (
     Supports,
     TimeKind,
 )
-from ..compile import Problem, Vector
-from ._stepper import Stepper, register_solver
+from ...compile import Problem, Vector
+from ...solvers import Stepper
 
 GRID_TOLERANCE = 1e-9
 CHANGE_TOLERANCE = 1e-12
@@ -441,7 +441,7 @@ class GrunwaldLetnikov(ConvolutionStepper):
         >>> from skcomplex.core.components import Element
         >>> from skcomplex.core.laws import Rate
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.core.solvers import GrunwaldLetnikov
+        >>> from skcomplex.core.formalisms.fractional import GrunwaldLetnikov
         >>> Relaxing = Element.define('Relaxing', states={'x': state(1.0, order=0.5)}, laws=lambda s: [Rate(s.x, -s.x)])
         >>> problem = compile_system(System(components=[Relaxing('a')]))
         >>> stepper = GrunwaldLetnikov(dt=0.001)
@@ -490,7 +490,7 @@ class L1Scheme(ConvolutionStepper):
         >>> from skcomplex.core.components import Element
         >>> from skcomplex.core.laws import Rate
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.core.solvers import L1Scheme
+        >>> from skcomplex.core.formalisms.fractional import L1Scheme
         >>> Relaxing = Element.define('Relaxing', states={'x': state(1.0, order=0.5)}, laws=lambda s: [Rate(s.x, -s.x)])
         >>> problem = compile_system(System(components=[Relaxing('a')]))
         >>> stepper = L1Scheme(dt=0.001)
@@ -534,7 +534,7 @@ class FractionalABM(CaputoStepper):
         >>> from skcomplex.core.components import Element
         >>> from skcomplex.core.laws import Rate
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.core.solvers import FractionalABM
+        >>> from skcomplex.core.formalisms.fractional import FractionalABM
         >>> Relaxing = Element.define('Relaxing', states={'x': state(1.0, order=0.5)}, laws=lambda s: [Rate(s.x, -s.x)])
         >>> problem = compile_system(System(components=[Relaxing('a')]))
         >>> stepper = FractionalABM(dt=0.001)
@@ -588,8 +588,3 @@ class FractionalABM(CaputoStepper):
         corrected = self._initial + self._corrector_scale * (following + first + past)
         corrected[ordinary] = self._state[ordinary] + self.dt / 2 * (current[ordinary] + following[ordinary])
         self._state = self._bounded(time + self.dt, corrected, p)
-
-
-register_solver('grunwald-letnikov', GrunwaldLetnikov)
-register_solver('l1', L1Scheme)
-register_solver('fractional-abm', FractionalABM, default=True)

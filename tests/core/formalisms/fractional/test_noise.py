@@ -6,9 +6,10 @@ import pytest
 from skcomplex.core.base import HorizonError, SolverError
 from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
-from skcomplex.core.laws import FractionalNoise, Noise
+from skcomplex.core.formalisms.fractional import FractionalEulerMaruyama, FractionalNoise, fractional_gaussian_noise
+from skcomplex.core.laws import Noise
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import EulerMaruyama, FractionalEulerMaruyama, fractional_gaussian_noise
+from skcomplex.core.solvers import EulerMaruyama
 from skcomplex.core.system import System
 
 

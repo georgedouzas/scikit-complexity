@@ -558,8 +558,7 @@ reject fractional noise with an error that names `FractionalEulerMaruyama`. `fra
 noise paths themselves.
 
 ```python
-from skcomplex.core.laws import FractionalNoise
-from skcomplex.core.solvers import FractionalEulerMaruyama
+from skcomplex.core.formalisms.fractional import FractionalEulerMaruyama, FractionalNoise
 
 Rough = Element.define('Rough', states={'x': 0.0}, laws=lambda s: [FractionalNoise(s.x, 1, hurst=0.3)])
 rough = Simulation(
@@ -600,7 +599,7 @@ changed state.
 ```python
 from skcomplex.core.analysis import mittag_leffler
 from skcomplex.core.base import state
-from skcomplex.core.solvers import L1Scheme
+from skcomplex.core.formalisms.fractional import L1Scheme
 
 Relaxing = Element.define('Relaxing', states={'x': state(1.0, order=0.6)}, laws=lambda s: [Rate(s.x, -s.x)])
 relaxing = Simulation(System(components=[Relaxing('a')]), solver=L1Scheme(dt=0.01, memory=10.0), dt=1.0).run(until=20)

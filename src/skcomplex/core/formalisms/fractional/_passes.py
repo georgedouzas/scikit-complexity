@@ -26,19 +26,31 @@ from ...base import (
     declarations_of,
     symbols_of,
 )
-from ...laws import FractionalNoise, Law, Noise
-from .._backends import BACKENDS
-from .._census import Census, CensusRecord
-from .._compilation import BlockLaws, Compilation
-from .._declarations import Declarations, is_interaction
-from .._issues import Issue, names_of
-from .._kernels import Kernel, Lowered
-from .._layout import Layout
-from .._pipeline import Pass
-from .._planner import solver_classes
-from .._problem import FractionalRows, Problem, Vector
-from .._specs import KernelSpec, state_name
-from .._tree import Node, declared_times
+from ...compile import (
+    BACKENDS,
+    BlockLaws,
+    Census,
+    CensusRecord,
+    Compilation,
+    Declarations,
+    FractionalRows,
+    Issue,
+    Kernel,
+    KernelSpec,
+    Layout,
+    Lowered,
+    Node,
+    Pass,
+    Problem,
+    Vector,
+    declared_times,
+    is_interaction,
+    names_of,
+    solver_classes,
+    state_name,
+)
+from ...laws import Law, Noise
+from ._laws import FractionalNoise
 
 
 def _fractional_description(spec: KernelSpec, law: FractionalNoise) -> str:
@@ -347,7 +359,3 @@ class FractionalProblemPass(Pass):
                 else np.zeros(0)
             ),
         )
-
-
-PASSES = (CheckFractionalNoisePass(), FractionalFormPass(), FractionalProblemPass())
-CHECKS = (order_issues,)
