@@ -104,7 +104,7 @@ class Node:
         space = getattr(self.component, 'space', None)
         if isinstance(space, LatticeSpace) and np.shape(value) == space.dimensions:
             return np.ravel(value)
-        if self.active is not None and np.ndim(value) and len(value) == self.active:  # type: ignore[arg-type]
+        if self.active is not None and np.ndim(value) and len(value) == self.active:
             rows = (self.members or 0) - self.active
             padding = np.broadcast_to(np.asarray(default, dtype=float), (rows, *np.shape(value)[1:]))
             return np.concatenate([np.asarray(value, dtype=float), padding])
@@ -298,21 +298,33 @@ def agent_paths(nodes: list[Node]) -> set[str]:
     return agents | {node.path for node in passive if node.path not in bound}
 
 
-def _flatten(system: System, scope: str, space: Space | None) -> list[Node]:
+def _canonical(space: Space | None, seen: list[Space]) -> Space | None:
+    """Return the first network space seen that equals a space, so clones of one network share one space."""
+    if not isinstance(space, NetworkSpace):
+        return space
+    for known in seen:
+        if isinstance(known, NetworkSpace) and known.equals(space):
+            return known
+    seen.append(space)
+    return space
+
+
+def _flatten(system: System, scope: str, space: Space | None, seen: list[Space] | None = None) -> list[Node]:
     """Return the nodes of a system tree in tree order, before the agents are recognized."""
     if not isinstance(system, System):
         error_msg = f'{system!r} is not an instance of System.'
         raise ValidationError(error_msg)
     _check_children(system, scope)
-    space = system.space if system.space is not None else space
+    seen = [] if seen is None else seen
+    space = _canonical(system.space if system.space is not None else space, seen)
     nodes = []
     for element in system.elements:
-        place = getattr(element, 'space', None) or space
+        place = _canonical(getattr(element, 'space', None) or space, seen)
         sized, active = _with_capacity(_sized(element, space), place)
         nodes.append(Node(f'{scope}{element.label}', scope, sized, place, active=active))
     nodes += [Node(f'{scope}{interaction.label}', scope, interaction, space) for interaction in system.interactions]
     for child in system.systems:
-        nodes += _flatten(child, f'{scope}{child.label}/', space)
+        nodes += _flatten(child, f'{scope}{child.label}/', space, seen)
     return nodes
 
 

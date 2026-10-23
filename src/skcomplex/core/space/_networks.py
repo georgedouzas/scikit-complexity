@@ -171,6 +171,38 @@ class NetworkSpace(Space):
         """Number of nodes."""
         return int(self.graph.number_of_nodes())
 
+    def equals(self, other: object) -> bool:
+        """Check whether another network space has the same nodes, edges, and layers, such as a clone of this one.
+
+        Args:
+            other:
+                The other space.
+
+        Returns:
+            equal:
+                Whether both spaces describe the same network.
+
+        Examples:
+            >>> import networkx as nx
+            >>> from sklearn.base import clone
+            >>> from skcomplex.core.space import NetworkSpace
+            >>> space = NetworkSpace(nx.cycle_graph(4))
+            >>> space.equals(clone(space)), space.equals(NetworkSpace(nx.path_graph(4)))
+            (True, False)
+        """
+        if other is self:
+            return True
+        if not isinstance(other, NetworkSpace) or other.layer_labels != self.layer_labels:
+            return False
+        if (self.capacity, self.fill, list(self.hyperedges)) != (other.capacity, other.fill, list(other.hyperedges)):
+            return False
+        return all(
+            list(self.resolve_graph(layer).nodes) == list(other.resolve_graph(layer).nodes)
+            and list(self.resolve_graph(layer).edges) == list(other.resolve_graph(layer).edges)
+            and self.resolve_graph(layer).is_directed() == other.resolve_graph(layer).is_directed()
+            for layer in self.layer_labels
+        )
+
     def resolve_graph(self, layer: str | None = None) -> nx.Graph:
         """Return the graph of a layer.
 

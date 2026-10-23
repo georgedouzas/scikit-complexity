@@ -240,7 +240,7 @@ def request_of(law: object) -> TopologyRequest | None:
     requests = [item for item in changes if isinstance(item, TopologyRequest)]
     if not requests:
         return None
-    if len(changes) > 1 or float(changes[requests[0]]) != 1:  # type: ignore[arg-type]
+    if len(changes) > 1 or float(changes[requests[0]]) != 1:
         error_msg = (
             f'A jump requests {requests[0]!r} next to other changes or with an increment other than 1. A jump that '
             'changes the topology fires one request, `Jump(rate, {request: 1})`.'

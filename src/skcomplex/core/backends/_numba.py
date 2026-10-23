@@ -45,7 +45,7 @@ from ..compile._backends import (
     reads_reductions,
     register_backend,
 )
-from ..compile._kernels import EdgeSearch, Kernel, Output, Reference, Source, jump_channels, lower_noise
+from ..compile._kernels import EdgeSearch, Kernel, Output, PairSearch, Reference, Source, jump_channels, lower_noise
 from ..compile._layout import Entry
 from ..compile._neighbourhoods import CompiledNeighbourhood, EdgeRows, MetricSearch, StaticSearch
 from ..compile._printing import SCALAR_DIALECT, print_expressions
@@ -438,7 +438,7 @@ def _pair_block(
 ) -> list[str]:
     """Return the lines that add the outputs of one pair orientation to their accumulators when within the cutoff."""
     pairs = kernel.pairs
-    assert pairs is not None
+    assert isinstance(pairs, PairSearch)  # nosec B101: pair kernels hold a pair search
     pad = INDENT * depth
     lines = []
     for column in range(pairs.first.columns):
@@ -476,7 +476,7 @@ def _pair_loop(source: _Source, kernel: Kernel, outputs: list[tuple[int, Output]
     own = 'a' if loop == '_a_' else 'b'
     second_positions = 'positions_a' if same else 'positions_b'
     pairs = kernel.pairs
-    assert pairs is not None
+    assert isinstance(pairs, PairSearch)  # nosec B101: pair kernels hold a pair search
     n_dim = pairs.first.columns
     lines = [f'{INDENT}for _i_ in prange(rows_{loop}):', f'{INDENT * 2}{loop} = order_{own}[_i_]']
     lines += [f'{INDENT * 2}_acc{index}_ = 0.0' for index, _ in outputs]
@@ -546,7 +546,7 @@ def _pair_loop(source: _Source, kernel: Kernel, outputs: list[tuple[int, Output]
 def _pair_kernel(source: _Source, kernel: Kernel, name: str, parallel: bool) -> None:
     """Add the source of a pair kernel that sums pair outputs over neighbours found with cell lists."""
     pairs = kernel.pairs
-    assert pairs is not None
+    assert isinstance(pairs, PairSearch)  # nosec B101: pair kernels hold a pair search
     same = pairs.first == pairs.second
     columns = pairs.first.columns
     cutoff = Reference(pairs.cutoff, is_state=False, column=0)
@@ -1005,9 +1005,10 @@ def _layout_entries(used: Mapping[type, list[Kernel]], reductions: ReductionPass
     }
     for items in used.values():
         for kernel in items:
-            if isinstance(kernel.pairs, EdgeSearch) and kernel.pairs.source is not None:
-                entries[kernel.pairs.source.name] = kernel.pairs.source
-                entries[kernel.pairs.target.name] = kernel.pairs.target  # type: ignore[union-attr]
+            search = kernel.pairs
+            if isinstance(search, EdgeSearch) and search.source is not None and search.target is not None:
+                entries[search.source.name] = search.source
+                entries[search.target.name] = search.target
     for item in reductions.reductions:
         entries[item.entry.name] = item.entry
         entries.update({read.entry.name: read.entry for read in item.reads.values() if read.entry is not None})

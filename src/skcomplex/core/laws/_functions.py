@@ -16,9 +16,23 @@ from ..space._lattices import BOUNDARIES
 from ._draws import draws_in
 
 
+def _is_number(argument: Any) -> bool:  # noqa: ANN401
+    """Check that an expression, or both sides of a relation, evaluate to numbers, so no call stays unevaluated."""
+    value = SR(argument)
+    sides = [value.lhs(), value.rhs()] if value.is_relational() else [value]
+    try:
+        for side in sides:
+            complex(side)
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
 def _is_decided(*arguments: Any) -> bool:  # noqa: ANN401
-    """Check that arguments hold no symbols and no random draws, so a condition on them is true or false."""
-    return all(not SR(argument).variables() and not draws_in(argument) for argument in arguments)
+    """Check that arguments hold no symbols, no random draws, and no unevaluated calls, so a condition is decided."""
+    return all(
+        not SR(argument).variables() and not draws_in(argument) and _is_number(argument) for argument in arguments
+    )
 
 
 class _Where(BuiltinFunction):

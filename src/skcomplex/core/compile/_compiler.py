@@ -1023,8 +1023,8 @@ def _edge_roles(node: Node, elements: dict[str, _Block]) -> tuple[_Block, _Block
 
 
 def _group_space(block: _Block) -> Space | None:
-    """Return the space of a group, its own or the enclosing one."""
-    return getattr(block.node.component, 'space', None) or block.node.space
+    """Return the space of a group, its own or the enclosing one, shared by the groups of one network."""
+    return block.node.space
 
 
 def _edge_layer(node: Node, nodes: _Block, edges: _Block | None) -> str | None:
@@ -2503,7 +2503,7 @@ def _lower_law(law: Law, spec: _KernelSpec, reductions: _Reductions) -> Law:
         value = reductions.lower(value, spec)
     if isinstance(law, Rate | Noise):
         return replace(law, value=value)
-    return type(law)(law.target, value)  # type: ignore[arg-type]
+    return type(law)(law.target, value)
 
 
 def _prune_foreign(spec: _KernelSpec, declarations: _Declarations) -> None:
@@ -2655,7 +2655,7 @@ def _toward_specs(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Dec
             space, _ = _request_network(spec, declarations)
             nodes = _node_block(space, declarations)
             node_spec = _member_spec(nodes, declarations.time)
-            towards.append((node_spec, [Update(_Weight(request), SR(request.toward(node_spec.namespace)))]))  # type: ignore[arg-type]
+            towards.append((node_spec, [Update(_Weight(request), SR(request.toward(node_spec.namespace)))]))
     return towards
 
 
@@ -2792,7 +2792,7 @@ def _topology(
     if not networks:
         return None
     weights = {
-        id(law.target.request): _request_kernel(spec, law.value, declarations)  # type: ignore[union-attr]
+        id(law.target.request): _request_kernel(spec, law.value, declarations)
         for spec, laws in towards
         for law in laws
         if isinstance(law, Update)
@@ -3410,7 +3410,7 @@ def _collected_laws(
     for block in blocks:
         for spec in _specs_of(block, elements, time, observe):
             declared = [*_collect_laws(spec, _component_of(block.node), flows), *_space_boundary_laws(block, spec)]
-            updates = [law for law in declared if isinstance(law, Update) and request_of(law) is not None]
+            updates: list[Law] = [law for law in declared if isinstance(law, Update) and request_of(law) is not None]
             kept = [law for law in declared if not any(law is item for item in updates)]
             laws, matrices = markov_laws(spec.owner, kept, spec.references)
             laws = _checked_fractional(spec, laws, declarations)
@@ -3419,7 +3419,7 @@ def _collected_laws(
             collected.append((spec, laws, block))
             markov.extend((spec, matrix) for matrix in matrices)
             if updates:
-                requests.append((spec, updates))
+                requests.append((spec, list(updates)))
     stock_flow = flows.lower([(spec, laws) for spec, laws, _ in collected], declarations)
     return collected, markov, stock_flow, requests
 

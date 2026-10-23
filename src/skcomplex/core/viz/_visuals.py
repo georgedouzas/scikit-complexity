@@ -48,6 +48,10 @@ SERIES_COLORS = (
 )
 POINT_FLOOR = 0.25
 VIEW_MARGIN = 0.05
+CHANGING_REACH = 10.0
+CHANGING_LINK = 40.0
+CHANGING_REPULSION = -60.0
+CHANGING_CENTRING = 0.05
 COLOR_SCALE = np.array(
     [[68, 1, 84], [59, 82, 139], [33, 145, 140], [94, 201, 98], [253, 231, 37]],
     dtype=float,
@@ -1019,7 +1023,17 @@ class SiteVisual(Visual):
         if not isinstance(space, NetworkSpace):
             return [rrb.Spatial2DView(origin=f'{element.path}/{state}', name=state) for state in states]
         if _changes_topology(element, problem):
-            return [rrb.GraphView(origin=f'{element.path}/{state}', name=state) for state in states]
+            reach = CHANGING_REACH * float(np.sqrt(element.members or 1))
+            bounds = rrb.VisualBounds2D(x_range=(-reach, reach), y_range=(-reach, reach))
+            forces = {
+                'force_link': rrb.archetypes.ForceLink(distance=CHANGING_LINK),
+                'force_many_body': rrb.archetypes.ForceManyBody(strength=CHANGING_REPULSION),
+                'force_position': rrb.archetypes.ForcePosition(strength=CHANGING_CENTRING),
+            }
+            return [
+                rrb.GraphView(origin=f'{element.path}/{state}', name=state, visual_bounds=bounds, **forces)
+                for state in states
+            ]
         positions = np.array(list(self._layout(space).values()))
         low, high = positions.min(axis=0) - NODE_SPACING, positions.max(axis=0) + NODE_SPACING
         bounds = rrb.VisualBounds2D(x_range=(low[0], high[0]), y_range=(low[1], high[1]))

@@ -70,7 +70,7 @@ class Interaction(Component):
             and 'layer' not in vars(cls)
             and 'layer' not in getattr(cls, '__dataclass_fields__', {})
         ):
-            cls.layer = None  # type: ignore[attr-defined]
+            cls.layer = None
             cls.__annotations__ = {**inspect.get_annotations(cls), 'layer': str | None}
         super().__init_subclass__(**kwargs)
         if cls.over not in BINDINGS:

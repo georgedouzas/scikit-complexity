@@ -390,7 +390,7 @@ def _declared_times(system: System, scope: str = '', inherited: TimeKind | None 
     return times
 
 
-def _layer_issues(node: Any, space: Space) -> list[Issue]:  # noqa: ANN401
+def _layer_issues(node: Any, space: Space | None) -> list[Issue]:  # noqa: ANN401
     """Return the issue of an interaction over neighbours that names a layer its network does not have."""
     layer = getattr(node.component, 'layer', None)
     labels = getattr(space, 'layer_labels', (None,))
@@ -426,7 +426,7 @@ def _binding_issues(system: System) -> list[Issue]:
         bound = [by_path.get(f'{node.scope}{getattr(interaction, name, "")}') for name in roles]
         nodes = [item for item in bound if item is not None and getattr(item.component, 'on', None) != 'edges']
         target = next(iter(nodes), None)
-        space = (getattr(target.component, 'space', None) or target.space) if target is not None else node.space
+        space = target.space if target is not None else node.space
         offered = (
             isinstance(space, LatticeSpace | NetworkSpace | GroupSpace)
             if over == 'neighbours'

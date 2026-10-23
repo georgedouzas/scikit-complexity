@@ -9,7 +9,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import I, atan2, cos, exp, sin, sqrt
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, state, vector
-from ....core.components import Element
+from ....core.components import Element, Group
 from ....core.laws import Law, Symbols, Update, neighbors, uniform, where
 from ....core.runtime import register_model
 from ....core.space import ContinuousSpace, DiscreteTime, Radius
@@ -148,14 +148,12 @@ NematicParticle = Element.define(
 def _flock(element: type[Element], n_particles: int, size: float, seed: int, **values: float) -> System:
     """Return flockers of a type at uniform positions and headings in a periodic box, under discrete time."""
     rng = np.random.default_rng(seed)
-    flock = element.group(
-        'flock',
-        n_particles,
-        x=rng.uniform(0.0, size, (n_particles, 2)),
-        theta=rng.uniform(-math.pi, math.pi, n_particles),
-        visual=HEADINGS,
+    initial: dict[str, object] = {
+        'x': rng.uniform(0.0, size, (n_particles, 2)),
+        'theta': rng.uniform(-math.pi, math.pi, n_particles),
         **values,
-    )
+    }
+    flock = Group('flock', element=element, size=n_particles, values=initial, visual=HEADINGS)
     return System(components=[flock], space=ContinuousSpace(size, size, boundary='periodic'), time=DiscreteTime())
 
 

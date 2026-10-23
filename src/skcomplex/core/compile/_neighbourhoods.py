@@ -56,7 +56,8 @@ def network_rows(space: NetworkSpace, neighborhood: Adjacency) -> tuple[Indices,
             node to every neighbour, -1 for the node itself.
 
     Examples:
-        >>>         >>> from skcomplex.core.compile._neighbourhoods import network_rows
+        >>> import networkx as nx
+        >>> from skcomplex.core.compile._neighbourhoods import network_rows
         >>> from skcomplex.core.space import Adjacency, NetworkSpace
         >>> [item.tolist() for item in network_rows(NetworkSpace(nx.path_graph(3)), Adjacency())]
         [[0, 1, 3, 4], [1, 0, 2, 1], [0, 0, 1, 1]]
