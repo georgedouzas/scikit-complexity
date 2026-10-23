@@ -99,7 +99,7 @@ def _breakpoints_of(expressions: Iterable[Any], time: Expression) -> _Breakpoint
             resolved = root is not None or time not in difference.variables()
             if root is not None:
                 fixed.add(root)
-            for call in _mod_calls(difference):
+            for call in calls_of(difference, 'mod'):
                 argument, period = call.operands()
                 zero, rest = _linear_root(argument, time), difference - call
                 if zero is not None and period.is_numeric() and rest.is_numeric():
@@ -136,19 +136,6 @@ def _state_conditions_of(expressions: Iterable[Any], time: Expression) -> list[E
             continue
         if set(candidate.variables()) - {time} and not any(_same_zeros(candidate, other) for other in found):
             found.append(candidate)
-    return found
-
-
-def _mod_calls(expression: Expression) -> list[Expression]:
-    """Return the calls of `mod` inside an expression."""
-    found, stack = [], [expression]
-    while stack:
-        item = stack.pop()
-        if item.operator() is None:
-            continue
-        if getattr(item.operator(), 'name', lambda: '')() == 'mod':
-            found.append(item)
-        stack.extend(item.operands())
     return found
 
 
