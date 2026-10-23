@@ -10,10 +10,10 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ..compile import CompiledAgents, CompiledElement, Problem
-from ..runtime import Frame
-from ..space import GroupSpace
-from ._visuals import NODE_SPACING, UPWARD, Visual, _palette_colors, register_visual
+from ...compile import CompiledAgents, CompiledElement, Problem
+from ...runtime import Frame
+from ...viz import NODE_SPACING, UPWARD, Visual, palette_colors
+from ._spaces import GroupSpace
 
 NODE_SHARE = 0.15
 
@@ -36,7 +36,7 @@ class CayleyVisual(Visual):
             The value of the brightest color, or `None` for the largest value of every frame.
 
     Examples:
-        >>> from skcomplex.core.viz import CayleyVisual
+        >>> from skcomplex.core.formalisms.groups import CayleyVisual
         >>> CayleyVisual(low=0, high=1)
         CayleyVisual(states=None, low=0, high=1)
     """
@@ -60,7 +60,7 @@ class CayleyVisual(Visual):
         """Return the colors of site values over the given range or the extremes of the values."""
         low = float(values.min()) if self.low is None else float(self.low)
         high = float(values.max()) if self.high is None else float(self.high)
-        return _palette_colors(values, low, high)
+        return palette_colors(values, low, high)
 
     def _log_edges(self, recording: rr.RecordingStream, path: str, space: GroupSpace) -> None:
         """Log the edges of every generator once, as static data."""
@@ -123,6 +123,3 @@ class CayleyVisual(Visual):
         bounds = rrb.VisualBounds2D(x_range=(-extent, extent), y_range=(-extent, extent))
         states = [state for state in element.states if self.states is None or state in self.states]
         return [rrb.GraphView(origin=f'{element.path}/{state}', name=state, visual_bounds=bounds) for state in states]
-
-
-register_visual('cayley', CayleyVisual)

@@ -100,7 +100,7 @@ from ..laws import (
 )
 from ..laws._laws import NOISE_CONVENTIONS, Renewal
 from ..laws._neighbourhoods import NeighbourReduction
-from ..space import Adjacency, ContinuousSpace, GroupSpace, LatticeSpace, Mesh, NetworkSpace, Space, neighbour_pairs
+from ..space import Adjacency, ContinuousSpace, LatticeSpace, Mesh, NetworkSpace, SiteSpace, Space, neighbour_pairs
 from ..system import Observable, System
 from ._backends import Backend, resolve_backend
 from ._complex import modulus_form, split_law
@@ -1087,7 +1087,7 @@ def _edge_search(
     if isinstance(space, NetworkSpace):
         sources, targets = space.list_edges(layer)
         size = space.size
-    elif isinstance(space, LatticeSpace | GroupSpace) and edges is None and layer is None:
+    elif isinstance(space, SiteSpace) and edges is None and layer is None:
         pairs = np.array(neighbour_pairs(space, space.size), dtype=np.intp).reshape(-1, 2)
         sources, targets = pairs[:, 0].copy(), pairs[:, 1].copy()
         size = space.size
@@ -3810,7 +3810,7 @@ def _lattice_context(spec: _KernelSpec, declarations: _Declarations, fused: bool
         block = declarations.blocks.get(owner)
         space = block.node.space if block is not None else None
         is_lattice = (
-            isinstance(space, LatticeSpace | NetworkSpace | GroupSpace)
+            isinstance(space, SiteSpace | NetworkSpace)
             and block is not None
             and block.node.members is not None
             and not block.node.is_agent

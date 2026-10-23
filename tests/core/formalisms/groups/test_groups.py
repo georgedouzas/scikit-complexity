@@ -5,7 +5,7 @@ import sys
 import pytest
 
 from skcomplex.core.base import ValidationError, WordProblemError
-from skcomplex.core.space import (
+from skcomplex.core.formalisms.groups import (
     GroupSpace,
     automaton_group,
     finitely_presented_group,

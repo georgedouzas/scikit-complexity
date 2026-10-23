@@ -1777,8 +1777,8 @@ run reads only its neighbour table. Its sites are numbered by word length, `word
 `Memory` of words such as `'a'`, `'a^-1'`, or `'a*b'`, with `'1'` for the cell itself, and `Memory.generators(group)`
 gives the identity followed by every generator and its inverse.
 
-The general constructors of `skcomplex.core.space` give groups by any presentation whose word problem a library
-solves:
+The groups formalism, `skcomplex.core.formalisms.groups`, holds group spaces and the general constructors that give
+groups by any presentation whose word problem a library solves:
 
 - `finitely_presented_group(generators, relators)` takes words such as `'t*a*t^-1*a^-2'`. A free group, without
   relators, reduces its words directly, and otherwise KBMAG in GAP looks for a confluent rewriting system by
@@ -1798,8 +1798,9 @@ an image layout, so validation reports a checkerboard schedule as `schedule-unsu
 rings by word length, colored by state, with the edges of the generators logged once.
 
 ```python
+from skcomplex.core.formalisms.groups import GroupSpace, finitely_presented_group, permutation_group
 from skcomplex.core.laws import Totalistic
-from skcomplex.core.space import GroupSpace, Memory, finitely_presented_group, permutation_group
+from skcomplex.core.space import Memory
 
 free = finitely_presented_group(['a', 'b'])
 tree = GroupSpace(free, ball=4)

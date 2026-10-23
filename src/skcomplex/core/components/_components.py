@@ -26,10 +26,9 @@ from ..base import (
 from ..laws import Law
 from ..laws._laws import Rule
 from ..laws._symbols import Symbols
-from ..space._cayley import GroupSpace
 from ..space._lattices import LatticeSpace
 from ..space._networks import NetworkSpace, part_count
-from ..space._spaces import Space
+from ..space._spaces import SiteSpace, Space
 from ._component import Component
 
 
@@ -224,7 +223,7 @@ class Element(Component):
     def lattice(
         cls,
         label: str,
-        space: LatticeSpace | NetworkSpace | GroupSpace,
+        space: SiteSpace | NetworkSpace,
         /,
         *,
         visual: VisualSpec | None = None,
@@ -233,7 +232,7 @@ class Element(Component):
         """Return a group of cells of this element type, one member per site of a lattice or node of a network.
 
         Laws of the element type are written for one cell, and local rules read the cells around it. Square lattice
-        groups stream to Rerun as images, groups on group spaces as Cayley graphs, and other lattice groups as sites,
+        groups stream to Rerun as images, and groups on other spaces of sites with the default visual of their space,
         unless a visual is given or the element type declares one. The label and the lattice are given by position.
 
         Args:
@@ -241,11 +240,12 @@ class Element(Component):
                 The label of the group.
 
             space:
-                The lattice, the group space, or the network whose nodes are the sites, in the order of `graph.nodes`.
+                The lattice or other space of sites, or the network whose nodes are the sites, in the order of
+                `graph.nodes`.
 
             visual:
                 The visual of the group, or `None` for the visual of the element type, and, when the type declares
-                none, an image of every state of a square lattice, the Cayley graph of a group space, and the sites of
+                none, the default visual of the space, an image of every state of a square lattice and the sites of
                 other lattices.
 
             **values:
@@ -277,8 +277,7 @@ class Element(Component):
         flat = {
             name: np.ravel(value) if np.shape(value) == space.dimensions else value for name, value in values.items()
         }
-        default = 'cayley' if isinstance(space, GroupSpace) else 'image' if space.geometry == 'square' else 'sites'
-        visual = _lattice_visual(cls, visual, default)
+        visual = _lattice_visual(cls, visual, space.default_visual)
         return Group(label, element=cls, size=space.size, values=flat, visual=visual, space=space, on='sites')
 
 

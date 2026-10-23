@@ -18,12 +18,12 @@ from sage.all__sagemath_symbolics import SR
 
 from ..base import Expression, SolverError, ValidationError, symbol
 from ..laws import Drive, Energy, Extremal, LocalRule, Move, OuterTotalistic, Relaxation, Sampler, Table, Totalistic
-from ..space import Adjacency, GroupSpace, LatticeSpace, Memory, Neighborhood, NetworkSpace
+from ..space import Adjacency, LatticeSpace, Memory, Neighborhood, NetworkSpace, SiteSpace
 from ._printing import numpy_function
 
 type Vector = npt.NDArray[np.float64]
 type Indices = npt.NDArray[np.intp]
-type Sites = LatticeSpace | NetworkSpace | GroupSpace
+type Sites = SiteSpace | NetworkSpace
 
 LOOKUP_KINDS = {'table': 0, 'totalistic': 1, 'outer': 2}
 COLORING_STRATEGY = 'largest_first'

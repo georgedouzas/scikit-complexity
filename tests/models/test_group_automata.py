@@ -4,9 +4,9 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import Subshift
+from skcomplex.core.formalisms.groups import CayleyVisual, GroupSpace, automaton_group, parse_word
 from skcomplex.core.runtime import Frame, Simulation
-from skcomplex.core.space import GroupSpace, Memory, Neighborhood, automaton_group, parse_word
-from skcomplex.core.viz import CayleyVisual
+from skcomplex.core.space import Memory, Neighborhood
 from skcomplex.models import catalog, create
 from skcomplex.models.computer_science.automata import (
     baumslag_solitar_automaton,

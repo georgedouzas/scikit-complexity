@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import inspect
 import warnings
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
@@ -61,7 +62,7 @@ from ..laws import (
     values_of,
 )
 from ..laws._neighbourhoods import NeighbourReduction
-from ..space import Adjacency, Cone, GroupSpace, LatticeSpace, NetworkSpace, Space
+from ..space import Adjacency, Cone, LatticeSpace, NetworkSpace, SiteSpace, Space
 from ..system import Observable, System
 from ._backends import BACKENDS, load_backends
 from ._compiler import CensusRecord, _held_observables, _process_covariance, _with_held_observables, law_census
@@ -132,7 +133,7 @@ def missing_declarations() -> list[str]:
     missing.extend(
         f'The space {space.__name__} declares no space kind.'
         for space in _subclasses(Space)
-        if not isinstance(getattr(space, 'space_kind', None), SpaceKind)
+        if not inspect.isabstract(space) and not isinstance(getattr(space, 'space_kind', None), SpaceKind)
     )
     solvers = _solver_registry()
     for key in solvers:
@@ -378,7 +379,7 @@ def _binding_issues(system: System) -> list[Issue]:
         target = next(iter(nodes), None)
         space = target.space if target is not None else node.space
         offered = (
-            isinstance(space, LatticeSpace | NetworkSpace | GroupSpace)
+            isinstance(space, SiteSpace | NetworkSpace)
             if over == 'neighbours'
             else bool(
                 getattr(space, 'hyperedges', ()),
@@ -447,7 +448,8 @@ def _space_issues(system: System, records: list[CensusRecord]) -> list[Issue]:
             message = (
                 f'The image visual of {node.path} needs a regular lattice, but its space is {type(space).__name__}.'
             )
-            issues.append(Issue('visual-unsupported', node.path, message, "Use the 'cayley' visual."))
+            fix = f'Use the {space.default_visual!r} visual.' if isinstance(space, SiteSpace) else 'Use another visual.'
+            issues.append(Issue('visual-unsupported', node.path, message, fix))
     if system.space is not None:
         spaces.setdefault(id(system.space), (system.label, system.space))
     for path, space in spaces.values():

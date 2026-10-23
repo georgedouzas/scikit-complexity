@@ -3,9 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from typing import ClassVar
 
+import numpy as np
+import numpy.typing as npt
 from sklearn.base import BaseEstimator
 
 from ..base import SpaceKind, ValidationError
@@ -23,6 +26,83 @@ class Space(BaseEstimator):
     lacks: ClassVar[frozenset[str]] = frozenset()
 
     n_dim: int
+
+
+class SiteSpace[Reach](Space, ABC):
+    """Base class of spaces of numbered sites, where every site reads its neighbours through a neighbour table.
+
+    The type parameter is the neighbourhood the space reads, such as offsets on a lattice. A site outside the space
+    reads the value `fill`.
+    """
+
+    fill: float
+
+    @property
+    @abstractmethod
+    def size(self) -> int:
+        """Number of sites."""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def dimensions(self) -> tuple[int, ...]:
+        """Shape of the arrays of cells."""
+        raise NotImplementedError
+
+    @property
+    def default_visual(self) -> str:
+        """Name of the visual of groups on the space when neither the group nor its element type declares one."""
+        return 'sites'
+
+    @abstractmethod
+    def index_table(self, neighborhood: Reach) -> npt.NDArray[np.intp]:
+        """Return the site of every neighbour of every site, with `size` for neighbours outside the space.
+
+        Args:
+            neighborhood:
+                The neighbourhood.
+
+        Returns:
+            table:
+                One row per site and one column per neighbour.
+
+        Raises:
+            NotImplementedError:
+                The subclass does not implement the method.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def compute_ball(self, radius: int) -> Reach:
+        """Return the neighbourhood of every site within a radius, the site itself included.
+
+        Args:
+            radius:
+                The radius.
+
+        Returns:
+            neighborhood:
+                The neighbourhood.
+
+        Raises:
+            NotImplementedError:
+                The subclass does not implement the method.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_neighbour_pairs(self) -> list[tuple[int, int]]:
+        """Return the pairs of distinct neighbouring sites, each pair once.
+
+        Returns:
+            pairs:
+                The sites of every pair of neighbours.
+
+        Raises:
+            NotImplementedError:
+                The subclass does not implement the method.
+        """
+        raise NotImplementedError
 
 
 BOUNDARIES = ('open', 'periodic', 'reflecting')

@@ -86,8 +86,29 @@ def _widened(span: tuple[float, float] | None, values: npt.NDArray[np.float64]) 
     return (low, high) if span is None else (min(span[0], low), max(span[1], high))
 
 
-def _palette_colors(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
-    """Return the colors of an array of values from a palette of 256 levels, fast enough for large images."""
+def palette_colors(values: npt.NDArray[np.float64], low: float, high: float) -> npt.NDArray[np.uint8]:
+    """Return the colors of an array of values from a palette of 256 levels, fast enough for large images.
+
+    Args:
+        values:
+            The values.
+
+        low:
+            The value of the darkest color.
+
+        high:
+            The value of the brightest color.
+
+    Returns:
+        colors:
+            One RGB color per value, the darkest one for every value when the range is empty.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.viz import palette_colors
+        >>> palette_colors(np.array([0.0, 1.0]), 0.0, 1.0).shape
+        (2, 3)
+    """
     if high <= low:
         return np.broadcast_to(PALETTE[0], (*values.shape, 3))
     levels = np.clip((values - low) * (255.0 / (high - low)), 0.0, 255.0).astype(np.uint8)
@@ -776,7 +797,7 @@ class ImageVisual(Visual):
             recording.log(path, rr.Tensor(values))
             return
         values = np.atleast_2d(values)
-        colors = _phase_colors(values) if cyclic else _palette_colors(values, *self._range(values))
+        colors = _phase_colors(values) if cyclic else palette_colors(values, *self._range(values))
         height, width = values.shape
         recording.log(
             path,
@@ -910,7 +931,7 @@ class SiteVisual(Visual):
         """Return the colors of site values over the given range or the extremes of the values."""
         low = float(values.min()) if self.low is None else float(self.low)
         high = float(values.max()) if self.high is None else float(self.high)
-        return _palette_colors(values, low, high)
+        return palette_colors(values, low, high)
 
     def _layout(self, space: NetworkSpace) -> dict[str, npt.NDArray[np.float64]]:
         """Return the positions of the nodes of a network, computed once per network."""
@@ -1081,7 +1102,7 @@ class MeshVisual(Visual):
         """Return the colors of node values over the given range or the extremes of the values."""
         low = float(values.min()) if self.low is None else float(self.low)
         high = float(values.max()) if self.high is None else float(self.high)
-        return _palette_colors(values, low, high)
+        return palette_colors(values, low, high)
 
     @staticmethod
     def _log_mesh(

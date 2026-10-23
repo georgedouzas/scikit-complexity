@@ -18,8 +18,7 @@ from ..base import (
     TimeKind,
     Trait,
 )
-from ..space import Adjacency, Neighborhood
-from ..space._cayley import Memory
+from ..space import Adjacency, Memory, Neighborhood
 from ._law import Law, register_laws
 
 SCHEDULES = ('synchronous', 'random-sequential', 'random-site', 'checkerboard', 'colored')

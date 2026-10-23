@@ -14,7 +14,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import GF, matrix
 
-from ..base import SpaceTooLargeError, ValidationError, WordProblemError
+from ...base import SpaceTooLargeError, ValidationError, WordProblemError
 
 GAP_MODULE = 'sage.all__sagemath_gap'
 GAP_PACKAGE = 'passagemath-gap'
@@ -132,7 +132,7 @@ def parse_word(text: str, generators: Sequence[str]) -> Word:
             A factor is not a generator name with an optional integer exponent.
 
     Examples:
-        >>> from skcomplex.core.space import parse_word
+        >>> from skcomplex.core.formalisms.groups import parse_word
         >>> parse_word('a*b^-1*a^2', ('a', 'b'))
         (1, -2, 1, 1)
         >>> parse_word('1', ('a', 'b'))
@@ -594,7 +594,7 @@ def finitely_presented_group(generators: Sequence[str], relators: Sequence[str] 
             A generator name is repeated or not an identifier, or a relator has a factor that is not a generator.
 
     Examples:
-        >>> from skcomplex.core.space import finitely_presented_group
+        >>> from skcomplex.core.formalisms.groups import finitely_presented_group
         >>> finitely_presented_group(['a', 'b']).generators
         ('a', 'b')
     """
@@ -625,7 +625,7 @@ def automaton_group(
             permutation of the alphabet.
 
     Examples:
-        >>> from skcomplex.core.space import automaton_group
+        >>> from skcomplex.core.formalisms.groups import automaton_group
         >>> adding = automaton_group({'t': ((None, 't'), (1, 0))})
         >>> adding.generators
         ('t',)
@@ -675,7 +675,7 @@ def permutation_group(
             A generator is not a permutation of the same points as the others.
 
     Examples:
-        >>> from skcomplex.core.space import permutation_group
+        >>> from skcomplex.core.formalisms.groups import permutation_group
         >>> permutation_group([[1, 0, 2], [1, 2, 0]]).generators
         ('a', 'b')
     """
@@ -714,7 +714,7 @@ def matrix_group(
             not invertible over the ring.
 
     Examples:
-        >>> from skcomplex.core.space import matrix_group
+        >>> from skcomplex.core.formalisms.groups import matrix_group
         >>> matrix_group([[[1, 2], [0, 1]], [[1, 0], [2, 1]]]).generators
         ('a', 'b')
     """
