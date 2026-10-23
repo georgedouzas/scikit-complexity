@@ -26,7 +26,6 @@ from ...base import (
 from ...laws import Law
 
 FIELD_BOUNDARIES = ('periodic', 'zero-flux', 'fixed')
-DISCRETIZATIONS = ('finite-difference', 'spectral', 'finite-volume', 'finite-element')
 LIMITERS = ('minmod', 'van-leer', None)
 RIEMANN_SOLVERS = ('rusanov', 'godunov')
 

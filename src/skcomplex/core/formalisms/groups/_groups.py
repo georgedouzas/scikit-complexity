@@ -22,7 +22,6 @@ KNUTH_BENDIX_LIMITS = (('maxeqns', 5000), ('maxstates', 50000))
 ORDERINGS = ('shortlex', 'recursive')
 HASH_POINTS = 2**14
 INT64_HEADROOM = 2**62
-RINGS = ('ZZ', 'GF')
 IDENTITY_WORDS = ('', '1')
 TOKEN = re.compile(r'^([A-Za-z_]\w*)(?:\^(-?\d+))?$')
 
@@ -51,11 +50,6 @@ def _letters(n_generators: int) -> Word:
 def _column(letter: int) -> int:
     """Return the column of a letter in the order of `_letters`."""
     return 2 * (abs(letter) - 1) + (letter < 0)
-
-
-def _inverse_word(word: Word) -> Word:
-    """Return the inverse of a word."""
-    return tuple(-letter for letter in reversed(word))
 
 
 def _reduce_freely(word: Word) -> Word:
