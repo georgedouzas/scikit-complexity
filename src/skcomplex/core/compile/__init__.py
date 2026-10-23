@@ -1,7 +1,7 @@
 """Compile systems into problems of one mathematical form with fast numeric functions."""
 
 from ._arrays import Vector
-from ._backends import BACKENDS, Backend, Lowering, load_backends, reads_reductions, register_backend, resolve_backend
+from ._backends import BACKENDS, Backend, Lowering, reads_reductions, register_backend, resolve_backend
 from ._capacity import CapacityRows, capacity_rows
 from ._census import Census, CensusRecord, OwnerRule, law_census, register_owner
 from ._compilation import BlockLaws, Compilation, Laws
@@ -26,7 +26,7 @@ from ._kernels import (
 from ._layout import Entry, Layout
 from ._observables import ObservableEvaluator, observables_of, with_observables
 from ._pipeline import Check, Pass, order_passes, register_check, register_pass, registered_passes, run_passes
-from ._planner import Plan, PlannedPartition, plan_partitions, solver_classes
+from ._planner import SOLVERS, Plan, PlannedPartition, plan_partitions, solver_classes, solver_registry
 from ._printing import NUMPY_DIALECT, SCALAR_DIALECT, Dialect, numpy_function, print_expressions
 from ._problem import (
     Accelerated,
@@ -75,6 +75,7 @@ __all__: list[str] = [
     'MODES',
     'NUMPY_DIALECT',
     'SCALAR_DIALECT',
+    'SOLVERS',
     'Accelerated',
     'Backend',
     'Binding',
@@ -150,7 +151,6 @@ __all__: list[str] = [
     'group_space',
     'is_interaction',
     'law_census',
-    'load_backends',
     'mask_of',
     'masked_value',
     'member_count',
@@ -175,6 +175,7 @@ __all__: list[str] = [
     'resolve_backend',
     'run_passes',
     'solver_classes',
+    'solver_registry',
     'spectral_multiplier',
     'state_name',
     'target_references',

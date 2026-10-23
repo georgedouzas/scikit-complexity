@@ -9,23 +9,22 @@ from typing import Any, cast
 
 from ..base import Form, IncompatibleLawsError, LawKind, Registry
 from ..system import System
-from ._backends import load_backends
+from ._backends import _load_backends
 from ._census import Census
 from ._forms import fits_form
 from ._issues import Issue
 
+SOLVERS = Registry[type[Any]]('solver')
 
-def solver_registry() -> Registry:
-    """Return the registry of solvers, imported late since the solvers import the compiler.
+
+def solver_registry() -> Registry[type[Any]]:
+    """Return the registry of solvers, once the backends and the solvers they run have registered.
 
     Returns:
         solvers:
             The registry of solver classes by form and name.
     """
-    from ..solvers import SOLVERS  # noqa: PLC0415
-
-    load_backends()
-
+    _load_backends()
     return SOLVERS
 
 

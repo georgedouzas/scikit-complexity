@@ -326,7 +326,7 @@ def report_fallbacks(
 BACKENDS = Registry[type[Backend]]('backend')
 
 
-def load_backends() -> None:
+def _load_backends() -> None:
     """Import `skcomplex.core.backends`, whose modules register the backends and the solvers that run in them."""
     importlib.import_module('skcomplex.core.backends')
 
@@ -363,7 +363,7 @@ def resolve_backend(backend: str | Backend, members: int) -> Backend:
     """
     if isinstance(backend, Backend):
         return backend
-    load_backends()
+    _load_backends()
     name = ('numba' if members >= AUTO_MEMBERS else 'numpy') if backend == 'auto' else backend
     try:
         return BACKENDS.resolve(name)()

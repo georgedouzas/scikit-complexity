@@ -4,11 +4,11 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import Domain, Form, NoiseKind, ValidationError, role, state, symbol
-from skcomplex.core.compile import compile_system, validate
+from skcomplex.core.compile import SOLVERS, compile_system, validate
 from skcomplex.core.components import Element, Wiener
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Noise, Rate, Update
-from skcomplex.core.solvers import SOLVERS, EulerMaruyama, Heun, Milstein
+from skcomplex.core.solvers import EulerMaruyama, Heun, Milstein
 from skcomplex.core.space import DiscreteTime
 from skcomplex.core.system import System
 

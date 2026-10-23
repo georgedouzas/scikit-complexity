@@ -30,10 +30,10 @@ from ...base import (
     declarations_of,
     symbol,
 )
-from ...compile import CompiledElement, CompiledInteraction, Problem, Vector, compile_system
+from ...compile import SOLVERS, CompiledElement, CompiledInteraction, Problem, Vector, compile_system
 from ...interactions import Interaction
 from ...laws import Symbols
-from ...solvers import SOLVERS, step_count
+from ...solvers import step_count
 from ...space import ContinuousSpace
 from ...system import System
 from ._components import Particle
