@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, cast
 
@@ -267,7 +268,7 @@ def _is_lattice_field(component: object) -> bool:
     )
 
 
-def _conserved_issue(record: CensusRecord, components: dict[str, object]) -> Issue | None:
+def _conserved_issue(record: CensusRecord, components: Mapping[str, object]) -> Issue | None:
     """Return the issue of a conserved noise law that drives a state outside a finite-difference lattice field."""
     outside = [name for name, _ in record.driven if not _is_lattice_field(components.get(name.rpartition('.')[0]))]
     if not outside:

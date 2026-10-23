@@ -1939,7 +1939,7 @@ solves per Fourier mode for spectral fields. `ETDRK4` integrates it exactly per 
 equations take steps far beyond the explicit limit.
 
 ```python
-from skcomplex.core.formalisms.fields import divergence, ETDRK4
+from skcomplex.core.formalisms.fields import ETDRK4, divergence
 
 Chaos = Element.define(
     'Chaos',

@@ -58,9 +58,8 @@ class Field(Group):
 
     Examples:
         >>> from skcomplex.core.components import Element
-        >>> from skcomplex.core.formalisms.fields import Field
+        >>> from skcomplex.core.formalisms.fields import Field, laplacian
         >>> from skcomplex.core.laws import Rate
-        >>> from skcomplex.core.formalisms.fields import laplacian
         >>> from skcomplex.core.space import LatticeSpace
         >>> Heat = Element.define(
         ...     'Heat',
