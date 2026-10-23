@@ -11,6 +11,17 @@ from pathlib import Path
 
 import pytest
 
+from .layout_checks import (
+    definition_order,
+    formalism_imports,
+    guarded_imports,
+    leaking_exports,
+    misordered_definitions,
+    undeclared_formalism_imports,
+    upward_imports,
+    wide_base_imports,
+)
+
 PACKAGE = Path(__file__).parent.parent / 'src' / 'skcomplex'
 MODELLING_PACKAGES = ['base', 'space', 'laws', 'components', 'interactions', 'system']
 ENGINEERING_PACKAGES = ['compile', 'solvers', 'runtime', 'viz', 'experiments', 'analysis', 'backends']
@@ -338,3 +349,232 @@ def test_backends_live_in_one_package():
     ]
     assert defined == []
     assert Backend.__module__ == 'skcomplex.core.compile._backends'
+
+
+ROOT = PACKAGE.parent
+TESTS = Path(__file__).parent
+DOCS = TESTS.parent / 'docs'
+LAYOUT_TESTS = frozenset({Path(__file__).name, 'layout_checks.py'})
+RESTRUCTURE = pytest.mark.xfail(strict=False, reason='enabled by task 5.2')
+
+
+def _plant(root, files):
+    """Write a small package under a root, with an `__init__` in every directory a file needs, and return the root."""
+    for relative, source in files.items():
+        path = root / relative
+        for parent in reversed(path.relative_to(root).parents[:-1]):
+            (root / parent).mkdir(exist_ok=True)
+            (root / parent / '__init__.py').touch()
+        path.write_text(source)
+    return root
+
+
+def _clients():
+    """Return the tests and the documentation that use the exports of the core, leaving out the layout tests."""
+    tests = [path for path in TESTS.rglob('*') if path.is_file() and path.name not in LAYOUT_TESTS]
+    return [*tests, DOCS]
+
+
+def test_upward_import_is_found(tmp_path):
+    """Test that an import of a package listed later names the module and the package it reached."""
+    root = _plant(
+        tmp_path,
+        {
+            'skcomplex/core/solvers/_planted.py': 'from ..backends import Numba\nfrom ..compile import Problem\n',
+            'skcomplex/core/laws/_planted.py': 'from skcomplex.core import system\n',
+        },
+    )
+    assert upward_imports(root) == [
+        'skcomplex.core.laws._planted: laws imports skcomplex.core.system, which comes after it',
+        'skcomplex.core.solvers._planted: solvers imports skcomplex.core.backends, which comes after it',
+    ]
+
+
+@RESTRUCTURE
+def test_core_imports_only_earlier_packages():
+    """Test that every core package imports only the packages listed before it."""
+    assert upward_imports(ROOT) == []
+
+
+@pytest.mark.parametrize(
+    ('source', 'expected'),
+    [
+        (
+            'class Public:\n    pass\n\n\ndef _helper():\n    pass\n',
+            ['planted: the private function _helper comes after the public class Public'],
+        ),
+        (
+            'def public():\n    pass\n\n\nclass _Private:\n    pass\n\n\ndef _helper():\n    pass\n',
+            ['planted: the private function _helper comes after the private class _Private'],
+        ),
+        ('def _a():\n    pass\n\n\ndef b():\n    pass\n\n\nclass _C:\n    pass\n\n\nclass D:\n    pass\n', []),
+        ('class Base:\n    pass\n\n\nclass _Derived(Base):\n    pass\n', []),
+        ('def decorate(f):\n    return f\n\n\n@decorate\ndef _decorated():\n    pass\n', []),
+        ('def default():\n    pass\n\n\ndef _uses(f=default):\n    pass\n', []),
+        ('class Value:\n    pass\n\n\nVALUE = Value()\n\n\ndef _after():\n    pass\n', []),
+        (
+            (
+                'def _inner():\n    pass\n\n\ndef outer():\n    return _inner()\n\n\nSHAPE = outer()\n\n\n'
+                'class _Shape:\n    size = SHAPE\n'
+            ),
+            [],
+        ),
+        (
+            'class Base:\n    pass\n\n\nclass _Derived(Base):\n    pass\n\n\ndef _late():\n    pass\n',
+            ['planted: the private function _late comes after the private class _Derived'],
+        ),
+    ],
+)
+def test_helper_between_classes_is_found(source, expected):
+    """Test that a definition after one of a later turn is named, unless the module needs it before its turn."""
+    assert misordered_definitions(source, 'planted') == expected
+
+
+def test_definition_order_names_the_module(tmp_path):
+    """Test that the order check of the tree names the module of a misplaced helper."""
+    root = _plant(tmp_path, {'skcomplex/core/laws/_planted.py': 'class Law:\n    pass\n\n\ndef _helper():\n    pass\n'})
+    expected = 'skcomplex.core.laws._planted: the private function _helper comes after the public class Law'
+    assert definition_order(root) == [expected]
+
+
+@RESTRUCTURE
+def test_core_modules_define_in_order():
+    """Test that every core module defines private functions, public functions, private classes, then public ones."""
+    assert definition_order(ROOT) == []
+
+
+@pytest.mark.parametrize(
+    ('relative', 'source', 'expected'),
+    [
+        (
+            'skcomplex/core/components/_component.py',
+            'from ..space import Space\nfrom ..base import Domain\nimport numpy\n\n\nclass Component:\n    pass\n',
+            [
+                (
+                    'skcomplex.core.components._component: defines the base Component and imports '
+                    'skcomplex.core.space, not only skcomplex.core.base'
+                ),
+            ],
+        ),
+        (
+            'skcomplex/core/laws/_law.py',
+            'from ._values import values_of\n\n\nclass Law:\n    pass\n',
+            [
+                (
+                    'skcomplex.core.laws._law: defines the base Law and imports skcomplex.core.laws._values, '
+                    'not only skcomplex.core.base'
+                ),
+            ],
+        ),
+        ('skcomplex/core/laws/_law.py', 'from ..base import Domain\n\n\nclass Law:\n    pass\n', []),
+    ],
+)
+def test_base_class_with_wide_imports_is_found(tmp_path, relative, source, expected):
+    """Test that a module defining `Component` or `Law` that imports beyond `skcomplex.core.base` is named."""
+    assert wide_base_imports(_plant(tmp_path, {relative: source})) == expected
+
+
+def test_base_classes_import_only_base():
+    """Test that the modules defining `Component` and `Law` import only `skcomplex.core.base`."""
+    assert wide_base_imports(ROOT) == []
+
+
+def test_guarded_import_is_found(tmp_path):
+    """Test that an import under `TYPE_CHECKING`, bare or as an attribute, names the module and the import."""
+    source = (
+        'import typing\nfrom typing import TYPE_CHECKING\n\nif TYPE_CHECKING:\n    from ..space import Space\n'
+        '\nif typing.TYPE_CHECKING:\n    import numpy\n'
+    )
+    root = _plant(tmp_path, {'skcomplex/core/system/_planted.py': source})
+    assert guarded_imports(root) == [
+        'skcomplex.core.system._planted:5: imports skcomplex.core.space under TYPE_CHECKING',
+        'skcomplex.core.system._planted:8: imports numpy under TYPE_CHECKING',
+    ]
+
+
+@RESTRUCTURE
+def test_core_guards_no_import():
+    """Test that no core module imports under `TYPE_CHECKING`."""
+    assert guarded_imports(ROOT) == []
+
+
+def test_planted_formalism_import_is_found(tmp_path):
+    """Test that a shared core module importing a formalism is named, and a formalism importing the core is not."""
+    root = _plant(
+        tmp_path,
+        {
+            'skcomplex/core/compile/_planted.py': 'from ..formalisms.lattices import LocalRule\n',
+            'skcomplex/core/solvers/_planted.py': 'from skcomplex.core import formalisms\n',
+            'skcomplex/core/formalisms/lattices/_laws.py': 'from ...laws import Law\n',
+        },
+    )
+    assert formalism_imports(root) == [
+        'skcomplex.core.compile._planted: the shared core imports skcomplex.core.formalisms.lattices',
+        'skcomplex.core.solvers._planted: the shared core imports skcomplex.core.formalisms',
+    ]
+
+
+def test_shared_core_imports_no_formalism():
+    """Test that no module of the shared core imports from `skcomplex.core.formalisms`."""
+    assert formalism_imports(ROOT) == []
+
+
+def test_undeclared_formalism_import_is_found(tmp_path):
+    """Test that a formalism importing one it does not declare names both, and a declared one passes."""
+    root = _plant(
+        tmp_path,
+        {
+            'skcomplex/core/formalisms/agents/__init__.py': "from .._formalism import Formalism\nFormalism('agents')\n",
+            'skcomplex/core/formalisms/lattices/__init__.py': "FORMALISM = Formalism(name='lattices')\n",
+            'skcomplex/core/formalisms/fields/__init__.py': (
+                "from .. import Formalism, lattices\nFORMALISM = Formalism('fields', depends=('lattices',))\n"
+            ),
+            'skcomplex/core/formalisms/kinetics/__init__.py': "FORMALISM = Formalism('kinetics')\n",
+            'skcomplex/core/formalisms/kinetics/_laws.py': (
+                'from ..agents import Rule\nfrom ...formalisms import lattices\nfrom .._formalism import register\n'
+            ),
+        },
+    )
+    prefix = 'skcomplex.core.formalisms.kinetics._laws: the formalism kinetics imports the formalism'
+    assert undeclared_formalism_imports(root) == [
+        f'{prefix} agents, which it does not declare',
+        f'{prefix} lattices, which it does not declare',
+    ]
+
+
+def test_no_formalisms_means_no_undeclared_import(tmp_path):
+    """Test that a tree without formalisms has no undeclared formalism import."""
+    assert undeclared_formalism_imports(_plant(tmp_path, {'skcomplex/core/laws/_law.py': ''})) == []
+
+
+def test_formalisms_import_only_declared_formalisms():
+    """Test that every formalism imports only the formalisms its declaration lists in `depends`."""
+    assert undeclared_formalism_imports(ROOT) == []
+
+
+def test_compiler_internal_leak_is_found(tmp_path):
+    """Test that an export one other core package alone uses is named, unless a client or a second package uses it."""
+    root = _plant(
+        tmp_path,
+        {
+            'skcomplex/core/laws/__init__.py': (
+                'from ._laws import Rate, shift, request_of, unused\n'
+                "__all__ = ['Rate', 'shift', 'request_of', 'unused']\n"
+            ),
+            'skcomplex/core/compile/_planted.py': 'from ..laws import Rate, shift, request_of\n',
+            'skcomplex/core/solvers/_planted.py': 'from ..laws._laws import shift\n',
+            'skcomplex/models/physics/_planted.py': 'from skcomplex.core.laws import Rate\n',
+        },
+    )
+    expected = 'skcomplex.core.laws: exports request_of, which only skcomplex.core.compile uses'
+    assert leaking_exports(root, []) == [expected]
+    (tmp_path / 'docs').mkdir()
+    (tmp_path / 'docs' / 'guide.md').write_text('Read the request with `request_of(law)`.\n')
+    assert leaking_exports(root, [tmp_path / 'docs']) == []
+    assert leaking_exports(root, [], concepts=['skcomplex.core.laws.request_of']) == []
+
+
+@RESTRUCTURE
+def test_core_exports_do_not_leak():
+    """Test that no core package exports a name that one other core package alone uses."""
+    assert leaking_exports(ROOT, _clients()) == []
