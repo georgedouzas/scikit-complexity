@@ -20,10 +20,10 @@
 
 ## 2. Formalism registration and the first moves
 
-- [ ] 2.1 Add `formalisms/_formalism.py`, with `Formalism`, `register`, `registered_formalisms`, and the dependency
+- [x] 2.1 Add `formalisms/_formalism.py`, with `Formalism`, `register`, `registered_formalisms`, and the dependency
   check. Add a test formalism that registers a new law kind, a pass, and a solver. Verify with the "Registered
   contributions are listed", "Unregistered law", and "Law from an outside formalism" scenarios.
-- [ ] 2.2 Add the import codemod script `tools/rewrite_imports.py`, which reads a table of old and new paths, and its
+- [x] 2.2 Add the import codemod script `tools/rewrite_imports.py`, which reads a table of old and new paths, and its
   test. Each move below rewrites models, examples, tests, and documentation with it. Verify on a planted fixture.
 - [ ] 2.3 Move `topology` and `renewals` to `formalisms`, with their tests mirrored. Verify with the topology and
   renewal tests and the catalog conformance tests.
