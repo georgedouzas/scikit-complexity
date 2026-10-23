@@ -403,7 +403,7 @@ class _Reductions:
                 f'on {block.node.space!r}, which has none of its own. Reduce over Radius, Nearest, or Cone.'
             )
             raise ValidationError(error_msg)
-        key = ('neighbourhood', reduction.kind, str(argument), str(weight), repr(over), group)
+        key = ('neighborhood', reduction.kind, str(argument), str(weight), repr(over), group)
         if key not in self.neighbourhoods:
             states = declarations_of(block.node.component_type, VariableKind.STATE)
             changing = self.declarations.changing_entries(group_space(block)) if block.node.active is not None else None
