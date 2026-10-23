@@ -35,7 +35,7 @@ from ._problem import (
     Vector,
     VectorFunction,
 )
-from ._quantities import CompiledFlow, LoopTerm, Recorded, StockFlow
+from ._quantities import CompiledFlow, CompiledObjective, LoopTerm, Recorded, StockFlow
 from ._quantum import DEFAULT_MAX_DIMENSION, QuantumProblem, QuantumTerm, contains_quantum
 from ._rewriting import CompiledGraph, CompiledPatch, compile_rewriting
 from ._structures import GraphStructure, PatchStructure, Structure, WordStructure
@@ -69,6 +69,7 @@ __all__: list[str] = [
     'CompiledGraph',
     'CompiledInteraction',
     'CompiledMonteCarlo',
+    'CompiledObjective',
     'CompiledPatch',
     'CompiledRelaxation',
     'CompiledRule',

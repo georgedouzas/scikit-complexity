@@ -9,7 +9,7 @@ from skcomplex.core.base import Domain, OrderKind, Supports, ValidationError, pa
 from skcomplex.core.compile import Issue, ValidationReport, ValidationWarning, validate
 from skcomplex.core.components import Element
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Noise, Rate, Rule, Update
+from skcomplex.core.laws import Noise, Objective, Rate, Rule, Update
 from skcomplex.core.solvers import GrunwaldLetnikov
 from skcomplex.core.space import DiscreteTime
 from skcomplex.core.system import System
@@ -260,3 +260,64 @@ def test_validate_fractional_state_with_fractional_solver():
     assert validate(system).ok
     assert validate(system, solver='l1').ok
     assert validate(system, solver=GrunwaldLetnikov()).ok
+
+
+class Plant(Element):
+    """Element steered by a bounded control input, with a quadratic cost."""
+
+    x: float = state(1.0)
+    u: float = parameter(0.5, adaptive=True, bounds=(0, 1))
+
+    def laws(self, s):
+        """Return the rate of the state and the cost."""
+        return [Rate(s.x, s.u - s.x), Objective(s.x**2 + s.u**2)]
+
+
+class NoisyPlant(Plant):
+    """Plant whose state is driven by noise."""
+
+    def laws(self, s):
+        """Return the laws of the plant with noise."""
+        return [*super().laws(s), Noise(s.x, 0.1)]
+
+
+class Tank(Element):
+    """Element whose objective is placed under discrete time."""
+
+    level: float = state(1.0)
+
+    def laws(self, s):
+        """Return the update of the level and its cost."""
+        return [Update(s.level, s.level / 2), Objective(s.level)]
+
+
+def test_validate_control_outside_bounds():
+    """Test that an adaptive parameter starting outside its bounds is one error at the parameter, naming its bounds."""
+    (issue,) = validate(System(components=[Plant('plant', u=2.0)])).errors
+    assert issue.path == 'plant.u'
+    assert issue.code == 'parameter-bounds'
+    assert '(0.0, 1.0)' in issue.fix
+
+
+def test_validate_objective_under_discrete_time():
+    """Test that an objective under discrete time is reported at its law, needing static or continuous time."""
+    issues = validate(System(components=[Tank('tank')], time=DiscreteTime())).errors
+    issue = next(issue for issue in issues if issue.code == 'law-time')
+    assert issue.path == 'tank'
+    assert 'Objective law' in issue.message
+    assert 'continuous, static time' in issue.message
+
+
+def test_validate_objective_with_a_solver_without_objectives():
+    """Test that an objective run with a solver that does not optimise lists the solvers that do."""
+    (issue,) = validate(System(components=[Plant('plant')]), solver='rk4').errors
+    assert 'objective' in issue.message
+    assert 'collocation, pontryagin' in issue.fix
+    assert validate(System(components=[Plant('plant')]), solver='pontryagin').ok
+
+
+def test_validate_noise_with_an_optimal_control_solver():
+    """Test that a system with a noise law validated with Pontryagin reports that the solver lacks noise laws."""
+    issues = validate(System(components=[NoisyPlant('plant')]), solver='pontryagin').errors
+    issue = next(issue for issue in issues if issue.code == 'solver-unsupported')
+    assert 'Pontryagin does not support the laws noise' in issue.message

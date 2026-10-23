@@ -11,7 +11,16 @@ from typing import Any, Protocol
 import numpy as np
 import numpy.typing as npt
 
-from ..base import Expression, Form, SymbolicVector, VisualSpec, real_components_of
+from ..base import (
+    Expression,
+    Form,
+    SymbolicVector,
+    Variable,
+    VariableKind,
+    VisualSpec,
+    declarations_of,
+    real_components_of,
+)
 from ..components import Element, Group
 from ..interactions import Interaction
 from ..laws import Invariant, Rule
@@ -21,7 +30,7 @@ from ._contractions import CompiledEncounter
 from ._hybrid import Breakpoints, CompiledEvent, Delay
 from ._lattices import LatticeStep, lattice_shape
 from ._layout import Layout
-from ._quantities import StockFlow
+from ._quantities import CompiledObjective, StockFlow
 from ._reductions import CompiledReduction
 
 ROW_TOLERANCE = 1e-9
@@ -674,6 +683,23 @@ class Problem:
     def _flatten_symbols(self, layout: Layout) -> list[Expression]:
         """Return the symbols of the entries of a layout as a flat list."""
         return [item for entry in layout for item in real_components_of(self.symbols[entry.name])]
+
+    @property
+    def objectives(self) -> tuple[CompiledObjective, ...]:
+        """Objectives of the system, which optimal control solvers optimise."""
+        return () if self.stock_flow is None else self.stock_flow.objectives
+
+    @property
+    def adaptive_parameters(self) -> dict[str, Variable]:
+        """Declarations of the adaptive parameters of the elements and groups, by dotted state name."""
+        found = {}
+        for compiled in self.elements:
+            component = compiled.element
+            kind = component.element if isinstance(component, Group) else type(component)
+            for name, declaration in declarations_of(kind, VariableKind.STATE).items():
+                if declaration.adaptive and name in compiled.states:
+                    found[compiled.states[name]] = declaration
+        return found
 
     @property
     def stochastic(self) -> bool:

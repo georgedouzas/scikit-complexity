@@ -61,6 +61,7 @@ from ..laws import (
     LocalRule,
     Move,
     Noise,
+    Objective,
     Rate,
     Reduction,
     Relaxation,
@@ -166,8 +167,19 @@ CONTINUOUS = frozenset({Rate, Noise})
 ASSIGNED_KINDS = (Update, Boundary)
 MEMBER_REFERENCE = re.compile(r'^(?P<path>.+)\[(?P<index>-?\d+)\]$')
 LATTICE_LAWS = (LocalRule, Drive, Relaxation, Extremal, Energy, Move, Sampler)
-KERNEL_FREE = (*LATTICE_LAWS, Flux, Transfer, Auxiliary, Invariant, *ENCOUNTER_LAWS)
-DECLARED_FREE = (LocalRule, Drive, Relaxation, Extremal, Flux, Transfer, Auxiliary, Invariant, *ENCOUNTER_LAWS)
+KERNEL_FREE = (*LATTICE_LAWS, Flux, Transfer, Auxiliary, Invariant, Objective, *ENCOUNTER_LAWS)
+DECLARED_FREE = (
+    LocalRule,
+    Drive,
+    Relaxation,
+    Extremal,
+    Flux,
+    Transfer,
+    Auxiliary,
+    Invariant,
+    Objective,
+    *ENCOUNTER_LAWS,
+)
 AGENT_VIEW_NAMES = frozenset(
     {
         'id',
@@ -944,7 +956,7 @@ def _collect_laws(spec: _KernelSpec, component: object, flows: StockFlowPass, *,
         error_msg = (
             f'`laws` of {spec.owner} must return a list of Rate, Noise, FractionalNoise, Jump, Update, Transition, '
             'Emission, Boundary, Rule, Equation, Event, LocalRule, Drive, Relaxation, Extremal, Sample, Flux, '
-            'Transfer, Auxiliary, Encounter, Proliferation, or Destruction laws.'
+            'Transfer, Auxiliary, Invariant, Objective, Encounter, Proliferation, or Destruction laws.'
         )
         raise ValidationError(error_msg)
     if spec.pairs is not None and not all(isinstance(law, Rate) for law in declared):
@@ -2590,7 +2602,7 @@ def _law_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
     if isinstance(law, Rule):
         paths = [path for value in spec.roles.values() for path in ([value] if isinstance(value, str) else value)]
         return next((path for path in paths if path in agents), next(iter(paths), spec.owner))
-    if isinstance(law, Equation | Event | Energy | Sampler | Renewal | Transfer | Auxiliary | Invariant):
+    if isinstance(law, Equation | Event | Energy | Sampler | Renewal | Transfer | Auxiliary | Invariant | Objective):
         return _renewal_group(spec, law) if isinstance(law, Renewal) else spec.owner
     if isinstance(law, Relaxation):
         target = next(iter(law.targets), None)

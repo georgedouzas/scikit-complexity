@@ -223,7 +223,9 @@ def test_numpy_backend_calls_vector_call_once_per_step():
         return [-y, x]
 
     Pair = Element.define(
-        'Pair', states={'x': 1.0, 'y': 0.0}, laws=lambda s: [Update(vector([s.x, s.y]), Call(rotate, s.x, s.y))],
+        'Pair',
+        states={'x': 1.0, 'y': 0.0},
+        laws=lambda s: [Update(vector([s.x, s.y]), Call(rotate, s.x, s.y))],
     )
     trajectory = Simulation(System(components=[Pair('pair')]), backend='numpy').run(until=4).trajectory_
     assert trajectory['pair.x'].tolist() == [1.0, 0.0, -1.0, 0.0, 1.0]
