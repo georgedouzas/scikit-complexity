@@ -1095,3 +1095,327 @@ tolerances of the conformance suite.
 #### Scenario: Conformance before and after
 - **WHEN** the conformance suite runs every catalog model before and after the migration with random state 0
 - **THEN** every trajectory agrees within its declared tolerance
+
+### Requirement: Echo state network model
+The library SHALL provide `echo_state_network` in `computer_science/neural_networks`, a reservoir of leaky tanh units driven by an input, with a curated gallery example.
+
+#### Scenario: Echo state property
+- **WHEN** `echo_state_network` runs from two initial states with spectral radius 0.9
+- **THEN** the two reservoir trajectories converge, which is the echo state property
+
+### Requirement: Chemical Langevin equations of reaction networks
+The chemistry module SHALL describe binding and dissociation reactions as chemical Langevin equations, in which one
+Wiener process per reaction drives every species the reaction changes, and SHALL provide the chemical Langevin
+equation of the enzyme network `E + S <-> C -> E + P` as a registered factory.
+
+#### Scenario: Binding conserves a difference
+- **WHEN** `A + B -> C` runs as a chemical Langevin equation with `EulerMaruyama`
+- **THEN** `A - B` stays at its initial value within 1e-9 relative error at every frame, while `A` fluctuates
+
+#### Scenario: Enzyme totals under noise
+- **WHEN** the chemical Langevin network runs for its default time with a fixed random state
+- **THEN** `E + C` and `S + C + P` stay at their initial values within 1e-9 relative error at every frame
+
+#### Scenario: Two descriptions at once
+- **WHEN** a binding reaction is both stochastic and in Langevin mode
+- **THEN** compiling raises a named error that names the interaction
+
+### Requirement: Correlated geometric Brownian motions
+The finance module SHALL provide two assets whose prices follow geometric Brownian motions driven by Wiener processes
+with a given correlation, as a registered factory.
+
+#### Scenario: Correlated returns
+- **WHEN** the model runs with correlation 0.7 over 10 000 frames
+- **THEN** the sample correlation of the two assets' log returns per frame is 0.7 within 0.05
+
+### Requirement: Correlated noise models are recorded in the model inventory
+Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
+inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
+model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+twice.
+
+#### Scenario: Inventory models registered
+- **WHEN** the change is applied and the inventory check runs
+- **THEN** these entries are registered under their field paths and marked implemented:
+  - `chemical_langevin_network` in `chemistry/kinetics`
+  - `correlated_geometric_brownian_motion` in `economics/finance`
+
+#### Scenario: New model recorded
+- **WHEN** the change registers a model with no inventory entry
+- **THEN** the inventory check fails until the entry is added with its sources and field path
+
+### Requirement: Fractional models
+The library SHALL provide fractional relaxation, a fractional damped oscillator, fractional Van der Pol, and fractional
+Lorenz as registered factories with the order as an argument.
+
+#### Scenario: Slower than exponential
+- **WHEN** fractional relaxation runs with orders 1 and 0.5 from the same state
+- **THEN** the order 0.5 trajectory stays above the exponential one at long times
+
+### Requirement: Fractional dynamics models are recorded in the model inventory
+Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
+inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
+model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+twice.
+
+#### Scenario: Inventory models registered
+- **WHEN** the change is applied and the inventory check runs
+- **THEN** these entries are registered under their field paths and marked implemented:
+  - `fractional_relaxation` in `mathematics/fractional_dynamics`
+  - `fractional_oscillator` in `mathematics/fractional_dynamics`
+  - `fractional_van_der_pol` in `mathematics/fractional_dynamics`
+  - `fractional_lorenz` in `mathematics/fractional_dynamics`
+
+#### Scenario: New model recorded
+- **WHEN** the change registers a model with no inventory entry
+- **THEN** the inventory check fails until the entry is added with its sources and field path
+
+### Requirement: Repeated agent economy models
+The library SHALL provide `goods_traders`, `shops`, `barter`, `order_book`, `tragedy_of_the_commons`, and
+`ridesharing` as registered factories, each with a curated gallery example. Each SHALL be a `System` under discrete
+time with a phases schedule, with agents as elements with rule laws in groups, built on the core's matching, transfer,
+and invariant laws and on the trading realizations of `skcomplex.models.economics.realizations`, and none SHALL add a
+core primitive.
+
+#### Scenario: Barter reaches the contract curve
+- **WHEN** `barter` runs Edgeworth exchange between two traders with Cobb-Douglas preferences until no trade improves
+  both
+- **THEN** the final allocation lies on the contract curve within 2% of the total endowment
+
+#### Scenario: Commons collapse
+- **WHEN** `tragedy_of_the_commons` runs with more herders than the meadow carries and no regulating adaptive parameter
+- **THEN** the grass falls below a tenth of its capacity and the herd shrinks after it
+
+#### Scenario: Trades conserve goods
+- **WHEN** `goods_traders` runs for 50 steps with an invariant on the total of each good
+- **THEN** no invariant is violated, since every trade is a transfer between two agents
+
+### Requirement: Evolutionary Sherrington-Kirkpatrick game
+The library SHALL provide `evolutionary_sk_game` in `physics/criticality`, after Lesmana et al. (2026, arXiv
+2604.15669): learning agents on a Sherrington-Kirkpatrick landscape with Bak-Sneppen replacement of the least fit,
+built from the core's group, reduction, draw, and update primitives under discrete time, with the extremal replacement
+an update switched by the group minimum, and with its softmax choice defined in its model package rather than imported
+from another field's realizations.
+
+#### Scenario: Rules of the game
+- **WHEN** a user reads the factory of `evolutionary_sk_game`
+- **THEN** couplings are symmetric Gaussian with variance `1/N`, each agent's incentive is updated from its local field
+  with a memory weight, actions are softmax draws at the agent's temperature, and the least fit agent is replaced with a
+  temperature redrawn uniformly on [0, 2]
+
+#### Scenario: Self-organisation to the edge of ergodicity breaking
+- **WHEN** `evolutionary_sk_game` runs with 256 agents and memory 0.75 past its transient
+- **THEN** the replacement cascades follow a power law with exponent within 0.15 of 3/2, and the mean reward exceeds the
+  reward of the same game run at every fixed temperature tried in a sweep
+
+#### Scenario: Example of the evolutionary game
+- **WHEN** a user opens `docs/examples/physics/criticality/plot_evolutionary_sk_game.py`
+- **THEN** its thumbnail shows the evolved temperature distribution and its analysis compares the cascade sizes and the
+  ergodicity-breaking diagnostic with the paper's results
+
+### Requirement: Emergence models are recorded in the model inventory
+The inventory SHALL record `evolutionary_sk_game` with its arXiv source, its primitives, and its priority, pending this
+change until it is implemented.
+
+#### Scenario: Entry of the evolutionary game
+- **WHEN** a contributor reads the inventory entry of `evolutionary_sk_game`
+- **THEN** it cites arXiv 2604.15669, is tagged with discrete time, no space, a group, no binding, and the discrete
+  law class, and has priority `core`
+
+### Requirement: Kinetic models of active particles
+The library SHALL provide wealth and welfare dynamics, criminality against security forces, tumour-immune
+competition, and opinion formation as registered kinetic factories built on site groups and encounter laws, with their
+transition tables in their model packages and their standard moments declared by their catalog entries.
+
+#### Scenario: Immune response
+- **WHEN** the tumour-immune model runs with an immune activity above its threshold
+- **THEN** the tumour density decays, and below the threshold it grows
+
+### Requirement: Kinetic models are recorded in the model inventory
+Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
+inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
+model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+twice.
+
+#### Scenario: Inventory models registered
+- **WHEN** the change is applied and the inventory check runs
+- **THEN** these entries are registered under their field paths and marked implemented:
+  - `immune_competition` in `biology/oncology`
+  - `kinetic_wealth_welfare` in `economics/econophysics`
+  - `kinetic_opinion` in `social/opinion_dynamics`
+  - `evacuation` in `social/crowds`
+  - `criminality` in `social/crowds`
+
+#### Scenario: New model recorded
+- **WHEN** the change registers a model with no inventory entry
+- **THEN** the inventory check fails until the entry is added with its sources and field path
+
+### Requirement: Control models
+The library SHALL provide optimal harvesting, SIR vaccination, Ramsey optimal growth, a PID-stabilised inverted
+pendulum, and a linear-quadratic regulated oscillator as registered factories.
+
+#### Scenario: Vaccination lowers the peak
+- **WHEN** the SIR vaccination problem is solved with a bounded vaccination rate and a cost on infections
+- **THEN** the optimally controlled epidemic peak is lower than the uncontrolled one
+
+### Requirement: Feedback controllers are engineering realizations
+The library SHALL provide PID and state-feedback controllers in `skcomplex.models.engineering.realizations`, as
+components whose laws read states and set bounded adaptive parameters during a run, with the integral of the PID error
+in an element, so their internal states are part of the compiled system and the core holds no controller.
+
+#### Scenario: Inverted pendulum
+- **WHEN** a cart with an inverted pendulum runs from a tilt of 0.1 radians with a tuned PID controller
+- **THEN** the angle returns within 0.01 radians of upright within 5 seconds
+
+#### Scenario: No controller in the core
+- **WHEN** the field-term and import-graph tests of the core run
+- **THEN** they pass, and the controllers are importable only from the engineering realizations
+
+### Requirement: Optimal control models are recorded in the model inventory
+Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
+inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
+model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+twice.
+
+#### Scenario: Inventory models registered
+- **WHEN** the change is applied and the inventory check runs
+- **THEN** these entries are registered under their field paths and marked implemented:
+  - `sir_vaccination` in `biology/epidemiology`
+  - `optimal_consumption` in `economics/macroeconomics`
+  - `optimal_harvesting` in `economics/resources`
+  - `pid_inverted_pendulum` in `engineering/control`
+  - `lqr_oscillator` in `engineering/control`
+  - `optimal_chemotherapy` in `biology/oncology`
+  - `optimal_immunotherapy` in `biology/oncology`
+
+#### Scenario: New model recorded
+- **WHEN** the change registers a model with no inventory entry
+- **THEN** the inventory check fails until the entry is added with its sources and field path
+
+### Requirement: Group automata models
+The library SHALL provide the majority automaton on the free group, the lamplighter automaton, the discrete Laplacian
+as a linear automaton, the reversible Q2R Ising automaton, the golden mean shift, and the majority automaton on the
+Grigorchuk group as registered factories, each with a gallery example whose thumbnail is its Rerun screenshot and
+which shows an analysis plot from its run.
+
+#### Scenario: Q2R conserves energy
+- **WHEN** the Q2R automaton runs on a periodic lattice
+- **THEN** the Ising energy of the configuration stays constant at every step
+
+#### Scenario: Grigorchuk automaton
+- **WHEN** a user creates `grigorchuk_automaton` by name and runs it with its default parameters
+- **THEN** it runs the majority rule with the memory set `{1, a, b, c, d}` on a ball of radius 8 with 271 sites, every
+  interior cell takes the majority value of itself and its four neighbours, and the space reports the ball sizes 1, 5,
+  11, 23, 40, 68, 108, 176, and 271 for radii 0 to 8
+
+#### Scenario: Grigorchuk gallery plot
+- **WHEN** a user opens the gallery example of `grigorchuk_automaton`
+- **THEN** below the Rerun screenshot of the Cayley ball it plots the ball sizes for radii 0 to 10, and the text states
+  that the local log-log slope rises while `log |B(n)| / n` falls, so the growth is faster than polynomial and slower
+  than exponential
+
+### Requirement: Group cellular automaton models are recorded in the model inventory
+Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
+inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
+model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+twice.
+
+#### Scenario: Inventory models registered
+- **WHEN** the change is applied and the inventory check runs
+- **THEN** these entries are registered under their field paths and marked implemented:
+  - `free_group_automaton` in `computer_science/automata`
+  - `lamplighter_automaton` in `computer_science/automata`
+  - `heisenberg_automaton` in `computer_science/automata`
+  - `baumslag_solitar_automaton` in `computer_science/automata`
+  - `linear_ring_automaton` in `computer_science/automata`
+  - `subshifts` in `computer_science/automata`
+  - `grigorchuk_automaton` in `computer_science/automata` (CC 6.9)
+
+#### Scenario: New model recorded
+- **WHEN** the change registers a model with no inventory entry
+- **THEN** the inventory check fails until the entry is added with its sources and field path
+
+### Requirement: Surveyed physics models
+The library SHALL provide `swarmalators`, `ehrenfest_urn`, `directed_percolation_langevin`, `sk_game`,
+`keller_segel`, `benard_marangoni`, `charged_schrodinger`, `cahn_hilliard`, and `allen_cahn` as
+registered factories built from core primitives, each with a curated gallery example.
+
+#### Scenario: Ehrenfest urn relaxes to the binomial
+- **WHEN** `ehrenfest_urn` runs from all balls in one urn
+- **THEN** the count in the first urn relaxes to a binomial distribution with mean half the balls
+
+#### Scenario: Directed percolation threshold
+- **WHEN** `directed_percolation_langevin` sweeps its control parameter across the absorbing transition
+- **THEN** the stationary density vanishes below a threshold and grows above it
+
+### Requirement: Surveyed biology models
+The library SHALL provide `hormone_cascade_amplifier`, `min_protein_skeleton`, `nanotube_gap_junction_exchange`,
+`closed_contour_cell_exchange`, `adaptive_response_costs`, `glucose_dual_hormone_control`,
+`coagulation_positive_feedback`, and `couzin_leadership` as registered factories built from core primitives, each with
+a curated gallery example.
+
+#### Scenario: Informed minority leads the group
+- **WHEN** `couzin_leadership` runs with a small informed minority sharing a preferred direction
+- **THEN** the group's mean heading turns towards that direction, and the accuracy grows with the minority's size
+
+### Requirement: Surveyed earth, economics, and mathematics models
+The library SHALL provide `sutera_fraedrich_tipping`, `ramped_stochastic_fold`, `metaphoria`,
+`wilhite_trade_networks`, `koopman_slow_manifold`, and `ou_driven_rossler` as registered factories built from core
+primitives, each with a curated gallery example.
+
+#### Scenario: Tipping lags a ramp
+- **WHEN** `ramped_stochastic_fold` ramps its control parameter through the fold faster than the system relaxes
+- **THEN** the state tips after the control passes the static fold point, later for faster ramps
+
+### Requirement: Network models
+The library SHALL provide Kuramoto on complete graphs and networks, the power-grid swing equation, SIS and SIR on
+networks, adaptive SIS with rewiring, Barabási-Albert growth, voter and majority models on networks, random Boolean
+networks, coupled logistic maps, Vicsek flocking, and DebtRank interbank contagion as registered factories.
+
+#### Scenario: Random Boolean network phases
+- **WHEN** random Boolean networks with in-degree 1, 2, and 3 run from random states
+- **THEN** damage from a single flipped node dies out at in-degree 1, stays near constant at 2, and spreads at 3
+
+### Requirement: Adaptive network models are recorded in the model inventory
+Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
+inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
+model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+twice.
+
+#### Scenario: Inventory models registered
+- **WHEN** the change is applied and the inventory check runs
+- **THEN** these entries are registered under their field paths and marked implemented:
+  - `kuramoto_on_networks` in `physics/synchronization`
+  - `coupled_map_lattices_on_networks` in `physics/synchronization`
+  - `vicsek` in `physics/active_matter`
+  - `gregoire_chate` in `physics/active_matter`
+  - `ginelli_nematics` in `physics/active_matter`
+  - `sequentially_linear_ecosystem` in `biology/ecology`
+  - `quenched_mean_field_sis` in `biology/epidemiology`
+  - `adaptive_sis` in `biology/epidemiology`
+  - `activity_driven_epidemics` in `biology/epidemiology`
+  - `jain_krishna` in `biology/evolution`
+  - `sole_manrubia` in `biology/evolution`
+  - `hegselmann_krause` in `social/opinion_dynamics`
+  - `coevolving_voter` in `social/opinion_dynamics`
+  - `join_a_club` in `social/opinion_dynamics`
+  - `barabasi_albert` in `mathematics/networks`
+  - `holme_kim` in `mathematics/networks`
+  - `vertex_copying` in `mathematics/networks`
+  - `network_attack` in `mathematics/networks`
+  - `random_graph_ensembles` in `mathematics/networks`
+
+#### Scenario: New model recorded
+- **WHEN** the change registers a model with no inventory entry
+- **THEN** the inventory check fails until the entry is added with its sources and field path
+
+### Requirement: Dynamics analysis probe models
+The library SHALL provide `kinouchi_copelli`, `nonreciprocal_cahn_hilliard`, `nonreciprocal_vicsek`, and `tipping_cascade_network`, each with a curated gallery example.
+
+#### Scenario: Maximal dynamic range
+- **WHEN** `kinouchi_copelli` sweeps the branching ratio
+- **THEN** the dynamic range peaks at a branching ratio of 1, as Kinouchi and Copelli (2006) found
+
+#### Scenario: Traveling patterns
+- **WHEN** `nonreciprocal_cahn_hilliard` runs with nonreciprocal coupling above threshold
+- **THEN** its demixed domains travel, as Brauns and Marchetti (2023) predict

@@ -153,3 +153,32 @@ stable laws to sums, and compare samples with a named law by a goodness-of-fit t
 - **WHEN** a user reweights the magnetization histogram of the mean-field Ising model of size 100 at field 0 to field
   0.05
 - **THEN** the reweighted mean lies within 0.02 of the mean of a run at field 0.05
+
+### Requirement: Ergodicity breaking is diagnosed from ensembles
+The analysis SHALL diagnose ergodicity breaking from an ensemble of trajectories of an observable: the ergodicity-
+breaking parameter, the normalised variance of the time averages across the ensemble; the Thirumalai-Mountain
+fluctuation metric as a function of time; and the total-variation distance between the time-averaged distribution of an
+agent trait and its ensemble distribution. It SHALL read trajectories through the existing adapters.
+
+#### Scenario: Ergodic diffusion in a box
+- **WHEN** the ergodicity-breaking parameter of the positions of 200 Ornstein-Uhlenbeck processes is computed over
+  times much longer than their relaxation time
+- **THEN** it is below 0.01, and the fluctuation metric decays as `1/t` within a 10% fitted exponent
+
+#### Scenario: Frozen disorder
+- **WHEN** the same diagnostics run on 200 trajectories that each stay in one of two wells for the whole run
+- **THEN** the ergodicity-breaking parameter stays above 0.5 and the fluctuation metric levels off
+
+### Requirement: Cloning samples rare trajectories
+The analysis SHALL estimate the scaled cumulant generating function of a time-additive observable by cloning a population of trajectories through the simulation's steppers.
+
+#### Scenario: Poisson counter
+- **WHEN** cloning estimates the generating function of the counts of a Poisson process with rate 1 at s = 0.5
+- **THEN** it is within 2% of `exp(0.5) - 1`
+
+### Requirement: Uncertainty relation of currents
+The analysis SHALL report the precision of a current against its entropy production and check the thermodynamic uncertainty relation.
+
+#### Scenario: Biased random walk
+- **WHEN** the current of a biased random walk on a ring is measured
+- **THEN** its squared relative fluctuation times the entropy production is at least 2 within the sampling error

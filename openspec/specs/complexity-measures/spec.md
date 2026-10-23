@@ -80,3 +80,93 @@ symbols by plug-in counts and from continuous values by nearest-neighbour estima
 - **WHEN** a user computes transfer entropies of two logistic maps coupled one way, symbolized, and of a Rössler
   oscillator driving a detuned one, continuous with a target history of 2
 - **THEN** in both the transfer from the driver exceeds the reverse transfer by a factor of at least 5
+
+### Requirement: Higher-order information of many variables
+The analysis SHALL compute total correlation, dual total correlation, O-information, and the O-information gradient of each variable, for discrete data and with Gaussian estimators.
+
+#### Scenario: Synergy of XOR
+- **WHEN** the O-information of X, Y, and Z = X xor Y with fair independent bits is computed
+- **THEN** it equals -1 bit within the estimator error, a synergistic system
+
+#### Scenario: Redundancy of copies
+- **WHEN** the O-information of three copies of one fair bit is computed
+- **THEN** it equals +1 bit, a redundant system
+
+### Requirement: Partial information decomposition
+The analysis SHALL decompose the information two sources give about a target into redundant, unique, and synergistic parts, with the redundancy measure as a keyword, wrapping `dit`.
+
+#### Scenario: AND gate
+- **WHEN** the decomposition of Z = X and Y with fair bits uses the minimum mutual information redundancy
+- **THEN** redundancy is about 0.311 bits, synergy 0.5 bits, and unique parts are zero
+
+### Requirement: Local information measures
+The analysis SHALL return local, pointwise entropy, mutual information, and transfer entropy, whose means equal the global measures.
+
+#### Scenario: Local means
+- **WHEN** local mutual information is computed on a long sample of correlated Gaussians
+- **THEN** its mean equals the global mutual information within 1e-9
+
+### Requirement: Emergence criteria of a macro feature
+The analysis SHALL compute the ΦID criteria Ψ, Δ, and Γ of a macro feature of a micro system, and SHALL test the closure of a coarse-graining by comparing how well macro and micro series predict the macro future.
+
+#### Scenario: Emergent parity
+- **WHEN** the parity of many noisy bits that persist as a whole is the macro feature, as in Rosas et al. (2020)
+- **THEN** Ψ is positive
+
+#### Scenario: Closed coarse-graining
+- **WHEN** the closure of a lumpable chain's block coarse-graining is tested
+- **THEN** the macro series is closed within the estimator error
+
+### Requirement: Epsilon-machines of discrete series
+The analysis SHALL reconstruct the ε-machine of a discrete series, with its causal states, transitions, statistical complexity, and entropy rate.
+
+#### Scenario: Golden mean process
+- **WHEN** the ε-machine of a long sample of the golden mean process is reconstructed
+- **THEN** it has two causal states and a statistical complexity within 0.01 of 0.918 bits
+
+### Requirement: Partitions coarse-grain states and transitions
+The analysis SHALL coarse-grain discrete micro states into macro states by a partition, given as an integer label per
+state or a function of the state, and SHALL apply it to discrete trajectories and to transition matrices. The macro
+transition matrix SHALL aggregate micro transitions within each block, weighted by the uniform or the stationary
+distribution over the block as a keyword selects, and every macro row SHALL sum to one.
+
+#### Scenario: Lumpable chain
+- **WHEN** a four-state chain whose states {0, 1} and {2, 3} move as blocks is coarse-grained by the partition
+  `[0, 0, 1, 1]`
+- **THEN** the macro transition matrix equals the block transition matrix within 1e-12, with either weighting
+
+#### Scenario: Partition of a trajectory
+- **WHEN** a discrete trajectory is coarse-grained by a labelling function
+- **THEN** each frame holds the label of its micro state, and the macro matrix estimated from it equals the
+  coarse-graining of the micro matrix within the sampling error
+
+### Requirement: Effective information of transitions
+The analysis SHALL compute the effective information of a transition matrix, the mutual information in bits between a
+uniform intervention on the current state and the next state, together with its determinism and degeneracy, so that the
+effective information equals determinism minus degeneracy. States without observed transitions SHALL be dropped with a
+named warning that names them.
+
+#### Scenario: Deterministic permutation
+- **WHEN** the effective information of an `n`-state permutation matrix is computed
+- **THEN** it equals `log2 n` within 1e-12, with determinism `log2 n` and degeneracy 0
+
+#### Scenario: Fully noisy chain
+- **WHEN** the effective information of a matrix whose rows are all uniform is computed
+- **THEN** it is 0 within 1e-12
+
+### Requirement: Causal emergence of a coarse-graining
+The analysis SHALL report the causal emergence of a partition as the effective information of the macro transition
+matrix minus that of the micro one, and SHALL search partitions by greedily merging the pair of blocks with the largest
+gain until no merge increases it, returning the partition and its gain. Below a documented state count it SHALL offer an
+exhaustive search.
+
+#### Scenario: Emergence from noisy micro states
+- **WHEN** an eight-state chain whose first seven states move uniformly among themselves and whose eighth state is
+  absorbing is analysed, as in Hoel, Albantakis, and Tononi (2013)
+- **THEN** the micro effective information is `3 - (7/8) log2 7 ≈ 0.544` bits, the partition that merges the first
+  seven states has a macro effective information of 1 bit and so a causal emergence of about 0.456 bits, and the greedy
+  search returns that partition
+
+#### Scenario: No emergence in a permutation
+- **WHEN** the greedy search runs on a permutation matrix
+- **THEN** it returns the identity partition with zero gain
