@@ -9,9 +9,10 @@ import networkx as nx
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element, Field
+from ....core.components import Element
 from ....core.formalisms.agents import AgentView, ModelView, Rule
-from ....core.laws import Law, Rate, Symbols, Update, laplacian
+from ....core.formalisms.fields import Field, laplacian
+from ....core.laws import Law, Rate, Symbols, Update
 from ....core.runtime import register_model
 from ....core.space import NetworkSpace
 from ....core.system import System

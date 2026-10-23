@@ -14,7 +14,7 @@ from numba.extending import register_jitable
 from sklearn.base import BaseEstimator
 
 from ..base import Form, LawKind, Registry, SolverError, Supports
-from ..compile import EventRecord, ExtremalRecord, Problem, RelaxationRecord, RenewalRecord, Vector, load_backends
+from ..compile import Problem, Record, Vector, load_backends
 from ._hybrid import RESTART, EventLocator, History, find_bounds
 from ._renewals import RenewalClock
 
@@ -212,7 +212,7 @@ class Stepper(BaseEstimator):
         """
         return x
 
-    def drain_events(self) -> list[EventRecord | RelaxationRecord | RenewalRecord | ExtremalRecord]:
+    def drain_events(self) -> list[Record]:
         """Return the events recorded since the last call, and forget them.
 
         Returns:

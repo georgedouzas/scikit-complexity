@@ -6,19 +6,8 @@ import pytest
 from skcomplex.core.base import Domain, SolverError, ValidationError, state
 from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element, Group
-from skcomplex.core.laws import (
-    Drive,
-    Energy,
-    LocalRule,
-    Move,
-    OuterTotalistic,
-    Relaxation,
-    Sample,
-    Sampler,
-    Table,
-    Totalistic,
-    neighbors,
-)
+from skcomplex.core.formalisms.lattices import Drive, Energy, LocalRule, Move, Relaxation, Sample, Sampler
+from skcomplex.core.laws import OuterTotalistic, Table, Totalistic, neighbors
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.space import LatticeSpace, Neighborhood
 from skcomplex.core.system import System

@@ -11,7 +11,8 @@ from sage.all__sagemath_symbolics import cos
 
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
-from ....core.laws import Energy, Law, Move, Sample, Sampler, Symbols, neighbors, where
+from ....core.formalisms.lattices import Energy, Move, Sample, Sampler
+from ....core.laws import Law, Symbols, neighbors, where
 from ....core.runtime import register_model
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System

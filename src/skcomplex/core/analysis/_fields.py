@@ -5,7 +5,7 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 import numpy as np
 import numpy.typing as npt
@@ -13,8 +13,8 @@ from sage.all__sagemath_symbolics import SR
 from scipy import optimize
 
 from ..base import AnalysisError, VariableKind, declarations_of, symbol
-from ..components import Field
-from ..laws import Rate, Symbols, laplacian
+from ..components import Element
+from ..laws import Rate, Symbols
 from ..space import LatticeSpace
 from ..system import System
 from ._kinds import DataKind, analysis
@@ -45,6 +45,17 @@ def _spectrum(grids: Array) -> Array:
     fluctuations = grids - grids.mean(axis=tuple(range(1, grids.ndim)), keepdims=True)
     axes = tuple(range(1, grids.ndim))
     return np.mean(np.abs(np.fft.fftn(fluctuations, axes=axes)) ** 2, axis=0) / np.prod(grids.shape[1:])
+
+
+@runtime_checkable
+class _Field(Protocol):
+    """Group of members at the sites of a space whose differential operators a discretization evaluates."""
+
+    label: str
+    element: type[Element]
+    space: object
+    values: Mapping[str, Any] | None
+    discretization: str
 
 
 @dataclass(frozen=True)
@@ -482,16 +493,16 @@ def _with_eigenvalue(expression: Any, eigenvalue: Any) -> Any:  # noqa: ANN401
     operator = expression.operator()
     if operator is None:
         return expression
-    if operator == laplacian:
-        return eigenvalue * _with_eigenvalue(expression.operands()[0], eigenvalue)
     name = getattr(operator, 'name', lambda: '')()
+    if name == 'laplacian':
+        return eigenvalue * _with_eigenvalue(expression.operands()[0], eigenvalue)
     if name in OPERATOR_NAMES:
         error_msg = f'The dispersion relation linearises laplacian only, but a law applies {name}.'
         raise AnalysisError(error_msg)
     return operator(*[_with_eigenvalue(item, eigenvalue) for item in expression.operands()])
 
 
-def _laplacian_eigenvalues(field: Field, lattice: LatticeSpace, waves: Array) -> Array:
+def _laplacian_eigenvalues(field: '_Field', lattice: LatticeSpace, waves: Array) -> Array:
     """Return the eigenvalue of the field's Laplacian at every wave vector, for its discretization."""
     spacings = np.asarray(lattice.spacings, dtype=float)
     if field.discretization == 'spectral':
@@ -499,9 +510,9 @@ def _laplacian_eigenvalues(field: Field, lattice: LatticeSpace, waves: Array) ->
     return np.sum((2 * np.cos(waves * spacings) - 2) / spacings**2, axis=1)
 
 
-def _single_field(system: System) -> tuple[Field, LatticeSpace]:
+def _single_field(system: System) -> tuple['_Field', LatticeSpace]:
     """Return the one field of a system and its periodic lattice, or raise an error."""
-    fields = [component for component in system.components if isinstance(component, Field)]
+    fields = [component for component in system.components if isinstance(component, _Field)]
     if len(fields) != 1 or len(system.components) != 1 or system.interactions or system.systems:
         error_msg = 'The dispersion relation takes a system of one field, a site group on a lattice.'
         raise AnalysisError(error_msg)
@@ -512,7 +523,7 @@ def _single_field(system: System) -> tuple[Field, LatticeSpace]:
     return field, field.space
 
 
-def _linearised_rates(field: Field) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+def _linearised_rates(field: '_Field') -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     """Return the rate of every state with its Laplacians as eigenvalues, the state symbols, and the field's values."""
     states = list(declarations_of(field.element, VariableKind.STATE))
     member = field.element(field.label)

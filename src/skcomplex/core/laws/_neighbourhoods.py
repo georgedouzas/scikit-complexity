@@ -11,7 +11,6 @@ from sage.symbolic.function import BuiltinFunction
 
 from ..base import Expression, SymbolicVector, ValidationError, symbol, vector
 from ..space import Adjacency, Cone, Layer, Memory, Nearest, Neighborhood, Radius
-from ._lattices import neighbor
 
 NEIGHBOUR_REDUCTIONS = ('sum', 'mean', 'count', 'max', 'min', 'normalized-mean')
 NEIGHBOURHOOD_TYPES = (Adjacency, Neighborhood, Memory, Radius, Nearest, Cone)
@@ -64,7 +63,15 @@ def _is_number(item: Expression, value: int) -> bool:
     return bool(item.is_numeric() and item == value)
 
 
+class _Neighbor(BuiltinFunction):
+    """Value of a lattice state at the `k`-th offset of a neighbourhood, `neighbor(x, k)`."""
+
+    def __init__(self) -> None:
+        super().__init__('neighbor', nargs=2)
+
+
 REDUCE = _NeighbourReduction()
+neighbor = _Neighbor()
 
 
 def neighbors(

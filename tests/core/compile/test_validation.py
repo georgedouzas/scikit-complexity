@@ -11,8 +11,9 @@ from skcomplex.core.compile import Issue, ValidationReport, ValidationWarning, c
 from skcomplex.core.components import Element
 from skcomplex.core.formalisms.agents import Rule
 from skcomplex.core.formalisms.groups import GroupSpace, finitely_presented_group
+from skcomplex.core.formalisms.lattices import Energy, Move, Sample, Sampler
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Energy, Move, Noise, Objective, Rate, Sample, Sampler, Update, neighbors
+from skcomplex.core.laws import Noise, Objective, Rate, Update, neighbors
 from skcomplex.core.space import DiscreteTime, LatticeSpace, Memory
 from skcomplex.core.system import System
 

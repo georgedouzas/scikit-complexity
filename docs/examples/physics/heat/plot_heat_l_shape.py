@@ -12,8 +12,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
+from skcomplex.core.formalisms.fields import IMEXEuler
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import IMEXEuler
 from skcomplex.core.viz import RerunObserver
 from skcomplex.models import create, describe
 

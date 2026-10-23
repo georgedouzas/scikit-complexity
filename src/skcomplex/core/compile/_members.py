@@ -10,8 +10,7 @@ from sage.all__sagemath_symbolics import SR
 from ..base import Expression, SymbolicVector, ValidationError, domain_of, symbol, vector
 from ..laws import shift_arguments
 from ..space import LatticeSpace, Neighborhood
-from ._fields import LATTICE_BOUNDARIES, MODES, NeighborRead
-from ._kernels import Reference, Source
+from ._kernels import LATTICE_BOUNDARIES, MODES, NeighborRead, Reference, Source
 
 SHIFT_NAME = 'shift_member'
 

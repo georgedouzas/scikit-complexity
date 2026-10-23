@@ -5,23 +5,12 @@ from ._census import Census, CensusRecord, OwnerRule, law_census, register_owner
 from ._compilation import BlockLaws, Compilation, Laws
 from ._compile import compile_system, partition_system
 from ._contractions import CompiledEncounter, TableValues
-from ._declarations import Block, Declarations, is_interaction
-from ._fields import mesh_laplacian, spectral_multiplier
+from ._declarations import Block, Declarations, is_interaction, member_count
 from ._forms import register_combined, register_form
 from ._hybrid import Breakpoints, CompiledEvent, Delay, EventRecord
 from ._issues import Issue, ValidationWarning, names_of
-from ._kernels import Kernel, Lowered
-from ._lattices import (
-    CompiledDrive,
-    CompiledExtremal,
-    CompiledMonteCarlo,
-    CompiledRelaxation,
-    CompiledRule,
-    ExtremalRecord,
-    LatticeState,
-    LatticeStep,
-    RelaxationRecord,
-)
+from ._jacobians import ConservationLaw
+from ._kernels import LATTICE_BOUNDARIES, MODES, Kernel, Lowered, NeighborRead, NoiseProcess, Output, Reference, Source
 from ._layout import Entry, Layout
 from ._observables import ObservableEvaluator, observables_of, with_observables
 from ._pipeline import Check, Pass, order_passes, register_check, register_pass, registered_passes, run_passes
@@ -40,15 +29,19 @@ from ._problem import (
     NetworkSnapshot,
     Partition,
     Problem,
+    Record,
     RenewalProcess,
     RenewalRecord,
+    SiteState,
+    SiteStep,
     TopologyChanges,
     Vector,
     VectorFunction,
     with_initial_state,
 )
 from ._quantities import CompiledFlow, CompiledObjective, LoopTerm, Recorded, StockFlow
-from ._specs import Binding, KernelSpec, register_binding, state_name
+from ._specs import Binding, KernelSpec, register_binding, state_name, target_references
+from ._spectral import spectral_multiplier
 from ._system_passes import SystemPass, claiming_pass
 from ._tree import Node, coerce_value, declared_times, flatten_system
 from ._validation import ValidationReport, domain_kind, missing_declarations, validate
@@ -56,6 +49,8 @@ from .passes._problem import visual_of
 
 __all__: list[str] = [
     'BACKENDS',
+    'LATTICE_BOUNDARIES',
+    'MODES',
     'NUMPY_DIALECT',
     'SCALAR_DIALECT',
     'Accelerated',
@@ -69,51 +64,51 @@ __all__: list[str] = [
     'Check',
     'Compilation',
     'CompiledAgents',
-    'CompiledDrive',
     'CompiledElement',
     'CompiledEncounter',
     'CompiledEvent',
-    'CompiledExtremal',
     'CompiledFlow',
     'CompiledInteraction',
-    'CompiledMonteCarlo',
     'CompiledObjective',
-    'CompiledRelaxation',
-    'CompiledRule',
+    'ConservationLaw',
     'Declarations',
     'Delay',
     'Dialect',
     'Draws',
     'Entry',
     'EventRecord',
-    'ExtremalRecord',
     'FractionalRows',
     'Getter',
     'Issue',
     'JumpChannels',
     'Kernel',
     'KernelSpec',
-    'LatticeState',
-    'LatticeStep',
     'Laws',
     'Layout',
     'LoopTerm',
     'Lowered',
     'Lowering',
     'MarkovMatrix',
+    'NeighborRead',
     'NetworkSnapshot',
     'Node',
+    'NoiseProcess',
     'ObservableEvaluator',
+    'Output',
     'OwnerRule',
     'Partition',
     'Pass',
     'Plan',
     'PlannedPartition',
     'Problem',
+    'Record',
     'Recorded',
-    'RelaxationRecord',
+    'Reference',
     'RenewalProcess',
     'RenewalRecord',
+    'SiteState',
+    'SiteStep',
+    'Source',
     'StockFlow',
     'SystemPass',
     'TableValues',
@@ -131,7 +126,7 @@ __all__: list[str] = [
     'is_interaction',
     'law_census',
     'load_backends',
-    'mesh_laplacian',
+    'member_count',
     'missing_declarations',
     'names_of',
     'numpy_function',
@@ -153,6 +148,7 @@ __all__: list[str] = [
     'solver_classes',
     'spectral_multiplier',
     'state_name',
+    'target_references',
     'validate',
     'visual_of',
     'with_initial_state',

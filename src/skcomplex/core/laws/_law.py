@@ -68,7 +68,8 @@ def law_classes(trait: Trait | None = None) -> tuple[type['Law'], ...]:
 
     Examples:
         >>> from skcomplex.core.base import Trait
-        >>> from skcomplex.core.laws import Flux, law_classes
+        >>> from skcomplex.core.formalisms.fields import Flux
+        >>> from skcomplex.core.laws import law_classes
         >>> Flux in law_classes(Trait.FORMLESS)
         True
     """

@@ -12,7 +12,8 @@ import numpy.typing as npt
 from ....core.base import Domain, VisualSpec, parameter, state
 from ....core.components import Element
 from ....core.formalisms.agents import AgentView, ModelView, Rule
-from ....core.laws import Drive, Law, LocalRule, Symbols
+from ....core.formalisms.lattices import Drive, LocalRule
+from ....core.laws import Law, Symbols
 from ....core.runtime import register_model
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System

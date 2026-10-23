@@ -1,8 +1,7 @@
-"""Spaces and times that systems live in: continuous, lattice, network, and mesh spaces, and time kinds."""
+"""Spaces and times that systems live in: continuous, lattice, and network spaces, and time kinds."""
 
 from ._lattices import LatticeSpace, Neighborhood
 from ._memory import Memory
-from ._meshes import Mesh
 from ._neighbours import Cone, Nearest, Radius, neighbour_pairs
 from ._networks import Adjacency, Layer, NetworkSpace, part_count
 from ._spaces import ContinuousSpace, SiteSpace, Space
@@ -17,7 +16,6 @@ __all__: list[str] = [
     'LatticeSpace',
     'Layer',
     'Memory',
-    'Mesh',
     'Nearest',
     'Neighborhood',
     'NetworkSpace',

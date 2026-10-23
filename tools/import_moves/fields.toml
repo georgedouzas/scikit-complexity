@@ -1,0 +1,65 @@
+[[moves]]
+old = "skcomplex.core.laws"
+new = "skcomplex.core.formalisms.fields"
+names = ["Flux", "advection", "divergence", "gradient", "inverse_laplacian", "laplacian"]
+
+[[moves]]
+old = "skcomplex.core.components"
+new = "skcomplex.core.formalisms.fields"
+names = ["Field"]
+
+[[moves]]
+old = "skcomplex.core.space"
+new = "skcomplex.core.formalisms.fields"
+names = ["Mesh"]
+
+[[moves]]
+old = "skcomplex.core.compile"
+new = "skcomplex.core.formalisms.fields"
+names = ["mesh_laplacian"]
+
+[[moves]]
+old = "skcomplex.core.solvers"
+new = "skcomplex.core.formalisms.fields"
+names = ["ETDRK4", "IMEX2", "SSPRK", "CrankNicolson", "IMEXEuler", "SplitOperator"]
+
+[[moves]]
+old = "skcomplex.core.compile._fields"
+new = "skcomplex.core.compile"
+names = ["spectral_multiplier"]
+
+[[moves]]
+old = "skcomplex.core.laws._fields"
+new = "skcomplex.core.formalisms.fields._laws"
+
+[[moves]]
+old = "skcomplex.core.components._fields"
+new = "skcomplex.core.formalisms.fields._components"
+
+[[moves]]
+old = "skcomplex.core.space._meshes"
+new = "skcomplex.core.formalisms.fields._spaces"
+
+[[moves]]
+old = "skcomplex.core.compile._fields"
+new = "skcomplex.core.formalisms.fields._lowering"
+
+[[moves]]
+old = "skcomplex.core.compile._volumes"
+new = "skcomplex.core.formalisms.fields._volumes"
+
+[[moves]]
+old = "skcomplex.core.compile._splitting"
+new = "skcomplex.core.formalisms.fields._splitting"
+
+[[moves]]
+old = "skcomplex.core.compile._conserved"
+new = "skcomplex.core.formalisms.fields._conserved"
+
+[[moves]]
+old = "skcomplex.core.compile.passes._fields"
+new = "skcomplex.core.formalisms.fields._passes"
+
+[[moves]]
+old = "skcomplex.core.solvers._stiff"
+new = "skcomplex.core.formalisms.fields._solvers"

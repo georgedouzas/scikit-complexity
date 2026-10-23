@@ -8,12 +8,12 @@ from typing import Any
 import numpy as np
 
 from ....core.base import Domain, ValidationError, parameter, role
-from ....core.components import Element, Field
+from ....core.components import Element
+from ....core.formalisms.fields import ETDRK4, Field, laplacian
 from ....core.formalisms.quantum import Dissipator, Generator
 from ....core.interactions import Interaction
-from ....core.laws import Rate, Symbols, laplacian
+from ....core.laws import Rate, Symbols
 from ....core.runtime import register_model
-from ....core.solvers import ETDRK4
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ..realizations import Site

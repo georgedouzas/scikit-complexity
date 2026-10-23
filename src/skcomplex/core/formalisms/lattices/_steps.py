@@ -16,10 +16,11 @@ import numpy.typing as npt
 import scipy.sparse
 from sage.all__sagemath_symbolics import SR
 
-from ..base import Expression, SolverError, ValidationError, symbol
-from ..laws import Drive, Energy, Extremal, LocalRule, Move, OuterTotalistic, Relaxation, Sampler, Table, Totalistic
-from ..space import Adjacency, LatticeSpace, Memory, Neighborhood, NetworkSpace, SiteSpace
-from ._printing import numpy_function
+from ...base import Expression, SolverError, ValidationError, symbol
+from ...compile import numpy_function
+from ...laws import OuterTotalistic, Table, Totalistic
+from ...space import Adjacency, LatticeSpace, Memory, Neighborhood, NetworkSpace, SiteSpace
+from ._laws import Drive, Energy, Extremal, LocalRule, Move, Relaxation, Sampler
 
 type Vector = npt.NDArray[np.float64]
 type Indices = npt.NDArray[np.intp]
@@ -736,6 +737,11 @@ class CompiledMonteCarlo:
         accepted = rng.random(values.size) < probability
         x[self.target.start + sites[accepted]] = proposal[accepted]
 
+    @property
+    def targets(self) -> tuple[LatticeState, ...]:
+        """Lattice state the move changes, as the one target of the step."""
+        return (self.target,)
+
     def apply(self, x: Vector, p: Vector, rng: np.random.Generator) -> None:
         """Update the state vector in place by one sweep of the lattice.
 
@@ -1294,25 +1300,3 @@ def compile_extremal(law: Extremal, context: LatticeContext) -> CompiledExtremal
         int(law.repeat),
         loop,
     )
-
-
-def lattice_shape(name: str, steps: Sequence[LatticeStep]) -> tuple[int, ...] | None:
-    """Return the lattice shape of a state that lattice steps read, or `None`.
-
-    Args:
-        name:
-            The dotted name of the state.
-
-        steps:
-            The lattice steps.
-
-    Returns:
-        shape:
-            The lattice shape.
-    """
-    for step in steps:
-        states = (step.target,) if isinstance(step, CompiledMonteCarlo) else step.targets
-        for state in states:
-            if state.name == name:
-                return state.shape
-    return None

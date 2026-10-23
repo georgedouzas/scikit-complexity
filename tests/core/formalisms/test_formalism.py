@@ -126,6 +126,17 @@ def test_law_from_outside_formalism_validates_compiles_and_simulates():
     assert found == {'valid': True, 'form': True, 'solver': True, 'final': pytest.approx(2 * 0.36787944117144233)}
 
 
+def test_register_of_fields_registers_its_dependency():
+    """Test that importing the fields formalism registers both fields and the lattices it builds on."""
+    found = _run(
+        'import json\n'
+        'import skcomplex.core.formalisms.fields\n'
+        'from skcomplex.core.formalisms import registered_formalisms\n'
+        'print(json.dumps([item.name for item in registered_formalisms()]))\n',
+    )
+    assert found == ['lattices', 'fields']
+
+
 def test_register_rejects_unregistered_dependency():
     """Test that a formalism whose dependency is not registered is rejected and names the dependency."""
     with pytest.raises(RegistryError, match="'absent'"):

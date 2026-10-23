@@ -8,8 +8,9 @@ from collections.abc import Sequence
 import networkx as nx
 
 from ....core.base import Domain, Expression, parameter, state
-from ....core.components import Element, Field, Group
-from ....core.laws import Noise, Rate, Symbols, count, laplacian, mean
+from ....core.components import Element, Group
+from ....core.formalisms.fields import Field, laplacian
+from ....core.laws import Noise, Rate, Symbols, count, mean
 from ....core.runtime import register_model
 from ....core.space import NetworkSpace
 from ....core.system import Observable, System

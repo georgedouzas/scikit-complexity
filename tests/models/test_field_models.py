@@ -6,9 +6,9 @@ from scipy.stats import skew
 
 from skcomplex.core.analysis import dispersion_relation, fields_of, pattern_wavelength, structure_factor
 from skcomplex.core.base import SolverError
-from skcomplex.core.components import Field
+from skcomplex.core.formalisms.fields import ETDRK4, Field
 from skcomplex.core.runtime import Frame, Simulation
-from skcomplex.core.solvers import ETDRK4, RK4, EulerMaruyama
+from skcomplex.core.solvers import RK4, EulerMaruyama
 from skcomplex.core.space import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.core.viz import RerunObserver, resolve_visual

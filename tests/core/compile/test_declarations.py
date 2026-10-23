@@ -20,12 +20,13 @@ from skcomplex.core.base import (
     vocabulary,
 )
 from skcomplex.core.compile import BACKENDS, missing_declarations
-from skcomplex.core.components import Field
 from skcomplex.core.formalisms.agents import Rule
+from skcomplex.core.formalisms.fields import Field, Mesh
+from skcomplex.core.formalisms.lattices import Sampler
 from skcomplex.core.formalisms.quantum import Generator
-from skcomplex.core.laws import Rate, Sampler, Update, law_classes
+from skcomplex.core.laws import Rate, Update, law_classes
 from skcomplex.core.solvers import SOLVERS, Stepper
-from skcomplex.core.space import ContinuousSpace, LatticeSpace, Mesh, NetworkSpace
+from skcomplex.core.space import ContinuousSpace, LatticeSpace, NetworkSpace
 
 INVENTORY = Path(__file__).parents[3] / 'docs' / 'overview' / 'inventory.toml'
 

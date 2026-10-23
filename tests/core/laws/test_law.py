@@ -6,9 +6,10 @@ import pytest
 
 from skcomplex.core.base import LawClass, LawKind, Trait, ValidationError, symbol
 from skcomplex.core.formalisms.agents import Match
+from skcomplex.core.formalisms.lattices import LocalRule
 from skcomplex.core.formalisms.quantum import Dissipator, Generator
 from skcomplex.core.formalisms.rewriting import GraphProduction, Production, Substitution
-from skcomplex.core.laws import Boundary, Invariant, Jump, Law, LocalRule, Rate, draw, has_trait, law_classes
+from skcomplex.core.laws import Boundary, Invariant, Jump, Law, Rate, draw, has_trait, law_classes
 
 
 def test_law_classes_share_the_base():

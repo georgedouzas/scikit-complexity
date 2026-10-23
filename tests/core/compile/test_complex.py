@@ -12,24 +12,13 @@ from skcomplex.core.analysis import power_spectrum
 from skcomplex.core.backends import LammpsBackend, NumbaBackend
 from skcomplex.core.base import BackendError, Domain, ValidationError, parameter, state
 from skcomplex.core.compile import Entry, Layout, compile_system
-from skcomplex.core.components import Element, Field
+from skcomplex.core.components import Element
 from skcomplex.core.formalisms.agents import Rule
-from skcomplex.core.laws import (
-    Call,
-    Equation,
-    Event,
-    Jump,
-    LocalRule,
-    Rate,
-    Update,
-    derivative,
-    laplacian,
-    mod,
-    total,
-    where,
-)
+from skcomplex.core.formalisms.fields import ETDRK4, IMEX2, CrankNicolson, Field, IMEXEuler, laplacian
+from skcomplex.core.formalisms.lattices import LocalRule
+from skcomplex.core.laws import Call, Equation, Event, Jump, Rate, Update, derivative, mod, total, where
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import ETDRK4, IMEX2, RK4, CrankNicolson, IMEXEuler, ScipyODE
+from skcomplex.core.solvers import RK4, ScipyODE
 from skcomplex.core.space import LatticeSpace, Neighborhood
 from skcomplex.core.system import Observable, System
 from skcomplex.models.physics.pattern_formation import GinzburgLandau

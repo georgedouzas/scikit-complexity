@@ -43,15 +43,12 @@ from ..base import (
     VariableKind,
     declarations_of,
 )
-from ..components import Element, Field, Group, Wiener
+from ..components import Element, Group, Wiener
 from ..laws import (
     Encounter,
     Jump,
-    LocalRule,
     Noise,
     Proliferation,
-    Sample,
-    Sampler,
     TopologyRequest,
     law_classes,
     neighbourhoods_in,
@@ -60,7 +57,7 @@ from ..laws import (
     values_of,
 )
 from ..laws._neighbourhoods import NeighbourReduction
-from ..space import Adjacency, Cone, LatticeSpace, NetworkSpace, SiteSpace, Space
+from ..space import Adjacency, Cone, NetworkSpace, SiteSpace, Space
 from ..system import Observable, System
 from ._backends import BACKENDS, Backend
 from ._census import Census, CensusRecord
@@ -320,30 +317,9 @@ def _bound_issues(nodes: list[Node]) -> list[Issue]:
     return issues
 
 
-def _schedule_of(law: object) -> str | None:
-    """Return the schedule of a local rule or of the sampler of a sample, the default sampler's without one."""
-    if isinstance(law, LocalRule):
-        return law.schedule
-    if isinstance(law, Sample):
-        return (law.sampler or Sampler()).schedule
-    return None
-
-
-def _space_issues(system: System, nodes: list[Node], records: list[CensusRecord]) -> list[Issue]:
-    """Return the laws and visuals that need options their space lacks, and the spaces whose own check fails."""
+def _space_issues(system: System, nodes: list[Node]) -> list[Issue]:
+    """Return the visuals that need options their space lacks, and the spaces whose own check fails."""
     issues = []
-    for record in records:
-        lacks: frozenset[str] = getattr(record.space, 'lacks', frozenset())
-        if 'regular-geometry' in lacks and _schedule_of(record.law) == 'checkerboard':
-            message = (
-                f'The {type(record.law).__name__} law of {record.path} uses the checkerboard schedule, which needs the '
-                f'regular geometry of a square lattice, but the component lives on {type(record.space).__name__}.'
-            )
-            fix = (
-                "Use the 'synchronous' or the 'random-sequential' schedule of a local rule, or the "
-                "'random-sequential' or the 'colored' schedule of a sampler."
-            )
-            issues.append(Issue('schedule-unsupported', record.path, message, fix))
     spaces: dict[int, tuple[str, Space]] = {}
     for node in nodes:
         space = getattr(node.component, 'space', None) or node.space
@@ -857,34 +833,6 @@ def _noise_support_issues(
     return issues
 
 
-def _is_lattice_field(component: object) -> bool:
-    """Check whether a component is a finite-difference field on a square lattice."""
-    return (
-        isinstance(component, Field)
-        and isinstance(component.space, LatticeSpace)
-        and component.space.geometry == 'square'
-        and component.discretization == 'finite-difference'
-    )
-
-
-def _conserved_issues(nodes: list[Node], records: list[CensusRecord]) -> list[Issue]:
-    """Return the conserved noise laws that drive a state that is not of a finite-difference field on a lattice."""
-    components = {node.path: node.component for node in nodes}
-    issues = []
-    for record in _noise_records(records):
-        if not cast('Noise', record.law).conserved:
-            continue
-        outside = [name for name, _ in record.driven if not _is_lattice_field(components.get(name.rpartition('.')[0]))]
-        if outside:
-            message = (
-                f'The conserved {_law_name(record)} drives {", ".join(dict.fromkeys(outside))}, but conserved noise '
-                'needs a state of a finite-difference field on a square lattice, with one process per link.'
-            )
-            fix = 'Declare the state on a `Field` of a `LatticeSpace`, or remove `conserved=True`.'
-            issues.append(Issue('noise-unsupported', record.path, message, fix))
-    return issues
-
-
 def _noise_issues(compilation: Compilation, records: list[CensusRecord]) -> list[Issue]:
     """Return the problems of the Wiener elements and the noise laws of a system."""
     nodes = cast('list[Node]', compilation.nodes)
@@ -895,7 +843,6 @@ def _noise_issues(compilation: Compilation, records: list[CensusRecord]) -> list
         return issues
     issues += _convention_issues(records)
     issues += _scope_issues(records, wieners)
-    issues += _conserved_issues(nodes, records)
     return issues + _noise_support_issues(records, wieners, solver, backend)
 
 
@@ -967,7 +914,7 @@ def _issues_of(compilation: Compilation) -> list[Issue]:
     issues += _encounter_issues(records)
     issues += _neighbourhood_issues(records, nodes)
     issues += _topology_issues(records, nodes)
-    issues += _space_issues(system, nodes, records)
+    issues += _space_issues(system, nodes)
     issues += _order_issues(nodes)
     issues += [issue for check in registered_checks() for issue in check(compilation)]
     if solver != 'auto':

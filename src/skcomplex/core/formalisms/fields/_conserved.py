@@ -9,11 +9,11 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ..base import Expression, ValidationError
-from ..components import Field
-from ..laws import Noise
-from ..space import LatticeSpace
-from ._kernels import NoiseProcess, Output, Reference, Source
+from ...base import Expression, ValidationError
+from ...compile import NoiseProcess, Output, Reference, Source
+from ...laws import Noise
+from ...space import LatticeSpace
+from ._components import Field
 
 type Indices = npt.NDArray[np.intp]
 

@@ -10,7 +10,8 @@ import numpy as np
 
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
-from ....core.laws import Energy, Law, Move, Sample, Sampler, Symbols, adjacent, neighbor_sum
+from ....core.formalisms.lattices import Energy, Move, Sample, Sampler, adjacent, neighbor_sum
+from ....core.laws import Law, Symbols
 from ....core.runtime import register_model
 from ....core.space import Adjacency, NetworkSpace
 from ....core.system import System

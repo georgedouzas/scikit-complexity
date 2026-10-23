@@ -14,7 +14,8 @@ from skcomplex.core.formalisms.groups import (
     matrix_group,
     permutation_group,
 )
-from skcomplex.core.laws import LocalRule, Table, Totalistic
+from skcomplex.core.formalisms.lattices import LocalRule
+from skcomplex.core.laws import Table, Totalistic
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.space import LatticeSpace, Memory, Neighborhood, neighbour_pairs
 from skcomplex.core.system import System

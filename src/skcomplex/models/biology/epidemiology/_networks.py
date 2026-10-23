@@ -8,8 +8,9 @@ import networkx as nx
 import numpy as np
 
 from ....core.base import Domain, parameter, state
-from ....core.components import Element, Field
-from ....core.laws import Law, Rate, Symbols, laplacian, total
+from ....core.components import Element
+from ....core.formalisms.fields import Field, laplacian
+from ....core.laws import Law, Rate, Symbols, total
 from ....core.runtime import register_model
 from ....core.space import NetworkSpace
 from ....core.system import System

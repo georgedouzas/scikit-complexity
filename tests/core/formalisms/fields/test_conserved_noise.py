@@ -4,8 +4,9 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import structure_factor
-from skcomplex.core.components import Element, Field
-from skcomplex.core.laws import Noise, Rate, laplacian
+from skcomplex.core.components import Element
+from skcomplex.core.formalisms.fields import Field, laplacian
+from skcomplex.core.laws import Noise, Rate
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import EulerMaruyama, Heun
 from skcomplex.core.space import LatticeSpace

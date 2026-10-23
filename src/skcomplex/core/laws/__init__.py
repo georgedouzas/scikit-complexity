@@ -2,7 +2,6 @@
 
 from ._draws import Draw, bernoulli, categorical, draw, draws_in, is_draw, normal, uniform
 from ._encounters import Destruction, Encounter, Proliferation, outcome_sums
-from ._fields import Flux, advection, divergence, gradient, inverse_laplacian, laplacian
 from ._flows import Auxiliary, Invariant, Sink, Source, Transfer, distributed_delay, lookup, transfer
 from ._functions import (
     both,
@@ -19,21 +18,6 @@ from ._functions import (
     shift_member,
     step,
     where,
-)
-from ._lattices import (
-    Drive,
-    Energy,
-    Extremal,
-    LocalRule,
-    Move,
-    OuterTotalistic,
-    Relaxation,
-    Sample,
-    Sampler,
-    Table,
-    Totalistic,
-    adjacent,
-    neighbor_sum,
 )
 from ._law import Law, has_trait, is_registered, law_classes, register_laws
 from ._laws import (
@@ -56,6 +40,7 @@ from ._moments import moment
 from ._neighbourhoods import NEIGHBOUR_REDUCTIONS, NeighbourReduction, neighbors, neighbourhoods_in
 from ._reductions import Reduction, count, has_reductions, maximum, mean, minimum, reductions_in, total, variance
 from ._symbols import Symbols
+from ._tables import OuterTotalistic, Table, Totalistic
 from ._topology import TopologyRequest, add_edge, add_node, remove_edge, remove_node, request_of, rewire
 from ._values import values_of
 
@@ -66,10 +51,8 @@ __all__: list[str] = [
     'Call',
     'Destruction',
     'Draw',
-    'Drive',
     'Emission',
     'Encounter',
-    'Energy',
     'Equation',
     'Event',
     'Extremal',
@@ -77,8 +60,6 @@ __all__: list[str] = [
     'Invariant',
     'Jump',
     'Law',
-    'LocalRule',
-    'Move',
     'NeighbourReduction',
     'Noise',
     'NumericFunction',
@@ -103,8 +84,6 @@ __all__: list[str] = [
     'Update',
     'add_edge',
     'add_node',
-    'adjacent',
-    'advection',
     'bernoulli',
     'both',
     'categorical',
@@ -112,18 +91,14 @@ __all__: list[str] = [
     'delayed',
     'derivative',
     'distributed_delay',
-    'divergence',
     'draw',
     'draws_in',
     'either',
-    'gradient',
     'has_reductions',
     'has_trait',
-    'inverse_laplacian',
     'is_draw',
     'is_registered',
     'lag',
-    'laplacian',
     'law_classes',
     'lookup',
     'maximum',
@@ -131,7 +106,6 @@ __all__: list[str] = [
     'minimum',
     'mod',
     'moment',
-    'neighbor_sum',
     'neighbors',
     'neighbourhoods_in',
     'normal',

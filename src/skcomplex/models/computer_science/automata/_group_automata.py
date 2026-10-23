@@ -11,7 +11,8 @@ import numpy.typing as npt
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
 from ....core.formalisms.groups import GroupSpace
-from ....core.laws import Law, LocalRule, Symbols, Totalistic
+from ....core.formalisms.lattices import LocalRule
+from ....core.laws import Law, Symbols, Totalistic
 from ....core.runtime import register_model
 from ....core.space import LatticeSpace, Memory, Neighborhood
 from ....core.system import Observable, System
