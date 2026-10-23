@@ -25,6 +25,8 @@
   contributions are listed", "Unregistered law", and "Law from an outside formalism" scenarios.
 - [x] 2.2 Add the import codemod script `tools/rewrite_imports.py`, which reads a table of old and new paths, and its
   test. Each move below rewrites models, examples, tests, and documentation with it. Verify on a planted fixture.
+- [ ] 2.9 Delete `tools/` and `tests/tools/` once every move has merged, since the codemod and its move tables serve
+  only this change and do not ship with the repository. Verify that no file outside them refers to them.
 - [ ] 2.3 Move `topology` to `formalisms`, with its tests mirrored, and fold the renewal passes into the shared core as
   the lowering of waiting-time jumps. Verify with the topology and renewal tests and the catalog conformance tests.
 - [ ] 2.4 Move `groups`, `control`, and `fractional`. Verify with their tests and the catalog conformance tests.
@@ -78,6 +80,13 @@
   `adjacent` into `neighbors(..., reduce='sum')`, rename `reduce=None` on lattice neighbourhoods to `reduce='each'`,
   and rename the `neighborhood=` keyword to `over=`, with the codemod applied. Verify with the reduction tests and the
   catalog conformance tests.
+
+- [ ] 5.4 Mirror the test tree on the source tree. Every test module tests one source module and lives at the mirrored
+  path: `tests/core/<package>/test_<module>.py` for `src/skcomplex/core/<package>/_<module>.py`, and
+  `tests/models/<field>/<subfield>/test_<module>.py` for the models. Split the test files that cover several modules,
+  move the shared helpers into the nearest `conftest.py`, and keep the repository-wide checks (layout, docstrings,
+  documentation, the agnostic core) at the root of `tests`. Extend the layout test to fail on a test module without a
+  mirrored source module. Verify with the layout test and the full suite, with the same number of tests passing.
 
 ## 6. Documentation and profile
 

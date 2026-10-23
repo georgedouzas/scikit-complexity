@@ -49,3 +49,12 @@ package, so no package exports the internals of another.
 #### Scenario: Compiler internal leaks
 - **WHEN** `skcomplex.core.laws` lists in `__all__` a helper that only `skcomplex.core.compile` uses
 - **THEN** the export check fails and names the package and the helper
+
+### Requirement: The test tree mirrors the source tree
+Every test module other than the repository-wide checks SHALL test one source module and SHALL live at the path that
+mirrors it, so `tests/core/<package>/test_<module>.py` tests `skcomplex.core.<package>._<module>`, and
+`tests/models/<field>/<subfield>/test_<module>.py` tests the module of that model package.
+
+#### Scenario: Test without a mirrored module
+- **WHEN** `tests/core/compile/test_compiler.py` exists and `skcomplex.core.compile` has no module `_compiler`
+- **THEN** the layout check fails and names the test module
