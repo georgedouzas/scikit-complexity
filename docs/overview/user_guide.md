@@ -1411,6 +1411,170 @@ their edges logged once. The library has `elementary_automaton`, `game_of_life`,
 `skcomplex.models.computer_science.automata` for `game_of_life` and `skcomplex.models.physics.statistical_mechanics`
 for `ising`.
 
+## Networks
+
+A `NetworkSpace` holds a NetworkX graph whose nodes carry the members of groups on its sites and whose edges carry the
+members of groups on its edges. The states and the structure of a network can change together: interactions read and
+change edge states, laws reduce over the neighbours of a node, and topology requests add and remove nodes and edges.
+
+### Generators and layers
+
+The class methods of `NetworkSpace` wrap the generators of NetworkX: `erdos_renyi`, `watts_strogatz`,
+`barabasi_albert`, `configuration_model`, `stochastic_block_model`, `grid`, `complete`, and the spatially embedded
+`waxman` and `random_geometric`, whose node positions `read_positions` returns. A random generator takes a seed or a
+NumPy generator, so a network drawn from the random stream of an experiment is reproducible. A `Layer` names a second
+relation over the same nodes, such as work next to contacts. Every layer lowers to arrays: `list_edges` gives the
+source and target of every edge, and `compute_adjacency` the neighbours of every node in compressed sparse row form.
+
+```python
+import networkx as nx
+
+from skcomplex.core.space import Layer, NetworkSpace
+
+first = NetworkSpace.watts_strogatz(100, 6, 0.1, seed=7)
+second = NetworkSpace.watts_strogatz(100, 6, 0.1, seed=7)
+print(sorted(first.graph.edges) == sorted(second.graph.edges))
+
+space = NetworkSpace(nx.path_graph(4), layers=[Layer('work', nx.complete_graph(4))])
+print(space.layer_labels, [item.tolist() for item in space.list_edges('work')])
+```
+
+### Interactions over edges
+
+A group on the edges of a network, `Group(..., on='edges')`, holds one member per edge of its layer. An interaction
+with `over = 'neighbours'` binds a group on the nodes and, optionally, a group on the edges of the same network. Its
+laws run once per edge and read `s.source`, `s.target`, and `s.edge`: the members at both ends and the member of the
+edge. Rate, noise, and jump laws may target any of them, and update laws the edge member. The keyword `layer` chooses
+the layer of an interaction without an edge group. Hebbian weights grow with the product of the activities at the ends:
+
+```python
+from typing import ClassVar
+
+import networkx as nx
+import numpy as np
+
+from skcomplex.core.base import parameter, role
+from skcomplex.core.components import Element, Group
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Rate
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.solvers import RK4
+from skcomplex.core.space import NetworkSpace
+from skcomplex.core.system import System
+
+Neuron = Element.define('Neuron', states={'a': 0.0})
+Synapse = Element.define('Synapse', states={'w': 0.1})
+
+
+class Hebbian(Interaction):
+    over: ClassVar[str] = 'neighbours'
+    neurons: str = role()
+    synapses: str = role()
+    eta: float = parameter(1.0)
+
+    def laws(self, s):
+        return [Rate(s.edge.w, s.eta * s.source.a * s.target.a)]
+
+
+space = NetworkSpace(nx.cycle_graph(6))
+system = System(
+    components=[
+        Neuron.lattice('neurons', space, a=[1.0, 1.0, 1.0, 0.0, 0.0, 0.0]),
+        Group('synapses', element=Synapse, space=space, on='edges'),
+    ],
+    interactions=[Hebbian('hebb', neurons='neurons', synapses='synapses')],
+)
+trajectory = Simulation(system, solver=RK4(dt=0.01), dt=0.5).run(until=1.0).trajectory_
+print(np.round(trajectory['synapses.w'][-1], 3).tolist())
+```
+
+### Reductions over neighbourhoods
+
+`neighbors(expression, over=..., reduce=..., weight=...)` reduces an expression written for one neighbour, through
+`s.other`, over the neighbours of every member: the neighbours of a network by default, a layer with
+`Adjacency(layer=label)` or the layer itself, the neighbourhood of a lattice, or in a continuous space `Radius(r)`,
+`Nearest(k)`, and `Cone(r, angle)`. The reductions are `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, and
+`'normalized-mean'`. A weight may read the state of the edge group of the layer through a role of an interaction, as
+the weight of the edge that joins the member to its neighbour. The Kuramoto coupling on a network is
+`Rate(s.theta, s.omega + s.K * neighbors(sin(s.other.theta - s.theta), reduce='mean'))`.
+
+```python
+import networkx as nx
+
+from skcomplex.core.compile import compile_system
+from skcomplex.core.components import Element, Group
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Rate, neighbors
+from skcomplex.core.space import NetworkSpace
+from skcomplex.core.system import System
+
+Node = Element.define('Node', states={'u': 0.0})
+Link = Element.define('Link', states={'w': 1.0})
+Diffusion = Interaction.define(
+    'Diffusion',
+    roles=['nodes', 'links'],
+    laws=lambda s: [Rate(s.nodes.u, neighbors(s.nodes.other.u - s.nodes.u, weight=s.links.w))],
+)
+space = NetworkSpace(nx.path_graph(3))
+system = System(
+    components=[
+        Node.lattice('nodes', space, u=[0.0, 1.0, 4.0]),
+        Group('links', element=Link, space=space, on='edges', values={'w': [1.0, 10.0]}),
+    ],
+    interactions=[Diffusion('diffusion', nodes='nodes', links='links')],
+)
+problem = compile_system(system)
+drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
+print(problem.states.read(drift, 'nodes.u').tolist())
+```
+
+Validation reports a reduction whose neighbourhood the space does not offer, such as `Radius(1.0)` on a network, with
+the code `law-space`, and a layer the network lacks with the code `binding`.
+
+### Topology requests
+
+A variable group on the sites or edges of a network, `Group(..., on='sites', variable=True, capacity=n)`, holds rows
+for up to `capacity` members, of which the members present are marked active. The NumPy and Numba backends run such
+groups with fixed array shapes: laws leave the free rows unchanged, reductions read the members present, and
+neighbourhoods and interactions over neighbours read the edges present. The topology requests `add_node`,
+`remove_node`, `add_edge`, `remove_edge`, and `rewire` are the targets of update and jump laws:
+`Update(request, probability)` fires the request with a probability at every step for every member or edge its law runs
+for, and `Jump(rate, {request: 1})` fires it at a rate. The iteration and Gillespie steppers apply the requests between
+steps. A request that joins nodes draws the new ends with weights from `toward`, a function of the namespace of a
+candidate node, such as `lambda node: neighbors(1)` for its degree. A request on a group that is not variable gets the
+validation issue `group-fixed`, and a full capacity raises `CapacityError`.
+
+Trajectories hold the values of absent members as NaN, and `trajectory.network(frame)` returns the nodes and edges
+present at a frame. Rerun draws the nodes present and the edges at every frame where they change. Barabási-Albert growth
+adds one node with two edges at every step:
+
+```python
+import numpy as np
+
+from skcomplex.core.components import Element, Group
+from skcomplex.core.laws import Update, add_node, neighbors
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.space import DiscreteTime, NetworkSpace
+from skcomplex.core.system import System
+
+Node = Element.define('Node', states={'age': 0.0}, laws=lambda s: [Update(s.age, s.age + 1)])
+Link = Element.define('Link')
+Growth = Element.define('Growth', laws=lambda s: [Update(add_node(edges=2, toward=lambda node: neighbors(1)), 1)])
+space = NetworkSpace.complete(3)
+system = System(
+    components=[
+        Group('nodes', element=Node, space=space, on='sites', variable=True, capacity=203),
+        Group('links', element=Link, space=space, on='edges', variable=True, capacity=403),
+        Growth('growth'),
+    ],
+    time=DiscreteTime(),
+)
+trajectory = Simulation(system, dt=50.0, random_state=1).run(until=200).trajectory_
+snapshot = trajectory.network(-1)
+degrees = np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))
+print(snapshot.nodes.size, snapshot.sources.size, int(degrees.max()) > 10)
+```
+
 ## Kinetic models of active particles
 
 The kinetic theory of active particles of Bellomo et al. describes a population by the distribution of its members
