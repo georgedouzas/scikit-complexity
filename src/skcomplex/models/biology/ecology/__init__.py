@@ -36,6 +36,7 @@ from ._predation import (
     rosenzweig_macarthur,
     stochastic_predator_prey,
 )
+from ._sequential import Abundance, Influence, InfluenceDraw, LinearGrowth, sequentially_linear_ecosystem
 from ._speciation import NeutralReplacement, Organism, neutral_biodiversity
 from ._stigmergy import (
     EmotionMarks,
@@ -49,6 +50,7 @@ from ._succession import PioneerGrowth, Stand, SuccessionalGrowth, mangrove_succ
 from ._wolf_sheep import Grass, Sheep, Wolf, wolf_sheep
 
 __all__: list[str] = [
+    'Abundance',
     'Competition',
     'Cow',
     'DelayedLogisticGrowth',
@@ -61,6 +63,9 @@ __all__: list[str] = [
     'Grazing',
     'Herding',
     'Hopping',
+    'Influence',
+    'InfluenceDraw',
+    'LinearGrowth',
     'LogisticGrowth',
     'Microbe',
     'Mortality',
@@ -110,6 +115,7 @@ __all__: list[str] = [
     'neutral_macroecology',
     'nicholson_bailey',
     'rosenzweig_macarthur',
+    'sequentially_linear_ecosystem',
     'stigmergic_predator_prey',
     'stochastic_predator_prey',
     'varying_capacity_logistic',

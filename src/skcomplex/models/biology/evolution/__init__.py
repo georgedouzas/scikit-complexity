@@ -13,6 +13,16 @@ from ._finite_populations import (
     tangled_nature,
 )
 from ._games import CyclicSpecies, Replication, Strategy, replicator_dynamics, rock_paper_scissors
+from ._networks import (
+    CatalyticLink,
+    Chemical,
+    Coupling,
+    CouplingDrift,
+    DependencyField,
+    Taxon,
+    jain_krishna,
+    sole_manrubia,
+)
 from ._prebiotic import (
     Catalysis,
     GenotypeClass,
@@ -27,8 +37,13 @@ from ._substitutions import Locus, Substitution, origin_fixation_walk
 __all__: list[str] = [
     'AdaptiveClimbing',
     'Catalysis',
+    'CatalyticLink',
+    'Chemical',
     'Climber',
+    'Coupling',
+    'CouplingDrift',
     'CyclicSpecies',
+    'DependencyField',
     'GenotypeClass',
     'Individual',
     'Locus',
@@ -41,14 +56,17 @@ __all__: list[str] = [
     'Strategy',
     'Substitution',
     'TangledNatureStep',
+    'Taxon',
     'adaptive_climbing',
     'bak_sneppen',
     'eigen_quasispecies',
     'hypercycles',
+    'jain_krishna',
     'moran_process',
     'nk_landscape',
     'origin_fixation_walk',
     'replicator_dynamics',
     'rock_paper_scissors',
+    'sole_manrubia',
     'tangled_nature',
 ]

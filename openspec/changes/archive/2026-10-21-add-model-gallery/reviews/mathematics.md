@@ -53,3 +53,8 @@
 | fractional_oscillator | orbit of order 0.8 spiralling into the origin inside the closed circle of order 1 | x of orders 1, 0.9, 0.8, 0.6 on E_2alpha(-t^2alpha) | 3.8 s, 151 frames, 63 KB |
 | fractional_van_der_pol | orbits from inside and outside winding onto one cycle at order 0.9 | cycle amplitude 2 at order 1, shrinking to ~0.5 at 0.7, same from both starts | 12.9 s, 201 frames, 76 KB |
 | fractional_lorenz | butterfly attractor in 3D at order 0.995, both wings | successive z maxima on a thin tent-shaped Lorenz map | 0.7 s, 201 frames, 102 KB |
+| barabasi_albert | 303 nodes laid out by forces, a few yellow hubs among dark nodes of two or three edges | CCDF of 5003 grown degrees on m^2 / k^2, tail exponent near 3 in the tests | 22.1 s, 151 frames, 0.58 MB |
+| holme_kim | 304 nodes with green and yellow hubs and dense local triangles | clustering grows with the triad probability, far above Barabási-Albert with three edges | 18.5 s, 151 frames, 0.84 MB |
+| vertex_copying | 304 nodes with a few bright hubs that copying made | degree CCDFs widen from the thin tail of randomness 1 to heavy tails at 0.5 and 0.1 | 33.4 s, 151 frames, 0.81 MB |
+| network_attack | after 17 steps of attacks on hubs, the network broken into chains and small trees | giant component collapses near a removed share of 0.15 under attack, follows the removed nodes under failures | 0.5 s, 18 frames, 0.13 MB |
+| random_graph_ensembles | Erdős-Rényi graph at mean degree 4, one giant component and a few isolated nodes | giant share on S = 1 - exp(-cS); Watts-Strogatz path length falls long before clustering | 3.3 s, 101 frames, 0.33 MB |

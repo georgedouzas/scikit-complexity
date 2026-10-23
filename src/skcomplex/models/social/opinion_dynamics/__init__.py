@@ -1,7 +1,8 @@
-"""Opinion dynamics: voting, persuasion, bounded confidence, conventions, cognition, and diffusion."""
+"""Opinion dynamics: voting, coevolving networks, persuasion, bounded confidence, conventions, and diffusion."""
 
 from ._axelrod import CultureCensus, Village, axelrod, cultural_traits, largest_region
-from ._bounded_confidence import Discussant, Encounters, deffuant
+from ._bounded_confidence import Confident, Discussant, Encounters, deffuant, hegselmann_krause
+from ._coevolution import ClubMember, CoevolvingVoter, Separation, Tie, coevolving_voter, join_a_club
 from ._cognition import Conversations, Thinker, cognitive_consistency, settle
 from ._conventions import Namer, NamingGames, naming_game
 from ._diffusion import Adopter, Adoption, Believer, influentials, threshold_adoption
@@ -33,7 +34,10 @@ __all__: list[str] = [
     'Adoption',
     'Believer',
     'Citizen',
+    'ClubMember',
+    'CoevolvingVoter',
     'ComplexAgent',
+    'Confident',
     'Conversations',
     'CultureCensus',
     'Discussant',
@@ -46,18 +50,23 @@ __all__: list[str] = [
     'OpinionEncounters',
     'OpinionLevel',
     'Persuader',
+    'Separation',
     'SocialImpact',
     'Standardization',
     'Thinker',
+    'Tie',
     'VariantVoter',
     'Village',
     'Voter',
     'axelrod',
+    'coevolving_voter',
     'cognitive_consistency',
     'cultural_traits',
     'deffuant',
     'galam_majority',
+    'hegselmann_krause',
     'influentials',
+    'join_a_club',
     'kinetic_opinion',
     'largest_region',
     'majority_rule',

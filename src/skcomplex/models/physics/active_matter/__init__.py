@@ -12,6 +12,7 @@ from ._collective import (
     toner_tu,
 )
 from ._collisions import BinaryCollisions, Flocker, binary_collision_flocking
+from ._flocks import CohesiveParticle, NematicParticle, VicsekParticle, ginelli_nematics, gregoire_chate, vicsek
 from ._particles import (
     ActiveParticle,
     DepotParticle,
@@ -27,15 +28,18 @@ from ._particles import (
 __all__: list[str] = [
     'ActiveParticle',
     'BinaryCollisions',
+    'CohesiveParticle',
     'CuckerSmaleAlignment',
     'DepotParticle',
     'Flocker',
+    'NematicParticle',
     'OrnsteinUhlenbeckParticle',
     'PhoreticAttraction',
     'PolarAlignment',
     'PolarFluid',
     'SoftRepulsion',
     'Tumbler',
+    'VicsekParticle',
     'active_brownian_particles',
     'active_ornstein_uhlenbeck_particles',
     'aligning_active_brownian_particles',
@@ -43,8 +47,11 @@ __all__: list[str] = [
     'chiral_active_particles',
     'cucker_smale_flocking',
     'depot_brownian_particles',
+    'ginelli_nematics',
+    'gregoire_chate',
     'living_crystals',
     'motility_induced_phase_separation',
     'run_and_tumble',
     'toner_tu',
+    'vicsek',
 ]

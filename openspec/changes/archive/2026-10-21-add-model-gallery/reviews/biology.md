@@ -129,3 +129,9 @@
 | adaptive_climbing | mean fitness climbing in two rare steps from 0.64 to 0.97 | best fitness over eight landscapes averages 0.900 at generation 10, 0.972 at 50, and 0.979 at 200, ever rarer steps | 0.4 s, 201 frames, 0.10 MB |
 | tangled_nature | number of genome types alive jumping from 1 to about 40 and fluctuating near 30 | population grows from 100 to about 340; the founder type gives way to a coexisting set whose most common type holds 0.2 to 0.4 | 22.1 s, 151 frames, 2.4 MB |
 | immune_competition | tumour density decaying from 0.05 to nearly 0 at immune activation 0.75 | tumour density at t = 20 against the activation: 20 at 0 and 0.15 at 0.25, above the initial 0.05, then 9e-4, 6e-6, and 4e-8 above the threshold growth / (kill immune) = 0.3 | 0.3 s, 101 frames, 0.08 MB |
+| quenched_mean_field_sis | scale-free network, hubs bright at the centre | p_i on the stationary relation by degree; below 1/Lambda = 0.087 it dies out | 0.5 s, 81 frames, 0.15 MB |
+| adaptive_sis | rewired network, infected pushed to the rim | prevalence falls with the rewiring rate; S-S edges rise | 9.5 s, 121 frames, 1.38 MB |
+| activity_driven_epidemics | sparse edges of one step, infected nodes lit | late prevalence 0 below the threshold, rising above it; edges per step near 2 m <a> n | 3.5 s, 76 frames, 0.34 MB |
+| sole_manrubia | species network colored by age, recent replacements dark | quiet steps between avalanches; broad distribution of avalanche sizes | 0.8 s, 300 frames, 0.98 MB |
+| jain_krishna | catalytic network spanned by the autocatalytic set | Perron eigenvalue jumps to 1 as populated species rise from ~15 to 39 | 0.7 s, 299 frames, 0.36 MB |
+| sequentially_linear_ecosystem | influence network dominated by a few abundant species | cumulative extinctions steep early, flat late; abundances sum to 1 | 0.3 s, 300 frames, 0.39 MB |
