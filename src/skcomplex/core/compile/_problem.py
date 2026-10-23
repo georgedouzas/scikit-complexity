@@ -26,15 +26,15 @@ from ..interactions import Interaction
 from ..laws import Invariant, Law
 from ..space import Space
 from ..system import Observable, System
-from ._hybrid import Breakpoints, CompiledEvent, Delay
+from ._arrays import Vector
+from ._hybrid import CompiledEvent, _Breakpoints, _Delay
 from ._layout import Layout
-from ._quantities import CompiledObjective, StockFlow
+from ._quantities import StockFlow, _CompiledObjective
 from ._real_parts import real_components_of
 from ._reductions import CompiledReduction
 
 ROW_TOLERANCE = 1e-9
 
-type Vector = npt.NDArray[np.float64]
 type VectorFunction = Callable[[float, Vector, Vector], Vector]
 type Getter = Callable[[float, Vector, Vector, Mapping[str, Any]], Any]
 
@@ -81,18 +81,6 @@ def with_initial_state(problem: 'Problem', initial_state: Mapping[str, object]) 
     return replace(problem, initial_state=state)
 
 
-class Record(Protocol):
-    """Record of something that happened at one time of a run, such as an event or a relaxation."""
-
-    @property
-    def label(self) -> str:
-        """Name of what happened."""
-
-    @property
-    def time(self) -> float:
-        """Time it happened at."""
-
-
 @dataclass(frozen=True)
 class RenewalRecord:
     """Renewals of one renewal law that fired in one pass, each at the time of its member.
@@ -130,7 +118,7 @@ class RenewalRecord:
         return float(np.max(self.times))
 
 
-class RenewalProcess(Protocol):
+class _RenewalProcess(Protocol):
     """Renewal law compiled for the members of its component, which renew on their own clocks."""
 
     @property
@@ -187,7 +175,7 @@ class NetworkSnapshot:
     edges: npt.NDArray[np.intp]
 
 
-class TopologyChanges(Protocol):
+class _TopologyChanges(Protocol):
     """Topology requests of a problem, which the stepper applies between steps, and the networks they change."""
 
     @property
@@ -219,6 +207,85 @@ class TopologyChanges(Protocol):
 
     def presence(self, name: str, p: Vector) -> npt.NDArray[np.bool_] | None:
         """Return whether every row of the group of a variable holds a member, or `None` for a fixed group."""
+
+
+@dataclass(frozen=True)
+class _JumpChannels:
+    """Random events of one jump law, one channel per evaluation index."""
+
+    offset: int
+    targets: npt.NDArray[np.intp]
+    increments: Vector
+
+    @property
+    def size(self) -> int:
+        """Number of channels."""
+        return int(self.targets.shape[1])
+
+
+@dataclass(frozen=True)
+class _MarkovMatrix:
+    """Transition or emission matrix of a law, evaluated from the parameter vector to check its rows."""
+
+    law: str
+    function: Callable[[Vector], npt.NDArray[np.float64]]
+    reads: frozenset[int]
+
+    def violation(self, p: Vector) -> str | None:
+        """Return the description of the first negative entry or row that does not sum to one, or `None`.
+
+        Args:
+            p:
+                The parameter vector.
+
+        Returns:
+            violation:
+                The description of what is wrong with the matrix, or `None` when it is a stochastic matrix.
+        """
+        values = self.function(p)
+        for member, matrix in enumerate(values):
+            where = f' of member {member}' if values.shape[0] > 1 else ''
+            negative = np.argwhere(~(matrix >= 0))
+            if negative.size:
+                row, column = negative[0]
+                return f'the entry ({row}, {column}){where} of the {self.law} is {matrix[row, column]}, below 0'
+            sums = matrix.sum(axis=1)
+            wrong = np.flatnonzero(np.abs(sums - 1) > ROW_TOLERANCE)
+            if wrong.size:
+                return f'the row {wrong[0]}{where} of the {self.law} sums to {sums[wrong[0]]}, not 1'
+        return None
+
+
+class _SiteState(Protocol):
+    """State of a group whose members sit at the sites of a lattice or the nodes of a network."""
+
+    @property
+    def name(self) -> str:
+        """Dotted name of the state."""
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        """Number of sites along every dimension."""
+
+
+class _SiteStep(Protocol):
+    """Step that changes the states of the sites of a group once per step of a stepwise form."""
+
+    @property
+    def targets(self) -> tuple[_SiteState, ...]:
+        """States the step changes."""
+
+
+class Record(Protocol):
+    """Record of something that happened at one time of a run, such as an event or a relaxation."""
+
+    @property
+    def label(self) -> str:
+        """Name of what happened."""
+
+    @property
+    def time(self) -> float:
+        """Time it happened at."""
 
 
 @dataclass(frozen=True)
@@ -352,32 +419,6 @@ class CompiledInteraction:
 
 
 @dataclass(frozen=True)
-class JumpChannels:
-    """Random events of one jump law, one channel per evaluation index.
-
-    Args:
-        offset:
-            The index of the first channel among all channels of the problem.
-
-        targets:
-            The flat state index changed by each change, one row per change and one column per channel, or -1 where
-            a change at a member offset falls past a fixed end and changes nothing.
-
-        increments:
-            The increment of each change.
-    """
-
-    offset: int
-    targets: npt.NDArray[np.intp]
-    increments: Vector
-
-    @property
-    def size(self) -> int:
-        """Number of channels."""
-        return int(self.targets.shape[1])
-
-
-@dataclass(frozen=True)
 class WienerBlock:
     """Correlated Wiener processes of one Wiener element, a contiguous block of the processes of a problem.
 
@@ -487,50 +528,6 @@ class Draws:
 
 
 @dataclass(frozen=True)
-class MarkovMatrix:
-    """Transition or emission matrix of a law, evaluated from the parameter vector to check its rows.
-
-    Args:
-        law:
-            The description of the law, such as `transition law of chain.x`.
-
-        function:
-            The function `f(p)` that returns the matrix of every evaluation row, of shape `(rows, n, m)`.
-
-        reads:
-            The indices of the parameter vector that the matrix reads.
-    """
-
-    law: str
-    function: Callable[[Vector], npt.NDArray[np.float64]]
-    reads: frozenset[int]
-
-    def violation(self, p: Vector) -> str | None:
-        """Return the description of the first negative entry or row that does not sum to one, or `None`.
-
-        Args:
-            p:
-                The parameter vector.
-
-        Returns:
-            violation:
-                The description of what is wrong with the matrix, or `None` when it is a stochastic matrix.
-        """
-        values = self.function(p)
-        for member, matrix in enumerate(values):
-            where = f' of member {member}' if values.shape[0] > 1 else ''
-            negative = np.argwhere(~(matrix >= 0))
-            if negative.size:
-                row, column = negative[0]
-                return f'the entry ({row}, {column}){where} of the {self.law} is {matrix[row, column]}, below 0'
-            sums = matrix.sum(axis=1)
-            wrong = np.flatnonzero(np.abs(sums - 1) > ROW_TOLERANCE)
-            if wrong.size:
-                return f'the row {wrong[0]}{where} of the {self.law} sums to {sums[wrong[0]]}, not 1'
-        return None
-
-
-@dataclass(frozen=True)
 class Accelerated:
     """Compiled stepper loops of a problem, which run every internal step of a frame in compiled code.
 
@@ -559,26 +556,6 @@ class Accelerated:
     euler_maruyama: Callable[..., Vector] | None = None
     gillespie: Callable[..., Vector] | None = None
     iterate: Callable[..., Vector] | None = None
-
-
-class SiteState(Protocol):
-    """State of a group whose members sit at the sites of a lattice or the nodes of a network."""
-
-    @property
-    def name(self) -> str:
-        """Dotted name of the state."""
-
-    @property
-    def shape(self) -> tuple[int, ...]:
-        """Number of sites along every dimension."""
-
-
-class SiteStep(Protocol):
-    """Step that changes the states of the sites of a group once per step of a stepwise form."""
-
-    @property
-    def targets(self) -> tuple[SiteState, ...]:
-        """States the step changes."""
 
 
 @dataclass(frozen=True)
@@ -780,11 +757,11 @@ class Problem:
     agent_space: Space | None = None
     partitions: tuple['Partition', ...] = ()
     companions: Mapping[str, tuple[str, str, int]] = field(default_factory=dict)
-    delays: tuple[Delay, ...] = ()
+    delays: tuple[_Delay, ...] = ()
     events: tuple[CompiledEvent, ...] = ()
-    breakpoints: Breakpoints = field(default_factory=Breakpoints)
+    breakpoints: _Breakpoints = field(default_factory=_Breakpoints)
     history: Mapping[str, Any] = field(default_factory=dict)
-    lattice: tuple[SiteStep, ...] = field(default=(), repr=False)
+    lattice: tuple[_SiteStep, ...] = field(default=(), repr=False)
     stable_step: float | None = None
     diffusive_limits: tuple[Any, ...] = field(default=(), repr=False)
     linear: tuple[Any, ...] = field(default=(), repr=False)
@@ -799,12 +776,12 @@ class Problem:
     n_processes: int = 0
     noise_blocks: tuple[WienerBlock, ...] = field(default=(), repr=False)
     propensities: VectorFunction | None = field(default=None, repr=False)
-    jumps: tuple[JumpChannels, ...] = field(default=(), repr=False)
+    jumps: tuple[_JumpChannels, ...] = field(default=(), repr=False)
     update: Callable[..., Vector] | None = field(default=None, repr=False)
     boundary: VectorFunction | None = field(default=None, repr=False)
     draws: Draws | None = field(default=None, repr=False)
-    matrices: tuple[MarkovMatrix, ...] = field(default=(), repr=False)
-    renewals: tuple[RenewalProcess, ...] = field(default=(), repr=False)
+    matrices: tuple[_MarkovMatrix, ...] = field(default=(), repr=False)
+    renewals: tuple[_RenewalProcess, ...] = field(default=(), repr=False)
     fractional: tuple[FractionalRows, ...] = field(default=(), repr=False)
     orders: Vector = field(default_factory=lambda: np.zeros(0), repr=False)
 
@@ -812,14 +789,14 @@ class Problem:
     backend: str = 'numpy'
     backends: Mapping[str, str] = field(default_factory=dict)
     accelerated: Accelerated | None = field(default=None, repr=False)
-    topology: TopologyChanges | None = field(default=None, repr=False)
+    topology: _TopologyChanges | None = field(default=None, repr=False)
 
     def _flatten_symbols(self, layout: Layout) -> list[Expression]:
         """Return the symbols of the entries of a layout as a flat list."""
         return [item for entry in layout for item in real_components_of(self.symbols[entry.name])]
 
     @property
-    def objectives(self) -> tuple[CompiledObjective, ...]:
+    def objectives(self) -> tuple[_CompiledObjective, ...]:
         """Objectives of the system, which optimal control solvers optimise."""
         return () if self.stock_flow is None else self.stock_flow.objectives
 

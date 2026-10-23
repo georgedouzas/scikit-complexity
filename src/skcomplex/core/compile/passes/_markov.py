@@ -11,7 +11,7 @@ from ...base import ValidationError
 from .._compilation import BlockLaws, Compilation
 from .._declarations import Declarations
 from .._pipeline import Pass
-from .._problem import MarkovMatrix
+from .._problem import _MarkovMatrix
 from .._specs import KernelSpec
 from .._stochastic import MatrixLaw, compile_matrix, markov_laws
 
@@ -19,7 +19,7 @@ from .._stochastic import MatrixLaw, compile_matrix, markov_laws
 def _checked_matrices(
     markov: list[tuple[KernelSpec, MatrixLaw]],
     declarations: Declarations,
-) -> tuple[MarkovMatrix, ...]:
+) -> tuple[_MarkovMatrix, ...]:
     """Return the matrices of the Markov laws after checking them at the initial parameter values."""
     initial = np.concatenate([np.zeros(0), *declarations.initial_parameters])
     matrices = []

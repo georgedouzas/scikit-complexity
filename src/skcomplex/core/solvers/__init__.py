@@ -6,11 +6,10 @@ from ._maps import Iteration
 from ._ode import RK4, ScipyODE, VelocityVerlet
 from ._sde import EulerMaruyama, Heun, Milstein
 from ._snapshots import AgentSnapshot, AgentState, StructureState
-from ._stepper import SOLVERS, Stepper, register_solver, resolve_solver, step_count
+from ._stepper import Stepper, register_solver, resolve_solver, step_count
 
 __all__: list[str] = [
     'RK4',
-    'SOLVERS',
     'AgentSnapshot',
     'AgentState',
     'CoSimulation',

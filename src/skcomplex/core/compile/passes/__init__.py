@@ -1,3 +1,3 @@
-"""Passes of a compilation: the general passes of the shared core, and the passes of formalisms that compile in it."""
+"""Hold the passes of a compilation, the steps of the shared core that turn a system into a problem."""
 
 __all__: list[str] = []

@@ -10,6 +10,8 @@ from sage.all__sagemath_symbolics import SR
 
 from ..base import Expression, SymbolicVector, ValidationError
 
+SHIFT = 'shift_member'
+
 
 def _is_sympy(value: object) -> bool:
     """Check whether a value comes from SymPy, without importing it."""

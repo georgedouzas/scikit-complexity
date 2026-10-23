@@ -31,81 +31,6 @@ LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
 MAX_SHOWN_COMPONENTS = 10
 
 
-@dataclass(frozen=True)
-class Node:
-    """Element or interaction with its place in the system tree.
-
-    Args:
-        path:
-            The slash-separated path of the component.
-
-        scope:
-            The path prefix of the system that holds the component.
-
-        component:
-            The element, group, or interaction.
-
-        space:
-            The nearest enclosing space.
-
-        agent:
-            Whether the component runs on the agent stepper, as a pass of a formalism decides.
-
-        active:
-            The initial number of members of a variable group on the sites or edges of a network, whose capacity is
-            its size, or `None` for every other component.
-    """
-
-    path: str
-    scope: str
-    component: Element | Group | Interaction
-    space: Space | None
-    agent: bool = False
-    active: int | None = None
-
-    @property
-    def members(self) -> int | None:
-        """Size of a group, or `None` for a single element or an interaction."""
-        return self.component.size if isinstance(self.component, Group) else None
-
-    @property
-    def is_agent(self) -> bool:
-        """Whether the node is an agent element or an agent group, which runs on the agent stepper."""
-        return self.agent
-
-    @property
-    def component_type(self) -> type[Element] | type[Interaction]:
-        """Element type of a group, or the type of an element or interaction."""
-        return self.component.element if isinstance(self.component, Group) else type(self.component)
-
-    def value_of(self, variable: str) -> Any:  # noqa: ANN401
-        """Return the value of a variable, or the element type's default for a group that does not set it.
-
-        Args:
-            variable:
-                The name of the variable.
-
-        Returns:
-            value:
-                The value given by the user or the default.
-        """
-        if not isinstance(self.component, Group):
-            return getattr(self.component, variable)
-        values = self.component.values or {}
-        default = self.component.element.get_default(variable)
-        if variable not in values:
-            return default
-        value = values[variable]
-        space = getattr(self.component, 'space', None)
-        if isinstance(space, LatticeSpace) and np.shape(value) == space.dimensions:
-            return np.ravel(value)
-        if self.active is not None and np.ndim(value) and len(value) == self.active:
-            rows = (self.members or 0) - self.active
-            padding = np.broadcast_to(np.asarray(default, dtype=float), (rows, *np.shape(value)[1:]))
-            return np.concatenate([np.asarray(value, dtype=float), padding])
-        return value
-
-
 def _check_label(label: object, scope: str) -> None:
     """Raise an error for a label that is not a non-empty word."""
     if isinstance(label, str) and LABEL_PATTERN.match(label):
@@ -191,30 +116,6 @@ def _sized(element: Element | Group, space: Space | None) -> Element | Group:
     return sized
 
 
-def is_topology_group(component: object, space: Space | None) -> bool:
-    """Check whether a component is a variable group on the sites or edges of a network without agent laws of its own.
-
-    Compiled backends run such a group with a capacity layout, whose rows hold the members present and room for new
-    ones, so laws that change the topology of the network add and remove its members.
-
-    Args:
-        component:
-            The element, group, or interaction.
-
-        space:
-            The space of the component.
-
-    Returns:
-        topology_group:
-            Whether the group runs with a capacity layout.
-    """
-    if not (isinstance(component, Group) and component.variable and component.on in {'sites', 'edges'}):
-        return False
-    if not isinstance(space, NetworkSpace):
-        return False
-    return not any(has_trait(law, Trait.AGENT) for law in probe_laws(component) or [])
-
-
 def _with_capacity(element: Element | Group, space: Space | None) -> tuple[Element | Group, int | None]:
     """Return a variable group on a network with its capacity as its size, and its initial size, or the element."""
     if not is_topology_group(element, space):
@@ -244,6 +145,81 @@ def _canonical(space: Space | None, seen: list[Space]) -> Space | None:
     return space
 
 
+@dataclass(frozen=True)
+class Node:
+    """Element or interaction with its place in the system tree.
+
+    Args:
+        path:
+            The slash-separated path of the component.
+
+        scope:
+            The path prefix of the system that holds the component.
+
+        component:
+            The element, group, or interaction.
+
+        space:
+            The nearest enclosing space.
+
+        agent:
+            Whether the component runs on the agent stepper, as a pass of a formalism decides.
+
+        active:
+            The initial number of members of a variable group on the sites or edges of a network, whose capacity is
+            its size, or `None` for every other component.
+    """
+
+    path: str
+    scope: str
+    component: Element | Group | Interaction
+    space: Space | None
+    agent: bool = False
+    active: int | None = None
+
+    @property
+    def members(self) -> int | None:
+        """Size of a group, or `None` for a single element or an interaction."""
+        return self.component.size if isinstance(self.component, Group) else None
+
+    @property
+    def is_agent(self) -> bool:
+        """Whether the node is an agent element or an agent group, which runs on the agent stepper."""
+        return self.agent
+
+    @property
+    def component_type(self) -> type[Element] | type[Interaction]:
+        """Element type of a group, or the type of an element or interaction."""
+        return self.component.element if isinstance(self.component, Group) else type(self.component)
+
+    def value_of(self, variable: str) -> Any:  # noqa: ANN401
+        """Return the value of a variable, or the element type's default for a group that does not set it.
+
+        Args:
+            variable:
+                The name of the variable.
+
+        Returns:
+            value:
+                The value given by the user or the default.
+        """
+        if not isinstance(self.component, Group):
+            return getattr(self.component, variable)
+        values = self.component.values or {}
+        default = self.component.element.get_default(variable)
+        if variable not in values:
+            return default
+        value = values[variable]
+        space = getattr(self.component, 'space', None)
+        if isinstance(space, LatticeSpace) and np.shape(value) == space.dimensions:
+            return np.ravel(value)
+        if self.active is not None and np.ndim(value) and len(value) == self.active:
+            rows = (self.members or 0) - self.active
+            padding = np.broadcast_to(np.asarray(default, dtype=float), (rows, *np.shape(value)[1:]))
+            return np.concatenate([np.asarray(value, dtype=float), padding])
+        return value
+
+
 def _flatten(system: System, scope: str, space: Space | None, seen: list[Space] | None = None) -> list[Node]:
     """Return the nodes of a system tree in tree order."""
     if not isinstance(system, System):
@@ -261,6 +237,77 @@ def _flatten(system: System, scope: str, space: Space | None, seen: list[Space] 
     for child in system.systems:
         nodes += _flatten(child, f'{scope}{child.label}/', space, seen)
     return nodes
+
+
+def _describe(value: object) -> str:
+    """Return the repr of a small value, or its shape for an array with many components."""
+    if isinstance(value, np.ndarray | list | tuple) and np.size(value) > MAX_SHOWN_COMPONENTS:
+        return f'an array of shape {np.shape(value)}'
+    return repr(value)
+
+
+def _coerce_group_value(
+    name: str,
+    value: object,
+    array: npt.NDArray[Any],
+    shape: tuple[int, ...],
+    members: int,
+) -> npt.NDArray[Any]:
+    """Return a group value as flat member-major components, broadcasting shared values."""
+    if array.shape in ((), shape):
+        return np.broadcast_to(array, (members, *shape)).ravel().copy()
+    if array.shape == (members, *shape):
+        return array.ravel()
+    count = array.shape[0] if array.ndim else 1
+    error_msg = (
+        f'{name} = {_describe(value)} has {count} values of shape {array.shape[1:]} for a group of {members} members '
+        f'of shape {shape}. Give one value per member or one value shared by every member.'
+    )
+    raise ValidationError(error_msg)
+
+
+def _flat_value(
+    name: str,
+    value: object,
+    array: npt.NDArray[Any],
+    shape: tuple[int, ...],
+    members: int | None,
+) -> npt.NDArray[Any]:
+    """Return an encoded value as flat components of the given shape, member after member for a group."""
+    if members is not None:
+        return _coerce_group_value(name, value, array, shape, members)
+    if not shape and array.ndim == 0:
+        return array.reshape(1)
+    if shape and array.ndim == 0:
+        return np.full(shape, array.item(), dtype=array.dtype).ravel()
+    if array.shape != shape:
+        error_msg = f'{name} = {_describe(value)} has shape {array.shape}, but the variable has shape {shape}.'
+        raise ValidationError(error_msg)
+    return array.ravel()
+
+
+def is_topology_group(component: object, space: Space | None) -> bool:
+    """Check whether a component is a variable group on the sites or edges of a network without agent laws of its own.
+
+    Compiled backends run such a group with a capacity layout, whose rows hold the members present and room for new
+    ones, so laws that change the topology of the network add and remove its members.
+
+    Args:
+        component:
+            The element, group, or interaction.
+
+        space:
+            The space of the component.
+
+    Returns:
+        topology_group:
+            Whether the group runs with a capacity layout.
+    """
+    if not (isinstance(component, Group) and component.variable and component.on in {'sites', 'edges'}):
+        return False
+    if not isinstance(space, NetworkSpace):
+        return False
+    return not any(has_trait(law, Trait.AGENT) for law in probe_laws(component) or [])
 
 
 def flatten_system(system: System, scope: str = '', space: Space | None = None) -> list[Node]:
@@ -347,53 +394,6 @@ def shape_of(name: str, declaration: Variable, space: Space | None) -> tuple[int
         error_msg = f'The space of {name} has n_dim = {space.n_dim!r}, which is not a positive integer.'
         raise ValidationError(error_msg)
     return (int(space.n_dim),)
-
-
-def _describe(value: object) -> str:
-    """Return the repr of a small value, or its shape for an array with many components."""
-    if isinstance(value, np.ndarray | list | tuple) and np.size(value) > MAX_SHOWN_COMPONENTS:
-        return f'an array of shape {np.shape(value)}'
-    return repr(value)
-
-
-def _coerce_group_value(
-    name: str,
-    value: object,
-    array: npt.NDArray[Any],
-    shape: tuple[int, ...],
-    members: int,
-) -> npt.NDArray[Any]:
-    """Return a group value as flat member-major components, broadcasting shared values."""
-    if array.shape in ((), shape):
-        return np.broadcast_to(array, (members, *shape)).ravel().copy()
-    if array.shape == (members, *shape):
-        return array.ravel()
-    count = array.shape[0] if array.ndim else 1
-    error_msg = (
-        f'{name} = {_describe(value)} has {count} values of shape {array.shape[1:]} for a group of {members} members '
-        f'of shape {shape}. Give one value per member or one value shared by every member.'
-    )
-    raise ValidationError(error_msg)
-
-
-def _flat_value(
-    name: str,
-    value: object,
-    array: npt.NDArray[Any],
-    shape: tuple[int, ...],
-    members: int | None,
-) -> npt.NDArray[Any]:
-    """Return an encoded value as flat components of the given shape, member after member for a group."""
-    if members is not None:
-        return _coerce_group_value(name, value, array, shape, members)
-    if not shape and array.ndim == 0:
-        return array.reshape(1)
-    if shape and array.ndim == 0:
-        return np.full(shape, array.item(), dtype=array.dtype).ravel()
-    if array.shape != shape:
-        error_msg = f'{name} = {_describe(value)} has shape {array.shape}, but the variable has shape {shape}.'
-        raise ValidationError(error_msg)
-    return array.ravel()
 
 
 def coerce_value(

@@ -13,8 +13,8 @@ import numpy as np
 from numba.extending import register_jitable
 from sklearn.base import BaseEstimator
 
-from ..base import Form, LawKind, Registry, SolverError, Supports
-from ..compile import Problem, Record, Vector, load_backends
+from ..base import Form, LawKind, SolverError, Supports
+from ..compile import SOLVERS, Problem, Record, Vector, solver_registry
 from ._hybrid import RESTART, EventLocator, History, find_bounds
 from ._renewals import RenewalClock
 
@@ -255,9 +255,6 @@ class Stepper(BaseEstimator):
         return None
 
 
-SOLVERS = Registry[type[Stepper]]('solver')
-
-
 def register_solver(name: str, stepper: type[Stepper], *, default: bool = False) -> None:
     """Register a stepper class under a name for its form.
 
@@ -296,7 +293,7 @@ def resolve_solver(problem: Problem, solver: str | Stepper) -> Stepper:
     """
     if isinstance(solver, Stepper):
         return solver
-    load_backends()
+    solver_registry()
     try:
         return SOLVERS.resolve((problem.form, solver))()
     except KeyError as error:

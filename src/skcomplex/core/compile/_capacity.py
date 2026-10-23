@@ -11,13 +11,11 @@ import numpy as np
 import numpy.typing as npt
 
 from ..base import CapacityError, VariableKind, declarations_of
+from ._arrays import Indices, Vector
 from ._declarations import ACTIVE, ENDS, Block, Declarations
 from ._layout import Entry
 from ._neighbourhoods import ACTIVE_THRESHOLD
-from ._problem import Vector
 from ._tree import coerce_value
-
-type Indices = npt.NDArray[np.intp]
 
 
 @dataclass(frozen=True)

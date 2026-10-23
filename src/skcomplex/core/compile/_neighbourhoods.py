@@ -13,16 +13,14 @@ from scipy.spatial import cKDTree
 
 from ..base import Expression, ValidationError, Variable
 from ..space import Adjacency, Cone, ContinuousSpace, LatticeSpace, Memory, Nearest, Neighborhood, NetworkSpace, Radius
+from ._arrays import Indices, Vector
 from ._layout import Entry
 from ._printing import numpy_function
-from ._reductions import Read
+from ._reads import Read
 
-type Vector = npt.NDArray[np.float64]
-type Indices = npt.NDArray[np.intp]
 type Rows = tuple[Indices, Indices]
 type Found = tuple[Indices, Indices, Indices | None]
 
-SIDES = ('shared', 'reader', 'other', 'edge')
 ACTIVE_THRESHOLD = 0.5
 
 
@@ -131,41 +129,78 @@ def default_neighbourhood(space: object) -> Adjacency | Neighborhood | None:
     return Neighborhood.moore(n_dim=space.n_dim)
 
 
-@dataclass(frozen=True)
-class StaticSearch:
-    """Neighbours that do not change during a run, the edges of a network or the offsets of a lattice.
+def position_state(states: Mapping[str, Variable]) -> str | None:
+    """Return the position state of an element type: the vector state declared as position, else the vector `x`.
 
     Args:
-        indptr:
-            The start of the neighbours of every member, and the number of pairs last.
+        states:
+            The state declarations by name.
 
-        indices:
-            The neighbours of every member in turn.
-
-        edges:
-            The edge of a network layer that joins every member to every neighbour, or `None` on a lattice.
+    Returns:
+        name:
+            The name of the position state, or `None` without one.
     """
+    declared = next((name for name, item in states.items() if item.position and item.vector), None)
+    if declared is not None:
+        return declared
+    found = states.get('x')
+    return 'x' if found is not None and found.vector else None
 
-    indptr: Indices
-    indices: Indices
-    edges: Indices | None = None
 
-    def find(self, x: Vector, q: Vector) -> Found:
-        """Return the neighbours of every member.
+def cone_heading(cone: Cone, states: Mapping[str, Variable], n_dim: int) -> str:
+    """Return the state that holds the heading of a cone: the named state, else the velocity of the position.
 
-        Args:
-            x:
-                The state vector, which the neighbours do not depend on.
+    Args:
+        cone:
+            The cone neighbourhood.
 
-            q:
-                The extended parameter vector, which the neighbours do not depend on.
+        states:
+            The state declarations of the element type of the members.
 
-        Returns:
-            rows:
-                The row starts, the neighbours, and the edge of every neighbour on a network.
-        """
-        del x, q
-        return self.indptr, self.indices, self.edges
+        n_dim:
+            The dimension of the space.
+
+    Returns:
+        name:
+            The name of the heading state, a vector state or in two dimensions a scalar angle.
+
+    Raises:
+        ValidationError:
+            The members have no such state.
+
+    Examples:
+        >>> from skcomplex.core.base import state
+        >>> from skcomplex.core.components import Element
+        >>> from skcomplex.core.compile._neighbourhoods import cone_heading
+        >>> from skcomplex.core.base import VariableKind, declarations_of
+        >>> from skcomplex.core.space import Cone
+        >>> Boid = Element.define('Boid', states={'x': state(vector=True, position=True), 'theta': 0.0})
+        >>> cone_heading(Cone(1.0, 1.0, heading='theta'), declarations_of(Boid, VariableKind.STATE), 2)
+        'theta'
+    """
+    if cone.heading is not None:
+        declaration = states.get(cone.heading)
+        if declaration is not None and (declaration.vector or n_dim == 2):  # noqa: PLR2004
+            return cone.heading
+        error_msg = (
+            f'The cone reads the heading {cone.heading!r}, which is not a vector state of the members, or a scalar '
+            'angle state in two dimensions.'
+        )
+        raise ValidationError(error_msg)
+    position = position_state(states)
+    velocity = next(
+        (name for name, item in states.items() if item.vector and position and item.velocity_of == position),
+        None,
+    )
+    if velocity is None and position is not None and states[position].order > 1:
+        velocity = f'{position}_d1'
+    if velocity is None:
+        error_msg = (
+            'The cone has no heading: the members declare no vector velocity of their position. Declare one with '
+            "`state(vector=True, velocity_of='x')`, or name a heading state, such as `Cone(r, angle, heading='theta')`."
+        )
+        raise ValidationError(error_msg)
+    return velocity
 
 
 @dataclass(frozen=True)
@@ -383,81 +418,44 @@ class MetricSearch:
         return dot >= np.cos(cone.angle) * norms
 
 
+@dataclass(frozen=True)
+class StaticSearch:
+    """Neighbours that do not change during a run, the edges of a network or the offsets of a lattice.
+
+    Args:
+        indptr:
+            The start of the neighbours of every member, and the number of pairs last.
+
+        indices:
+            The neighbours of every member in turn.
+
+        edges:
+            The edge of a network layer that joins every member to every neighbour, or `None` on a lattice.
+    """
+
+    indptr: Indices
+    indices: Indices
+    edges: Indices | None = None
+
+    def find(self, x: Vector, q: Vector) -> Found:
+        """Return the neighbours of every member.
+
+        Args:
+            x:
+                The state vector, which the neighbours do not depend on.
+
+            q:
+                The extended parameter vector, which the neighbours do not depend on.
+
+        Returns:
+            rows:
+                The row starts, the neighbours, and the edge of every neighbour on a network.
+        """
+        del x, q
+        return self.indptr, self.indices, self.edges
+
+
 type Search = StaticSearch | EdgeRows | MetricSearch
-
-
-def position_state(states: Mapping[str, Variable]) -> str | None:
-    """Return the position state of an element type: the vector state declared as position, else the vector `x`.
-
-    Args:
-        states:
-            The state declarations by name.
-
-    Returns:
-        name:
-            The name of the position state, or `None` without one.
-    """
-    declared = next((name for name, item in states.items() if item.position and item.vector), None)
-    if declared is not None:
-        return declared
-    found = states.get('x')
-    return 'x' if found is not None and found.vector else None
-
-
-def cone_heading(cone: Cone, states: Mapping[str, Variable], n_dim: int) -> str:
-    """Return the state that holds the heading of a cone: the named state, else the velocity of the position.
-
-    Args:
-        cone:
-            The cone neighbourhood.
-
-        states:
-            The state declarations of the element type of the members.
-
-        n_dim:
-            The dimension of the space.
-
-    Returns:
-        name:
-            The name of the heading state, a vector state or in two dimensions a scalar angle.
-
-    Raises:
-        ValidationError:
-            The members have no such state.
-
-    Examples:
-        >>> from skcomplex.core.base import state
-        >>> from skcomplex.core.components import Element
-        >>> from skcomplex.core.compile._neighbourhoods import cone_heading
-        >>> from skcomplex.core.base import VariableKind, declarations_of
-        >>> from skcomplex.core.space import Cone
-        >>> Boid = Element.define('Boid', states={'x': state(vector=True, position=True), 'theta': 0.0})
-        >>> cone_heading(Cone(1.0, 1.0, heading='theta'), declarations_of(Boid, VariableKind.STATE), 2)
-        'theta'
-    """
-    if cone.heading is not None:
-        declaration = states.get(cone.heading)
-        if declaration is not None and (declaration.vector or n_dim == 2):  # noqa: PLR2004
-            return cone.heading
-        error_msg = (
-            f'The cone reads the heading {cone.heading!r}, which is not a vector state of the members, or a scalar '
-            'angle state in two dimensions.'
-        )
-        raise ValidationError(error_msg)
-    position = position_state(states)
-    velocity = next(
-        (name for name, item in states.items() if item.vector and position and item.velocity_of == position),
-        None,
-    )
-    if velocity is None and position is not None and states[position].order > 1:
-        velocity = f'{position}_d1'
-    if velocity is None:
-        error_msg = (
-            'The cone has no heading: the members declare no vector velocity of their position. Declare one with '
-            "`state(vector=True, velocity_of='x')`, or name a heading state, such as `Cone(r, angle, heading='theta')`."
-        )
-        raise ValidationError(error_msg)
-    return velocity
 
 
 def neighbour_search(
@@ -538,6 +536,59 @@ def neighbour_search(
             error_msg = f'The cone reads the heading {name!r}, which the members do not hold.'
             raise ValidationError(error_msg)
     return MetricSearch(over, entries[position], periods, heading)
+
+
+def reduce_pairs(kind: str, readers: Indices, weight: Vector, argument: Vector, counts: Indices) -> Vector:
+    """Return the reduction of the weighted values of the pairs of every member, 0 for a member without neighbours.
+
+    Args:
+        kind:
+            One of `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, and `'normalized-mean'`.
+
+        readers:
+            The member of every pair, in increasing order.
+
+        weight:
+            The weight of every pair.
+
+        argument:
+            The value of every pair.
+
+        counts:
+            The number of neighbours of every member.
+
+    Returns:
+        values:
+            One value per member.
+
+    Raises:
+        ValidationError:
+            The kind is unknown.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.compile._neighbourhoods import reduce_pairs
+        >>> readers, counts = np.array([0, 0, 2]), np.array([2, 0, 1])
+        >>> reduce_pairs('mean', readers, np.ones(3), np.array([1.0, 3.0, 5.0]), counts).tolist()
+        [2.0, 0.0, 5.0]
+    """
+    size = counts.size
+    if kind in {'max', 'min'}:
+        values = np.full(size, -np.inf if kind == 'max' else np.inf)
+        (np.maximum if kind == 'max' else np.minimum).at(values, readers, weight * argument)
+        return np.where(counts > 0, values, 0.0)
+    if kind == 'count':
+        return np.bincount(readers, weights=weight * (argument != 0), minlength=size).astype(float)
+    total = np.bincount(readers, weights=weight * argument, minlength=size).astype(float)
+    if kind == 'sum':
+        return total
+    if kind == 'mean':
+        return np.divide(total, counts, out=np.zeros(size), where=counts > 0)
+    if kind == 'normalized-mean':
+        weights = np.bincount(readers, weights=weight, minlength=size).astype(float)
+        return np.divide(total, weights, out=np.zeros(size), where=weights != 0)
+    error_msg = f'Unknown neighbourhood reduction {kind!r}.'
+    raise ValidationError(error_msg)
 
 
 @dataclass(frozen=True)
@@ -665,56 +716,3 @@ class CompiledNeighbourhood:
         argument = np.broadcast_to(np.asarray(argument, dtype=float), (pairs,))
         weight = np.broadcast_to(np.asarray(weight, dtype=float), (pairs,))
         q[self.entry.indices] = reduce_pairs(self.kind, readers, weight, argument, counts)
-
-
-def reduce_pairs(kind: str, readers: Indices, weight: Vector, argument: Vector, counts: Indices) -> Vector:
-    """Return the reduction of the weighted values of the pairs of every member, 0 for a member without neighbours.
-
-    Args:
-        kind:
-            One of `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, and `'normalized-mean'`.
-
-        readers:
-            The member of every pair, in increasing order.
-
-        weight:
-            The weight of every pair.
-
-        argument:
-            The value of every pair.
-
-        counts:
-            The number of neighbours of every member.
-
-    Returns:
-        values:
-            One value per member.
-
-    Raises:
-        ValidationError:
-            The kind is unknown.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.compile._neighbourhoods import reduce_pairs
-        >>> readers, counts = np.array([0, 0, 2]), np.array([2, 0, 1])
-        >>> reduce_pairs('mean', readers, np.ones(3), np.array([1.0, 3.0, 5.0]), counts).tolist()
-        [2.0, 0.0, 5.0]
-    """
-    size = counts.size
-    if kind in {'max', 'min'}:
-        values = np.full(size, -np.inf if kind == 'max' else np.inf)
-        (np.maximum if kind == 'max' else np.minimum).at(values, readers, weight * argument)
-        return np.where(counts > 0, values, 0.0)
-    if kind == 'count':
-        return np.bincount(readers, weights=weight * (argument != 0), minlength=size).astype(float)
-    total = np.bincount(readers, weights=weight * argument, minlength=size).astype(float)
-    if kind == 'sum':
-        return total
-    if kind == 'mean':
-        return np.divide(total, counts, out=np.zeros(size), where=counts > 0)
-    if kind == 'normalized-mean':
-        weights = np.bincount(readers, weights=weight, minlength=size).astype(float)
-        return np.divide(total, weights, out=np.zeros(size), where=weights != 0)
-    error_msg = f'Unknown neighbourhood reduction {kind!r}.'
-    raise ValidationError(error_msg)

@@ -79,7 +79,7 @@ def test_register_adds_contributions_to_their_registries():
         'from tests.core.formalisms import outside\n'
         'from skcomplex.core.formalisms import register, registered_formalisms\n'
         'from skcomplex.core.laws import law_classes\n'
-        'from skcomplex.core.solvers import SOLVERS\n'
+        'from skcomplex.core.compile import SOLVERS\n'
         'register(outside.FORMALISM)\n'
         'print(json.dumps({\n'
         "    'law': outside.Decay in law_classes(),\n"

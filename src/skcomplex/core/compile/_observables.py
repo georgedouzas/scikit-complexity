@@ -29,15 +29,17 @@ from ..base import (
 from ..components import Aggregate
 from ..laws import Reduction, Symbols, count, maximum, mean, minimum, reductions_in, total, variance
 from ..system import Observable, System, reduce_values
+from ._arrays import Vector
 from ._complex import joined_complex
 from ._declarations import Block, Declarations
 from ._kernels import Reference, Source
 from ._layout import Entry
 from ._printing import numpy_function
-from ._problem import Getter, Problem, Vector
-from ._quantities import Recorded
+from ._problem import Getter, Problem
+from ._quantities import _Recorded
+from ._reads import Read
 from ._real_parts import real_components_of
-from ._reductions import CompiledReduction, Read, ReductionPass
+from ._reductions import CompiledReduction, ReductionPass
 from ._specs import Observed
 from ._tree import Node
 
@@ -90,27 +92,8 @@ def _join(scope: str, path: str) -> str:
     return f'{scope}/{path}' if scope else path
 
 
-def with_observables(system: System, observables: Sequence[Observable]) -> System:
-    """Return a copy of a system tree that declares observables in the systems their labels name.
-
-    An observable whose label is a path, such as `village/mean_wealth`, belongs to the nested system `village`, and
-    reads the symbols of that system as an observable of it. The system itself is left unchanged.
-
-    Args:
-        system:
-            The root system.
-
-        observables:
-            The observables, labelled by their path from the root.
-
-    Returns:
-        system:
-            The system itself without observables, or a copy of the tree whose systems hold them.
-
-    Raises:
-        ValidationError:
-            A label names a nested system that does not exist.
-    """
+def _with_observables(system: System, observables: Sequence[Observable]) -> System:
+    """Return a copy of a system tree that declares observables in the systems their labels name."""
     if not observables:
         return system
     by_scope: dict[str, list[Observable]] = {}
@@ -147,26 +130,6 @@ def _attached(system: System, by_scope: dict[str, list[Observable]], scope: str)
     ]
     copied.observables = [*getattr(system, 'observables', ()), *by_scope.get(scope, ())]
     return copied
-
-
-def observables_of(system: System, scope: str = '') -> Iterator[tuple[str, Observable]]:
-    """Yield the path of every system in a tree that declares observables, with each observable.
-
-    Args:
-        system:
-            The root system.
-
-        scope:
-            The path of the system, empty for the root.
-
-    Yields:
-        observable:
-            The path of the declaring system and the observable.
-    """
-    for observable in getattr(system, 'observables', ()):
-        yield scope, observable
-    for child in system.systems:
-        yield from observables_of(child, _join(scope, child.label))
 
 
 def _tree(items: Mapping[str, Any], **root: Any) -> Symbols:  # noqa: ANN401
@@ -220,6 +183,51 @@ def _reduced_value(path: str, observable: Observable, block: Block) -> object:
     return reducer(value, over=namespace)
 
 
+def _role_paths(system: System, scope: str = '') -> set[str]:
+    """Return the paths from the root of everything that roles of a system tree bind to."""
+    paths = set()
+    for interaction in system.interactions:
+        for name in declarations_of(interaction, VariableKind.ROLE):
+            value = getattr(interaction, name)
+            labels = [value] if isinstance(value, str) else list(value) if isinstance(value, list | tuple) else []
+            paths |= {f'{scope}/{label}' if scope else label for label in labels if isinstance(label, str)}
+    for child in system.systems:
+        paths |= _role_paths(child, f'{scope}/{child.label}' if scope else child.label)
+    return paths
+
+
+def _readers_of(problem: Problem, path: str) -> set[str]:
+    """Return the paths of the elements and groups that interactions reading an observable bind their other roles to."""
+    readers: set[str] = set()
+    for interaction in problem.interactions:
+        bound = [
+            item for value in interaction.roles.values() for item in ([value] if isinstance(value, str) else value)
+        ]
+        if path in bound:
+            readers |= set(bound) - {path}
+    return readers
+
+
+def observables_of(system: System, scope: str = '') -> Iterator[tuple[str, Observable]]:
+    """Yield the path of every system in a tree that declares observables, with each observable.
+
+    Args:
+        system:
+            The root system.
+
+        scope:
+            The path of the system, empty for the root.
+
+    Yields:
+        observable:
+            The path of the declaring system and the observable.
+    """
+    for observable in getattr(system, 'observables', ()):
+        yield scope, observable
+    for child in system.systems:
+        yield from observables_of(child, _join(scope, child.label))
+
+
 def lowerable_observables(system: System, nodes: list[Node]) -> Declared:
     """Return every observable of a system tree that laws can read at the current state, by path.
 
@@ -234,19 +242,6 @@ def lowerable_observables(system: System, nodes: list[Node]) -> Declared:
             continue
         lowerable[_join(scope, observable.label)] = (scope, observable)
     return lowerable
-
-
-def _role_paths(system: System, scope: str = '') -> set[str]:
-    """Return the paths from the root of everything that roles of a system tree bind to."""
-    paths = set()
-    for interaction in system.interactions:
-        for name in declarations_of(interaction, VariableKind.ROLE):
-            value = getattr(interaction, name)
-            labels = [value] if isinstance(value, str) else list(value) if isinstance(value, list | tuple) else []
-            paths |= {f'{scope}/{label}' if scope else label for label in labels if isinstance(label, str)}
-    for child in system.systems:
-        paths |= _role_paths(child, f'{scope}/{child.label}' if scope else child.label)
-    return paths
 
 
 def with_held_observables(system: System, read: set[str], scope: str = '') -> tuple[System, list[str]]:
@@ -297,18 +292,6 @@ def held_observables(system: System, nodes: list[Node]) -> set[str]:
     lowerable = lowerable_observables(system, nodes)
     declared = {_join(scope, observable.label) for scope, observable in observables_of(system)}
     return (_role_paths(system) & declared) - set(lowerable)
-
-
-def _readers_of(problem: Problem, path: str) -> set[str]:
-    """Return the paths of the elements and groups that interactions reading an observable bind their other roles to."""
-    readers: set[str] = set()
-    for interaction in problem.interactions:
-        bound = [
-            item for value in interaction.roles.values() for item in ([value] if isinstance(value, str) else value)
-        ]
-        if path in bound:
-            readers |= set(bound) - {path}
-    return readers
 
 
 def check_held_reads(problem: Problem, held: list[str]) -> None:
@@ -531,7 +514,7 @@ class ObservableEvaluator:
 
         return get
 
-    def _recorded_getter(self, recorded: Recorded) -> Getter:
+    def _recorded_getter(self, recorded: _Recorded) -> Getter:
         """Return the getter of a flow or an auxiliary, one value for a single component and one per group member."""
         members: dict[Expression, Callable[[Vector, Vector], Any]] = {}
         for item in symbols_of([recorded.expression]) - {self.problem.time}:

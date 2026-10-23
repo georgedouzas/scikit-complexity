@@ -9,12 +9,12 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
 from ..base import Expression, SolverError, SymbolicVector, ValidationError, components_of, symbol, symbols_of
 from ..laws import Draw, draws_in, has_reductions, is_draw
 from ..laws._laws import Renewal
+from ._arrays import Indices, Vector
 from ._kernels import Reference, Source
 from ._layout import Entry
 from ._printing import numpy_function
@@ -22,8 +22,6 @@ from ._problem import RenewalRecord
 from ._specs import KernelSpec
 from ._stochastic import distribution_of, sample_draw
 
-type Vector = npt.NDArray[np.float64]
-type Indices = npt.NDArray[np.intp]
 type Drawn = dict[str, Vector]
 READ_SOURCES = frozenset({Source.SINGLE, Source.MEMBER})
 

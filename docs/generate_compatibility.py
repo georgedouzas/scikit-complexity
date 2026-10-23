@@ -5,9 +5,8 @@ from importlib import import_module
 
 from skcomplex.core import formalisms
 from skcomplex.core.base import LawKind
-from skcomplex.core.compile import BACKENDS
+from skcomplex.core.compile import BACKENDS, SOLVERS
 from skcomplex.core.laws import law_classes
-from skcomplex.core.solvers import SOLVERS
 from skcomplex.core.space import Space
 
 

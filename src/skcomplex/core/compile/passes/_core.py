@@ -1,4 +1,4 @@
-"""List the passes of the shared core, and register the passes of the formalisms that still compile inside it."""
+"""List the passes of the shared core, and register its own passes, forms, owner rules, and bindings."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -55,7 +55,7 @@ CORE_PASSES = (
     ProblemPass(),
     *_waiting_jumps.PASSES,
 )
-FORMALISM_PASSES = (
+REGISTERED_PASSES = (
     *_flows.PASSES,
     *_particles.PASSES,
 )
@@ -68,12 +68,9 @@ OWNER_RULES = (
 )
 
 
-def register_formalisms() -> None:
-    """Register the passes, forms, owner rules, and bindings of the formalisms that still compile here.
-
-    Each formalism registers its own contributions once its passes move into its package.
-    """
-    for item in FORMALISM_PASSES:
+def register_shared_rules() -> None:
+    """Register the passes, forms, owner rules, and bindings of stocks and flows, waiting-time jumps, and pairs."""
+    for item in REGISTERED_PASSES:
         register_pass(item)
     for kinds, form in STEPWISE_FORMS.items():
         register_form(kinds, form, stepwise=True)
@@ -85,4 +82,4 @@ def register_formalisms() -> None:
         register_binding(over, binding)
 
 
-register_formalisms()
+register_shared_rules()

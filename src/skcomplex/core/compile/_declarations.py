@@ -29,9 +29,9 @@ from ..base import (
 from ..components import Element, Group, Wiener
 from ..laws import Symbols
 from ..space import NetworkSpace
+from ._arrays import Vector
 from ._kernels import Reference, Source
 from ._layout import Entry
-from ._problem import Vector
 from ._tree import Node, coerce_value, shape_of
 
 ACTIVE = '_active'

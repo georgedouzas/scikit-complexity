@@ -47,7 +47,8 @@ from .._kernels import Reference, Source
 from .._layout import Entry
 from .._neighbourhoods import ACTIVE_THRESHOLD, CompiledNeighbourhood, PairRead, default_neighbourhood, neighbour_search
 from .._pipeline import Pass
-from .._reductions import CompiledReduction, Read, ReductionPass
+from .._reads import Read
+from .._reductions import CompiledReduction, ReductionPass
 from .._specs import KernelSpec, activity_symbol, group_space
 from .._stochastic import DrawLowering
 

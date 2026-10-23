@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
 from ..base import (
@@ -28,62 +27,13 @@ from ..base import (
 from ..laws import Auxiliary, Boundary, Event, Invariant, Jump, Law, Noise, Objective, Rate, Sink, Transfer, Update
 from ..laws import Source as Environment
 from ..laws._flows import delay_parts
+from ._arrays import Vector
 from ._kernels import Reference
 from ._kernels import Source as Read
 from ._layout import Entry
-from ._quantities import CompiledFlow, CompiledObjective, LoopTerm, Recorded, StockFlow
+from ._quantities import LoopTerm, StockFlow, _CompiledFlow, _CompiledObjective, _Recorded
 
 BOUNDARY_PREFIX = '__boundary'
-
-type Vector = npt.NDArray[np.float64]
-
-
-class _Spec(Protocol):
-    """Kernel spec of a component as the stock-flow pass reads it."""
-
-    owner: str
-    references: dict[Expression, Reference]
-    rows: int
-
-
-class _Declared(Protocol):
-    """Declarations of a compilation as the stock-flow pass extends them with hidden stocks."""
-
-    time: Expression
-    states: list[Entry]
-    parameters: list[Entry]
-    initial_states: list[Vector]
-    initial_parameters: list[Vector]
-
-    def declare_state(
-        self,
-        name: str,
-        initial: Vector,
-        domain: Domain,
-        shape: tuple[int, ...] = (),
-        members: int | None = None,
-    ) -> Entry:
-        """Add a hidden state after every state declared so far and return its entry."""
-        ...
-
-
-@dataclass
-class _Record:
-    """Recorded expression of a spec, rewritten as later passes substitute hidden stocks."""
-
-    path: str
-    expression: Expression
-    spec: _Spec
-
-
-@dataclass
-class _Born:
-    """Transfer of a spec with the amount it moves and its compiled holders."""
-
-    spec: _Spec
-    flow: CompiledFlow
-    amount: Expression
-    sign: int
 
 
 def _substituted(value: object, mapping: Mapping[Expression, Expression]) -> object:
@@ -121,6 +71,35 @@ def _delay_calls(expression: object) -> list[Expression]:
             found.append(item)
         stack.extend(item.operands())
     return found
+
+
+class _Declared(Protocol):
+    """Declarations of a compilation as the stock-flow pass extends them with hidden stocks."""
+
+    time: Expression
+    states: list[Entry]
+    parameters: list[Entry]
+    initial_states: list[Vector]
+    initial_parameters: list[Vector]
+
+    def declare_state(
+        self,
+        name: str,
+        initial: Vector,
+        domain: Domain,
+        shape: tuple[int, ...] = (),
+        members: int | None = None,
+    ) -> Entry:
+        """Add a hidden state after every state declared so far and return its entry."""
+        ...
+
+
+class _Spec(Protocol):
+    """Kernel spec of a component as the stock-flow pass reads it."""
+
+    owner: str
+    references: dict[Expression, Reference]
+    rows: int
 
 
 def _initial(item: Expression, spec: _Spec, declarations: _Declared) -> float:
@@ -177,6 +156,79 @@ def _holder(
     return reference.entry.name, reference.entry.name
 
 
+def _update_of(key: tuple[Any, ...], specs: list[tuple[_Spec, list[Law]]]) -> tuple[list[Law] | None, int]:
+    """Return the laws holding the update law of a state component and its index, or `None`."""
+    for spec, laws in specs:
+        for index, law in enumerate(laws):
+            if not isinstance(law, Update) or not isinstance(law.target, Expression):
+                continue
+            reference = spec.references.get(law.target)
+            if reference is None:
+                continue
+            found: tuple[Any, ...] = (reference.entry.name, reference.column)
+            if reference.entry.members is not None:
+                found = (*found, id(spec))
+            if found == key:
+                return laws, index
+    return None, 0
+
+
+def _merge_references(host: _Spec, spec: _Spec, value: Expression) -> None:
+    """Add the references of an expression's symbols from one spec to another, which lowers it."""
+    for item in symbols_of([value]):
+        reference = spec.references.get(item)
+        if reference is None:
+            continue
+        known = host.references.get(item)
+        if known is not None and known != reference:
+            error_msg = (
+                f'A flow of {spec.owner} reads {item} differently from {host.owner}, which updates its state. Declare '
+                'the flow in the component that updates the state.'
+            )
+            raise ValidationError(error_msg)
+        host.references[item] = reference
+
+
+def quantities_of(blocks: Mapping[str, Any]) -> dict[str, str]:
+    """Return the quantity of every state tagged with one, by entry name.
+
+    Args:
+        blocks:
+            The blocks of the declared components by path.
+
+    Returns:
+        quantities:
+            The quantity of every tagged state.
+    """
+    quantities = {}
+    for block in blocks.values():
+        if block.node.is_agent:
+            continue
+        for variable, declaration in declarations_of(block.node.component_type, VariableKind.STATE).items():
+            if declaration.quantity is not None:
+                quantities[block.entries[variable].name] = declaration.quantity
+    return quantities
+
+
+@dataclass
+class _Record:
+    """Recorded expression of a spec, rewritten as later passes substitute hidden stocks."""
+
+    path: str
+    expression: Expression
+    spec: _Spec
+
+
+@dataclass
+class _Born:
+    """Transfer of a spec with the amount it moves and its compiled holders."""
+
+    spec: _Spec
+    flow: _CompiledFlow
+    amount: Expression
+    sign: int
+
+
 class StockFlowPass:
     """Pass of a compilation that expands flows, auxiliaries, and delays, and checks conserved quantities.
 
@@ -219,7 +271,7 @@ class StockFlowPass:
             )
             raise ConservationError(error_msg)
         path = f'{spec.owner}.{label}'
-        compiled = CompiledFlow(path, source, sink, source_label, sink_label, next(iter(tags)))
+        compiled = _CompiledFlow(path, source, sink, source_label, sink_label, next(iter(tags)))
         amount = SR(_substituted(flow.amount, mapping))
         holders = [(item, sign) for item, sign in ((flow.source, -1), (flow.sink, 1)) if isinstance(item, Expression)]
         if flow.rate is not None:
@@ -461,7 +513,7 @@ class StockFlowPass:
             quantities={quantity: tuple(names) for quantity, names in quantities.items()},
             flows=tuple(born.flow for born in self._flows),
             recorded=tuple(
-                Recorded(record.path, record.expression, dict(record.spec.references)) for record in self._records
+                _Recorded(record.path, record.expression, dict(record.spec.references)) for record in self._records
             ),
             boundary=boundary,
             terms=tuple(
@@ -471,61 +523,7 @@ class StockFlowPass:
             discrete=discrete,
             invariants=dict(self._invariants),
             objectives=tuple(
-                CompiledObjective(record.path, record.expression, terminal, sense, dict(record.spec.references))
+                _CompiledObjective(record.path, record.expression, terminal, sense, dict(record.spec.references))
                 for record, terminal, sense in self._objectives
             ),
         )
-
-
-def _update_of(key: tuple[Any, ...], specs: list[tuple[_Spec, list[Law]]]) -> tuple[list[Law] | None, int]:
-    """Return the laws holding the update law of a state component and its index, or `None`."""
-    for spec, laws in specs:
-        for index, law in enumerate(laws):
-            if not isinstance(law, Update) or not isinstance(law.target, Expression):
-                continue
-            reference = spec.references.get(law.target)
-            if reference is None:
-                continue
-            found: tuple[Any, ...] = (reference.entry.name, reference.column)
-            if reference.entry.members is not None:
-                found = (*found, id(spec))
-            if found == key:
-                return laws, index
-    return None, 0
-
-
-def _merge_references(host: _Spec, spec: _Spec, value: Expression) -> None:
-    """Add the references of an expression's symbols from one spec to another, which lowers it."""
-    for item in symbols_of([value]):
-        reference = spec.references.get(item)
-        if reference is None:
-            continue
-        known = host.references.get(item)
-        if known is not None and known != reference:
-            error_msg = (
-                f'A flow of {spec.owner} reads {item} differently from {host.owner}, which updates its state. Declare '
-                'the flow in the component that updates the state.'
-            )
-            raise ValidationError(error_msg)
-        host.references[item] = reference
-
-
-def quantities_of(blocks: Mapping[str, Any]) -> dict[str, str]:
-    """Return the quantity of every state tagged with one, by entry name.
-
-    Args:
-        blocks:
-            The blocks of the declared components by path.
-
-    Returns:
-        quantities:
-            The quantity of every tagged state.
-    """
-    quantities = {}
-    for block in blocks.values():
-        if block.node.is_agent:
-            continue
-        for variable, declaration in declarations_of(block.node.component_type, VariableKind.STATE).items():
-            if declaration.quantity is not None:
-                quantities[block.entries[variable].name] = declaration.quantity
-    return quantities

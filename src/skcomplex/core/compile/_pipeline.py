@@ -68,6 +68,31 @@ def _edges(roles: dict[str, tuple[list[int], list[int], list[int]]]) -> dict[int
     return edges
 
 
+def _needed(passes: Sequence['Pass'], field: str) -> set['Pass']:
+    """Return the passes that write a field and, in turn, the passes that write the fields they read."""
+    writers: dict[str, list[Pass]] = defaultdict(list)
+    for item in passes:
+        for name in item.writes:
+            writers[name].append(item)
+    needed: set[Pass] = set()
+    pending = [field]
+    seen: set[str] = set()
+    while pending:
+        name = pending.pop()
+        if name in seen:
+            continue
+        seen.add(name)
+        for item in writers[name]:
+            needed.add(item)
+            pending += item.reads
+    return needed
+
+
+def _registered_passes(passes: Iterable['Pass'] = ()) -> list['Pass']:
+    """Return passes followed by the registered passes, in registration order."""
+    return [*passes, *(PASSES.resolve(key) for key in PASSES)]
+
+
 def order_passes(passes: Sequence['Pass'], present: Collection[str] = ()) -> list['Pass']:
     """Return passes in an order where every field is produced, then refined, then read.
 
@@ -128,26 +153,6 @@ def order_passes(passes: Sequence['Pass'], present: Collection[str] = ()) -> lis
     return [passes[index] for index in ordered]
 
 
-def _needed(passes: Sequence['Pass'], field: str) -> set['Pass']:
-    """Return the passes that write a field and, in turn, the passes that write the fields they read."""
-    writers: dict[str, list[Pass]] = defaultdict(list)
-    for item in passes:
-        for name in item.writes:
-            writers[name].append(item)
-    needed: set[Pass] = set()
-    pending = [field]
-    seen: set[str] = set()
-    while pending:
-        name = pending.pop()
-        if name in seen:
-            continue
-        seen.add(name)
-        for item in writers[name]:
-            needed.add(item)
-            pending += item.reads
-    return needed
-
-
 def run_passes(compilation: Compilation, passes: Sequence['Pass'], until: str = 'problem') -> Compilation:
     """Run the passes a field needs that the compilation has not run yet, in the order of their fields.
 
@@ -191,20 +196,6 @@ def register_pass(item: 'Pass | SystemPass') -> None:
         return
     if item not in set(PASSES):
         PASSES.register(item, item)
-
-
-def registered_passes(passes: Iterable['Pass'] = ()) -> list['Pass']:
-    """Return passes followed by the registered passes, in registration order.
-
-    Args:
-        passes:
-            The passes of the shared core, which run before registered passes that the fields leave unordered.
-
-    Returns:
-        passes:
-            The passes.
-    """
-    return [*passes, *(PASSES.resolve(key) for key in PASSES)]
 
 
 def register_check(check: Check) -> None:

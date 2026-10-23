@@ -4,7 +4,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from skcomplex.core.base import Form, LawKind
-from skcomplex.core.solvers import SOLVERS
+from skcomplex.core.compile import SOLVERS
 
 SCRIPT = Path(__file__).parents[2] / 'docs' / 'generate_compatibility.py'
 

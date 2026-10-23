@@ -13,7 +13,7 @@ from .._compilation import Compilation, Laws
 from .._declarations import Block, Declarations, is_interaction
 from .._layout import Layout
 from .._pipeline import Pass
-from .._problem import CompiledElement, CompiledInteraction, MarkovMatrix, Problem
+from .._problem import CompiledElement, CompiledInteraction, Problem, _MarkovMatrix
 from .._reductions import ReductionPass
 from .._specs import KernelSpec
 from .._tree import Node
@@ -50,14 +50,6 @@ def _history(blocks: list[Block]) -> dict[str, Any]:
             if declaration is not None and declaration.history is not None:
                 history[entry.name] = declaration.history
     return history
-
-
-def visual_of(node: Node) -> VisualSpec:
-    """Return the visual of an element, or a group's own visual when it sets one and its default otherwise."""
-    if isinstance(node.component, Group):
-        return node.component.visual if node.component.visual is not None else node.component.default_visual()
-    declared: VisualSpec = node.component_type.visual
-    return declared
 
 
 def _compiled_elements(blocks: list[Block]) -> tuple[CompiledElement, ...]:
@@ -128,9 +120,17 @@ def _problem_of(compilation: Compilation) -> Problem:
         jacobian=compilation.jacobian,
         breakpoints=breakpoints_in(reduced, compilation.events, time),
         history=_history(blocks),
-        matrices=cast('tuple[MarkovMatrix, ...]', compilation.matrices),
+        matrices=cast('tuple[_MarkovMatrix, ...]', compilation.matrices),
         **functions,
     )
+
+
+def visual_of(node: Node) -> VisualSpec:
+    """Return the visual of an element, or a group's own visual when it sets one and its default otherwise."""
+    if isinstance(node.component, Group):
+        return node.component.visual if node.component.visual is not None else node.component.default_visual()
+    declared: VisualSpec = node.component_type.visual
+    return declared
 
 
 class ProblemPass(Pass):

@@ -11,28 +11,8 @@ from ..base import Expression
 
 
 @dataclass(frozen=True)
-class CompiledFlow:
-    """Transfer of a compiled system between two holders.
-
-    Args:
-        path:
-            The path under which trajectories record the flow, `<component path>.<label>`.
-
-        source:
-            The name of the state the quantity leaves, or `None` for the environment.
-
-        sink:
-            The name of the state the quantity enters, or `None` for the environment.
-
-        source_label:
-            The name of the source holder, the state name or the environment's label.
-
-        sink_label:
-            The name of the sink holder.
-
-        quantity:
-            The quantity the flow moves, or `None` for untagged states.
-    """
+class _CompiledFlow:
+    """Transfer of a compiled system between two holders."""
 
     path: str
     source: str | None
@@ -43,19 +23,8 @@ class CompiledFlow:
 
 
 @dataclass(frozen=True)
-class Recorded:
-    """Expression a trajectory records at every frame, with the references of its symbols.
-
-    Args:
-        path:
-            The path of the recorded value.
-
-        expression:
-            The symbolic expression.
-
-        references:
-            The references of the expression's symbols.
-    """
+class _Recorded:
+    """Expression a trajectory records at every frame, with the references of its symbols."""
 
     path: str
     expression: Expression
@@ -63,25 +32,8 @@ class Recorded:
 
 
 @dataclass(frozen=True)
-class CompiledObjective:
-    """Objective of a compiled system, with its running and terminal values and the references of their symbols.
-
-    Args:
-        path:
-            The path under which trajectories record the running value, `<component path>.<label>`.
-
-        expression:
-            The running value.
-
-        terminal:
-            The terminal value at the horizon of a run.
-
-        sense:
-            `'min'` for a cost or `'max'` for a gain.
-
-        references:
-            The references of the symbols of both values.
-    """
+class _CompiledObjective:
+    """Objective of a compiled system, with its running and terminal values and the references of their symbols."""
 
     path: str
     expression: Expression
@@ -158,10 +110,10 @@ class StockFlow:
     """
 
     quantities: Mapping[str, tuple[str, ...]]
-    flows: tuple[CompiledFlow, ...] = ()
-    recorded: tuple[Recorded, ...] = ()
+    flows: tuple[_CompiledFlow, ...] = ()
+    recorded: tuple[_Recorded, ...] = ()
     boundary: Mapping[str, str] = field(default_factory=dict)
     terms: tuple[LoopTerm, ...] = ()
     discrete: bool = False
     invariants: Mapping[str, float] = field(default_factory=dict)
-    objectives: tuple[CompiledObjective, ...] = ()
+    objectives: tuple[_CompiledObjective, ...] = ()

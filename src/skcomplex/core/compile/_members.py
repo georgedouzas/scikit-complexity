@@ -10,23 +10,8 @@ from sage.all__sagemath_symbolics import SR
 from ..base import Expression, SymbolicVector, ValidationError, domain_of, symbol, vector
 from ..space import LatticeSpace, Neighborhood
 from ._kernels import LATTICE_BOUNDARIES, MODES, NeighborRead, Reference, Source
+from ._lowering import SHIFT, calls_of
 from ._shifts import shift_arguments
-
-SHIFT_NAME = 'shift_member'
-
-
-def _has_shifts(expression: Expression) -> bool:
-    """Check whether an expression holds a member offset read."""
-    stack = [expression]
-    while stack:
-        item = stack.pop()
-        operator = item.operator()
-        if operator is None:
-            continue
-        if getattr(operator, 'name', lambda: '')() == SHIFT_NAME:
-            return True
-        stack.extend(item.operands())
-    return False
 
 
 def _neighbor_read(rows: int, offset: int, boundary: str, fill: float) -> NeighborRead:
@@ -150,10 +135,10 @@ class MemberShifts:
         """
         if isinstance(value, SymbolicVector):
             return vector(self.lower(item) for item in value)
-        if not isinstance(value, Expression) or not _has_shifts(value):
+        if not isinstance(value, Expression) or not calls_of(value, SHIFT):
             return value
         operator = value.operator()
-        if getattr(operator, 'name', lambda: '')() != SHIFT_NAME:
+        if getattr(operator, 'name', lambda: '')() != SHIFT:
             return operator(*(self.lower(item) for item in value.operands()))
         expression, offset, boundary, fill = shift_arguments(value)
         return self.shift(SR(self.lower(expression)), offset, boundary, fill)

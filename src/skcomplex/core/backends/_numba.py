@@ -28,6 +28,7 @@ from ..base import (
     Supports,
     TimeKind,
 )
+from ..compile._arrays import Vector
 from ..compile._backends import (
     AUTO_MEMBERS,
     Backend,
@@ -42,7 +43,7 @@ from ..compile._backends import (
 from ..compile._kernels import EdgeSearch, Kernel, Reference, Source, jump_channels, lower_noise
 from ..compile._layout import Entry
 from ..compile._neighbourhoods import EdgeRows, MetricSearch
-from ..compile._problem import Accelerated, Draws, Vector
+from ..compile._problem import Accelerated, Draws
 from ..compile._reductions import ReductionPass
 from ..laws import Boundary, Jump, Noise, Rate, Update
 from ..solvers import step_count
