@@ -1,5 +1,6 @@
 """Compile systems into problems of one mathematical form with fast numeric functions."""
 
+from ._arrays import Vector
 from ._backends import BACKENDS, Backend, Lowering, load_backends, reads_reductions, register_backend, resolve_backend
 from ._capacity import CapacityRows, capacity_rows
 from ._census import Census, CensusRecord, OwnerRule, law_census, register_owner
@@ -46,7 +47,6 @@ from ._problem import (
     SiteState,
     SiteStep,
     TopologyChanges,
-    Vector,
     VectorFunction,
     with_initial_state,
 )

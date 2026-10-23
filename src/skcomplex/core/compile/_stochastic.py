@@ -45,10 +45,11 @@ from ..laws import (
     where,
 )
 from ..laws._laws import Renewal
+from ._arrays import Vector
 from ._kernels import Reference, Source
 from ._layout import Entry
 from ._printing import numpy_function
-from ._problem import Draws, MarkovMatrix, SampledDraw, Vector
+from ._problem import Draws, MarkovMatrix, SampledDraw
 
 ALPHABET_DOMAINS = (Domain.INTEGER, Domain.NONNEGATIVE_INTEGER, Domain.BOOLEAN)
 NORMAL_KINDS = frozenset({'normal'})

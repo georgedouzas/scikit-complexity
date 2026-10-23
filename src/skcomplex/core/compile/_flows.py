@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
 from ..base import (
@@ -28,6 +27,7 @@ from ..base import (
 from ..laws import Auxiliary, Boundary, Event, Invariant, Jump, Law, Noise, Objective, Rate, Sink, Transfer, Update
 from ..laws import Source as Environment
 from ..laws._flows import delay_parts
+from ._arrays import Vector
 from ._kernels import Reference
 from ._kernels import Source as Read
 from ._layout import Entry
@@ -35,7 +35,6 @@ from ._quantities import CompiledFlow, CompiledObjective, LoopTerm, Recorded, St
 
 BOUNDARY_PREFIX = '__boundary'
 
-type Vector = npt.NDArray[np.float64]
 
 
 class _Spec(Protocol):

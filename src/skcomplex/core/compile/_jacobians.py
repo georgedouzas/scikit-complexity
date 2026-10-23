@@ -13,12 +13,11 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import SR
 
 from ..base import Expression, ValidationError, symbols_of
+from ._arrays import Indices, Vector
 from ._kernels import Kernel, Output, Reference, Source, member_indices
 from ._printing import numpy_function
 from ._reductions import CompiledReduction, ReductionPass
 
-type Vector = npt.NDArray[np.float64]
-type Indices = npt.NDArray[np.intp]
 type Sparse = scipy.sparse.csr_array
 type Symmetry = tuple[Indices, tuple[int, ...], list[tuple[int, int]]]
 

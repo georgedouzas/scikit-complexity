@@ -3,8 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections import Counter
-from collections.abc import Callable
+import operator
+from collections import Counter, defaultdict
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import replace
 from typing import Any, cast
 
@@ -14,26 +15,141 @@ from sage.all__sagemath_symbolics import SR
 
 from ...base import Domain, Expression, SymbolicVector, ValidationError, components_of, symbol, symbols_of, vector
 from ...laws import Boundary, Event, Jump, Law, Noise, Rate, Update, values_of
+from .._arrays import Vector
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
-from .._hybrid import (
-    Breakpoints,
-    CompiledEvent,
-    Delay,
-    Scalars,
-    breakpoints_of,
-    flat_sources,
-    scalar_function,
-    state_conditions_of,
-)
+from .._hybrid import Breakpoints, CompiledEvent, Delay
 from .._kernels import Reference, Source
 from .._layout import Entry
 from .._lowering import calls_of
 from .._pipeline import Pass
 from .._printing import numpy_function
-from .._problem import Vector, VectorFunction
+from .._problem import VectorFunction
 from .._reductions import ReductionPass
 from .._specs import KernelSpec
+
+type Scalars = Callable[[float, Vector, Vector], list[float]]
+RELATIONS = (operator.lt, operator.le, operator.gt, operator.ge)
+SWITCHES = frozenset({'sign', 'sgn', 'heaviside', 'unit_step'})
+
+
+def _flat_sources(references: Mapping[Expression, Reference], owner: str) -> dict[Expression, tuple[bool, int]]:
+    """Return the vector and flat index of every symbol of single components in a namespace."""
+    del owner
+    return {
+        item: (reference.is_state, reference.entry.start + reference.column)
+        for item, reference in references.items()
+        if reference.entry.members is None
+    }
+
+
+def _scalar_function(
+    expressions: Sequence[Any],
+    sources: Mapping[Expression, tuple[bool, int]],
+    time: Expression,
+    owner: str,
+) -> Scalars:
+    """Return a function of time, the state vector, and the parameter vector that evaluates scalar expressions."""
+    values = [SR(expression) for expression in expressions]
+    arguments = sorted(symbols_of(values) - {time}, key=str)
+    unknown = [item for item in arguments if item not in sources]
+    if unknown:
+        error_msg = (
+            f'An event or delay of {owner} uses {", ".join(map(str, unknown))}, which belong to group members. Events '
+            'and delays read states and parameters of single elements and interactions.'
+        )
+        raise ValidationError(error_msg)
+    function = numpy_function(time, arguments, values)
+    places = [sources[item] for item in arguments]
+
+    def evaluate(t: float, x: Vector, p: Vector) -> list[float]:
+        return [float(value) for value in function(t, *((x if is_state else p)[index] for is_state, index in places))]
+
+    return evaluate
+
+
+def _linear_root(expression: Expression, time: Expression) -> float | None:
+    """Return where an expression that is linear in time with numeric coefficients is zero, or `None`."""
+    slope = expression.diff(time)
+    if not slope.is_numeric() or slope.is_zero() or (expression.variables() and set(expression.variables()) - {time}):
+        return None
+    return float(-expression.subs({time: 0}) / slope)
+
+
+def _breakpoints_of(expressions: Iterable[Any], time: Expression) -> Breakpoints:
+    """Return the times where conditions on time in expressions change, as from step, pulse, and series inputs."""
+    fixed: set[float] = set()
+    periodic: set[tuple[float, float]] = set()
+    unresolved = False
+    stack = [SR(expression) for expression in expressions]
+    seen: dict[int, list[Expression]] = defaultdict(list)
+    while stack:
+        item = stack.pop()
+        operation = item.operator()
+        if operation is None or not item.has(time):
+            continue
+        twins = seen[hash(item)]
+        if any(item.is_trivially_equal(twin) for twin in twins):
+            continue
+        twins.append(item)
+        if operation in RELATIONS:
+            left, right = item.operands()
+            difference = left - right
+            root = _linear_root(difference, time)
+            resolved = root is not None or time not in difference.variables()
+            if root is not None:
+                fixed.add(root)
+            for call in _mod_calls(difference):
+                argument, period = call.operands()
+                zero, rest = _linear_root(argument, time), difference - call
+                if zero is not None and period.is_numeric() and rest.is_numeric():
+                    span = float(period)
+                    offset = float(-rest)
+                    periodic.update({(zero, span), (zero + offset, span)})
+                    resolved = True
+            unresolved = unresolved or not resolved
+        stack.extend(item.operands())
+    return Breakpoints(tuple(sorted(fixed)), tuple(sorted(periodic)), unresolved=unresolved)
+
+
+def _same_zeros(first: Expression, second: Expression) -> bool:
+    """Check that two conditions are the same expression or opposite ones, which switch at the same states."""
+    return bool(first.is_trivially_equal(second) or (first + second).expand().is_trivially_equal(SR(0)))
+
+
+def _state_conditions_of(expressions: Iterable[Any], time: Expression) -> list[Expression]:
+    """Return the expressions whose sign switches a law, from conditions and step functions that read more than time."""
+    found: list[Expression] = []
+    stack = [SR(expression) for expression in expressions]
+    while stack:
+        item = stack.pop()
+        operation = item.operator()
+        if operation is None:
+            continue
+        stack.extend(item.operands())
+        if operation in RELATIONS:
+            left, right = item.operands()
+            candidate = left - right
+        elif getattr(operation, 'name', lambda: '')() in SWITCHES:
+            candidate = item.operands()[0]
+        else:
+            continue
+        if set(candidate.variables()) - {time} and not any(_same_zeros(candidate, other) for other in found):
+            found.append(candidate)
+    return found
+
+
+def _mod_calls(expression: Expression) -> list[Expression]:
+    """Return the calls of `mod` inside an expression."""
+    found, stack = [], [expression]
+    while stack:
+        item = stack.pop()
+        if item.operator() is None:
+            continue
+        if getattr(item.operator(), 'name', lambda: '')() == 'mod':
+            found.append(item)
+        stack.extend(item.operands())
+    return found
 
 
 def _delay_minimum(
@@ -230,8 +346,8 @@ def compile_events(
     for spec, event in events:
         position = positions[spec.owner]
         positions[spec.owner] += 1
-        sources = flat_sources(spec.references, spec.owner)
-        guard = scalar_function([event.guard], sources, time, spec.owner)
+        sources = _flat_sources(spec.references, spec.owner)
+        guard = _scalar_function([event.guard], sources, time, spec.owner)
         compiled.append(
             CompiledEvent(
                 event.label or (spec.owner if counts[spec.owner] == 1 else f'{spec.owner}:{position}'),
@@ -267,7 +383,7 @@ def hidden_events(
     """
     compiled = []
     for spec, laws in specs:
-        sources = flat_sources(spec.references, spec.owner)
+        sources = _flat_sources(spec.references, spec.owner)
         values = [
             value
             for law in laws
@@ -275,10 +391,10 @@ def hidden_events(
             for value in values_of(law, include=('value', 'lhs', 'rhs'))
             if isinstance(value, Expression)
         ]
-        for index, condition in enumerate(state_conditions_of(values, time)):
+        for index, condition in enumerate(_state_conditions_of(values, time)):
             if not set(condition.variables()) - {time} <= set(sources):
                 continue
-            guard = scalar_function([condition], sources, time, spec.owner)
+            guard = _scalar_function([condition], sources, time, spec.owner)
             label = f'{spec.owner}:switch:{index}'
             compiled.append(CompiledEvent(label, reductions.wrap(_first_value(guard)), None, 0, False, hidden=True))  # type: ignore[arg-type]
     return tuple(compiled)
@@ -301,7 +417,7 @@ def compile_delays(delays: list[dict[str, Any]], time: Expression) -> tuple[Dela
     compiled = []
     for item in delays:
         spec = item['spec']
-        tau = scalar_function([item['tau']], flat_sources(spec.references, spec.owner), time, spec.owner)
+        tau = _scalar_function([item['tau']], _flat_sources(spec.references, spec.owner), time, spec.owner)
         hidden = item['entry']
         compiled.append(
             Delay(
@@ -346,7 +462,7 @@ def breakpoints_in(
                 [item for item in components_of(value) if isinstance(item, Expression)] if value is not None else []
             )
     expressions += [event.guard for _, event in events]
-    return breakpoints_of(expressions, time)
+    return _breakpoints_of(expressions, time)
 
 
 class DelaysPass(Pass):

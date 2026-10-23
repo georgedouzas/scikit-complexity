@@ -27,6 +27,7 @@ from ..interactions import Interaction
 from ..laws import Invariant, Law
 from ..space import Space
 from ..system import Observable, System
+from ._arrays import Vector
 from ._hybrid import Breakpoints, CompiledEvent, Delay
 from ._layout import Layout
 from ._quantities import CompiledObjective, StockFlow
@@ -34,7 +35,6 @@ from ._reductions import CompiledReduction
 
 ROW_TOLERANCE = 1e-9
 
-type Vector = npt.NDArray[np.float64]
 type VectorFunction = Callable[[float, Vector, Vector], Vector]
 type Getter = Callable[[float, Vector, Vector, Mapping[str, Any]], Any]
 

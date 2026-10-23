@@ -35,6 +35,7 @@ from ..base import (
     ValidationError,
     symbols_of,
 )
+from ..compile._arrays import Vector
 from ..compile._backends import (
     AUTO_MEMBERS,
     Backend,
@@ -50,8 +51,9 @@ from ..compile._kernels import EdgeSearch, Kernel, Output, PairSearch, Reference
 from ..compile._layout import Entry
 from ..compile._neighbourhoods import CompiledNeighbourhood, EdgeRows, MetricSearch, StaticSearch
 from ..compile._printing import SCALAR_DIALECT, print_expressions
-from ..compile._problem import Accelerated, Draws, Vector
-from ..compile._reductions import CompiledReduction, Read, ReductionPass
+from ..compile._problem import Accelerated, Draws
+from ..compile._reads import Read
+from ..compile._reductions import CompiledReduction, ReductionPass
 from ..laws import Boundary, Jump, Noise, Rate, Update
 from ..solvers import step_count
 from ..space import Cone, Nearest

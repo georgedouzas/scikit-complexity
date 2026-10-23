@@ -15,11 +15,11 @@ from scipy.spatial import cKDTree
 
 from ..base import Expression, ValidationError, symbols_of
 from ..laws import Law, NumericFunction
+from ._arrays import Indices, Vector
 from ._layout import Entry, Layout
 from ._printing import numpy_function
-from ._problem import JumpChannels, Vector, WienerBlock
+from ._problem import JumpChannels, WienerBlock
 
-type Indices = npt.NDArray[np.intp]
 type Pairs = tuple[Indices, Indices] | None
 type Reader = Callable[[Vector, Vector, Pairs, float], Any]
 type Offset = tuple[int, ...]

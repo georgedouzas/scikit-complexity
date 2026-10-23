@@ -30,14 +30,16 @@ from ..base import (
 from ..components import Aggregate
 from ..laws import Reduction, Symbols, count, maximum, mean, minimum, reductions_in, total, variance
 from ..system import Observable, System, reduce_values
+from ._arrays import Vector
 from ._complex import joined_complex
 from ._declarations import Block, Declarations
 from ._kernels import Reference, Source
 from ._layout import Entry
 from ._printing import numpy_function
-from ._problem import Getter, Problem, Vector
+from ._problem import Getter, Problem
 from ._quantities import Recorded
-from ._reductions import CompiledReduction, Read, ReductionPass
+from ._reads import Read
+from ._reductions import CompiledReduction, ReductionPass
 from ._specs import Observed
 from ._tree import Node
 

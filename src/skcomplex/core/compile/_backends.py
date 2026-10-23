@@ -15,9 +15,10 @@ from sklearn.base import BaseEstimator
 
 from ..base import BackendError, BackendWarning, Expression, Form, Registry, Supports, ValidationError
 from ..laws import Boundary, Jump, Law, Noise, Rate, Update
-from ._kernels import Indices, Kernel, Reference, Source, add_into, assign_into
+from ._arrays import Indices, Vector
+from ._kernels import Kernel, Reference, Source, add_into, assign_into
 from ._printing import SCALAR_DIALECT, print_expressions
-from ._problem import Accelerated, Draws, JumpChannels, Vector, VectorFunction, WienerBlock
+from ._problem import Accelerated, Draws, JumpChannels, VectorFunction, WienerBlock
 from ._reductions import ReductionPass
 
 AUTO_MEMBERS = 1000

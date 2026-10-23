@@ -13,12 +13,11 @@ from scipy.spatial import cKDTree
 
 from ..base import Expression, ValidationError, Variable
 from ..space import Adjacency, Cone, ContinuousSpace, LatticeSpace, Memory, Nearest, Neighborhood, NetworkSpace, Radius
+from ._arrays import Indices, Vector
 from ._layout import Entry
 from ._printing import numpy_function
-from ._reductions import Read
+from ._reads import Read
 
-type Vector = npt.NDArray[np.float64]
-type Indices = npt.NDArray[np.intp]
 type Rows = tuple[Indices, Indices]
 type Found = tuple[Indices, Indices, Indices | None]
 
