@@ -17,8 +17,10 @@ from ._errors import (
     SkcomplexError,
     SolverError,
     SpaceError,
+    SpaceTooLargeError,
     UnobservedStatesWarning,
     ValidationError,
+    WordProblemError,
 )
 from ._forms import Form
 from ._registry import Registry
@@ -88,6 +90,7 @@ __all__: list[str] = [
     'SolverError',
     'SpaceError',
     'SpaceKind',
+    'SpaceTooLargeError',
     'Structure',
     'Supports',
     'SymbolicVector',
@@ -98,6 +101,7 @@ __all__: list[str] = [
     'Variable',
     'VariableKind',
     'VisualSpec',
+    'WordProblemError',
     'companions_of',
     'components_of',
     'declaration_of',

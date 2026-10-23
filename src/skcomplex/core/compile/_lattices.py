@@ -18,12 +18,12 @@ from sage.all__sagemath_symbolics import SR
 
 from ..base import Expression, SolverError, ValidationError, symbol
 from ..laws import Drive, Energy, Extremal, LocalRule, Move, OuterTotalistic, Relaxation, Sampler, Table, Totalistic
-from ..space import Adjacency, LatticeSpace, Neighborhood, NetworkSpace
+from ..space import Adjacency, GroupSpace, LatticeSpace, Memory, Neighborhood, NetworkSpace
 from ._printing import numpy_function
 
 type Vector = npt.NDArray[np.float64]
 type Indices = npt.NDArray[np.intp]
-type Sites = LatticeSpace | NetworkSpace
+type Sites = LatticeSpace | NetworkSpace | GroupSpace
 
 LOOKUP_KINDS = {'table': 0, 'totalistic': 1, 'outer': 2}
 COLORING_STRATEGY = 'largest_first'
@@ -36,7 +36,7 @@ def _shape_of(space: Sites) -> tuple[int, ...]:
     return space.dimensions
 
 
-def _index_table(space: Sites, neighborhood: Neighborhood | Adjacency, owner: str) -> Indices:
+def _index_table(space: Sites, neighborhood: Neighborhood | Adjacency | Memory, owner: str) -> Indices:
     """Return the neighbour table of a lattice or a network, or raise an error naming the law that reads it."""
     try:
         return space.index_table(neighborhood)  # type: ignore[arg-type]
@@ -45,14 +45,16 @@ def _index_table(space: Sites, neighborhood: Neighborhood | Adjacency, owner: st
         raise ValidationError(error_msg) from error
 
 
-def _center_columns(neighborhood: Neighborhood | Adjacency) -> int:
+def _center_columns(neighborhood: Neighborhood | Adjacency | Memory) -> int:
     """Return the number of columns of a neighbourhood that read the site itself."""
     if isinstance(neighborhood, Adjacency):
         return int(neighborhood.center)
+    if isinstance(neighborhood, Memory):
+        return sum(element.strip() in {'', '1'} for element in neighborhood.elements)
     return sum(not any(offset) for offset in neighborhood.offsets)
 
 
-def _degrees_of(table: Indices, neighborhood: Neighborhood | Adjacency) -> Vector:
+def _degrees_of(table: Indices, neighborhood: Neighborhood | Adjacency | Memory) -> Vector:
     """Return the number of real neighbours of every site, besides the site itself."""
     return ((table != table.shape[0]).sum(axis=1) - _center_columns(neighborhood)).astype(float)
 
@@ -199,7 +201,7 @@ def _sublattices(space: LatticeSpace) -> tuple[Indices, Indices]:
     return np.flatnonzero(colors == 0), np.flatnonzero(colors == 1)
 
 
-def _check_checkerboard(space: Sites, neighborhood: Neighborhood | Adjacency, owner: str) -> LatticeSpace:
+def _check_checkerboard(space: Sites, neighborhood: Neighborhood | Adjacency | Memory, owner: str) -> LatticeSpace:
     """Return the square lattice of a checkerboard update, or raise an error when neighbours could change together."""
     if not isinstance(space, LatticeSpace) or space.geometry != 'square' or not isinstance(neighborhood, Neighborhood):
         error_msg = (
@@ -1069,7 +1071,7 @@ def compile_rule(law: LocalRule, context: LatticeContext) -> CompiledRule:
 def _schedule_classes(
     schedule: str,
     space: Sites,
-    neighborhood: Neighborhood | Adjacency,
+    neighborhood: Neighborhood | Adjacency | Memory,
     table: Indices,
     owner: str,
 ) -> tuple[Indices, ...]:

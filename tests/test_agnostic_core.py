@@ -103,9 +103,15 @@ FORBIDDEN_TERMS = (
     'planet',
     'galaxy',
     'molecule',
-    # Mathematics realizations: rule codes, named rules, and drawings.
+    # Mathematics realizations: rule codes, named rules, drawings, and named groups.
     'wolfram',
     'turtle',
+    'free group',
+    'heisenberg group',
+    'lamplighter',
+    'baumslag',
+    'solitar',
+    'grigorchuk',
 )
 
 

@@ -87,7 +87,7 @@ from ..laws import (
 )
 from ..laws._laws import NOISE_CONVENTIONS, Renewal
 from ..laws._neighbourhoods import NeighbourReduction
-from ..space import ContinuousSpace, LatticeSpace, Mesh, NetworkSpace, Space
+from ..space import ContinuousSpace, GroupSpace, LatticeSpace, Mesh, NetworkSpace, Space
 from ..system import Observable, System
 from ._backends import Backend, resolve_backend
 from ._complex import modulus_form, split_law
@@ -3221,7 +3221,7 @@ def _lattice_context(spec: _KernelSpec, declarations: _Declarations, fused: bool
         block = declarations.blocks.get(owner)
         space = block.node.space if block is not None else None
         is_lattice = (
-            isinstance(space, LatticeSpace | NetworkSpace)
+            isinstance(space, LatticeSpace | NetworkSpace | GroupSpace)
             and block is not None
             and block.node.members is not None
             and not block.node.is_agent

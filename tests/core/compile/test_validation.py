@@ -1,17 +1,18 @@
 """Test the validation of systems against the requirements of their laws and the support of solvers and backends."""
 
 import importlib.util
+import sys
 
 import pytest
 
 from skcomplex.core.backends import NumpyBackend
-from skcomplex.core.base import Domain, OrderKind, Supports, ValidationError, parameter, role, state
+from skcomplex.core.base import Domain, OrderKind, Supports, ValidationError, VisualSpec, parameter, role, state
 from skcomplex.core.compile import Issue, ValidationReport, ValidationWarning, validate
 from skcomplex.core.components import Element
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Noise, Objective, Rate, Rule, Update
+from skcomplex.core.laws import Energy, Move, Noise, Objective, Rate, Rule, Sample, Sampler, Update, neighbors
 from skcomplex.core.solvers import GrunwaldLetnikov
-from skcomplex.core.space import DiscreteTime
+from skcomplex.core.space import DiscreteTime, GroupSpace, Memory, finitely_presented_group
 from skcomplex.core.system import System
 
 
@@ -321,3 +322,41 @@ def test_validate_noise_with_an_optimal_control_solver():
     issues = validate(System(components=[NoisyPlant('plant')]), solver='pontryagin').errors
     issue = next(issue for issue in issues if issue.code == 'solver-unsupported')
     assert 'Pontryagin does not support the laws noise' in issue.message
+
+
+class GroupSpin(Element):
+    """Spin on a group space sampled with the default checkerboard schedule."""
+
+    spin: float = state(1, domain=Domain.INTEGER)
+
+    def laws(self, s):
+        """Return the Glauber sampling of a ferromagnetic energy on the generators."""
+        memory = Memory(('a', 'a^-1', 'b', 'b^-1'))
+        energy = Energy(-s.spin * sum(neighbors(s.spin, memory)), memory)
+        return [Sample(energy, Move.flip(s.spin), Sampler('glauber', 2.0))]
+
+
+def test_group_space_reports_the_checkerboard_schedule():
+    """Test that a sample with the checkerboard schedule on a group space is one issue naming the other schedules."""
+    space = GroupSpace(finitely_presented_group(['a', 'b']), ball=2)
+    issues = validate(System(components=[GroupSpin.lattice('spins', space)])).issues
+    assert [(issue.code, issue.path) for issue in issues] == [('schedule-unsupported', 'spins')]
+    assert "'synchronous'" in issues[0].fix
+    assert "'random-sequential'" in issues[0].fix
+
+
+def test_group_space_reports_an_image_visual():
+    """Test that an image visual on a group space is reported with the Cayley visual as its fix."""
+    space = GroupSpace(finitely_presented_group(['a', 'b']), ball=2)
+    group = GroupSpin.lattice('spins', space, visual=VisualSpec('image'))
+    issue = next(issue for issue in validate(System(components=[group])).issues if issue.code == 'visual-unsupported')
+    assert "'cayley'" in issue.fix
+
+
+def test_group_space_reports_a_ball_above_the_site_limit(monkeypatch):
+    """Test that a ball of radius 12 of the free group of rank 3 is reported with the largest radius, without GAP."""
+    monkeypatch.setitem(sys.modules, 'sage.all__sagemath_gap', None)
+    space = GroupSpace(finitely_presented_group(['a', 'b', 'c']), ball=12)
+    issues = validate(System(space=space)).issues
+    assert [issue.code for issue in issues] == ['space-too-large']
+    assert 'largest radius that fits is 6' in issues[0].message

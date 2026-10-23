@@ -166,14 +166,57 @@ admissible configurations by Markov chain moves that respect the constraints.
 windows. `difference_pattern(automaton, configuration, site)` returns the space-time set where two runs differ after a
 single-cell flip, as Lindgren (2024 ch. 4) uses.
 
+### Decisions made during implementation
+
+The following choices settle questions the decisions above left open or that the constitution decides otherwise.
+
+- **GAP is a runtime dependency, not an extra.** The constitution's Project Profile requires that a library the core
+  uses is a runtime dependency whatever its licence, and an extra hold only libraries that a model alone needs. The
+  group constructors live in `skcomplex.core.space`, so `passagemath-gap>=10.8.13` joins `[project] dependencies`, and
+  no `groups` extra exists. GAP is imported by name on the first ball that needs it, as the analysis libraries are,
+  so importing the package does not start it, and a missing GAP raises an `ImportError` that says
+  `pip install passagemath-gap`. `passagemath-groups` is not needed, since the adapter calls libgap directly.
+- **PySAT is a runtime dependency**, `python-sat>=1.8.dev16`, imported by name on the first SAT check.
+- **Free groups need no GAP.** A finitely presented group without relators reduces its words freely. With relators,
+  KBMAG looks for a confluent rewriting system by the shortlex and then the recursive ordering, each limited to 5000
+  equations and 50000 states, and `WordProblemError` asks for a quotient or another presentation when both fail.
+  `BS(1, n)` completes with the recursive ordering.
+- **Quotients.** `GroupSpace(group, quotient=q)` takes a tree level for an automaton group, or a finite group whose
+  generators are the images of the generators of `group`, whose relators are checked to be trivial in it. Without a
+  ball or a quotient the group must be finite, and the space holds all its elements.
+- **Site limit without GAP.** `GroupSpace.check()` bounds the ball sizes by counting the words whose consecutive
+  letters never multiply to the identity or to a single letter, with letters merged when equal, as cheap keys decide:
+  free reduction and involutive relators for presentations, exact arrays for permutation and matrix groups, and the
+  action on a level of the tree for automaton groups. The bound is exact for free groups and gives the largest radius
+  that fits. The breadth-first search also stops at `max_sites`, a constructor parameter, so a bound that a cheap key
+  makes too small cannot build a larger space.
+- **Memory sets** are `Memory` objects of words such as `'a*b^-1'`, with `'1'` for the identity, kept apart from the
+  `Neighborhood` of offsets. A neighbour reached through a site outside a ball reads the fill, like one outside it.
+- **Analysis surface.** The theory lives in the private module `skcomplex.core.analysis._automata` and is re-exported
+  from `skcomplex.core.analysis`, as every analysis module is. The checks take an `Automaton(space, neighborhood, rule,
+  states)`, the configuration map of a local rule on a finite universe. On a finite universe surjectivity and
+  injectivity agree, so `is_surjective` decides injectivity, by enumeration up to 2^16 configurations and by SAT
+  otherwise. `LinearAutomaton(space, neighborhood, coefficients, field)` takes the coefficients in the order of the
+  neighbourhood, over `'GF(p)'` or `'QQ'`, and decides on `Z^d` from its Laurent polynomial with `infinite=True`.
+- **Named groups.** `heisenberg()` is the matrix group of unitriangular integer matrices, `lamplighter()` the automaton
+  group `a = (a, b)(0 1)`, `b = (a, b)` of Grigorchuk and Zuk, whose balls match those of the wreath product, and
+  `baumslag_solitar(m, n)` the finite presentation.
+- **Majority on balls.** The majority models count only the neighbours inside the ball, through the `degree` of a
+  function rule, and keep the value on a tie, so a ball, whose boundary holds most of its cells, does not empty from
+  its boundary. Interior cells take the plain majority of the memory set.
+- **Ring models.** `linear_ring_automaton` and `subshifts` run on the cyclic group as a periodic `LatticeSpace`, which
+  is the Cayley graph of the cyclic group, so their runs stream as space-time images. Their inventory entries record
+  the `lattices` primitive.
+- **Inventory.** `grigorchuk_automaton` was already pending this change, so its entry moves to implemented directly.
+
 ## Risks / Trade-offs
 
 - [Exponential checks] → Enumeration has size limits that raise a named error, and SAT encodings extend them.
 - [Knuth-Bendix may not terminate] → Balls require a group with a solvable word problem in Sage, otherwise a named
   error asks for a finite quotient.
-- [Copyleft dependency] → GAP and the Sage group wrappers are GPL-2.0-or-later, so they live in the optional `groups`
-  extra and are imported lazily, and the default install gains no package. The core `passagemath-symbolics`
-  dependency is also GPL-2.0-or-later, an existing exception this change does not widen.
+- [Copyleft dependency] → GAP is GPL-2.0-or-later. The constitution makes every library the core uses a runtime
+  dependency whatever its licence, as it does for `passagemath-symbolics`, so `passagemath-gap` is a runtime
+  dependency, imported on the first ball that needs it, as the decisions made during implementation record.
 - [Exponential balls] → Ball sizes grow fast even for groups of intermediate growth, so `GroupSpace` raises a named
   error above a site limit, 100000 by default, before calling GAP.
 - [GAP start-up time] → libgap starts once per process, and the adapter computes a whole ball in one GAP session, so

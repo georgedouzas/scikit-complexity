@@ -28,6 +28,14 @@ class SpaceError(ValidationError):
     """A vector variable has no space to take its dimension from."""
 
 
+class SpaceTooLargeError(SpaceError):
+    """A space would hold more sites than its limit, or its elements would overflow their integer type."""
+
+
+class WordProblemError(SpaceError):
+    """A group has no word problem the library can solve, so a ball of its Cayley graph cannot be built."""
+
+
 class IncompatibleLawsError(ValidationError):
     """A system mixes law kinds that no single form supports."""
 

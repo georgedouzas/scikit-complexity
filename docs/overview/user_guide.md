@@ -1573,6 +1573,113 @@ The library has `kinetic_wealth_welfare` in `skcomplex.models.economics.econophy
 `skcomplex.models.biology.oncology`, `kinetic_opinion` in `skcomplex.models.social.opinion_dynamics`, and `evacuation`
 and `criminality` in `skcomplex.models.social.crowds`. `evacuation` holds a crowd on a network of rooms as a site group
 on a two-dimensional lattice indexed by room and speed class, whose walking encounters read the doors of the building.
+### Automata on groups
+
+A cellular automaton needs only a group: its cells are the elements, and a cell at `g` reads the cells at `g s` for
+the elements `s` of a finite memory set (Ceccherini-Silberstein and Coornaert 2023). `GroupSpace(group, ball=r)` is the
+Cayley graph of a finitely generated group on the ball of radius `r` in its generators and their inverses, and
+`GroupSpace(group, quotient=q)` on a finite quotient, where configurations are periodic. A group space is a space of the
+lattice kind, so `LocalRule`, `Sample`, and the other lattice laws run on it with the NumPy and Numba backends, and a
+run reads only its neighbour table. Its sites are numbered by word length, `words` names their shortest words,
+`ball_sizes()` gives the growth of the balls, and cells outside a ball read the space's `fill`. The memory set is a
+`Memory` of words such as `'a'`, `'a^-1'`, or `'a*b'`, with `'1'` for the cell itself, and `Memory.generators(group)`
+gives the identity followed by every generator and its inverse.
+
+The general constructors of `skcomplex.core.space` give groups by any presentation whose word problem a library
+solves:
+
+- `finitely_presented_group(generators, relators)` takes words such as `'t*a*t^-1*a^-2'`. A free group, without
+  relators, reduces its words directly, and otherwise KBMAG in GAP looks for a confluent rewriting system by
+  Knuth-Bendix completion. A presentation it cannot complete raises `WordProblemError`, which asks for a quotient.
+- `automaton_group(recursion)` takes a Mealy automaton as the wreath recursion of its states, mapped to their sections
+  and their permutation of the alphabet, such as `{'t': ((None, 't'), (1, 0))}` for the adding machine. Elements are
+  told apart by their action on a level of the tree and, when two act alike there, by AutomGrp in GAP.
+  `quotient=n` takes the action on level `n`.
+- `permutation_group(generators)` and `matrix_group(generators, ring)` take images of points and integer matrices
+  over `'ZZ'` or `'GF(p)'`, whose elements are compared as arrays.
+
+GAP comes with the `passagemath-gap` dependency and starts on the first ball that needs it. A ball whose size bound
+exceeds `max_sites`, 100,000 by default, raises `SpaceTooLargeError` before GAP is called, and `validate` reports it as
+`space-too-large` with the largest radius that fits. A group space lacks the regular geometry of a square lattice and
+an image layout, so validation reports a checkerboard schedule as `schedule-unsupported` and an image visual as
+`visual-unsupported`. Groups on group spaces stream to Rerun with `CayleyVisual`, registered as `'cayley'`: nodes on
+rings by word length, colored by state, with the edges of the generators logged once.
+
+```python
+from skcomplex.core.laws import Totalistic
+from skcomplex.core.space import GroupSpace, Memory, finitely_presented_group, permutation_group
+
+free = finitely_presented_group(['a', 'b'])
+tree = GroupSpace(free, ball=4)
+memory = Memory.generators(free)
+Majority = Element.define(
+    'Majority',
+    states={'alive': state(0, domain=Domain.BOOLEAN)},
+    laws=lambda s: [LocalRule(s.alive, memory, Totalistic({3: 1, 4: 1, 5: 1}))],
+)
+cells = (np.random.default_rng(0).random(tree.size) < 0.5).astype(float)
+majority = System(components=[Majority.lattice('cells', tree, alive=cells)])
+print(tree.ball_sizes(), Simulation(majority, dt=1).run(until=3).trajectory_['cells.alive'].shape)
+print(GroupSpace(permutation_group([[1, 0, 2], [1, 2, 0]])).words)
+```
+
+Named groups are realizations of the automata models: `free_group`, `heisenberg`, `lamplighter`, `baumslag_solitar`,
+and `grigorchuk_group` of `skcomplex.models.computer_science.automata`. The Grigorchuk group, which acts on the binary
+tree by `a = (1, 1)(0 1)`, `b = (a, c)`, `c = (a, d)`, `d = (1, b)`, is not finitely presented, and its balls grow
+faster than any polynomial and slower than any exponential.
+
+```python
+from skcomplex.models.computer_science.automata import grigorchuk_group
+
+print(GroupSpace(grigorchuk_group(), ball=6).ball_sizes(), GroupSpace(grigorchuk_group(), quotient=3).size)
+```
+
+**Theory of automata.** `skcomplex.core.analysis` decides the properties the theory studies on finite universes, where
+they are decidable: periodic configurations on a torus or a finite quotient, and patterns on windows. The checks do
+not decide them on infinite groups. `Automaton(space, neighborhood, rule, states)` is the map on configurations of a
+local rule, with `step` and `run`.
+
+- `is_injective` and `is_surjective`, which agree on a finite universe, enumerate the configurations of small
+  universes and solve a SAT encoding with PySAT on larger ones. `is_pre_injective(automaton, window)` asks whether two
+  configurations that differ only inside a window can share their image.
+- `garden_of_eden(automaton, window)` returns a pattern without a preimage, by enumeration or by SAT on random
+  patterns.
+- `inverse(automaton, max_radius)` finds the rule of the inverse of a reversible automaton with the smallest memory,
+  and `compose(first, second)` gives the automaton of their composition.
+
+```python
+from skcomplex.core.analysis import Automaton, compose, garden_of_eden, inverse, is_surjective
+from skcomplex.core.laws import Table
+
+life = Automaton(LatticeSpace((6, 6)), Neighborhood.moore(), OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1}))
+print(is_surjective(life), garden_of_eden(life, random_state=0) is not None)
+shift = Automaton(LatticeSpace(8), Neighborhood(((1,),)), Table({(1,): 1}))
+print(compose(shift, inverse(shift)).step([1, 0, 1, 1, 0, 0, 0, 1]).tolist())
+```
+
+**Linear automata and subshifts.** `LinearAutomaton(space, neighborhood, coefficients, field)` is the element
+`sum_s a_s s` of the group ring over `'GF(p)'` or `'QQ'`. On a finite universe it is a matrix whose rank decides
+injectivity, surjectivity, and pre-injectivity together, and on `Z^d`, with `infinite=True`, its Laurent polynomial
+decides them: it is invertible when the polynomial is a monomial and surjective when it is not zero.
+`Subshift(neighborhood, forbidden)` holds the configurations without forbidden patterns: it checks configurations,
+counts the admissible ones of a window, and samples them by a Markov chain of single-cell moves.
+`configuration_entropy` gives `log |X_F| / |F|` along windows `F`, `spatial_entropy_rates` the entropy rate of every
+frame of a run, which never increases under an automaton, and `difference_pattern` the cells where two runs differ
+after one cell changes.
+
+```python
+from skcomplex.core.analysis import LinearAutomaton, Subshift, configuration_entropy
+
+laplacian = LinearAutomaton(LatticeSpace(5), Neighborhood(((-1,), (0,), (1,))), (1, -2, 1), 'GF(2)')
+golden = Subshift(Neighborhood(((0,), (1,))), [(1, 1)])
+print(laplacian.is_invertible(), laplacian.is_surjective(infinite=True))
+print([golden.count(LatticeSpace(length, boundary='fixed')) for length in range(1, 8)])
+print(configuration_entropy(golden, [LatticeSpace(24, boundary='fixed')]).round(3))
+```
+
+The library has `free_group_automaton`, `lamplighter_automaton`, `heisenberg_automaton`, `baumslag_solitar_automaton`,
+`grigorchuk_automaton`, the Laplacian `linear_ring_automaton`, and the golden mean shift `subshifts` in
+`skcomplex.models.computer_science.automata`.
 
 ## Fields
 
