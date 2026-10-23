@@ -4,6 +4,7 @@
 # License: MIT
 
 import copy
+import dataclasses
 import itertools
 import re
 from collections import Counter, defaultdict
@@ -68,9 +69,11 @@ from ..laws import (
     Sample,
     Sampler,
     Symbols,
+    TopologyRequest,
     Transfer,
     Transition,
     Update,
+    both,
     count,
     either,
     has_reductions,
@@ -80,6 +83,7 @@ from ..laws import (
     mod,
     neighbourhoods_in,
     reductions_in,
+    request_of,
     total,
     variance,
     where,
@@ -119,7 +123,13 @@ from ._lattices import (
 from ._layout import Entry, Layout
 from ._lowering import symbolic_components
 from ._members import MemberShifts
-from ._neighbourhoods import CompiledNeighbourhood, PairRead, default_neighbourhood, neighbour_search
+from ._neighbourhoods import (
+    ACTIVE_THRESHOLD,
+    CompiledNeighbourhood,
+    PairRead,
+    default_neighbourhood,
+    neighbour_search,
+)
 from ._observables import _join, _tree, observables_of, with_observables
 from ._printing import numpy_function
 from ._problem import (
@@ -141,6 +151,7 @@ from ._renewals import CompiledRenewal, compile_renewal
 from ._rewriting import compile_rewriting, is_rewriting
 from ._splitting import LinearTerm, linear_terms
 from ._stochastic import DrawLowering, MatrixLaw, check_draw_placement, compile_matrix, markov_laws, stochastic_update
+from ._topology import CapacityRows, CompiledRequest, NetworkRows, Topology
 from ._tree import Node, coerce_value, flatten_system, shape_of
 from ._volumes import FiniteVolume, compile_volumes
 
@@ -411,6 +422,44 @@ class _Declarations:
         return entry
 
     @cached_property
+    def capacity(self) -> dict[str, _Block]:
+        """Blocks of the variable groups on the sites or edges of networks, by path."""
+        return {path: block for path, block in self.blocks.items() if block.node.active is not None}
+
+    def changing_edges(self, space: object) -> dict[str | None, _Block]:
+        """Return the variable edge group of every layer of a network whose edges change.
+
+        Args:
+            space:
+                The network space.
+
+        Returns:
+            groups:
+                The block of the variable edge group by layer.
+        """
+        return {
+            getattr(block.node.component, 'layer', None): block
+            for block in self.capacity.values()
+            if getattr(block.node.component, 'on', None) == 'edges' and block.node.space is space
+        }
+
+    def changing_entries(self, space: object) -> dict[str | None, tuple[Entry, Entry, Entry]]:
+        """Return the source, target, and activity entries of the variable edge group of every changing layer.
+
+        Args:
+            space:
+                The network space.
+
+        Returns:
+            entries:
+                The entries by layer.
+        """
+        return {
+            layer: (block.entries[ENDS[0]], block.entries[ENDS[1]], block.entries[ACTIVE])
+            for layer, block in self.changing_edges(space).items()
+        }
+
+    @cached_property
     def groups(self) -> frozenset[str]:
         """Paths of the declared groups, indexed once every component is declared."""
         return frozenset(path for path, block in self.blocks.items() if block.node.members is not None)
@@ -482,6 +531,7 @@ class _Lowered:
 
     kernels: dict[type, list[Kernel]] = field(default_factory=lambda: defaultdict(list))
     jump_changes: dict[int, list[tuple[Reference, float]]] = field(default_factory=dict)
+    requests: dict[int, tuple[_KernelSpec, TopologyRequest]] = field(default_factory=dict)
     hurst: dict[int, tuple[str, object]] = field(default_factory=dict)
 
 
@@ -986,10 +1036,46 @@ def _edge_layer(node: Node, nodes: _Block, edges: _Block | None) -> str | None:
     return layer
 
 
-def _edge_search(node: Node, nodes: _Block, edges: _Block | None) -> EdgeSearch:
+def _changing_search(node: Node, nodes: _Block, edges: _Block | None, changing: _Block) -> EdgeSearch:
+    """Return the edge rows of a layer whose edges change, after checking the bound edge group is its group."""
+    if edges is not None and edges is not changing:
+        error_msg = (
+            f'Interaction {node.path} binds the edge group {edges.node.path}, but the layer changes through the '
+            f'variable edge group {changing.node.path}. Bind the variable edge group.'
+        )
+        raise RoleError(error_msg)
+    if nodes.node.active is None:
+        error_msg = (
+            f'Interaction {node.path} runs on a layer whose edges change, but its nodes {nodes.node.path} are not a '
+            'variable group. Give the group on the nodes `variable=True`.'
+        )
+        raise RoleError(error_msg)
+    empty = np.zeros(0, dtype=np.intp)
+    return EdgeSearch(empty, empty, changing.entries[ENDS[0]], changing.entries[ENDS[1]])
+
+
+def _edge_search(
+    node: Node,
+    nodes: _Block,
+    edges: _Block | None,
+    elements: dict[str, _Block],
+) -> EdgeSearch:
     """Return the edges an interaction over neighbours runs on, after checking the sizes of its groups."""
     space = _group_space(nodes)
     layer = _edge_layer(node, nodes, edges)
+    changing = next(
+        (
+            block
+            for block in elements.values()
+            if block.node.active is not None
+            and getattr(block.node.component, 'on', None) == 'edges'
+            and block.node.space is space
+            and getattr(block.node.component, 'layer', None) == layer
+        ),
+        None,
+    )
+    if changing is not None:
+        return _changing_search(node, nodes, edges, changing)
     if isinstance(space, NetworkSpace):
         sources, targets = space.list_edges(layer)
         size = space.size
@@ -1022,7 +1108,7 @@ def _edge_spec(block: _Block, elements: dict[str, _Block], time: Expression) -> 
     """Return the kernel spec of an interaction over neighbours, evaluated once per edge of its layer."""
     node = block.node
     nodes, edges = _edge_roles(node, elements)
-    search = _edge_search(node, nodes, edges)
+    search = _edge_search(node, nodes, edges, elements)
     parameters, references = block.namespace(Source.SINGLE)
     clashes = sorted(set(vars(parameters)) & {*EDGE_NAMES, 't'})
     if clashes:
@@ -1044,6 +1130,11 @@ def _edge_spec(block: _Block, elements: dict[str, _Block], time: Expression) -> 
         namespaces['edge'] = edge
         paths['edge'] = edges.node.path
         groups[edges.node.path] = edges.rows
+    elif search.source is not None:
+        changing = next(block for block in elements.values() if block.entries.get(ENDS[0]) == search.source)
+        activity = symbol(f'active_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}_edges', Domain.REAL)
+        references[activity] = Reference(changing.entries[ACTIVE], False, 0, Source.MEMBER)
+        paths['edge'] = changing.node.path
     namespace = Symbols(t=time, **vars(parameters), **namespaces)
     group = edges.node.path if edges is not None else None
     return _KernelSpec(node.path, namespace, references, search.size, search, roles=paths, group=group, groups=groups)
@@ -2207,6 +2298,11 @@ class _Reductions:
         condition = None if reduction.condition is None else SR(self.lower(reduction.condition, spec))
         symbols = symbols_of([argument, *([condition] if condition is not None else [])]) - {self.declarations.time}
         group = self._group(reduction, spec, symbols)
+        activity = _activity_symbol(spec, group) if group in self.declarations.capacity else None
+        if activity is not None:
+            present = SR(activity) > ACTIVE_THRESHOLD
+            condition = present if condition is None else both(condition, present)
+            symbols.add(activity)
         size, members, set_indices = self._members(group, spec)
         weights = self._weights(reduction, spec, group, size)
         canonical = {item: spec.sets[item].canonical for item in symbols if item in spec.sets}
@@ -2354,7 +2450,10 @@ class _Reductions:
         key = ('neighbourhood', reduction.kind, str(argument), str(weight), repr(over), group)
         if key not in self.neighbourhoods:
             states = declarations_of(block.node.component_type, VariableKind.STATE)
-            search = neighbour_search(over, block.node.space, block.rows, block.entries, states)
+            changing = (
+                self.declarations.changing_entries(_group_space(block)) if block.node.active is not None else None
+            )
+            search = neighbour_search(over, block.node.space, block.rows, block.entries, states, changing=changing)
             reads = {item: self._pair_read(item, spec, group, search, over) for item in sorted(symbols, key=str)}
             index = len(self.neighbourhoods)
             entry = Entry(f'__neighbours_{index}', self.extent, (block.rows,), Domain.REAL, block.rows)
@@ -2391,7 +2490,7 @@ def _lower_law(law: Law, spec: _KernelSpec, reductions: _Reductions) -> Law:
         value = reductions.lower(value, spec)
     if isinstance(law, Rate | Noise):
         return replace(law, value=value)
-    return type(law)(law.target, value)
+    return type(law)(law.target, value)  # type: ignore[arg-type]
 
 
 def _prune_foreign(spec: _KernelSpec, declarations: _Declarations) -> None:
@@ -2411,6 +2510,295 @@ def _prune_foreign(spec: _KernelSpec, declarations: _Declarations) -> None:
         for item, reference in spec.references.items()
         if reference.source is not Source.MEMBER or reference.entry.name.rpartition('.')[0] not in foreign
     }
+
+
+def _activity_symbol(spec: _KernelSpec, group: str | None) -> Expression | None:
+    """Return the symbol of the activity of the rows of a capacity group that a spec reads per member, or `None`."""
+    name = f'{group}.{ACTIVE}'
+    return next(
+        (
+            item
+            for item, reference in spec.references.items()
+            if reference.entry.name == name and reference.source is Source.MEMBER
+        ),
+        None,
+    )
+
+
+def _mask_of(spec: _KernelSpec, declarations: _Declarations) -> Expression | None:
+    """Return the activity of the rows a spec runs on, the edges of a changing layer or a capacity group's members."""
+    if isinstance(spec.pairs, EdgeSearch) and spec.pairs.source is not None:
+        name = spec.pairs.source.name.rpartition('.')[0]
+        return _activity_symbol(spec, name)
+    if spec.group in declarations.capacity:
+        return _activity_symbol(spec, spec.group)
+    return None
+
+
+def _masked_value(value: object, mask: Expression) -> object:
+    """Return a law value that vanishes on the free rows of a capacity layout."""
+    if isinstance(value, SymbolicVector):
+        return vector(SR(item) * mask for item in value)
+    if isinstance(value, Expression | int | float):
+        return SR(value) * mask
+    return value
+
+
+def _kept_update(law: Update, mask: Expression) -> Update:
+    """Return an update law that keeps the value of its target on the free rows of a capacity layout."""
+    value, kept = _masked_value(law.value, mask), _masked_value(law.target, 1 - mask)
+    if isinstance(value, SymbolicVector):
+        return Update(law.target, vector(a + b for a, b in zip(value, cast('SymbolicVector', kept), strict=True)))
+    return Update(law.target, SR(value) + SR(kept))
+
+
+def _masked(spec: _KernelSpec, laws: list[Law], declarations: _Declarations) -> list[Law]:
+    """Return laws that leave the free rows of a capacity layout unchanged and fire no event for them."""
+    mask = _mask_of(spec, declarations)
+    if mask is None:
+        return laws
+    masked: list[Law] = []
+    for law in laws:
+        if isinstance(law, Rate | Noise):
+            masked.append(replace(law, value=_masked_value(law.value, mask)))
+        elif isinstance(law, Jump) and law.rate is not None:
+            masked.append(replace(law, rate=_masked_value(law.rate, mask)))
+        elif isinstance(law, Update) and request_of(law) is not None:
+            masked.append(Update(law.target, _masked_value(law.value, mask)))
+        elif isinstance(law, Update) and isinstance(law.value, Expression | SymbolicVector | int | float):
+            masked.append(_kept_update(law, mask))
+        else:
+            masked.append(law)
+    return masked
+
+
+def _law_kinds(specs: list[tuple[_KernelSpec, list[Law]]], agents: set[str]) -> dict[str, set[type]]:
+    """Return the kinds of the laws of every component, without the invariants of members."""
+    kinds: dict[str, set[type]] = defaultdict(set)
+    for spec, laws in specs:
+        for law in laws:
+            if not (isinstance(law, Invariant) and law.is_member):
+                kinds[_law_owner(spec, law, agents)].add(_kind(law))
+    return kinds
+
+
+def _owned_and_masked(
+    specs: list[tuple[_KernelSpec, list[Law]]],
+    owners: frozenset[str] | None,
+    agents: set[str],
+    declarations: _Declarations,
+) -> list[tuple[_KernelSpec, list[Law]]]:
+    """Return the laws of the components in `owners`, or every law, masked to the rows present of capacity groups."""
+    kept = [
+        (spec, laws if owners is None else [law for law in laws if _law_owner(spec, law, agents) in owners])
+        for spec, laws in specs
+    ]
+    return [(spec, _masked(spec, laws, declarations)) for spec, laws in kept]
+
+
+@dataclass(frozen=True, eq=False)
+class _Weight:
+    """Target of the weight of the candidate nodes of a topology request, lowered with the reductions of laws."""
+
+    request: TopologyRequest
+
+
+def _request_network(spec: _KernelSpec, declarations: _Declarations) -> tuple[object, str]:
+    """Return the network a request of a spec changes and the rows the spec runs on."""
+    if isinstance(spec.pairs, EdgeSearch):
+        nodes = declarations.blocks[cast('str', spec.roles['source'])]
+        return _group_space(nodes), 'edge'
+    if spec.group in declarations.capacity:
+        return _group_space(declarations.capacity[spec.group]), 'node'
+    if spec.rows == 1:
+        spaces = {id(block.node.space): block.node.space for block in declarations.capacity.values()}
+        if len(spaces) == 1:
+            return next(iter(spaces.values())), 'single'
+    error_msg = (
+        f'{spec.owner} requests topology changes, but it runs on neither the members of a variable group on the '
+        'nodes or edges of a network nor once for the one network whose groups are variable. Give the groups of the '
+        'network `variable=True`.'
+    )
+    raise ValidationError(error_msg)
+
+
+def _node_block(space: object, declarations: _Declarations) -> _Block:
+    """Return the first variable group on the nodes of a network."""
+    for block in declarations.capacity.values():
+        if getattr(block.node.component, 'on', None) == 'sites' and block.node.space is space:
+            return block
+    error_msg = 'A topology request changes a network without a variable group on its nodes. Add one.'
+    raise ValidationError(error_msg)
+
+
+def _toward_specs(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Declarations) -> list[Any]:
+    """Return the specs of the nodes of every request with a weight, each with the law of the weight to lower."""
+    towards: list[tuple[_KernelSpec, list[Law]]] = []
+    for spec, laws in specs:
+        for law in laws:
+            request = request_of(law)
+            if request is None or request.toward is None:
+                continue
+            space, _ = _request_network(spec, declarations)
+            nodes = _node_block(space, declarations)
+            node_spec = _member_spec(nodes, declarations.time)
+            towards.append((node_spec, [Update(_Weight(request), SR(request.toward(node_spec.namespace)))]))  # type: ignore[arg-type]
+    return towards
+
+
+def _variables(block: _Block, declarations: _Declarations) -> CapacityRows:
+    """Return the rows of a capacity group with the values of one new member."""
+    node = block.node
+    element = node.component_type
+    states = declarations_of(element, VariableKind.STATE)
+    variables: dict[str, tuple[Entry, bool]] = {}
+    defaults: dict[str, Vector] = {}
+    fields = {item.name: item for item in dataclasses.fields(element)}
+    for name, entry in block.entries.items():
+        if name in {ACTIVE, *ENDS}:
+            continue
+        variables[name] = (entry, name in states)
+        field_item = fields.get(name)
+        factory = getattr(field_item, 'default_factory', dataclasses.MISSING)
+        default = factory() if callable(factory) else getattr(field_item, 'default', 0.0)
+        default = 0.0 if default is dataclasses.MISSING else default
+        defaults[name] = coerce_value(entry.name, default, entry.member_shape, entry.domain, None)
+    source, target = block.entries.get(ENDS[0]), block.entries.get(ENDS[1])
+    return CapacityRows(node.path, variables, defaults, block.entries[ACTIVE], source, target)
+
+
+def _networks(declarations: _Declarations) -> dict[int, NetworkRows]:
+    """Return the variable groups of every network whose groups are variable, by the identity of the space."""
+    spaces = {id(block.node.space): block.node.space for block in declarations.capacity.values()}
+    networks = {}
+    for key, space in spaces.items():
+        nodes = tuple(
+            _variables(block, declarations)
+            for block in declarations.capacity.values()
+            if block.node.space is space and getattr(block.node.component, 'on', None) == 'sites'
+        )
+        if not nodes:
+            continue
+        sizes = {group.active.rows for group in nodes}
+        if len(sizes) > 1:
+            error_msg = (
+                f'The variable groups on the nodes of one network, {", ".join(group.path for group in nodes)}, have '
+                'different capacities. Give them one capacity.'
+            )
+            raise ValidationError(error_msg)
+        edges = {layer: _variables(block, declarations) for layer, block in declarations.changing_edges(space).items()}
+        directed = {layer: cast('NetworkSpace', space).resolve_graph(layer).is_directed() for layer in edges}
+        networks[key] = NetworkRows(nodes, edges, directed)
+    return networks
+
+
+def _request_kernel(spec: _KernelSpec, value: object, declarations: _Declarations) -> Kernel:
+    """Return the kernel of the probability or the weight of a request for every row of its spec."""
+    states, parameters = Layout(declarations.states), Layout(declarations.parameters)
+    expression = SR(value)
+    return Kernel(
+        spec.owner,
+        declarations.time,
+        spec.references,
+        spec.rows,
+        states,
+        parameters,
+        spec.pairs,
+        [Output(None, expression)],
+    )
+
+
+def _compiled_request(
+    spec: _KernelSpec,
+    request: TopologyRequest,
+    networks: dict[int, NetworkRows],
+    weights: dict[int, Kernel],
+    declarations: _Declarations,
+) -> CompiledRequest:
+    """Return a request of a spec with its network, its rows, and the kernel of its weights."""
+    space, rows = _request_network(spec, declarations)
+    network = networks.get(id(space))
+    if network is None:
+        error_msg = f'{spec.owner} requests {request!r} on a network without variable groups on its nodes.'
+        raise ValidationError(error_msg)
+    if (request.on_edges or request.edges) and request.layer not in network.edges:
+        error_msg = (
+            f'{spec.owner} requests {request!r}, which changes the edges of the layer {request.layer!r}, but the '
+            'layer has no variable edge group. Add `Group(..., on="edges", variable=True)` on the layer.'
+        )
+        raise ValidationError(error_msg)
+    needs = {'remove-edge': 'edge', 'rewire': 'edge', 'add-edge': 'node', 'remove-node': 'node'}.get(request.kind)
+    if needs is not None and needs != rows:
+        error_msg = f'{spec.owner} requests {request!r}, which runs for every {needs}, from laws of every {rows}.'
+        raise ValidationError(error_msg)
+    return CompiledRequest(request, spec.owner, network, rows, toward=weights.get(id(request)))
+
+
+def _with_topology(
+    functions: dict[str, object],
+    lowered: _Lowered,
+    requests: tuple[list[tuple[_KernelSpec, list[Law]]], list[tuple[_KernelSpec, list[Law]]]],
+    declarations: _Declarations,
+    reductions: ReductionPass,
+) -> Topology | None:
+    """Return the topology pass, leaving out the compiled stepper loops when laws request topology changes."""
+    topology = _topology(lowered, *requests, declarations, reductions)
+    if topology is not None and (topology.requests or topology.channels):
+        functions['accelerated'] = None
+    return topology
+
+
+def _with_request_reductions(
+    specs: list[tuple[_KernelSpec, list[Law]]],
+    updates: list[tuple[_KernelSpec, list[Law]]],
+    hybrid: _Hybrid,
+    declarations: _Declarations,
+    drawing: DrawLowering,
+) -> tuple[list[Any], list[Any], list[Any], ReductionPass]:
+    """Return the laws, the update requests, and the weights of requests with their reductions lowered together."""
+    towards = _toward_specs([*specs, *updates], declarations)
+    regular, requested = len(specs), len(specs) + len(updates)
+    lowered, reductions = _with_reductions(
+        [*specs, *updates, *towards],
+        hybrid,
+        declarations,
+        drawing.draws.size if drawing.draws else 0,
+    )
+    return lowered[:regular], lowered[regular:requested], lowered[requested:], reductions
+
+
+def _topology(
+    lowered: _Lowered,
+    updates: list[tuple[_KernelSpec, list[Law]]],
+    towards: list[tuple[_KernelSpec, list[Law]]],
+    declarations: _Declarations,
+    reductions: ReductionPass,
+) -> Topology | None:
+    """Return the topology pass of the variable groups of networks and the requests of laws, or `None` without them."""
+    networks = _networks(declarations)
+    if not networks:
+        return None
+    weights = {
+        id(law.target.request): _request_kernel(spec, law.value, declarations)  # type: ignore[union-attr]
+        for spec, laws in towards
+        for law in laws
+        if isinstance(law, Update)
+    }
+    requests = []
+    for spec, laws in updates:
+        for law in laws:
+            request = cast('TopologyRequest', request_of(law))
+            item = _compiled_request(spec, request, networks, weights, declarations)
+            requests.append(replace(item, condition=_request_kernel(spec, cast('Update', law).value, declarations)))
+    channels = {}
+    index = 0
+    for kernel in lowered.kernels[Jump]:
+        for output in kernel.outputs:
+            found = lowered.requests.get(id(output))
+            if found is not None:
+                channels[index] = _compiled_request(*found, networks, weights, declarations)
+            index += 1
+    return Topology(tuple(networks.values()), tuple(requests), channels, reductions)
 
 
 def _with_reductions(
@@ -2501,8 +2889,13 @@ def _lower_laws(specs: list[tuple[_KernelSpec, list[Law]]], declarations: _Decla
                 continue
             if isinstance(law, Jump):
                 output = _outputs_of(law.rate, [None], f'Jump law of {spec.owner}')[0]
+                request = request_of(law)
+                if request is not None:
+                    lowered.requests[id(output)] = (spec, request)
                 changes = [
-                    (_target_references(target, spec)[0], float(increment)) for target, increment in law.changes.items()
+                    (_target_references(target, spec)[0], float(increment))
+                    for target, increment in law.changes.items()
+                    if request is None
                 ]
                 lowered.jump_changes[id(output)] = changes
                 outputs[(Jump, False)].append(output)
@@ -2759,7 +3152,7 @@ def _visual_of(node: Node) -> VisualSpec:
     return declared
 
 
-def _law_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
+def _state_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
     """Return the path of the element or group whose state a law changes, or that a rule acts for.
 
     A rule acts for the first agent group among its roles, or for its first role when none is an agent group.
@@ -2784,6 +3177,16 @@ def _law_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
         return _target_references(law.target, spec)[0].entry.name.rpartition('.')[0]
     target = next(iter(law.changes)) if isinstance(law, Jump) else law.target
     return _target_references(target, spec)[0].entry.name.rpartition('.')[0]
+
+
+def _law_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
+    """Return the path of the element or group whose state a law changes, the group a topology request runs for.
+
+    A rule acts for the first agent group among its roles, or for its first role when none is an agent group.
+    """
+    if request_of(law) is not None:
+        return spec.group or next(iter(spec.groups), spec.owner)
+    return _state_owner(spec, law, agents)
 
 
 def _fits(owners: Iterable[set[type]]) -> bool:
@@ -2980,25 +3383,30 @@ def _collected_laws(
     time: Expression,
     observe: Observe,
     declarations: _Declarations,
-) -> tuple[list[tuple[_KernelSpec, list[Law], _Block]], list[tuple[_KernelSpec, MatrixLaw]], StockFlow]:
-    """Return the laws of every kernel spec with flows and Markov laws rewritten, the Markov matrices, and the flows."""
+) -> tuple[list[tuple[_KernelSpec, list[Law], _Block]], list[tuple[_KernelSpec, MatrixLaw]], StockFlow, list[Any]]:
+    """Return the laws of every kernel spec with flows and Markov laws rewritten, the Markov matrices, and the flows.
+
+    The update laws that request topology changes are returned apart, with their specs.
+    """
     flows = StockFlowPass(quantities_of(declarations.blocks))
     collected: list[tuple[_KernelSpec, list[Law], _Block]] = []
     markov: list[tuple[_KernelSpec, MatrixLaw]] = []
+    requests: list[tuple[_KernelSpec, list[Law]]] = []
     for block in blocks:
         for spec in _specs_of(block, elements, time, observe):
-            laws, matrices = markov_laws(
-                spec.owner,
-                [*_collect_laws(spec, _component_of(block.node), flows), *_space_boundary_laws(block, spec)],
-                spec.references,
-            )
+            declared = [*_collect_laws(spec, _component_of(block.node), flows), *_space_boundary_laws(block, spec)]
+            updates = [law for law in declared if isinstance(law, Update) and request_of(law) is not None]
+            kept = [law for law in declared if not any(law is item for item in updates)]
+            laws, matrices = markov_laws(spec.owner, kept, spec.references)
             laws = _checked_fractional(spec, laws, declarations)
             check_draw_placement(spec.owner, laws)
-            _settle_rows(spec, laws)
+            _settle_rows(spec, [*laws, *updates])
             collected.append((spec, laws, block))
             markov.extend((spec, matrix) for matrix in matrices)
+            if updates:
+                requests.append((spec, updates))
     stock_flow = flows.lower([(spec, laws) for spec, laws, _ in collected], declarations)
-    return collected, markov, stock_flow
+    return collected, markov, stock_flow, requests
 
 
 @dataclass(frozen=True)
@@ -3203,7 +3611,13 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
     _check_symbol_names(declarations.blocks)
     elements = {block.node.path: block for block in blocks if not _is_interaction(block.node)}
     observe = _Observer(declarations, _lowerable_observables(system, nodes))
-    collected, markov, stock_flow = _collected_laws(blocks, elements, declarations.time, observe, declarations)
+    collected, markov, stock_flow, updates = _collected_laws(
+        blocks,
+        elements,
+        declarations.time,
+        observe,
+        declarations,
+    )
     checked = _checked_matrices(markov, declarations)
     orders = _Orders.of(blocks)
     specs = _solve_equations([(spec, _with_orders(spec, laws, block, orders)) for spec, laws, block in collected])
@@ -3213,14 +3627,10 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
     fields = _Fields()
     specs = [(spec, _with_neighbor_reads(spec, laws, declarations, fields)) for spec, laws in specs]
     agents = {block.node.path for block in blocks if block.node.is_agent}
-    if owners is not None:
-        specs = [(spec, [law for law in laws if _law_owner(spec, law, agents) in owners]) for spec, laws in specs]
+    specs = _owned_and_masked(specs, owners, agents, declarations)
+    updates = _owned_and_masked(updates, owners, agents, declarations)
     specs, drawing = _with_draws(specs, declarations)
-    kinds: dict[str, set[type]] = defaultdict(set)
-    for spec, laws in specs:
-        for law in laws:
-            if not (isinstance(law, Invariant) and law.is_member):
-                kinds[_law_owner(spec, law, agents)].add(_kind(law))
+    kinds = _law_kinds([*specs, *updates], agents)
     try:
         form = _infer_form(kinds.values())
     except IncompatibleLawsError:
@@ -3230,13 +3640,14 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         return _compile_partitions(system, backend, plan)
     form = _with_fractional_form(form, blocks, owners)
     encounters = _compiled_encounters(specs, declarations, backend, blocks)
-    specs, reductions = _with_reductions(specs, hybrid, declarations, drawing.draws.size if drawing.draws else 0)
+    specs, updates, towards, reductions = _with_request_reductions(specs, updates, hybrid, declarations, drawing)
     lowered = _lower_laws(specs, declarations)
     members = sum(block.node.members or 0 for block in blocks if not block.node.is_agent)
     stepwise = form in {Form.AGENT, Form.LATTICE, Form.MONTE_CARLO, Form.RENEWAL}
     chosen = resolve_backend('numpy' if stepwise else backend, members)
     fused = resolve_backend(backend, members).name == 'numba'
     functions = _lower(form, lowered, declarations, chosen, reductions, drawing=drawing)
+    topology = _with_topology(functions, lowered, (updates, towards), declarations, reductions)
     states, parameters = Layout(declarations.states), Layout(declarations.parameters)
     functions['boundary'] = _wrapping_angles(cast('VectorFunction | None', functions.get('boundary')), states)
     functions['equations'] = _written_equations(cast('dict[str, Expression]', functions['equations']), states, fields)
@@ -3335,6 +3746,7 @@ def _compile(system: System, backend: str | Backend, owners: frozenset[str] | No
         ),
         stock_flow=stock_flow,
         encounters=encounters,
+        topology=topology,
         **functions,  # type: ignore[arg-type]
     )
 

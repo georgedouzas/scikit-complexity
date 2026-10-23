@@ -5,7 +5,7 @@
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -20,8 +20,10 @@ from ._reductions import Read
 type Vector = npt.NDArray[np.float64]
 type Indices = npt.NDArray[np.intp]
 type Rows = tuple[Indices, Indices]
+type Found = tuple[Indices, Indices, Indices | None]
 
-SIDES = ('shared', 'reader', 'other')
+SIDES = ('shared', 'reader', 'other', 'edge')
+ACTIVE_THRESHOLD = 0.5
 
 
 def _rows(readers: Indices, others: Indices, size: int) -> Rows:
@@ -147,19 +149,85 @@ class StaticSearch:
     indices: Indices
     edges: Indices | None = None
 
-    def find(self, x: Vector) -> Rows:
+    def find(self, x: Vector, q: Vector) -> Found:
         """Return the neighbours of every member.
 
         Args:
             x:
                 The state vector, which the neighbours do not depend on.
 
+            q:
+                The extended parameter vector, which the neighbours do not depend on.
+
         Returns:
             rows:
-                The row starts and the neighbours.
+                The row starts, the neighbours, and the edge of every neighbour on a network.
+        """
+        del x, q
+        return self.indptr, self.indices, self.edges
+
+
+@dataclass(frozen=True)
+class EdgeRows:
+    """Neighbours of the nodes of a network layer whose edges change, read from the rows of its variable edge group.
+
+    Args:
+        source:
+            The parameter entry of the source node of every edge row.
+
+        target:
+            The parameter entry of the target node of every edge row.
+
+        active:
+            The parameter entry of the activity of every edge row.
+
+        size:
+            The number of node rows, the capacity of the groups on the nodes.
+
+        directed:
+            Whether the edges are directed, so a node reads its successors.
+
+        center:
+            Whether a node is its own neighbour.
+    """
+
+    source: Entry
+    target: Entry
+    active: Entry
+    size: int
+    directed: bool = False
+    center: bool = False
+
+    def find(self, x: Vector, q: Vector) -> Found:
+        """Return the neighbours of every node along the active edges.
+
+        Args:
+            x:
+                The state vector, which the neighbours do not depend on.
+
+            q:
+                The extended parameter vector, which holds the edge rows.
+
+        Returns:
+            rows:
+                The row starts, the neighbours, and the edge row of every neighbour, -1 for the node itself.
         """
         del x
-        return self.indptr, self.indices
+        keep = self.active.view(q)[:, 0] > ACTIVE_THRESHOLD
+        edges = np.flatnonzero(keep).astype(np.intp)
+        sources = self.source.view(q)[keep, 0].astype(np.intp)
+        targets = self.target.view(q)[keep, 0].astype(np.intp)
+        readers = sources if self.directed else np.concatenate([sources, targets])
+        others = targets if self.directed else np.concatenate([targets, sources])
+        ids = edges if self.directed else np.concatenate([edges, edges])
+        if self.center:
+            own = np.arange(self.size, dtype=np.intp)
+            readers, others = np.concatenate([readers, own]), np.concatenate([others, own])
+            ids = np.concatenate([ids, np.full(self.size, -1, dtype=np.intp)])
+        order = np.argsort(readers * self.size + others, kind='stable')
+        counts = np.bincount(readers, minlength=self.size)
+        indptr = np.concatenate([np.zeros(1, dtype=np.intp), np.cumsum(counts)]).astype(np.intp)
+        return indptr, others[order].astype(np.intp), ids[order].astype(np.intp)
 
 
 @dataclass(frozen=True)
@@ -259,17 +327,21 @@ class MetricSearch:
         periods = np.asarray(self.periods)
         return difference - periods * np.rint(difference / periods)
 
-    def find(self, x: Vector) -> Rows:
+    def find(self, x: Vector, q: Vector) -> Found:
         """Return the neighbours of every member at the current positions.
 
         Args:
             x:
                 The state vector.
 
+            q:
+                The extended parameter vector, which the neighbours do not depend on.
+
         Returns:
             rows:
-                The row starts and the neighbours, sorted by neighbour within every row.
+                The row starts and the neighbours, sorted by neighbour within every row, without edges.
         """
+        del q
         positions = self.wrapped(x)
         size = positions.shape[0]
         tree = cKDTree(positions, boxsize=np.asarray(self.periods) if self.periods is not None else None)
@@ -285,7 +357,7 @@ class MetricSearch:
                 readers, others = readers[keep], others[keep]
         if neighbourhood.center:
             readers, others = _with_center(readers, others, size)
-        return _rows(readers, others, size)
+        return (*_rows(readers, others, size), None)
 
     @staticmethod
     def _nearest(tree: cKDTree, positions: Vector, k: int) -> tuple[Indices, Indices]:
@@ -310,7 +382,7 @@ class MetricSearch:
         return dot >= np.cos(cone.angle) * norms
 
 
-type Search = StaticSearch | MetricSearch
+type Search = StaticSearch | EdgeRows | MetricSearch
 
 
 def position_state(states: Mapping[str, Variable]) -> str | None:
@@ -393,6 +465,8 @@ def neighbour_search(
     rows: int,
     entries: Mapping[str, Entry],
     states: Mapping[str, Variable],
+    *,
+    changing: Mapping[str | None, tuple[Entry, Entry, Entry]] | None = None,
 ) -> Search:
     """Return the search of the neighbours of the members of a group in its space.
 
@@ -412,9 +486,14 @@ def neighbour_search(
         states:
             The state declarations of the element type of the members.
 
+        changing:
+            The source, target, and activity entries of the variable edge group of every layer of a network whose
+            edges change, or `None` for fixed edges.
+
     Returns:
         search:
-            The search, static on a network or a lattice and by positions in a continuous space.
+            The search, static on a fixed network or a lattice, by edge rows on a changing network, and by positions
+            in a continuous space.
 
     Raises:
         ValidationError:
@@ -426,6 +505,10 @@ def neighbour_search(
         offered = ', '.join(sorted(str(item) for item in over.requires.space))
         error_msg = f'The neighbourhood {over!r} needs a {offered} space, but the group lives on {space!r}.'
         raise ValidationError(error_msg)
+    if isinstance(over, Adjacency) and changing is not None and over.layer in changing:
+        source, target, active = changing[over.layer]
+        directed = cast('NetworkSpace', space).resolve_graph(over.layer).is_directed()
+        return EdgeRows(source, target, active, rows, directed, over.center)
     if isinstance(over, Adjacency | Neighborhood):
         size = space.graph.number_of_nodes() if isinstance(space, NetworkSpace) else space.size  # type: ignore[attr-defined]
         if rows != size:
@@ -572,11 +655,10 @@ class CompiledNeighbourhood:
             q:
                 The extended parameter vector, which holds the parameters and the reductions before this one.
         """
-        indptr, others = self.search.find(x)
+        indptr, others, edges = self.search.find(x, q)
         size = self.size
         counts = np.diff(indptr)
         readers = np.repeat(np.arange(size, dtype=np.intp), counts)
-        edges = getattr(self.search, 'edges', None)
         argument, weight = self._function(t, *self._gather(x, q, readers, others, edges))  # type: ignore[misc]
         pairs = others.size
         argument = np.broadcast_to(np.asarray(argument, dtype=float), (pairs,))

@@ -52,6 +52,10 @@ class SimulationError(SkcomplexError):
     """A simulation is used in a state that does not allow the operation."""
 
 
+class CapacityError(SimulationError):
+    """A topology request needs more members than a variable group on a network holds rows for."""
+
+
 class ExperimentError(SkcomplexError):
     """An experiment cannot run its tasks, such as when its worker processes die."""
 

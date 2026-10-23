@@ -348,3 +348,68 @@ def nearest_neighbours(
             indices[end - 1] = member
         indices[start:end] = np.sort(indices[start:end])
     return indptr, indices
+
+
+@njit(cache=True)
+def _edge_counts(
+    p: Floats,
+    ends: tuple[int, int, int],
+    n_edges: int,
+    n_nodes: int,
+    flags: tuple[bool, bool],
+) -> Integers:
+    """Return the start of the neighbours of every node along the active edge rows, and their number last."""
+    sources, targets, actives = ends
+    directed, center = flags
+    counts = np.zeros(n_nodes + 1, dtype=np.int64)
+    for edge in range(n_edges):
+        if p[actives + edge] > 0.5:  # noqa: PLR2004
+            counts[int(p[sources + edge]) + 1] += 1
+            counts[int(p[targets + edge]) + 1] += 0 if directed else 1
+    for node in range(n_nodes if center else 0):
+        counts[node + 1] += 1
+    return np.cumsum(counts)
+
+
+@njit(cache=True)
+def _sorted_rows(indptr: Integers, indices: Integers, edges: Integers) -> None:
+    """Sort the neighbours of every node, keeping their edges aligned."""
+    for node in range(indptr.size - 1):
+        start, end = indptr[node], indptr[node + 1]
+        order = np.argsort(indices[start:end], kind='mergesort')
+        indices[start:end] = indices[start:end][order]
+        edges[start:end] = edges[start:end][order]
+
+
+@njit(cache=True)
+def edge_neighbours(  # noqa: PLR0917
+    p: Floats,
+    ends: tuple[int, int, int],
+    n_edges: int,
+    n_nodes: int,
+    directed: bool,
+    center: bool,
+) -> tuple[Integers, Integers, Integers]:
+    """Return the neighbours of every node along the active edge rows of a layer, with the edge row of every one.
+
+    The edge rows hold their source, target, and activity in the parameter vector from the starts `ends`.
+    """
+    sources, targets, actives = ends
+    indptr = _edge_counts(p, ends, n_edges, n_nodes, (directed, center))
+    filled = indptr[:-1].copy()
+    indices = np.empty(indptr[-1], dtype=np.int64)
+    edges = np.empty(indptr[-1], dtype=np.int64)
+    for node in range(n_nodes if center else 0):
+        indices[filled[node]], edges[filled[node]] = node, -1
+        filled[node] += 1
+    for edge in range(n_edges):
+        if p[actives + edge] <= 0.5:  # noqa: PLR2004
+            continue
+        first, second = int(p[sources + edge]), int(p[targets + edge])
+        indices[filled[first]], edges[filled[first]] = second, edge
+        filled[first] += 1
+        if not directed:
+            indices[filled[second]], edges[filled[second]] = first, edge
+            filled[second] += 1
+    _sorted_rows(indptr, indices, edges)
+    return indptr, indices, edges

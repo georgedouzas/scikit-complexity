@@ -4,6 +4,7 @@ from ._domains import AnyDomain, Categorical, Domain, HilbertFamily, HilbertSpac
 from ._errors import (
     AnalysisError,
     BackendError,
+    CapacityError,
     ConservationError,
     ExperimentError,
     HilbertSpaceError,
@@ -60,6 +61,7 @@ __all__: list[str] = [
     'AnyDomain',
     'BackendError',
     'Binding',
+    'CapacityError',
     'Categorical',
     'ComponentKind',
     'ConservationError',

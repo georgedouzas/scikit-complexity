@@ -58,6 +58,7 @@ from ._operators import Dissipator, Generator, LocalOperator, Operator, sparse_m
 from ._reductions import Reduction, count, has_reductions, maximum, mean, minimum, reductions_in, total, variance
 from ._rewriting import Affine, GraphProduction, Module, Production, Prototile, RewritingLaw, Substitution
 from ._symbols import Symbols
+from ._topology import TopologyRequest, add_edge, add_node, remove_edge, remove_node, request_of, rewire
 
 __all__: list[str] = [
     'NEIGHBOUR_REDUCTIONS',
@@ -107,10 +108,13 @@ __all__: list[str] = [
     'Symbols',
     'Table',
     'Target',
+    'TopologyRequest',
     'Totalistic',
     'Transfer',
     'Transition',
     'Update',
+    'add_edge',
+    'add_node',
     'adjacent',
     'advection',
     'bernoulli',
@@ -145,6 +149,10 @@ __all__: list[str] = [
     'pulse_train',
     'ramp',
     'reductions_in',
+    'remove_edge',
+    'remove_node',
+    'request_of',
+    'rewire',
     'series',
     'shift_arguments',
     'shift_member',

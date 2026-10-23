@@ -1407,7 +1407,13 @@ class Gillespie(Stepper):
                 int(np.searchsorted(np.cumsum(rates), self.rng_.uniform(0, total), side='right')),
                 len(rates) - 1,
             )
-            channels = jumps[int(np.searchsorted(offsets, event, side='right')) - 1]
+            channel = int(np.searchsorted(offsets, event, side='right')) - 1
+            channels = jumps[channel]
+            topology = self.problem_.topology
+            if topology is not None and channel in topology.channels:
+                state = topology.fire(channel, event - channels.offset, t, state, p, rng=self.rng_)
+                state = self._bounded(t, state, p)
+                continue
             targets = channels.targets[:, event - channels.offset]
             kept = targets >= 0
             np.add.at(state, targets[kept], channels.increments[kept])
@@ -1497,8 +1503,13 @@ class Iteration(Stepper):
         if accelerated is not None and accelerated.iterate is not None:
             return accelerated.iterate(t, x, p, until, *drawn)
         state = x.copy()
+        topology = self.problem_.topology
         for step in range(round(t), math.floor(until + 1e-9)):
-            state = self._bounded(float(step + 1), update(float(step), state, p, *drawn), p)
+            following = update(float(step), state, p, *drawn)
+            if topology is not None:
+                fired = topology.decide(float(step), state, p, self.rng_)
+                following = topology.apply(fired, float(step), following, p, self.rng_)
+            state = self._bounded(float(step + 1), following, p)
         return state
 
 

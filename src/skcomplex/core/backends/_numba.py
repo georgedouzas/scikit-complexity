@@ -45,7 +45,7 @@ from ..compile._backends import (
 )
 from ..compile._kernels import EdgeSearch, Kernel, Output, Reference, Source, jump_channels, lower_noise
 from ..compile._layout import Entry
-from ..compile._neighbourhoods import CompiledNeighbourhood, MetricSearch, StaticSearch
+from ..compile._neighbourhoods import CompiledNeighbourhood, EdgeRows, MetricSearch, StaticSearch
 from ..compile._printing import SCALAR_DIALECT, print_expressions
 from ..compile._problem import Accelerated, Draws, Vector
 from ..compile._reductions import CompiledReduction, Read, ReductionPass
@@ -76,7 +76,12 @@ import numpy as np
 from numba import njit, prange
 
 from skcomplex.core.backends._numba_cells import build_cells
-from skcomplex.core.backends._numba_neighbours import cone_neighbours, nearest_neighbours, radius_neighbours
+from skcomplex.core.backends._numba_neighbours import (
+    cone_neighbours,
+    edge_neighbours,
+    nearest_neighbours,
+    radius_neighbours,
+)
 from skcomplex.core.backends._numba_stencils import neighbor_value
 """
 LOOPS = {
@@ -742,6 +747,13 @@ def _search_lines(source: _Source, reduction: CompiledNeighbourhood, index: int)
             edges = source.data_slot(f'__neighbours_{index}_edges', search.edges)
             lines.append(f'{INDENT}_ie{index}_ = L[_L{2 * edges}_ : _L{2 * edges}_ + _L{2 * edges + 1}_]')
         return lines
+    if isinstance(search, EdgeRows):
+        starts = ', '.join(f'_L{2 * source.slot(entry)}_' for entry in (search.source, search.target, search.active))
+        call = (
+            f'edge_neighbours(p, ({starts}), _L{2 * source.slot(search.source) + 1}_, {search.size}, '
+            f'{search.directed}, {search.center})'
+        )
+        return [f'{INDENT}_ip{index}_, _ix{index}_, _ie{index}_ = {call}']
     assert isinstance(search, MetricSearch)
     entry = search.positions
     start, columns = f'_L{2 * source.slot(entry)}_', entry.columns
@@ -957,6 +969,45 @@ def _load(text: str, functions: Mapping[str, object], cache_dir: Path) -> Module
     return module
 
 
+def _search_entries(search: object) -> dict[str, Entry]:
+    """Return the entries a neighbourhood search reads, the edge rows of a changing layer or positions and headings."""
+    if isinstance(search, EdgeRows):
+        return {entry.name: entry for entry in (search.source, search.target, search.active)}
+    if not isinstance(search, MetricSearch):
+        return {}
+    found = {search.positions.name: search.positions}
+    if search.heading is not None:
+        found[search.heading.entry.name] = search.heading.entry
+    return found
+
+
+def _layout_entries(used: Mapping[type, list[Kernel]], reductions: ReductionPass) -> dict[str, Entry]:
+    """Return every entry the kernels and the reductions of a problem read, by name."""
+    entries = {
+        reference.entry.name: reference.entry
+        for items in used.values()
+        for kernel in items
+        for reference in kernel.references.values()
+    }
+    for items in used.values():
+        for kernel in items:
+            if isinstance(kernel.pairs, EdgeSearch) and kernel.pairs.source is not None:
+                entries[kernel.pairs.source.name] = kernel.pairs.source
+                entries[kernel.pairs.target.name] = kernel.pairs.target  # type: ignore[union-attr]
+    for item in reductions.reductions:
+        entries[item.entry.name] = item.entry
+        entries.update({read.entry.name: read.entry for read in item.reads.values() if read.entry is not None})
+        if item.members is not None:
+            entries[item.members.name] = item.members
+    for neighbourhood in reductions.neighbourhoods:
+        entries[neighbourhood.entry.name] = neighbourhood.entry
+        entries.update(
+            {pair.read.entry.name: pair.read.entry for pair in neighbourhood.reads.values() if pair.read.entry},
+        )
+        entries.update(_search_entries(neighbourhood.search))
+    return entries
+
+
 class NumbaBackend(Backend):
     """Backend that generates fused Numba kernels and compiled stepper loops, cached on disk.
 
@@ -1115,27 +1166,7 @@ class NumbaBackend(Backend):
         text = '\n'.join([HEADER, *source.lines, *loops]) + '\n'
         cache_dir = Path(self.cache_dir) if self.cache_dir is not None else DEFAULT_CACHE_DIR
         module = _load(text, source.functions, cache_dir)
-        entries = {
-            reference.entry.name: reference.entry
-            for items in used.values()
-            for kernel in items
-            for reference in kernel.references.values()
-        }
-        for item in reductions.reductions:
-            entries[item.entry.name] = item.entry
-            entries.update({read.entry.name: read.entry for read in item.reads.values() if read.entry is not None})
-            if item.members is not None:
-                entries[item.members.name] = item.members
-        for neighbourhood in reductions.neighbourhoods:
-            entries[neighbourhood.entry.name] = neighbourhood.entry
-            entries.update(
-                {pair.read.entry.name: pair.read.entry for pair in neighbourhood.reads.values() if pair.read.entry},
-            )
-            search = neighbourhood.search
-            if isinstance(search, MetricSearch):
-                entries[search.positions.name] = search.positions
-                if search.heading is not None:
-                    entries[search.heading.entry.name] = search.heading.entry
+        entries = _layout_entries(used, reductions)
         layout = source.layout(entries)
         loop = accelerated_loop if has_loop else None
         return self._lowering(

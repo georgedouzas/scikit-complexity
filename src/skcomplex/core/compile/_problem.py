@@ -101,6 +101,61 @@ class RenewalProcess(Protocol):
 
 
 @dataclass(frozen=True)
+class NetworkSnapshot:
+    """Nodes and edges of a network layer at one frame.
+
+    Args:
+        nodes:
+            The rows of the nodes present, in increasing order.
+
+        sources:
+            The node row of the source of every edge present.
+
+        targets:
+            The node row of the target of every edge present.
+
+        edges:
+            The row of every edge present in its edge group.
+    """
+
+    nodes: npt.NDArray[np.intp]
+    sources: npt.NDArray[np.intp]
+    targets: npt.NDArray[np.intp]
+    edges: npt.NDArray[np.intp]
+
+
+class TopologyChanges(Protocol):
+    """Topology requests of a problem, which the stepper applies between steps, and the networks they change."""
+
+    @property
+    def channels(self) -> Mapping[int, object]:
+        """Requests of jump laws by the index of their jump channels."""
+
+    @property
+    def layers(self) -> tuple[tuple[str, str | None], ...]:
+        """Path of the first group on the nodes and the layer of every network layer with a variable edge group."""
+
+    def decide(self, t: float, x: Vector, p: Vector, rng: np.random.Generator) -> list[tuple[int, int]]:
+        """Return the requests of update laws that fire at a state, each as its index and the row it fires for."""
+
+    def apply(
+        self,
+        fired: list[tuple[int, int]],
+        t: float,
+        x: Vector,
+        p: Vector,
+        rng: np.random.Generator,
+    ) -> Vector:
+        """Apply fired requests of update laws to a state and to the parameters in place, and return the state."""
+
+    def fire(self, channel: int, row: int, t: float, x: Vector, p: Vector, *, rng: np.random.Generator) -> Vector:
+        """Apply the request of a jump channel for a row, and return the state."""
+
+    def read_network(self, p: Vector, nodes: str | None = None, layer: str | None = None) -> NetworkSnapshot:
+        """Return the nodes and edges of a layer of a network at the parameters of a frame."""
+
+
+@dataclass(frozen=True)
 class FractionalRows:
     """Noise rows of one fractional noise law, driven by fractional Brownian motion of a Hurst index.
 
@@ -615,6 +670,10 @@ class Problem:
 
         rewriting:
             The compiled rewriting systems of the words, patches, and host graphs of a rewriting system.
+
+        topology:
+            The topology requests of the laws and the networks they change, which the stepper applies between steps,
+            or `None` for a problem without them.
     """
 
     form: Form
@@ -670,6 +729,7 @@ class Problem:
     backend: str = 'numpy'
     accelerated: Accelerated | None = field(default=None, repr=False)
     rewriting: tuple[Any, ...] = field(default=(), repr=False)
+    topology: TopologyChanges | None = field(default=None, repr=False)
 
     def _flatten_symbols(self, layout: Layout) -> list[Expression]:
         """Return the symbols of the entries of a layout as a flat list."""
