@@ -98,7 +98,11 @@ def test_compute_adjacency_lists_neighbours_with_their_edges():
     indptr, indices, edges = space.compute_adjacency()
     sources, targets = space.list_edges()
     for node in range(3):
-        for neighbour, edge in zip(indices[indptr[node] : indptr[node + 1]], edges[indptr[node] : indptr[node + 1]]):
+        for neighbour, edge in zip(
+            indices[indptr[node] : indptr[node + 1]],
+            edges[indptr[node] : indptr[node + 1]],
+            strict=True,
+        ):
             assert {int(sources[edge]), int(targets[edge])} == {node, int(neighbour)}
     directed = NetworkSpace(nx.DiGraph([(0, 1), (2, 1)]))
     indptr, indices, _ = directed.compute_adjacency()
@@ -112,7 +116,9 @@ def test_layers_hold_relations_over_the_same_nodes():
     assert space.layer_labels == (None, 'work')
     assert space.resolve_graph('work') is work.graph
     assert len(space.list_edges('work')[0]) == 6
-    assert neighbour_pairs(space, 4, 'work') == list(zip(*[item.tolist() for item in space.list_edges('work')]))
+    assert neighbour_pairs(space, 4, 'work') == list(
+        zip(*[item.tolist() for item in space.list_edges('work')], strict=True),
+    )
     assert space.index_table(Adjacency(layer='work')).shape == (4, 3)
 
 

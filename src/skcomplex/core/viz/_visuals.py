@@ -1025,13 +1025,15 @@ class SiteVisual(Visual):
         if _changes_topology(element, problem):
             reach = CHANGING_REACH * float(np.sqrt(element.members or 1))
             bounds = rrb.VisualBounds2D(x_range=(-reach, reach), y_range=(-reach, reach))
-            forces = {
-                'force_link': rrb.archetypes.ForceLink(distance=CHANGING_LINK),
-                'force_many_body': rrb.archetypes.ForceManyBody(strength=CHANGING_REPULSION),
-                'force_position': rrb.archetypes.ForcePosition(strength=CHANGING_CENTRING),
-            }
             return [
-                rrb.GraphView(origin=f'{element.path}/{state}', name=state, visual_bounds=bounds, **forces)
+                rrb.GraphView(
+                    origin=f'{element.path}/{state}',
+                    name=state,
+                    visual_bounds=bounds,
+                    force_link=rrb.archetypes.ForceLink(distance=CHANGING_LINK),
+                    force_many_body=rrb.archetypes.ForceManyBody(strength=CHANGING_REPULSION),
+                    force_position=rrb.archetypes.ForcePosition(strength=CHANGING_CENTRING),
+                )
                 for state in states
             ]
         positions = np.array(list(self._layout(space).values()))

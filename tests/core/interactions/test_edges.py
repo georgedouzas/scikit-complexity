@@ -14,7 +14,7 @@ from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Jump, Rate, Update, neighbors
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4
-from skcomplex.core.space import DiscreteTime, Layer, LatticeSpace, NetworkSpace
+from skcomplex.core.space import DiscreteTime, LatticeSpace, Layer, NetworkSpace
 from skcomplex.core.system import System
 
 BACKENDS = ('numpy', 'numba')
@@ -205,7 +205,8 @@ def test_weighted_kuramoto_on_edges_matches_the_adjacency_coupling(backend):
         interactions=[Coupling('coupling', oscillators='oscillators', links='links')],
     )
     problem = compile_system(system, backend=backend)
-    drift = problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'oscillators.theta')
+    rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
+    drift = problem.states.read(rates, 'oscillators.theta')
     matrix = np.zeros((12, 12))
     sources, targets = space.list_edges()
     matrix[sources, targets] = matrix[targets, sources] = weights

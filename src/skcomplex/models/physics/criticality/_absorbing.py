@@ -99,8 +99,8 @@ def directed_percolation_langevin(
 
     Examples:
         >>> from skcomplex.models.physics.criticality import directed_percolation_langevin
-        >>> directed_percolation_langevin((8, 8), energy=0.5).elements[0].values['nu'].mean()
-        np.float64(0.5)
+        >>> float(directed_percolation_langevin((8, 8), energy=0.5).elements[0].values['nu'].mean())
+        0.5
     """
     shape = tuple(shape)
     rng = np.random.default_rng(random_state)
