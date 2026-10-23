@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, Expression, parameter, role
@@ -148,32 +150,35 @@ class PredatorPreyEvents(Interaction):
         label:
             The label of the interaction.
 
-        prey:
-            The path of the prey population `x`.
-
-        predators:
-            The path of the predator population `y`.
-
-        r:
-            The birth rate of the prey.
-
-        K:
-            The carrying capacity of the prey.
-
-        a:
-            The attack rate.
-
-        h:
-            The handling time.
-
-        e:
-            The number of predators born per prey eaten.
-
-        m:
-            The death rate of the predators.
-
         stochastic:
             Whether births, deaths, and kills are random events.
+
+        **values:
+            The values of the declared variables, by name:
+
+            prey:
+                The path of the prey population `x`.
+
+            predators:
+                The path of the predator population `y`.
+
+            r:
+                The birth rate of the prey.
+
+            K:
+                The carrying capacity of the prey.
+
+            a:
+                The attack rate.
+
+            h:
+                The handling time.
+
+            e:
+                The number of predators born per prey eaten.
+
+            m:
+                The death rate of the predators.
 
     Examples:
         >>> from skcomplex.models.biology.ecology import PredatorPreyEvents
@@ -189,7 +194,16 @@ class PredatorPreyEvents(Interaction):
     h: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
     e: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
     m: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
-    stochastic: bool = True
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        stochastic: bool = True,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.stochastic = stochastic
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the five channels of births and deaths.

@@ -4,6 +4,7 @@
 # License: MIT
 
 import math
+from typing import Any
 
 from sage.all__sagemath_symbolics import sin
 
@@ -74,17 +75,20 @@ class Transfer(Interaction):
         label:
             The label of the interaction.
 
-        upstream:
-            The path of the chamber the blood leaves.
-
-        downstream:
-            The path of the chamber the blood enters.
-
-        R:
-            The resistance in mmHg s/ml.
-
         valve:
             Whether a valve prevents backward flow.
+
+        **values:
+            The values of the declared variables, by name:
+
+            upstream:
+                The path of the chamber the blood leaves.
+
+            downstream:
+                The path of the chamber the blood enters.
+
+            R:
+                The resistance in mmHg s/ml.
 
     Examples:
         >>> from skcomplex.models.biology.physiology import Transfer
@@ -95,7 +99,16 @@ class Transfer(Interaction):
     upstream: str = role()
     downstream: str = role()
     R: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    valve: bool = False
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        valve: bool = False,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.valve = valve
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the transfer of volume from the upstream to the downstream chamber.

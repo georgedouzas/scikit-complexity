@@ -5,7 +5,7 @@
 
 import math
 from collections.abc import Sequence
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -31,20 +31,23 @@ class SoftRepulsion(Interaction):
         label:
             The label of the interaction.
 
-        first:
-            The path of the group or particle of the first members.
-
-        second:
-            The path of the group or particle of the second members.
-
-        cutoff:
-            The contact distance, the sum of the two radii.
-
         period:
             The side of a periodic box, for minimum image distances, or `None` for an open space.
 
-        k:
-            The stiffness times the mobility.
+        **values:
+            The values of the declared variables, by name:
+
+            first:
+                The path of the group or particle of the first members.
+
+            second:
+                The path of the group or particle of the second members.
+
+            cutoff:
+                The contact distance, the sum of the two radii.
+
+            k:
+                The stiffness times the mobility.
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import SoftRepulsion
@@ -57,9 +60,18 @@ class SoftRepulsion(Interaction):
     first: str = role()
     second: str = role()
     cutoff: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    period: float | None = None
 
     k: float = parameter(default=100.0, domain=Domain.POSITIVE)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        period: float | None = None,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.period = period
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the opposite displacements of the two members of an overlapping pair.
@@ -85,23 +97,26 @@ class PhoreticAttraction(Interaction):
         label:
             The label of the interaction.
 
-        first:
-            The path of the group or particle of the first members.
-
-        second:
-            The path of the group or particle of the second members.
-
-        cutoff:
-            The distance beyond which the attraction is neglected.
-
         period:
             The side of a periodic box, for minimum image distances, or `None` for an open space.
 
-        v0:
-            The drift speed at the distance `R`.
+        **values:
+            The values of the declared variables, by name:
 
-        R:
-            The particle radius.
+            first:
+                The path of the group or particle of the first members.
+
+            second:
+                The path of the group or particle of the second members.
+
+            cutoff:
+                The distance beyond which the attraction is neglected.
+
+            v0:
+                The drift speed at the distance `R`.
+
+            R:
+                The particle radius.
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import PhoreticAttraction
@@ -114,10 +129,19 @@ class PhoreticAttraction(Interaction):
     first: str = role()
     second: str = role()
     cutoff: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    period: float | None = None
 
     v0: float = parameter(default=20.0, domain=Domain.NONNEGATIVE)
     R: float = parameter(default=1.0, domain=Domain.POSITIVE)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        period: float | None = None,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.period = period
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the drifts of the two members of a pair towards each other.
@@ -143,26 +167,29 @@ class CuckerSmaleAlignment(Interaction):
         label:
             The label of the interaction.
 
-        first:
-            The path of the group or particle of the first members.
-
-        second:
-            The path of the group or particle of the second members.
-
-        cutoff:
-            The distance beyond which agents do not align, large for the original all-to-all model.
-
         period:
             The side of a periodic box, for minimum image distances, or `None` for an open space.
 
-        K:
-            The coupling strength.
-
-        beta:
-            The decay exponent of the communication weight.
-
         n_agents:
             The number of agents `N` that normalizes the coupling.
+
+        **values:
+            The values of the declared variables, by name:
+
+            first:
+                The path of the group or particle of the first members.
+
+            second:
+                The path of the group or particle of the second members.
+
+            cutoff:
+                The distance beyond which agents do not align, large for the original all-to-all model.
+
+            K:
+                The coupling strength.
+
+            beta:
+                The decay exponent of the communication weight.
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import CuckerSmaleAlignment
@@ -175,11 +202,21 @@ class CuckerSmaleAlignment(Interaction):
     first: str = role()
     second: str = role()
     cutoff: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    period: float | None = None
 
     K: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
     beta: float = parameter(default=0.25, domain=Domain.NONNEGATIVE)
-    n_agents: int = 1
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        period: float | None = None,
+        n_agents: int = 1,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.period = period
+        self.n_agents = n_agents
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the opposite velocity changes of the two members of a pair.

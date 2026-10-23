@@ -31,14 +31,17 @@ class Fault(Element):
         label:
             The label of the block or the lattice group.
 
-        force:
-            The initial force.
-
-        alpha:
-            The fraction of force passed to each neighbour.
-
         threshold:
             The force at which a block slips.
+
+        **values:
+            The values of the declared variables, by name:
+
+            force:
+                The initial force.
+
+            alpha:
+                The fraction of force passed to each neighbour.
 
     Examples:
         >>> from skcomplex.models.earth.seismology import Fault
@@ -48,7 +51,16 @@ class Fault(Element):
 
     force: float = state(default=0.0, domain=Domain.NONNEGATIVE)
     alpha: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    threshold: float = 1.0
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        threshold: float = 1.0,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.threshold = threshold
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the uniform loading and the slipping relaxation.

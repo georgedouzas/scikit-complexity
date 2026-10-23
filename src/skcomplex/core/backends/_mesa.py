@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import dataclasses
 import math
 from collections import deque
 from collections.abc import Callable, Mapping, Sequence
@@ -1174,9 +1173,7 @@ def _member_location(location: object, index: int, size: int) -> object:
 
 def _shared_default(element_type: type, name: str) -> object:
     """Return the default of a state of an element type."""
-    field = next(field for field in dataclasses.fields(element_type) if field.name == name)
-    factory = field.default_factory
-    return factory() if callable(factory) else field.default
+    return element_type.get_default(name)  # type: ignore[attr-defined]
 
 
 register_solver('mesa', MesaStepper, default=True)

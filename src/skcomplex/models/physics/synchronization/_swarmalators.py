@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -70,32 +70,35 @@ class SwarmalatorCoupling(Interaction):
         label:
             The label of the interaction.
 
-        first:
-            The path of the group of the first members.
-
-        second:
-            The path of the group of the second members.
-
-        cutoff:
-            The distance beyond which pairs do not interact, large for the all-to-all model.
-
         period:
             The side of a periodic box, for minimum image distances, or `None` for an open space.
 
-        A:
-            The strength of the attraction.
-
-        B:
-            The strength of the repulsion.
-
-        J:
-            The influence of the phase similarity on the attraction.
-
-        K:
-            The phase coupling, synchronizing when positive.
-
         n_units:
             The number of swarmalators `N` that normalizes the coupling.
+
+        **values:
+            The values of the declared variables, by name:
+
+            first:
+                The path of the group of the first members.
+
+            second:
+                The path of the group of the second members.
+
+            cutoff:
+                The distance beyond which pairs do not interact, large for the all-to-all model.
+
+            A:
+                The strength of the attraction.
+
+            B:
+                The strength of the repulsion.
+
+            J:
+                The influence of the phase similarity on the attraction.
+
+            K:
+                The phase coupling, synchronizing when positive.
 
     Examples:
         >>> from skcomplex.models.physics.synchronization import SwarmalatorCoupling
@@ -108,13 +111,23 @@ class SwarmalatorCoupling(Interaction):
     first: str = role()
     second: str = role()
     cutoff: float = parameter(default=1e6, domain=Domain.POSITIVE)
-    period: float | None = None
 
     A: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
     B: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
     J: float = parameter(default=1.0)
     K: float = parameter(default=0.0)
-    n_units: int = 1
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        period: float | None = None,
+        n_units: int = 1,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.period = period
+        self.n_units = n_units
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the opposite moves and the opposite phase turns of the two members of a pair.

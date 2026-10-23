@@ -3,18 +3,18 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import dataclasses
-import inspect
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any, ClassVar
 
 from ..base import (
     ValidationError,
-    declaration_of,
+    Variable,
+    VariableKind,
     parameter,
     role,
 )
-from ..components._components import BINDINGS, Component, _caller_module, _define, _is_declaration, _is_state
+from ..components._component import Component
+from ..components._components import BINDINGS, _caller_module, _define, _is_declaration
 from ..laws import Law
 
 
@@ -28,6 +28,12 @@ class Interaction(Component):
         label:
             The label of the interaction, unique among the children of its system.
 
+        layer:
+            Over neighbours, the layer of the network whose edges the interaction runs on, or `None` for the layer of
+            the edge group it binds, or else the graph of the network.
+
+        **values:
+            The values of the declared parameters and roles, by name.
 
     Examples:
         >>> from skcomplex.core.base import Domain, parameter, role
@@ -58,28 +64,44 @@ class Interaction(Component):
 
     Raises:
         ValidationError:
-            The subclass declares a state, or an unknown binding.
+            The type declares a state, or an unknown binding, or an interaction not over neighbours takes a layer.
     """
 
     over: ClassVar[str] = 'members'
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:  # noqa: ANN401
-        """Add the layer of a binding over neighbours, and reject states and unknown bindings."""
-        if (
-            cls.over == 'neighbours'
-            and 'layer' not in vars(cls)
-            and 'layer' not in getattr(cls, '__dataclass_fields__', {})
-        ):
-            cls.layer = None
-            cls.__annotations__ = {**inspect.get_annotations(cls), 'layer': str | None}
-        super().__init_subclass__(**kwargs)
+    def __init__(self, label: str, *, layer: str | None = None, **values: Any) -> None:  # noqa: ANN401
+        super().__init__(label, **values)
+        self.layer = layer
+        if layer is not None and self.over != 'neighbours':
+            error_msg = (
+                f'{type(self).__name__} {label!r} takes the layer {layer!r}, but only interactions over neighbours run '
+                'on the edges of a layer.'
+            )
+            raise ValidationError(error_msg)
+
+    @classmethod
+    def declarations(cls) -> dict[str, Variable]:
+        """Return the declarations of the parameters and roles of the type, after checking its binding.
+
+        Returns:
+            declarations:
+                A mapping from name to declaration, in declaration order.
+
+        Raises:
+            ValidationError:
+                The type binds its laws over an unknown binding, or declares states or adaptive parameters.
+
+        Examples:
+            >>> from skcomplex.models.biology.ecology import Predation
+            >>> list(Predation.declarations())[:2]
+            ['predator', 'prey']
+        """
+        declarations = super().declarations()
         if cls.over not in BINDINGS:
             error_msg = f'{cls.__name__} binds its laws over {cls.over!r}. Use one of {", ".join(BINDINGS)}.'
             raise ValidationError(error_msg)
-        states = [field.name for field in dataclasses.fields(cls) if _is_state(field)]
-        adaptive = [
-            name for name in states if getattr(declaration_of(cls.__dataclass_fields__[name]), 'adaptive', False)
-        ]
+        states = [name for name, item in declarations.items() if item.kind is VariableKind.STATE]
+        adaptive = [name for name in states if declarations[name].adaptive]
         if adaptive:
             error_msg = (
                 f'{cls.__name__} declares the adaptive parameters {", ".join(adaptive)}, which laws change as states, '
@@ -92,6 +114,7 @@ class Interaction(Component):
                 'couplings in a group on the edges of a network space, `Group(..., on="edges")`.'
             )
             raise ValidationError(error_msg)
+        return declarations
 
     @classmethod
     def define(

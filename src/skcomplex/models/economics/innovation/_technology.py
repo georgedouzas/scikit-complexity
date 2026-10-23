@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -124,11 +125,14 @@ class Redesign(Interaction):
         label:
             The label of the interaction.
 
-        components:
-            The path of the group of components.
-
         dependencies:
             The design structure matrix.
+
+        **values:
+            The values of the declared variables, by name:
+
+            components:
+                The path of the group of components.
 
     Examples:
         >>> from skcomplex.models.economics.innovation import Redesign
@@ -137,7 +141,16 @@ class Redesign(Interaction):
     """
 
     components: str = role()
-    dependencies: Sequence[Sequence[float]] = ()
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        dependencies: Sequence[Sequence[float]] = (),
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.dependencies = dependencies
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the redesign rule.

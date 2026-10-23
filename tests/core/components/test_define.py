@@ -75,7 +75,7 @@ def test_defined_types_form_groups():
     trajectory = Simulation(system, dt=1).run(until=1).trajectory_
     assert trajectory['herd.n'].shape == (2, 100)
     assert np.allclose(trajectory['herd.n'][-1], np.linspace(1, 2, 100) * np.exp(0.5), rtol=1e-3)
-    assert Growth('g', target='herd', r=0.7).get_params() == {'label': 'g', 'r': 0.7, 'target': 'herd'}
+    assert Growth('g', target='herd', r=0.7).get_params() == {'label': 'g', 'layer': None, 'r': 0.7, 'target': 'herd'}
 
 
 def test_defined_types_clone_and_pickle():

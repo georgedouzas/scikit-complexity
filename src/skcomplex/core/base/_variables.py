@@ -9,7 +9,7 @@ import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 
@@ -413,6 +413,61 @@ def role(*, variadic: bool = False) -> Any:
     return _declare_field(dataclasses.MISSING, Variable(VariableKind.ROLE, variadic=variadic))
 
 
+def declared_fields(component: Any) -> dict[str, Any]:
+    """Return the fields a component class declares with `state`, `parameter`, and `role`, with their companions.
+
+    The fields come in the order of the classes from the base to the class, each class in definition order followed by
+    the companion states of its states of higher order or with lags, `<name>_d1` to `<name>_d<k-1>` and
+    `<name>_lag1` to `<name>_lag<m>`. A field declared again in a subclass keeps its place.
+
+    Args:
+        component:
+            A component class or instance.
+
+    Returns:
+        fields:
+            A mapping from name to the field that carries the declaration and the default.
+
+    Examples:
+        >>> from skcomplex.core.base import declared_fields, state
+        >>> class Pendulum:
+        ...     theta = state(0.1, order=2)
+        >>> list(declared_fields(Pendulum))
+        ['theta', 'theta_d1']
+    """
+    cls = component if isinstance(component, type) else type(component)
+    fields: dict[str, Any] = {}
+    for klass in reversed(cls.__mro__):
+        own = {name: value for name, value in vars(klass).items() if declaration_of(value) is not None}
+        fields.update(own)
+        for name, value in own.items():
+            declaration = cast('Variable', declaration_of(value))
+            default = value.default if value.default is not dataclasses.MISSING else 0.0
+            companions = companions_of(name, declaration, default)
+            fields.update({key: item for key, item in companions.items() if key not in vars(klass)})
+    return fields
+
+
+def default_of(field: Any) -> Any:
+    """Return the default value a declared field carries, a fresh copy for a mutable default.
+
+    Args:
+        field:
+            A field made by `state`, `parameter`, or `role`.
+
+    Returns:
+        default:
+            The default value, or `dataclasses.MISSING` for a field without one.
+
+    Examples:
+        >>> from skcomplex.core.base import default_of, state
+        >>> default_of(state([0.0, 1.0]))
+        [0.0, 1.0]
+    """
+    factory = field.default_factory
+    return factory() if callable(factory) else field.default
+
+
 def declarations_of(component: Any, kind: VariableKind) -> dict[str, Variable]:
     """Return the declared fields of one kind of a component, in declaration order.
 
@@ -428,7 +483,7 @@ def declarations_of(component: Any, kind: VariableKind) -> dict[str, Variable]:
             A mapping from field name to declaration.
     """
     return {
-        field.name: field.metadata[METADATA_KEY]
-        for field in dataclasses.fields(component)
-        if METADATA_KEY in field.metadata and field.metadata[METADATA_KEY].kind is kind
+        name: field.metadata[METADATA_KEY]
+        for name, field in declared_fields(component).items()
+        if field.metadata[METADATA_KEY].kind is kind
     }

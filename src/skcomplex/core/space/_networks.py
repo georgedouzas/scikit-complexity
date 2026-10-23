@@ -11,7 +11,7 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ..base import Requires, SpaceKind, ValidationError
+from ..base import Requires, SpaceError, SpaceKind, ValidationError
 from ._spaces import Space
 
 type Seed = int | np.random.Generator | None
@@ -23,6 +23,45 @@ def _simple(graph: nx.Graph) -> nx.Graph:
     simple = nx.DiGraph(graph) if graph.is_directed() else nx.Graph(graph)
     simple.remove_edges_from(list(nx.selfloop_edges(simple)))
     return simple
+
+
+def part_count(space: Space, on: str, label: str, layer: str | None = None) -> int:
+    """Return the number of parts of a space a group has one member on.
+
+    Args:
+        space:
+            The space.
+
+        on:
+            `'sites'`, `'edges'`, or `'hyperedges'`.
+
+        label:
+            The label of the group, named in errors.
+
+        layer:
+            The layer of a network whose edges the group lives on, or `None` for the graph of the network.
+
+    Returns:
+        count:
+            The number of sites, edges, or hyperedges.
+
+    Raises:
+        SpaceError:
+            The space does not have the part.
+    """
+    graph = getattr(space, 'graph', None)
+    if on == 'sites' and graph is not None:
+        return int(graph.number_of_nodes())
+    if on == 'sites' and hasattr(space, 'size'):
+        return int(space.size)
+    if on == 'edges' and isinstance(space, NetworkSpace):
+        return int(space.resolve_graph(layer).number_of_edges())
+    hyperedges = getattr(space, 'hyperedges', None)
+    if on == 'hyperedges' and hyperedges:
+        return len(hyperedges)
+    needs = 'a network space with hyperedges' if on == 'hyperedges' else 'a network space' if on == 'edges' else 'sites'
+    error_msg = f'Group {label!r} lives on {on}, which need {needs}, but its space is {space!r}.'
+    raise SpaceError(error_msg)
 
 
 @dataclass(frozen=True)

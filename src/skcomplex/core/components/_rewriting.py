@@ -4,7 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import networkx as nx
 
@@ -32,9 +32,6 @@ class Word(Element):
         label:
             The label of the element.
 
-        axiom:
-            The word at generation 0.
-
         alphabet:
             The symbols, as a string of one-character symbols or a mapping from name to number of parameters, or
             `None` to take them from the axiom and the productions.
@@ -51,6 +48,12 @@ class Word(Element):
         bounds:
             The box `(xmin, ymin, xmax, ymax)` the geometry visual shows, or `None` to fit the data.
 
+        **values:
+            The values of the declared variables, by name:
+
+            axiom:
+                The word at generation 0.
+
     Examples:
         >>> from skcomplex.core.components import Word
         >>> Word('algae', axiom='A').axiom
@@ -59,11 +62,24 @@ class Word(Element):
 
     visual: ClassVar[VisualSpec] = VisualSpec('geometry')
     axiom: Letters = state('', domain=Structure('sequence'))
-    alphabet: str | Mapping[str, int] | None = None
-    ignore: str | Sequence[str] = ''
-    geometry: 'WordGeometry | None' = None
-    max_size: int = 10_000_000
-    bounds: Sequence[float] | None = None
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        alphabet: str | Mapping[str, int] | None = None,
+        ignore: str | Sequence[str] = '',
+        geometry: 'WordGeometry | None' = None,
+        max_size: int = 10_000_000,
+        bounds: Sequence[float] | None = None,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.alphabet = alphabet
+        self.ignore = ignore
+        self.geometry = geometry
+        self.max_size = max_size
+        self.bounds = bounds
 
 
 class Patch(Element):
@@ -78,9 +94,6 @@ class Patch(Element):
         prototiles:
             The prototiles.
 
-        tiles:
-            Pairs of a prototile name and its placement at generation 0, or `None` for the first prototile in place.
-
         filled:
             Whether the geometry visual draws polygons as a filled image instead of outlines.
 
@@ -90,6 +103,12 @@ class Patch(Element):
         bounds:
             The box `(xmin, ymin, xmax, ymax)` the geometry visual shows, or `None` for the box of the initial tiles.
 
+        **values:
+            The values of the declared variables, by name:
+
+            tiles:
+                Pairs of a prototile name and its placement at generation 0, or `None` for the first prototile in place.
+
     Examples:
         >>> from skcomplex.core.components import Patch
         >>> from skcomplex.core.laws import Prototile
@@ -98,11 +117,23 @@ class Patch(Element):
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('geometry')
-    prototiles: Sequence[Prototile] = ()
     tiles: Sequence[tuple[str, Affine]] | None = state(default=None, domain=Structure('tiling'))
-    filled: bool = False
-    max_size: int = 10_000_000
-    bounds: Sequence[float] | None = None
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        prototiles: Sequence[Prototile] = (),
+        filled: bool = False,
+        max_size: int = 10_000_000,
+        bounds: Sequence[float] | None = None,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.prototiles = prototiles
+        self.filled = filled
+        self.max_size = max_size
+        self.bounds = bounds
 
 
 class HostGraph(Element):
@@ -114,14 +145,17 @@ class HostGraph(Element):
         label:
             The label of the element.
 
-        graph:
-            The graph at generation 0, directed or not.
-
         max_size:
             The largest number of nodes a generation may produce.
 
         max_matches:
             The largest number of matches searched per production and generation.
+
+        **values:
+            The values of the declared variables, by name:
+
+            graph:
+                The graph at generation 0, directed or not.
 
     Examples:
         >>> import networkx as nx
@@ -132,8 +166,18 @@ class HostGraph(Element):
 
     visual: ClassVar[VisualSpec] = VisualSpec('geometry')
     graph: nx.Graph = state(nx.Graph(), domain=Structure('graph'))
-    max_size: int = 1_000_000
-    max_matches: int = 100_000
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        max_size: int = 1_000_000,
+        max_matches: int = 100_000,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.max_size = max_size
+        self.max_matches = max_matches
 
 
 def structure_of(element_type: type) -> str | None:

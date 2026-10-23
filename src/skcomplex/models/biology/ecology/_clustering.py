@@ -4,7 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 
@@ -78,14 +78,17 @@ class Hopping(Interaction):
         label:
             The label of the interaction.
 
-        patches:
-            The paths of the patches, such as the members `patches[i]` of a lattice.
-
         links:
             The ordered pairs of entries of `patches` between which organisms hop.
 
-        beta:
-            The rate at which an organism hops to one neighbouring patch.
+        **values:
+            The values of the declared variables, by name:
+
+            patches:
+                The paths of the patches, such as the members `patches[i]` of a lattice.
+
+            beta:
+                The rate at which an organism hops to one neighbouring patch.
 
     Examples:
         >>> from skcomplex.models.biology.ecology import Hopping
@@ -95,7 +98,16 @@ class Hopping(Interaction):
 
     patches: list[str] = role(variadic=True)
     beta: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    links: Sequence[tuple[int, int]] = ()
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        links: Sequence[tuple[int, int]] = (),
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.links = links
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return one hop per ordered pair of neighbouring patches.

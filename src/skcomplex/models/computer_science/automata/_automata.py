@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -26,11 +27,14 @@ class ElementaryCell(Element):
         label:
             The label of the cell or the lattice group.
 
-        alive:
-            The initial value, 0 or 1.
-
         rule:
             The Wolfram number of the rule.
+
+        **values:
+            The values of the declared variables, by name:
+
+            alive:
+                The initial value, 0 or 1.
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import ElementaryCell
@@ -39,7 +43,16 @@ class ElementaryCell(Element):
     """
 
     alive: float = state(default=0, domain=Domain.BOOLEAN)
-    rule: int = 30
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        rule: int = 30,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.rule = rule
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the elementary rule on the left, centre, and right cells.
@@ -62,14 +75,17 @@ class LifeCell(Element):
         label:
             The label of the cell or the lattice group.
 
-        alive:
-            The initial value, 0 or 1.
-
         born:
             The numbers of live neighbours that bring a dead cell to life.
 
         survive:
             The numbers of live neighbours that keep a live cell alive.
+
+        **values:
+            The values of the declared variables, by name:
+
+            alive:
+                The initial value, 0 or 1.
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import LifeCell
@@ -78,8 +94,18 @@ class LifeCell(Element):
     """
 
     alive: float = state(default=0, domain=Domain.BOOLEAN)
-    born: tuple[int, ...] = (3,)
-    survive: tuple[int, ...] = (2, 3)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        born: tuple[int, ...] = (3,),
+        survive: tuple[int, ...] = (2, 3),
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.born = born
+        self.survive = survive
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the outer totalistic rule of the cell.

@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 import numpy as np
 import numpy.typing as npt
 
@@ -71,9 +73,6 @@ class BlockMoves(Interaction):
         label:
             The label of the interaction.
 
-        target:
-            The path of the group of dwellers.
-
         width:
             The number of columns of the grid.
 
@@ -83,6 +82,12 @@ class BlockMoves(Interaction):
         side:
             The side of a square block in cells, which divides the width and the height.
 
+        **values:
+            The values of the declared variables, by name:
+
+            target:
+                The path of the group of dwellers.
+
     Examples:
         >>> from skcomplex.models.social.segregation import BlockMoves
         >>> BlockMoves('moves', target='dwellers', side=4).side
@@ -90,9 +95,20 @@ class BlockMoves(Interaction):
     """
 
     target: str = role()
-    width: int = 20
-    height: int = 20
-    side: int = 5
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        width: int = 20,
+        height: int = 20,
+        side: int = 5,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.width = width
+        self.height = height
+        self.side = side
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the move rule.

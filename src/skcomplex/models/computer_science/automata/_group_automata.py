@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 import numpy as np
 import numpy.typing as npt
 
@@ -15,7 +17,7 @@ from ....core.system import Observable, System
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter
 
 type Array = npt.NDArray[np.float64]
-
+GENERATOR_MEMORY = Memory(('1', 'a', 'a^-1'))
 GRIGORCHUK_MEMORY = Memory(('1', 'a', 'b', 'c', 'd'))
 LAMPLIGHTER_MEMORY = Memory(('1', 'a', 'b'))
 
@@ -52,11 +54,14 @@ class MajorityCell(Element):
         label:
             The label of the cell or the lattice group.
 
-        alive:
-            The initial value, 0 or 1.
-
         memory:
             The memory set, of odd size, usually the identity and the generators.
+
+        **values:
+            The values of the declared variables, by name:
+
+            alive:
+                The initial value, 0 or 1.
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import MajorityCell
@@ -65,7 +70,16 @@ class MajorityCell(Element):
     """
 
     alive: float = state(default=0, domain=Domain.BOOLEAN)
-    memory: Memory = Memory(('1', 'a', 'a^-1'))
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        memory: Memory = GENERATOR_MEMORY,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.memory = memory
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the majority rule on the memory set.
@@ -88,11 +102,14 @@ class ParityCell(Element):
         label:
             The label of the cell or the lattice group.
 
-        alive:
-            The initial value, 0 or 1.
-
         memory:
             The memory set.
+
+        **values:
+            The values of the declared variables, by name:
+
+            alive:
+                The initial value, 0 or 1.
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import ParityCell
@@ -101,7 +118,16 @@ class ParityCell(Element):
     """
 
     alive: float = state(default=0, domain=Domain.BOOLEAN)
-    memory: Memory = LAMPLIGHTER_MEMORY
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        memory: Memory = LAMPLIGHTER_MEMORY,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.memory = memory
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the parity rule on the memory set.

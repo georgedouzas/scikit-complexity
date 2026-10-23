@@ -37,20 +37,23 @@ class Depositor(Element):
         lenders:
             The path of the group of banks.
 
-        bank:
-            The index of the customer's bank.
+        **values:
+            The values of the declared variables, by name:
 
-        deposit:
-            The deposit at the bank.
+            bank:
+                The index of the customer's bank.
 
-        loan:
-            The loan owed to the bank.
+            deposit:
+                The deposit at the bank.
 
-        spending:
-            The share of the deposit paid to a random customer every step.
+            loan:
+                The loan owed to the bank.
 
-        repayment:
-            The share of the loan repaid every step.
+            spending:
+                The share of the deposit paid to a random customer every step.
+
+            repayment:
+                The share of the loan repaid every step.
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import Depositor
@@ -58,12 +61,21 @@ class Depositor(Element):
         10
     """
 
-    lenders: str = 'banks'
     bank: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
     deposit: float = state(default=10.0, domain=Domain.NONNEGATIVE)
     loan: float = state(default=0.0, domain=Domain.NONNEGATIVE)
     spending: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
     repayment: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        lenders: str = 'banks',
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.lenders = lenders
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the payment and repayment rules.
@@ -133,20 +145,23 @@ class ReserveBank(Element):
         customers:
             The path of the group of customers.
 
-        index:
-            The index of the bank.
+        **values:
+            The values of the declared variables, by name:
 
-        reserves:
-            The reserves of the bank.
+            index:
+                The index of the bank.
 
-        deposits:
-            The deposits of its customers.
+            reserves:
+                The reserves of the bank.
 
-        loans:
-            The loans to its customers.
+            deposits:
+                The deposits of its customers.
 
-        reserve_ratio:
-            The required ratio of reserves to deposits.
+            loans:
+                The loans to its customers.
+
+            reserve_ratio:
+                The required ratio of reserves to deposits.
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import ReserveBank
@@ -154,12 +169,21 @@ class ReserveBank(Element):
         3
     """
 
-    customers: str = 'customers'
     index: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
     reserves: float = state(default=0.0, domain=Domain.REAL)
     deposits: float = state(default=0.0, domain=Domain.NONNEGATIVE)
     loans: float = state(default=0.0, domain=Domain.NONNEGATIVE)
     reserve_ratio: float = parameter(default=0.1, domain=Domain.POSITIVE)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        customers: str = 'customers',
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.customers = customers
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the lending rule.
@@ -207,23 +231,26 @@ class Regulator(Institution):
         label:
             The label of the institution.
 
-        rule:
-            Unused, the regulator overrides `act`.
-
-        phase:
-            The phase the regulator acts in, or `None` for the default phase.
-
         banks:
             The path of the group of banks.
 
-        ratio:
-            The reserve ratio before the change.
+        **values:
+            The values of the declared variables, by name:
 
-        new_ratio:
-            The reserve ratio after the change.
+            rule:
+                Unused, the regulator overrides `act`.
 
-        change_at:
-            The time of the change.
+            phase:
+                The phase the regulator acts in, or `None` for the default phase.
+
+            ratio:
+                The reserve ratio before the change.
+
+            new_ratio:
+                The reserve ratio after the change.
+
+            change_at:
+                The time of the change.
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import Regulator
@@ -231,10 +258,19 @@ class Regulator(Institution):
         0.2
     """
 
-    banks: str = 'banks'
     ratio: float = parameter(default=0.1, domain=Domain.POSITIVE)
     new_ratio: float = parameter(default=0.1, domain=Domain.POSITIVE)
     change_at: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        banks: str = 'banks',
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.banks = banks
 
     def act(self, model: Any) -> None:  # noqa: ANN401
         """Set the reserve ratio of the banks from the schedule.

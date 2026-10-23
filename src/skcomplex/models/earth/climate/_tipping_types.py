@@ -4,6 +4,7 @@
 # License: MIT
 
 import math
+from typing import Any
 
 import numpy as np
 
@@ -130,18 +131,6 @@ class RampedFold(Element):
         label:
             The label of the system.
 
-        x:
-            The initial state.
-
-        a:
-            The cubic coefficient, negative.
-
-        b:
-            The linear coefficient, positive.
-
-        sigma:
-            The amplitude of the noise.
-
         phi0:
             The initial control.
 
@@ -150,6 +139,21 @@ class RampedFold(Element):
 
         rate:
             The rate at which the control rises.
+
+        **values:
+            The values of the declared variables, by name:
+
+            x:
+                The initial state.
+
+            a:
+                The cubic coefficient, negative.
+
+            b:
+                The linear coefficient, positive.
+
+            sigma:
+                The amplitude of the noise.
 
     Examples:
         >>> from skcomplex.models.earth.climate import RampedFold
@@ -161,9 +165,20 @@ class RampedFold(Element):
     a: float = parameter(default=-1.0)
     b: float = parameter(default=1.0)
     sigma: float = parameter(default=0.02, domain=Domain.NONNEGATIVE)
-    phi0: float = -1.0
-    phi1: float = 1.0
-    rate: float = 0.004
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        phi0: float = -1.0,
+        phi1: float = 1.0,
+        rate: float = 0.004,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.phi0 = phi0
+        self.phi1 = phi1
+        self.rate = rate
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the fold with its ramped control and its noise.

@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Literal
+from typing import Any, Literal
 
 import numpy as np
 from sage.all__sagemath_symbolics import exp, log
@@ -32,126 +32,6 @@ class StemCellDifferentiation(Element):
         label:
             The label of the tissue.
 
-        NSq:
-            The initial normal quiescent stem cells.
-
-        NPr:
-            The initial normal progenitors.
-
-        NBs:
-            The initial normal basal cells.
-
-        ND:
-            The initial normal differentiated cells.
-
-        ASq:
-            The initial malignant quiescent stem cells.
-
-        APr:
-            The initial malignant progenitors.
-
-        ABs:
-            The initial malignant basal cells.
-
-        AD:
-            The initial malignant differentiated cells.
-
-        d1:
-            The death rate of normal quiescent stem cells.
-
-        d2:
-            The death rate of normal progenitors.
-
-        d3:
-            The death rate of normal basal cells.
-
-        d4:
-            The death rate of normal differentiated cells.
-
-        d5:
-            The death rate of malignant quiescent stem cells.
-
-        d6:
-            The death rate of malignant progenitors.
-
-        d7:
-            The death rate of malignant basal cells.
-
-        d8:
-            The death rate of malignant differentiated cells.
-
-        k12:
-            The rate at which normal quiescent stem cells become progenitors.
-
-        k21:
-            The largest rate at which normal progenitors return to quiescence.
-
-        k23:
-            The rate at which normal progenitors become basal cells.
-
-        k34:
-            The rate at which normal basal cells differentiate.
-
-        k56:
-            The rate at which malignant quiescent stem cells become progenitors.
-
-        k65:
-            The largest rate at which malignant progenitors return to quiescence.
-
-        k67:
-            The rate at which malignant progenitors become basal cells.
-
-        k78:
-            The rate at which malignant basal cells differentiate.
-
-        r1:
-            The renewal rate of normal progenitors.
-
-        r2:
-            The renewal rate of normal basal cells.
-
-        r3:
-            The renewal rate of malignant progenitors.
-
-        r4:
-            The renewal rate of malignant basal cells.
-
-        m1:
-            The mutation rate of normal progenitors.
-
-        NPinf:
-            The saturation constant of the return of normal progenitors.
-
-        APinf:
-            The saturation constant of the return of malignant progenitors.
-
-        NPmax:
-            The largest number of normal progenitors.
-
-        APmax:
-            The largest number of malignant progenitors.
-
-        Nbmax:
-            The largest number of normal basal cells.
-
-        Abmax:
-            The largest number of malignant basal cells.
-
-        beta0:
-            The feedback constant.
-
-        kappa0:
-            The number of differentiated cells that halves the feedback.
-
-        delta:
-            The weight of the renewal in the death the therapy causes to normal progenitors.
-
-        up:
-            The dose of the pulsed therapy.
-
-        uc:
-            The dose of the continuous therapy.
-
         therapy:
             The mode of therapy, `'none'`, `'pulsed'`, or `'continuous'`.
 
@@ -160,6 +40,129 @@ class StemCellDifferentiation(Element):
 
         duration:
             The duration of the pulse of a pulsed therapy.
+
+        **values:
+            The values of the declared variables, by name:
+
+            NSq:
+                The initial normal quiescent stem cells.
+
+            NPr:
+                The initial normal progenitors.
+
+            NBs:
+                The initial normal basal cells.
+
+            ND:
+                The initial normal differentiated cells.
+
+            ASq:
+                The initial malignant quiescent stem cells.
+
+            APr:
+                The initial malignant progenitors.
+
+            ABs:
+                The initial malignant basal cells.
+
+            AD:
+                The initial malignant differentiated cells.
+
+            d1:
+                The death rate of normal quiescent stem cells.
+
+            d2:
+                The death rate of normal progenitors.
+
+            d3:
+                The death rate of normal basal cells.
+
+            d4:
+                The death rate of normal differentiated cells.
+
+            d5:
+                The death rate of malignant quiescent stem cells.
+
+            d6:
+                The death rate of malignant progenitors.
+
+            d7:
+                The death rate of malignant basal cells.
+
+            d8:
+                The death rate of malignant differentiated cells.
+
+            k12:
+                The rate at which normal quiescent stem cells become progenitors.
+
+            k21:
+                The largest rate at which normal progenitors return to quiescence.
+
+            k23:
+                The rate at which normal progenitors become basal cells.
+
+            k34:
+                The rate at which normal basal cells differentiate.
+
+            k56:
+                The rate at which malignant quiescent stem cells become progenitors.
+
+            k65:
+                The largest rate at which malignant progenitors return to quiescence.
+
+            k67:
+                The rate at which malignant progenitors become basal cells.
+
+            k78:
+                The rate at which malignant basal cells differentiate.
+
+            r1:
+                The renewal rate of normal progenitors.
+
+            r2:
+                The renewal rate of normal basal cells.
+
+            r3:
+                The renewal rate of malignant progenitors.
+
+            r4:
+                The renewal rate of malignant basal cells.
+
+            m1:
+                The mutation rate of normal progenitors.
+
+            NPinf:
+                The saturation constant of the return of normal progenitors.
+
+            APinf:
+                The saturation constant of the return of malignant progenitors.
+
+            NPmax:
+                The largest number of normal progenitors.
+
+            APmax:
+                The largest number of malignant progenitors.
+
+            Nbmax:
+                The largest number of normal basal cells.
+
+            Abmax:
+                The largest number of malignant basal cells.
+
+            beta0:
+                The feedback constant.
+
+            kappa0:
+                The number of differentiated cells that halves the feedback.
+
+            delta:
+                The weight of the renewal in the death the therapy causes to normal progenitors.
+
+            up:
+                The dose of the pulsed therapy.
+
+            uc:
+                The dose of the continuous therapy.
 
     Examples:
         >>> from skcomplex.models.biology.oncology import StemCellDifferentiation
@@ -207,9 +210,20 @@ class StemCellDifferentiation(Element):
     delta: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
     up: float = parameter(default=30.0, domain=Domain.NONNEGATIVE)
     uc: float = parameter(default=10.0, domain=Domain.NONNEGATIVE)
-    therapy: str = 'continuous'
-    start: float = 100.0
-    duration: float = 100.0
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        therapy: str = 'continuous',
+        start: float = 100.0,
+        duration: float = 100.0,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.therapy = therapy
+        self.start = start
+        self.duration = duration
 
     def _therapy_deaths(self, s: Symbols, renewal: Expression) -> tuple[Expression, Expression]:
         """Return the death rate of normal progenitors and the factor of the other death rates under the therapy."""

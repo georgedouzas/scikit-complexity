@@ -88,17 +88,20 @@ class Prisoner(Element):
         label:
             The label of the player or the lattice group.
 
-        strategy:
-            The initial strategy, 1 or 0.
-
-        temptation:
-            The payoff of a defector against a cooperator.
-
-        noise:
-            The noise of the Fermi imitation.
-
         imitation:
             `'best'` for the best neighbour, or `'fermi'` for the Fermi rule.
+
+        **values:
+            The values of the declared variables, by name:
+
+            strategy:
+                The initial strategy, 1 or 0.
+
+            temptation:
+                The payoff of a defector against a cooperator.
+
+            noise:
+                The noise of the Fermi imitation.
 
     Examples:
         >>> from skcomplex.models.social.cooperation import Prisoner
@@ -109,7 +112,16 @@ class Prisoner(Element):
     strategy: float = state(default=1.0, domain=Domain.BOOLEAN)
     temptation: float = parameter(default=1.85, domain=Domain.NONNEGATIVE)
     noise: float = parameter(default=0.1, domain=Domain.POSITIVE)
-    imitation: str = 'best'
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        imitation: str = 'best',
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.imitation = imitation
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the play and imitation rule over the 5 by 5 square around a player.

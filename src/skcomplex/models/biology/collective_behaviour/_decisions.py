@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 from ....core.base import Domain, Expression, parameter, role, state
 from ....core.components import Element
 from ....core.interactions import Interaction
@@ -25,14 +27,17 @@ class Branch(Element):
         label:
             The label of the branch.
 
-        n:
-            The initial number of marks.
-
-        evaporation:
-            The rate at which each mark evaporates.
-
         stochastic:
             Whether marks evaporate one at a time at random.
+
+        **values:
+            The values of the declared variables, by name:
+
+            n:
+                The initial number of marks.
+
+            evaporation:
+                The rate at which each mark evaporates.
 
     Examples:
         >>> from skcomplex.models.biology.collective_behaviour import Branch
@@ -42,7 +47,16 @@ class Branch(Element):
 
     n: float = state(default=0.0, domain=Domain.NONNEGATIVE)
     evaporation: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    stochastic: bool = True
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        stochastic: bool = True,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.stochastic = stochastic
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the evaporation of the marks.
@@ -70,23 +84,26 @@ class TrailChoice(Interaction):
         label:
             The label of the interaction.
 
-        chosen:
-            The path of the branch this choice marks.
-
-        other:
-            The path of the competing branch.
-
-        flux:
-            The rate at which ants arrive at the fork.
-
-        k:
-            The attractiveness of an unmarked branch.
-
-        h:
-            The nonlinearity of the choice.
-
         stochastic:
             Whether ants are random events.
+
+        **values:
+            The values of the declared variables, by name:
+
+            chosen:
+                The path of the branch this choice marks.
+
+            other:
+                The path of the competing branch.
+
+            flux:
+                The rate at which ants arrive at the fork.
+
+            k:
+                The attractiveness of an unmarked branch.
+
+            h:
+                The nonlinearity of the choice.
 
     Examples:
         >>> from skcomplex.models.biology.collective_behaviour import TrailChoice
@@ -99,7 +116,16 @@ class TrailChoice(Interaction):
     flux: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
     k: float = parameter(default=20.0, domain=Domain.NONNEGATIVE)
     h: float = parameter(default=2.0, domain=Domain.POSITIVE)
-    stochastic: bool = True
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        stochastic: bool = True,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.stochastic = stochastic
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the marking of the chosen branch at the rate of ants that choose it.
@@ -148,23 +174,26 @@ class Nervousness(Interaction):
         label:
             The label of the interaction.
 
-        calm:
-            The path of the calm rats.
-
-        nervous:
-            The path of the nervous rats.
-
-        spontaneous:
-            The rate at which a calm rat turns nervous on its own.
-
-        contagion:
-            The rate at which a calm rat turns nervous when all others are nervous.
-
-        calming:
-            The rate at which a nervous rat calms down.
-
         stochastic:
             Whether changes are random events.
+
+        **values:
+            The values of the declared variables, by name:
+
+            calm:
+                The path of the calm rats.
+
+            nervous:
+                The path of the nervous rats.
+
+            spontaneous:
+                The rate at which a calm rat turns nervous on its own.
+
+            contagion:
+                The rate at which a calm rat turns nervous when all others are nervous.
+
+            calming:
+                The rate at which a nervous rat calms down.
 
     Examples:
         >>> from skcomplex.models.biology.collective_behaviour import Nervousness
@@ -177,7 +206,16 @@ class Nervousness(Interaction):
     spontaneous: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
     contagion: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
     calming: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    stochastic: bool = True
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        stochastic: bool = True,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.stochastic = stochastic
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the transitions between calm and nervous.

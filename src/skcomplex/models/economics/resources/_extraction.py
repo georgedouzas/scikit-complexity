@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
+from typing import Any
 
 from ....core.base import Domain, Expression, parameter, state
 from ....core.components import Element
@@ -41,29 +42,32 @@ class OilEconomy(Element):
         label:
             The label of the economy.
 
-        resource:
-            The initial resource stock.
-
-        capital:
-            The initial capital.
-
-        price:
-            The price of the resource, used without a price table.
-
-        cost:
-            The operating cost per unit of capital.
-
-        growth_goal:
-            The largest investment per unit of capital.
-
-        lifetime:
-            The average lifetime of the capital.
-
         yield_table:
             The yield per unit of capital at the resource levels 0, 100, ..., 1000.
 
         price_table:
             The price at the yields 0, 0.1, 0.2, 0.4, 0.6, 0.8, and 1, or `None` for a constant price.
+
+        **values:
+            The values of the declared variables, by name:
+
+            resource:
+                The initial resource stock.
+
+            capital:
+                The initial capital.
+
+            price:
+                The price of the resource, used without a price table.
+
+            cost:
+                The operating cost per unit of capital.
+
+            growth_goal:
+                The largest investment per unit of capital.
+
+            lifetime:
+                The average lifetime of the capital.
 
     Examples:
         >>> from skcomplex.models.economics.resources import OilEconomy
@@ -77,8 +81,18 @@ class OilEconomy(Element):
     cost: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
     growth_goal: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
     lifetime: float = parameter(default=20.0, domain=Domain.POSITIVE)
-    yield_table: Sequence[float] = OIL_YIELD
-    price_table: Sequence[float] | None = None
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        yield_table: Sequence[float] = OIL_YIELD,
+        price_table: Sequence[float] | None = None,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.yield_table = yield_table
+        self.price_table = price_table
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the extraction from the resource and the investment in and depreciation of the capital.
@@ -117,21 +131,6 @@ class Fishery(Element):
         label:
             The label of the fishery.
 
-        resource:
-            The initial resource stock.
-
-        capital:
-            The initial capital.
-
-        cost:
-            The operating cost per unit of capital.
-
-        growth_goal:
-            The largest investment per unit of capital.
-
-        lifetime:
-            The average lifetime of the capital.
-
         yield_table:
             The yield per unit of capital at the resource levels 0, 100, ..., 1000.
 
@@ -140,6 +139,24 @@ class Fishery(Element):
 
         price_table:
             The price at the yields 0, 0.1, 0.2, 0.4, 0.6, 0.8, and 1.
+
+        **values:
+            The values of the declared variables, by name:
+
+            resource:
+                The initial resource stock.
+
+            capital:
+                The initial capital.
+
+            cost:
+                The operating cost per unit of capital.
+
+            growth_goal:
+                The largest investment per unit of capital.
+
+            lifetime:
+                The average lifetime of the capital.
 
     Examples:
         >>> from skcomplex.models.economics.resources import Fishery
@@ -152,9 +169,20 @@ class Fishery(Element):
     cost: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
     growth_goal: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
     lifetime: float = parameter(default=20.0, domain=Domain.POSITIVE)
-    yield_table: Sequence[float] = FISH_YIELD
-    regeneration_table: Sequence[float] = REGENERATION
-    price_table: Sequence[float] = PRICE_BY_YIELD
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        yield_table: Sequence[float] = FISH_YIELD,
+        regeneration_table: Sequence[float] = REGENERATION,
+        price_table: Sequence[float] = PRICE_BY_YIELD,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.yield_table = yield_table
+        self.regeneration_table = regeneration_table
+        self.price_table = price_table
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the regeneration and harvest of the resource and the investment in and depreciation of the capital.

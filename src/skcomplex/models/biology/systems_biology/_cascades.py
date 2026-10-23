@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
+from typing import Any
 
 from ....core.base import Domain, ValidationError, parameter, role, state
 from ....core.components import Element
@@ -114,17 +115,20 @@ class Activation(Interaction):
         label:
             The label of the interaction.
 
-        upstream:
-            The path of the activating stage.
-
-        downstream:
-            The path of the activated stage.
-
         state_name:
             The state of the activating stage, `'x'` for a stage and `'g'` for the G protein.
 
-        alpha:
-            The activation rate per unit of the activating stage.
+        **values:
+            The values of the declared variables, by name:
+
+            upstream:
+                The path of the activating stage.
+
+            downstream:
+                The path of the activated stage.
+
+            alpha:
+                The activation rate per unit of the activating stage.
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import Activation
@@ -134,8 +138,17 @@ class Activation(Interaction):
 
     upstream: str = role()
     downstream: str = role()
-    state_name: str = 'x'
     alpha: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        state_name: str = 'x',
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.state_name = state_name
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the activation `alpha` times the active upstream amount.

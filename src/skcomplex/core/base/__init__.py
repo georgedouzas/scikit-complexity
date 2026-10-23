@@ -3,6 +3,7 @@
 from ._domains import AnyDomain, Categorical, Domain, HilbertFamily, HilbertSpace, Structure, Tensor, wrap_angle
 from ._errors import (
     AnalysisError,
+    ArgumentError,
     BackendError,
     CapacityError,
     ConservationError,
@@ -54,13 +55,25 @@ from ._symbolic import (
     vector,
 )
 from ._terms import Term
-from ._variables import Variable, VariableKind, companions_of, declaration_of, declarations_of, parameter, role, state
+from ._variables import (
+    Variable,
+    VariableKind,
+    companions_of,
+    declaration_of,
+    declarations_of,
+    declared_fields,
+    default_of,
+    parameter,
+    role,
+    state,
+)
 from ._visuals import VisualSpec
 
 __all__: list[str] = [
     'NUMERIC_DOMAINS',
     'AnalysisError',
     'AnyDomain',
+    'ArgumentError',
     'BackendError',
     'Binding',
     'CapacityError',
@@ -112,6 +125,8 @@ __all__: list[str] = [
     'declaration_of',
     'declarations_of',
     'declare_domains',
+    'declared_fields',
+    'default_of',
     'domain_of',
     'parameter',
     'real_components_of',

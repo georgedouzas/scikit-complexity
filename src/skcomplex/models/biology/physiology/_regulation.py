@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
 from ....core.laws import Law, Rate, Symbols, pulse
@@ -23,51 +25,6 @@ class GlucoseControl(Element):
         label:
             The label of the organism.
 
-        G:
-            The initial glucose, relative to the norm.
-
-        I:
-            The initial insulin.
-
-        N:
-            The initial glucagon.
-
-        R:
-            The basal production of glucose.
-
-        k0:
-            The uptake of glucose without insulin.
-
-        k_i:
-            The uptake of glucose per unit of insulin.
-
-        k_n:
-            The release of glucose per unit of glucagon, 0 without the glucagon loop.
-
-        s_i:
-            The maximal secretion of insulin.
-
-        s_n:
-            The maximal secretion of glucagon.
-
-        d_i:
-            The clearance rate of insulin.
-
-        d_n:
-            The clearance rate of glucagon.
-
-        K:
-            The norm of the glucose, where both hormones are half secreted.
-
-        n:
-            The steepness of the secretion switch.
-
-        meal:
-            The rate of glucose intake during the meal.
-
-        exercise:
-            The rate of extra glucose uptake during the exercise.
-
         meal_time:
             The start of the meal.
 
@@ -76,6 +33,54 @@ class GlucoseControl(Element):
 
         duration:
             The duration of the meal and of the exercise.
+
+        **values:
+            The values of the declared variables, by name:
+
+            G:
+                The initial glucose, relative to the norm.
+
+            I:
+                The initial insulin.
+
+            N:
+                The initial glucagon.
+
+            R:
+                The basal production of glucose.
+
+            k0:
+                The uptake of glucose without insulin.
+
+            k_i:
+                The uptake of glucose per unit of insulin.
+
+            k_n:
+                The release of glucose per unit of glucagon, 0 without the glucagon loop.
+
+            s_i:
+                The maximal secretion of insulin.
+
+            s_n:
+                The maximal secretion of glucagon.
+
+            d_i:
+                The clearance rate of insulin.
+
+            d_n:
+                The clearance rate of glucagon.
+
+            K:
+                The norm of the glucose, where both hormones are half secreted.
+
+            n:
+                The steepness of the secretion switch.
+
+            meal:
+                The rate of glucose intake during the meal.
+
+            exercise:
+                The rate of extra glucose uptake during the exercise.
 
     Examples:
         >>> from skcomplex.models.biology.physiology import GlucoseControl
@@ -98,9 +103,20 @@ class GlucoseControl(Element):
     n: float = parameter(default=4.0, domain=Domain.POSITIVE)
     meal: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
     exercise: float = parameter(default=0.8, domain=Domain.NONNEGATIVE)
-    meal_time: float = 2.0
-    exercise_time: float = 12.0
-    duration: float = 2.0
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        meal_time: float = 2.0,
+        exercise_time: float = 12.0,
+        duration: float = 2.0,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.meal_time = meal_time
+        self.exercise_time = exercise_time
+        self.duration = duration
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the glucose balance and the secretion and clearance of insulin and glucagon.
@@ -138,56 +154,59 @@ class Coagulation(Element):
         label:
             The label of the blood.
 
-        T:
-            The initial thrombin.
-
-        C:
-            The initial activated protein C.
-
-        F:
-            The initial fibrin.
-
-        P:
-            The initial plasmin.
-
-        ka:
-            The maximal rate of the positive feedback.
-
-        k_half:
-            The thrombin at which the feedback is half its maximum.
-
-        d_t:
-            The inactivation rate of thrombin by antithrombin.
-
-        k_c:
-            The inactivation of thrombin per unit of protein C.
-
-        s_c:
-            The activation of protein C per unit of thrombin.
-
-        d_c:
-            The inactivation rate of protein C.
-
-        s_f:
-            The production of fibrin per unit of thrombin.
-
-        k_p:
-            The lysis of fibrin per unit of plasmin.
-
-        s_p:
-            The activation of plasmin per unit of fibrin.
-
-        d_p:
-            The inactivation rate of plasmin.
-
-        injury:
-            The rate of thrombin activation by the injury.
-
         injury_time:
             The start of the injury.
 
         duration:
             The duration of the injury.
+
+        **values:
+            The values of the declared variables, by name:
+
+            T:
+                The initial thrombin.
+
+            C:
+                The initial activated protein C.
+
+            F:
+                The initial fibrin.
+
+            P:
+                The initial plasmin.
+
+            ka:
+                The maximal rate of the positive feedback.
+
+            k_half:
+                The thrombin at which the feedback is half its maximum.
+
+            d_t:
+                The inactivation rate of thrombin by antithrombin.
+
+            k_c:
+                The inactivation of thrombin per unit of protein C.
+
+            s_c:
+                The activation of protein C per unit of thrombin.
+
+            d_c:
+                The inactivation rate of protein C.
+
+            s_f:
+                The production of fibrin per unit of thrombin.
+
+            k_p:
+                The lysis of fibrin per unit of plasmin.
+
+            s_p:
+                The activation of plasmin per unit of fibrin.
+
+            d_p:
+                The inactivation rate of plasmin.
+
+            injury:
+                The rate of thrombin activation by the injury.
 
     Examples:
         >>> from skcomplex.models.biology.physiology import Coagulation
@@ -210,8 +229,18 @@ class Coagulation(Element):
     s_p: float = parameter(default=0.02, domain=Domain.NONNEGATIVE)
     d_p: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
     injury: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    injury_time: float = 1.0
-    duration: float = 1.0
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        injury_time: float = 1.0,
+        duration: float = 1.0,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.injury_time = injury_time
+        self.duration = duration
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the activation and inactivation of thrombin, protein C, fibrin, and plasmin.

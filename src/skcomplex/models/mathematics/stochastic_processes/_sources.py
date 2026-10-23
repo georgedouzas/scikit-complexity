@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
+from typing import Any
 
 from ....core.base import Domain, state
 from ....core.components import Element
@@ -24,11 +25,14 @@ class MarkovSource(Element):
         label:
             The label of the source.
 
-        symbol:
-            The initial symbol.
-
         transition:
             The transition matrix, whose entry `(i, j)` is the probability that symbol `j` follows symbol `i`.
+
+        **values:
+            The values of the declared variables, by name:
+
+            symbol:
+                The initial symbol.
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import MarkovSource
@@ -37,7 +41,16 @@ class MarkovSource(Element):
     """
 
     symbol: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    transition: Matrix = CHAIN
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        transition: Matrix = CHAIN,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.transition = transition
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the step of the chain.
@@ -60,17 +73,20 @@ class HiddenMarkovSource(Element):
         label:
             The label of the source.
 
-        hidden:
-            The initial hidden state.
-
-        symbol:
-            The initial symbol.
-
         transition:
             The transition matrix of the hidden chain.
 
         emission:
             The emission matrix, whose entry `(i, j)` is the probability that hidden state `i` emits symbol `j`.
+
+        **values:
+            The values of the declared variables, by name:
+
+            hidden:
+                The initial hidden state.
+
+            symbol:
+                The initial symbol.
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import HiddenMarkovSource
@@ -80,8 +96,18 @@ class HiddenMarkovSource(Element):
 
     hidden: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
     symbol: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    transition: Matrix = CHAIN
-    emission: Matrix = EMISSION
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        transition: Matrix = CHAIN,
+        emission: Matrix = EMISSION,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.transition = transition
+        self.emission = emission
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the step of the hidden chain and the emission of the symbol.

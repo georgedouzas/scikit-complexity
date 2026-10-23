@@ -60,11 +60,14 @@ class SandpileCell(Element):
         label:
             The label of the site or the lattice group.
 
-        height:
-            The initial number of grains.
-
         threshold:
             The number of grains at which a site topples.
+
+        **values:
+            The values of the declared variables, by name:
+
+            height:
+                The initial number of grains.
 
     Examples:
         >>> from skcomplex.models.physics.criticality import SandpileCell
@@ -73,7 +76,16 @@ class SandpileCell(Element):
     """
 
     height: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
-    threshold: int = 4
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        threshold: int = 4,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.threshold = threshold
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the drive by single grains and the toppling relaxation.
@@ -208,17 +220,20 @@ class SpreadingForest(Element):
         label:
             The label of the site or the lattice group.
 
-        cover:
-            The initial cover, 0, 1, or 2.
-
-        growth:
-            The probability that a tree grows on an empty site per step.
-
-        lightning:
-            The probability that lightning strikes a tree per step.
-
         neighbors:
             `'triangular'` for the six neighbours of a triangular lattice or `'graph'` for the neighbours of a node.
+
+        **values:
+            The values of the declared variables, by name:
+
+            cover:
+                The initial cover, 0, 1, or 2.
+
+            growth:
+                The probability that a tree grows on an empty site per step.
+
+            lightning:
+                The probability that lightning strikes a tree per step.
 
     Examples:
         >>> from skcomplex.models.physics.criticality import SpreadingForest
@@ -229,7 +244,16 @@ class SpreadingForest(Element):
     cover: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
     growth: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
     lightning: float = parameter(default=1e-4, domain=Domain.NONNEGATIVE)
-    neighbors: str = 'triangular'
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        neighbors: str = 'triangular',
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.neighbors = neighbors
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the stochastic rule of growth, fire, and burning out over the neighbours of the site.

@@ -5,6 +5,7 @@
 
 import math
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 from sage.all__sagemath_symbolics import cos, exp, sin
@@ -189,14 +190,17 @@ class PulseCoupling(Interaction):
         label:
             The label of the interaction.
 
-        neurons:
-            The path of the group of theta neurons.
-
-        kappa:
-            The coupling strength.
-
         n:
             The sharpness of the pulses, a positive integer.
+
+        **values:
+            The values of the declared variables, by name:
+
+            neurons:
+                The path of the group of theta neurons.
+
+            kappa:
+                The coupling strength.
 
     Examples:
         >>> from skcomplex.models.biology.neuroscience import PulseCoupling
@@ -206,7 +210,16 @@ class PulseCoupling(Interaction):
 
     neurons: str = role()
     kappa: float = parameter(default=1.0)
-    n: int = 2
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        n: int = 2,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.n = n
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the current of the mean pulse into every neuron.

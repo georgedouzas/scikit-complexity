@@ -139,6 +139,16 @@ Every formalism has the same internal layout: `_laws`, `_components`, `_spaces`,
   contract;
 - `laws(s)`, which returns no laws by default.
 
+A constructor setting that is not a state, parameter, or role, such as `radius`, `dimension`, or `layer`, is declared by
+an explicit `__init__` on its class. That `__init__` takes the setting as a keyword-only argument, stores it under its own
+name, and passes the remaining values to `super().__init__(label, **values)`. `get_params` returns the keyword arguments
+of the `__init__` signatures along the class's method resolution order, plus the declared names, each with its value or
+its default. `replicate` and the other readers of all values read `get_params`.
+- **Alternative: a fourth declaration, `option(default)`.** It was rejected by the maintainer in favour of the explicit
+  constructor.
+- **Alternative: read plain annotated class attributes.** It was rejected because the constructor would read
+  annotations implicitly.
+
 `Element`, `Group`, `Interaction`, and `System` derive from it.
 - **`Group`** holds an element type, a size, values, and a placement: `on='members' | 'sites' | 'edges' |
   'hyperedges'`. It validates its value names and shapes at construction, and its laws come from its element type.

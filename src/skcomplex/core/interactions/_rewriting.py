@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
+from typing import Any
 
 from ..base import (
     role,
@@ -65,11 +66,14 @@ class Rewrite(Rewriting):
         label:
             The label of the interaction.
 
-        target:
-            The path of the rewritten element.
-
         rules:
             The productions, substitutions, or graph productions.
+
+        **values:
+            The values of the declared variables, by name:
+
+            target:
+                The path of the rewritten element.
 
     Examples:
         >>> from skcomplex.core.interactions import Rewrite
@@ -78,7 +82,15 @@ class Rewrite(Rewriting):
         B → A
     """
 
-    rules: Sequence[RewritingLaw] = ()
+    def __init__(
+        self,
+        label: str,
+        *,
+        rules: Sequence[RewritingLaw] = (),
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.rules = rules
 
     def productions(self, s: Symbols) -> list[RewritingLaw]:
         """Return the fixed rules.

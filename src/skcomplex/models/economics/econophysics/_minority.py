@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -99,17 +99,20 @@ class MinorityGame(Interaction):
         label:
             The label of the interaction.
 
-        players:
-            The path of the group of agents.
-
         memory:
             The memory `m`, the number of past winning sides the strategies read.
 
         period:
             The number of rounds between two evolutions, or 0 for no evolution.
 
-        fraction:
-            The fraction of poorest agents that take new strategies at an evolution.
+        **values:
+            The values of the declared variables, by name:
+
+            players:
+                The path of the group of agents.
+
+            fraction:
+                The fraction of poorest agents that take new strategies at an evolution.
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import MinorityGame
@@ -119,9 +122,19 @@ class MinorityGame(Interaction):
 
     reports: ClassVar[tuple[str, ...]] = ('attendance',)
     players: str = role()
-    memory: int = 3
-    period: int = 0
     fraction: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        memory: int = 3,
+        period: int = 0,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.memory = memory
+        self.period = period
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the rule of a round.

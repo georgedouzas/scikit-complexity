@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 
@@ -51,11 +52,14 @@ class GeneralizedLotkaVolterra(Interaction):
         label:
             The label of the interaction.
 
-        community:
-            The path of the group of species.
-
         a:
             The interaction matrix, where `a_ij` is the effect of species `j` on the growth of species `i`.
+
+        **values:
+            The values of the declared variables, by name:
+
+            community:
+                The path of the group of species.
 
     Examples:
         >>> from skcomplex.models.biology.ecology import GeneralizedLotkaVolterra
@@ -64,7 +68,16 @@ class GeneralizedLotkaVolterra(Interaction):
     """
 
     community: str = role()
-    a: Sequence[Sequence[float]] = ((-1.0,),)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        a: Sequence[Sequence[float]] = ((-1.0,),),
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.a = a
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the generalized Lotka-Volterra growth of every species.

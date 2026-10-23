@@ -2,6 +2,7 @@
 
 import importlib
 import importlib.util
+from typing import Any
 
 import networkx as nx
 import numpy as np
@@ -323,7 +324,17 @@ class Census(Interaction):
     counted: str = role()
     others: str = role()
     threshold: float = parameter(0.9)
-    looked_up: str = 'counted'
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        looked_up: str = 'counted',
+        **values: Any,
+    ) -> None:
+        """Store the settings and pass the values on."""
+        super().__init__(label, **values)
+        self.looked_up = looked_up
 
     def laws(self, s):
         """Return the census rule."""

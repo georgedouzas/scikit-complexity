@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -98,11 +99,14 @@ class DebtRankCascade(Interaction):
         label:
             The label of the interaction.
 
-        banks:
-            The path of the group of banks.
-
         impact:
             The impact matrix, `impact[i][j]` the relative loss of `j` when `i` defaults.
+
+        **values:
+            The values of the declared variables, by name:
+
+            banks:
+                The path of the group of banks.
 
     Examples:
         >>> from skcomplex.models.economics.finance import DebtRankCascade
@@ -111,7 +115,16 @@ class DebtRankCascade(Interaction):
     """
 
     banks: str = role()
-    impact: Sequence[Sequence[float]] = ()
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        impact: Sequence[Sequence[float]] = (),
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.impact = impact
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the cascade rule.

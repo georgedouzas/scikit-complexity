@@ -270,19 +270,22 @@ def test_structured_domains_name_their_kind():
 
 
 def test_state_on_an_interaction_is_rejected():
-    """Test that an interaction type declaring a state raises an error that suggests a group on edges."""
+    """Test that creating an interaction whose type declares a state raises an error that suggests a group on edges."""
+    weighted = type('Weighted', (Interaction,), {'weight': state(1.0)})
     with pytest.raises(ValidationError, match='on="edges"'):
-        type('Weighted', (Interaction,), {'__annotations__': {'weight': float}, 'weight': state(1.0)})
+        weighted('w')
 
 
 def test_unknown_binding_is_rejected():
-    """Test that an interaction type with an unknown binding raises an error that lists the bindings."""
+    """Test that creating an interaction with an unknown binding raises an error that lists the bindings."""
+
+    class Everywhere(Interaction):
+        """Interaction with an unknown binding."""
+
+        over: ClassVar[str] = 'everything'
+
     with pytest.raises(ValidationError, match='members, pairs, neighbours, hyperedges'):
-
-        class Everywhere(Interaction):
-            """Interaction with an unknown binding."""
-
-            over: ClassVar[str] = 'everything'
+        Everywhere('everywhere')
 
 
 def test_pairs_binding_needs_its_roles_and_cutoff():

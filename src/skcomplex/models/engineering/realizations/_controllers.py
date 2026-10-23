@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
+from typing import Any
 
 from ....core.base import Expression, parameter, role, state
 from ....core.components import Element
@@ -58,32 +59,35 @@ class PID(Interaction):
         label:
             The label of the controller.
 
-        plant:
-            The path of the element that holds the measure and the control input.
-
-        integrator:
-            The path of the integrator of the error.
-
         control:
             The name of the adaptive parameter of the plant that the controller sets.
 
         measure:
             The name of the measured state of the plant.
 
-        kp:
-            The proportional gain.
-
-        ki:
-            The integral gain.
-
-        kd:
-            The derivative gain.
-
-        setpoint:
-            The value the measure is kept at.
-
         limits:
             The lower and upper limit of the control input, or `None` for no limits.
+
+        **values:
+            The values of the declared variables, by name:
+
+            plant:
+                The path of the element that holds the measure and the control input.
+
+            integrator:
+                The path of the integrator of the error.
+
+            kp:
+                The proportional gain.
+
+            ki:
+                The integral gain.
+
+            kd:
+                The derivative gain.
+
+            setpoint:
+                The value the measure is kept at.
 
     Examples:
         >>> from skcomplex.models.engineering.realizations import PID
@@ -93,13 +97,24 @@ class PID(Interaction):
 
     plant: str = role()
     integrator: str = role()
-    control: str = 'u'
-    measure: str = 'y'
     kp: float = parameter(default=1.0)
     ki: float = parameter(default=0.0)
     kd: float = parameter(default=0.0)
     setpoint: float = parameter(default=0.0)
-    limits: tuple[float, float] | None = None
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        control: str = 'u',
+        measure: str = 'y',
+        limits: tuple[float, float] | None = None,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.control = control
+        self.measure = measure
+        self.limits = limits
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the rate of the integral of the error and the control input it sets.
@@ -131,9 +146,6 @@ class StateFeedback(Interaction):
         label:
             The label of the controller.
 
-        plant:
-            The path of the element that holds the states and the control input.
-
         control:
             The name of the adaptive parameter of the plant that the controller sets.
 
@@ -146,6 +158,12 @@ class StateFeedback(Interaction):
         limits:
             The lower and upper limit of the control input, or `None` for no limits.
 
+        **values:
+            The values of the declared variables, by name:
+
+            plant:
+                The path of the element that holds the states and the control input.
+
     Examples:
         >>> from skcomplex.models.engineering.realizations import StateFeedback
         >>> StateFeedback('regulator', plant='mass', control='force', states=('x', 'x_d1'), gain=(1.0, 1.7)).gain
@@ -153,10 +171,22 @@ class StateFeedback(Interaction):
     """
 
     plant: str = role()
-    control: str = 'u'
-    states: Sequence[str] = ()
-    gain: Sequence[float] = ()
-    limits: tuple[float, float] | None = None
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        control: str = 'u',
+        states: Sequence[str] = (),
+        gain: Sequence[float] = (),
+        limits: tuple[float, float] | None = None,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.control = control
+        self.states = states
+        self.gain = gain
+        self.limits = limits
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the control input the feedback sets.

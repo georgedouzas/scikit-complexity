@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -49,11 +50,14 @@ class Replication(Interaction):
         label:
             The label of the interaction.
 
-        population:
-            The path of the group of strategies.
-
         payoff:
             The payoff matrix, one row per strategy.
+
+        **values:
+            The values of the declared variables, by name:
+
+            population:
+                The path of the group of strategies.
 
     Examples:
         >>> from skcomplex.models.biology.evolution import Replication
@@ -62,7 +66,16 @@ class Replication(Interaction):
     """
 
     population: str = role()
-    payoff: Sequence[Sequence[float]] = ((0.0, 0.0), (0.0, 0.0))
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        payoff: Sequence[Sequence[float]] = ((0.0, 0.0), (0.0, 0.0)),
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.payoff = payoff
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the replicator equation of the payoff matrix.

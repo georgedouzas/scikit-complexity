@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, parameter, role, state
 from ....core.components import Aggregate, Element
@@ -35,8 +37,11 @@ class Farmer(Element):
         effort:
             The dotted name of the harvest effort per farmer.
 
-        wealth:
-            The initial wealth.
+        **values:
+            The values of the declared variables, by name:
+
+            wealth:
+                The initial wealth.
 
     Examples:
         >>> from skcomplex.models.economics.resources import Farmer
@@ -44,9 +49,19 @@ class Farmer(Element):
         10
     """
 
-    resource: str = 'land/stock.n'
-    effort: str = 'harvest.effort'
     wealth: float = state(default=0.0, domain=Domain.NONNEGATIVE)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        resource: str = 'land/stock.n',
+        effort: str = 'harvest.effort',
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.resource = resource
+        self.effort = effort
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the catch rule.

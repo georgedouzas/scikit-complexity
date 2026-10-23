@@ -274,20 +274,23 @@ class Dispatch(Interaction):
         label:
             The label of the dispatcher.
 
-        riders:
-            The path of the group of riders.
-
-        cabs:
-            The path of the group of cabs.
-
-        demand:
-            The mean number of new riders in a step.
-
         width:
             The number of columns of the grid.
 
         height:
             The number of rows of the grid.
+
+        **values:
+            The values of the declared variables, by name:
+
+            riders:
+                The path of the group of riders.
+
+            cabs:
+                The path of the group of cabs.
+
+            demand:
+                The mean number of new riders in a step.
 
     Examples:
         >>> from skcomplex.models.engineering.traffic import Dispatch
@@ -299,8 +302,18 @@ class Dispatch(Interaction):
     riders: str = role()
     cabs: str = role()
     demand: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    width: int = 30
-    height: int = 30
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        width: int = 30,
+        height: int = 30,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.width = width
+        self.height = height
 
     def laws(self, s: Symbols) -> list[Any]:
         """Return the arrival of riders, the matching of riders with cabs, and the rule that dispatches the cabs.

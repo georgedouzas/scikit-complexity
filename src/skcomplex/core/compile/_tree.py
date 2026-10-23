@@ -23,10 +23,9 @@ from ..base import (
     declarations_of,
 )
 from ..components import Element, Group, probe_laws, runs_rules
-from ..components._components import part_count
 from ..interactions import Interaction, Match
 from ..laws import Rule
-from ..space import LatticeSpace, NetworkSpace, Space
+from ..space import LatticeSpace, NetworkSpace, Space, part_count
 from ..system import System
 
 LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
@@ -95,9 +94,7 @@ class Node:
         if not isinstance(self.component, Group):
             return getattr(self.component, variable)
         values = self.component.values or {}
-        field = next(field for field in dataclasses.fields(self.component.element) if field.name == variable)
-        factory = field.default_factory
-        default = factory() if callable(factory) else field.default
+        default = self.component.element.get_default(variable)
         if variable not in values:
             return default
         value = values[variable]

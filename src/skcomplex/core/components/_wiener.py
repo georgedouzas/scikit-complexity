@@ -29,6 +29,9 @@ class Wiener(Element):
             The constant covariance matrix `C` of the processes, symmetric and positive semidefinite of size
             `dimension`, or `None` for the identity.
 
+        **values:
+            The values of the declared variables, by name.
+
     Examples:
         >>> from skcomplex.core.components import Wiener
         >>> Wiener('market', dimension=2, covariance=[[1.0, 0.5], [0.5, 1.0]]).dimension
@@ -37,8 +40,17 @@ class Wiener(Element):
 
     requires: ClassVar[Requires] = Requires(time={TimeKind.CONTINUOUS})
 
-    dimension: int = 1
-    covariance: Any = None
+    def __init__(
+        self,
+        label: str,
+        *,
+        dimension: int = 1,
+        covariance: Any = None,  # noqa: ANN401
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.dimension = dimension
+        self.covariance = covariance
 
     def declare_handle(self, path: str) -> Expression | SymbolicVector:
         """Return the handle `dW` that noise laws name the processes of the element at a path by.

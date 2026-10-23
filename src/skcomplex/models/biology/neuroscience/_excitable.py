@@ -38,17 +38,20 @@ class ExcitableElement(Element):
         label:
             The label of the element or the site group.
 
-        phase:
-            The initial state, 0 for quiescent, 1 for excited, and 2 to `n_states - 1` for refractory.
-
-        p:
-            The probability that an excited neighbour excites the element in one step.
-
-        stimulus:
-            The rate `r` of the external stimulus per step.
-
         n_states:
             The number of states `m` of the cycle.
+
+        **values:
+            The values of the declared variables, by name:
+
+            phase:
+                The initial state, 0 for quiescent, 1 for excited, and 2 to `n_states - 1` for refractory.
+
+            p:
+                The probability that an excited neighbour excites the element in one step.
+
+            stimulus:
+                The rate `r` of the external stimulus per step.
 
     Examples:
         >>> from skcomplex.models.biology.neuroscience import ExcitableElement
@@ -59,7 +62,16 @@ class ExcitableElement(Element):
     phase: float = state(default=0, domain=Domain.NONNEGATIVE_INTEGER)
     p: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
     stimulus: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    n_states: int = 5
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        n_states: int = 5,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.n_states = n_states
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the stochastic rule of excitation by the stimulus and the neighbours, and of the refractory cycle.

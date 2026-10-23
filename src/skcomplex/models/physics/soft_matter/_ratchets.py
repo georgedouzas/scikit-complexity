@@ -4,6 +4,7 @@
 # License: MIT
 
 import math
+from typing import Any
 
 import numpy as np
 from sage.all__sagemath_symbolics import sin
@@ -75,20 +76,23 @@ class FlashingSawtooth(Interaction):
         label:
             The label of the interaction.
 
-        target:
-            The path of the particle or the group.
-
-        barrier:
-            The height of the sawtooth.
-
-        L:
-            The period of the sawtooth.
-
-        asymmetry:
-            The fraction of the period over which the potential rises, 0.5 for a symmetric potential.
-
         switches:
             The increasing times at which the potential turns off and on in turn.
+
+        **values:
+            The values of the declared variables, by name:
+
+            target:
+                The path of the particle or the group.
+
+            barrier:
+                The height of the sawtooth.
+
+            L:
+                The period of the sawtooth.
+
+            asymmetry:
+                The fraction of the period over which the potential rises, 0.5 for a symmetric potential.
 
     Examples:
         >>> from skcomplex.models.physics.soft_matter import FlashingSawtooth
@@ -100,7 +104,16 @@ class FlashingSawtooth(Interaction):
     barrier: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
     L: float = parameter(default=1.0, domain=Domain.POSITIVE)
     asymmetry: float = parameter(default=0.1, domain=Domain.POSITIVE)
-    switches: tuple[float, ...] = ()
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        switches: tuple[float, ...] = (),
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.switches = switches
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the drift down the sawtooth while it is on.

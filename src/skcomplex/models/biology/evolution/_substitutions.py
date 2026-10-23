@@ -4,7 +4,7 @@
 # License: MIT
 
 from functools import partial
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -77,21 +77,24 @@ class Substitution(Interaction):
         label:
             The label of the interaction.
 
-        genome:
-            The path of the group of loci.
-
-        N:
-            The size of the population.
-
-        mu:
-            The rate at which one locus of an individual mutates.
-
-        F0:
-            The fitness of a genome without fields and couplings, above the sum of the `|h_i|` and `|J_ij|` so that
-            every fitness is positive.
-
         couplings:
             The symmetric matrix `J` of couplings between loci, with a zero diagonal, or `None` for no couplings.
+
+        **values:
+            The values of the declared variables, by name:
+
+            genome:
+                The path of the group of loci.
+
+            N:
+                The size of the population.
+
+            mu:
+                The rate at which one locus of an individual mutates.
+
+            F0:
+                The fitness of a genome without fields and couplings, above the sum of the `|h_i|` and `|J_ij|` so that
+                every fitness is positive.
 
     Examples:
         >>> from skcomplex.models.biology.evolution import Substitution
@@ -103,7 +106,16 @@ class Substitution(Interaction):
     N: float = parameter(default=100.0, domain=Domain.POSITIVE)
     mu: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
     F0: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    couplings: object = None
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        couplings: object = None,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.couplings = couplings
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the substitutions of the allele of every locus, from `-1` to `1` and back.

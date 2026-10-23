@@ -202,11 +202,14 @@ class Book(Interaction):
         label:
             The label of the book.
 
-        traders:
-            The path of the group of traders.
-
         opening:
             The price before the first trade.
+
+        **values:
+            The values of the declared variables, by name:
+
+            traders:
+                The path of the group of traders.
 
     Examples:
         >>> from skcomplex.models.economics.finance import Book
@@ -216,7 +219,16 @@ class Book(Interaction):
 
     reports: ClassVar[tuple[str, ...]] = ('price', 'volume')
     traders: str = role()
-    opening: float = 100.0
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        opening: float = 100.0,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.opening = opening
 
     def laws(self, s: Symbols) -> list[Any]:
         """Return the matching of orders, the settlement rule, and the invariants of money and shares.

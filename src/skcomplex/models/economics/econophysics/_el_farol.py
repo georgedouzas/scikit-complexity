@@ -4,7 +4,7 @@
 # License: MIT
 
 from collections.abc import Callable, Mapping
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -169,11 +169,14 @@ class Bar(Institution):
         patrons:
             The path of the group of patrons.
 
-        capacity:
-            The attendance above which the bar is too crowded to enjoy.
-
         phase:
             The phase in which the bar counts its patrons.
+
+        **values:
+            The values of the declared variables, by name:
+
+            capacity:
+                The attendance above which the bar is too crowded to enjoy.
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import Bar
@@ -182,9 +185,19 @@ class Bar(Institution):
     """
 
     reports: ClassVar[tuple[str, ...]] = ('attendance',)
-    patrons: str = 'patrons'
     capacity: float = parameter(default=60.0, domain=Domain.NONNEGATIVE)
-    phase: str | None = 'count'
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        patrons: str = 'patrons',
+        phase: str | None = 'count',
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.patrons = patrons
+        self.phase = phase
 
     def act(self, model: ModelView) -> None:
         """Count the patrons in the bar and report the attendance.

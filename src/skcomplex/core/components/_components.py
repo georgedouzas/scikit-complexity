@@ -6,25 +6,20 @@
 import dataclasses
 import inspect
 from collections.abc import Callable, Mapping
-from typing import Any, ClassVar, dataclass_transform
+from typing import Any, ClassVar
 
 import numpy as np
-from sklearn.base import BaseEstimator
 
 from ..base import (
     ComponentKind,
     Domain,
-    LabelError,
     Requires,
     SpaceError,
     ValidationError,
     VariableKind,
     VisualSpec,
-    companions_of,
-    declaration_of,
     declarations_of,
     parameter,
-    role,
     state,
     symbol,
 )
@@ -33,67 +28,9 @@ from ..laws._laws import Rule
 from ..laws._symbols import Symbols
 from ..space._cayley import GroupSpace
 from ..space._lattices import LatticeSpace
-from ..space._networks import NetworkSpace
+from ..space._networks import NetworkSpace, part_count
 from ..space._spaces import Space
-
-
-def _check_reserved(cls: type, reserved: frozenset[str]) -> None:
-    """Raise an error for a state or parameter whose name a component or the views of rules reserve."""
-    for name, value in vars(cls).items():
-        if name in reserved and declaration_of(value) is not None:
-            error_msg = (
-                f'{cls.__name__} declares the variable {name!r}, whose name is reserved. Rename it, since '
-                f'{", ".join(sorted(reserved))} are reserved names.'
-            )
-            raise LabelError(error_msg)
-
-
-@dataclass_transform(kw_only_default=True, field_specifiers=(dataclasses.field, state, parameter, role))
-@dataclasses.dataclass(eq=False, repr=False)
-class Component(BaseEstimator):
-    """Base class of elements and interactions.
-
-    Every subclass becomes a dataclass whose fields after `label` are keyword-only, so the constructor stores every
-    argument unmodified under its own name. A state or parameter whose name is in `reserved_names` raises `LabelError`
-    when the subclass is created.
-
-    Args:
-        label:
-            The label of the component, unique among the children of its system.
-    """
-
-    reserved_names: ClassVar[frozenset[str]] = frozenset({'label'})
-    label: str
-
-    def __init_subclass__(cls, **kwargs: Any) -> None:  # noqa: ANN401
-        """Add the companion states of higher-order and lagged states, and turn the subclass into a dataclass."""
-        super().__init_subclass__(**kwargs)
-        _check_reserved(cls, cls.reserved_names)
-        annotations = dict(inspect.get_annotations(cls))
-        for name, value in list(vars(cls).items()):
-            declaration = declaration_of(value)
-            if declaration is None or (declaration.order == 1 and not declaration.lags):
-                continue
-            default = value.default if value.default is not dataclasses.MISSING else 0.0
-            for companion, field in companions_of(name, declaration, default).items():
-                if companion not in vars(cls):
-                    setattr(cls, companion, field)
-                    annotations[companion] = Any
-        cls.__annotations__ = annotations
-        dataclasses.dataclass(kw_only=True, eq=False, repr=False)(cls)
-
-    def laws(self, s: Symbols) -> list[Law]:
-        """Return the laws of the component.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
+from ._component import Component
 
 
 def _is_declaration(value: object) -> bool:
@@ -115,7 +52,7 @@ def _method(laws: Callable[..., list[Law]]) -> Callable[..., list[Law]]:
 
 
 def _define(
-    base: type['Component'],
+    base: type[Component],
     *,
     name: str,
     fields: Mapping[str, Any],
@@ -124,12 +61,13 @@ def _define(
     module: str,
 ) -> type:
     """Return a new component type with declared fields, a laws function, and class attributes."""
-    namespace: dict[str, Any] = {'__annotations__': dict.fromkeys(fields, Any), '__module__': module, **attributes}
-    namespace.update(fields)
+    namespace: dict[str, Any] = {'__module__': module, **attributes, **fields}
     namespace['__qualname__'] = name
     if laws is not None:
         namespace['laws'] = _method(laws)
-    return type(name, (base,), namespace)
+    component_type: type[Component] = type(name, (base,), namespace)
+    component_type.declarations()
+    return component_type
 
 
 def _lattice_visual(element: type, visual: VisualSpec | None, default: str) -> VisualSpec:
@@ -363,8 +301,11 @@ class Aggregate(Element):
         variable:
             The state the reduction reads, unused for `'count'`.
 
-        value:
-            The initial value, before the first synchronisation point.
+        **values:
+            The values of the declared variables by name:
+
+            value:
+                The initial value, before the first synchronisation point.
 
     Examples:
         >>> from skcomplex.core.components import Aggregate
@@ -372,59 +313,26 @@ class Aggregate(Element):
         'count'
     """
 
-    group: str = ''  # type: ignore[assignment]  # the summarised group's label replaces the group constructor
-    reduce: str | Callable[[Any], float] = 'count'
-    variable: str | None = None
     value: float = state(default=0.0)
+    group: str  # type: ignore[assignment]  # the summarised group's label replaces the group constructor
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        group: str = '',
+        reduce: str | Callable[[Any], float] = 'count',
+        variable: str | None = None,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.group = group
+        self.reduce = reduce
+        self.variable = variable
 
 
 PARTS = ('sites', 'edges', 'hyperedges')
 BINDINGS = ('members', 'pairs', 'neighbours', 'hyperedges')
-
-
-def _is_state(item: dataclasses.Field) -> bool:
-    """Check whether a dataclass field is declared with `state`."""
-    declaration = declaration_of(item)
-    return declaration is not None and declaration.kind is VariableKind.STATE
-
-
-def part_count(space: Space, on: str, label: str, layer: str | None = None) -> int:
-    """Return the number of parts of a space a group has one member on.
-
-    Args:
-        space:
-            The space.
-
-        on:
-            `'sites'`, `'edges'`, or `'hyperedges'`.
-
-        label:
-            The label of the group, named in errors.
-
-        layer:
-            The layer of a network whose edges the group lives on, or `None` for the graph of the network.
-
-    Returns:
-        count:
-            The number of sites, edges, or hyperedges.
-
-    Raises:
-        SpaceError:
-            The space does not have the part.
-    """
-    graph = getattr(space, 'graph', None)
-    if on == 'sites' and graph is not None:
-        return int(graph.number_of_nodes())
-    if on == 'sites' and hasattr(space, 'size'):
-        return int(space.size)
-    if on == 'edges' and isinstance(space, NetworkSpace):
-        return int(space.resolve_graph(layer).number_of_edges())
-    hyperedges = getattr(space, 'hyperedges', None)
-    if on == 'hyperedges' and hyperedges:
-        return len(hyperedges)
-    needs = 'a network space with hyperedges' if on == 'hyperedges' else 'a network space' if on == 'edges' else 'sites'
-    error_msg = f'Group {label!r} lives on {on}, which need {needs}, but its space is {space!r}.'
-    raise SpaceError(error_msg)
 
 
 class _FreeSymbols(Symbols):
@@ -529,8 +437,7 @@ def _check_size(group: 'Group') -> None:
 
 def _check_value_names(group: 'Group') -> None:
     """Raise an error for a value whose name the element type of a group does not declare."""
-    declared = {item.name for item in dataclasses.fields(group.element)} - {'label'}
-    unknown = sorted(set(group.values or {}) - declared)
+    unknown = sorted(set(group.values or {}) - set(group.element.get_argument_names()))
     if not unknown:
         return
     states = ', '.join(declarations_of(group.element, VariableKind.STATE)) or 'none'
@@ -546,7 +453,7 @@ def _check_value_rows(group: 'Group') -> None:
     """Raise an error for a numeric per-member value whose first dimension is not the size of a group."""
     if group.size is None:
         return
-    declarations = {item.name: declaration_of(item) for item in dataclasses.fields(group.element)}
+    declarations = group.element.declarations()
     dimensions = group.space.dimensions if isinstance(group.space, LatticeSpace) else None
     for name, value in (group.values or {}).items():
         declaration = declarations.get(name)
@@ -574,7 +481,7 @@ def _check_group(group: 'Group') -> None:
     _check_value_rows(group)
 
 
-class Group(BaseEstimator):
+class Group(Component):
     """Group of identical elements of one type, whose variables are arrays with one row per member.
 
     Groups are usually created with `Element.group`. A value is either an array whose first dimension is the size of
@@ -658,7 +565,7 @@ class Group(BaseEstimator):
         layer: str | None = None,
         capacity: int | None = None,
     ) -> None:
-        self.label = label
+        super().__init__(label)
         self.element = element
         self.size = size if size is not None or on is None or space is None else part_count(space, on, label, layer)
         self.values = values

@@ -4,7 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR
@@ -45,14 +45,17 @@ class ChaosPoint(Element):
         label:
             The label of the point or the group.
 
-        p:
-            The initial position.
-
         maps:
             The coefficients `(a, b, c, d, e, f)` of every affine map.
 
         weights:
             The weight of every map.
+
+        **values:
+            The values of the declared variables, by name:
+
+            p:
+                The initial position.
 
     Examples:
         >>> from skcomplex.models.mathematics.fractals import ChaosPoint
@@ -62,8 +65,18 @@ class ChaosPoint(Element):
 
     visual: ClassVar[VisualSpec] = VisualSpec('points', {'position': 'p', 'radius': 0.004, 'states': ()})
     p: object = state(default=0.0, vector=True)
-    maps: Sequence[AffineMap] = PRESETS['sierpinski'][0]
-    weights: Sequence[float] = PRESETS['sierpinski'][1]
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        maps: Sequence[AffineMap] = PRESETS['sierpinski'][0],
+        weights: Sequence[float] = PRESETS['sierpinski'][1],
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.maps = maps
+        self.weights = weights
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the move by the drawn map.

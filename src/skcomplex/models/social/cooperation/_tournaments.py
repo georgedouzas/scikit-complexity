@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 import numpy as np
 import numpy.typing as npt
 
@@ -120,11 +122,14 @@ class Tournament(Interaction):
         label:
             The label of the interaction.
 
-        target:
-            The path of the group of strategists.
-
         rounds:
             The number of rounds of every game.
+
+        **values:
+            The values of the declared variables, by name:
+
+            target:
+                The path of the group of strategists.
 
     Examples:
         >>> from skcomplex.models.social.cooperation import Tournament
@@ -133,7 +138,16 @@ class Tournament(Interaction):
     """
 
     target: str = role()
-    rounds: int = 6
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        rounds: int = 6,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.rounds = rounds
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the tournament rule.

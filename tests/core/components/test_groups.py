@@ -1,6 +1,6 @@
 """Test element groups, pair interactions, and boundary laws in the model."""
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 import pytest
@@ -24,7 +24,17 @@ class Attraction(Interaction):
     first: str = role()
     second: str = role()
     cutoff: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    period: float | None = None
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        period: float | None = None,
+        **values: Any,
+    ) -> None:
+        """Store the settings and pass the values on."""
+        super().__init__(label, **values)
+        self.period = period
 
     def laws(self, s):
         """Return a boundary law."""

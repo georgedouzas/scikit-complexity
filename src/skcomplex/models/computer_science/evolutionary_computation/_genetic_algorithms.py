@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -124,12 +124,6 @@ class Evolution(Interaction):
         label:
             The label of the interaction.
 
-        mutation:
-            The probability that an action of a child is replaced by a random one.
-
-        population:
-            The path of the group of strategies.
-
         sessions:
             The number of rooms a strategy cleans to be scored.
 
@@ -142,6 +136,15 @@ class Evolution(Interaction):
         density:
             The probability that a cell holds a can.
 
+        **values:
+            The values of the declared variables, by name:
+
+            mutation:
+                The probability that an action of a child is replaced by a random one.
+
+            population:
+                The path of the group of strategies.
+
     Examples:
         >>> from skcomplex.models.computer_science.evolutionary_computation import Evolution
         >>> Evolution('evolution', population='strategies').sessions
@@ -150,10 +153,22 @@ class Evolution(Interaction):
 
     mutation: float = parameter(0.005, domain=Domain.NONNEGATIVE)
     population: str = role()
-    sessions: int = 10
-    n_actions: int = 100
-    side: int = 10
-    density: float = 0.5
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        sessions: int = 10,
+        n_actions: int = 100,
+        side: int = 10,
+        density: float = 0.5,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.sessions = sessions
+        self.n_actions = n_actions
+        self.side = side
+        self.density = density
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the rule of one generation.

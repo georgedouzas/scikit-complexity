@@ -12,7 +12,7 @@ from ._groups import (
 from ._lattices import LatticeSpace, Neighborhood
 from ._meshes import Mesh
 from ._neighbours import Cone, Nearest, Radius, neighbour_pairs
-from ._networks import Adjacency, Layer, NetworkSpace
+from ._networks import Adjacency, Layer, NetworkSpace, part_count
 from ._phases import Phase
 from ._spaces import ContinuousSpace, Space
 from ._time import ContinuousTime, DiscreteTime, Phases, StaticTime, Time
@@ -43,5 +43,6 @@ __all__: list[str] = [
     'matrix_group',
     'neighbour_pairs',
     'parse_word',
+    'part_count',
     'permutation_group',
 ]

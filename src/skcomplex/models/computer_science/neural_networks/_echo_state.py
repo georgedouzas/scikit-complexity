@@ -43,23 +43,26 @@ class ReservoirUnit(Element):
         label:
             The label of the unit or the group.
 
-        r:
-            The initial activity.
-
-        w_in:
-            The weight `w` of the input.
-
-        leak:
-            The leak rate `a`, 1 for units without memory of their own.
-
-        amplitude:
-            The amplitude `A` of the input.
-
-        frequency:
-            The angular frequency `f` of the input, per step.
-
         weights:
             The recurrent weights `W`, one row and one column per unit.
+
+        **values:
+            The values of the declared variables, by name:
+
+            r:
+                The initial activity.
+
+            w_in:
+                The weight `w` of the input.
+
+            leak:
+                The leak rate `a`, 1 for units without memory of their own.
+
+            amplitude:
+                The amplitude `A` of the input.
+
+            frequency:
+                The angular frequency `f` of the input, per step.
 
     Examples:
         >>> from skcomplex.models.computer_science.neural_networks import ReservoirUnit
@@ -72,7 +75,16 @@ class ReservoirUnit(Element):
     leak: float = parameter(default=0.3, domain=Domain.POSITIVE)
     amplitude: float = parameter(default=1.0)
     frequency: float = parameter(default=0.2)
-    weights: Any = None
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        weights: Any = None,  # noqa: ANN401
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.weights = weights
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the leaky update of the activity.

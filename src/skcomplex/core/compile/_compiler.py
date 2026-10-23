@@ -2645,14 +2645,11 @@ def _variables(block: _Block, declarations: _Declarations) -> CapacityRows:
     states = declarations_of(element, VariableKind.STATE)
     variables: dict[str, tuple[Entry, bool]] = {}
     defaults: dict[str, Vector] = {}
-    fields = {item.name: item for item in dataclasses.fields(element)}
     for name, entry in block.entries.items():
         if name in {ACTIVE, *ENDS}:
             continue
         variables[name] = (entry, name in states)
-        field_item = fields.get(name)
-        factory = getattr(field_item, 'default_factory', dataclasses.MISSING)
-        default = factory() if callable(factory) else getattr(field_item, 'default', 0.0)
+        default = element.get_default(name) if name in element.declarations() else 0.0
         default = 0.0 if default is dataclasses.MISSING else default
         defaults[name] = coerce_value(entry.name, default, entry.member_shape, entry.domain, None)
     source, target = block.entries.get(ENDS[0]), block.entries.get(ENDS[1])

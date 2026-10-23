@@ -131,9 +131,6 @@ class Exchange(Interaction):
         label:
             The label of the exchange.
 
-        traders:
-            The path of the group of traders.
-
         goods:
             The names of the traded goods.
 
@@ -143,6 +140,12 @@ class Exchange(Interaction):
         quantity:
             The quantity of the bought good in every trade.
 
+        **values:
+            The values of the declared variables, by name:
+
+            traders:
+                The path of the group of traders.
+
     Examples:
         >>> from skcomplex.models.economics.markets import Exchange
         >>> Exchange('exchange', traders='traders').reports
@@ -151,9 +154,20 @@ class Exchange(Interaction):
 
     reports: ClassVar[tuple[str, ...]] = ('price', 'dispersion', 'volume')
     traders: str = role()
-    goods: tuple[str, ...] = GOODS
-    pairing: Pairing | None = None
-    quantity: float = 0.1
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        goods: tuple[str, ...] = GOODS,
+        pairing: Pairing | None = None,
+        quantity: float = 0.1,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.goods = goods
+        self.pairing = pairing
+        self.quantity = quantity
 
     def laws(self, s: Symbols) -> list[Any]:
         """Return the matching of neighbours, the barter rule, and the invariant of the total of every good.

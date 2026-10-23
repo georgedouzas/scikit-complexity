@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import exp
@@ -42,20 +44,23 @@ class FullyConnectedSpin(Element):
         label:
             The label of the spin or the group.
 
-        spin:
-            The initial spin, 1 or -1.
-
-        J:
-            The scale of the couplings.
-
-        h:
-            The external field.
-
-        temperature:
-            The temperature.
-
         couplings:
             The coupling matrix `C`, one row and one column per spin, or `None` for the uniform couplings `1 / N`.
+
+        **values:
+            The values of the declared variables, by name:
+
+            spin:
+                The initial spin, 1 or -1.
+
+            J:
+                The scale of the couplings.
+
+            h:
+                The external field.
+
+            temperature:
+                The temperature.
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import FullyConnectedSpin
@@ -67,7 +72,16 @@ class FullyConnectedSpin(Element):
     J: float = parameter(default=1.0)
     h: float = parameter(default=0.0)
     temperature: float = parameter(default=0.5, domain=Domain.POSITIVE)
-    couplings: npt.ArrayLike | None = None
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        couplings: npt.ArrayLike | None = None,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.couplings = couplings
 
     def _field(self, s: Symbols) -> Expression:
         """Return the local field of a spin, without its own contribution."""

@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -250,17 +250,20 @@ class Reservoir(Interaction):
         label:
             The label of the reservoir.
 
-        sites:
-            The sites in contact with the reservoir.
-
-        entry:
-            The rate at which a particle enters a site.
-
-        exit:
-            The rate at which a particle leaves an occupied site.
-
         exclusion:
             Whether a site holds at most one particle.
+
+        **values:
+            The values of the declared variables, by name:
+
+            sites:
+                The sites in contact with the reservoir.
+
+            entry:
+                The rate at which a particle enters a site.
+
+            exit:
+                The rate at which a particle leaves an occupied site.
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import Reservoir
@@ -271,7 +274,16 @@ class Reservoir(Interaction):
     sites: list[str] = role(variadic=True)
     entry: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
     exit: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    exclusion: bool = False
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        exclusion: bool = False,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.exclusion = exclusion
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the entry and the exit of a particle at every site.

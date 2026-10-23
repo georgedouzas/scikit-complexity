@@ -37,14 +37,17 @@ class LatticeHamiltonian(Interaction):
         label:
             The label of the interaction.
 
-        target:
-            The path of the particle.
-
-        D:
-            The coefficient of the Laplacian, `ħ / (2 m)`.
-
         potential:
             The potential at every site.
+
+        **values:
+            The values of the declared variables, by name:
+
+            target:
+                The path of the particle.
+
+            D:
+                The coefficient of the Laplacian, `ħ / (2 m)`.
 
     Examples:
         >>> from skcomplex.models.physics.waves import LatticeHamiltonian
@@ -54,7 +57,16 @@ class LatticeHamiltonian(Interaction):
 
     target: str = role()
     D: float = parameter(default=0.5, domain=Domain.POSITIVE)
-    potential: Any = 0.0
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        potential: Any = 0.0,  # noqa: ANN401
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.potential = potential
 
     def laws(self, s: Symbols) -> list[Any]:
         """Return the Hamiltonian of the particle.

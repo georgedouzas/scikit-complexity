@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import dataclasses
 import functools
 import math
 from collections.abc import Callable, Iterable, Mapping
@@ -112,7 +111,7 @@ def _members_of(node: Node) -> list[tuple[str, QuantumView]]:
     component = node.component
     if not isinstance(component, Group):
         return [(node.path, QuantumView(component))]
-    names = [item.name for item in dataclasses.fields(component.element) if item.init and item.name != 'label']
+    names = component.element.get_argument_names()
     size = node.members or 0
     members = []
     for member in range(size):

@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 import networkx as nx
 import numpy as np
 
@@ -26,20 +28,23 @@ class GraphIsingSpin(Element):
         label:
             The label of the spin or the lattice group.
 
-        spin:
-            The initial spin, 1 or -1.
-
-        J:
-            The coupling between neighbouring spins.
-
-        h:
-            The external field.
-
-        temperature:
-            The temperature in units of the coupling.
-
         sampler:
             The acceptance rule, `'metropolis'`, `'glauber'`, or `'heat-bath'`.
+
+        **values:
+            The values of the declared variables, by name:
+
+            spin:
+                The initial spin, 1 or -1.
+
+            J:
+                The coupling between neighbouring spins.
+
+            h:
+                The external field.
+
+            temperature:
+                The temperature in units of the coupling.
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import GraphIsingSpin
@@ -51,7 +56,16 @@ class GraphIsingSpin(Element):
     J: float = parameter(default=1.0)
     h: float = parameter(default=0.0)
     temperature: float = parameter(default=2.0, domain=Domain.POSITIVE)
-    sampler: str = 'metropolis'
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        sampler: str = 'metropolis',
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.sampler = sampler
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the neighbour-sum energy, the spin flip, and the colored sampler.

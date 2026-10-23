@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -64,20 +64,23 @@ class Reproduction(Interaction):
         label:
             The label of the interaction.
 
-        death:
-            The probability that an agent dies in a step.
-
-        mutation:
-            The probability that a newborn has one random bit flipped.
-
-        population:
-            The path of the group of bit strings.
-
         zero_values:
             The value of a 0 at every locus.
 
         one_values:
             The value of a 1 at every locus.
+
+        **values:
+            The values of the declared variables, by name:
+
+            death:
+                The probability that an agent dies in a step.
+
+            mutation:
+                The probability that a newborn has one random bit flipped.
+
+            population:
+                The path of the group of bit strings.
 
     Examples:
         >>> from skcomplex.models.computer_science.evolutionary_computation import Reproduction
@@ -88,8 +91,18 @@ class Reproduction(Interaction):
     death: float = parameter(0.1, domain=Domain.NONNEGATIVE)
     mutation: float = parameter(0.05, domain=Domain.NONNEGATIVE)
     population: str = role()
-    zero_values: tuple[float, ...] = ()
-    one_values: tuple[float, ...] = ()
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        zero_values: tuple[float, ...] = (),
+        one_values: tuple[float, ...] = (),
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.zero_values = zero_values
+        self.one_values = one_values
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the rule of one generation step.

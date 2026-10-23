@@ -4,7 +4,7 @@
 # License: MIT
 
 from abc import abstractmethod
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from sage.all__sagemath_symbolics import SR, sqrt
 
@@ -77,17 +77,20 @@ class PairPotential(Interaction):
         label:
             The label of the interaction.
 
-        first:
-            The path of the group or particle of the first members.
-
-        second:
-            The path of the group or particle of the second members.
-
-        cutoff:
-            The distance beyond which pairs do not interact.
-
         period:
             The side of a periodic box, for minimum image distances, or `None` for an open space.
+
+        **values:
+            The values of the declared variables, by name:
+
+            first:
+                The path of the group or particle of the first members.
+
+            second:
+                The path of the group or particle of the second members.
+
+            cutoff:
+                The distance beyond which pairs do not interact.
     """
 
     over: ClassVar[str] = 'pairs'
@@ -95,7 +98,16 @@ class PairPotential(Interaction):
     first: str = role()
     second: str = role()
     cutoff: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    period: float | None = None
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        period: float | None = None,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.period = period
 
     @abstractmethod
     def pair_energy(self, s: Symbols, r: Expression) -> Expression:

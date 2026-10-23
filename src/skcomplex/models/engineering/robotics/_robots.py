@@ -4,7 +4,7 @@
 # License: MIT
 
 import math
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import cos, exp, sin, sqrt
@@ -53,35 +53,38 @@ class LightSensitiveRobot(Element):
         label:
             The label of the robot or the group.
 
-        x:
-            The initial horizontal position.
-
-        y:
-            The initial vertical position.
-
-        phi:
-            The initial direction of motion.
-
-        V0:
-            The speed in the dark.
-
-        V_inf:
-            The speed in strong light.
-
-        I0:
-            The intensity at the centre of the light.
-
-        r0:
-            The width of the light.
-
-        tau:
-            The time scale of rotational diffusion.
-
-        R:
-            The radius of the well.
-
         delay:
             The sensory delay, 0 for a robot that reacts to the light it measures now.
+
+        **values:
+            The values of the declared variables, by name:
+
+            x:
+                The initial horizontal position.
+
+            y:
+                The initial vertical position.
+
+            phi:
+                The initial direction of motion.
+
+            V0:
+                The speed in the dark.
+
+            V_inf:
+                The speed in strong light.
+
+            I0:
+                The intensity at the centre of the light.
+
+            r0:
+                The width of the light.
+
+            tau:
+                The time scale of rotational diffusion.
+
+            R:
+                The radius of the well.
 
     Examples:
         >>> from skcomplex.models.engineering.robotics import LightSensitiveRobot
@@ -98,7 +101,16 @@ class LightSensitiveRobot(Element):
     r0: float = parameter(default=1.0, domain=Domain.POSITIVE)
     tau: float = parameter(default=1.0, domain=Domain.POSITIVE)
     R: float = parameter(default=2.0, domain=Domain.POSITIVE)
-    delay: float = 0.0
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        delay: float = 0.0,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.delay = delay
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the motion at the light-dependent speed, the rotational noise, and the reflecting wall.

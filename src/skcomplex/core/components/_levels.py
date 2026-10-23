@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import dataclasses
 
 import numpy as np
 import numpy.typing as npt
@@ -44,7 +43,7 @@ def _member_values(group: Group | npt.ArrayLike, state: str) -> Values:
     name = _state_name(group.element, state)
     value = (group.values or {}).get(name)
     if value is None:
-        value = next(item.default for item in dataclasses.fields(group.element) if item.name == name)
+        value = group.element.get_default(name)
     return np.broadcast_to(np.asarray(value, dtype=float), (group.size or 0,)).copy()
 
 

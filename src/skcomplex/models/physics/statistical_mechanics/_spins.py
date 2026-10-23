@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 from sage.all__sagemath_symbolics import cos
@@ -25,20 +26,23 @@ class IsingSpin(Element):
         label:
             The label of the spin or the lattice group.
 
-        spin:
-            The initial spin, 1 or -1.
-
-        J:
-            The coupling between neighbouring spins.
-
-        h:
-            The external field.
-
-        temperature:
-            The temperature in units of the coupling.
-
         sampler:
             The acceptance rule, `'metropolis'`, `'glauber'`, or `'heat-bath'`.
+
+        **values:
+            The values of the declared variables, by name:
+
+            spin:
+                The initial spin, 1 or -1.
+
+            J:
+                The coupling between neighbouring spins.
+
+            h:
+                The external field.
+
+            temperature:
+                The temperature in units of the coupling.
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import IsingSpin
@@ -50,7 +54,16 @@ class IsingSpin(Element):
     J: float = parameter(default=1.0)
     h: float = parameter(default=0.0)
     temperature: float = parameter(default=2.0, domain=Domain.POSITIVE)
-    sampler: str = 'metropolis'
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        sampler: str = 'metropolis',
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.sampler = sampler
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the local energy, the spin flip, and the sampler.
@@ -74,20 +87,23 @@ class PottsSpin(Element):
         label:
             The label of the spin or the lattice group.
 
-        color:
-            The initial state from 0 to `q - 1`.
-
-        J:
-            The coupling between neighbouring spins.
-
-        temperature:
-            The temperature in units of the coupling.
-
         q:
             The number of states.
 
         sampler:
             The acceptance rule, `'metropolis'`, `'glauber'`, or `'heat-bath'`.
+
+        **values:
+            The values of the declared variables, by name:
+
+            color:
+                The initial state from 0 to `q - 1`.
+
+            J:
+                The coupling between neighbouring spins.
+
+            temperature:
+                The temperature in units of the coupling.
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import PottsSpin
@@ -98,8 +114,18 @@ class PottsSpin(Element):
     color: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
     J: float = parameter(default=1.0)
     temperature: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    q: int = 3
-    sampler: str = 'heat-bath'
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        q: int = 3,
+        sampler: str = 'heat-bath',
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.q = q
+        self.sampler = sampler
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the local energy, the random value move, and the sampler.
@@ -129,17 +155,20 @@ class XYSpin(Element):
         label:
             The label of the spin or the lattice group.
 
-        theta:
-            The initial angle.
-
-        J:
-            The coupling between neighbouring spins.
-
-        temperature:
-            The temperature in units of the coupling.
-
         width:
             The largest change of a proposed rotation.
+
+        **values:
+            The values of the declared variables, by name:
+
+            theta:
+                The initial angle.
+
+            J:
+                The coupling between neighbouring spins.
+
+            temperature:
+                The temperature in units of the coupling.
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import XYSpin
@@ -150,7 +179,16 @@ class XYSpin(Element):
     theta: float = state(default=0.0, domain=Domain.ANGLE)
     J: float = parameter(default=1.0)
     temperature: float = parameter(default=0.5, domain=Domain.POSITIVE)
-    width: float = 1.0
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        width: float = 1.0,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.width = width
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the local energy, the rotation, and the Metropolis sampler.

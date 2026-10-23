@@ -20,6 +20,10 @@ class LabelError(ValidationError):
     """A label is missing, duplicated, or produces a name collision."""
 
 
+class ArgumentError(SkcomplexError, TypeError):
+    """A component is given an argument its type does not declare, or misses a required one."""
+
+
 class RoleError(ValidationError):
     """A role of an interaction refers to an element that does not exist."""
 

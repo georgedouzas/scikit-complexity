@@ -41,17 +41,20 @@ class DilutedNeuron(Element):
         label:
             The label of the neuron or the group.
 
-        spin:
-            The initial value, -1 or 1.
-
-        pattern:
-            The value of the first stored pattern at the neuron, whose overlap with the network is recorded.
-
-        beta:
-            The inverse temperature `β`.
-
         couplings:
             The coupling matrix `J`, one row and one column per neuron.
+
+        **values:
+            The values of the declared variables, by name:
+
+            spin:
+                The initial value, -1 or 1.
+
+            pattern:
+                The value of the first stored pattern at the neuron, whose overlap with the network is recorded.
+
+            beta:
+                The inverse temperature `β`.
 
     Examples:
         >>> from skcomplex.models.computer_science.neural_networks import DilutedNeuron
@@ -62,7 +65,16 @@ class DilutedNeuron(Element):
     spin: float = state(default=1.0, domain=Domain.INTEGER)
     pattern: float = parameter(default=1.0)
     beta: float = parameter(default=0.06, domain=Domain.NONNEGATIVE)
-    couplings: Any = None
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        couplings: Any = None,  # noqa: ANN401
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.couplings = couplings
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the parallel stochastic update of the neuron.

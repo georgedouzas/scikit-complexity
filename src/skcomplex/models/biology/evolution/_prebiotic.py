@@ -5,6 +5,7 @@
 
 import itertools
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 
@@ -93,17 +94,20 @@ class Mutation(Interaction):
         label:
             The label of the interaction.
 
-        target:
-            The path of the class.
-
-        source:
-            The path of the class one mutation closer to the master sequence.
-
-        master:
-            The path of the master sequence.
-
         last:
             Whether the class is the last of the chain.
+
+        **values:
+            The values of the declared variables, by name:
+
+            target:
+                The path of the class.
+
+            source:
+                The path of the class one mutation closer to the master sequence.
+
+            master:
+                The path of the master sequence.
 
     Examples:
         >>> from skcomplex.models.biology.evolution import Mutation
@@ -114,7 +118,16 @@ class Mutation(Interaction):
     target: str = role()
     source: str = role()
     master: str = role()
-    last: bool = False
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        last: bool = False,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.last = last
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the next share of the class.
@@ -152,14 +165,17 @@ class Catalysis(Interaction):
         label:
             The label of the interaction.
 
-        molecules:
-            The path of the group of molecules.
-
-        omega:
-            The catalytic rate of a link.
-
         topology:
             The catalytic links, 1 where molecule `j` catalyses molecule `i`.
+
+        **values:
+            The values of the declared variables, by name:
+
+            molecules:
+                The path of the group of molecules.
+
+            omega:
+                The catalytic rate of a link.
 
     Examples:
         >>> from skcomplex.models.biology.evolution import Catalysis
@@ -169,7 +185,16 @@ class Catalysis(Interaction):
 
     molecules: str = role()
     omega: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    topology: Sequence[Sequence[float]] = ((0.0, 1.0), (1.0, 0.0))
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        topology: Sequence[Sequence[float]] = ((0.0, 1.0), (1.0, 0.0)),
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.topology = topology
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the catalysed replication and the common outflow.

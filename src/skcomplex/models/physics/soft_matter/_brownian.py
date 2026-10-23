@@ -4,6 +4,7 @@
 # License: MIT
 
 import math
+from typing import Any
 
 from sage.all__sagemath_symbolics import cos, sqrt
 
@@ -78,20 +79,23 @@ class WallParticle(Element):
         label:
             The label of the particle.
 
-        z:
-            The distance from the wall.
-
-        D0:
-            The diffusion coefficient far from the wall.
-
-        a:
-            The distance over which the wall slows diffusion.
-
-        drift:
-            The settling velocity far from the wall.
-
         convention:
             The convention of the noise, `'ito'`, `'stratonovich'`, or `'anti-ito'`.
+
+        **values:
+            The values of the declared variables, by name:
+
+            z:
+                The distance from the wall.
+
+            D0:
+                The diffusion coefficient far from the wall.
+
+            a:
+                The distance over which the wall slows diffusion.
+
+            drift:
+                The settling velocity far from the wall.
 
     Examples:
         >>> from skcomplex.models.physics.soft_matter import WallParticle
@@ -103,7 +107,16 @@ class WallParticle(Element):
     D0: float = parameter(default=1.0, domain=Domain.POSITIVE)
     a: float = parameter(default=1.0, domain=Domain.POSITIVE)
     drift: float = parameter(default=0.2)
-    convention: str = 'anti-ito'
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        convention: str = 'anti-ito',
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.convention = convention
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the settling drift, the hindered noise, and the reflection at the wall.

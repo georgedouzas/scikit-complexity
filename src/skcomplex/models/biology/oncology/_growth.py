@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 from sage.all__sagemath_symbolics import log
 
 from ....core.base import Domain, parameter, role, state
@@ -350,15 +352,6 @@ class LogKill(Interaction):
         label:
             The label of the interaction.
 
-        target:
-            The path of the tumour.
-
-        a:
-            The kill rate per unit of exposure.
-
-        dose:
-            The exposure during a dose.
-
         period:
             The time between the starts of doses.
 
@@ -367,6 +360,18 @@ class LogKill(Interaction):
 
         start:
             The time of the first dose.
+
+        **values:
+            The values of the declared variables, by name:
+
+            target:
+                The path of the tumour.
+
+            a:
+                The kill rate per unit of exposure.
+
+            dose:
+                The exposure during a dose.
 
     Examples:
         >>> from skcomplex.models.biology.oncology import LogKill
@@ -377,9 +382,20 @@ class LogKill(Interaction):
     target: str = role()
     a: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
     dose: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    period: float = 7.0
-    width: float = 1.0
-    start: float = 0.0
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        period: float = 7.0,
+        width: float = 1.0,
+        start: float = 0.0,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.period = period
+        self.width = width
+        self.start = start
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the rate `-a n U(t)`.

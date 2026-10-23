@@ -4,7 +4,7 @@
 # License: MIT
 
 from functools import lru_cache
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -162,26 +162,29 @@ class TangledNatureStep(Interaction):
         label:
             The label of the interaction.
 
-        organisms:
-            The path of the group of organisms.
-
-        k:
-            The strength of the couplings.
-
-        mu:
-            The limit of resources, which lowers reproduction in large populations.
-
-        p_mut:
-            The probability that a bit of an offspring's genome flips.
-
-        p_kill:
-            The probability that a chosen organism dies.
-
         length:
             The number of bits of a genome.
 
         seed:
             The seed of the couplings.
+
+        **values:
+            The values of the declared variables, by name:
+
+            organisms:
+                The path of the group of organisms.
+
+            k:
+                The strength of the couplings.
+
+            mu:
+                The limit of resources, which lowers reproduction in large populations.
+
+            p_mut:
+                The probability that a bit of an offspring's genome flips.
+
+            p_kill:
+                The probability that a chosen organism dies.
 
     Examples:
         >>> from skcomplex.models.biology.evolution import TangledNatureStep
@@ -194,8 +197,18 @@ class TangledNatureStep(Interaction):
     mu: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
     p_mut: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
     p_kill: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
-    length: int = 8
-    seed: int = 0
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        length: int = 8,
+        seed: int = 0,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.length = length
+        self.seed = seed
 
     def _reproduce(self, model: ModelView, alive: list[AgentView], counts: Array, chosen: int) -> None:
         """Replace an organism by two offspring with probability `1 / (1 + exp(-H))`."""
@@ -258,17 +271,20 @@ class AdaptiveClimbing(Interaction):
         label:
             The label of the interaction.
 
-        population:
-            The path of the group of individuals.
-
-        u:
-            The probability that an individual mutates in a generation.
-
         length:
             The number of loci of a genome.
 
         seed:
             The seed of the fitness landscape.
+
+        **values:
+            The values of the declared variables, by name:
+
+            population:
+                The path of the group of individuals.
+
+            u:
+                The probability that an individual mutates in a generation.
 
     Examples:
         >>> from skcomplex.models.biology.evolution import AdaptiveClimbing
@@ -278,8 +294,18 @@ class AdaptiveClimbing(Interaction):
 
     population: str = role()
     u: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    length: int = 20
-    seed: int = 0
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        length: int = 20,
+        seed: int = 0,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.length = length
+        self.seed = seed
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the generation rule.

@@ -10,7 +10,7 @@
   the other clock. Verify with the "Every law shares the base" and "Option of the other clock" scenarios.
 - [x] 1.3 Add `values_of(law, *, include=...)` to `laws`. Replace the four law-value walkers in `compile` with it.
   Verify that the compile and validation tests pass.
-- [ ] 1.4 Rewrite `Component` in `components/_component.py`, which imports only `base`. It has the explicit
+- [x] 1.4 Rewrite `Component` in `components/_component.py`, which imports only `base`. It has the explicit
   constructor, the class-level `declarations()` with derived order and lag companions, and `get_params`, and it
   drops `__init_subclass__`. Make `Element`, `Group`, `Interaction`, and `System` derive from it. Verify with the
   "Hierarchy", "No generated attributes", "Clone keeps declared values", and "System is a component" scenarios, and

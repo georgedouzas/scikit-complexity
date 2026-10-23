@@ -28,14 +28,17 @@ class Road(Element):
         label:
             The label of the cell or the lattice group.
 
-        velocity:
-            The initial velocity, or -1 for an empty cell.
-
-        slowdown:
-            The probability of random braking.
-
         vmax:
             The largest velocity.
+
+        **values:
+            The values of the declared variables, by name:
+
+            velocity:
+                The initial velocity, or -1 for an empty cell.
+
+            slowdown:
+                The probability of random braking.
 
     Examples:
         >>> from skcomplex.models.engineering.traffic import Road
@@ -45,7 +48,16 @@ class Road(Element):
 
     velocity: float = state(default=-1, domain=Domain.INTEGER)
     slowdown: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
-    vmax: int = 5
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        vmax: int = 5,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.vmax = vmax
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the velocity update and the movement of cars.

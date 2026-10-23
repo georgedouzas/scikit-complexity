@@ -4,8 +4,8 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
-from dataclasses import replace
 from functools import partial
+from typing import Any
 
 from ....core.base import Domain, parameter, role, state
 from ....core.components import Element
@@ -25,23 +25,26 @@ class Gene(Element):
         label:
             The label of the gene.
 
-        m:
-            The initial number of mRNA molecules.
-
-        p:
-            The initial number of protein molecules.
-
-        delta:
-            The decay rate of mRNA.
-
-        b:
-            The translation rate per mRNA molecule.
-
-        beta:
-            The decay rate of the protein.
-
         stochastic:
             Whether expression is a sequence of random events.
+
+        **values:
+            The values of the declared variables, by name:
+
+            m:
+                The initial number of mRNA molecules.
+
+            p:
+                The initial number of protein molecules.
+
+            delta:
+                The decay rate of mRNA.
+
+            b:
+                The translation rate per mRNA molecule.
+
+            beta:
+                The decay rate of the protein.
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import Gene
@@ -54,7 +57,16 @@ class Gene(Element):
     delta: float = parameter(default=1.0, domain=Domain.POSITIVE)
     b: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
     beta: float = parameter(default=0.2, domain=Domain.POSITIVE)
-    stochastic: bool = False
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        stochastic: bool = False,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.stochastic = stochastic
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the decay of mRNA, the translation, and the decay of the protein.
@@ -83,26 +95,29 @@ class Repression(Interaction):
         label:
             The label of the interaction.
 
-        repressor:
-            The path of the repressing gene.
-
-        target:
-            The path of the repressed gene.
-
-        alpha:
-            The transcription rate without repressor.
-
-        alpha0:
-            The leaky transcription rate at saturating repressor.
-
-        K:
-            The repressor count at half repression.
-
-        n:
-            The Hill coefficient of repression.
-
         stochastic:
             Whether transcriptions are random events.
+
+        **values:
+            The values of the declared variables, by name:
+
+            repressor:
+                The path of the repressing gene.
+
+            target:
+                The path of the repressed gene.
+
+            alpha:
+                The transcription rate without repressor.
+
+            alpha0:
+                The leaky transcription rate at saturating repressor.
+
+            K:
+                The repressor count at half repression.
+
+            n:
+                The Hill coefficient of repression.
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import Repression
@@ -116,7 +131,16 @@ class Repression(Interaction):
     alpha0: float = parameter(default=0.04, domain=Domain.NONNEGATIVE)
     K: float = parameter(default=20.0, domain=Domain.POSITIVE)
     n: float = parameter(default=2.0, domain=Domain.POSITIVE)
-    stochastic: bool = False
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        stochastic: bool = False,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.stochastic = stochastic
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the repressed transcription `alpha0 + alpha / (1 + (p / K)^n)`.
@@ -142,7 +166,10 @@ def _circuit(
     repression: Callable[..., Repression],
 ) -> System:
     """Return copies of a gene with initial protein counts, where the first gene of each edge represses the second."""
-    genes = [replace(gene, label=f'gene_{index}', p=float(p)) for index, p in enumerate(proteins)]
+    genes = [
+        type(gene)(**gene.get_params(deep=False) | {'label': f'gene_{index}', 'p': float(p)})
+        for index, p in enumerate(proteins)
+    ]
     repressions = [
         repression(f'repression_{source}_{target}', repressor=f'gene_{source}', target=f'gene_{target}')
         for source, target in edges

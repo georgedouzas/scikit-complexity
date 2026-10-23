@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import networkx as nx
 import numpy as np
@@ -178,20 +178,23 @@ class ActiveHost(Element):
         label:
             The label of the node or of the group of nodes.
 
-        i:
-            Whether the node is infected.
-
-        a:
-            The activity, the probability of firing at a step.
-
         m:
             The number of edges an active node creates.
 
-        lam:
-            The probability of infection along one edge.
+        **values:
+            The values of the declared variables, by name:
 
-        mu:
-            The probability of recovery at a step.
+            i:
+                Whether the node is infected.
+
+            a:
+                The activity, the probability of firing at a step.
+
+            lam:
+                The probability of infection along one edge.
+
+            mu:
+                The probability of recovery at a step.
 
     Examples:
         >>> from skcomplex.models.biology.epidemiology import ActiveHost
@@ -201,9 +204,18 @@ class ActiveHost(Element):
 
     i: float = state(default=0.0, domain=Domain.NONNEGATIVE)
     a: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    m: int = 2
     lam: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
     mu: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        m: int = 2,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.m = m
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the infection along the edges, the recovery, and the edges created when the node fires.

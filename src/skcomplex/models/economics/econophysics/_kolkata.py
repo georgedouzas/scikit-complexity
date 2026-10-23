@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 
@@ -126,11 +126,14 @@ class Restaurants(Interaction):
         label:
             The label of the interaction.
 
-        diners:
-            The path of the group of diners.
-
         n_restaurants:
             The number of restaurants.
+
+        **values:
+            The values of the declared variables, by name:
+
+            diners:
+                The path of the group of diners.
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import Restaurants
@@ -140,7 +143,16 @@ class Restaurants(Interaction):
 
     reports: ClassVar[tuple[str, ...]] = ('utilization',)
     diners: str = role()
-    n_restaurants: int = 100
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        n_restaurants: int = 100,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.n_restaurants = n_restaurants
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the serving rule.
