@@ -1,5 +1,7 @@
 """Configuration for the pytest test suite."""
 
+import importlib
+
 import pytest
 
 
@@ -9,7 +11,11 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 
 def pytest_configure(config: pytest.Config) -> None:
-    """Register the benchmark marker."""
+    """Register the benchmark marker, and import the package's warnings in the main thread.
+
+    The controller of a parallel run rebuilds the warnings its workers send, and Sage imports only in a main thread.
+    """
+    importlib.import_module('skcomplex.core.base')
     config.addinivalue_line('markers', 'benchmark: a timing benchmark, run with --benchmarks on an idle machine')
 
 
