@@ -42,7 +42,7 @@ from ..base import (
     VariableKind,
     declarations_of,
 )
-from ..components import Element, Group, Wiener
+from ..components import Element, Field, Group, Wiener
 from ..interactions import Match
 from ..laws import (
     Auxiliary,
@@ -842,6 +842,9 @@ def _noise_needs(records: list[CensusRecord], wieners: dict[str, Wiener]) -> dic
     first: dict[object, CensusRecord] = {}
     spread: set[object] = set()
     for record in _noise_records(records):
+        if cast('Noise', record.law).conserved:
+            needs.setdefault(NoiseKind.CONSERVED, record)
+            continue
         for key, state in zip(record.processes, record.driven, strict=True):
             if key is None:
                 needs.setdefault(NoiseKind.DIAGONAL, record)
@@ -906,6 +909,34 @@ def _noise_support_issues(
     return issues
 
 
+def _is_lattice_field(component: object) -> bool:
+    """Check whether a component is a finite-difference field on a square lattice."""
+    return (
+        isinstance(component, Field)
+        and isinstance(component.space, LatticeSpace)
+        and component.space.geometry == 'square'
+        and component.discretization == 'finite-difference'
+    )
+
+
+def _conserved_issues(system: System, records: list[CensusRecord]) -> list[Issue]:
+    """Return the conserved noise laws that drive a state that is not of a finite-difference field on a lattice."""
+    components = {node.path: node.component for node in flatten_system(system)}
+    issues = []
+    for record in _noise_records(records):
+        if not cast('Noise', record.law).conserved:
+            continue
+        outside = [name for name, _ in record.driven if not _is_lattice_field(components.get(name.rpartition('.')[0]))]
+        if outside:
+            message = (
+                f'The conserved {_law_name(record)} drives {", ".join(dict.fromkeys(outside))}, but conserved noise '
+                'needs a state of a finite-difference field on a square lattice, with one process per link.'
+            )
+            fix = 'Declare the state on a `Field` of a `LatticeSpace`, or remove `conserved=True`.'
+            issues.append(Issue('noise-unsupported', record.path, message, fix))
+    return issues
+
+
 def _noise_issues(system: System, records: list[CensusRecord], solver: object, backend: object) -> list[Issue]:
     """Return the problems of the Wiener elements and the noise laws of a system."""
     wieners = dict(_wiener_nodes(system))
@@ -914,6 +945,7 @@ def _noise_issues(system: System, records: list[CensusRecord], solver: object, b
         return issues
     issues += _convention_issues(records)
     issues += _scope_issues(records, wieners)
+    issues += _conserved_issues(system, records)
     return issues + _noise_support_issues(records, wieners, solver, backend)
 
 

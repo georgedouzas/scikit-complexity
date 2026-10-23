@@ -162,6 +162,11 @@ class Noise:
     process. Laws of one component, or of one member, that name the same local process share its increment. Laws that
     name a process of a `Wiener` element through a role share it across components and members.
 
+    A conserved noise on a state of a field on a lattice adds `div(value eta)` instead, the finite-difference divergence
+    of a random flux with one Wiener process per link between neighbouring sites. Every increment a site gains, its
+    neighbour loses, so the total of the field changes only by its rate laws. Edges that are not periodic carry no
+    process on their outer links.
+
     Args:
         target:
             The symbol of a scalar state, or the column of symbols of a vector state.
@@ -180,9 +185,14 @@ class Noise:
             `None` for independent processes, a label local to the component, a tuple of labels with one per
             component of a vector target, or the handle `s.<role>.dW` or `s.<role>.dW[k]` of a `Wiener` element.
 
+        conserved:
+            Whether the noise is the divergence of a random flux on the links of the lattice of a field, with the
+            value as the amplitude of the flux, a number or an expression of parameters.
+
     Raises:
         ValidationError:
-            The convention is unknown, or the process is not a label, a tuple of labels, or a handle.
+            The convention is unknown, the process is not a label, a tuple of labels, or a handle, or a conserved
+            noise names a process.
 
     Examples:
         >>> from skcomplex.core.base import symbol
@@ -192,6 +202,8 @@ class Noise:
         0.2*price
         >>> Noise(price, 0.2 * price, process='market').process
         'market'
+        >>> Noise(symbol('rho'), 0.1, conserved=True).conserved
+        True
     """
 
     law_kind: ClassVar[LawKind] = LawKind.NOISE
@@ -205,6 +217,7 @@ class Noise:
     order: int | None = None
     convention: str = 'ito'
     process: Process = None
+    conserved: bool = False
 
     def __post_init__(self) -> None:
         """Check the value, the convention, and the process of the law."""
@@ -216,6 +229,12 @@ class Noise:
             error_msg = (
                 f'The process of the noise law of {self.target} is {self.process!r}. Give a label, a tuple of labels, '
                 'or the handle `s.<role>.dW` of a Wiener element.'
+            )
+            raise ValidationError(error_msg)
+        if self.conserved and self.process is not None:
+            error_msg = (
+                f'The conserved noise law of {self.target} names the process {self.process!r}, but it draws one '
+                'process per link of the lattice. Remove the process.'
             )
             raise ValidationError(error_msg)
 
@@ -580,6 +599,7 @@ class FractionalNoise(Noise):
 
     hurst: object = 0.5
     process: Process = field(default=None, init=False)
+    conserved: bool = field(default=False, init=False)
 
     def __init__(
         self,
@@ -595,6 +615,7 @@ class FractionalNoise(Noise):
         object.__setattr__(self, 'order', order)
         object.__setattr__(self, 'convention', convention)
         object.__setattr__(self, 'process', None)
+        object.__setattr__(self, 'conserved', False)
         self.__post_init__()
 
 

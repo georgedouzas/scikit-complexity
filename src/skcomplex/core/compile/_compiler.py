@@ -91,6 +91,7 @@ from ..space import ContinuousSpace, GroupSpace, LatticeSpace, Mesh, NetworkSpac
 from ..system import Observable, System
 from ._backends import Backend, resolve_backend
 from ._complex import modulus_form, split_law
+from ._conserved import conserved_outputs
 from ._contractions import CompiledEncounter
 from ._encounters import ENCOUNTER_LAWS, compile_encounters
 from ._fields import DiffusiveLimit, FieldLowering, has_operators
@@ -2311,6 +2312,8 @@ def _noise_process(key: ProcessKey | None, wieners: Mapping[str, Wiener]) -> Noi
 
 def _law_outputs(spec: _KernelSpec, law: Law, targets: list[Reference], declarations: _Declarations) -> list[Output]:
     """Return the outputs of a law for its target components, with the named Wiener process of a noise law."""
+    if isinstance(law, Noise) and law.conserved:
+        return conserved_outputs(spec.owner, law, targets, declarations.places, spec.references)
     outputs = _outputs_of(law.value, targets, f'{type(law).__name__} law of {spec.owner}')  # type: ignore[arg-type, union-attr]
     if isinstance(law, Noise) and law.process is not None:
         for item, key in zip(outputs, _process_keys(spec, law, declarations), strict=True):

@@ -369,13 +369,41 @@ convention, and validation reports laws of different conventions on one process,
 that reads a state another component drives through its process, a covariance that is not symmetric positive
 semidefinite, and a handle `dW` used anywhere but as the process of a noise law.
 
+**Conserved noise.** `Noise(target, value, conserved=True)` on a state of a field on a lattice adds the
+divergence of a random flux, `div(value eta)`, the thermal noise of Model B and of active field theories. Every link
+between neighbouring sites draws one Wiener process, and site `i` gains `value / h` times the increment of the link
+from its previous neighbour and loses the same amount on the link to its next one, along every dimension of spacing
+`h`. The total of the field then changes only by its rate laws, exactly to rounding. The links that leave a lattice
+through a zero-flux or fixed edge carry no process. The value is a number or an expression of parameters, the same
+on every link, and the field uses finite differences on a square lattice. Validation reports a conserved noise law on
+any other state with the code `noise-unsupported`.
+
+```python
+from sage.all__sagemath_symbolics import sqrt
+
+from skcomplex.core.components import Field
+from skcomplex.core.laws import laplacian
+from skcomplex.core.space import LatticeSpace
+
+Density = Element.define(
+    'Density',
+    states={'rho': 1.0},
+    parameters={'D': 1.0, 'T': 0.1},
+    laws=lambda s: [Rate(s.rho, s.D * laplacian(s.rho)), Noise(s.rho, sqrt(2 * s.T), conserved=True)],
+)
+gas = System(components=[Field('gas', Density, LatticeSpace((16, 16)))])
+density = Simulation(gas, solver=EulerMaruyama(dt=0.01), random_state=0).run(until=5).trajectory_['gas.rho']
+print(density[-1].sum(), density[-1].std() > 0)
+```
+
 Solvers and backends declare the noise structures they draw: `'diagonal'`, one process per state, `'shared'`, a process
-that drives several states, and `'correlated'`, the processes of a `Wiener` element with a covariance. `EulerMaruyama`,
-`Heun`, and the NumPy and Numba backends support all three. `Milstein`, whose derivative-free correction holds for
-diagonal noise only, and the LAMMPS backend support diagonal noise, and validation reports a system with shared or
-correlated noise for them before compiling it. The compatibility page lists the declarations. In the library,
+that drives several states, `'correlated'`, the processes of a `Wiener` element with a covariance, and `'conserved'`,
+the link processes of conserved noise. `EulerMaruyama`, `Heun`, and the NumPy and Numba backends support all four.
+`Milstein`, whose derivative-free correction holds for diagonal noise only, and the LAMMPS backend support diagonal
+noise, and validation reports a system with shared, correlated, or conserved noise for them before compiling it. The compatibility page lists the declarations. In the library,
 `Binding` and `Dissociation` take `langevin=True` for chemical Langevin equations, as in `chemical_langevin_network`,
-and `correlated_geometric_brownian_motion` drives two assets with correlated processes.
+`correlated_geometric_brownian_motion` drives two assets with correlated processes, and `active_model_b` and
+`cahn_hilliard` with a `temperature` take conserved noise.
 
 SciPy, RK4, Euler-Maruyama, Milstein, and Heun handle delays, events, and drivers. Velocity Verlet, Gillespie, and map
 iteration reject delays and events with an error that names the solvers to use. The library has these models ready:

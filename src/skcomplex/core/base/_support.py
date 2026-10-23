@@ -140,6 +140,7 @@ class NoiseKind(StrEnum):
     DIAGONAL = 'diagonal'
     SHARED = 'shared'
     CORRELATED = 'correlated'
+    CONSERVED = 'conserved'
 
 
 VOCABULARY: dict[str, type[StrEnum]] = {

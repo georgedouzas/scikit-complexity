@@ -6,14 +6,17 @@ from scipy.stats import skew
 
 from skcomplex.core.analysis import dispersion_relation, fields_of, pattern_wavelength, structure_factor
 from skcomplex.core.base import SolverError
+from skcomplex.core.components import Field
 from skcomplex.core.runtime import Frame, Simulation
-from skcomplex.core.solvers import ETDRK4, RK4
+from skcomplex.core.solvers import ETDRK4, RK4, EulerMaruyama
+from skcomplex.core.space import LatticeSpace
+from skcomplex.core.system import System
 from skcomplex.core.viz import RerunObserver, resolve_visual
 from skcomplex.models.biology.collective_behaviour import pheromone_foraging
 from skcomplex.models.biology.ecology import fisher_kpp
 from skcomplex.models.biology.physiology import fitzhugh_nagumo
 from skcomplex.models.chemistry.pattern_formation import brusselator, gray_scott, schnakenberg
-from skcomplex.models.physics.active_matter import keller_segel
+from skcomplex.models.physics.active_matter import ActiveScalar, active_model_b, keller_segel
 from skcomplex.models.physics.fluids import benard_marangoni
 from skcomplex.models.physics.heat import heat_diffusion
 from skcomplex.models.physics.pattern_formation import (
@@ -189,6 +192,48 @@ def test_cahn_hilliard_conserves_the_mean_and_coarsens_as_t_one_third():
     sizes = [_mean_domain_size(field) for field in phi[1:]]
     exponent = np.polyfit(np.log(trajectory.times[1:]), np.log(sizes), 1)[0]
     assert exponent == pytest.approx(1 / 3, abs=0.08)
+
+
+def test_cahn_hilliard_with_temperature_keeps_the_mean_under_conserved_noise():
+    """Test that thermal Model B keeps the mean of the order parameter while its noise roughens the field."""
+    system = cahn_hilliard((16, 16), length=16.0, mean=0.2, temperature=0.05)
+    trajectory = Simulation(system, dt=5.0, solver=EulerMaruyama(dt=0.02), random_state=0).run(until=20).trajectory_
+    phi = fields_of(trajectory, 'mixture.phi')
+    np.testing.assert_allclose(phi.mean(axis=(1, 2)), phi[0].mean(), rtol=1e-9)
+    deterministic = cahn_hilliard((16, 16), length=16.0, mean=0.2)
+    assert deterministic.elements[0].discretization == 'spectral'
+    assert np.abs(phi[-1] - phi[0]).max() > 0.1
+
+
+def test_active_model_b_keeps_the_mean_and_phase_separates():
+    """Test that Active Model B+ keeps the mean of phi under its conserved noise and separates into two phases."""
+    system = active_model_b((32, 32))
+    trajectory = Simulation(system, dt=50.0, solver=EulerMaruyama(dt=0.02), random_state=0).run(until=300).trajectory_
+    phi = fields_of(trajectory, 'fluid.phi')
+    np.testing.assert_allclose(phi.mean(axis=(1, 2)), phi[0].mean(), rtol=1e-9)
+    assert phi[-1].max() > 0.9
+    assert phi[-1].min() < -0.9
+
+
+def _bubble_areas(zeta):
+    """Return the areas of a small and a large bubble of the dilute phase, after relaxation and at the end."""
+    rows, columns = np.indices((24, 48))
+    bubbles = (np.hypot(rows - 12, columns - 12) < 4) | (np.hypot(rows - 12, columns - 36) < 7)
+    values = {'phi': np.where(bubbles, -1.0, 1.0), 'zeta': zeta, 'D': 0.0}
+    system = System(components=[Field('fluid', ActiveScalar, LatticeSpace((24, 48)), values=values)])
+    trajectory = Simulation(system, dt=50.0, solver=EulerMaruyama(dt=0.02)).run(until=300).trajectory_
+    phi = fields_of(trajectory, 'fluid.phi')[[1, -1]] < 0
+    return phi[:, :, :24].sum(axis=(1, 2)), phi[:, :, 24:].sum(axis=(1, 2))
+
+
+def test_active_model_b_reverses_ostwald_ripening():
+    """Test that the small bubble dissolves into the large one without zeta and grows at its expense with zeta = 4."""
+    (small_start, small_end), (large_start, large_end) = _bubble_areas(0.0)
+    assert small_end == 0
+    assert large_end > large_start
+    (small_start, small_end), (large_start, large_end) = _bubble_areas(4.0)
+    assert small_end > small_start
+    assert large_end < large_start
 
 
 def test_keller_segel_collapses_above_the_chemotactic_threshold():
