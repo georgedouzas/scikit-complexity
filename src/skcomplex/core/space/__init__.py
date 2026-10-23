@@ -3,8 +3,9 @@
 from ._lattices import LatticeSpace, Neighborhood
 from ._meshes import Mesh
 from ._neighbours import Cone, Nearest, Radius, neighbour_pairs
+from ._networks import Adjacency, Layer, NetworkSpace
 from ._phases import Phase
-from ._spaces import Adjacency, ContinuousSpace, NetworkSpace, Space
+from ._spaces import ContinuousSpace, Space
 from ._time import ContinuousTime, DiscreteTime, Phases, StaticTime, Time
 
 __all__: list[str] = [
@@ -14,6 +15,7 @@ __all__: list[str] = [
     'ContinuousTime',
     'DiscreteTime',
     'LatticeSpace',
+    'Layer',
     'Mesh',
     'Nearest',
     'Neighborhood',

@@ -16,8 +16,7 @@ from ..base import (
     SpaceKind,
     TimeKind,
 )
-from ..space._lattices import Neighborhood
-from ..space._spaces import Adjacency
+from ..space import Adjacency, Neighborhood
 
 SCHEDULES = ('synchronous', 'random-sequential', 'random-site', 'checkerboard', 'colored')
 MONTE_CARLO_SCHEDULES = ('checkerboard', 'random-sequential', 'colored')

@@ -11,10 +11,11 @@ import numpy as np
 
 from ..base import Requires, SpaceKind, ValidationError
 from ._lattices import LatticeSpace
-from ._spaces import NetworkSpace, Space
+from ._networks import NetworkSpace
+from ._spaces import Space
 
 
-def neighbour_pairs(space: Space | None, size: int) -> list[tuple[int, int]]:
+def neighbour_pairs(space: Space | None, size: int, layer: str | None = None) -> list[tuple[int, int]]:
     """Return the pairs of neighbouring members of a lattice or a network, each pair once.
 
     Args:
@@ -23,6 +24,9 @@ def neighbour_pairs(space: Space | None, size: int) -> list[tuple[int, int]]:
 
         size:
             The number of members, one per site or node.
+
+        layer:
+            The layer of a network, or `None` for the graph of the network.
 
     Returns:
         pairs:
@@ -38,8 +42,10 @@ def neighbour_pairs(space: Space | None, size: int) -> list[tuple[int, int]]:
         [(0, 1), (1, 2)]
     """
     if isinstance(space, NetworkSpace):
-        index = {node: number for number, node in enumerate(space.graph.nodes)}
-        return [(index[first], index[second]) for first, second in space.graph.edges if first != second]
+        sources, targets = space.list_edges(layer)
+        return [
+            (first, second) for first, second in zip(sources.tolist(), targets.tolist(), strict=True) if first != second
+        ]
     if not isinstance(space, LatticeSpace):
         error_msg = f'Neighbours are defined on a LatticeSpace or a NetworkSpace, not on {space!r}.'
         raise ValidationError(error_msg)

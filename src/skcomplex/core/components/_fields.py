@@ -13,7 +13,7 @@ from ..base import (
 from ..laws._fields import FIELD_BOUNDARIES
 from ..space._lattices import LatticeSpace
 from ..space._meshes import Mesh
-from ..space._spaces import NetworkSpace
+from ..space._networks import NetworkSpace
 from ._components import Element, Group
 
 

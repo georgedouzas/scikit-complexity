@@ -4,15 +4,11 @@
 # License: MIT
 
 from collections.abc import Sequence
-from dataclasses import dataclass
 from typing import ClassVar
 
-import networkx as nx
-import numpy as np
-import numpy.typing as npt
 from sklearn.base import BaseEstimator
 
-from ..base import Requires, SpaceKind, ValidationError
+from ..base import SpaceKind, ValidationError
 
 
 class Space(BaseEstimator):
@@ -24,119 +20,6 @@ class Space(BaseEstimator):
     space_kind: ClassVar[SpaceKind]
 
     n_dim: int
-
-
-@dataclass(frozen=True)
-class Adjacency:
-    """Neighbourhood of a node of a graph: the nodes along its edges, in node order, after the node itself if included.
-
-    Rules receive the values of the neighbours padded to the largest degree of the graph.
-
-    Args:
-        center:
-            Whether the node itself comes first.
-
-    Examples:
-        >>> from skcomplex.core.space import Adjacency
-        >>> Adjacency(center=True).center
-        True
-    """
-
-    requires: ClassVar[Requires] = Requires(space={SpaceKind.NETWORK})
-
-    center: bool = False
-
-
-class NetworkSpace(Space):
-    """Network whose nodes agents occupy or lattice sites sit on, with the neighbours of a node given by its edges.
-
-    Lattice groups on a network hold one member per node, in the order of `graph.nodes`.
-
-    Args:
-        graph:
-            The NetworkX graph.
-
-        capacity:
-            The largest number of agents on a node, or `None` for no limit.
-
-        fill:
-            The value lattice rules read in the padding slots of nodes with fewer neighbours than the largest degree.
-
-        hyperedges:
-            The hyperedges of the network, each a sequence of at least two nodes, which interactions with the binding
-            `'hyperedges'` and groups on hyperedges read.
-
-    Raises:
-        ValidationError:
-            A hyperedge has fewer than two nodes or a node outside the graph.
-
-    Examples:
-        >>> import networkx as nx
-        >>> from skcomplex.core.space import NetworkSpace
-        >>> NetworkSpace(nx.cycle_graph(5)).graph.number_of_nodes()
-        5
-        >>> NetworkSpace(nx.complete_graph(3), hyperedges=[(0, 1, 2)]).hyperedges
-        [(0, 1, 2)]
-    """
-
-    space_kind: ClassVar[SpaceKind] = SpaceKind.NETWORK
-
-    n_dim = 1
-
-    def __init__(
-        self,
-        graph: nx.Graph,
-        *,
-        capacity: int | None = None,
-        fill: float = 0.0,
-        hyperedges: Sequence[Sequence[object]] = (),
-    ) -> None:
-        self.graph = graph
-        self.capacity = capacity
-        self.fill = fill
-        self.hyperedges = hyperedges
-        nodes = set(graph.nodes)
-        for hyperedge in hyperedges:
-            if len(hyperedge) < 2 or not set(hyperedge) <= nodes:  # noqa: PLR2004
-                error_msg = f'The hyperedge {tuple(hyperedge)} needs at least two nodes of the graph.'
-                raise ValidationError(error_msg)
-
-    def index_table(self, neighborhood: Adjacency) -> npt.NDArray[np.intp]:
-        """Return the node index of every neighbour of every node, padded with the number of nodes.
-
-        Args:
-            neighborhood:
-                The graph neighbourhood.
-
-        Returns:
-            table:
-                One row per node and one column per neighbour slot, as wide as the largest degree, plus one column
-                for the node itself when the neighbourhood includes it.
-
-        Raises:
-            ValidationError:
-                The neighbourhood is not a graph neighbourhood.
-
-        Examples:
-            >>> import networkx as nx
-            >>> from skcomplex.core.space import Adjacency, NetworkSpace
-            >>> NetworkSpace(nx.star_graph(2)).index_table(Adjacency()).tolist()
-            [[1, 2], [0, 3], [0, 3]]
-        """
-        if not isinstance(neighborhood, Adjacency):
-            error_msg = f'A network reads the neighbourhood Adjacency(), but it was given {neighborhood!r}.'
-            raise ValidationError(error_msg)
-        size = self.graph.number_of_nodes()
-        matrix = nx.to_scipy_sparse_array(self.graph, nodelist=list(self.graph.nodes), format='csr')
-        matrix.sort_indices()
-        degrees = np.diff(matrix.indptr)
-        width = int(degrees.max(initial=0))
-        table = np.full((size, width), size, dtype=np.intp)
-        slots = np.arange(matrix.indices.size) - np.repeat(matrix.indptr[:-1], degrees)
-        table[np.repeat(np.arange(size), degrees), slots] = matrix.indices
-        if neighborhood.center:
-            return np.column_stack([np.arange(size, dtype=np.intp), table])
-        return table
 
 
 BOUNDARIES = ('open', 'periodic', 'reflecting')
