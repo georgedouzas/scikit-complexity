@@ -8,7 +8,7 @@ they rise and fall together, and their log returns are correlated with `rho`.
 
 # %%
 # The model is created by name from the catalog with prices of 100, drifts of 5 and 8 percent, and volatilities of 20
-# and 30 percent a year. It is simulated for three years in frames of 0.01 with the Euler-Maruyama scheme. The default
+# and 30 percent a year. It is simulated for three years in frames of 0.02 with the Euler-Maruyama scheme. The default
 # blueprint shows both prices in one time series view, and the Wiener element, which has no states, draws no view.
 
 import matplotlib.pyplot as plt
@@ -25,7 +25,7 @@ RHO = 0.7
 system = create(MODEL, rho=RHO)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
 solver = EulerMaruyama(dt=0.001)
-simulation = Simulation(system, dt=0.01, solver=solver, observers=[observer], random_state=0).run(until=3)
+simulation = Simulation(system, dt=0.02, solver=solver, observers=[observer], random_state=0).run(until=3)
 
 # %%
 # Correlated log returns
