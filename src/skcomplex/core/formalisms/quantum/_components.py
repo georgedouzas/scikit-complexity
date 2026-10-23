@@ -9,11 +9,10 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..base import HilbertFamily, HilbertSpace, ValidationError, VariableKind, declarations_of
-from ..laws import Law
-from ..laws._operators import LocalOperator, Operator, sparse_matrix
-from ..laws._symbols import Symbols
-from ._components import Element, Group
+from ...base import HilbertFamily, HilbertSpace, ValidationError, VariableKind, declarations_of
+from ...components import Element, Group
+from ...laws import Law, Symbols
+from ._laws import LocalOperator, Operator, sparse_matrix
 
 NORM_TOLERANCE = 1e-8
 DIGEST_SIZE = 8
@@ -66,7 +65,7 @@ class QuantumView:
             The element.
 
     Examples:
-        >>> from skcomplex.core.components import QuantumView
+        >>> from skcomplex.core.formalisms.quantum import QuantumView
         >>> from skcomplex.models.physics.realizations import Qubit
         >>> QuantumView(Qubit('q', initial='down')).initial_vector().tolist()
         [0j, (1+0j)]

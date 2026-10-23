@@ -11,19 +11,36 @@ from skcomplex.core.analysis import box_counting_dimension
 from skcomplex.core.base import (
     Form,
     IncompatibleLawsError,
+    LawKind,
     RewritingError,
     RoleError,
     ValidationError,
     parameter,
     symbol,
 )
-from skcomplex.core.compile import PatchStructure, WordStructure, compile_system
-from skcomplex.core.components import HostGraph, Patch, Word
-from skcomplex.core.interactions import Rewrite, Rewriting
-from skcomplex.core.laws import Affine, GraphProduction, Module, Production, Prototile, Substitution
+from skcomplex.core.compile import claiming_pass, compile_system
+from skcomplex.core.formalisms import registered_formalisms
+from skcomplex.core.formalisms.rewriting import (
+    Affine,
+    GraphProduction,
+    HostGraph,
+    Module,
+    Patch,
+    PatchStructure,
+    Production,
+    Prototile,
+    Rewrite,
+    Rewriter,
+    Rewriting,
+    RewritingPass,
+    Substitution,
+    Word,
+    WordGeometry,
+    WordStructure,
+)
 from skcomplex.core.runtime import Simulation
+from skcomplex.core.solvers import StructureState
 from skcomplex.core.system import System
-from skcomplex.core.viz import WordGeometry
 from skcomplex.models.biology.ecology import Population
 
 X = symbol('x')
@@ -409,3 +426,28 @@ def test_productions_are_written():
     assert repr(Substitution('a', [('a', Affine()), ('b', Affine())])) == 'a → a, b'
     assert 'GraphProduction(' in repr(_subdivision())
     assert repr(WordStructure(('A',), [0], np.zeros((1, 0)), 0)) == 'WordStructure(generation=0, size=1)'
+
+
+def test_rewriting_pass_claims_rewriting_systems():
+    """Test that the registered rewriting pass claims a system of words and leaves a classical one."""
+    assert isinstance(claiming_pass(System(components=[Word('algae', axiom='A')])), RewritingPass)
+    assert claiming_pass(System(components=[Population('rabbits', n=10)])) is None
+
+
+def test_registered_formalisms_list_rewriting():
+    """Test that the rewriting formalism is listed with its law kind, its form, and its solver."""
+    rewriting = next(item for item in registered_formalisms() if item.name == 'rewriting')
+    assert {law.law_kind for law in rewriting.laws} == {LawKind.REWRITE}
+    assert rewriting.forms == (Form.REWRITING,)
+    assert rewriting.solvers['auto'] is Rewriter
+
+
+def test_snapshot_is_a_structure_state():
+    """Test that the rewriter hands its structures and measures to the simulation as a structure state."""
+    system = System(
+        components=[Word('algae', axiom='A')],
+        interactions=[Rewrite('rules', target='algae', rules=[Production('A', 'AB'), Production('B', 'A')])],
+    )
+    snapshot = Simulation(system).run(until=2).stepper_.snapshot()
+    assert isinstance(snapshot, StructureState)
+    assert len(snapshot.structures['algae']) == 3

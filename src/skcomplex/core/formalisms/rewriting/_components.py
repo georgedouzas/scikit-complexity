@@ -4,22 +4,20 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import Any, ClassVar
 
 import networkx as nx
 
-from ..base import (
+from ...base import (
     Structure,
     VariableKind,
     VisualSpec,
     declarations_of,
     state,
 )
-from ..laws._rewriting import Affine, Letters, Prototile
-from ._components import Element
-
-if TYPE_CHECKING:
-    from ..viz import WordGeometry
+from ...components import Element
+from ._geometry import WordGeometry
+from ._laws import Affine, Letters, Prototile
 
 
 class Word(Element):
@@ -55,7 +53,7 @@ class Word(Element):
                 The word at generation 0.
 
     Examples:
-        >>> from skcomplex.core.components import Word
+        >>> from skcomplex.core.formalisms.rewriting import Word
         >>> Word('algae', axiom='A').axiom
         'A'
     """
@@ -110,8 +108,8 @@ class Patch(Element):
                 Pairs of a prototile name and its placement at generation 0, or `None` for the first prototile in place.
 
     Examples:
-        >>> from skcomplex.core.components import Patch
-        >>> from skcomplex.core.laws import Prototile
+        >>> from skcomplex.core.formalisms.rewriting import Patch
+        >>> from skcomplex.core.formalisms.rewriting import Prototile
         >>> Patch('cantor', prototiles=[Prototile('interval', [(0, 0), (1, 0)])]).filled
         False
     """
@@ -159,7 +157,7 @@ class HostGraph(Element):
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.core.components import HostGraph
+        >>> from skcomplex.core.formalisms.rewriting import HostGraph
         >>> HostGraph('ring', graph=nx.cycle_graph(4)).graph.number_of_nodes()
         4
     """
@@ -192,7 +190,7 @@ def structure_of(element_type: type) -> str | None:
             `'sequence'`, `'tiling'`, or `'graph'`, or `None` for a type without a structured state.
 
     Examples:
-        >>> from skcomplex.core.components import Word, structure_of
+        >>> from skcomplex.core.formalisms.rewriting import Word, structure_of
         >>> structure_of(Word)
         'sequence'
     """

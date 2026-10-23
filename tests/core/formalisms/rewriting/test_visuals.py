@@ -4,12 +4,18 @@ import networkx as nx
 import rerun.blueprint as rrb
 
 from skcomplex.core.compile import compile_system
-from skcomplex.core.components import HostGraph, Word
-from skcomplex.core.interactions import Rewrite
-from skcomplex.core.laws import GraphProduction, Production
+from skcomplex.core.formalisms.rewriting import (
+    GeometryVisual,
+    GraphProduction,
+    HostGraph,
+    Production,
+    Rewrite,
+    Word,
+    WordGeometry,
+)
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.system import System
-from skcomplex.core.viz import GeometryVisual, RerunObserver, WordGeometry
+from skcomplex.core.viz import RerunObserver
 
 
 def _views(system):

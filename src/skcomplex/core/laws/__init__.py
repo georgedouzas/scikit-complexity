@@ -55,21 +55,17 @@ from ._laws import (
 )
 from ._moments import moment
 from ._neighbourhoods import NEIGHBOUR_REDUCTIONS, NeighbourReduction, neighbors, neighbourhoods_in
-from ._operators import Dissipator, Generator, LocalOperator, Operator, sparse_matrix
 from ._reductions import Reduction, count, has_reductions, maximum, mean, minimum, reductions_in, total, variance
-from ._rewriting import Affine, GraphProduction, Module, Production, Prototile, RewritingLaw, Substitution
 from ._symbols import Symbols
 from ._topology import TopologyRequest, add_edge, add_node, remove_edge, remove_node, request_of, rewire
 from ._values import values_of
 
 __all__: list[str] = [
     'NEIGHBOUR_REDUCTIONS',
-    'Affine',
     'Auxiliary',
     'Boundary',
     'Call',
     'Destruction',
-    'Dissipator',
     'Draw',
     'Drive',
     'Emission',
@@ -80,34 +76,25 @@ __all__: list[str] = [
     'Extremal',
     'Flux',
     'FractionalNoise',
-    'Generator',
-    'GraphProduction',
     'Invariant',
     'Jump',
     'Law',
-    'LocalOperator',
     'LocalRule',
-    'Module',
     'Move',
     'NeighbourReduction',
     'Noise',
     'NumericFunction',
     'Objective',
-    'Operator',
     'OuterTotalistic',
-    'Production',
     'Proliferation',
-    'Prototile',
     'Rate',
     'Reduction',
     'Relaxation',
-    'RewritingLaw',
     'Rule',
     'Sample',
     'Sampler',
     'Sink',
     'Source',
-    'Substitution',
     'Symbols',
     'Table',
     'Target',
@@ -163,7 +150,6 @@ __all__: list[str] = [
     'series',
     'shift_arguments',
     'shift_member',
-    'sparse_matrix',
     'step',
     'total',
     'transfer',

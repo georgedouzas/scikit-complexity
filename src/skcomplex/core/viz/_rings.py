@@ -10,7 +10,7 @@ import rerun.blueprint as rrb
 from ..base import wrap_angle
 from ..compile import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
-from ._visuals import UPWARD, Visual, _log_scalars, _phase_colors, _radius_of, register_visual
+from ._visuals import UPWARD, Visual, _phase_colors, _radius_of, log_scalars, register_visual
 
 PHASE_MARGIN = 0.1
 HEIGHT_SHARE = 0.6
@@ -74,7 +74,7 @@ class PhaseRingVisual(Visual):
         recording.log(f'{element.path}/phases', rr.Points2D(points, radii=radius, colors=_phase_colors(phases)))
         for state, name in element.states.items():
             if state not in {self.phase, self.position}:
-                _log_scalars(recording, f'{element.path}/{state}', frame.value(name))
+                log_scalars(recording, f'{element.path}/{state}', frame.value(name))
 
     def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
         """Return a 2D view of the phases against the positions, bounded by one turn of phase.

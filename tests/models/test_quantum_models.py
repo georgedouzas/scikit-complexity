@@ -7,9 +7,10 @@ from scipy.special import jv
 
 from skcomplex.core.analysis import purity, spectrum
 from skcomplex.core.base import ValidationError
+from skcomplex.core.formalisms.quantum import ExpectationVisual, LindbladEvolution
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import ETDRK4, LindbladEvolution
-from skcomplex.core.viz import ExpectationVisual, RerunObserver, default_blueprint
+from skcomplex.core.solvers import ETDRK4
+from skcomplex.core.viz import RerunObserver, default_blueprint
 from skcomplex.models import create, run
 
 

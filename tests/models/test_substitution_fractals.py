@@ -6,8 +6,9 @@ import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import box_counting_dimension
 from skcomplex.core.base import ValidationError
+from skcomplex.core.formalisms.rewriting import GeometryVisual
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import GeometryVisual, RerunObserver, primary_view
+from skcomplex.core.viz import RerunObserver, primary_view
 from skcomplex.models import create, describe, run
 
 

@@ -10,10 +10,11 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ..compile import CompiledAgents, CompiledElement, GraphStructure, PatchStructure, Problem, Structure, WordStructure
-from ..components import Patch, Word
-from ..runtime import Frame
-from ._visuals import Visual, _colors_of, _log_scalars, register_visual
+from ...compile import CompiledAgents, CompiledElement, Problem
+from ...runtime import Frame
+from ...viz import Visual, colors_of, log_scalars
+from ._components import Patch, Word
+from ._structures import GraphStructure, PatchStructure, Structure, WordStructure
 
 MARGIN = 0.03
 RESOLUTION = 512
@@ -78,7 +79,7 @@ class GeometryVisual(Visual):
             The side in pixels of the image of a filled patch.
 
     Examples:
-        >>> from skcomplex.core.viz import GeometryVisual
+        >>> from skcomplex.core.formalisms.rewriting import GeometryVisual
         >>> GeometryVisual(filled=True)
         GeometryVisual(filled=True, resolution=512)
     """
@@ -109,7 +110,7 @@ class GeometryVisual(Visual):
                 The frame.
         """
         for state, name in element.states.items():
-            _log_scalars(recording, f'{element.path}/counts/{state}', frame.value(name))
+            log_scalars(recording, f'{element.path}/counts/{state}', frame.value(name))
         structure = frame.structures.get(element.path)
         if structure is None:
             return
@@ -127,7 +128,7 @@ class GeometryVisual(Visual):
             recording.log(element.path, rr.Image(pixels))
             return
         strips, values = _strips(structure)
-        colors = _colors_of(values, 0.0, max(float(values.max(initial=0.0)), 1.0))
+        colors = colors_of(values, 0.0, max(float(values.max(initial=0.0)), 1.0))
         dimension = strips[0].shape[1] if strips else 2
         archetype = rr.LineStrips3D if dimension == 3 else rr.LineStrips2D  # noqa: PLR2004
         recording.log(element.path, archetype(strips, colors=colors))
@@ -149,7 +150,7 @@ class GeometryVisual(Visual):
 
         Examples:
             >>> from skcomplex.core.compile import compile_system
-            >>> from skcomplex.core.viz import GeometryVisual
+            >>> from skcomplex.core.formalisms.rewriting import GeometryVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('koch_curve'))
             >>> [type(view).__name__ for view in GeometryVisual().views(problem.elements[0], problem)]
@@ -170,6 +171,3 @@ class GeometryVisual(Visual):
         xmin, ymin, xmax, ymax = bounds
         visual_bounds = rrb.VisualBounds2D(x_range=[xmin, xmax], y_range=[-ymax, -ymin])
         return [rrb.Spatial2DView(origin=path, name=path, visual_bounds=visual_bounds), series]
-
-
-register_visual('geometry', GeometryVisual)

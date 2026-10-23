@@ -5,20 +5,22 @@
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol, cast
 
 import numpy as np
 import numpy.typing as npt
 import qutip
 
-from ..base import AnalysisError, ParameterError
-from ..compile import QuantumProblem, Vector, compile_system
-from ..laws import Operator, Symbols
+from ..base import AnalysisError, Form, ParameterError
+from ..compile import Layout, Problem, Vector, compile_system
+from ..laws import Symbols
 from ..runtime import Trajectory
 from ..system import System
 
 DIAGONAL_TOLERANCE = 1e-12
 SECTOR_TOLERANCE = 1e-9
+
+type Sector = tuple[Callable[[Symbols], Any], float]
 
 
 @dataclass(frozen=True)
@@ -37,16 +39,16 @@ class Spectrum:
     states: npt.NDArray[np.complex128]
 
 
-def _quantum_problem(system: System | QuantumProblem) -> QuantumProblem:
+def _quantum_problem(system: System | Problem) -> '_QuantumProblem':
     """Return the quantum problem of a system, compiling it when needed."""
-    problem = system if isinstance(system, QuantumProblem) else compile_system(system)
-    if not isinstance(problem, QuantumProblem):
+    problem = system if isinstance(system, Problem) else compile_system(system)
+    if problem.form is not Form.QUANTUM:
         error_msg = f'The system compiles to the {problem.form.value} form, but the analysis needs quantum elements.'
         raise AnalysisError(error_msg)
-    return problem
+    return cast('_QuantumProblem', problem)
 
 
-def _parameters_of(problem: QuantumProblem, values: Mapping[str, Any] | None) -> Vector:
+def _parameters_of(problem: '_QuantumProblem', values: Mapping[str, Any] | None) -> Vector:
     """Return the initial parameter vector with some values replaced by dotted name."""
     p = problem.initial_parameters.copy()
     for name, value in (values or {}).items():
@@ -60,8 +62,8 @@ def _parameters_of(problem: QuantumProblem, values: Mapping[str, Any] | None) ->
 
 
 def _sector_basis(
-    problem: QuantumProblem,
-    sector: tuple[Callable[[Symbols], Operator], float],
+    problem: '_QuantumProblem',
+    sector: Sector,
     p: Vector,
 ) -> npt.NDArray[np.intp]:
     """Return the basis states whose eigenvalue of a conserved diagonal operator equals a value."""
@@ -79,21 +81,22 @@ def _sector_basis(
     return basis
 
 
-def _states_of(trajectory: Trajectory) -> tuple[QuantumProblem, npt.NDArray[np.complex128]]:
+def _states_of(trajectory: Trajectory) -> tuple['_QuantumProblem', npt.NDArray[np.complex128]]:
     """Return the quantum problem of a trajectory and its states, one per frame."""
     problem = trajectory.problem
-    if not isinstance(problem, QuantumProblem):
+    if problem.form is not Form.QUANTUM:
         error_msg = 'The trajectory is not the trajectory of a quantum system.'
         raise AnalysisError(error_msg)
-    return problem, np.asarray(trajectory[problem.state_name])
+    quantum = cast('_QuantumProblem', problem)
+    return quantum, np.asarray(trajectory[quantum.state_name])
 
 
 def spectrum(
-    system: System | QuantumProblem,
+    system: System | Problem,
     k: int = 6,
     *,
     parameters: Mapping[str, Any] | None = None,
-    sector: tuple[Callable[[Symbols], Operator], float] | None = None,
+    sector: Sector | None = None,
 ) -> Spectrum:
     """Return the lowest eigenvalues and eigenstates of the Hamiltonian of a quantum system, by exact diagonalisation.
 
@@ -139,7 +142,7 @@ def spectrum(
 
 
 def ground_state(
-    system: System | QuantumProblem,
+    system: System | Problem,
     *,
     parameters: Mapping[str, Any] | None = None,
 ) -> tuple[float, npt.NDArray[np.complex128]]:
@@ -246,7 +249,7 @@ def entanglement_entropy(trajectory: Trajectory, subsystems: Sequence[str]) -> n
     return np.asarray(values, dtype=float)
 
 
-def hamiltonian_of(system: System | QuantumProblem) -> Operator:
+def hamiltonian_of(system: System | Problem) -> Any:  # noqa: ANN401
     """Return the Hamiltonian of a quantum system as one operator, printed in operator notation.
 
     Args:
@@ -263,7 +266,7 @@ def hamiltonian_of(system: System | QuantumProblem) -> Operator:
 
     Examples:
         >>> from skcomplex.core.analysis import hamiltonian_of
-        >>> from skcomplex.core.laws import Generator
+        >>> from skcomplex.core.formalisms.quantum import Generator
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.physics.realizations import Qubit
         >>> Driven = Qubit.define('Driven', parameters={'omega': 1.0}, laws=lambda s: [Generator(s.omega / 2 * s.z)])
@@ -271,3 +274,30 @@ def hamiltonian_of(system: System | QuantumProblem) -> Operator:
         1/2*omega_q*q.z
     """
     return _quantum_problem(system).hamiltonian_operator
+
+
+class _QuantumProblem(Protocol):
+    """Problem of the quantum form, as the analyses read it."""
+
+    parameters: Layout
+    initial_parameters: Vector
+    namespaces: Mapping[str, Symbols]
+    pure: bool
+    subsystems: tuple[str, ...]
+    dimensions: tuple[int, ...]
+    hamiltonian_operator: Any
+
+    @property
+    def state_name(self) -> str:
+        """Dotted name of the state in the state vector."""
+
+    def operator_terms(self, operator: Any, owner: str = ...) -> tuple[Any, ...]:  # noqa: ANN401
+        """Return the terms of an operator."""
+
+    def lowest_states(
+        self,
+        p: Vector,
+        k: int,
+        basis: npt.NDArray[np.intp] | None = ...,
+    ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.complex128]]:
+        """Return the lowest eigenvalues and eigenstates of the Hamiltonian."""

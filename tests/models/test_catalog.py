@@ -8,8 +8,9 @@ import pytest
 from sklearn.base import clone
 
 from skcomplex.core.base import ValidationError
-from skcomplex.core.compile import ObservableEvaluator, compile_system, contains_quantum, observables_of
+from skcomplex.core.compile import ObservableEvaluator, compile_system, observables_of
 from skcomplex.core.components import Element, Group, runs_rules
+from skcomplex.core.formalisms.quantum import contains_quantum
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Rate
 from skcomplex.core.runtime import Simulation

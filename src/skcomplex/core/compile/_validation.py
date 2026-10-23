@@ -69,8 +69,6 @@ from ._compiler import CensusRecord, _held_observables, _process_covariance, _wi
 from ._layout import Entry
 from ._neighbourhoods import cone_heading, position_state
 from ._observables import with_observables
-from ._quantum import contains_quantum
-from ._rewriting import is_rewriting
 from ._system_passes import claiming_pass
 from ._tree import flatten_system
 
@@ -1148,7 +1146,7 @@ def validate(
         ['solver-unsupported']
     """
     report = ValidationReport(_structure_issues(system))
-    if report.issues or claiming_pass(system) is not None or is_rewriting(system) or contains_quantum(system):
+    if report.issues or claiming_pass(system) is not None:
         return report
     try:
         observed = with_observables(system, observables)

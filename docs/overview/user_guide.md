@@ -2302,9 +2302,7 @@ A `Rewrite` interaction rewrites its target with fixed rules. Strings are words 
 `Module` gives a symbol parameters.
 
 ```python
-from skcomplex.core.components import Word
-from skcomplex.core.interactions import Rewrite
-from skcomplex.core.laws import Module, Production
+from skcomplex.core.formalisms.rewriting import Module, Production, Rewrite, Word
 
 algae = System(
     components=[Word('algae', axiom='A')],
@@ -2323,7 +2321,7 @@ parameters written as expressions of them and of the parameters of a `Rewriting`
 
 ```python
 from skcomplex.core.base import parameter, symbol
-from skcomplex.core.interactions import Rewriting
+from skcomplex.core.formalisms.rewriting import Rewriting
 
 x = symbol('x')
 
@@ -2357,9 +2355,7 @@ relative to it. Structures with a geometry report `<element>.length` and
 
 ```python
 from skcomplex.core.analysis import box_counting_dimension
-from skcomplex.core.components import Patch
-from skcomplex.core.laws import Affine, Prototile, Substitution
-from skcomplex.core.viz import WordGeometry
+from skcomplex.core.formalisms.rewriting import Affine, Patch, Prototile, Substitution, WordGeometry
 
 koch = System(
     components=[Word('koch', axiom='F', geometry=WordGeometry(angle=60.0, contraction=1 / 3))],
@@ -2392,8 +2388,7 @@ drawn from the random stream, and skips matches whose deleted nodes would leave 
 ```python
 import networkx as nx
 
-from skcomplex.core.components import HostGraph
-from skcomplex.core.laws import GraphProduction
+from skcomplex.core.formalisms.rewriting import GraphProduction, HostGraph
 
 interface = nx.Graph()
 interface.add_nodes_from('ab')
@@ -2432,10 +2427,10 @@ import numpy as np
 from typing import ClassVar
 
 from skcomplex.core.base import parameter, role
+from skcomplex.core.formalisms.quantum import Generator, expectation
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Generator
 from skcomplex.core.space import LatticeSpace
-from skcomplex.core.system import System, expectation
+from skcomplex.core.system import System
 from skcomplex.core.runtime import Simulation
 from skcomplex.models.physics.realizations import Spin
 

@@ -15,7 +15,7 @@ import qutip
 import scipy.sparse as sp
 from sage.all__sagemath_symbolics import SR
 
-from ..base import (
+from ...base import (
     Domain,
     Expression,
     Form,
@@ -27,24 +27,34 @@ from ..base import (
     symbol,
     vector,
 )
-from ..components import Group, QuantumView, hilbert_state, is_quantum, view_of
-from ..interactions import Interaction
-from ..laws import Dissipator, Generator, Operator, Symbols
-from ..space import LatticeSpace, neighbour_pairs
-from ..system import Observable, System, reduce_values
-from ._fields import spectral_multiplier
-from ._layout import Entry, Layout
-from ._printing import numpy_function
-from ._problem import CompiledElement, CompiledInteraction, Problem, Vector
-from ._tree import Node, coerce_value, flatten_system
+from ...compile import (
+    CompiledElement,
+    CompiledInteraction,
+    Entry,
+    Getter,
+    Layout,
+    Node,
+    Problem,
+    SystemPass,
+    Vector,
+    coerce_value,
+    flatten_system,
+    numpy_function,
+    spectral_multiplier,
+)
+from ...components import Group
+from ...interactions import Interaction
+from ...laws import Symbols
+from ...space import LatticeSpace, neighbour_pairs
+from ...system import Observable, System, reduce_values
+from ._components import QuantumView, hilbert_state, is_quantum, view_of
+from ._laws import Dissipator, Generator, Operator
 
 DENSE_LIMIT = 1024
 HERMITIAN_TOLERANCE = 1e-10
 NORM_TOLERANCE = 1e-8
 SAMPLE_TIME = 0.37
 REAL_TOLERANCE = 1e-10
-
-type Getter = Callable[[float, Vector, Vector, Mapping[str, Any]], Any]
 
 DEFAULT_MAX_DIMENSION = 2**20
 
@@ -521,6 +531,19 @@ class QuantumProblem(Problem):
         """Return the probability of every basis state of the whole space."""
         state = self.state_of(x)
         return np.abs(state) ** 2 if self.pure else np.real(np.diagonal(state))
+
+    def observable_getters(self, observables: Iterable[tuple[str, Observable]]) -> dict[str, Getter]:
+        """Return the getters of the observables, with the energy, and the purity when the system is open.
+
+        Args:
+            observables:
+                The path of the declaring system and the observable, for every observable of the system tree.
+
+        Returns:
+            getters:
+                The getters by observable path.
+        """
+        return quantum_getters(self, observables)
 
     def local_values(self, path: str, x: Vector) -> dict[str, Any]:
         """Return the local expectations of a quantum element or group at a state, which visuals draw.
@@ -1008,3 +1031,63 @@ def quantum_getters(problem: QuantumProblem, observables: Iterable[tuple[str, Ob
     if not problem.pure:
         getters.setdefault('purity', _purity_getter(problem))
     return getters
+
+
+class QuantumPass(SystemPass):
+    """Pass that compiles a system holding quantum elements into a problem of the quantum form."""
+
+    def claims(self, system: System) -> bool:
+        """Check whether a system holds a quantum element or group.
+
+        Args:
+            system:
+                The system.
+
+        Returns:
+            claims:
+                Whether the system holds a quantum element or group.
+        """
+        return contains_quantum(system)
+
+    def compile(
+        self,
+        system: System,
+        *,
+        backend: object,
+        solver: object,
+        initial_state: Mapping[str, object],
+    ) -> Problem:
+        """Compile a quantum system into a problem of the quantum form.
+
+        Args:
+            system:
+                The system, with the observables of the run.
+
+            backend:
+                The backend requested for the problem, which the quantum form does not use.
+
+            solver:
+                The solver the problem runs on, whose largest dimension limits the Hilbert space.
+
+            initial_state:
+                The initial state of the whole system under `<system label>.state`.
+
+        Returns:
+            problem:
+                The quantum problem.
+
+        Raises:
+            ValidationError:
+                An initial value names another state than the whole state of the system.
+        """
+        del backend
+        whole = f'{system.label}.state'
+        unknown = set(initial_state) - {whole}
+        if unknown:
+            error_msg = (
+                f'The initial state names {", ".join(sorted(unknown))}, which are not states of the system. Use the '
+                f'dotted names of states, such as {whole}.'
+            )
+            raise ValidationError(error_msg)
+        limit = getattr(solver, 'max_dimension', DEFAULT_MAX_DIMENSION)
+        return compile_quantum(system, initial=initial_state.get(whole), max_dimension=limit)

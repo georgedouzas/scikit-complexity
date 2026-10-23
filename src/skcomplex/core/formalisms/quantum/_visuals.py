@@ -8,11 +8,12 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ..compile import CompiledAgents, CompiledElement, Problem, QuantumProblem
-from ..components import view_of
-from ..runtime import Frame
-from ..space import LatticeSpace
-from ._visuals import SPACE_TIME, ImageVisual, _log_scalars, register_visual
+from ...compile import CompiledAgents, CompiledElement, Problem
+from ...runtime import Frame
+from ...space import LatticeSpace
+from ...viz import SPACE_TIME, ImageVisual, log_scalars
+from ._components import view_of
+from ._passes import QuantumProblem
 
 
 def _shape_of(element: CompiledElement) -> tuple[int, ...] | None:
@@ -52,7 +53,7 @@ class ExpectationVisual(ImageVisual):
             The largest number of rows of the space-time image, or `None` for as many as sites, between 64 and 256.
 
     Examples:
-        >>> from skcomplex.core.viz import ExpectationVisual
+        >>> from skcomplex.core.formalisms.quantum import ExpectationVisual
         >>> ExpectationVisual(low=-0.5, high=0.5)
         ExpectationVisual(states=None, low=-0.5, high=0.5, history=None)
     """
@@ -82,7 +83,7 @@ class ExpectationVisual(ImageVisual):
         for name, value in values.items():
             path = f'{element.path}/{name}'
             if shape is None:
-                _log_scalars(recording, path, value)
+                log_scalars(recording, path, value)
                 continue
             array: npt.NDArray[np.float64] = np.asarray(value, dtype=float)
             if len(shape) == 1:
@@ -114,6 +115,3 @@ class ExpectationVisual(ImageVisual):
             views.append(rrb.Spatial2DView(origin=f'{element.path}/{SPACE_TIME}/{name}', name=f'{name} history'))
         views.append(rrb.Spatial2DView(origin=f'{element.path}/{name}', name=name))
         return views
-
-
-register_visual('expectations', ExpectationVisual)

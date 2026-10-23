@@ -3,31 +3,14 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
-from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
 import numpy as np
 
-from ..base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind
-from ..compile import Problem, Structure, Vector
-from ._base import Stepper, register_solver
-
-
-@dataclass(frozen=True)
-class RewritingState:
-    """Structures of the rewriting elements at one generation, with their geometric measures.
-
-    Args:
-        structures:
-            A mapping from element path to its word, patch, or host graph.
-
-        reporters:
-            A mapping from `<path>.length` and `<path>.area` to their values, for structures with a geometry.
-    """
-
-    structures: Mapping[str, Structure] = field(default_factory=dict)
-    reporters: Mapping[str, float] = field(default_factory=dict)
+from ...base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind
+from ...compile import Problem, Vector
+from ...solvers import Stepper, StructureState
+from ._passes import RewritingProblem
 
 
 class Rewriter(Stepper):
@@ -37,12 +20,12 @@ class Rewriter(Stepper):
     sizes. Stochastic productions and the order of graph matches draw from the simulation's random stream.
 
     Examples:
-        >>> from skcomplex.core.components import Word
-        >>> from skcomplex.core.interactions import Rewrite
-        >>> from skcomplex.core.laws import Production
+        >>> from skcomplex.core.formalisms.rewriting import Word
+        >>> from skcomplex.core.formalisms.rewriting import Rewrite
+        >>> from skcomplex.core.formalisms.rewriting import Production
         >>> from skcomplex.core.system import System
         >>> from skcomplex.core.runtime import Simulation
-        >>> from skcomplex.core.solvers import Rewriter
+        >>> from skcomplex.core.formalisms.rewriting import Rewriter
         >>> system = System(
         ...     components=[Word('algae', axiom='A')],
         ...     interactions=[Rewrite('rules', target='algae', rules=[Production('A', 'AB'), Production('B', 'A')])],
@@ -75,11 +58,12 @@ class Rewriter(Stepper):
         """
         super().initialize(problem, rng)
         values = problem.initial_parameters
-        self.structures_: dict[str, Any] = {item.path: item.initial(values) for item in problem.rewriting}
+        self.systems_ = problem.rewriting if isinstance(problem, RewritingProblem) else ()
+        self.structures_: dict[str, Any] = {item.path: item.initial(values) for item in self.systems_}
 
     def _state(self) -> Vector:
         """Return the state vector of the counts and sizes of the current structures."""
-        counts = [value for item in self.problem_.rewriting for value in item.counts(self.structures_[item.path])]
+        counts = [value for item in self.systems_ for value in item.counts(self.structures_[item.path])]
         return np.asarray(counts, dtype=float)
 
     def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
@@ -105,11 +89,11 @@ class Rewriter(Stepper):
         del x
         for _ in range(round(until - t)):
             self.structures_ = {
-                item.path: item.rewrite(self.structures_[item.path], p, self.rng_) for item in self.problem_.rewriting
+                item.path: item.rewrite(self.structures_[item.path], p, self.rng_) for item in self.systems_
             }
         return self._state()
 
-    def snapshot(self) -> RewritingState:
+    def snapshot(self) -> StructureState:
         """Return the current structures and their measures.
 
         Returns:
@@ -121,7 +105,4 @@ class Rewriter(Stepper):
             if structure.has_geometry:
                 reporters[f'{path}.length'] = structure.length()
                 reporters[f'{path}.area'] = structure.area()
-        return RewritingState(dict(self.structures_), reporters)
-
-
-register_solver('rewriter', Rewriter, default=True)
+        return StructureState(dict(self.structures_), reporters)

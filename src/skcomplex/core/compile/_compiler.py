@@ -156,10 +156,8 @@ from ._problem import (
     VectorFunction,
 )
 from ._quantities import StockFlow
-from ._quantum import DEFAULT_MAX_DIMENSION, compile_quantum, contains_quantum
 from ._reductions import CompiledReduction, Read, ReductionPass
 from ._renewals import CompiledRenewal, compile_renewal
-from ._rewriting import compile_rewriting, is_rewriting
 from ._splitting import LinearTerm, linear_terms
 from ._stochastic import DrawLowering, MatrixLaw, check_draw_placement, compile_matrix, markov_laws, stochastic_update
 from ._system_passes import claiming_pass
@@ -4242,13 +4240,6 @@ def compile_system(
     system_pass = claiming_pass(system)
     if system_pass is not None:
         return system_pass.compile(system, backend=backend, solver=solver, initial_state=initial)
-    if is_rewriting(system):
-        return compile_rewriting(system)
-    if contains_quantum(system):
-        whole = f'{system.label}.state'
-        _check_initial_names(set(initial) - {whole}, [whole])
-        limit = getattr(solver, 'max_dimension', DEFAULT_MAX_DIMENSION)
-        return compile_quantum(system, initial=initial.get(whole), max_dimension=limit)
     system, held = _with_held_observables(system, _held_observables(system))
     problem = _compile(system, backend, None)
     _check_held_reads(problem, held)
