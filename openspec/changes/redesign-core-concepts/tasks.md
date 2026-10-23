@@ -2,7 +2,7 @@
 
 ## 1. Concepts of the shared core
 
-- [ ] 1.1 Replace the closed enums `LawKind`, `Form`, `SpaceKind`, and the hand-kept trait tuples with open registries
+- [x] 1.1 Replace the closed enums `LawKind`, `Form`, `SpaceKind`, and the hand-kept trait tuples with open registries
   of named values in `base`, keeping the current member names as constants. Verify that mypy is clean and that the
   full suite passes unchanged.
 - [ ] 1.2 Add the `Law` base in `laws/_law.py`, which imports only `base`. Make every law class an explicit frozen

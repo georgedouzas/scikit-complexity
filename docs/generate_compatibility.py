@@ -72,7 +72,7 @@ def solver_lines() -> list[str]:
             key[0].name,
             _terms(supports.time),
             _terms(supports.space, 5),
-            _terms(supports.laws, len(LawKind)),
+            _terms(supports.laws, len(LawKind.registered())),
             _terms(supports.domains, 12),
             _terms(supports.components, 7),
             _noise_terms(supports.noise),
@@ -100,7 +100,7 @@ def backend_lines() -> list[str]:
     ]
     for key in sorted(BACKENDS):
         supports = BACKENDS.resolve(key).supports
-        cells = [_terms(supports.laws, len(LawKind)), _terms(supports.domains, 12), _noise_terms(supports.noise)]
+        cells = [_terms(supports.laws, len(LawKind.registered())), _terms(supports.domains, 12), _noise_terms(supports.noise)]
         lines.append(f'| `{key}` | {" | ".join(cells)} |')
     return lines
 

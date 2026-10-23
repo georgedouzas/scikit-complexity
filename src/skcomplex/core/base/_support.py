@@ -7,6 +7,9 @@ from collections.abc import Iterable
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field, fields
 from enum import StrEnum
+from typing import ClassVar
+
+from ._terms import Term
 
 
 class TimeKind(StrEnum):
@@ -15,16 +18,6 @@ class TimeKind(StrEnum):
     CONTINUOUS = 'continuous'
     DISCRETE = 'discrete'
     STATIC = 'static'
-
-
-class SpaceKind(StrEnum):
-    """Kind of substrate the components of a system live on."""
-
-    NONE = 'none'
-    LATTICE = 'lattice'
-    NETWORK = 'network'
-    CONTINUOUS = 'continuous'
-    MESH = 'mesh'
 
 
 class ComponentKind(StrEnum):
@@ -58,28 +51,64 @@ class LawClass(StrEnum):
     ANY = 'any'
 
 
-class LawKind(StrEnum):
-    """Kind of law, with the class of its time semantics as `law_class`."""
+class SpaceKind(Term):
+    """Kind of substrate the components of a system live on, a term of an open vocabulary.
 
-    RATE = 'rate'
-    NOISE = 'noise'
-    EQUATION = 'equation'
-    GENERATOR = 'generator'
-    DISSIPATOR = 'dissipator'
-    JUMP = 'jump'
-    EVENT = 'event'
-    UPDATE = 'update'
-    TRANSITION = 'transition'
-    RULE = 'rule'
-    LOCAL_RULE = 'local-rule'
-    REWRITE = 'rewrite'
-    SAMPLE = 'sample'
-    MATCH = 'match'
-    TRANSFER = 'transfer'
-    BOUNDARY = 'boundary'
-    INVARIANT = 'invariant'
-    OBJECTIVE = 'objective'
-    ENCOUNTER = 'encounter'
+    Args:
+        name:
+            The name of the kind in upper case.
+
+        value:
+            The text of the kind.
+
+    Examples:
+        >>> from skcomplex.core.base import SpaceKind
+        >>> str(SpaceKind.LATTICE)
+        'lattice'
+    """
+
+    NONE: ClassVar['SpaceKind']
+    LATTICE: ClassVar['SpaceKind']
+    NETWORK: ClassVar['SpaceKind']
+    CONTINUOUS: ClassVar['SpaceKind']
+    MESH: ClassVar['SpaceKind']
+
+
+class LawKind(Term):
+    """Kind of law, a term of an open vocabulary, with the class of its time semantics as `law_class`.
+
+    Args:
+        name:
+            The name of the kind in upper case.
+
+        value:
+            The text of the kind.
+
+    Examples:
+        >>> from skcomplex.core.base import LawKind
+        >>> str(LawKind.LOCAL_RULE)
+        'local-rule'
+    """
+
+    RATE: ClassVar['LawKind']
+    NOISE: ClassVar['LawKind']
+    EQUATION: ClassVar['LawKind']
+    GENERATOR: ClassVar['LawKind']
+    DISSIPATOR: ClassVar['LawKind']
+    JUMP: ClassVar['LawKind']
+    EVENT: ClassVar['LawKind']
+    UPDATE: ClassVar['LawKind']
+    TRANSITION: ClassVar['LawKind']
+    RULE: ClassVar['LawKind']
+    LOCAL_RULE: ClassVar['LawKind']
+    REWRITE: ClassVar['LawKind']
+    SAMPLE: ClassVar['LawKind']
+    MATCH: ClassVar['LawKind']
+    TRANSFER: ClassVar['LawKind']
+    BOUNDARY: ClassVar['LawKind']
+    INVARIANT: ClassVar['LawKind']
+    OBJECTIVE: ClassVar['LawKind']
+    ENCOUNTER: ClassVar['LawKind']
 
     @property
     def law_class(self) -> LawClass:
@@ -87,6 +116,56 @@ class LawKind(StrEnum):
         return LAW_CLASSES[self]
 
 
+class Trait(Term):
+    """Fact about a law class that the compiler and validation read, a term of an open vocabulary.
+
+    Args:
+        name:
+            The name of the trait in upper case.
+
+        value:
+            The text of the trait.
+
+    Examples:
+        >>> from skcomplex.core.base import Trait
+        >>> str(Trait.FORMLESS)
+        'formless'
+    """
+
+    FORMLESS: ClassVar['Trait']
+    KERNEL_FREE: ClassVar['Trait']
+    LATTICE: ClassVar['Trait']
+    DECLARABLE: ClassVar['Trait']
+
+
+SpaceKind.NONE = SpaceKind('NONE', 'none')
+SpaceKind.LATTICE = SpaceKind('LATTICE', 'lattice')
+SpaceKind.NETWORK = SpaceKind('NETWORK', 'network')
+SpaceKind.CONTINUOUS = SpaceKind('CONTINUOUS', 'continuous')
+SpaceKind.MESH = SpaceKind('MESH', 'mesh')
+LawKind.RATE = LawKind('RATE', 'rate')
+LawKind.NOISE = LawKind('NOISE', 'noise')
+LawKind.EQUATION = LawKind('EQUATION', 'equation')
+LawKind.GENERATOR = LawKind('GENERATOR', 'generator')
+LawKind.DISSIPATOR = LawKind('DISSIPATOR', 'dissipator')
+LawKind.JUMP = LawKind('JUMP', 'jump')
+LawKind.EVENT = LawKind('EVENT', 'event')
+LawKind.UPDATE = LawKind('UPDATE', 'update')
+LawKind.TRANSITION = LawKind('TRANSITION', 'transition')
+LawKind.RULE = LawKind('RULE', 'rule')
+LawKind.LOCAL_RULE = LawKind('LOCAL_RULE', 'local-rule')
+LawKind.REWRITE = LawKind('REWRITE', 'rewrite')
+LawKind.SAMPLE = LawKind('SAMPLE', 'sample')
+LawKind.MATCH = LawKind('MATCH', 'match')
+LawKind.TRANSFER = LawKind('TRANSFER', 'transfer')
+LawKind.BOUNDARY = LawKind('BOUNDARY', 'boundary')
+LawKind.INVARIANT = LawKind('INVARIANT', 'invariant')
+LawKind.OBJECTIVE = LawKind('OBJECTIVE', 'objective')
+LawKind.ENCOUNTER = LawKind('ENCOUNTER', 'encounter')
+Trait.FORMLESS = Trait('FORMLESS', 'formless')
+Trait.KERNEL_FREE = Trait('KERNEL_FREE', 'kernel-free')
+Trait.LATTICE = Trait('LATTICE', 'lattice')
+Trait.DECLARABLE = Trait('DECLARABLE', 'declarable')
 LAW_CLASSES: dict[LawKind, LawClass] = {
     LawKind.RATE: LawClass.CONTINUOUS,
     LawKind.NOISE: LawClass.CONTINUOUS,
@@ -143,22 +222,36 @@ class NoiseKind(StrEnum):
     CONSERVED = 'conserved'
 
 
-VOCABULARY: dict[str, type[StrEnum]] = {
-    'time': TimeKind,
-    'space': SpaceKind,
-    'components': ComponentKind,
-    'bindings': Binding,
-    'laws': LawKind,
-    'domains': DomainKind,
-}
 NUMERIC_DOMAINS = frozenset(
     {DomainKind.REAL, DomainKind.INTEGER, DomainKind.BOOLEAN, DomainKind.ANGLE, DomainKind.COMPLEX, DomainKind.VECTOR},
 )
 
 
-def _terms(values: Iterable[StrEnum]) -> frozenset[StrEnum]:
+def _terms(values: Iterable[StrEnum | Term]) -> frozenset[StrEnum | Term]:
     """Return the terms of a declaration as a frozen set."""
     return frozenset(values)
+
+
+def vocabulary() -> dict[str, tuple[StrEnum | Term, ...]]:
+    """Return the terms of every category of the system vocabulary, with the registered space and law kinds.
+
+    Returns:
+        vocabulary:
+            A mapping from category, such as `'laws'`, to its terms.
+
+    Examples:
+        >>> from skcomplex.core.base import vocabulary
+        >>> [str(term) for term in vocabulary()['time']]
+        ['continuous', 'discrete', 'static']
+    """
+    return {
+        'time': tuple(TimeKind),
+        'space': SpaceKind.registered(),
+        'components': tuple(ComponentKind),
+        'bindings': tuple(Binding),
+        'laws': LawKind.registered(),
+        'domains': tuple(DomainKind),
+    }
 
 
 @dataclass(frozen=True)
@@ -197,7 +290,7 @@ class Requires:
         for item in fields(self):
             object.__setattr__(self, item.name, _terms(getattr(self, item.name)))
 
-    def accepts(self, category: str, term: StrEnum) -> bool:
+    def accepts(self, category: str, term: StrEnum | Term) -> bool:
         """Check whether the requirement of a category accepts a term.
 
         Args:
@@ -211,7 +304,7 @@ class Requires:
             accepted:
                 Whether the field is empty or holds the term.
         """
-        terms: frozenset[StrEnum] = getattr(self, category)
+        terms: frozenset[StrEnum | Term] = getattr(self, category)
         return not terms or term in terms
 
 
@@ -264,7 +357,7 @@ class Supports:
         for item in fields(self):
             object.__setattr__(self, item.name, _terms(getattr(self, item.name)))
 
-    def missing(self, category: str, terms: Iterable[StrEnum]) -> list[str]:
+    def missing(self, category: str, terms: Iterable[StrEnum | Term]) -> list[str]:
         """Return the terms of a category that the declaration does not support.
 
         Args:
@@ -278,8 +371,5 @@ class Supports:
             missing:
                 The unsupported terms, sorted.
         """
-        supported: frozenset[StrEnum] = getattr(self, category)
+        supported: frozenset[StrEnum | Term] = getattr(self, category)
         return sorted(str(term) for term in set(terms) - supported)
-
-
-EVERY_SPACE = frozenset(SpaceKind)

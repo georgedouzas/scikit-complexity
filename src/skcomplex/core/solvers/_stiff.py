@@ -271,7 +271,7 @@ class _SplitStepper(Stepper):
 
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.CONTINUOUS},
-        space=set(SpaceKind),
+        space=set(SpaceKind.registered()),
         laws={LawKind.RATE, LawKind.BOUNDARY, LawKind.TRANSFER},
         domains=NUMERIC_DOMAINS,
         components={
@@ -577,7 +577,7 @@ class SSPRK(Stepper):
 
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.CONTINUOUS},
-        space=set(SpaceKind),
+        space=set(SpaceKind.registered()),
         laws={LawKind.RATE, LawKind.BOUNDARY, LawKind.TRANSFER},
         domains=NUMERIC_DOMAINS,
         components={

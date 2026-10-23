@@ -225,7 +225,7 @@ class ScipyODE(Stepper):
 
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.CONTINUOUS},
-        space=set(SpaceKind),
+        space=set(SpaceKind.registered()),
         laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.ENCOUNTER},
         domains=NUMERIC_DOMAINS,
         components={
@@ -639,7 +639,7 @@ class RK4(Stepper):
 
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.CONTINUOUS},
-        space=set(SpaceKind),
+        space=set(SpaceKind.registered()),
         laws={
             LawKind.JUMP,
             LawKind.RATE,
@@ -923,7 +923,7 @@ class VelocityVerlet(Stepper):
 
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.CONTINUOUS},
-        space=set(SpaceKind),
+        space=set(SpaceKind.registered()),
         laws={LawKind.RATE, LawKind.EQUATION, LawKind.BOUNDARY},
         domains=NUMERIC_DOMAINS,
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
@@ -1027,7 +1027,7 @@ class EulerMaruyama(Stepper):
 
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.CONTINUOUS},
-        space=set(SpaceKind),
+        space=set(SpaceKind.registered()),
         laws={
             LawKind.JUMP,
             LawKind.RATE,
@@ -1155,7 +1155,7 @@ class Milstein(Stepper):
 
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.CONTINUOUS},
-        space=set(SpaceKind),
+        space=set(SpaceKind.registered()),
         laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.NOISE},
         domains=NUMERIC_DOMAINS,
         components={
@@ -1245,7 +1245,7 @@ class Heun(Stepper):
 
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.CONTINUOUS},
-        space=set(SpaceKind),
+        space=set(SpaceKind.registered()),
         laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.NOISE},
         domains=NUMERIC_DOMAINS,
         components={
@@ -1323,7 +1323,7 @@ class Gillespie(Stepper):
 
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.CONTINUOUS},
-        space=set(SpaceKind),
+        space=set(SpaceKind.registered()),
         laws={LawKind.JUMP, LawKind.BOUNDARY, LawKind.TRANSFER},
         domains=set(DomainKind) - {DomainKind.HILBERT},
         components={
@@ -1442,7 +1442,7 @@ class Iteration(Stepper):
 
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.DISCRETE},
-        space=set(SpaceKind),
+        space=set(SpaceKind.registered()),
         laws={LawKind.UPDATE, LawKind.TRANSITION, LawKind.BOUNDARY, LawKind.TRANSFER},
         domains=set(DomainKind) - {DomainKind.HILBERT},
         components={
@@ -1540,7 +1540,7 @@ class RenewalStepper(Stepper):
 
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.CONTINUOUS},
-        space=set(SpaceKind),
+        space=set(SpaceKind.registered()),
         laws={LawKind.JUMP, LawKind.RATE, LawKind.NOISE, LawKind.EQUATION, LawKind.BOUNDARY},
         domains=set(DomainKind) - {DomainKind.HILBERT},
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},

@@ -272,7 +272,7 @@ class LammpsBackend(ExternalBackend):
 
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.CONTINUOUS},
-        space=set(SpaceKind),
+        space=set(SpaceKind.registered()),
         laws={LawKind.RATE, LawKind.NOISE, LawKind.EQUATION, LawKind.BOUNDARY},
         domains=NUMERIC_DOMAINS,
         components={ComponentKind.ELEMENT, ComponentKind.GROUP},

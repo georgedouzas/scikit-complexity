@@ -76,6 +76,10 @@ class RewritingError(SkcomplexError):
     """A rewriting system is malformed, or a generation would exceed its maximum size."""
 
 
+class RegistryError(SkcomplexError):
+    """A name is registered twice with different meanings."""
+
+
 class HilbertSpaceError(SkcomplexError):
     """A quantum system has a Hilbert space larger than its declared limit."""
 

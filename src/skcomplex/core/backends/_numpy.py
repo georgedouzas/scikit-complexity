@@ -36,8 +36,8 @@ class NumpyBackend(Backend):
 
     supports: ClassVar[Supports] = Supports(
         time=set(TimeKind),
-        space=set(SpaceKind),
-        laws=set(LawKind),
+        space=set(SpaceKind.registered()),
+        laws=set(LawKind.registered()),
         domains=set(DomainKind),
         components=set(ComponentKind),
         noise=set(NoiseKind),

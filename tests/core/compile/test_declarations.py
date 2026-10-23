@@ -7,7 +7,6 @@ import pytest
 
 import skcomplex.core.compile._validation as validation
 from skcomplex.core.base import (
-    VOCABULARY,
     DomainKind,
     Form,
     LawClass,
@@ -18,6 +17,7 @@ from skcomplex.core.base import (
     SpaceKind,
     Supports,
     TimeKind,
+    vocabulary,
 )
 from skcomplex.core.compile import BACKENDS, law_types, missing_declarations
 from skcomplex.core.components import Field
@@ -31,15 +31,15 @@ INVENTORY = Path(__file__).parents[3] / 'docs' / 'overview' / 'inventory.toml'
 def test_vocabulary_matches_inventory():
     """Test that the core vocabulary and the inventory vocabulary define the same terms in every category."""
     inventory = tomllib.loads(INVENTORY.read_text())['vocabulary']
-    assert set(inventory) == set(VOCABULARY)
-    for category, terms in VOCABULARY.items():
+    assert set(inventory) == set(vocabulary())
+    for category, terms in vocabulary().items():
         assert set(inventory[category]) == {str(term) for term in terms}, category
 
 
 def test_inventory_law_classes_match_core():
     """Test that every law of the inventory vocabulary has the time semantics of the core law kind."""
     laws = tomllib.loads(INVENTORY.read_text())['vocabulary']['laws']
-    for kind in LawKind:
+    for kind in LawKind.registered():
         assert laws[str(kind)]['class'] == str(kind.law_class), kind
 
 

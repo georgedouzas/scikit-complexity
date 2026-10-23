@@ -54,7 +54,7 @@ class Rewriter(Stepper):
 
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.DISCRETE},
-        space=set(SpaceKind),
+        space=set(SpaceKind.registered()),
         laws={LawKind.REWRITE},
         domains={DomainKind.SEQUENCE, DomainKind.TILING, DomainKind.GRAPH, DomainKind.REAL, DomainKind.INTEGER},
         components={ComponentKind.ELEMENT, ComponentKind.GROUP},

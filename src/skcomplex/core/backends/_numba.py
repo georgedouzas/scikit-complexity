@@ -1055,8 +1055,8 @@ class NumbaBackend(Backend):
 
     supports: ClassVar[Supports] = Supports(
         time=set(TimeKind),
-        space=set(SpaceKind),
-        laws=set(LawKind),
+        space=set(SpaceKind.registered()),
+        laws=set(LawKind.registered()),
         domains=NUMERIC_DOMAINS | {DomainKind.CATEGORICAL},
         components=set(ComponentKind),
         noise=set(NoiseKind),

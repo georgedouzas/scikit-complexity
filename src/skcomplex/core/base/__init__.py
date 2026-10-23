@@ -12,6 +12,7 @@ from ._errors import (
     IncompatibleLawsError,
     LabelError,
     ParameterError,
+    RegistryError,
     RewritingError,
     RoleError,
     SimulationError,
@@ -28,7 +29,6 @@ from ._registry import Registry
 from ._support import (
     LAW_CLASSES,
     NUMERIC_DOMAINS,
-    VOCABULARY,
     Binding,
     ComponentKind,
     DomainKind,
@@ -40,6 +40,8 @@ from ._support import (
     SpaceKind,
     Supports,
     TimeKind,
+    Trait,
+    vocabulary,
 )
 from ._symbolic import (
     Expression,
@@ -52,13 +54,13 @@ from ._symbolic import (
     symbols_of,
     vector,
 )
+from ._terms import Term
 from ._variables import Variable, VariableKind, companions_of, declaration_of, declarations_of, parameter, role, state
 from ._visuals import VisualSpec
 
 __all__: list[str] = [
     'LAW_CLASSES',
     'NUMERIC_DOMAINS',
-    'VOCABULARY',
     'AnalysisError',
     'AnyDomain',
     'BackendError',
@@ -84,6 +86,7 @@ __all__: list[str] = [
     'OrderKind',
     'ParameterError',
     'Registry',
+    'RegistryError',
     'Requires',
     'RewritingError',
     'RoleError',
@@ -97,7 +100,9 @@ __all__: list[str] = [
     'Supports',
     'SymbolicVector',
     'Tensor',
+    'Term',
     'TimeKind',
+    'Trait',
     'UnobservedStatesWarning',
     'ValidationError',
     'Variable',
@@ -117,5 +122,6 @@ __all__: list[str] = [
     'symbol',
     'symbols_of',
     'vector',
+    'vocabulary',
     'wrap_angle',
 ]

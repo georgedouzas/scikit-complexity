@@ -78,7 +78,7 @@ class CoSimulation(Stepper):
 
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.CONTINUOUS, TimeKind.DISCRETE},
-        space=set(SpaceKind),
+        space=set(SpaceKind.registered()),
         laws={
             LawKind.RATE,
             LawKind.NOISE,

@@ -138,7 +138,7 @@ class FractionalEulerMaruyama(Stepper):
 
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.CONTINUOUS},
-        space=set(SpaceKind),
+        space=set(SpaceKind.registered()),
         laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.NOISE},
         domains=NUMERIC_DOMAINS,
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},

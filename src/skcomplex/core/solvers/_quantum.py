@@ -52,7 +52,7 @@ class QuantumSolver(Stepper):
 
     supports: ClassVar[Supports] = Supports(
         time={TimeKind.CONTINUOUS},
-        space=set(SpaceKind),
+        space=set(SpaceKind.registered()),
         laws={LawKind.GENERATOR, LawKind.DISSIPATOR},
         domains={DomainKind.HILBERT},
         components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP},
