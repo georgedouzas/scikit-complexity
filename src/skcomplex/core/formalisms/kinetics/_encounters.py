@@ -10,15 +10,11 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ..base import Expression, ValidationError, symbols_of
-from ..laws import Destruction, Encounter, Proliferation
+from ...base import Expression, ValidationError, symbols_of
+from ...compile import Reference, Source
+from ...laws import Law
 from ._contractions import CompiledEncounter, Indices, TableValues
-from ._kernels import Reference, Source
-
-type EncounterLaw = Encounter | Proliferation | Destruction
-
-ENCOUNTER_LAWS = (Encounter, Proliferation, Destruction)
-KINDS = {Encounter: 'transition', Proliferation: 'proliferation', Destruction: 'destruction'}
+from ._laws import Destruction, Encounter, EncounterLaw, is_encounter
 
 
 def _nonzero(table: npt.NDArray[Any]) -> tuple[Indices, ...]:
@@ -141,13 +137,13 @@ def compile_encounter(
     rate = TableValues(law.rate, grid, _parameter_indices(law.rate, references, owner), time)
     if table is None:
         empty = np.zeros(0, dtype=np.intp)
-        return CompiledEncounter(owner, KINDS[type(law)], candidate, field_indices, test, rate, (empty,) * 3, None)
+        return CompiledEncounter(owner, law.effect, candidate, field_indices, test, rate, (empty,) * 3, None)
     positions = _nonzero(table)
     entries = (positions[0], positions[1], positions[2])
     probabilities = TableValues(table, positions, _parameter_indices(table, references, owner), time)
     return CompiledEncounter(
         owner,
-        KINDS[type(law)],
+        law.effect,
         candidate,
         field_indices,
         test,
@@ -159,7 +155,7 @@ def compile_encounter(
 
 
 def compile_encounters(
-    components: Sequence[tuple[str, Mapping[Expression, Reference], Sequence[object]]],
+    components: Sequence[tuple[str, Mapping[Expression, Reference], Sequence[Law]]],
     time: Expression,
     *,
     fused: bool = False,
@@ -184,5 +180,5 @@ def compile_encounters(
         compile_encounter(law, owner, references, time, fused=fused)
         for owner, references, laws in components
         for law in laws
-        if isinstance(law, ENCOUNTER_LAWS)
+        if is_encounter(law)
     )

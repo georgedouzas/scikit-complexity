@@ -4,7 +4,6 @@ from ._agents import AgentSnapshot, AgentState
 from ._collocation import Collocation
 from ._cosimulation import CoSimulation
 from ._jumps import Gillespie, RenewalStepper
-from ._kinetics import ParticleKinetics
 from ._maps import Iteration
 from ._ode import RK4, ScipyODE, VelocityVerlet
 from ._optimal import ControlSolution
@@ -25,9 +24,7 @@ __all__: list[str] = [
     'Gillespie',
     'Heun',
     'Iteration',
-    'LatticeStepper',
     'Milstein',
-    'ParticleKinetics',
     'Pontryagin',
     'RenewalStepper',
     'ScipyODE',

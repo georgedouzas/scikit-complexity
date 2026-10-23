@@ -5,7 +5,7 @@ import pytest
 
 from skcomplex.core.base import Form
 from skcomplex.core.compile import compile_system
-from skcomplex.core.components import Particle
+from skcomplex.core.formalisms.particles import Particle
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import ScipyODE
 from skcomplex.core.space import ContinuousSpace

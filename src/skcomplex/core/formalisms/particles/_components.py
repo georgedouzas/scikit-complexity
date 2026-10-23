@@ -7,17 +7,9 @@ from typing import ClassVar
 
 import numpy.typing as npt
 
-from ..base import (
-    Domain,
-    Requires,
-    SpaceKind,
-    VisualSpec,
-    parameter,
-    state,
-)
-from ..laws import Law, Rate
-from ..laws._symbols import Symbols
-from ._components import Element
+from ...base import Domain, Requires, SpaceKind, VisualSpec, parameter, state
+from ...components import Element
+from ...laws import Law, Rate, Symbols
 
 
 class Particle(Element):
@@ -39,7 +31,7 @@ class Particle(Element):
             The mass.
 
     Examples:
-        >>> from skcomplex.core.components import Particle
+        >>> from skcomplex.core.formalisms.particles import Particle
         >>> Particle('ball', x=[0, 1], m=2.0)
         Particle(label='ball', m=2.0, x=[0, 1])
     """

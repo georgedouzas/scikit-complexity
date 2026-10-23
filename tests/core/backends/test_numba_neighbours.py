@@ -6,8 +6,7 @@ import pytest
 from skcomplex.core.backends import NumbaBackend
 from skcomplex.core.base import Domain, parameter
 from skcomplex.core.compile import compile_system
-from skcomplex.core.components import Particle
-from skcomplex.core.interactions import PairPotential
+from skcomplex.core.formalisms.particles import PairPotential, Particle
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
 

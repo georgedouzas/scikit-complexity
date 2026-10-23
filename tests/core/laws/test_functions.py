@@ -8,7 +8,8 @@ from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.base import symbol
 from skcomplex.core.compile import NUMPY_DIALECT, SCALAR_DIALECT, compile_system, numpy_function, print_expressions
-from skcomplex.core.components import Element, Particle
+from skcomplex.core.components import Element
+from skcomplex.core.formalisms.particles import Particle
 from skcomplex.core.laws import Rate, both, either, mod, series, where
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4, ScipyODE

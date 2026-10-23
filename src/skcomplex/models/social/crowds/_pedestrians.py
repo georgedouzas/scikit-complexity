@@ -8,8 +8,8 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, Expression, parameter, role, vector
-from ....core.components import Particle
-from ....core.interactions import Interaction, PairPotential
+from ....core.formalisms.particles import PairPotential, Particle
+from ....core.interactions import Interaction
 from ....core.laws import Law, Rate, Symbols
 from ....core.runtime import register_model
 from ....core.solvers import RK4

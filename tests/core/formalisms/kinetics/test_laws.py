@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import LawClass, LawKind, SpaceKind, TimeKind, ValidationError, symbol
-from skcomplex.core.laws import Destruction, Encounter, Proliferation, outcome_sums
+from skcomplex.core.formalisms.kinetics import Destruction, Encounter, Proliferation, outcome_sums
 
 
 @pytest.mark.parametrize('law', [Encounter, Proliferation, Destruction])

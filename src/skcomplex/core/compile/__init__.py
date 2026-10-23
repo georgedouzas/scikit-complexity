@@ -4,7 +4,6 @@ from ._backends import BACKENDS, Backend, Lowering, load_backends, register_back
 from ._census import Census, CensusRecord, OwnerRule, law_census, register_owner
 from ._compilation import BlockLaws, Compilation, Laws
 from ._compile import compile_system, partition_system
-from ._contractions import CompiledEncounter, TableValues
 from ._declarations import Block, Declarations, is_interaction, member_count
 from ._forms import register_combined, register_form
 from ._hybrid import Breakpoints, CompiledEvent, Delay, EventRecord
@@ -65,7 +64,6 @@ __all__: list[str] = [
     'Compilation',
     'CompiledAgents',
     'CompiledElement',
-    'CompiledEncounter',
     'CompiledEvent',
     'CompiledFlow',
     'CompiledInteraction',
@@ -111,7 +109,6 @@ __all__: list[str] = [
     'Source',
     'StockFlow',
     'SystemPass',
-    'TableValues',
     'TopologyChanges',
     'ValidationReport',
     'ValidationWarning',

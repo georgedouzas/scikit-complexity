@@ -10,8 +10,9 @@ import numpy.typing as npt
 
 from ....core.base import Domain, Expression, parameter, role, state
 from ....core.components import Element, Group
+from ....core.formalisms.kinetics import Encounter, moment
 from ....core.interactions import Interaction
-from ....core.laws import Encounter, Law, Rate, Symbols, moment
+from ....core.laws import Law, Rate, Symbols
 from ....core.runtime import register_model
 from ....core.space import ContinuousTime, LatticeSpace
 from ....core.system import Observable, System

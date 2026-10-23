@@ -4,8 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import Domain, parameter
-from skcomplex.core.components import Particle
-from skcomplex.core.interactions import PairPotential
+from skcomplex.core.formalisms.particles import PairPotential, Particle
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import ScipyODE
 from skcomplex.core.space import ContinuousSpace

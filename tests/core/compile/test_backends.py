@@ -11,8 +11,9 @@ import pytest
 from skcomplex.core.backends import NumbaBackend, NumpyBackend, _numba
 from skcomplex.core.base import BackendError, BackendWarning, Domain, SolverError, parameter, role, vector
 from skcomplex.core.compile import compile_system
-from skcomplex.core.components import Element, Particle
-from skcomplex.core.interactions import Interaction, PairPotential
+from skcomplex.core.components import Element
+from skcomplex.core.formalisms.particles import PairPotential, Particle
+from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Call, Jump, Noise, Rate, Update
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4, EulerMaruyama, Gillespie, Iteration, VelocityVerlet

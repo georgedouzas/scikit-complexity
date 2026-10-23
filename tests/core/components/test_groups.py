@@ -8,7 +8,8 @@ from sklearn.base import clone
 
 from skcomplex.core.base import Domain, RoleError, ValidationError, VisualSpec, parameter, role
 from skcomplex.core.compile import compile_system
-from skcomplex.core.components import Element, Group, Particle
+from skcomplex.core.components import Element, Group
+from skcomplex.core.formalisms.particles import Particle
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Boundary, Rate
 from skcomplex.core.space import ContinuousSpace, LatticeSpace

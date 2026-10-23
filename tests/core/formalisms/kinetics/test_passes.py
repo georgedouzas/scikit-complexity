@@ -6,8 +6,9 @@ import pytest
 from skcomplex.core.base import Domain, ValidationError, parameter, role, state
 from skcomplex.core.compile import compile_system, validate
 from skcomplex.core.components import Element, Group
+from skcomplex.core.formalisms import registered_formalisms
+from skcomplex.core.formalisms.kinetics import Destruction, Encounter, ParticleKinetics, Proliferation
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Destruction, Encounter, Proliferation
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4
 from skcomplex.core.space import ContinuousTime, DiscreteTime, LatticeSpace
@@ -225,3 +226,11 @@ def test_encounter_without_a_lattice_is_reported():
     )
     issue = next(item for item in validate(system).errors if item.code == 'law-space')
     assert 'lattice' in issue.message
+
+
+def test_kinetics_formalism_lists_encounter_laws_and_solver():
+    """Test that the kinetics formalism registers the encounter laws, their passes, their check, and DSMC."""
+    (kinetics,) = [item for item in registered_formalisms() if item.name == 'kinetics']
+    assert kinetics.laws == (Encounter, Proliferation, Destruction)
+    assert kinetics.solvers == {'particles': ParticleKinetics}
+    assert (len(kinetics.passes), len(kinetics.checks)) == (4, 1)

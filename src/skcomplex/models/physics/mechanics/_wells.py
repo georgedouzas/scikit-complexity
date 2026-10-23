@@ -6,8 +6,7 @@
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, Expression, parameter, role
-from ....core.components import Particle
-from ....core.interactions import Potential
+from ....core.formalisms.particles import Particle, Potential
 from ....core.laws import Symbols
 from ....core.runtime import register_model
 from ....core.space import ContinuousSpace

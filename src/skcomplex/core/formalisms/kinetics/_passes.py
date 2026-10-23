@@ -3,18 +3,25 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from dataclasses import replace
+from dataclasses import dataclass, field, fields
 from typing import Any, cast
 
 import numpy as np
 
-from .._backends import Backend, resolve_backend
-from .._compilation import Compilation, Laws
-from .._contractions import CompiledEncounter
-from .._declarations import Declarations, member_count
-from .._encounters import ENCOUNTER_LAWS, compile_encounters
-from .._pipeline import Pass
-from .._problem import Problem, Vector
+from ...compile import (
+    Backend,
+    Compilation,
+    Declarations,
+    Laws,
+    Pass,
+    Problem,
+    Vector,
+    member_count,
+    resolve_backend,
+)
+from ._contractions import CompiledEncounter
+from ._encounters import compile_encounters
+from ._laws import is_encounter
 
 
 def _compiled_encounters(
@@ -23,7 +30,7 @@ def _compiled_encounters(
     backend: str | Backend,
 ) -> tuple[CompiledEncounter, ...]:
     """Return the encounter laws of every component, lowered for their members."""
-    if not any(isinstance(law, ENCOUNTER_LAWS) for _, laws in specs for law in laws):
+    if not any(is_encounter(law) for _, laws in specs for law in laws):
         return ()
     members = member_count(list(declarations.blocks.values()))
     fused = resolve_backend(backend, members).name == 'numba'
@@ -47,6 +54,18 @@ def _with_encounters(functions: dict[str, Any], encounters: tuple[CompiledEncoun
     functions['accelerated'] = None
 
 
+@dataclass(frozen=True)
+class KineticProblem(Problem):
+    """Problem whose drift holds the gain and loss rates of encounter laws, with the compiled encounters.
+
+    Args:
+        encounters:
+            The encounter laws, whose gain and loss rates the drift holds and particle solvers sample.
+    """
+
+    encounters: tuple[CompiledEncounter, ...] = field(default=(), repr=False)
+
+
 class CompileEncountersPass(Pass):
     """Pass that compiles the encounter laws before reductions prune the groups they read, and takes them out."""
 
@@ -63,9 +82,7 @@ class CompileEncountersPass(Pass):
         specs = cast('Laws', compilation.drawn)
         declarations = cast('Declarations', compilation.layout)
         compilation.facts['encounters'] = _compiled_encounters(specs, declarations, compilation.backend)
-        compilation.drawn = [
-            (spec, [law for law in laws if not isinstance(law, ENCOUNTER_LAWS)]) for spec, laws in specs
-        ]
+        compilation.drawn = [(spec, [law for law in laws if not is_encounter(law)]) for spec, laws in specs]
 
 
 class EncounterFunctionsPass(Pass):
@@ -106,7 +123,7 @@ class EncounterJacobianPass(Pass):
 
 
 class EncounterProblemPass(Pass):
-    """Pass that adds the compiled encounter laws to the problem."""
+    """Pass that makes the problem of a system with encounter laws a kinetic problem that holds them."""
 
     reads = ('problem', 'encounters')
     writes = ('problem',)
@@ -118,7 +135,9 @@ class EncounterProblemPass(Pass):
             compilation:
                 The compilation state.
         """
-        compilation.problem = replace(cast('Problem', compilation.problem), encounters=compilation.facts['encounters'])
-
-
-PASSES = (CompileEncountersPass(), EncounterFunctionsPass(), EncounterJacobianPass(), EncounterProblemPass())
+        encounters = compilation.facts['encounters']
+        if not encounters:
+            return
+        problem = cast('Problem', compilation.problem)
+        values = {item.name: getattr(problem, item.name) for item in fields(problem)}
+        compilation.problem = KineticProblem(**values, encounters=encounters)

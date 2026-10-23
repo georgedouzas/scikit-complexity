@@ -1,7 +1,6 @@
 """Laws that components and interactions follow, by time semantics, and the expressions they are written in."""
 
 from ._draws import Draw, bernoulli, categorical, draw, draws_in, is_draw, normal, uniform
-from ._encounters import Destruction, Encounter, Proliferation, outcome_sums
 from ._flows import Auxiliary, Invariant, Sink, Source, Transfer, distributed_delay, lookup, transfer
 from ._functions import (
     both,
@@ -36,7 +35,6 @@ from ._laws import (
     Transition,
     Update,
 )
-from ._moments import moment
 from ._neighbourhoods import NEIGHBOUR_REDUCTIONS, NeighbourReduction, neighbors, neighbourhoods_in
 from ._reductions import Reduction, count, has_reductions, maximum, mean, minimum, reductions_in, total, variance
 from ._symbols import Symbols
@@ -49,14 +47,10 @@ __all__: list[str] = [
     'Auxiliary',
     'Boundary',
     'Call',
-    'Destruction',
     'Draw',
     'Emission',
-    'Encounter',
     'Equation',
     'Event',
-    'Extremal',
-    'Flux',
     'Invariant',
     'Jump',
     'Law',
@@ -66,12 +60,8 @@ __all__: list[str] = [
     'Objective',
     'OuterTotalistic',
     'Process',
-    'Proliferation',
     'Rate',
     'Reduction',
-    'Relaxation',
-    'Sample',
-    'Sampler',
     'Sink',
     'Source',
     'Symbols',
@@ -105,11 +95,9 @@ __all__: list[str] = [
     'mean',
     'minimum',
     'mod',
-    'moment',
     'neighbors',
     'neighbourhoods_in',
     'normal',
-    'outcome_sums',
     'pulse',
     'pulse_train',
     'ramp',

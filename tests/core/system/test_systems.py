@@ -18,8 +18,9 @@ from skcomplex.core.base import (
     state,
 )
 from skcomplex.core.compile import compile_system, validate
-from skcomplex.core.components import Element, Group, Particle
+from skcomplex.core.components import Element, Group
 from skcomplex.core.formalisms.agents import Rule
+from skcomplex.core.formalisms.particles import Particle
 from skcomplex.core.formalisms.quantum import Generator, QuantumView, is_quantum
 from skcomplex.core.formalisms.rewriting import Production, Rewrite, Word, structure_of
 from skcomplex.core.interactions import Interaction

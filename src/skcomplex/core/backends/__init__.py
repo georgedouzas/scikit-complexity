@@ -4,18 +4,11 @@ Importing the package registers every backend and the solvers that run in them.
 """
 
 from ._base import ExternalBackend
-from ._lammps import NATIVE_FIXES, NATIVE_PAIRS, LammpsBackend, LammpsFix, register_lammps_fix, register_lammps_pair
 from ._numba import NumbaBackend
 from ._numpy import NumpyBackend
 
 __all__: list[str] = [
-    'NATIVE_FIXES',
-    'NATIVE_PAIRS',
     'ExternalBackend',
-    'LammpsBackend',
-    'LammpsFix',
     'NumbaBackend',
     'NumpyBackend',
-    'register_lammps_fix',
-    'register_lammps_pair',
 ]

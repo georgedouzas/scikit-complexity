@@ -7,8 +7,8 @@ import pytest
 
 from skcomplex.core.base import Domain, ValidationError, parameter, role
 from skcomplex.core.compile import compile_system
-from skcomplex.core.components import Particle
-from skcomplex.core.interactions import Interaction, PairPotential
+from skcomplex.core.formalisms.particles import PairPotential, Particle
+from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Boundary, Jump, Noise, Rate, Update, mod
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System

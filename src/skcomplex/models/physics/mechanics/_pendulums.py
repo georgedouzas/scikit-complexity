@@ -9,8 +9,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos, sign, sin, sqrt
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
-from ....core.components import Element, Particle
-from ....core.interactions import Interaction, Potential
+from ....core.components import Element
+from ....core.formalisms.particles import Particle, Potential
+from ....core.interactions import Interaction
 from ....core.laws import Equation, Event, Rate, Symbols, derivative
 from ....core.runtime import register_model
 from ....core.space import ContinuousSpace
