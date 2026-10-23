@@ -9,11 +9,12 @@ import pytest
 from skcomplex.core.backends import NumbaBackend
 from skcomplex.core.base import Domain, parameter
 from skcomplex.core.compile import compile_system
-from skcomplex.core.components import Element, Field, Particle
+from skcomplex.core.components import Element, Particle
+from skcomplex.core.formalisms.fields import CrankNicolson, Field, laplacian
 from skcomplex.core.interactions import Interaction, PairPotential
-from skcomplex.core.laws import Event, Rate, delayed, laplacian, total
+from skcomplex.core.laws import Event, Rate, delayed, total
 from skcomplex.core.runtime import RealTime, Simulation
-from skcomplex.core.solvers import CrankNicolson, Gillespie, ScipyODE, VelocityVerlet
+from skcomplex.core.solvers import Gillespie, ScipyODE, VelocityVerlet
 from skcomplex.core.space import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.core.viz import RerunObserver

@@ -8,23 +8,22 @@ import pytest
 from sage.all__sagemath_symbolics import cos
 
 from skcomplex.core.base import ValidationError
-from skcomplex.core.compile import CompiledExtremal, ExtremalRecord, compile_system
+from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
 from skcomplex.core.experiments import Experiment, Grid
-from skcomplex.core.laws import (
+from skcomplex.core.formalisms.lattices import (
+    CompiledExtremal,
     Energy,
     Extremal,
+    ExtremalRecord,
     LocalRule,
     Move,
-    OuterTotalistic,
     Sample,
     Sampler,
-    Table,
-    Totalistic,
     adjacent,
     neighbor_sum,
-    neighbors,
 )
+from skcomplex.core.laws import OuterTotalistic, Table, Totalistic, neighbors
 from skcomplex.core.runtime import Frame, Simulation
 from skcomplex.core.space import Adjacency, LatticeSpace, Neighborhood, NetworkSpace
 from skcomplex.core.system import System

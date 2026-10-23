@@ -10,12 +10,9 @@ import numpy as np
 import numpy.typing as npt
 
 from ..compile import (
-    EventRecord,
-    ExtremalRecord,
     NetworkSnapshot,
     Problem,
-    RelaxationRecord,
-    RenewalRecord,
+    Record,
 )
 from ..solvers import AgentSnapshot
 
@@ -75,7 +72,7 @@ class Trajectory:
         agents: Sequence[Mapping[str, AgentSnapshot]] = (),
         reporters: Sequence[Mapping[str, float]] = (),
         observables: Sequence[Mapping[str, Any]] = (),
-        events: Sequence[EventRecord | RelaxationRecord | RenewalRecord | ExtremalRecord] = (),
+        events: Sequence[Record] = (),
         structures: Sequence[Mapping[str, Any]] = (),
     ) -> None:
         self.problem = problem

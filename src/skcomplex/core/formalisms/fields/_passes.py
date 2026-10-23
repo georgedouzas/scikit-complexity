@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections import defaultdict
 from dataclasses import replace
 from typing import Any, cast
 
@@ -11,19 +12,43 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
 from ...base import Expression, ValidationError, VariableKind, declarations_of
-from ...components import Field
-from ...laws import Boundary, Flux, Law, Noise, Rate, Update
-from ...space import LatticeSpace, Mesh
-from .._compilation import Compilation, Laws
-from .._declarations import Block, Declarations
-from .._fields import FieldLowering, has_operators
-from .._kernels import Source
-from .._layout import Layout
-from .._pipeline import Pass
-from .._problem import Problem, Vector
-from .._specs import KernelSpec, target_references
-from .._splitting import LinearTerm, linear_terms
-from .._volumes import FiniteVolume, compile_volumes
+from ...compile import (
+    Block,
+    Census,
+    CensusRecord,
+    Compilation,
+    Declarations,
+    Issue,
+    KernelSpec,
+    Laws,
+    Layout,
+    Node,
+    Output,
+    Pass,
+    Problem,
+    Source,
+    Vector,
+    target_references,
+)
+from ...laws import Boundary, Law, Noise, Rate, Update
+from ...space import LatticeSpace
+from ._components import Field
+from ._conserved import conserved_outputs
+from ._laws import Flux
+from ._lowering import FieldLowering, has_operators
+from ._spaces import Mesh
+from ._splitting import LinearTerm, linear_terms
+from ._volumes import FiniteVolume, compile_volumes
+
+
+def _places(declarations: Declarations) -> dict[str, Field]:
+    """Return the fields by the name of each of their entries."""
+    return {
+        entry.name: block.node.component
+        for block in declarations.blocks.values()
+        if isinstance(block.node.component, Field)
+        for entry in block.entries.values()
+    }
 
 
 def _initial_values(spec: KernelSpec, declarations: Declarations) -> dict[Expression, float]:
@@ -49,10 +74,10 @@ def _linear_terms_of(spec: KernelSpec, laws: list[Law], places: dict[str, Field]
     return terms
 
 
-def _with_fields(spec: KernelSpec, laws: list[Law], declarations: Declarations, compilation: Compilation) -> list[Law]:
+def _with_fields(spec: KernelSpec, laws: list[Law], declarations: Declarations, facts: dict[str, Any]) -> list[Law]:
     """Return laws whose differential operators are lowered, noting stable steps and the linear terms of rates."""
-    places = declarations.places
-    compilation.linear += _linear_terms_of(spec, laws, places)
+    places = _places(declarations)
+    facts['linear'] += _linear_terms_of(spec, laws, places)
     if not any(has_operators(getattr(law, 'value', None)) for law in laws):
         return laws
     lowering = FieldLowering(spec.owner, spec.references, places, _initial_values(spec, declarations))
@@ -66,13 +91,13 @@ def _with_fields(spec: KernelSpec, laws: list[Law], declarations: Declarations, 
         lowered = lowering.lower(law.value)
         if isinstance(law.value, Expression):
             for reference in target_references(law.target, spec):
-                compilation.written[(reference.entry.name, reference.column)].append((lowered, law.value))
+                facts['written'][(reference.entry.name, reference.column)].append((lowered, law.value))
         if isinstance(law, Rate | Noise):
             result.append(replace(law, value=lowered))
         else:
             result.append(type(law)(law.target, lowered))
-    compilation.limits += lowering.limits
-    compilation.volume_limits += lowering.volume_limits
+    facts['limits'] += lowering.limits
+    facts['volume_limits'] += lowering.volume_limits
     return result
 
 
@@ -232,6 +257,53 @@ def _with_discretizations(
     return volumes, (constrained, fixed)
 
 
+def _is_lattice_field(component: object) -> bool:
+    """Check whether a component is a finite-difference field on a square lattice."""
+    return (
+        isinstance(component, Field)
+        and isinstance(component.space, LatticeSpace)
+        and component.space.geometry == 'square'
+        and component.discretization == 'finite-difference'
+    )
+
+
+def _conserved_issue(record: CensusRecord, components: dict[str, object]) -> Issue | None:
+    """Return the issue of a conserved noise law that drives a state outside a finite-difference lattice field."""
+    outside = [name for name, _ in record.driven if not _is_lattice_field(components.get(name.rpartition('.')[0]))]
+    if not outside:
+        return None
+    message = (
+        f'The conserved {type(record.law).__name__} law of {record.path} drives {", ".join(dict.fromkeys(outside))}, '
+        'but conserved noise needs a state of a finite-difference field on a square lattice, with one process per link.'
+    )
+    fix = 'Declare the state on a `Field` of a `LatticeSpace`, or remove `conserved=True`.'
+    return Issue('noise-unsupported', record.path, message, fix)
+
+
+def _conserved_issues(compilation: Compilation) -> list[Issue]:
+    """Return the conserved noise laws that drive a state that is not of a finite-difference field on a lattice."""
+    components = {node.path: node.component for node in cast('list[Node]', compilation.nodes)}
+    records = cast('Census', compilation.census).records
+    found = [
+        _conserved_issue(record, components)
+        for record in records
+        if isinstance(record.law, Noise) and record.law.conserved
+    ]
+    return [issue for issue in found if issue is not None]
+
+
+def _conserved_outputs(specs: Laws, declarations: Declarations) -> dict[int, list[Output]]:
+    """Return the outputs of every conserved noise law, one process per link of its field, by law identity."""
+    places = _places(declarations)
+    outputs = {}
+    for spec, laws in specs:
+        for law in laws:
+            if isinstance(law, Noise) and law.conserved:
+                targets = target_references(law.target, spec)
+                outputs[id(law)] = conserved_outputs(spec.owner, law, targets, places, spec.references)
+    return outputs
+
+
 class LowerFieldsPass(Pass):
     """Pass that lowers the differential operators of laws to stencils and notes stable steps and linear terms."""
 
@@ -246,10 +318,11 @@ class LowerFieldsPass(Pass):
                 The compilation state.
         """
         declarations = cast('Declarations', compilation.layout)
+        facts: dict[str, Any] = {'written': defaultdict(list), 'limits': [], 'volume_limits': [], 'linear': []}
         compilation.corrected = [
-            (spec, _with_fields(spec, laws, declarations, compilation))
-            for spec, laws in cast('Laws', compilation.corrected)
+            (spec, _with_fields(spec, laws, declarations, facts)) for spec, laws in cast('Laws', compilation.corrected)
         ]
+        compilation.facts.update(facts)
 
 
 class FieldFunctionsPass(Pass):
@@ -268,7 +341,7 @@ class FieldFunctionsPass(Pass):
         functions = cast('dict[str, Any]', compilation.functions)
         declarations = cast('Declarations', compilation.layout)
         states = Layout(declarations.states)
-        functions['equations'] = _written_equations(functions['equations'], states, compilation.written)
+        functions['equations'] = _written_equations(functions['equations'], states, compilation.facts['written'])
         blocks = list(declarations.blocks.values())
         volumes, constrained = _with_discretizations(functions, cast('Laws', compilation.reduced), declarations, blocks)
         compilation.facts['volumes'] = volumes
@@ -319,12 +392,29 @@ class FieldProblemPass(Pass):
         compilation.problem = replace(
             problem,
             initial_state=initial_state,
-            stable_step=min(compilation.limits, default=None),
-            diffusive_limits=tuple(compilation.volume_limits),
-            linear=tuple(compilation.linear),
+            stable_step=min(compilation.facts['limits'], default=None),
+            diffusive_limits=tuple(compilation.facts['volume_limits']),
+            linear=tuple(compilation.facts['linear']),
             volumes=compilation.facts['volumes'],
             constrained=indices,
         )
 
 
-PASSES = (LowerFieldsPass(), FieldFunctionsPass(), FieldJacobianPass(), FieldProblemPass())
+class ConservedNoisePass(Pass):
+    """Pass that lowers every conserved noise law to the divergence of one random flux per link of its field."""
+
+    reads = ('reduced', 'layout', 'outputs')
+    writes = ('outputs',)
+
+    def run(self, compilation: Compilation) -> None:
+        """Add the outputs of the conserved noise laws.
+
+        Args:
+            compilation:
+                The compilation state.
+        """
+        declarations = cast('Declarations', compilation.layout)
+        compilation.outputs.update(_conserved_outputs(cast('Laws', compilation.reduced), declarations))
+
+
+CHECKS = (_conserved_issues,)

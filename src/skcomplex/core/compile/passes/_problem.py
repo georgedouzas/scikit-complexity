@@ -8,8 +8,7 @@ from typing import Any, cast
 import numpy as np
 
 from ...base import Form, VariableKind, VisualSpec, declarations_of
-from ...components import Field, Group
-from ...space import LatticeSpace, Mesh, NetworkSpace
+from ...components import Group
 from .._compilation import Compilation, Laws
 from .._declarations import Block, Declarations, is_interaction
 from .._layout import Layout
@@ -54,20 +53,10 @@ def _history(blocks: list[Block]) -> dict[str, Any]:
 
 
 def visual_of(node: Node) -> VisualSpec:
-    """Return the visual of an element, a group's own visual when it sets one, or the default of a field's space."""
-    if isinstance(node.component, Group) and node.component.visual is not None:
-        return node.component.visual
-    if isinstance(node.component, Field) and isinstance(node.component.space, LatticeSpace):
-        return VisualSpec('image')
-    if isinstance(node.component, Field) and isinstance(node.component.space, Mesh):
-        return VisualSpec('mesh')
+    """Return the visual of an element, or a group's own visual when it sets one and its default otherwise."""
+    if isinstance(node.component, Group):
+        return node.component.visual if node.component.visual is not None else node.component.default_visual()
     declared: VisualSpec = node.component_type.visual
-    if (
-        isinstance(node.component, Field)
-        and isinstance(node.component.space, NetworkSpace)
-        and declared == VisualSpec()
-    ):
-        return VisualSpec('sites')
     return declared
 
 

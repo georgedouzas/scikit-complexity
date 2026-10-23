@@ -15,144 +15,18 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 from scipy.sparse import diags
 
-from ..base import Expression, ValidationError, domain_of, symbol
-from ..components import Field
-from ..laws import where
-from ..space import Adjacency, LatticeSpace, Mesh, Neighborhood, NetworkSpace
-from ._kernels import Reference, Source
-from ._printing import numpy_function
+from ...base import Expression, ValidationError, domain_of, symbol
+from ...compile import LATTICE_BOUNDARIES, MODES, NeighborRead, Reference, Source, numpy_function, spectral_multiplier
+from ...laws import where
+from ...space import Adjacency, LatticeSpace, Neighborhood, NetworkSpace
+from ._components import Field
+from ._spaces import Mesh
 
 type Indices = npt.NDArray[np.intp]
 type Offset = tuple[int, ...]
 
-MODES = {'periodic': 0, 'zero-flux': 1, 'fixed': 2}
 OPERATOR_NAMES = ('laplacian', 'partial', 'upwind', 'inverse_laplacian')
-LATTICE_BOUNDARIES = {'periodic': 'periodic', 'zero-flux': 'reflecting', 'fixed': 'fixed'}
 TIME = symbol('t')
-
-
-@dataclass(frozen=True, eq=False)
-class NeighborRead:
-    """How a symbol reads a field at a neighbouring site of every member.
-
-    Args:
-        table:
-            The member index of the neighbour of every member, with the number of members for the fixed value.
-
-        ghost:
-            The value read outside fixed edges, or `None` when no neighbour is outside.
-
-        sizes:
-            The lattice shape, or `None` on a network.
-
-        steps:
-            The offset of the neighbour on a lattice, or `None` on a network.
-
-        mode:
-            0 for periodic, 1 for zero-flux, and 2 for fixed edges.
-    """
-
-    table: Indices
-    ghost: float | None
-    sizes: tuple[int, ...] | None
-    steps: Offset | None
-    mode: int
-
-    def read(self, column: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-        """Return the neighbour's value of every member from the column of values.
-
-        Args:
-            column:
-                One value per member.
-
-        Returns:
-            values:
-                The value at the neighbour of every member.
-        """
-        if self.ghost is None:
-            return column[self.table]
-        return np.append(column, self.ghost)[self.table]
-
-
-@functools.cache
-def wavenumbers(dimensions: tuple[int, ...], spacings: tuple[float, ...]) -> tuple[npt.NDArray[np.float64], ...]:
-    """Return the angular wavenumbers of the real Fourier modes of a periodic lattice, broadcast along every axis.
-
-    Args:
-        dimensions:
-            The lattice shape.
-
-        spacings:
-            The distance between sites along every axis.
-
-    Returns:
-        wavenumbers:
-            One array per axis, the last axis holding the non-negative frequencies of a real transform.
-    """
-    axes = [2 * np.pi * np.fft.fftfreq(size, d=step) for size, step in zip(dimensions[:-1], spacings, strict=False)]
-    axes.append(2 * np.pi * np.fft.rfftfreq(dimensions[-1], d=spacings[-1]))
-    return tuple(np.meshgrid(*axes, indexing='ij'))
-
-
-@functools.cache
-def dealiasing_mask(dimensions: tuple[int, ...]) -> npt.NDArray[np.bool_]:
-    """Return the Fourier modes the two-thirds rule keeps, those below two thirds of the largest along every axis.
-
-    Args:
-        dimensions:
-            The lattice shape.
-
-    Returns:
-        mask:
-            Whether every real Fourier mode is kept.
-    """
-    axes = [np.abs(np.fft.fftfreq(size, d=1.0 / size)) < size / 3 for size in dimensions[:-1]]
-    axes.append(np.fft.rfftfreq(dimensions[-1], d=1.0 / dimensions[-1]) < dimensions[-1] / 3)
-    grids = np.meshgrid(*axes, indexing='ij')
-    return np.logical_and.reduce(grids)
-
-
-def spectral_multiplier(
-    name: str,
-    axis: int,
-    dimensions: tuple[int, ...],
-    spacings: tuple[float, ...],
-) -> npt.NDArray[np.complex128]:
-    """Return the Fourier multiplier of an operator on a periodic lattice.
-
-    The Laplacian and its inverse act on every mode, so the Laplacian damps the Nyquist mode by `-|k|^2` like any other.
-    A first derivative is zero at the Nyquist mode of its axis, and keeps only the modes of the two-thirds rule, which
-    dealiases the derivatives of products.
-
-    Args:
-        name:
-            `'laplacian'`, `'partial'`, or `'inverse_laplacian'`.
-
-        axis:
-            The axis of a derivative.
-
-        dimensions:
-            The lattice shape.
-
-        spacings:
-            The distance between sites along every axis.
-
-    Returns:
-        multiplier:
-            The factor of every real Fourier mode.
-    """
-    waves = wavenumbers(dimensions, spacings)
-    squared = np.sum([wave**2 for wave in waves], axis=0)
-    if name == 'laplacian':
-        return -squared.astype(complex)
-    if name == 'inverse_laplacian':
-        with np.errstate(divide='ignore'):
-            return np.where(squared > 0, -1.0 / np.where(squared > 0, squared, 1.0), 0.0).astype(complex)
-    factor = 1j * waves[axis]
-    if dimensions[axis] % 2 == 0:
-        nyquist = np.isclose(np.abs(waves[axis]), np.pi / spacings[axis])
-        factor = np.where(nyquist, 0.0, factor)
-    return np.where(dealiasing_mask(dimensions), factor, 0.0)
 
 
 @dataclass(eq=False)

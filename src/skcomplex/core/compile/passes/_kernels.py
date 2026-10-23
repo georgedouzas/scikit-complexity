@@ -10,7 +10,6 @@ from ...base import Expression, Trait, ValidationError, components_of, symbols_o
 from ...laws import Boundary, Call, Jump, Law, Noise, Rate, Update, has_trait
 from .._census import kind_of
 from .._compilation import Compilation, Laws
-from .._conserved import conserved_outputs
 from .._declarations import Declarations
 from .._kernels import Kernel, Lowered, Output, Reference, Source
 from .._layout import Layout
@@ -96,10 +95,20 @@ def _law_outputs(
     law: Rate | Noise | Update | Boundary,
     targets: list[Reference],
     declarations: Declarations,
+    lowered: dict[int, list[Output]],
 ) -> list[Output]:
-    """Return the outputs of a law for its target components, with the named Wiener process of a noise law."""
+    """Return the outputs of a law for its target components, with the named Wiener process of a noise law.
+
+    A law that a pass of a formalism lowered takes the outputs of that pass.
+    """
+    if id(law) in lowered:
+        return lowered[id(law)]
     if isinstance(law, Noise) and law.conserved:
-        return conserved_outputs(spec.owner, law, targets, declarations.places, spec.references)
+        error_msg = (
+            f'A conserved noise law of {spec.owner} has no lowering. Declare its state on a `Field` of the fields '
+            'formalism, or remove `conserved=True`.'
+        )
+        raise ValidationError(error_msg)
     outputs = _outputs_of(law.value, targets, f'{type(law).__name__} law of {spec.owner}')  # type: ignore[arg-type]
     if isinstance(law, Noise) and law.process is not None:
         for item, key in zip(outputs, process_keys(spec, law, declarations), strict=True):
@@ -107,7 +116,7 @@ def _law_outputs(
     return outputs
 
 
-def _lower_laws(specs: Laws, declarations: Declarations) -> Lowered:
+def _lower_laws(specs: Laws, declarations: Declarations, lowered_outputs: dict[int, list[Output]]) -> Lowered:
     """Return the kernels of every law kind, with the law of every output."""
     states, parameters = Layout(declarations.states), Layout(declarations.parameters)
     lowered = Lowered()
@@ -132,7 +141,7 @@ def _lower_laws(specs: Laws, declarations: Declarations) -> Lowered:
             once = _is_once(spec, law)
             if isinstance(law, ASSIGNED_KINDS):
                 _check_assignments(spec, law, targets, assigned[type(law)], once=once)
-            law_outputs = _law_outputs(spec, law, targets, declarations)
+            law_outputs = _law_outputs(spec, law, targets, declarations, lowered_outputs)
             lowered.laws.update({id(item): (spec, law) for item in law_outputs})
             outputs[(kind_of(law), once)].extend(law_outputs)
         for (kind, once), kind_outputs in outputs.items():
@@ -154,7 +163,7 @@ def _lower_laws(specs: Laws, declarations: Declarations) -> Lowered:
 class KernelsPass(Pass):
     """Pass that lowers the reduced laws into the kernels of every law kind."""
 
-    reads = ('reduced', 'layout')
+    reads = ('reduced', 'layout', 'outputs')
     writes = ('kernels',)
 
     def run(self, compilation: Compilation) -> None:
@@ -164,4 +173,8 @@ class KernelsPass(Pass):
             compilation:
                 The compilation state.
         """
-        compilation.kernels = _lower_laws(cast('Laws', compilation.reduced), cast('Declarations', compilation.layout))
+        compilation.kernels = _lower_laws(
+            cast('Laws', compilation.reduced),
+            cast('Declarations', compilation.layout),
+            compilation.outputs,
+        )

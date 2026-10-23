@@ -4,8 +4,9 @@ import numpy as np
 import pytest
 from scipy import ndimage
 
+from skcomplex.core.formalisms.fields import SSPRK
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import SSPRK, EulerMaruyama
+from skcomplex.core.solvers import EulerMaruyama
 from skcomplex.models import run
 from skcomplex.models.physics.active_matter import (
     active_brownian_particles,

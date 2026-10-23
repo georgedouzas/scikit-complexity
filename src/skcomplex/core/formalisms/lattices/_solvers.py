@@ -4,11 +4,12 @@
 # License: MIT
 
 import math
-from typing import ClassVar
+from typing import ClassVar, cast
 
-from ..base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind
-from ..compile import CompiledExtremal, CompiledRelaxation, Vector
-from ._stepper import Stepper, register_solver
+from ...base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind
+from ...compile import Vector
+from ...solvers import Stepper
+from ._steps import CompiledExtremal, CompiledRelaxation, LatticeStep
 
 
 class LatticeStepper(Stepper):
@@ -21,7 +22,7 @@ class LatticeStepper(Stepper):
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
         >>> from skcomplex.models.computer_science.automata import elementary_automaton
-        >>> from skcomplex.core.solvers import LatticeStepper
+        >>> from skcomplex.core.formalisms.lattices import LatticeStepper
         >>> problem = compile_system(elementary_automaton(30, size=11))
         >>> stepper = LatticeStepper()
         >>> stepper.initialize(problem, np.random.default_rng(0))
@@ -62,7 +63,7 @@ class LatticeStepper(Stepper):
         """
         state = x.copy()
         for step in range(round(t), math.floor(until + 1e-9)):
-            for item in self.problem_.lattice:
+            for item in cast('tuple[LatticeStep, ...]', self.problem_.lattice):
                 if isinstance(item, CompiledRelaxation):
                     record = item.apply(state, p, self.rng_, float(step + 1))
                     if record is not None:
@@ -82,7 +83,7 @@ class MonteCarlo(LatticeStepper):
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
         >>> from skcomplex.models.physics.statistical_mechanics import ising
-        >>> from skcomplex.core.solvers import MonteCarlo
+        >>> from skcomplex.core.formalisms.lattices import MonteCarlo
         >>> problem = compile_system(ising(size=8, temperature=1.0))
         >>> stepper = MonteCarlo()
         >>> stepper.initialize(problem, np.random.default_rng(0))
@@ -101,7 +102,3 @@ class MonteCarlo(LatticeStepper):
     )
 
     form: ClassVar[Form] = Form.MONTE_CARLO
-
-
-register_solver('lattice', LatticeStepper, default=True)
-register_solver('monte-carlo', MonteCarlo, default=True)

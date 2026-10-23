@@ -18,8 +18,8 @@ import numpy as np
 from scipy.stats import skew
 
 from skcomplex.core.analysis import fields_of, pattern_wavelength, structure_factor
+from skcomplex.core.formalisms.fields import ETDRK4
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import ETDRK4
 from skcomplex.core.viz import RerunObserver
 from skcomplex.models import create
 

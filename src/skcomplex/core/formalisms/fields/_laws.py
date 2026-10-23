@@ -10,7 +10,7 @@ from typing import Any, ClassVar
 from sage.all__sagemath_symbolics import SR
 from sage.symbolic.function import BuiltinFunction
 
-from ..base import (
+from ...base import (
     DomainKind,
     Expression,
     LawClass,
@@ -23,7 +23,7 @@ from ..base import (
     components_of,
     vector,
 )
-from ._law import Law, register_laws
+from ...laws import Law
 
 FIELD_BOUNDARIES = ('periodic', 'zero-flux', 'fixed')
 DISCRETIZATIONS = ('finite-difference', 'spectral', 'finite-volume', 'finite-element')
@@ -67,7 +67,7 @@ inverse_laplacian.__doc__ = """Return the solution `psi` of `laplacian(psi) = u`
 
 Examples:
     >>> from skcomplex.core.base import symbol
-    >>> from skcomplex.core.laws import inverse_laplacian
+    >>> from skcomplex.core.formalisms.fields import inverse_laplacian
     >>> inverse_laplacian(-symbol('omega'))
     inverse_laplacian(-omega)
 """
@@ -94,7 +94,7 @@ def gradient(expression: object, n_dim: int = 2) -> SymbolicVector:
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import gradient
+        >>> from skcomplex.core.formalisms.fields import gradient
         >>> gradient(symbol('u'))
         (partial(u, 0), partial(u, 1))
     """
@@ -114,7 +114,7 @@ def divergence(components: Sequence[Any] | SymbolicVector) -> Expression:
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import divergence
+        >>> from skcomplex.core.formalisms.fields import divergence
         >>> u = symbol('u')
         >>> sorted(str(term) for term in divergence([u, 2 * u]).operands())
         ['partial(2*u, 1)', 'partial(u, 0)']
@@ -138,7 +138,7 @@ def advection(expression: object, velocity: Sequence[Any] | SymbolicVector) -> E
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import advection
+        >>> from skcomplex.core.formalisms.fields import advection
         >>> sorted(str(term) for term in advection(symbol('u'), [1.0, 2.0]).operands())
         ['upwind(u, 0, 1.0)', 'upwind(u, 1, 2.0)']
     """
@@ -171,7 +171,7 @@ class Flux(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Flux
+        >>> from skcomplex.core.formalisms.fields import Flux
         >>> u = symbol('u')
         >>> Flux(u, u**2 / 2, riemann='godunov').limiter
         'minmod'
@@ -203,6 +203,3 @@ class Flux(Law):
     def fluxes(self) -> list[object]:
         """Flux of every dimension."""
         return list(self.flux) if isinstance(self.flux, list | tuple) else components_of(self.flux)
-
-
-register_laws(Flux)

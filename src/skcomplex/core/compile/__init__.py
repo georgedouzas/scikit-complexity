@@ -2,24 +2,15 @@
 
 from ._backends import BACKENDS, Backend, Lowering, load_backends, register_backend, resolve_backend
 from ._census import Census, CensusRecord, OwnerRule, law_census, register_owner
-from ._compilation import Compilation
+from ._compilation import BlockLaws, Compilation, Laws
 from ._compile import compile_system, partition_system
 from ._contractions import CompiledEncounter, TableValues
-from ._fields import mesh_laplacian, spectral_multiplier
+from ._declarations import Block, Declarations, member_count
 from ._forms import register_combined, register_form
 from ._hybrid import Breakpoints, CompiledEvent, Delay, EventRecord
 from ._issues import Issue, ValidationWarning
-from ._lattices import (
-    CompiledDrive,
-    CompiledExtremal,
-    CompiledMonteCarlo,
-    CompiledRelaxation,
-    CompiledRule,
-    ExtremalRecord,
-    LatticeState,
-    LatticeStep,
-    RelaxationRecord,
-)
+from ._jacobians import ConservationLaw
+from ._kernels import LATTICE_BOUNDARIES, MODES, NeighborRead, NoiseProcess, Output, Reference, Source
 from ._layout import Entry, Layout
 from ._observables import ObservableEvaluator, observables_of, with_observables
 from ._pipeline import Check, Pass, order_passes, register_check, register_pass, registered_passes, run_passes
@@ -38,72 +29,83 @@ from ._problem import (
     NetworkSnapshot,
     Partition,
     Problem,
+    Record,
     RenewalProcess,
     RenewalRecord,
+    SiteState,
+    SiteStep,
     TopologyChanges,
     Vector,
     VectorFunction,
     with_initial_state,
 )
 from ._quantities import CompiledFlow, CompiledObjective, LoopTerm, Recorded, StockFlow
-from ._specs import Binding, register_binding
+from ._specs import Binding, KernelSpec, register_binding, target_references
+from ._spectral import spectral_multiplier
 from ._system_passes import SystemPass, claiming_pass
 from ._tree import Node, coerce_value, flatten_system
 from ._validation import ValidationReport, domain_kind, missing_declarations, validate
 
 __all__: list[str] = [
     'BACKENDS',
+    'LATTICE_BOUNDARIES',
+    'MODES',
     'NUMPY_DIALECT',
     'SCALAR_DIALECT',
     'Accelerated',
     'Backend',
     'Binding',
+    'Block',
+    'BlockLaws',
     'Breakpoints',
     'Census',
     'CensusRecord',
     'Check',
     'Compilation',
     'CompiledAgents',
-    'CompiledDrive',
     'CompiledElement',
     'CompiledEncounter',
     'CompiledEvent',
-    'CompiledExtremal',
     'CompiledFlow',
     'CompiledInteraction',
-    'CompiledMonteCarlo',
     'CompiledObjective',
-    'CompiledRelaxation',
-    'CompiledRule',
+    'ConservationLaw',
+    'Declarations',
     'Delay',
     'Dialect',
     'Draws',
     'Entry',
     'EventRecord',
-    'ExtremalRecord',
     'FractionalRows',
     'Getter',
     'Issue',
     'JumpChannels',
-    'LatticeState',
-    'LatticeStep',
+    'KernelSpec',
+    'Laws',
     'Layout',
     'LoopTerm',
     'Lowering',
     'MarkovMatrix',
+    'NeighborRead',
     'NetworkSnapshot',
     'Node',
+    'NoiseProcess',
     'ObservableEvaluator',
+    'Output',
     'OwnerRule',
     'Partition',
     'Pass',
     'Plan',
     'PlannedPartition',
     'Problem',
+    'Record',
     'Recorded',
-    'RelaxationRecord',
+    'Reference',
     'RenewalProcess',
     'RenewalRecord',
+    'SiteState',
+    'SiteStep',
+    'Source',
     'StockFlow',
     'SystemPass',
     'TableValues',
@@ -119,7 +121,7 @@ __all__: list[str] = [
     'flatten_system',
     'law_census',
     'load_backends',
-    'mesh_laplacian',
+    'member_count',
     'missing_declarations',
     'numpy_function',
     'observables_of',
@@ -138,6 +140,7 @@ __all__: list[str] = [
     'resolve_backend',
     'run_passes',
     'spectral_multiplier',
+    'target_references',
     'validate',
     'with_initial_state',
     'with_observables',

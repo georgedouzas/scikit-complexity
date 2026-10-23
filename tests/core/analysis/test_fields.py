@@ -18,7 +18,7 @@ from skcomplex.core.analysis import (
     structure_factor,
 )
 from skcomplex.core.base import AnalysisError
-from skcomplex.core.components import Field
+from skcomplex.core.formalisms.fields import Field
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.space import LatticeSpace
 from skcomplex.core.system import System

@@ -11,7 +11,8 @@ import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, state
 from ....core.components import Element
-from ....core.laws import Extremal, Law, Symbols
+from ....core.formalisms.lattices import Extremal
+from ....core.laws import Law, Symbols
 from ....core.runtime import register_model
 from ....core.space import Adjacency, LatticeSpace, Neighborhood, NetworkSpace
 from ....core.system import System

@@ -18,8 +18,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import brentq
 
+from skcomplex.core.formalisms.fields import SSPRK
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import SSPRK
 from skcomplex.core.viz import RerunObserver
 from skcomplex.models import create
 

@@ -13,7 +13,8 @@ import numpy.typing as npt
 from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import Law, LocalRule, Rule, Symbols, Totalistic
+from ....core.formalisms.lattices import LocalRule
+from ....core.laws import Law, Rule, Symbols, Totalistic
 from ....core.runtime import register_model
 from ....core.space import LatticeSpace, Neighborhood, NetworkSpace
 from ....core.system import System

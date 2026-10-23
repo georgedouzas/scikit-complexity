@@ -583,3 +583,18 @@ class Group(Component):
     def __repr__(self, N_CHAR_MAX: int = 700) -> str:
         """Return the label, element type, and size."""
         return f'Group({self.label!r}, element={self.element.__name__}, size={self.size})'
+
+    def default_visual(self) -> VisualSpec:
+        """Return the visual of the group when it sets none, the visual of its element type.
+
+        Returns:
+            visual:
+                The visual.
+
+        Examples:
+            >>> from skcomplex.core.components import Group
+            >>> from skcomplex.models.biology.ecology import Population
+            >>> Group('herds', element=Population, size=3).default_visual() == Population.visual
+            True
+        """
+        return self.element.visual

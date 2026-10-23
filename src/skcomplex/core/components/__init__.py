@@ -2,7 +2,6 @@
 
 from ._component import Component
 from ._components import Aggregate, Element, Group, probe_laws, runs_rules
-from ._fields import Field
 from ._levels import distribution_from, members_from
 from ._memory import memory
 from ._particles import Particle
@@ -12,7 +11,6 @@ __all__: list[str] = [
     'Aggregate',
     'Component',
     'Element',
-    'Field',
     'Group',
     'Particle',
     'Wiener',

@@ -26,7 +26,7 @@ from ..base import (
     symbol,
     vector,
 )
-from ..components import Element, Field, Group, Wiener
+from ..components import Element, Group, Wiener
 from ..laws import Symbols
 from ..space import NetworkSpace
 from ._kernels import Reference, Source
@@ -332,16 +332,6 @@ class Declarations:
     def groups(self) -> frozenset[str]:
         """Paths of the declared groups, indexed once every component is declared."""
         return frozenset(path for path, block in self.blocks.items() if block.node.members is not None)
-
-    @cached_property
-    def places(self) -> dict[str, Field]:
-        """Fields by the name of each of their entries, indexed once every component is declared."""
-        return {
-            entry.name: block.node.component
-            for block in self.blocks.values()
-            if isinstance(block.node.component, Field)
-            for entry in block.entries.values()
-        }
 
     def declare_component(self, node: Node) -> Block:
         """Add the states and parameters of a component and return its block.

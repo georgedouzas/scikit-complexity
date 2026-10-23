@@ -8,12 +8,24 @@ from dataclasses import replace
 from typing import cast
 
 from ...base import Form, Trait, ValidationError
-from ...laws import Drive, Energy, Extremal, Law, LocalRule, Move, Relaxation, Sample, Sampler, has_trait
+from ...compile import (
+    BlockLaws,
+    Census,
+    Compilation,
+    Declarations,
+    Issue,
+    KernelSpec,
+    Laws,
+    Pass,
+    Problem,
+    member_count,
+    resolve_backend,
+    target_references,
+)
+from ...laws import Law, has_trait
 from ...space import NetworkSpace, SiteSpace
-from .._backends import resolve_backend
-from .._compilation import BlockLaws, Compilation, Laws
-from .._declarations import Declarations, member_count
-from .._lattices import (
+from ._laws import Drive, Energy, Extremal, LocalRule, Move, Relaxation, Sample, Sampler
+from ._steps import (
     LatticeContext,
     LatticeState,
     LatticeStep,
@@ -23,9 +35,6 @@ from .._lattices import (
     compile_relaxation,
     compile_rule,
 )
-from .._pipeline import Pass
-from .._problem import Problem
-from .._specs import KernelSpec, target_references
 
 
 def _lattice_context(spec: KernelSpec, declarations: Declarations, fused: bool) -> LatticeContext:
@@ -112,6 +121,34 @@ def _lattice_owner(spec: KernelSpec, law: Law, agents: set[str]) -> str | None:
     return None
 
 
+def _schedule_of(law: object) -> str | None:
+    """Return the schedule of a local rule or of the sampler of a sample, the default sampler's without one."""
+    if isinstance(law, LocalRule):
+        return law.schedule
+    if isinstance(law, Sample):
+        return (law.sampler or Sampler()).schedule
+    return None
+
+
+def _schedule_issues(compilation: Compilation) -> list[Issue]:
+    """Return the lattice laws whose checkerboard schedule needs a regular geometry that their space lacks."""
+    records = cast('Census', compilation.census).records
+    issues = []
+    for record in records:
+        lacks: frozenset[str] = getattr(record.space, 'lacks', frozenset())
+        if 'regular-geometry' in lacks and _schedule_of(record.law) == 'checkerboard':
+            message = (
+                f'The {type(record.law).__name__} law of {record.path} uses the checkerboard schedule, which needs the '
+                f'regular geometry of a square lattice, but the component lives on {type(record.space).__name__}.'
+            )
+            fix = (
+                "Use the 'synchronous' or the 'random-sequential' schedule of a local rule, or the "
+                "'random-sequential' or the 'colored' schedule of a sampler."
+            )
+            issues.append(Issue('schedule-unsupported', record.path, message, fix))
+    return issues
+
+
 class UnpackSamplesPass(Pass):
     """Pass that replaces every Monte Carlo sample by its energy, move, and sampler."""
 
@@ -153,7 +190,6 @@ class LatticeProblemPass(Pass):
         )
 
 
-PASSES = (UnpackSamplesPass(), LatticeProblemPass())
 STEPWISE_FORMS: dict[frozenset[type], Form] = {
     **{
         frozenset(kinds): Form.LATTICE
@@ -164,3 +200,4 @@ STEPWISE_FORMS: dict[frozenset[type], Form] = {
     frozenset({Energy, Move, Sampler}): Form.MONTE_CARLO,
 }
 OWNER_RULES = (_lattice_owner,)
+CHECKS = (_schedule_issues,)

@@ -9,18 +9,19 @@ from typing import Any
 
 import numpy as np
 import numpy.typing as npt
+import scipy.sparse
 from sage.all__sagemath_symbolics import SR, solve
 
-from ..base import Expression, ValidationError, symbol
-from ..components import Field
-from ..laws import Flux
-from ..space import LatticeSpace
-from ._kernels import Reference, Source
-from ._printing import numpy_function
+from ...base import Expression, ValidationError, symbol
+from ...compile import Reference, Source, numpy_function
+from ...space import LatticeSpace
+from ._components import Field
+from ._laws import Flux
 
 type Array = npt.NDArray[np.float64]
 
 TIME = symbol('t')
+STENCIL = 2
 
 
 def _limited(backward: Array, forward: Array, limiter: str | None) -> Array:
@@ -207,6 +208,37 @@ class FiniteVolume:
         states = self._states(x)
         parameters = self._parameters(p)
         return max(float(self._speed(axis, states, parameters).max()) for axis in range(len(self.dimensions)))
+
+    def pattern(self, size: int) -> scipy.sparse.csr_array:
+        """Return the band of the reconstruction stencil, which couples all the conserved states.
+
+        Args:
+            size:
+                The size of the state vector.
+
+        Returns:
+            pattern:
+                A sparse matrix of the size of the state vector, nonzero where the stencil couples two states.
+        """
+        grid = np.arange(self.size).reshape(self.dimensions)
+        kinds = {kind for kind, _ in self.boundaries}
+        rows, columns = [], []
+        for axis, length in enumerate(self.dimensions):
+            for offset in range(-STENCIL, STENCIL + 1):
+                shifted = np.arange(length) + offset
+                neighbours = []
+                if 'periodic' in kinds:
+                    neighbours.append(np.mod(shifted, length))
+                if kinds - {'periodic'}:
+                    neighbours.append(np.clip(shifted, 0, length - 1))
+                for items in neighbours:
+                    rows.append(grid.ravel())
+                    columns.append(np.take(grid, items, axis=axis).ravel())
+        cells, others = np.concatenate(rows), np.concatenate(columns)
+        pairs = [(first + cells, second + others) for first in self.starts for second in self.starts]
+        first = np.concatenate([item for item, _ in pairs])
+        second = np.concatenate([item for _, item in pairs])
+        return scipy.sparse.csr_array((np.ones(first.size), (first, second)), shape=(size, size))
 
 
 def compile_volumes(

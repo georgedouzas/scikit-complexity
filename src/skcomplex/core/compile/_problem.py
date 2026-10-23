@@ -29,7 +29,6 @@ from ..space import Space
 from ..system import Observable, System
 from ._contractions import CompiledEncounter
 from ._hybrid import Breakpoints, CompiledEvent, Delay
-from ._lattices import LatticeStep, lattice_shape
 from ._layout import Layout
 from ._quantities import CompiledObjective, StockFlow
 from ._reductions import CompiledReduction
@@ -81,6 +80,18 @@ def with_initial_state(problem: 'Problem', initial_state: Mapping[str, object]) 
             error_msg = f'The initial value of {name} does not fit its shape {entry.shape}: {error}'
             raise ValidationError(error_msg) from error
     return replace(problem, initial_state=state)
+
+
+class Record(Protocol):
+    """Record of something that happened at one time of a run, such as an event or a relaxation."""
+
+    @property
+    def label(self) -> str:
+        """Name of what happened."""
+
+    @property
+    def time(self) -> float:
+        """Time it happened at."""
 
 
 @dataclass(frozen=True)
@@ -551,6 +562,26 @@ class Accelerated:
     iterate: Callable[..., Vector] | None = None
 
 
+class SiteState(Protocol):
+    """State of a group whose members sit at the sites of a lattice or the nodes of a network."""
+
+    @property
+    def name(self) -> str:
+        """Dotted name of the state."""
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        """Number of sites along every dimension."""
+
+
+class SiteStep(Protocol):
+    """Step that changes the states of the sites of a group once per step of a stepwise form."""
+
+    @property
+    def targets(self) -> tuple[SiteState, ...]:
+        """States the step changes."""
+
+
 @dataclass(frozen=True)
 class Problem:
     """System compiled to one mathematical form with flat state and parameter vectors.
@@ -638,8 +669,8 @@ class Problem:
             The values of states before the start, by dotted state path, as numbers or functions of time.
 
         lattice:
-            The local rules, drives, relaxations, and Monte Carlo sampling of a lattice problem, in the order they
-            apply within a step.
+            The steps that change the states of sites, such as the local rules of a lattice problem, in the order
+            they apply within a step.
 
         linear:
             The linear terms with constant coefficients of the rates of fields, which implicit and exponential solvers
@@ -757,7 +788,7 @@ class Problem:
     events: tuple[CompiledEvent, ...] = ()
     breakpoints: Breakpoints = field(default_factory=Breakpoints)
     history: Mapping[str, Any] = field(default_factory=dict)
-    lattice: tuple[LatticeStep, ...] = field(default=(), repr=False)
+    lattice: tuple[SiteStep, ...] = field(default=(), repr=False)
     stable_step: float | None = None
     diffusive_limits: tuple[Any, ...] = field(default=(), repr=False)
     linear: tuple[Any, ...] = field(default=(), repr=False)
@@ -882,9 +913,10 @@ class Problem:
             shape:
                 The number of sites along every dimension.
         """
-        found = lattice_shape(name, self.lattice)
-        if found is not None:
-            return found
+        for step in self.lattice:
+            for state in step.targets:
+                if state.name == name:
+                    return state.shape
         owner = name.rpartition('.')[0]
         for element in self.elements:
             space = getattr(element.element, 'space', None)

@@ -383,8 +383,7 @@ any other state with the code `noise-unsupported`.
 ```python
 from sage.all__sagemath_symbolics import sqrt
 
-from skcomplex.core.components import Field
-from skcomplex.core.laws import laplacian
+from skcomplex.core.formalisms.fields import Field, laplacian
 from skcomplex.core.space import LatticeSpace
 
 Density = Element.define(
@@ -1265,7 +1264,8 @@ one per neighbour, that also receives the parameters it names and, for stochasti
 Tables and totalistic rules run as lookups, fused into one compiled loop on the Numba backend.
 
 ```python
-from skcomplex.core.laws import LocalRule, OuterTotalistic
+from skcomplex.core.formalisms.lattices import LocalRule
+from skcomplex.core.laws import OuterTotalistic
 from skcomplex.core.space import LatticeSpace, Neighborhood
 
 Life = Element.define(
@@ -1305,7 +1305,8 @@ a move is derived symbolically, sweeps update the two sublattices in turn, and t
 changes live.
 
 ```python
-from skcomplex.core.laws import Energy, Move, Sample, Sampler, neighbors
+from skcomplex.core.formalisms.lattices import Energy, Move, Sample, Sampler
+from skcomplex.core.laws import neighbors
 
 nearest = Neighborhood.von_neumann()
 Spin = Element.define(
@@ -1360,7 +1361,7 @@ of square lattices.
 ```python
 import networkx as nx
 
-from skcomplex.core.laws import adjacent, neighbor_sum
+from skcomplex.core.formalisms.lattices import adjacent, neighbor_sum
 from skcomplex.core.space import Adjacency, NetworkSpace
 
 GraphSpin = Element.define(
@@ -1388,7 +1389,7 @@ backend the applications of a step run in one compiled loop when Numba compiles 
 arguments by position or keyword, with no keyword-only arguments, and both backends give the same events.
 
 ```python
-from skcomplex.core.laws import Extremal
+from skcomplex.core.formalisms.lattices import Extremal
 
 
 def renew(fitness, random):
@@ -1884,8 +1885,7 @@ the neighbouring sites through differential operators. The method of lines turns
 equations, so every ODE solver and backend runs it.
 
 ```python
-from skcomplex.core.components import Field
-from skcomplex.core.laws import laplacian
+from skcomplex.core.formalisms.fields import Field, laplacian
 
 Diffusion = Element.define(
     'Diffusion',
@@ -1939,8 +1939,7 @@ solves per Fourier mode for spectral fields. `ETDRK4` integrates it exactly per 
 equations take steps far beyond the explicit limit.
 
 ```python
-from skcomplex.core.laws import divergence
-from skcomplex.core.solvers import ETDRK4
+from skcomplex.core.formalisms.fields import divergence, ETDRK4
 
 Chaos = Element.define(
     'Chaos',

@@ -4,7 +4,6 @@
 # License: MIT
 
 import dataclasses
-from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -14,15 +13,13 @@ from ..system import System
 from ._backends import Backend
 from ._census import Census
 from ._declarations import Block, Declarations
-from ._fields import DiffusiveLimit
 from ._jacobians import ExactJacobian
-from ._kernels import Lowered
+from ._kernels import Lowered, Output
 from ._planner import Plan
 from ._problem import MarkovMatrix, Problem
 from ._reductions import ReductionPass
 from ._renewals import RenewalLaw
 from ._specs import KernelSpec
-from ._splitting import LinearTerm
 from ._stochastic import DrawLowering, MatrixLaw
 from ._tree import Node
 
@@ -146,17 +143,9 @@ class Compilation:
         renewals:
             The renewal laws with the hidden states that count them.
 
-        written:
-            The stencils of the differential operators of every state component, with the operators as written.
-
-        limits:
-            The stable steps of the explicit stencils.
-
-        volume_limits:
-            The diffusive limits of the finite-volume fields.
-
-        linear:
-            The linear terms with constant coefficients of the rates of field states.
+        outputs:
+            The outputs of the laws that a pass of a formalism lowers itself, by the identity of the law, which the
+            kernels take in place of the outputs of the law's value.
 
         facts:
             The facts that the passes of formalisms record, by name.
@@ -200,12 +189,7 @@ class Compilation:
     placeholders: dict[tuple[int, str, int, str], Expression] = field(default_factory=dict)
     events: list[tuple[KernelSpec, Event]] = field(default_factory=list)
     renewals: list[RenewalLaw] = field(default_factory=list)
-    written: dict[tuple[str, int], list[tuple[Expression, Expression]]] = field(
-        default_factory=lambda: defaultdict(list),
-    )
-    limits: list[float] = field(default_factory=list)
-    volume_limits: list[DiffusiveLimit] = field(default_factory=list)
-    linear: list[LinearTerm] = field(default_factory=list)
+    outputs: dict[int, list[Output]] = field(default_factory=dict)
     facts: dict[str, Any] = field(default_factory=dict)
     done: set[object] = field(default_factory=set)
 

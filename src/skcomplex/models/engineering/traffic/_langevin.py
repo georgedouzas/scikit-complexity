@@ -7,9 +7,10 @@ import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import Domain, Expression, parameter, state
-from ....core.components import Element, Field
+from ....core.components import Element
+from ....core.formalisms.fields import Field, divergence, laplacian
 from ....core.interactions import Interaction
-from ....core.laws import Noise, Rate, Symbols, divergence, laplacian
+from ....core.laws import Noise, Rate, Symbols
 from ....core.runtime import register_model
 from ....core.solvers import RK4, EulerMaruyama
 from ....core.space import LatticeSpace

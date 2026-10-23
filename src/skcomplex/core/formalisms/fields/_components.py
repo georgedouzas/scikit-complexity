@@ -6,15 +6,14 @@
 from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 
-from ..base import (
+from ...base import (
     ComponentKind,
     VisualSpec,
 )
-from ..laws._fields import FIELD_BOUNDARIES
-from ..space._lattices import LatticeSpace
-from ..space._meshes import Mesh
-from ..space._networks import NetworkSpace
-from ._components import Element, Group, _check_group
+from ...components import Element, Group
+from ...space import LatticeSpace, NetworkSpace
+from ._laws import FIELD_BOUNDARIES
+from ._spaces import Mesh
 
 
 class Field(Group):
@@ -58,8 +57,10 @@ class Field(Group):
             or even about its middle, represents walls there, such as the free-slip walls of convection.
 
     Examples:
-        >>> from skcomplex.core.components import Element, Field
-        >>> from skcomplex.core.laws import Rate, laplacian
+        >>> from skcomplex.core.components import Element
+        >>> from skcomplex.core.formalisms.fields import Field
+        >>> from skcomplex.core.laws import Rate
+        >>> from skcomplex.core.formalisms.fields import laplacian
         >>> from skcomplex.core.space import LatticeSpace
         >>> Heat = Element.define(
         ...     'Heat',
@@ -85,18 +86,11 @@ class Field(Group):
         discretization: str = 'finite-difference',
         symmetry: Mapping[str, Sequence[str | None]] | None = None,
     ) -> None:
-        self.label = label
-        self.element = element
-        self.space = space
+        size = space.graph.number_of_nodes() if isinstance(space, NetworkSpace) else space.size
+        super().__init__(label, element=element, size=size, values=values, visual=visual, space=space, on='sites')
         self.boundary = boundary
-        self.values = values
-        self.visual = visual
         self.discretization = discretization
         self.symmetry = symmetry
-        self.size = space.graph.number_of_nodes() if isinstance(space, NetworkSpace) else space.size
-        self.variable = False
-        self.on = 'sites'
-        _check_group(self)
 
     def __repr__(self, N_CHAR_MAX: int = 700) -> str:
         """Return the label, element type, and size."""
@@ -133,3 +127,30 @@ class Field(Group):
             )
             raise ValueError(error_msg)
         return kind, value
+
+    def default_visual(self) -> VisualSpec:
+        """Return the visual of the field when it sets none: an image on a lattice and a colored mesh on a mesh.
+
+        On a network the field takes the visual of its element type, or the sites of the network when the type
+        declares none.
+
+        Returns:
+            visual:
+                The visual.
+
+        Examples:
+            >>> from skcomplex.core.components import Element
+            >>> from skcomplex.core.formalisms.fields import Field
+            >>> from skcomplex.core.space import LatticeSpace
+            >>> Heat = Element.define('Heat', states={'u': 0.0})
+            >>> Field('plate', Heat, LatticeSpace((4, 4))).default_visual().kind
+            'image'
+        """
+        if isinstance(self.space, LatticeSpace):
+            return VisualSpec('image')
+        if isinstance(self.space, Mesh):
+            return VisualSpec('mesh')
+        declared: VisualSpec = self.element.visual
+        if isinstance(self.space, NetworkSpace) and declared == VisualSpec():
+            return VisualSpec('sites')
+        return declared

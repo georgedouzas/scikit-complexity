@@ -7,8 +7,9 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from ....core.components import Element, Field
-from ....core.laws import Rate, laplacian
+from ....core.components import Element
+from ....core.formalisms.fields import Field, laplacian
+from ....core.laws import Rate
 from ....core.runtime import register_model
 from ....core.space import LatticeSpace
 from ....core.system import System

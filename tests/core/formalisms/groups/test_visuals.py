@@ -5,7 +5,8 @@ import numpy as np
 from skcomplex.core.base import Domain, state
 from skcomplex.core.components import Element
 from skcomplex.core.formalisms.groups import CayleyVisual, GroupSpace, finitely_presented_group
-from skcomplex.core.laws import LocalRule, Totalistic
+from skcomplex.core.formalisms.lattices import LocalRule
+from skcomplex.core.laws import Totalistic
 from skcomplex.core.runtime import Frame, Simulation
 from skcomplex.core.space import Memory
 from skcomplex.core.system import System

@@ -5,12 +5,12 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Protocol, runtime_checkable
 
 import numpy as np
 import numpy.typing as npt
 
 from ..base import AnalysisError
-from ..compile import RelaxationRecord
 from ._kinds import DataKind, analysis
 from ._lazy import module
 from ._statistics import PowerLawFit, fit_power_law
@@ -20,12 +20,21 @@ MIN_POINTS = 2
 SHAPE_GRID = 50
 
 
-def _records(source: object) -> list[RelaxationRecord]:
+def _records(source: object) -> list['_Relaxation']:
     """Return the relaxation records of a source, or nothing when it holds activity values."""
     if isinstance(source, np.ndarray) or not isinstance(source, Sequence):
         return []
-    records = [item for item in source if isinstance(item, RelaxationRecord)]
+    records = [item for item in source if isinstance(item, _Relaxation)]
     return records if records and len(records) == len(source) else []
+
+
+@runtime_checkable
+class _Relaxation(Protocol):
+    """Record of the relaxation of a lattice within one step, with its size and its duration."""
+
+    size: int
+    duration: int
+    area: int
 
 
 @dataclass(frozen=True)
@@ -49,7 +58,7 @@ class Avalanches:
 
 
 @analysis(DataKind.SERIES)
-def avalanches(source: npt.ArrayLike | Sequence[RelaxationRecord], threshold: float = 0.0) -> Avalanches:
+def avalanches(source: npt.ArrayLike | Sequence['_Relaxation'], threshold: float = 0.0) -> Avalanches:
     """Return the avalanches of an activity series, the runs above a threshold, or of the relaxations of a lattice.
 
     Args:

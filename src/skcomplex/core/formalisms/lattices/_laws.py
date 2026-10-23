@@ -3,13 +3,13 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
 from sage.symbolic.function import BuiltinFunction
 
-from ..base import (
+from ...base import (
     Expression,
     LawClass,
     LawKind,
@@ -18,95 +18,14 @@ from ..base import (
     TimeKind,
     Trait,
 )
-from ..space import Adjacency, Memory, Neighborhood
-from ._law import Law, register_laws
+from ...laws import Law, OuterTotalistic, Table, Totalistic
+from ...space import Adjacency, Memory, Neighborhood
 
 SCHEDULES = ('synchronous', 'random-sequential', 'random-site', 'checkerboard', 'colored')
 MONTE_CARLO_SCHEDULES = ('checkerboard', 'random-sequential', 'colored')
 SAMPLERS = ('metropolis', 'glauber', 'heat-bath')
 MOVES = ('flip', 'random-value', 'rotate')
 EXTREMA = ('min', 'max')
-
-
-@dataclass(frozen=True)
-class Table:
-    """Rule given by the next value of every neighbourhood pattern of integer states `0` to `states - 1`.
-
-    Args:
-        mapping:
-            A mapping from pattern, a tuple of values in neighbourhood order, to the next value.
-
-        default:
-            The next value of patterns the mapping leaves out.
-
-        states:
-            The number of state values, or `None` for one more than the largest value in the patterns.
-
-    Examples:
-        >>> from skcomplex.core.laws import Table
-        >>> Table({(1, 1): 1}).states
-        2
-    """
-
-    mapping: Mapping[tuple[int, ...], float]
-    default: float = 0.0
-    states: int | None = None
-
-    def __post_init__(self) -> None:
-        if self.states is None:
-            largest = max((value for pattern in self.mapping for value in pattern), default=0)
-            object.__setattr__(self, 'states', max(int(largest) + 1, 2))
-
-
-@dataclass(frozen=True)
-class Totalistic:
-    """Rule given by the next value of every sum of the neighbourhood values.
-
-    Args:
-        rule:
-            A mapping from sum to next value, or a function of the sums that returns the next values.
-
-        default:
-            The next value of sums a mapping leaves out.
-
-        states:
-            The number of state values `0` to `states - 1`, which bounds the sums.
-
-    Examples:
-        >>> from skcomplex.core.laws import Totalistic
-        >>> Totalistic(lambda total: total > 4).states
-        2
-    """
-
-    rule: Mapping[int, float] | Callable[[Any], Any]
-    default: float = 0.0
-    states: int = 2
-
-
-@dataclass(frozen=True)
-class OuterTotalistic:
-    """Rule given by the next value of every pair of the cell's value and the sum of its neighbours' values.
-
-    Args:
-        rule:
-            A mapping from `(value, sum)` to next value, or a function of the values and the sums.
-
-        default:
-            The next value of pairs a mapping leaves out.
-
-        states:
-            The number of state values `0` to `states - 1`, which bounds the sums.
-
-    Examples:
-        >>> from skcomplex.core.laws import OuterTotalistic
-        >>> parity = OuterTotalistic(lambda center, total: (center + total) % 2)
-        >>> parity.states
-        2
-    """
-
-    rule: Mapping[tuple[int, int], float] | Callable[[Any, Any], Any]
-    default: float = 0.0
-    states: int = 2
 
 
 type RuleSpec = Table | Totalistic | OuterTotalistic | Callable[..., Any] | Any
@@ -153,7 +72,8 @@ class LocalRule(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import LocalRule, Totalistic
+        >>> from skcomplex.core.formalisms.lattices import LocalRule
+        >>> from skcomplex.core.laws import Totalistic
         >>> from skcomplex.core.space import Neighborhood
         >>> LocalRule(symbol('cell'), Neighborhood.radius(), Totalistic({2: 1})).schedule
         'synchronous'
@@ -198,7 +118,7 @@ class Drive(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Drive
+        >>> from skcomplex.core.formalisms.lattices import Drive
         >>> Drive(symbol('height'), lambda values, *, random: values + 1).target
         height
     """
@@ -250,7 +170,7 @@ class Relaxation(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import LocalRule, Relaxation
+        >>> from skcomplex.core.formalisms.lattices import LocalRule, Relaxation
         >>> from skcomplex.core.space import Neighborhood
         >>> height = symbol('height')
         >>> topple = LocalRule(height, Neighborhood.von_neumann(center=True), lambda z, *n: z - 4 * (z >= 4))
@@ -276,13 +196,6 @@ class Relaxation(Law):
         return tuple(dict.fromkeys(item for law in self.relax for item in law.targets))
 
 
-class _Neighbor(BuiltinFunction):
-    """Value of a lattice state at the `k`-th offset of a neighbourhood, `neighbor(x, k)`."""
-
-    def __init__(self) -> None:
-        super().__init__('neighbor', nargs=2)
-
-
 class _Adjacent(BuiltinFunction):
     """Value of a lattice state at one neighbour inside a neighbour sum, `adjacent(x)`."""
 
@@ -297,7 +210,6 @@ class _NeighborSum(BuiltinFunction):
         super().__init__('neighbor_sum', nargs=1)
 
 
-neighbor = _Neighbor()
 adjacent = _Adjacent()
 neighbor_sum = _NeighborSum()
 
@@ -321,7 +233,8 @@ class Energy(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Energy, neighbors
+        >>> from skcomplex.core.formalisms.lattices import Energy
+        >>> from skcomplex.core.laws import neighbors
         >>> from skcomplex.core.space import Neighborhood
         >>> spin, J = symbol('spin'), symbol('J')
         >>> nearest = Neighborhood.von_neumann()
@@ -358,7 +271,7 @@ class Move(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Move
+        >>> from skcomplex.core.formalisms.lattices import Move
         >>> Move.random_value(symbol('color'), range(3)).values
         (0.0, 1.0, 2.0)
     """
@@ -445,7 +358,7 @@ class Sampler(Law):
             `'random-sequential'` to visit the sites one at a time in a random order.
 
     Examples:
-        >>> from skcomplex.core.laws import Sampler
+        >>> from skcomplex.core.formalisms.lattices import Sampler
         >>> Sampler('glauber', 2.0).schedule
         'checkerboard'
     """
@@ -487,7 +400,7 @@ class Sample(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Energy, Move, Sample, Sampler
+        >>> from skcomplex.core.formalisms.lattices import Energy, Move, Sample, Sampler
         >>> from skcomplex.core.space import Neighborhood
         >>> spin = symbol('spin')
         >>> law = Sample(Energy(-spin, Neighborhood.von_neumann()), Move.flip(spin), Sampler('glauber', 2.0))
@@ -543,7 +456,7 @@ class Extremal(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Extremal
+        >>> from skcomplex.core.formalisms.lattices import Extremal
         >>> from skcomplex.core.space import Neighborhood
         >>> law = Extremal(symbol('fitness'), Neighborhood.radius(), lambda values, *, random: random)
         >>> law.extremum, law.repeat
@@ -580,6 +493,3 @@ class Extremal(Law):
     def key_state(self) -> Expression:
         """Symbol of the lattice state whose extremum is searched."""
         return self.targets[0] if self.key is None else self.key
-
-
-register_laws(LocalRule, Drive, Relaxation, Energy, Move, Sampler, Sample, Extremal)

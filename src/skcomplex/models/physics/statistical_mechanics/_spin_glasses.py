@@ -10,7 +10,8 @@ import numpy.typing as npt
 
 from ....core.base import Domain, Expression, ValidationError, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import Energy, Law, Move, Sample, Sampler, Symbols, neighbors
+from ....core.formalisms.lattices import Energy, Move, Sample, Sampler
+from ....core.laws import Law, Symbols, neighbors
 from ....core.runtime import register_model
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import Observable, System

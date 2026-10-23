@@ -14,8 +14,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import fields_of
+from skcomplex.core.formalisms.fields import SSPRK
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import SSPRK
 from skcomplex.core.viz import RerunObserver
 from skcomplex.models import create
 

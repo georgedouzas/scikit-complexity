@@ -7,9 +7,10 @@ import pytest
 
 from skcomplex.core.base import SolverError, ValidationError
 from skcomplex.core.compile import compile_system
-from skcomplex.core.components import Element, Field
+from skcomplex.core.components import Element
+from skcomplex.core.formalisms.fields import Field, laplacian
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Event, Rate, delayed, laplacian, total
+from skcomplex.core.laws import Event, Rate, delayed, total
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4, ScipyODE
 from skcomplex.core.space import LatticeSpace

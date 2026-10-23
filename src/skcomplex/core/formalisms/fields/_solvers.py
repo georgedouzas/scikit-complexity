@@ -12,7 +12,7 @@ import numpy.typing as npt
 from scipy.sparse import csr_matrix, diags, identity
 from scipy.sparse.linalg import splu
 
-from ..base import (
+from ...base import (
     NUMERIC_DOMAINS,
     ComponentKind,
     Form,
@@ -24,12 +24,13 @@ from ..base import (
     TimeKind,
     symbol,
 )
-from ..compile import Problem, Vector, mesh_laplacian, numpy_function, spectral_multiplier
-from ..space import LatticeSpace, Mesh, Neighborhood, NetworkSpace
-from ._stepper import Stepper, register_solver, step_count
+from ...compile import LATTICE_BOUNDARIES, Problem, Vector, numpy_function, spectral_multiplier
+from ...solvers import Stepper, step_count
+from ...space import LatticeSpace, Neighborhood, NetworkSpace
+from ._lowering import mesh_laplacian
+from ._spaces import Mesh
 
 CONTOUR_POINTS = 64
-LATTICE_BOUNDARIES = {'periodic': 'periodic', 'zero-flux': 'reflecting', 'fixed': 'fixed'}
 TIME = symbol('t')
 
 type Complex = npt.NDArray[np.complex128]
@@ -397,7 +398,7 @@ class IMEXEuler(_SplitStepper):
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
         >>> from skcomplex.models.physics.heat import heat_diffusion
-        >>> from skcomplex.core.solvers import IMEXEuler
+        >>> from skcomplex.core.formalisms.fields import IMEXEuler
         >>> problem = compile_system(heat_diffusion((16, 16)))
         >>> stepper = IMEXEuler(dt=1.0)
         >>> stepper.initialize(problem, np.random.default_rng(0))
@@ -423,7 +424,7 @@ class IMEX2(_SplitStepper):
             The fixed internal step.
 
     Examples:
-        >>> from skcomplex.core.solvers import IMEX2
+        >>> from skcomplex.core.formalisms.fields import IMEX2
         >>> IMEX2(dt=0.1).dt
         0.1
     """
@@ -455,7 +456,7 @@ class CrankNicolson(_SplitStepper):
             The fixed internal step.
 
     Examples:
-        >>> from skcomplex.core.solvers import CrankNicolson
+        >>> from skcomplex.core.formalisms.fields import CrankNicolson
         >>> CrankNicolson(dt=0.5).dt
         0.5
     """
@@ -497,7 +498,7 @@ class ETDRK4(_SplitStepper):
             The fixed internal step.
 
     Examples:
-        >>> from skcomplex.core.solvers import ETDRK4
+        >>> from skcomplex.core.formalisms.fields import ETDRK4
         >>> ETDRK4(dt=0.25).dt
         0.25
     """
@@ -565,7 +566,7 @@ class SSPRK(Stepper):
         >>> import numpy as np
         >>> from skcomplex.core.compile import compile_system
         >>> from skcomplex.models.physics.fluids import burgers
-        >>> from skcomplex.core.solvers import SSPRK
+        >>> from skcomplex.core.formalisms.fields import SSPRK
         >>> problem = compile_system(burgers(64))
         >>> stepper = SSPRK()
         >>> stepper.initialize(problem, np.random.default_rng(0))
@@ -660,10 +661,3 @@ class SSPRK(Stepper):
             time += h
             state = self._bounded(time, state, p)
         return state
-
-
-register_solver('ssp-rk', SSPRK)
-register_solver('imex-euler', IMEXEuler)
-register_solver('imex2', IMEX2)
-register_solver('crank-nicolson', CrankNicolson)
-register_solver('etdrk4', ETDRK4)

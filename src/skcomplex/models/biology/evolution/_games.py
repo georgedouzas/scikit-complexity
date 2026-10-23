@@ -11,8 +11,9 @@ import numpy.typing as npt
 
 from ....core.base import Domain, Expression, role, state
 from ....core.components import Element
+from ....core.formalisms.lattices import LocalRule
 from ....core.interactions import Interaction
-from ....core.laws import Law, LocalRule, Rate, Symbols, total
+from ....core.laws import Law, Rate, Symbols, total
 from ....core.runtime import register_model
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
