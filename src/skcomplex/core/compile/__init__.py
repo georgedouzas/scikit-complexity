@@ -1,11 +1,12 @@
 """Compile systems into problems of one mathematical form with fast numeric functions."""
 
 from ._backends import BACKENDS, Backend, Lowering, load_backends, register_backend, resolve_backend
-from ._census import Census, CensusRecord, law_census
+from ._census import Census, CensusRecord, OwnerRule, law_census, register_owner
 from ._compilation import Compilation
 from ._compile import compile_system, partition_system
 from ._contractions import CompiledEncounter, TableValues
 from ._fields import mesh_laplacian, spectral_multiplier
+from ._forms import register_combined, register_form
 from ._hybrid import Breakpoints, CompiledEvent, Delay, EventRecord
 from ._issues import Issue, ValidationWarning
 from ._lattices import (
@@ -45,6 +46,7 @@ from ._problem import (
     with_initial_state,
 )
 from ._quantities import CompiledFlow, CompiledObjective, LoopTerm, Recorded, StockFlow
+from ._specs import Binding, register_binding
 from ._system_passes import SystemPass, claiming_pass
 from ._tree import Node, coerce_value, flatten_system
 from ._validation import ValidationReport, domain_kind, missing_declarations, validate
@@ -55,6 +57,7 @@ __all__: list[str] = [
     'SCALAR_DIALECT',
     'Accelerated',
     'Backend',
+    'Binding',
     'Breakpoints',
     'Census',
     'CensusRecord',
@@ -91,6 +94,7 @@ __all__: list[str] = [
     'NetworkSnapshot',
     'Node',
     'ObservableEvaluator',
+    'OwnerRule',
     'Partition',
     'Pass',
     'Plan',
@@ -124,7 +128,11 @@ __all__: list[str] = [
     'plan_partitions',
     'print_expressions',
     'register_backend',
+    'register_binding',
     'register_check',
+    'register_combined',
+    'register_form',
+    'register_owner',
     'register_pass',
     'registered_passes',
     'resolve_backend',

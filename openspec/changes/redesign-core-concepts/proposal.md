@@ -28,8 +28,8 @@ concepts before more changes build on the current layout.
 
 - **Formalisms as plug-ins:** add `skcomplex.core.formalisms`, which holds one subpackage per domain-agnostic
   formalism:
-  - `agents`, `lattices`, `groups`, `rewriting`, `quantum`, `fields`, `kinetics`, `flows`, `renewals`, `fractional`,
-    `topology`, `particles`, and `control`.
+  - `agents`, `lattices`, `groups`, `rewriting`, `quantum`, `fields`, `kinetics`, `flows`, `fractional`, `topology`,
+    `particles`, and `control`.
   - Each formalism registers its laws, components, lowering passes, forms, solvers, backends, visuals, and validation
     checks through one declaration.
   - The rest of the core never imports a formalism.

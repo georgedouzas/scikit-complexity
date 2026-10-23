@@ -11,7 +11,7 @@ depends on any formalism and a new formalism needs no change to existing core mo
 ### Requirement: Formalisms live in one package each
 Every formalism SHALL be one subpackage of `skcomplex.core.formalisms` that holds its laws, components, compilation,
 solvers, backends, visuals, and validation checks. The formalisms SHALL be `agents`, `lattices`, `groups`, `rewriting`,
-`quantum`, `fields`, `kinetics`, `flows`, `renewals`, `fractional`, `topology`, `particles`, and `control`. A name
+`quantum`, `fields`, `kinetics`, `flows`, `fractional`, `topology`, `particles`, and `control`. A name
 specific to one formalism SHALL be imported from that formalism's package.
 
 #### Scenario: Formalism imports

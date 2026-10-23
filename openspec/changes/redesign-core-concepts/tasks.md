@@ -25,8 +25,8 @@
   contributions are listed", "Unregistered law", and "Law from an outside formalism" scenarios.
 - [x] 2.2 Add the import codemod script `tools/rewrite_imports.py`, which reads a table of old and new paths, and its
   test. Each move below rewrites models, examples, tests, and documentation with it. Verify on a planted fixture.
-- [ ] 2.3 Move `topology` and `renewals` to `formalisms`, with their tests mirrored. Verify with the topology and
-  renewal tests and the catalog conformance tests.
+- [ ] 2.3 Move `topology` to `formalisms`, with its tests mirrored, and fold the renewal passes into the shared core as
+  the lowering of waiting-time jumps. Verify with the topology and renewal tests and the catalog conformance tests.
 - [ ] 2.4 Move `groups`, `control`, and `fractional`. Verify with their tests and the catalog conformance tests.
 - [ ] 2.5 Move `flows`, `kinetics`, and `particles`, with LAMMPS moving into `particles`. Verify with their tests and
   the catalog conformance tests.

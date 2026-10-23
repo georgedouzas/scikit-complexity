@@ -95,7 +95,7 @@ The shared core holds the general concepts, one package per part of a system or 
 | `formalisms` | plug-ins | one subpackage per formalism |
 
 The general laws are `Rate`, `Noise`, `Jump` with its exponential and waiting-time clocks, `Update`, `Transition`,
-`Emission`, `Event`, `Boundary`, `Equation`, `Transfer`, `Invariant`, and `Call`. Each is used across fields, or it
+`Emission`, `Event`, `Boundary`, `Equation`, `Transfer`, `Invariant`, `Objective`, and `Call`. Each is used across fields, or it
 belongs to the general forms: ODE, SDE, DAE, discrete map, jump process, and co-simulation. Delays and events stay in
 the core, because any ODE or map can carry them.
 
@@ -111,11 +111,15 @@ Each formalism gathers modules that are scattered today:
 | `fields` | `Field`, differential operators, flux laws, meshes, finite differences, finite volumes, spectral and stiff integrators, conserved noise | `laws/_fields`, `components/_fields`, `space/_meshes`, `compile/_fields`, `_volumes`, `_splitting`, `_conserved`, `solvers/_stiff` |
 | `kinetics` | encounter laws, moments, activity levels, DSMC | `laws/_encounters`, `laws/_moments`, `components/_levels`, `compile/_encounters`, `_contractions`, `solvers/_kinetics` |
 | `flows` | stocks, flows, auxiliaries, lookups, system-dynamics delays, conservation monitoring | `laws/_flows`, `compile/_flows`, `_quantities`, `runtime/_conservation` |
-| `renewals` | renewal clocks of members | `compile/_renewals`, `solvers/_renewals` |
 | `fractional` | the fractional form, Caputo schemes, fractional noise | the fractional parts of `_compiler.py` and `laws/_laws`, `solvers/_caputo`, `solvers/_fractional` |
 | `topology` | topology requests, capacity layouts | `laws/_topology`, `compile/_topology` |
 | `particles` | `Particle`, potentials, pair potentials, the LAMMPS backend, body visuals | `components/_particles`, `interactions/_potentials`, `backends/_lammps`, `_lammps_lepton`, `viz/_bodies` |
-| `control` | `Objective`, collocation, Pontryagin, receding-horizon following | `laws/_laws`, `solvers/_collocation`, `_optimal`, `_pontryagin` |
+| `control` | collocation, Pontryagin, receding-horizon following | `solvers/_collocation`, `_optimal`, `_pontryagin` |
+
+Two parts stay in the shared core. **Renewals** stay because `Jump` with a waiting-time clock is a general law, so the
+lowering of waiting-time jumps and their stepper belong with jump processes. A formalism would let a waiting jump compile
+silently as a rate jump when the formalism was not imported. **`Objective`** stays because both `flows`, for the
+objectives of stock-and-flow models, and `control` read it. Neither formalism then depends on the other.
 
 Every formalism has the same internal layout: `_laws`, `_components`, `_spaces`, `_passes`, `_solvers`, `_backends`,
 `_visuals`, and `_checks`, each present only when needed, plus the `__init__` that registers the formalism.

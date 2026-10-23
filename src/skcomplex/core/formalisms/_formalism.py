@@ -7,7 +7,21 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from ..base import Form, Registry, RegistryError
-from ..compile import Backend, Check, Pass, SystemPass, register_backend, register_check, register_pass
+from ..compile import (
+    Backend,
+    Binding,
+    Check,
+    OwnerRule,
+    Pass,
+    SystemPass,
+    register_backend,
+    register_binding,
+    register_check,
+    register_combined,
+    register_form,
+    register_owner,
+    register_pass,
+)
 from ..components import Component
 from ..laws import Law, register_laws
 from ..solvers import Stepper, register_solver
@@ -50,12 +64,29 @@ def _is_registered(formalism: 'Formalism') -> bool:
     raise RegistryError(error_msg)
 
 
+def _register_compilation(formalism: 'Formalism') -> None:
+    """Register the passes, checks, stepwise forms, combined law classes, owner rules, and bindings of a formalism."""
+    for system_pass in formalism.passes:
+        register_pass(system_pass)
+    for check in formalism.checks:
+        register_check(check)
+    for kinds, form in formalism.stepwise_forms.items():
+        register_form(kinds, form, stepwise=True)
+    for kind, companions in formalism.combined.items():
+        register_combined(kind, companions)
+    for rule in formalism.owners:
+        register_owner(rule)
+    for over, binding in formalism.bindings.items():
+        register_binding(over, binding)
+
+
 def register(formalism: 'Formalism') -> None:
     """Register a formalism and add each of its contributions to the registry of the concept that owns it.
 
-    Law classes go to the laws, passes and checks to compilation, solvers to the solvers of their form, backends to
-    the backends, and visuals to visualization. Law kinds, traits, and forms are registered when they are created.
-    Registering the same formalism again changes nothing.
+    Law classes go to the laws, passes, checks, stepwise forms, combined law classes, owner rules, and bindings to
+    compilation, solvers to the solvers of their form, backends to the backends, and visuals to visualization. Law
+    kinds, traits, and forms are registered when they are created. Registering the same formalism again changes
+    nothing.
 
     Args:
         formalism:
@@ -77,16 +108,13 @@ def register(formalism: 'Formalism') -> None:
     if _is_registered(formalism):
         return
     register_laws(*formalism.laws)
-    for system_pass in formalism.passes:
-        register_pass(system_pass)
+    _register_compilation(formalism)
     for name, stepper in formalism.solvers.items():
         register_solver(name, stepper)
     for backend in formalism.backends:
         register_backend(backend)
     for kind, visual in formalism.visuals.items():
         register_visual(kind, visual)
-    for check in formalism.checks:
-        register_check(check)
     FORMALISMS.register(formalism.name, formalism)
 
 
@@ -144,6 +172,19 @@ class Formalism:
         checks:
             The checks that validation runs, each taking a system and the census of its laws.
 
+        stepwise_forms:
+            The forms that run step by step, by the set of law classes whose components take them.
+
+        combined:
+            The law classes that combine with laws of other classes of the same components into their form, with
+            those other classes.
+
+        owners:
+            The rules that name the owner of the laws they know.
+
+        bindings:
+            How the kernel spec of an interaction is built, by the binding it declares, such as `'pairs'`.
+
     Examples:
         >>> from skcomplex.core.formalisms import Formalism
         >>> Formalism('empty').depends
@@ -161,6 +202,10 @@ class Formalism:
     backends: tuple[type[Backend], ...] = ()
     visuals: Mapping[str, type[Visual]] = field(default_factory=dict)
     checks: tuple[Check, ...] = ()
+    stepwise_forms: Mapping[frozenset[type], Form] = field(default_factory=dict)
+    combined: Mapping[type, frozenset[type]] = field(default_factory=dict)
+    owners: tuple[OwnerRule, ...] = ()
+    bindings: Mapping[str, Binding] = field(default_factory=dict)
 
 
 FORMALISMS = Registry[Formalism]('formalism')
