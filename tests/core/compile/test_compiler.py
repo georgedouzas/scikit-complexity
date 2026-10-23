@@ -17,7 +17,8 @@ from skcomplex.core.base import (
     symbol,
 )
 from skcomplex.core.compile import compile_system
-from skcomplex.core.components import Element, Particle
+from skcomplex.core.components import Element
+from skcomplex.core.formalisms.particles import Particle
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Rate, Update
 from skcomplex.core.runtime import Simulation

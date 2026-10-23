@@ -13,7 +13,8 @@ import numpy as np
 import numpy.typing as npt
 from lammps import lammps
 
-from ..base import (
+from ...backends import ExternalBackend
+from ...base import (
     NUMERIC_DOMAINS,
     BackendError,
     ComponentKind,
@@ -29,15 +30,15 @@ from ..base import (
     declarations_of,
     symbol,
 )
-from ..compile import CompiledElement, CompiledInteraction, Problem, Vector, compile_system
-from ..components import Particle
-from ..interactions import Interaction, PairPotential
-from ..laws import Symbols
-from ..solvers import SOLVERS, register_solver, step_count
-from ..space import ContinuousSpace
-from ..system import System
-from ._base import ExternalBackend
-from ._lammps_lepton import lepton_expression
+from ...compile import CompiledElement, CompiledInteraction, Problem, Vector, compile_system
+from ...interactions import Interaction
+from ...laws import Symbols
+from ...solvers import SOLVERS, step_count
+from ...space import ContinuousSpace
+from ...system import System
+from ._components import Particle
+from ._interactions import PairPotential
+from ._lepton import lepton_expression
 
 LAMMPS_ARGUMENTS = ['-screen', 'none', '-log', 'none', '-nocite']
 DIMENSIONS = ('x', 'y', 'z')
@@ -95,8 +96,7 @@ def register_lammps_pair(interaction: type[PairPotential], style: str, arguments
             which the backend appends.
 
     Examples:
-        >>> from skcomplex.core.backends import NATIVE_PAIRS, register_lammps_pair
-        >>> from skcomplex.core.interactions import PairPotential
+        >>> from skcomplex.core.formalisms.particles import NATIVE_PAIRS, PairPotential, register_lammps_pair
         >>> class Flat(PairPotential):
         ...     def pair_energy(self, s, r):
         ...         return 0 * r
@@ -118,7 +118,7 @@ def register_lammps_fix(interaction: type[Interaction], command: FixCommand) -> 
             The function of the values of the fix that returns its LAMMPS command.
 
     Examples:
-        >>> from skcomplex.core.backends import NATIVE_FIXES, register_lammps_fix
+        >>> from skcomplex.core.formalisms.particles import NATIVE_FIXES, register_lammps_fix
         >>> from skcomplex.core.interactions import Interaction
         >>> class Push(Interaction):
         ...     pass
@@ -253,8 +253,7 @@ class LammpsBackend(ExternalBackend):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.backends import LammpsBackend
-        >>> from skcomplex.core.components import Particle
+        >>> from skcomplex.core.formalisms.particles import LammpsBackend, Particle
         >>> from skcomplex.core.space import ContinuousSpace
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.physics.realizations import LennardJones
@@ -609,5 +608,4 @@ class LammpsBackend(ExternalBackend):
         return state
 
 
-register_solver('lammps', LammpsBackend)
 SOLVERS.register((Form.SDE, 'lammps'), LammpsBackend)

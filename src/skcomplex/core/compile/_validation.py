@@ -10,14 +10,12 @@ from dataclasses import dataclass, field
 from typing import Any, cast
 
 import numpy as np
-from sage.all__sagemath_symbolics import SR
 
 from ..base import (
     BackendError,
     Categorical,
     Domain,
     DomainKind,
-    Expression,
     Form,
     HilbertFamily,
     HilbertSpace,

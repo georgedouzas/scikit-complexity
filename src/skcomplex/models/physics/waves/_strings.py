@@ -9,8 +9,8 @@ import numpy as np
 from sage.all__sagemath_symbolics import sin
 
 from ....core.base import Domain, Expression, parameter, role, vector
-from ....core.components import Element, Field, Particle
-from ....core.interactions import Potential
+from ....core.components import Element, Field
+from ....core.formalisms.particles import Particle, Potential
 from ....core.laws import Rate, Symbols, laplacian
 from ....core.runtime import register_model
 from ....core.solvers import VelocityVerlet

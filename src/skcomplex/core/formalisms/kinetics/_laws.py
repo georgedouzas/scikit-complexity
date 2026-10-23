@@ -272,5 +272,3 @@ class Destruction(Law):
     def target(self) -> Expression:
         """Symbol of the candidate density, whose group owns the law."""
         return self.candidate
-
-

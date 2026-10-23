@@ -10,7 +10,8 @@ from sage.all__sagemath_symbolics import I
 
 from skcomplex.core.base import Domain, VisualSpec, state
 from skcomplex.core.compile import compile_system
-from skcomplex.core.components import Element, Field, Group, Particle
+from skcomplex.core.components import Element, Field, Group
+from skcomplex.core.formalisms.particles import Particle
 from skcomplex.core.laws import Rate, Rule, Update, add_node
 from skcomplex.core.runtime import Frame, Simulation
 from skcomplex.core.space import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace

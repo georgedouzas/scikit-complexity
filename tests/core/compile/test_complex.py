@@ -9,10 +9,11 @@ import pytest
 from sage.all__sagemath_symbolics import I, arg, conjugate, exp, gamma, imag_part, real_part
 
 from skcomplex.core.analysis import power_spectrum
-from skcomplex.core.backends import LammpsBackend, NumbaBackend
+from skcomplex.core.backends import NumbaBackend
 from skcomplex.core.base import BackendError, Domain, ValidationError, parameter, state
 from skcomplex.core.compile import Entry, Layout, compile_system
 from skcomplex.core.components import Element, Field
+from skcomplex.core.formalisms.particles import LammpsBackend
 from skcomplex.core.laws import (
     Call,
     Equation,

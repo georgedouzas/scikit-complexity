@@ -7,7 +7,7 @@ from sage.all__sagemath_symbolics import SR, cos, function, sqrt
 from skcomplex.core.analysis import equations_of, solve_symbolically
 from skcomplex.core.base import AnalysisError, role
 from skcomplex.core.compile import compile_system
-from skcomplex.core.components import Particle
+from skcomplex.core.formalisms.particles import Particle
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Rate
 from skcomplex.core.runtime import Simulation

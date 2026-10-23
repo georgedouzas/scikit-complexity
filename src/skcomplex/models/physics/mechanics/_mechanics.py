@@ -7,7 +7,8 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos, sin
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element, Particle
+from ....core.components import Element
+from ....core.formalisms.particles import Particle
 from ....core.interactions import Interaction
 from ....core.laws import Equation, Event, Rate, derivative
 from ....core.runtime import register_model

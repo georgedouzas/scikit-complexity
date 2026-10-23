@@ -82,9 +82,7 @@ class CompileEncountersPass(Pass):
         specs = cast('Laws', compilation.drawn)
         declarations = cast('Declarations', compilation.layout)
         compilation.facts['encounters'] = _compiled_encounters(specs, declarations, compilation.backend)
-        compilation.drawn = [
-            (spec, [law for law in laws if not is_encounter(law)]) for spec, laws in specs
-        ]
+        compilation.drawn = [(spec, [law for law in laws if not is_encounter(law)]) for spec, laws in specs]
 
 
 class EncounterFunctionsPass(Pass):
@@ -143,4 +141,3 @@ class EncounterProblemPass(Pass):
         problem = cast('Problem', compilation.problem)
         values = {item.name: getattr(problem, item.name) for item in fields(problem)}
         compilation.problem = KineticProblem(**values, encounters=encounters)
-

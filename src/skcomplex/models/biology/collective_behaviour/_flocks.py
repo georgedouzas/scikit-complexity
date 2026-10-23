@@ -11,8 +11,9 @@ from sage.all__sagemath_symbolics import exp
 
 from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
-from ....core.components import Element, Particle
-from ....core.interactions import Interaction, PairPotential
+from ....core.components import Element
+from ....core.formalisms.particles import PairPotential, Particle
+from ....core.interactions import Interaction
 from ....core.laws import Law, Rate, Rule, Symbols
 from ....core.runtime import register_model
 from ....core.space import ContinuousSpace

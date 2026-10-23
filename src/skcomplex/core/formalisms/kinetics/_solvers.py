@@ -4,15 +4,17 @@
 # License: MIT
 
 import math
-from typing import ClassVar
+from typing import ClassVar, cast
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ..base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SolverError, SpaceKind, Supports, TimeKind
-from ..compile import CompiledEncounter, Problem, Vector
-from ._stepper import Stepper, register_solver
+from ...base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SolverError, SpaceKind, Supports, TimeKind
+from ...compile import Problem, Vector
+from ...solvers import Stepper
+from ._contractions import CompiledEncounter
+from ._passes import KineticProblem
 
 type Counts = npt.NDArray[np.int64]
 type Indices = npt.NDArray[np.intp]
@@ -46,7 +48,7 @@ class ParticleKinetics(Stepper):
             The largest time step.
 
     Examples:
-        >>> from skcomplex.core.solvers import ParticleKinetics
+        >>> from skcomplex.core.formalisms.kinetics import ParticleKinetics
         >>> from skcomplex.core.base import LawKind
         >>> ParticleKinetics(n=1000).supports.laws == {LawKind.ENCOUNTER}
         True
@@ -69,7 +71,7 @@ class ParticleKinetics(Stepper):
 
     def _check_problem(self, problem: Problem) -> None:
         """Raise an error when a problem has laws other than encounters, or no encounter."""
-        if not problem.encounters:
+        if not isinstance(problem, KineticProblem) or not problem.encounters:
             error_msg = 'ParticleKinetics samples encounter laws, but the problem has none. Use an ODE solver.'
             raise SolverError(error_msg)
         rates = any(not SR(value).is_zero() for value in problem.equations.values())
@@ -103,7 +105,8 @@ class ParticleKinetics(Stepper):
         """
         super().initialize(problem, rng)
         self._check_problem(problem)
-        self.densities_ = _densities(problem.encounters)
+        self._encounters = cast('KineticProblem', problem).encounters
+        self.densities_ = _densities(self._encounters)
         self.mass_ = 0.0
         self._counts: dict[tuple[int, ...], Counts] = {}
 
@@ -175,7 +178,7 @@ class ParticleKinetics(Stepper):
     def _step(self, p: Vector, step: float) -> None:
         """Apply every encounter law in turn for one step."""
         actions = {'transition': self._move, 'proliferation': self._proliferate, 'destruction': self._destroy}
-        for encounter in self.problem_.encounters:
+        for encounter in self._encounters:
             actions[encounter.kind](encounter, p, step)
 
     def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
@@ -214,6 +217,3 @@ class ParticleKinetics(Stepper):
         for _ in range(n_steps):
             self._step(p, step)
         return self._state(x)
-
-
-register_solver('particles', ParticleKinetics)

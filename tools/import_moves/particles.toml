@@ -1,0 +1,30 @@
+[[moves]]
+old = "skcomplex.core.components"
+new = "skcomplex.core.formalisms.particles"
+names = ["Particle"]
+
+[[moves]]
+old = "skcomplex.core.interactions"
+new = "skcomplex.core.formalisms.particles"
+names = ["PairPotential", "Potential"]
+
+[[moves]]
+old = "skcomplex.core.backends"
+new = "skcomplex.core.formalisms.particles"
+names = ["NATIVE_FIXES", "NATIVE_PAIRS", "LammpsBackend", "LammpsFix", "register_lammps_fix", "register_lammps_pair"]
+
+[[moves]]
+old = "skcomplex.core.components._particles"
+new = "skcomplex.core.formalisms.particles._components"
+
+[[moves]]
+old = "skcomplex.core.interactions._potentials"
+new = "skcomplex.core.formalisms.particles._interactions"
+
+[[moves]]
+old = "skcomplex.core.backends._lammps"
+new = "skcomplex.core.formalisms.particles._backends"
+
+[[moves]]
+old = "skcomplex.core.backends._lammps_lepton"
+new = "skcomplex.core.formalisms.particles._lepton"

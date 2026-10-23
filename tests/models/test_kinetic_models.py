@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 from skcomplex.core.compile import validate
+from skcomplex.core.formalisms.kinetics import ParticleKinetics
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import ParticleKinetics
 from skcomplex.models import create, describe
 
 

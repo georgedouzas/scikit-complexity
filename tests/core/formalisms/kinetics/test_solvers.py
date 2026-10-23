@@ -7,10 +7,10 @@ from skcomplex.core.base import Domain, SolverError, parameter, role, state
 from skcomplex.core.compile import compile_system, validate
 from skcomplex.core.components import Element, Group
 from skcomplex.core.experiments import Experiment
+from skcomplex.core.formalisms.kinetics import Destruction, Encounter, ParticleKinetics, Proliferation
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Destruction, Encounter, Proliferation, Rate
+from skcomplex.core.laws import Rate
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import ParticleKinetics
 from skcomplex.core.space import ContinuousTime, LatticeSpace
 from skcomplex.core.system import System
 

@@ -12,8 +12,8 @@ from sage.all__sagemath_symbolics import SR
 
 from ...base import Expression, ValidationError, symbols_of
 from ...compile import Reference, Source
-from ._contractions import CompiledEncounter, Indices, TableValues
 from ...laws import Law
+from ._contractions import CompiledEncounter, Indices, TableValues
 from ._laws import Destruction, Encounter, EncounterLaw, is_encounter
 
 

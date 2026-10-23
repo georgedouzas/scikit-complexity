@@ -6,8 +6,8 @@ import pytest
 from skcomplex.core.base import Domain, ValidationError, parameter, role, state
 from skcomplex.core.compile import compile_system, validate
 from skcomplex.core.components import Element, Group
+from skcomplex.core.formalisms.kinetics import Destruction, Encounter, Proliferation
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Destruction, Encounter, Proliferation
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4
 from skcomplex.core.space import ContinuousTime, DiscreteTime, LatticeSpace

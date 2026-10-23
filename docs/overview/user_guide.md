@@ -1026,7 +1026,7 @@ and every law written for one member runs over all members with array operations
 ```python
 import numpy as np
 
-from skcomplex.core.components import Particle
+from skcomplex.core.formalisms.particles import Particle
 from skcomplex.core.space import ContinuousSpace
 
 rng = np.random.default_rng(0)
@@ -1221,7 +1221,7 @@ group or between two groups. `PairPotential` derives the forces from a pair ener
 
 ```python
 from skcomplex.core.base import Domain, parameter
-from skcomplex.core.interactions import PairPotential
+from skcomplex.core.formalisms.particles import PairPotential
 
 
 class LennardJones(PairPotential):
@@ -1631,7 +1631,7 @@ into another subsystem.
 ```python
 from skcomplex.core.compile import validate
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Encounter
+from skcomplex.core.formalisms.kinetics import Encounter
 
 
 def exchange_table(cooperation, competition):
@@ -1708,7 +1708,7 @@ vector with one weight per reduced member, so laws read them and observables rec
 receives the namespace of one member, and its function must be defined at module level so that it pickles.
 
 ```python
-from skcomplex.core.laws import moment
+from skcomplex.core.formalisms.kinetics import moment
 
 
 def mean_wealth(s):
@@ -1739,7 +1739,7 @@ time, lattice spaces, site groups, and encounter laws only, so validation report
 solvers that run it.
 
 ```python
-from skcomplex.core.solvers import ParticleKinetics
+from skcomplex.core.formalisms.kinetics import ParticleKinetics
 
 sampled = Simulation(economy, dt=10.0, solver=ParticleKinetics(n=20_000), random_state=0).run(until=100)
 print(np.abs(sampled.trajectory_['wealth.f'][-1] - densities[-1]).sum().round(2))
@@ -1755,7 +1755,7 @@ variable group from a distribution. A model can then run one level in a partitio
 level its moments.
 
 ```python
-from skcomplex.core.components import distribution_from, members_from
+from skcomplex.core.formalisms.kinetics import distribution_from, members_from
 
 Trader = Element.define('Trader', states={'w': 0.0})
 traders = members_from(densities[-1], Trader, 1000, activities=classes, random_state=0)
@@ -2048,7 +2048,7 @@ trajectories, live parameters, and Rerun visualization. `LammpsBackend` runs par
 integrates them with velocity Verlet.
 
 ```python
-from skcomplex.core.backends import LammpsBackend
+from skcomplex.core.formalisms.particles import LammpsBackend
 from skcomplex.models.physics.realizations import LangevinThermostat, LennardJones
 
 atoms = System(
@@ -2079,7 +2079,7 @@ law it cannot run. The translation is the following.
 | `LangevinThermostat` | `fix langevin`, seeded from the simulation's random state |
 | any other interaction that only changes velocities | `fix external`, evaluated by the framework every step |
 
-Importing `skcomplex.core.backends` also registers the solver name `'lammps'`.
+Importing `skcomplex.core.formalisms.particles` also registers the solver name `'lammps'`.
 
 ## Agent-based models
 
@@ -2517,7 +2517,7 @@ import tempfile
 from pathlib import Path
 
 from skcomplex.core.space import ContinuousSpace
-from skcomplex.core.components import Particle
+from skcomplex.core.formalisms.particles import Particle
 from skcomplex.models.physics.realizations import Spring
 from skcomplex.core.viz import RerunObserver
 

@@ -12,7 +12,8 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
-from ....core.components import Element, Field, Particle
+from ....core.components import Element, Field
+from ....core.formalisms.particles import Particle
 from ....core.interactions import Interaction
 from ....core.laws import Law, Noise, Rate, Symbols, advection, divergence, gradient, laplacian
 from ....core.runtime import register_model

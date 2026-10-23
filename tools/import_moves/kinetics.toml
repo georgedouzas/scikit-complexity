@@ -1,0 +1,47 @@
+[[moves]]
+old = "skcomplex.core.laws"
+new = "skcomplex.core.formalisms.kinetics"
+names = ["Destruction", "Encounter", "Proliferation", "moment", "outcome_sums"]
+
+[[moves]]
+old = "skcomplex.core.components"
+new = "skcomplex.core.formalisms.kinetics"
+names = ["distribution_from", "members_from"]
+
+[[moves]]
+old = "skcomplex.core.compile"
+new = "skcomplex.core.formalisms.kinetics"
+names = ["CompiledEncounter", "TableValues"]
+
+[[moves]]
+old = "skcomplex.core.solvers"
+new = "skcomplex.core.formalisms.kinetics"
+names = ["ParticleKinetics"]
+
+[[moves]]
+old = "skcomplex.core.laws._encounters"
+new = "skcomplex.core.formalisms.kinetics._laws"
+
+[[moves]]
+old = "skcomplex.core.laws._moments"
+new = "skcomplex.core.formalisms.kinetics._moments"
+
+[[moves]]
+old = "skcomplex.core.components._levels"
+new = "skcomplex.core.formalisms.kinetics._components"
+
+[[moves]]
+old = "skcomplex.core.compile._encounters"
+new = "skcomplex.core.formalisms.kinetics._encounters"
+
+[[moves]]
+old = "skcomplex.core.compile._contractions"
+new = "skcomplex.core.formalisms.kinetics._contractions"
+
+[[moves]]
+old = "skcomplex.core.compile.passes._kinetics"
+new = "skcomplex.core.formalisms.kinetics._passes"
+
+[[moves]]
+old = "skcomplex.core.solvers._kinetics"
+new = "skcomplex.core.formalisms.kinetics._solvers"

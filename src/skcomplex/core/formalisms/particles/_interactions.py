@@ -8,7 +8,7 @@ from typing import Any, ClassVar
 
 from sage.all__sagemath_symbolics import SR, sqrt
 
-from ..base import (
+from ...base import (
     Domain,
     Expression,
     VariableKind,
@@ -18,9 +18,8 @@ from ..base import (
     symbol,
     vector,
 )
-from ..laws import Law, Rate
-from ..laws._symbols import Symbols
-from ._interactions import Interaction
+from ...interactions import Interaction
+from ...laws import Law, Rate, Symbols
 
 
 class Potential(Interaction):
