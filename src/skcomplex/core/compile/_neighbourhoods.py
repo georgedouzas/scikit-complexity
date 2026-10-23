@@ -7,7 +7,6 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-import networkx as nx
 import numpy as np
 import numpy.typing as npt
 from scipy.spatial import cKDTree
@@ -39,37 +38,39 @@ def _with_center(readers: Indices, others: Indices, size: int) -> tuple[Indices,
     return np.concatenate([readers, own]), np.concatenate([others, own])
 
 
-def network_rows(space: NetworkSpace, neighborhood: Adjacency) -> Rows:
-    """Return the neighbours of every node of a network in CSR form, successors on a directed graph.
+def network_rows(space: NetworkSpace, neighborhood: Adjacency) -> tuple[Indices, Indices, Indices]:
+    """Return the neighbours of every node of a layer in CSR form, successors on a directed graph, with their edges.
 
     Args:
         space:
             The network space.
 
         neighborhood:
-            The graph neighbourhood, with the node itself when it is centred.
+            The graph neighbourhood of a layer, with the node itself when it is centred.
 
     Returns:
         rows:
-            The row starts and the neighbours of every node, in node order.
+            The row starts and the neighbours of every node, in node order, and the edge of the layer that joins every
+            node to every neighbour, -1 for the node itself.
 
     Examples:
-        >>> import networkx as nx
-        >>> from skcomplex.core.compile._neighbourhoods import network_rows
+        >>>         >>> from skcomplex.core.compile._neighbourhoods import network_rows
         >>> from skcomplex.core.space import Adjacency, NetworkSpace
         >>> [item.tolist() for item in network_rows(NetworkSpace(nx.path_graph(3)), Adjacency())]
-        [[0, 1, 3, 4], [1, 0, 2, 1]]
+        [[0, 1, 3, 4], [1, 0, 2, 1], [0, 0, 1, 1]]
     """
-    graph = space.graph
-    size = graph.number_of_nodes()
-    matrix = nx.to_scipy_sparse_array(graph, nodelist=list(graph.nodes), format='csr')
-    matrix.sort_indices()
-    readers = np.repeat(np.arange(size, dtype=np.intp), np.diff(matrix.indptr))
-    others = matrix.indices.astype(np.intp)
-    if neighborhood.center:
-        keep = readers != others
-        readers, others = _with_center(readers[keep], others[keep], size)
-    return _rows(readers, others, size)
+    indptr, others, edges = space.compute_adjacency(neighborhood.layer)
+    size = space.size
+    if not neighborhood.center:
+        return indptr, others, edges
+    readers = np.repeat(np.arange(size, dtype=np.intp), np.diff(indptr))
+    keep = readers != others
+    readers, others = _with_center(readers[keep], others[keep], size)
+    edges = np.concatenate([edges[keep], np.full(size, -1, dtype=np.intp)])
+    order = np.lexsort((others, readers))
+    counts = np.bincount(readers, minlength=size)
+    indptr = np.concatenate([np.zeros(1, dtype=np.intp), np.cumsum(counts)]).astype(np.intp)
+    return indptr, others[order].astype(np.intp), edges[order].astype(np.intp)
 
 
 def lattice_rows(space: LatticeSpace, neighborhood: Neighborhood) -> Rows:
@@ -137,10 +138,14 @@ class StaticSearch:
 
         indices:
             The neighbours of every member in turn.
+
+        edges:
+            The edge of a network layer that joins every member to every neighbour, or `None` on a lattice.
     """
 
     indptr: Indices
     indices: Indices
+    edges: Indices | None = None
 
     def find(self, x: Vector) -> Rows:
         """Return the neighbours of every member.
@@ -460,8 +465,9 @@ class PairRead:
             The values of the symbol, one per member or one shared value.
 
         side:
-            `'shared'` for one value, `'reader'` for the value of the member that reads the reduction, or `'other'`
-            for the value of the neighbour.
+            `'shared'` for one value, `'reader'` for the value of the member that reads the reduction, `'other'`
+            for the value of the neighbour, or `'edge'` for the value of the member of a group on the edges of a
+            network layer that joins them.
 
         image:
             Whether the symbol is a position component of the neighbour, read by its minimum image from the reader.
@@ -531,7 +537,7 @@ class CompiledNeighbourhood:
         """Number of members."""
         return self.entry.rows
 
-    def _gather(self, x: Vector, q: Vector, readers: Indices, others: Indices) -> list[Any]:
+    def _gather(self, x: Vector, q: Vector, readers: Indices, others: Indices, edges: Indices | None) -> list[Any]:
         """Return the values of every symbol for every pair."""
         values = []
         differences = None
@@ -543,6 +549,8 @@ class CompiledNeighbourhood:
                 values.append(column)
             elif pair.side == 'reader':
                 values.append(column[readers])
+            elif pair.side == 'edge':
+                values.append(column[edges])
             elif pair.image:
                 if differences is None:
                     differences = self.search.differences(x, readers, others)  # type: ignore[union-attr]
@@ -568,7 +576,8 @@ class CompiledNeighbourhood:
         size = self.size
         counts = np.diff(indptr)
         readers = np.repeat(np.arange(size, dtype=np.intp), counts)
-        argument, weight = self._function(t, *self._gather(x, q, readers, others))  # type: ignore[misc]
+        edges = getattr(self.search, 'edges', None)
+        argument, weight = self._function(t, *self._gather(x, q, readers, others, edges))  # type: ignore[misc]
         pairs = others.size
         argument = np.broadcast_to(np.asarray(argument, dtype=float), (pairs,))
         weight = np.broadcast_to(np.asarray(weight, dtype=float), (pairs,))

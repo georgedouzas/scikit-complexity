@@ -86,7 +86,7 @@ from ..laws import (
 )
 from ..laws._laws import NOISE_CONVENTIONS, Renewal
 from ..laws._neighbourhoods import NeighbourReduction
-from ..space import ContinuousSpace, LatticeSpace, Mesh, NetworkSpace, Space
+from ..space import Adjacency, ContinuousSpace, LatticeSpace, Mesh, NetworkSpace, Space, neighbour_pairs
 from ..system import Observable, System
 from ._backends import Backend, resolve_backend
 from ._complex import modulus_form, split_law
@@ -105,7 +105,7 @@ from ._hybrid import (
     state_conditions_of,
 )
 from ._jacobians import ExactJacobian
-from ._kernels import Kernel, NoiseProcess, Output, PairSearch, Reference, Source
+from ._kernels import EdgeSearch, Kernel, NoiseProcess, Output, PairSearch, Reference, Search, Source
 from ._lattices import (
     LatticeContext,
     LatticeState,
@@ -188,6 +188,8 @@ AGENT_VIEW_NAMES = frozenset(
 MESA_AGENT_NAMES = frozenset({'position', 'pos', 'cell', 'unique_id', 'model'})
 AGENT_RESERVED_NAMES = AGENT_VIEW_NAMES | MESA_AGENT_NAMES
 type ProcessKey = tuple[str, str, Any]
+ACTIVE = '_active'
+ENDS = ('_source', '_target')
 
 
 def _renamed(value: Expression, mapping: dict[Expression, Expression]) -> Expression:
@@ -345,6 +347,33 @@ class _Declarations:
         for column, item in enumerate(components):
             block.references[item] = Reference(entry, is_state, column)
 
+    def _declare_hidden(self, block: _Block, variable: str, values: Vector) -> None:
+        """Add a hidden parameter with one value per member of a group, read by laws as `s.<variable>`."""
+        node = block.node
+        rows = node.members or 1
+        name = f'{node.path}.{variable}'
+        entry = Entry(name, self.ends[False], (rows,), Domain.REAL, rows)
+        self.parameters.append(entry)
+        self.initial_parameters.append(np.asarray(values, dtype=float))
+        self.ends[False] += entry.size
+        item = symbol(f'{variable.strip("_")}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}_topology', Domain.REAL)
+        block.symbols[variable] = item
+        block.entries[variable] = entry
+        block.references[item] = Reference(entry, False, 0)
+
+    def _declare_topology(self, block: _Block) -> None:
+        """Add the activity of every row of a capacity group, and the ends of every edge of a group on edges."""
+        node = block.node
+        group = cast('Group', node.component)
+        rows, active = node.members or 0, node.active or 0
+        self._declare_hidden(block, ACTIVE, (np.arange(rows) < active).astype(float))
+        if group.on != 'edges':
+            return
+        space = cast('NetworkSpace', node.space)
+        padding = np.zeros(rows - active, dtype=np.intp)
+        for variable, ends in zip(ENDS, space.list_edges(group.layer), strict=True):
+            self._declare_hidden(block, variable, np.concatenate([ends, padding]))
+
     def declare_state(
         self,
         name: str,
@@ -415,6 +444,8 @@ class _Declarations:
             self._declare(block, variable, declaration, is_state=False)
         if isinstance(node.component, Wiener):
             self._declare_wiener(block, node.component)
+        if node.active is not None:
+            self._declare_topology(block)
         self.blocks[node.path] = block
         return block
 
@@ -436,7 +467,7 @@ class _KernelSpec:
     namespace: Symbols
     references: dict[Expression, Reference]
     rows: int
-    pairs: PairSearch | None = None
+    pairs: Search | None = None
     roles: dict[str, str | tuple[str, ...]] = field(default_factory=dict)
     group: str | None = None
     groups: dict[str, int] = field(default_factory=dict)
@@ -820,6 +851,7 @@ def _outside_reductions(value: object) -> set[Expression]:
     """Return the symbols of a law value that occur outside its reductions."""
     expressions = [item for item in components_of(value) if isinstance(item, Expression)]
     found = [reduction.call for item in expressions for reduction in reductions_in(item)]
+    found += [reduction.call for item in expressions for reduction in neighbourhoods_in(item)]
     calls, operators = {str(call) for call in found}, {call.operator() for call in found}
     symbols: set[Expression] = set()
     stack = list(expressions)
@@ -909,6 +941,114 @@ def _pair_spec(block: _Block, elements: dict[str, _Block], time: Expression) -> 
     return _KernelSpec(node.path, namespace, references, 0, pairs, roles=paths)
 
 
+EDGE_NAMES = ('source', 'target', 'edge')
+
+
+def _edge_roles(node: Node, elements: dict[str, _Block]) -> tuple[_Block, _Block | None]:
+    """Return the group of nodes and the group on edges, if any, that an interaction over neighbours binds."""
+    blocks = [_resolve_role(node, role, elements) for role in declarations_of(node.component, VariableKind.ROLE)]
+    edges = [block for block in blocks if getattr(block.node.component, 'on', None) == 'edges']
+    nodes = [block for block in blocks if block not in edges]
+    if len(nodes) != 1 or len(edges) > 1 or nodes[0].node.members is None:
+        error_msg = (
+            f'Interaction {node.path} over neighbours binds {len(nodes)} groups of nodes and {len(edges)} groups on '
+            'edges. Bind one role to a group with one member per node or site, and at most one role to a group on '
+            'the edges of the same network.'
+        )
+        raise RoleError(error_msg)
+    return nodes[0], next(iter(edges), None)
+
+
+def _group_space(block: _Block) -> Space | None:
+    """Return the space of a group, its own or the enclosing one."""
+    return getattr(block.node.component, 'space', None) or block.node.space
+
+
+def _edge_layer(node: Node, nodes: _Block, edges: _Block | None) -> str | None:
+    """Return the layer an interaction over neighbours runs on, checking it against the layer of its edge group."""
+    declared = getattr(node.component, 'layer', None)
+    if edges is None:
+        return declared
+    space, edge_space = _group_space(nodes), _group_space(edges)
+    if edge_space is not space:
+        error_msg = (
+            f'Interaction {node.path} binds the edge group {edges.node.path}, which lives on another space than the '
+            f'nodes {nodes.node.path}. Give the edge group the network of the nodes.'
+        )
+        raise RoleError(error_msg)
+    layer = getattr(edges.node.component, 'layer', None)
+    if declared is not None and declared != layer:
+        error_msg = (
+            f'Interaction {node.path} runs on the layer {declared!r}, but its edge group {edges.node.path} lives on '
+            f'the layer {layer!r}. Give both one layer.'
+        )
+        raise RoleError(error_msg)
+    return layer
+
+
+def _edge_search(node: Node, nodes: _Block, edges: _Block | None) -> EdgeSearch:
+    """Return the edges an interaction over neighbours runs on, after checking the sizes of its groups."""
+    space = _group_space(nodes)
+    layer = _edge_layer(node, nodes, edges)
+    if isinstance(space, NetworkSpace):
+        sources, targets = space.list_edges(layer)
+        size = space.size
+    elif isinstance(space, LatticeSpace) and edges is None and layer is None:
+        pairs = np.array(neighbour_pairs(space, space.size), dtype=np.intp).reshape(-1, 2)
+        sources, targets = pairs[:, 0].copy(), pairs[:, 1].copy()
+        size = space.size
+    else:
+        error_msg = (
+            f'Interaction {node.path} over neighbours binds {nodes.node.path}, which lives on {space!r}. Bind a group '
+            'on the nodes of a network, or on the sites of a lattice without edge groups or layers.'
+        )
+        raise RoleError(error_msg)
+    if nodes.rows != size:
+        error_msg = (
+            f'Interaction {node.path} over neighbours binds {nodes.node.path} of {nodes.rows} members to a space of '
+            f'{size} nodes. Bind a group with one member per node or site.'
+        )
+        raise RoleError(error_msg)
+    if edges is not None and edges.rows != sources.size:
+        error_msg = (
+            f'Interaction {node.path} binds the edge group {edges.node.path} of {edges.rows} members to a layer of '
+            f'{sources.size} edges. Give the edge group one member per edge of its layer.'
+        )
+        raise RoleError(error_msg)
+    return EdgeSearch(sources, targets)
+
+
+def _edge_spec(block: _Block, elements: dict[str, _Block], time: Expression) -> _KernelSpec:
+    """Return the kernel spec of an interaction over neighbours, evaluated once per edge of its layer."""
+    node = block.node
+    nodes, edges = _edge_roles(node, elements)
+    search = _edge_search(node, nodes, edges)
+    parameters, references = block.namespace(Source.SINGLE)
+    clashes = sorted(set(vars(parameters)) & {*EDGE_NAMES, 't'})
+    if clashes:
+        error_msg = (
+            f'Interaction {node.path} over neighbours declares the parameters {", ".join(clashes)}, whose names its '
+            'laws read as the ends and the member of an edge. Rename them.'
+        )
+        raise LabelError(error_msg)
+    source, source_references = nodes.namespace(Source.FIRST, alias='__source')
+    target, target_references = nodes.namespace(Source.SECOND, alias='__target')
+    references.update(source_references)
+    references.update(target_references)
+    namespaces: dict[str, Symbols] = {'source': source, 'target': target}
+    paths: dict[str, str | tuple[str, ...]] = {'source': nodes.node.path, 'target': nodes.node.path}
+    groups: dict[str, int] = {}
+    if edges is not None:
+        edge, edge_references = edges.namespace(Source.MEMBER)
+        references.update(edge_references)
+        namespaces['edge'] = edge
+        paths['edge'] = edges.node.path
+        groups[edges.node.path] = edges.rows
+    namespace = Symbols(t=time, **vars(parameters), **namespaces)
+    group = edges.node.path if edges is not None else None
+    return _KernelSpec(node.path, namespace, references, search.size, search, roles=paths, group=group, groups=groups)
+
+
 def _state_name(spec: _KernelSpec, target: Expression) -> str:
     """Return the dotted name of the state a target symbol of a namespace stands for, or the symbol itself."""
     reference = spec.references.get(target)
@@ -947,8 +1087,15 @@ def _collect_laws(spec: _KernelSpec, component: object, flows: StockFlowPass, *,
             'Transfer, Auxiliary, Encounter, Proliferation, or Destruction laws.'
         )
         raise ValidationError(error_msg)
-    if spec.pairs is not None and not all(isinstance(law, Rate) for law in declared):
+    if isinstance(spec.pairs, PairSearch) and not all(isinstance(law, Rate) for law in declared):
         error_msg = f'Pair interaction {spec.owner} returns laws other than Rate, which pair interactions do not take.'
+        raise ValidationError(error_msg)
+    edge_kinds = (Rate, Noise, Jump, Update, Boundary)
+    if isinstance(spec.pairs, EdgeSearch) and not all(isinstance(law, edge_kinds) for law in declared):
+        error_msg = (
+            f'Interaction {spec.owner} over neighbours returns laws other than Rate, Noise, Jump, Update, or Boundary '
+            'laws, which its edges do not take.'
+        )
         raise ValidationError(error_msg)
     if not expand:
         return list(declared)
@@ -1878,6 +2025,12 @@ def _check_assignments(
     """Raise an error for an update or boundary law that sums over members or assigns a component twice."""
     kind = type(law).__name__
     for target in targets:
+        if target.source in {Source.FIRST, Source.SECOND}:
+            error_msg = (
+                f'A {kind} law of {spec.owner} sets {target.entry.name} at an end of every edge, which several edges '
+                'share. Set the edge member, or reduce over the neighbours in the laws of the nodes.'
+            )
+            raise ValidationError(error_msg)
         if target.source is Source.SINGLE and spec.rows > 1 and not once:
             error_msg = f'A {kind} law of {spec.owner} targets a single element from a group, which has no meaning.'
             raise ValidationError(error_msg)
@@ -2105,7 +2258,7 @@ class _Reductions:
                 groups.add(str(self.readers[item]))
             elif reference is not None and reference.source in {Source.MEMBER, Source.OTHER}:
                 groups.add(reference.entry.name.rpartition('.')[0])
-        groups = {group for group in groups if group in self.declarations.groups} or (
+        groups = {group for group in groups if group in self.declarations.groups and not self._on_edges(group)} or (
             {spec.group} if spec.group is not None else set()
         )
         if len(groups) != 1:
@@ -2117,7 +2270,34 @@ class _Reductions:
             raise RoleError(error_msg)
         return next(iter(groups))
 
-    def _pair_read(self, item: Expression, spec: _KernelSpec, group: str, search: Any) -> PairRead:  # noqa: ANN401
+    def _on_edges(self, group: str) -> bool:
+        """Check whether a group lives on the edges of a network."""
+        return getattr(self.declarations.blocks[group].node.component, 'on', None) == 'edges'
+
+    def _edge_read(self, reference: Reference, spec: _KernelSpec, group: str, over: object) -> PairRead:
+        """Return how a neighbourhood reduction reads a state of the edge group of its layer, per pair of neighbours."""
+        entry = reference.entry
+        edges = self.declarations.blocks[entry.name.rpartition('.')[0]]
+        nodes = self.declarations.blocks[group]
+        layer = getattr(over, 'layer', None)
+        same = isinstance(over, Adjacency) and _group_space(edges) is _group_space(nodes)
+        if not same or getattr(edges.node.component, 'layer', None) != layer:
+            error_msg = (
+                f'A neighbourhood reduction of {spec.owner} over {over!r} reads {entry.name} of the edge group '
+                f'{edges.node.path}, which lives on other edges. Reduce over the layer of the edge group.'
+            )
+            raise RoleError(error_msg)
+        indices = (entry.start + np.arange(entry.rows) * entry.columns + reference.column).astype(np.intp)
+        return PairRead(Read(reference.is_state, indices, entry, reference.column, entry.columns), 'edge')
+
+    def _pair_read(
+        self,
+        item: Expression,
+        spec: _KernelSpec,
+        group: str,
+        search: Any,  # noqa: ANN401
+        over: object = None,
+    ) -> PairRead:
         """Return how a neighbourhood reduction reads one symbol: shared, of the reading member, or of the neighbour."""
         reference = spec.references.get(item)
         if item in self.local or (item in self.by_symbol and self.readers[item] is not None):
@@ -2135,7 +2315,10 @@ class _Reductions:
             read = Read(reference.is_state, reference.index, reference.entry, reference.column)
             return PairRead(read, 'shared')
         entry = reference.entry
-        if entry.name.rpartition('.')[0] != group:
+        owner = entry.name.rpartition('.')[0]
+        if owner != group and owner in self.declarations.blocks and self._on_edges(owner):
+            return self._edge_read(reference, spec, group, over)
+        if owner != group:
             error_msg = (
                 f'A neighbourhood reduction of {spec.owner} over the members of {group} reads {item} of another group. '
                 'Read the other group through a reduction over its members.'
@@ -2172,7 +2355,7 @@ class _Reductions:
         if key not in self.neighbourhoods:
             states = declarations_of(block.node.component_type, VariableKind.STATE)
             search = neighbour_search(over, block.node.space, block.rows, block.entries, states)
-            reads = {item: self._pair_read(item, spec, group, search) for item in sorted(symbols, key=str)}
+            reads = {item: self._pair_read(item, spec, group, search, over) for item in sorted(symbols, key=str)}
             index = len(self.neighbourhoods)
             entry = Entry(f'__neighbours_{index}', self.extent, (block.rows,), Domain.REAL, block.rows)
             compiled = CompiledNeighbourhood(
@@ -2685,6 +2868,8 @@ def _specs_of(block: _Block, elements: dict[str, _Block], time: Expression, obse
         return [_member_spec(block, time)]
     if type(block.node.component).over == 'pairs':
         return [_pair_spec(block, elements, time)]
+    if type(block.node.component).over == 'neighbours':
+        return [_edge_spec(block, elements, time)]
     return _interaction_specs(block, elements, time, observe)
 
 
@@ -2999,7 +3184,7 @@ def law_census(system: System) -> tuple[list[CensusRecord], list[tuple[str, Skco
                             targets,
                             vectors,
                             kind,
-                            block.node.space,
+                            _group_space(elements.get(owner, block)),
                             members=spec.rows,
                             handles=_handle_uses(law, declarations.handles),
                             **_noise_census(spec, law, declarations),

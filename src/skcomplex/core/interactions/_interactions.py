@@ -4,6 +4,7 @@
 # License: MIT
 
 import dataclasses
+import inspect
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any, ClassVar
 
@@ -27,6 +28,7 @@ class Interaction(Component):
         label:
             The label of the interaction, unique among the children of its system.
 
+
     Examples:
         >>> from skcomplex.core.base import Domain, parameter, role
         >>> from skcomplex.core.interactions import Interaction
@@ -42,8 +44,17 @@ class Interaction(Component):
 
     The class variable `over` is the binding of the laws: `'members'` runs them for the bound components or members,
     `'pairs'` once per pair of members of the roles `first` and `second` closer than the parameter `cutoff`,
-    `'neighbours'` once per pair of adjacent members of the role `target`, and `'hyperedges'` once per hyperedge.
-    Interactions hold no state: state on couplings lives in groups on the edges or hyperedges of a network space.
+    `'neighbours'` once per edge of the space of the group of nodes its role binds, and `'hyperedges'` once per
+    hyperedge. Interactions hold no state: state on couplings lives in groups on the edges or hyperedges of a network
+    space.
+
+    Over neighbours, the interaction takes the keyword `layer`, the layer of the network whose edges it runs on, or
+    `None` for the layer of the edge group it binds, or else the graph of the network. It binds one role to a group
+    with one member per node or site and may bind a second role to a group on the edges of the same network and
+    layer. Its laws then run once per edge and read `s.source` and `s.target`, the members at both ends, `s.edge`, the
+    member of the edge group, and its parameters. On a directed graph the ends follow the direction of the edge, and on
+    an undirected graph the source comes first in node order. Rate, noise, and jump laws may target any of them, and
+    update laws the edge member.
 
     Raises:
         ValidationError:
@@ -53,7 +64,14 @@ class Interaction(Component):
     over: ClassVar[str] = 'members'
 
     def __init_subclass__(cls, **kwargs: Any) -> None:  # noqa: ANN401
-        """Reject states and unknown bindings when the subclass is created."""
+        """Add the layer of a binding over neighbours, and reject states and unknown bindings."""
+        if (
+            cls.over == 'neighbours'
+            and 'layer' not in vars(cls)
+            and 'layer' not in getattr(cls, '__dataclass_fields__', {})
+        ):
+            cls.layer = None  # type: ignore[attr-defined]
+            cls.__annotations__ = {**inspect.get_annotations(cls), 'layer': str | None}
         super().__init_subclass__(**kwargs)
         if cls.over not in BINDINGS:
             error_msg = f'{cls.__name__} binds its laws over {cls.over!r}. Use one of {", ".join(BINDINGS)}.'
@@ -83,6 +101,7 @@ class Interaction(Component):
         roles: Sequence[str] = (),
         parameters: Mapping[str, Any] | None = None,
         laws: Callable[..., list[Law]] | None = None,
+        over: str | None = None,
     ) -> type['Interaction']:
         """Return a new interaction type built from declarations, without writing a class.
 
@@ -101,6 +120,9 @@ class Interaction(Component):
 
             laws:
                 A function `laws(s)` or `laws(self, s)` that returns the laws of the interaction.
+
+            over:
+                The binding of the laws, such as `'neighbours'`, or `None` to inherit it.
 
         Returns:
             interaction_type:
@@ -122,4 +144,5 @@ class Interaction(Component):
             **{key: role() for key in roles},
             **{key: value if _is_declaration(value) else parameter(value) for key, value in (parameters or {}).items()},
         }
-        return _define(cls, name=name, fields=fields, laws=laws, attributes={}, module=_caller_module())
+        attributes = {} if over is None else {'over': over}
+        return _define(cls, name=name, fields=fields, laws=laws, attributes=attributes, module=_caller_module())

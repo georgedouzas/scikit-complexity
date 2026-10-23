@@ -228,7 +228,13 @@ class ScipyODE(Stepper):
         space=set(SpaceKind),
         laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.ENCOUNTER},
         domains=NUMERIC_DOMAINS,
-        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        components={
+            ComponentKind.ELEMENT,
+            ComponentKind.GROUP,
+            ComponentKind.SITE_GROUP,
+            ComponentKind.EDGE_GROUP,
+            ComponentKind.SYSTEM,
+        },
         orders={OrderKind.INTEGER},
     )
 
@@ -644,7 +650,13 @@ class RK4(Stepper):
             LawKind.ENCOUNTER,
         },
         domains=NUMERIC_DOMAINS,
-        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        components={
+            ComponentKind.ELEMENT,
+            ComponentKind.GROUP,
+            ComponentKind.SITE_GROUP,
+            ComponentKind.EDGE_GROUP,
+            ComponentKind.SYSTEM,
+        },
         orders={OrderKind.INTEGER},
     )
 
@@ -1026,7 +1038,13 @@ class EulerMaruyama(Stepper):
             LawKind.NOISE,
         },
         domains=NUMERIC_DOMAINS,
-        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        components={
+            ComponentKind.ELEMENT,
+            ComponentKind.GROUP,
+            ComponentKind.SITE_GROUP,
+            ComponentKind.EDGE_GROUP,
+            ComponentKind.SYSTEM,
+        },
         noise=set(NoiseKind),
         orders={OrderKind.INTEGER},
     )
@@ -1140,7 +1158,13 @@ class Milstein(Stepper):
         space=set(SpaceKind),
         laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.NOISE},
         domains=NUMERIC_DOMAINS,
-        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        components={
+            ComponentKind.ELEMENT,
+            ComponentKind.GROUP,
+            ComponentKind.SITE_GROUP,
+            ComponentKind.EDGE_GROUP,
+            ComponentKind.SYSTEM,
+        },
         noise={NoiseKind.DIAGONAL},
         orders={OrderKind.INTEGER},
     )
@@ -1224,7 +1248,13 @@ class Heun(Stepper):
         space=set(SpaceKind),
         laws={LawKind.RATE, LawKind.EQUATION, LawKind.EVENT, LawKind.BOUNDARY, LawKind.TRANSFER, LawKind.NOISE},
         domains=NUMERIC_DOMAINS,
-        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        components={
+            ComponentKind.ELEMENT,
+            ComponentKind.GROUP,
+            ComponentKind.SITE_GROUP,
+            ComponentKind.EDGE_GROUP,
+            ComponentKind.SYSTEM,
+        },
         noise=set(NoiseKind),
         orders={OrderKind.INTEGER},
     )
@@ -1296,7 +1326,14 @@ class Gillespie(Stepper):
         space=set(SpaceKind),
         laws={LawKind.JUMP, LawKind.BOUNDARY, LawKind.TRANSFER},
         domains=set(DomainKind) - {DomainKind.HILBERT},
-        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        components={
+            ComponentKind.ELEMENT,
+            ComponentKind.GROUP,
+            ComponentKind.SITE_GROUP,
+            ComponentKind.EDGE_GROUP,
+            ComponentKind.VARIABLE_GROUP,
+            ComponentKind.SYSTEM,
+        },
         orders={OrderKind.INTEGER},
     )
 
@@ -1402,7 +1439,14 @@ class Iteration(Stepper):
         space=set(SpaceKind),
         laws={LawKind.UPDATE, LawKind.TRANSITION, LawKind.BOUNDARY, LawKind.TRANSFER},
         domains=set(DomainKind) - {DomainKind.HILBERT},
-        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        components={
+            ComponentKind.ELEMENT,
+            ComponentKind.GROUP,
+            ComponentKind.SITE_GROUP,
+            ComponentKind.EDGE_GROUP,
+            ComponentKind.VARIABLE_GROUP,
+            ComponentKind.SYSTEM,
+        },
         orders={OrderKind.INTEGER},
     )
 

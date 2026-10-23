@@ -43,7 +43,7 @@ from ..compile._backends import (
     reads_reductions,
     register_backend,
 )
-from ..compile._kernels import Kernel, Output, Reference, Source, jump_channels, lower_noise
+from ..compile._kernels import EdgeSearch, Kernel, Output, Reference, Source, jump_channels, lower_noise
 from ..compile._layout import Entry
 from ..compile._neighbourhoods import CompiledNeighbourhood, MetricSearch, StaticSearch
 from ..compile._printing import SCALAR_DIALECT, print_expressions
@@ -574,6 +574,61 @@ def _pair_kernel(source: _Source, kernel: Kernel, name: str, parallel: bool) -> 
     source.lines += ['', '', text]
 
 
+def _edge_rows(source: _Source, search: EdgeSearch) -> tuple[str, list[str]]:
+    """Return the code of the number of edges and the lines that read the ends `_a_` and `_b_` of the edge `_m_`."""
+    pad = INDENT * 2
+    if search.source is not None and search.target is not None:
+        first, second = source.slot(search.source), source.slot(search.target)
+        return f'_L{2 * first + 1}_', [
+            f'{pad}_a_ = int(p[_L{2 * first}_ + _m_])',
+            f'{pad}_b_ = int(p[_L{2 * second}_ + _m_])',
+        ]
+    digest = hashlib.sha256(search.sources.tobytes() + search.targets.tobytes()).hexdigest()[:16]
+    first = source.data_slot(f'__edge_sources_{digest}', search.sources)
+    second = source.data_slot(f'__edge_targets_{digest}', search.targets)
+    return f'_L{2 * first + 1}_', [f'{pad}_a_ = L[_L{2 * first}_ + _m_]', f'{pad}_b_ = L[_L{2 * second}_ + _m_]']
+
+
+def _edge_kernel(source: _Source, kernel: Kernel, name: str, mode: str) -> None:
+    """Add the source of a kernel evaluated once per edge, whose laws read the ends and the edge member."""
+    search = kernel.pairs
+    assert isinstance(search, EdgeSearch)
+    rows, ends = _edge_rows(source, search)
+    lines = ['@njit(cache=CACHE)', f'def {name}(t, x, p, L, out, offset):', f'{INDENT}rows = {rows}']
+    lines += _single_reads(source, kernel, kernel.outputs)
+    members = {Source.MEMBER: '_m_', Source.FIRST: '_a_', Source.SECOND: '_b_'}
+
+    def read(item: Expression) -> str:
+        reference = kernel.references[item]
+        if _is_shared(reference):
+            return str(item)
+        return f'{_vector(reference)}[{_index(source, reference, members[reference.source])}]'
+
+    sums = [
+        index
+        for index, output in enumerate(kernel.outputs)
+        if output.target is not None and output.target.source is Source.SINGLE and mode == 'add'
+    ]
+    lines += [f'{INDENT}_sum{index}_ = 0.0' for index in sums]
+    lines += [f'{INDENT}for _m_ in range(rows):', *ends]
+    body, values = _emit_values(source, kernel.outputs, read, 2)
+    lines += body
+    for index, (output, value) in enumerate(zip(kernel.outputs, values, strict=True)):
+        if mode == 'concatenate':
+            lines.append(f'{INDENT * 2}out[offset + {index} * rows + _m_] = {value}')
+        elif index in sums:
+            lines.append(f'{INDENT * 2}_sum{index}_ += {value}')
+        else:
+            target = output.target
+            assert target is not None
+            operator = '+=' if mode == 'add' else '='
+            lines.append(f'{INDENT * 2}out[{_index(source, target, members[target.source])}] {operator} {value}')
+    for index in sums:
+        lines.append(f'{INDENT}out[{_index(source, kernel.outputs[index].target, None)}] += _sum{index}_')  # type: ignore[arg-type]
+    lines.append(f'{INDENT}return offset + {len(kernel.outputs)} * rows')
+    source.lines += ['', '', *_hoist_layout(lines)]
+
+
 def _reduction_read(source: _Source, name: str, read: Read, index: int) -> str:
     """Return the line that reads one symbol of a reduction, for the member `_m_` or once for a shared value."""
     vector = 'x' if read.is_state else 'p'
@@ -679,10 +734,14 @@ def _search_lines(source: _Source, reduction: CompiledNeighbourhood, index: int)
     if isinstance(search, StaticSearch):
         rows = source.data_slot(f'__neighbours_{index}_indptr', search.indptr)
         neighbours = source.data_slot(f'__neighbours_{index}_indices', search.indices)
-        return [
+        lines = [
             f'{INDENT}_ip{index}_ = L[_L{2 * rows}_ : _L{2 * rows}_ + _L{2 * rows + 1}_]',
             f'{INDENT}_ix{index}_ = L[_L{2 * neighbours}_ : _L{2 * neighbours}_ + _L{2 * neighbours + 1}_]',
         ]
+        if search.edges is not None:
+            edges = source.data_slot(f'__neighbours_{index}_edges', search.edges)
+            lines.append(f'{INDENT}_ie{index}_ = L[_L{2 * edges}_ : _L{2 * edges}_ + _L{2 * edges + 1}_]')
+        return lines
     assert isinstance(search, MetricSearch)
     entry = search.positions
     start, columns = f'_L{2 * source.slot(entry)}_', entry.columns
@@ -735,7 +794,7 @@ def _pair_read_code(source: _Source, reduction: CompiledNeighbourhood, item: Exp
     start = f'_L{2 * source.slot(read.entry)}_'
     if pair.side == 'shared':
         return f'{vector}[{start} + {read.column}]'
-    member = '_i_' if pair.side == 'reader' else '_j_'
+    member = {'reader': '_i_', 'edge': f'_ie{index}_[_e_]'}.get(pair.side, '_j_')
     value = f'{vector}[{start} + {member} * {read.stride} + {read.column}]'
     if not pair.image:
         return value
@@ -754,7 +813,7 @@ def _neighbourhood_lines(source: _Source, reduction: CompiledNeighbourhood, inde
     sides = {item: reduction.reads[item].side for item in reduction.symbols}
     shared = [item for item in reduction.symbols if sides[item] == 'shared']
     readers = [item for item in reduction.symbols if sides[item] == 'reader']
-    others = [item for item in reduction.symbols if sides[item] == 'other']
+    others = [item for item in reduction.symbols if sides[item] in {'other', 'edge'}]
     lines += [f'{INDENT}{item} = {_pair_read_code(source, reduction, item, index)}' for item in shared]
     assignments, codes = print_expressions(
         [reduction.argument, reduction.weight],
@@ -841,6 +900,9 @@ def _reductions_compile(reductions: ReductionPass) -> bool:
 
 def _output_count(source: _Source, kernel: Kernel) -> str:
     """Return the code of the number of values a member kernel writes, its outputs times its rows."""
+    if isinstance(kernel.pairs, EdgeSearch):
+        rows, _ = _edge_rows(source, kernel.pairs)
+        return f'{len(kernel.outputs)} * L[{rows[2:-1]}]'
     entry = next((item.entry for item in kernel.references.values() if item.source is Source.MEMBER), None)
     if entry is None:
         return str(len(kernel.outputs))
@@ -964,7 +1026,9 @@ class NumbaBackend(Backend):
         for index, kernel in enumerate(kernels):
             name = f'_{label}{index}_'
             parallel = self._is_parallel(kernel, form)
-            if kernel.pairs is not None:
+            if isinstance(kernel.pairs, EdgeSearch):
+                _edge_kernel(source, kernel, name, mode)
+            elif kernel.pairs is not None:
                 _pair_kernel(source, kernel, name, parallel)
             else:
                 _member_kernel(source, kernel, name, mode, parallel)

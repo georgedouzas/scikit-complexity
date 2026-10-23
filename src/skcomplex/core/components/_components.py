@@ -29,7 +29,8 @@ from ..base import (
 from ..laws._laws import Law, Rule
 from ..laws._symbols import Symbols
 from ..space._lattices import LatticeSpace
-from ..space._spaces import NetworkSpace, Space
+from ..space._networks import NetworkSpace
+from ..space._spaces import Space
 
 
 def _check_reserved(cls: type, reserved: frozenset[str]) -> None:
@@ -382,7 +383,7 @@ def _is_state(item: dataclasses.Field) -> bool:
     return declaration is not None and declaration.kind is VariableKind.STATE
 
 
-def part_count(space: Space, on: str, label: str) -> int:
+def part_count(space: Space, on: str, label: str, layer: str | None = None) -> int:
     """Return the number of parts of a space a group has one member on.
 
     Args:
@@ -394,6 +395,9 @@ def part_count(space: Space, on: str, label: str) -> int:
 
         label:
             The label of the group, named in errors.
+
+        layer:
+            The layer of a network whose edges the group lives on, or `None` for the graph of the network.
 
     Returns:
         count:
@@ -408,8 +412,8 @@ def part_count(space: Space, on: str, label: str) -> int:
         return int(graph.number_of_nodes())
     if on == 'sites' and hasattr(space, 'size'):
         return int(space.size)
-    if on == 'edges' and graph is not None:
-        return int(graph.number_of_edges())
+    if on == 'edges' and isinstance(space, NetworkSpace):
+        return int(space.resolve_graph(layer).number_of_edges())
     hyperedges = getattr(space, 'hyperedges', None)
     if on == 'hyperedges' and hyperedges:
         return len(hyperedges)
@@ -536,6 +540,13 @@ class Group(BaseEstimator):
             The initial places of agents in the space: cell coordinates, a network node, or a position, one per member
             or one shared by every member, or `None` for random places. Only the agent stepper reads it.
 
+        layer:
+            The layer of the network whose edges a group on edges lives on, or `None` for the graph of the network.
+
+        capacity:
+            The largest number of members of a variable group on the sites or edges of a network, which compiled
+            backends reserve rows for, or `None` for twice the initial size.
+
     Raises:
         SpaceError:
             The part is unknown, or the space does not have it, such as edges outside a network.
@@ -549,6 +560,10 @@ class Group(BaseEstimator):
         3
         >>> Group('weights', element=Population, space=NetworkSpace(nx.cycle_graph(30)), on='edges').size
         30
+        >>> from skcomplex.core.space import Layer
+        >>> space = NetworkSpace(nx.cycle_graph(4), layers=[Layer('work', nx.complete_graph(4))])
+        >>> Group('wages', element=Population, space=space, on='edges', layer='work').size
+        6
     """
 
     component_kind: ClassVar[ComponentKind] = ComponentKind.GROUP
@@ -565,16 +580,20 @@ class Group(BaseEstimator):
         variable: bool = False,
         on: str | None = None,
         location: object = None,
+        layer: str | None = None,
+        capacity: int | None = None,
     ) -> None:
         self.label = label
         self.element = element
-        self.size = size if size is not None or on is None or space is None else part_count(space, on, label)
+        self.size = size if size is not None or on is None or space is None else part_count(space, on, label, layer)
         self.values = values
         self.visual = visual
         self.space = space
         self.variable = variable
         self.on = on
         self.location = location
+        self.layer = layer
+        self.capacity = capacity
         if on is not None and on not in PARTS:
             error_msg = f'Group {label!r} lives on {on!r}. Use one of {", ".join(PARTS)}.'
             raise SpaceError(error_msg)

@@ -7,7 +7,7 @@ import copy
 import dataclasses
 import re
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -53,6 +53,10 @@ class Node:
 
         agent:
             Whether the component runs on the agent stepper, as `agent_paths` decides.
+
+        active:
+            The initial number of members of a variable group on the sites or edges of a network, whose capacity is
+            its size, or `None` for every other component.
     """
 
     path: str
@@ -60,6 +64,7 @@ class Node:
     component: Element | Group | Interaction
     space: Space | None
     agent: bool = False
+    active: int | None = None
 
     @property
     def members(self) -> int | None:
@@ -90,15 +95,20 @@ class Node:
         if not isinstance(self.component, Group):
             return getattr(self.component, variable)
         values = self.component.values or {}
-        if variable in values:
-            value = values[variable]
-            space = getattr(self.component, 'space', None)
-            if isinstance(space, LatticeSpace) and np.shape(value) == space.dimensions:
-                return np.ravel(value)
-            return value
         field = next(field for field in dataclasses.fields(self.component.element) if field.name == variable)
         factory = field.default_factory
-        return factory() if callable(factory) else field.default
+        default = factory() if callable(factory) else field.default
+        if variable not in values:
+            return default
+        value = values[variable]
+        space = getattr(self.component, 'space', None)
+        if isinstance(space, LatticeSpace) and np.shape(value) == space.dimensions:
+            return np.ravel(value)
+        if self.active is not None and np.ndim(value) and len(value) == self.active:  # type: ignore[arg-type]
+            rows = (self.members or 0) - self.active
+            padding = np.broadcast_to(np.asarray(default, dtype=float), (rows, *np.shape(value)[1:]))
+            return np.concatenate([np.asarray(value, dtype=float), padding])
+        return value
 
 
 def _check_label(label: object, scope: str) -> None:
@@ -192,8 +202,50 @@ def _sized(element: Element | Group, space: Space | None) -> Element | Group:
         error_msg = f'Group {element.label!r} lives on {element.on} but has neither a size nor a space.'
         raise SpaceError(error_msg)
     sized = copy.copy(element)
-    sized.size = part_count(space, element.on or 'sites', element.label)
+    sized.size = part_count(space, element.on or 'sites', element.label, element.layer)
     return sized
+
+
+def is_topology_group(component: object, space: Space | None) -> bool:
+    """Check whether a component is a variable group on the sites or edges of a network without rules of its own.
+
+    Compiled backends run such a group with a capacity layout, whose rows hold the members present and room for new
+    ones, so laws that change the topology of the network add and remove its members.
+
+    Args:
+        component:
+            The element, group, or interaction.
+
+        space:
+            The space of the component.
+
+    Returns:
+        topology_group:
+            Whether the group runs with a capacity layout.
+    """
+    if not (isinstance(component, Group) and component.variable and component.on in {'sites', 'edges'}):
+        return False
+    if not isinstance(space, NetworkSpace):
+        return False
+    return not any(isinstance(law, Rule) for law in probe_laws(component) or [])
+
+
+def _with_capacity(element: Element | Group, space: Space | None) -> tuple[Element | Group, int | None]:
+    """Return a variable group on a network with its capacity as its size, and its initial size, or the element."""
+    if not is_topology_group(element, space):
+        return element, None
+    group = cast('Group', element)
+    initial = int(group.size) if group.size is not None else 0
+    capacity = group.capacity if group.capacity is not None else max(2 * initial, 1)
+    if capacity < initial:
+        error_msg = (
+            f'Group {group.label!r} has the capacity {capacity}, below its {initial} initial members. Give a capacity '
+            'of at least its size.'
+        )
+        raise ValidationError(error_msg)
+    sized = copy.copy(group)
+    sized.size = capacity
+    return sized, initial
 
 
 def _is_passive(component: object) -> bool:
@@ -228,7 +280,7 @@ def agent_paths(nodes: list[Node]) -> set[str]:
         paths:
             The paths of the agent elements and groups.
     """
-    agents = {node.path for node in nodes if runs_rules(node.component)}
+    agents = {node.path for node in nodes if runs_rules(node.component) and node.active is None}
     passive = [node for node in nodes if node.path not in agents and _is_passive(node.component)]
     if not passive:
         return agents
@@ -252,10 +304,11 @@ def _flatten(system: System, scope: str, space: Space | None) -> list[Node]:
         raise ValidationError(error_msg)
     _check_children(system, scope)
     space = system.space if system.space is not None else space
-    nodes = [
-        Node(f'{scope}{element.label}', scope, _sized(element, space), getattr(element, 'space', None) or space)
-        for element in system.elements
-    ]
+    nodes = []
+    for element in system.elements:
+        place = getattr(element, 'space', None) or space
+        sized, active = _with_capacity(_sized(element, space), place)
+        nodes.append(Node(f'{scope}{element.label}', scope, sized, place, active=active))
     nodes += [Node(f'{scope}{interaction.label}', scope, interaction, space) for interaction in system.interactions]
     for child in system.systems:
         nodes += _flatten(child, f'{scope}{child.label}/', space)

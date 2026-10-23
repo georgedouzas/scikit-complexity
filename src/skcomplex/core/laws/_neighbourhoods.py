@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import SR
 from sage.symbolic.function import BuiltinFunction
 
 from ..base import Expression, SymbolicVector, ValidationError, symbol, vector
-from ..space import Adjacency, Cone, Nearest, Neighborhood, Radius
+from ..space import Adjacency, Cone, Layer, Nearest, Neighborhood, Radius
 from ._lattices import neighbor
 
 NEIGHBOUR_REDUCTIONS = ('sum', 'mean', 'count', 'max', 'min', 'normalized-mean')
@@ -24,8 +24,10 @@ def _over_symbol(over: object) -> Expression:
     """Return the symbol that stands for a neighbourhood, registered by its value, or 0 for the space's own."""
     if over is None:
         return SR(0)
+    if isinstance(over, Layer):
+        over = Adjacency(layer=over.label)
     if not isinstance(over, NEIGHBOURHOOD_TYPES):
-        names = ', '.join(item.__name__ for item in NEIGHBOURHOOD_TYPES)
+        names = ', '.join(item.__name__ for item in (*NEIGHBOURHOOD_TYPES, Layer))
         error_msg = f'A neighbourhood reduction reduces over None or one of {names}, not {over!r}.'
         raise ValidationError(error_msg)
     digest = hashlib.sha256(repr(over).encode()).hexdigest()[:16]
@@ -67,7 +69,7 @@ REDUCE = _NeighbourReduction()
 
 def neighbors(
     expression: object,
-    over: NeighbourhoodSpec | None = None,
+    over: NeighbourhoodSpec | Layer | None = None,
     reduce: str | None = None,
     weight: object = None,
 ) -> Expression | SymbolicVector:
@@ -75,10 +77,10 @@ def neighbors(
 
     The expression is written for one neighbour: the namespace `s.other` holds the symbols of the neighbour, and `s`
     those of the member that reads the reduction, so `sin(s.other.theta - s.theta)` is the phase difference to one
-    neighbour. The neighbourhood is the graph of a network space by default, `Adjacency()`, the neighbourhood of a
-    lattice space, or in a continuous space the members within a distance, `Radius(r)`, the nearest members,
-    `Nearest(k)`, or the members within a distance inside a cone around a heading, `Cone(r, angle)`. A reduction
-    over no neighbours is 0.
+    neighbour. The neighbourhood is the graph of a network space by default, `Adjacency()`, a layer of the network,
+    `Adjacency(layer=label)` or the `Layer` itself, the neighbourhood of a lattice space, or in a continuous space the
+    members within a distance, `Radius(r)`, the nearest members, `Nearest(k)`, or the members within a distance
+    inside a cone around a heading, `Cone(r, angle)`. A reduction over no neighbours is 0.
 
     The reductions with the weight `w_j` of every neighbour `j` of the value `f_j` are:
 
@@ -103,7 +105,9 @@ def neighbors(
             values at every offset of a lattice neighbourhood.
 
         weight:
-            The weight of one neighbour, an expression of the same symbols, or `None` for 1.
+            The weight of one neighbour, an expression of the same symbols, or `None` for 1. On a network it may read
+            the states of a group on the edges of the layer, through a role of an interaction bound to the group, as
+            the state of the edge that joins the member to the neighbour.
 
     Returns:
         reduction:

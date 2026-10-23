@@ -645,7 +645,7 @@ def _interaction_laws(
             error_msg = f'Interaction {node.path} over neighbours targets {path}, which is not a quantum group.'
             raise ValidationError(error_msg)
         group = groups[path]
-        for first, second in neighbour_pairs(group.space, group.members or 1):
+        for first, second in neighbour_pairs(group.space, group.members or 1, getattr(interaction, "layer", None)):
             namespace = Symbols(first=members[path][first], second=members[path][second], **parameters)
             _collect_laws(laws, f'{node.path} on the bond ({first}, {second})', interaction.laws(namespace))
         return

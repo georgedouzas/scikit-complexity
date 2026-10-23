@@ -274,7 +274,13 @@ class _SplitStepper(Stepper):
         space=set(SpaceKind),
         laws={LawKind.RATE, LawKind.BOUNDARY, LawKind.TRANSFER},
         domains=NUMERIC_DOMAINS,
-        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        components={
+            ComponentKind.ELEMENT,
+            ComponentKind.GROUP,
+            ComponentKind.SITE_GROUP,
+            ComponentKind.EDGE_GROUP,
+            ComponentKind.SYSTEM,
+        },
         orders={OrderKind.INTEGER},
     )
 
@@ -574,7 +580,13 @@ class SSPRK(Stepper):
         space=set(SpaceKind),
         laws={LawKind.RATE, LawKind.BOUNDARY, LawKind.TRANSFER},
         domains=NUMERIC_DOMAINS,
-        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        components={
+            ComponentKind.ELEMENT,
+            ComponentKind.GROUP,
+            ComponentKind.SITE_GROUP,
+            ComponentKind.EDGE_GROUP,
+            ComponentKind.SYSTEM,
+        },
         orders={OrderKind.INTEGER},
     )
 

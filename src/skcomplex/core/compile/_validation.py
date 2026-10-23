@@ -384,6 +384,20 @@ def _declared_times(system: System, scope: str = '', inherited: TimeKind | None 
     return times
 
 
+def _layer_issues(node: Any, space: Space) -> list[Issue]:  # noqa: ANN401
+    """Return the issue of an interaction over neighbours that names a layer its network does not have."""
+    layer = getattr(node.component, 'layer', None)
+    labels = getattr(space, 'layer_labels', (None,))
+    if layer is None or layer in labels:
+        return []
+    known = ', '.join(repr(label) for label in labels)
+    message = f'The interaction runs on the layer {layer!r}, which the network does not have. Its layers are {known}.'
+    fix = (
+        f'Name one of the layers {known}, or add the layer with `NetworkSpace(graph, layers=[Layer({layer!r}, ...)])`.'
+    )
+    return [Issue('binding', node.path, message, fix)]
+
+
 def _binding_issues(system: System) -> list[Issue]:
     """Return the interactions whose binding lacks its roles and parameters, or that the space does not offer."""
     nodes = flatten_system(system)
@@ -403,8 +417,10 @@ def _binding_issues(system: System) -> list[Issue]:
                 fix = f'Declare {", ".join(missing)} on {type(interaction).__name__}.'
                 issues.append(Issue('binding', node.path, message, fix))
             continue
-        target = by_path.get(f'{node.scope}{getattr(interaction, "target", "")}')
-        space = target.space if target is not None else node.space
+        bound = [by_path.get(f'{node.scope}{getattr(interaction, name, "")}') for name in roles]
+        nodes = [item for item in bound if item is not None and getattr(item.component, 'on', None) != 'edges']
+        target = next(iter(nodes), None)
+        space = (getattr(target.component, 'space', None) or target.space) if target is not None else node.space
         offered = (
             isinstance(space, LatticeSpace | NetworkSpace)
             if over == 'neighbours'
@@ -416,6 +432,8 @@ def _binding_issues(system: System) -> list[Issue]:
             needs = 'a lattice or network space' if over == 'neighbours' else 'a network space with hyperedges'
             message = f'The binding over {over} needs {needs}, but the bound members live on {space!r}.'
             issues.append(Issue('binding', node.path, message, f'Give the bound group {needs}.'))
+            continue
+        issues += _layer_issues(node, space)
     return issues
 
 
@@ -1009,10 +1027,14 @@ def validate(
         return report
     held, _ = _with_held_observables(observed, _held_observables(observed))
     records, errors = law_census(held)
+    bindings = _binding_issues(system)
+    unbound = {issue.path for issue in bindings}
     for path, failure in errors:
+        if path in unbound:
+            continue
         code, fix = FIXES.get(type(failure), ('value', 'Correct the component as the message describes.'))
         report.issues.append(Issue(code, path, str(failure), fix, error=type(failure)))
-    report.issues += _binding_issues(system)
+    report.issues += bindings
     report.issues += _law_issues(records, _declared_times(system))
     report.issues += _encounter_issues(records)
     report.issues += _neighbourhood_issues(records, system)
