@@ -9,6 +9,7 @@ import pytest
 from skcomplex.core.analysis import (
     autocorrelation,
     ccdf,
+    degrees,
     detect_events,
     early_warning,
     fit_power_law,
@@ -20,6 +21,7 @@ from skcomplex.core.analysis import (
     power_spectrum,
 )
 from skcomplex.core.base import AnalysisError
+from skcomplex.core.space import NetworkSpace
 
 
 def test_power_law_exponent_recovered():
@@ -121,3 +123,9 @@ def test_early_warning_rises_before_tipping():
     warning = early_warning(series, 300)
     assert warning.variance_trend > 0.5
     assert warning.autocorrelation_trend > 0.5
+
+
+def test_barabasi_albert_degree_exponent():
+    """Test that the degree distribution of a Barabási-Albert graph has an exponent within 0.3 of 3."""
+    graph = nx.barabasi_albert_graph(10_000, 2, seed=0)
+    assert fit_power_law(degrees(NetworkSpace(graph)), discrete=True, bootstrap=0).alpha == pytest.approx(3, abs=0.3)

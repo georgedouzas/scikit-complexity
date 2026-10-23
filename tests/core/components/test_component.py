@@ -9,7 +9,7 @@ from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Aggregate, Component, Element, Group, Wiener
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.system import System
-from skcomplex.models.biology.ecology import Population
+from skcomplex.models.biology.ecology import Population, Predation
 
 
 class Pendulum(Element):
@@ -76,3 +76,12 @@ def test_clone_keeps_declared_values():
     assert first.equations == second.equations
     single = Pendulum('bob', theta=0.3)
     assert clone(single).get_params() == single.get_params()
+
+
+def test_component_supports_estimator_contract():
+    """Test that components follow the scikit-learn parameter contract."""
+    interaction = Predation('hunt', predator='foxes', prey='rabbits', a=0.4)
+    assert interaction.get_params()['a'] == 0.4
+    cloned = clone(interaction)
+    assert cloned is not interaction
+    assert cloned.a == 0.4
