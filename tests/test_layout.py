@@ -332,12 +332,13 @@ def test_rule_check_finds_planted_reads(source, message):
 
 
 def test_backends_live_in_one_package():
-    """Test that every registered backend, and the Mesa stepper, is defined in a private module of `core.backends`."""
-    from skcomplex.core.backends import MesaStepper  # noqa: PLC0415
+    """Test that every registered backend is defined in `core.backends`, and the Mesa stepper in `formalisms.agents`."""
     from skcomplex.core.compile import BACKENDS, Backend  # noqa: PLC0415
+    from skcomplex.core.formalisms.agents import MesaStepper  # noqa: PLC0415
 
     backends = [BACKENDS.resolve(name) for name in BACKENDS]
-    modules = {item.__module__ for item in [*backends, MesaStepper]}
+    modules = {item.__module__ for item in backends}
+    assert MesaStepper.__module__ == 'skcomplex.core.formalisms.agents._backends'
     assert {'skcomplex.core.backends._numpy', 'skcomplex.core.backends._numba'} <= modules
     assert all(module.startswith('skcomplex.core.backends._') for module in modules)
     defined = [

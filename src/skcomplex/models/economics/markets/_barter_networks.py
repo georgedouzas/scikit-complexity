@@ -11,11 +11,11 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, parameter, role, state
 from ....core.components import Element
-from ....core.interactions import Interaction, Match, matches
-from ....core.laws import Law, Rule, Symbols, transfer
+from ....core.formalisms.agents import AgentView, Match, ModelView, Rule, matches
+from ....core.interactions import Interaction
+from ....core.laws import Law, Symbols, transfer
 from ....core.runtime import register_model
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import Observable, System

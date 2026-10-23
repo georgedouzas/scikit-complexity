@@ -9,11 +9,11 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, role, state
 from ....core.components import Element
+from ....core.formalisms.agents import AgentView, ModelView, Rule
 from ....core.interactions import Interaction
-from ....core.laws import Law, Rule, Symbols
+from ....core.laws import Law, Symbols
 from ....core.runtime import register_model
 from ....core.system import Observable, System
 

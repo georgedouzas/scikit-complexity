@@ -9,7 +9,8 @@ from sklearn.base import clone
 
 from skcomplex.core.base import ValidationError
 from skcomplex.core.compile import ObservableEvaluator, compile_system, observables_of, validate
-from skcomplex.core.components import Element, Group, runs_rules
+from skcomplex.core.components import Element, Group
+from skcomplex.core.formalisms.agents import runs_rules
 from skcomplex.core.formalisms.quantum import contains_quantum
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Rate

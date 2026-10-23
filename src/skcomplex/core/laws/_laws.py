@@ -690,38 +690,6 @@ class Renewal(Law):
         _check_value(self, 'waiting', 'waiting time of a renewal law')
 
 
-@dataclass(frozen=True)
-class Rule(Law):
-    """Behaviour written as code, run once per step for every member of an agent group, or once per step for a model.
-
-    An element whose laws include rules is an agent, alone or in a group. A rule of an element receives the agent and
-    the model, `function(agent, model)`. A rule of an interaction receives the model alone, `function(model)`. A system
-    with rules is agent-based, needs discrete time, and runs on the Mesa backend.
-
-    Args:
-        function:
-            The function that runs the rule.
-
-        phase:
-            The name of the phase of the step the rule runs in, one of the system's `phases`, or `None` for the
-            default phase.
-
-    Examples:
-        >>> from skcomplex.core.laws import Rule
-        >>> rule = Rule(lambda agent, model: None)
-        >>> callable(rule.function)
-        True
-    """
-
-    law_kind: ClassVar[LawKind] = LawKind.RULE
-    time_class: ClassVar[LawClass] = LawClass.DISCRETE
-    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
-    requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE})
-
-    function: Callable[..., None]
-    phase: str | None = None
-
-
 @dataclass(frozen=True, init=False)
 class Equation(Law):
     """Implicit relation in which the highest time derivatives of states appear, such as Newton's second law.
@@ -779,6 +747,5 @@ register_laws(
     Objective,
     Event,
     Renewal,
-    Rule,
     Equation,
 )

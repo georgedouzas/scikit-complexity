@@ -9,13 +9,13 @@ from typing import Any, ClassVar, cast
 
 import numpy as np
 
-from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.interactions import Interaction, Match, matches
-from ....core.laws import Invariant, Law, Rule, Symbols, transfer
+from ....core.formalisms.agents import AgentView, Match, ModelView, Phase, Phases, Rule, matches
+from ....core.interactions import Interaction
+from ....core.laws import Invariant, Law, Symbols, transfer
 from ....core.runtime import register_model
-from ....core.space import DiscreteTime, LatticeSpace, Phase, Phases
+from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import Observable, System
 from ..realizations import OrderBook, Trade
 

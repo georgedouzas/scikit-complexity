@@ -8,7 +8,6 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.backends import AgentView, MesaStepper
 from skcomplex.core.base import (
     Form,
     IncompatibleLawsError,
@@ -22,10 +21,10 @@ from skcomplex.core.base import (
     state,
 )
 from skcomplex.core.compile import compile_system, validate
-from skcomplex.core.compile.passes._agents import AGENT_RESERVED_NAMES
-from skcomplex.core.components import Element, Group, runs_rules
+from skcomplex.core.components import Element, Group
+from skcomplex.core.formalisms.agents import AgentView, MesaStepper, Rule, runs_rules
+from skcomplex.core.formalisms.agents._passes import AGENT_RESERVED_NAMES
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Rule
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.space import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System

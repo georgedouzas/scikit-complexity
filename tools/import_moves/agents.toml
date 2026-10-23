@@ -1,0 +1,44 @@
+[[moves]]
+old = "skcomplex.core.laws"
+new = "skcomplex.core.formalisms.agents"
+names = ["Rule"]
+
+[[moves]]
+old = "skcomplex.core.interactions"
+new = "skcomplex.core.formalisms.agents"
+names = ["Match", "matches", "random_pairing"]
+
+[[moves]]
+old = "skcomplex.core.space"
+new = "skcomplex.core.formalisms.agents"
+names = ["Phase", "Phases"]
+
+[[moves]]
+old = "skcomplex.core.components"
+new = "skcomplex.core.formalisms.agents"
+names = ["memory", "runs_rules"]
+
+[[moves]]
+old = "skcomplex.core.backends"
+new = "skcomplex.core.formalisms.agents"
+names = ["AgentView", "MesaStepper", "ModelView"]
+
+[[moves]]
+old = "skcomplex.core.interactions._matching"
+new = "skcomplex.core.formalisms.agents._laws"
+
+[[moves]]
+old = "skcomplex.core.space._phases"
+new = "skcomplex.core.formalisms.agents._spaces"
+
+[[moves]]
+old = "skcomplex.core.components._memory"
+new = "skcomplex.core.formalisms.agents._components"
+
+[[moves]]
+old = "skcomplex.core.backends._mesa"
+new = "skcomplex.core.formalisms.agents._backends"
+
+[[moves]]
+old = "skcomplex.core.compile.passes._agents"
+new = "skcomplex.core.formalisms.agents._passes"

@@ -3,21 +3,32 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import dataclasses
+import re
 from dataclasses import replace
 from typing import cast
 
-from ...base import BackendError, Domain, Form, LabelError, ValidationError, VariableKind, VisualSpec, declarations_of
-from ...interactions import Match
-from ...laws import Invariant, Law, Rule
+from ...base import BackendError, Domain, LabelError, ValidationError, VariableKind, VisualSpec, declarations_of
+from ...compile import (
+    Block,
+    BlockLaws,
+    Compilation,
+    CompiledAgents,
+    Declarations,
+    KernelSpec,
+    Laws,
+    Node,
+    Pass,
+    Problem,
+    visual_of,
+)
+from ...components import Group, probe_laws
+from ...interactions import Interaction
+from ...laws import Invariant, Law
 from ...space import Space
-from .._compilation import BlockLaws, Compilation, Laws
-from .._declarations import Block, Declarations
-from .._pipeline import Pass
-from .._problem import CompiledAgents, Problem
-from .._specs import KernelSpec
-from .._tree import Node
-from ._problem import visual_of
+from ._laws import Match, Rule, runs_rules
 
+MEMBER_SUFFIX = re.compile(r'\[-?\d+\]$')
 AGENT_VIEW_NAMES = frozenset(
     {
         'id',
@@ -70,10 +81,7 @@ def _agent_space(blocks: list[Block]) -> Space | None:
 
 
 def _agent_owner(spec: KernelSpec, law: Law, agents: set[str]) -> str | None:
-    """Return the agent group a rule or a matching acts for, or `None` for another law.
-
-    A rule acts for the first agent group among its roles, or for its first role when none is an agent group.
-    """
+    """Return the group a rule or a matching acts for: the first agent group among its roles, or its first role."""
     if isinstance(law, Match):
         law = law.rule
     if not isinstance(law, Rule):
@@ -121,6 +129,65 @@ def _compiled_agents(
             ),
         )
     return tuple(agents)
+
+
+def _is_passive(component: object) -> bool:
+    """Check whether a component is a group off the parts of the space whose element type has no laws of its own."""
+    return isinstance(component, Group) and component.on is None and probe_laws(component) == []
+
+
+def _bound_paths(node: Node) -> set[str]:
+    """Return the paths of the components the roles of an interaction bind, without member indices."""
+    paths = set()
+    for name in declarations_of(type(node.component), VariableKind.ROLE):
+        value = getattr(node.component, name)
+        for item in [value] if isinstance(value, str) else value or ():
+            paths.add(MEMBER_SUFFIX.sub('', f'{node.scope}{item}'))
+    return paths
+
+
+def _agent_paths(nodes: list[Node]) -> set[str]:
+    """Return the paths of the rule-running elements and groups, and of the passive groups that rules read."""
+    agents = {node.path for node in nodes if runs_rules(node.component) and node.active is None}
+    passive = [node for node in nodes if node.path not in agents and _is_passive(node.component)]
+    if not passive:
+        return agents
+    interactions = [(node, probe_laws(node.component)) for node in nodes if isinstance(node.component, Interaction)]
+    has_rules = bool(agents) or any(any(isinstance(law, Rule) for law in laws or ()) for _, laws in interactions)
+    if not has_rules:
+        return agents
+    bound = {
+        path
+        for node, laws in interactions
+        if laws is None or not all(isinstance(law, Rule | Match) for law in laws)
+        for path in _bound_paths(node)
+    }
+    return agents | {node.path for node in passive if node.path not in bound}
+
+
+class AgentsPass(Pass):
+    """Pass that marks the nodes of the elements and groups that run on the agent stepper.
+
+    An agent is a member of a variable group, or of an element or group whose own laws include a `Rule`. When the tree
+    holds rules, of components or of interactions, the groups whose element type has no laws of its own are agents
+    too, as passive agents that rules read and change, unless an interaction whose laws are not all rules or matchings
+    binds them through a role. Single elements, such as aggregates, and groups on the sites, edges, or hyperedges of a
+    space are never passive agents.
+    """
+
+    reads = ('nodes',)
+    writes = ('nodes',)
+
+    def run(self, compilation: Compilation) -> None:
+        """Mark the agent nodes.
+
+        Args:
+            compilation:
+                The compilation state.
+        """
+        nodes = cast('list[Node]', compilation.nodes)
+        agents = _agent_paths(nodes)
+        compilation.nodes = [dataclasses.replace(node, agent=node.path in agents) for node in nodes]
 
 
 class UnpackMatchesPass(Pass):
@@ -191,8 +258,3 @@ class AgentsProblemPass(Pass):
             ),
             agent_space=_agent_space(blocks),
         )
-
-
-PASSES = (UnpackMatchesPass(), SetRulesApartPass(), AgentsProblemPass())
-STEPWISE_FORMS: dict[frozenset[type], Form] = {frozenset({Rule}): Form.AGENT}
-OWNER_RULES = (_agent_owner,)

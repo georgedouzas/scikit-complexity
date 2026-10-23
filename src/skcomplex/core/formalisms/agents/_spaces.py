@@ -1,10 +1,13 @@
-"""Define phases, the ordered parts of a step of agents with their own rules and activation policy."""
+"""Define phases of a step of agents, each with its own rules and activation policy, and the schedule that runs them."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+
+from ...base import ValidationError
+from ...space import Schedule
 
 ACTIVATIONS = ('random', 'sequential', 'simultaneous', 'by-type')
 DEFAULT_PHASE = 'default'
@@ -35,7 +38,7 @@ class Phase:
             declaration.
 
     Examples:
-        >>> from skcomplex.core.space import Phase
+        >>> from skcomplex.core.formalisms.agents import Phase
         >>> Phase('trade', activation='simultaneous', repeat=3)
         Phase(name='trade', activation='simultaneous', repeat=3, groups=None)
     """
@@ -53,3 +56,28 @@ class Phase:
         if self.repeat < 1:
             error_msg = f'Phase {self.name!r} repeats {self.repeat} times. Use at least one round.'
             raise ValueError(error_msg)
+
+
+class Phases(Schedule):
+    """Schedule of a discrete time that runs named phases in order in every step.
+
+    Args:
+        phases:
+            The phases, each with its rules and activation policy.
+
+    Examples:
+        >>> from skcomplex.core.formalisms.agents import Phase, Phases
+        >>> [phase.name for phase in Phases([Phase('produce'), Phase('trade')]).phases]
+        ['produce', 'trade']
+    """
+
+    def __init__(self, phases: Sequence[Phase]) -> None:
+        self.phases = tuple(phases)
+        names = [phase.name for phase in self.phases]
+        if len(names) != len(set(names)):
+            error_msg = f'The phases {names} repeat a name. Give every phase of a step its own name.'
+            raise ValidationError(error_msg)
+
+    def __repr__(self, N_CHAR_MAX: int = 700) -> str:
+        """Return the names of the phases."""
+        return f'Phases({[phase.name for phase in self.phases]!r})'

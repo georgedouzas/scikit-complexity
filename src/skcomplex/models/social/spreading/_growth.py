@@ -7,11 +7,11 @@ from typing import Any
 
 import numpy as np
 
-from ....core.backends import ModelView
 from ....core.base import Domain, parameter, role, state
 from ....core.components import Element
+from ....core.formalisms.agents import ModelView, Rule
 from ....core.interactions import Interaction
-from ....core.laws import Law, Rule, Symbols
+from ....core.laws import Law, Symbols
 from ....core.runtime import register_model
 from ....core.system import System
 

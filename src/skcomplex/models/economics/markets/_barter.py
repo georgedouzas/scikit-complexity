@@ -10,9 +10,10 @@ import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, state
 from ....core.components import Element
+from ....core.formalisms.agents import Phase, Phases
 from ....core.laws import Law, Symbols
 from ....core.runtime import register_model
-from ....core.space import DiscreteTime, Phase, Phases
+from ....core.space import DiscreteTime
 from ....core.system import Observable, System
 from ..realizations import cobb_douglas
 from ._goods_traders import Exchange

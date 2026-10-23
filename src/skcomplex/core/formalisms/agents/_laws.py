@@ -1,4 +1,4 @@
-"""Define matching laws, which pair the members of one or two groups every step."""
+"""Define the laws of agents: rules written as code, and matchings that pair the members of groups every step."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,9 +9,9 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from ..base import LawClass, LawKind, Requires, TimeKind, Trait, ValidationError
-from ..laws import Law, register_laws
-from ..laws._laws import Rule
+from ...base import LawClass, LawKind, Requires, TimeKind, Trait, ValidationError
+from ...components import Element, Group, probe_laws
+from ...laws import Law
 
 type Pairing = Callable[[Sequence[Any], Sequence[Any], np.random.Generator, int], list[tuple[Any, Any]]]
 
@@ -38,7 +38,7 @@ def random_pairing(left: Sequence[Any], right: Sequence[Any], rng: np.random.Gen
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.interactions import random_pairing
+        >>> from skcomplex.core.formalisms.agents import random_pairing
         >>> pairs = random_pairing(list(range(5)), list('abc'), np.random.default_rng(0), 1)
         >>> len(pairs)
         3
@@ -61,6 +61,83 @@ def random_pairing(left: Sequence[Any], right: Sequence[Any], rng: np.random.Gen
             seen.add((first, second))
             pairs.append((left[first], right[second]))
     return pairs
+
+
+def matches(model: Any, label: str = 'match') -> list[tuple[Any, Any]]:  # noqa: ANN401
+    """Return the pairs a matching law stored for the current step.
+
+    Args:
+        model:
+            The model view a rule receives.
+
+        label:
+            The label of the matching law.
+
+    Returns:
+        pairs:
+            The pairs of agents, or none before the law runs.
+    """
+    return list(model.storage.get(f'match:{label}', ()))
+
+
+def runs_rules(component: object) -> bool:
+    """Check whether a component runs rules of its own: a variable group, or an element or group with rule laws.
+
+    Such a component is an agent. The compiler also makes agents of the groups whose element type has no laws of its
+    own in a system with rules, unless an interaction whose laws are not rules binds them.
+
+    Args:
+        component:
+            The element, group, interaction, or system.
+
+    Returns:
+        runs_rules:
+            Whether the component is a variable group, or an element or group whose own laws include a `Rule`.
+
+    Examples:
+        >>> from skcomplex.core.components import Element
+        >>> from skcomplex.core.formalisms.agents import Rule, runs_rules
+        >>> Walker = Element.define('Walker', laws=lambda s: [Rule(lambda agent, model: None)])
+        >>> runs_rules(Walker('walker')), runs_rules(Element.define('Plain')('plain'))
+        (True, False)
+    """
+    if isinstance(component, Group) and component.variable:
+        return True
+    if not isinstance(component, Element | Group):
+        return False
+    return any(isinstance(law, Rule) for law in probe_laws(component) or [])
+
+
+@dataclass(frozen=True)
+class Rule(Law):
+    """Behaviour written as code, run once per step for every member of an agent group, or once per step for a model.
+
+    An element whose laws include rules is an agent, alone or in a group. A rule of an element receives the agent and
+    the model, `function(agent, model)`. A rule of an interaction receives the model alone, `function(model)`. A system
+    with rules is agent-based, needs discrete time, and runs on the Mesa backend.
+
+    Args:
+        function:
+            The function that runs the rule.
+
+        phase:
+            The name of the phase of the step the rule runs in, one of the system's `phases`, or `None` for the
+            default phase.
+
+    Examples:
+        >>> from skcomplex.core.formalisms.agents import Rule
+        >>> rule = Rule(lambda agent, model: None)
+        >>> callable(rule.function)
+        True
+    """
+
+    law_kind: ClassVar[LawKind] = LawKind.RULE
+    time_class: ClassVar[LawClass] = LawClass.DISCRETE
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE, Trait.AGENT})
+    requires: ClassVar[Requires] = Requires(time={TimeKind.DISCRETE})
+
+    function: Callable[..., None]
+    phase: str | None = None
 
 
 @dataclass(frozen=True)
@@ -96,7 +173,7 @@ class Match(Law):
             The capacity is not a positive integer.
 
     Examples:
-        >>> from skcomplex.core.interactions import Match
+        >>> from skcomplex.core.formalisms.agents import Match
         >>> Match('buyers', 'sellers', label='trades').capacity
         1
     """
@@ -119,11 +196,6 @@ class Match(Law):
             error_msg = f'The match {self.label!r} has capacity {self.capacity!r}. Give a positive integer.'
             raise ValidationError(error_msg)
 
-    @property
-    def rule(self) -> Rule:
-        """Rule the agent stepper runs, which stores the pairs of the step."""
-        return Rule(self._pair, phase=self.phase)
-
     def _pair(self, model: Any) -> None:  # noqa: ANN401
         """Store the pairs of the step in the storage of the model."""
         left = model.agents(self.left)
@@ -131,22 +203,7 @@ class Match(Law):
         pairing = self.pairing or random_pairing
         model.storage[f'match:{self.label}'] = pairing(left, right, model.rng, self.capacity)
 
-
-def matches(model: Any, label: str = 'match') -> list[tuple[Any, Any]]:  # noqa: ANN401
-    """Return the pairs a matching law stored for the current step.
-
-    Args:
-        model:
-            The model view a rule receives.
-
-        label:
-            The label of the matching law.
-
-    Returns:
-        pairs:
-            The pairs of agents, or none before the law runs.
-    """
-    return list(model.storage.get(f'match:{label}', ()))
-
-
-register_laws(Match)
+    @property
+    def rule(self) -> Rule:
+        """Rule the agent stepper runs, which stores the pairs of the step."""
+        return Rule(self._pair, phase=self.phase)

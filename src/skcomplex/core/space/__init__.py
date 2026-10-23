@@ -5,9 +5,8 @@ from ._memory import Memory
 from ._meshes import Mesh
 from ._neighbours import Cone, Nearest, Radius, neighbour_pairs
 from ._networks import Adjacency, Layer, NetworkSpace, part_count
-from ._phases import Phase
 from ._spaces import ContinuousSpace, SiteSpace, Space
-from ._time import ContinuousTime, DiscreteTime, Phases, StaticTime, Time
+from ._time import ContinuousTime, DiscreteTime, Schedule, StaticTime, Time
 
 __all__: list[str] = [
     'Adjacency',
@@ -22,9 +21,8 @@ __all__: list[str] = [
     'Nearest',
     'Neighborhood',
     'NetworkSpace',
-    'Phase',
-    'Phases',
     'Radius',
+    'Schedule',
     'SiteSpace',
     'Space',
     'StaticTime',

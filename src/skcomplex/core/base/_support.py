@@ -131,6 +131,7 @@ class Trait(Term):
     KERNEL_FREE: ClassVar['Trait']
     LATTICE: ClassVar['Trait']
     DECLARABLE: ClassVar['Trait']
+    AGENT: ClassVar['Trait']
 
 
 SpaceKind.NONE = SpaceKind('NONE', 'none')
@@ -161,6 +162,7 @@ Trait.FORMLESS = Trait('FORMLESS', 'formless')
 Trait.KERNEL_FREE = Trait('KERNEL_FREE', 'kernel-free')
 Trait.LATTICE = Trait('LATTICE', 'lattice')
 Trait.DECLARABLE = Trait('DECLARABLE', 'declarable')
+Trait.AGENT = Trait('AGENT', 'agent')
 
 
 class OrderKind(StrEnum):

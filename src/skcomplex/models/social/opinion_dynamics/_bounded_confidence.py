@@ -8,11 +8,11 @@ from typing import ClassVar
 import networkx as nx
 import numpy as np
 
-from ....core.backends import ModelView
 from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.components import Element
+from ....core.formalisms.agents import ModelView, Rule
 from ....core.interactions import Interaction
-from ....core.laws import Law, Rule, Symbols, Update, neighbors, where
+from ....core.laws import Law, Symbols, Update, neighbors, where
 from ....core.runtime import register_model
 from ....core.space import Adjacency, DiscreteTime, NetworkSpace
 from ....core.system import System

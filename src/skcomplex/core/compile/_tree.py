@@ -4,7 +4,6 @@
 # License: MIT
 
 import copy
-import dataclasses
 import re
 from dataclasses import dataclass
 from typing import Any, cast
@@ -18,19 +17,17 @@ from ..base import (
     LabelError,
     SpaceError,
     TimeKind,
+    Trait,
     ValidationError,
     Variable,
-    VariableKind,
-    declarations_of,
 )
-from ..components import Element, Group, probe_laws, runs_rules
-from ..interactions import Interaction, Match
-from ..laws import Rule
+from ..components import Element, Group, probe_laws
+from ..interactions import Interaction
+from ..laws import has_trait
 from ..space import LatticeSpace, NetworkSpace, Space, part_count
 from ..system import System
 
 LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
-MEMBER_SUFFIX = re.compile(r'\[-?\d+\]$')
 MAX_SHOWN_COMPONENTS = 10
 
 
@@ -52,7 +49,7 @@ class Node:
             The nearest enclosing space.
 
         agent:
-            Whether the component runs on the agent stepper, as `agent_paths` decides.
+            Whether the component runs on the agent stepper, as a pass of a formalism decides.
 
         active:
             The initial number of members of a variable group on the sites or edges of a network, whose capacity is
@@ -195,7 +192,7 @@ def _sized(element: Element | Group, space: Space | None) -> Element | Group:
 
 
 def is_topology_group(component: object, space: Space | None) -> bool:
-    """Check whether a component is a variable group on the sites or edges of a network without rules of its own.
+    """Check whether a component is a variable group on the sites or edges of a network without agent laws of its own.
 
     Compiled backends run such a group with a capacity layout, whose rows hold the members present and room for new
     ones, so laws that change the topology of the network add and remove its members.
@@ -215,7 +212,7 @@ def is_topology_group(component: object, space: Space | None) -> bool:
         return False
     if not isinstance(space, NetworkSpace):
         return False
-    return not any(isinstance(law, Rule) for law in probe_laws(component) or [])
+    return not any(has_trait(law, Trait.AGENT) for law in probe_laws(component) or [])
 
 
 def _with_capacity(element: Element | Group, space: Space | None) -> tuple[Element | Group, int | None]:
@@ -236,55 +233,6 @@ def _with_capacity(element: Element | Group, space: Space | None) -> tuple[Eleme
     return sized, initial
 
 
-def _is_passive(component: object) -> bool:
-    """Check whether a component is a group off the parts of the space whose element type has no laws of its own."""
-    return isinstance(component, Group) and component.on is None and probe_laws(component) == []
-
-
-def _bound_paths(node: Node) -> set[str]:
-    """Return the paths of the components the roles of an interaction bind, without member indices."""
-    paths = set()
-    for name in declarations_of(type(node.component), VariableKind.ROLE):
-        value = getattr(node.component, name)
-        for item in [value] if isinstance(value, str) else value or ():
-            paths.add(MEMBER_SUFFIX.sub('', f'{node.scope}{item}'))
-    return paths
-
-
-def agent_paths(nodes: list[Node]) -> set[str]:
-    """Return the paths of the elements and groups of a system tree that run on the agent stepper.
-
-    An agent is a member of a variable group, or of an element or group whose own laws include a `Rule`. When the tree
-    holds rules, of components or of interactions, the groups whose element type has no laws of its own are agents
-    too, as passive agents that rules read and change, unless an interaction whose laws are not all rules or matchings
-    binds them through a role. Single elements, such as aggregates, and groups on the sites, edges, or hyperedges of a
-    space are never passive agents.
-
-    Args:
-        nodes:
-            The nodes of the tree.
-
-    Returns:
-        paths:
-            The paths of the agent elements and groups.
-    """
-    agents = {node.path for node in nodes if runs_rules(node.component) and node.active is None}
-    passive = [node for node in nodes if node.path not in agents and _is_passive(node.component)]
-    if not passive:
-        return agents
-    interactions = [(node, probe_laws(node.component)) for node in nodes if isinstance(node.component, Interaction)]
-    has_rules = bool(agents) or any(any(isinstance(law, Rule) for law in laws or ()) for _, laws in interactions)
-    if not has_rules:
-        return agents
-    bound = {
-        path
-        for node, laws in interactions
-        if laws is None or not all(isinstance(law, Rule | Match) for law in laws)
-        for path in _bound_paths(node)
-    }
-    return agents | {node.path for node in passive if node.path not in bound}
-
-
 def _canonical(space: Space | None, seen: list[Space]) -> Space | None:
     """Return the first network space seen that equals a space, so clones of one network share one space."""
     if not isinstance(space, NetworkSpace):
@@ -297,7 +245,7 @@ def _canonical(space: Space | None, seen: list[Space]) -> Space | None:
 
 
 def _flatten(system: System, scope: str, space: Space | None, seen: list[Space] | None = None) -> list[Node]:
-    """Return the nodes of a system tree in tree order, before the agents are recognized."""
+    """Return the nodes of a system tree in tree order."""
     if not isinstance(system, System):
         error_msg = f'{system!r} is not an instance of System.'
         raise ValidationError(error_msg)
@@ -316,7 +264,7 @@ def _flatten(system: System, scope: str, space: Space | None, seen: list[Space] 
 
 
 def flatten_system(system: System, scope: str = '', space: Space | None = None) -> list[Node]:
-    """Return the elements and interactions of a system tree with their paths, and which of them are agents.
+    """Return the elements and interactions of a system tree with their paths.
 
     Args:
         system:
@@ -330,7 +278,7 @@ def flatten_system(system: System, scope: str = '', space: Space | None = None) 
 
     Returns:
         nodes:
-            The elements and interactions, in tree order, with the agents that `agent_paths` recognizes.
+            The elements and interactions, in tree order, none of them marked as an agent yet.
 
     Raises:
         ValidationError:
@@ -339,9 +287,7 @@ def flatten_system(system: System, scope: str = '', space: Space | None = None) 
         LabelError:
             A label is not valid or is duplicated among siblings.
     """
-    nodes = _flatten(system, scope, space)
-    agents = agent_paths(nodes)
-    return [dataclasses.replace(node, agent=node.path in agents) for node in nodes]
+    return _flatten(system, scope, space)
 
 
 def declared_times(system: System, scope: str = '', inherited: TimeKind | None = None) -> dict[str, TimeKind | None]:
