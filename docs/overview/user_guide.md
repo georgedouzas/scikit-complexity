@@ -369,13 +369,41 @@ convention, and validation reports laws of different conventions on one process,
 that reads a state another component drives through its process, a covariance that is not symmetric positive
 semidefinite, and a handle `dW` used anywhere but as the process of a noise law.
 
+**Conserved noise.** `Noise(target, value, conserved=True)` on a state of a field on a lattice adds the
+divergence of a random flux, `div(value eta)`, the thermal noise of Model B and of active field theories. Every link
+between neighbouring sites draws one Wiener process, and site `i` gains `value / h` times the increment of the link
+from its previous neighbour and loses the same amount on the link to its next one, along every dimension of spacing
+`h`. The total of the field then changes only by its rate laws, exactly to rounding. The links that leave a lattice
+through a zero-flux or fixed edge carry no process. The value is a number or an expression of parameters, the same
+on every link, and the field uses finite differences on a square lattice. Validation reports a conserved noise law on
+any other state with the code `noise-unsupported`.
+
+```python
+from sage.all__sagemath_symbolics import sqrt
+
+from skcomplex.core.components import Field
+from skcomplex.core.laws import laplacian
+from skcomplex.core.space import LatticeSpace
+
+Density = Element.define(
+    'Density',
+    states={'rho': 1.0},
+    parameters={'D': 1.0, 'T': 0.1},
+    laws=lambda s: [Rate(s.rho, s.D * laplacian(s.rho)), Noise(s.rho, sqrt(2 * s.T), conserved=True)],
+)
+gas = System(components=[Field('gas', Density, LatticeSpace((16, 16)))])
+density = Simulation(gas, solver=EulerMaruyama(dt=0.01), random_state=0).run(until=5).trajectory_['gas.rho']
+print(density[-1].sum(), density[-1].std() > 0)
+```
+
 Solvers and backends declare the noise structures they draw: `'diagonal'`, one process per state, `'shared'`, a process
-that drives several states, and `'correlated'`, the processes of a `Wiener` element with a covariance. `EulerMaruyama`,
-`Heun`, and the NumPy and Numba backends support all three. `Milstein`, whose derivative-free correction holds for
-diagonal noise only, and the LAMMPS backend support diagonal noise, and validation reports a system with shared or
-correlated noise for them before compiling it. The compatibility page lists the declarations. In the library,
+that drives several states, `'correlated'`, the processes of a `Wiener` element with a covariance, and `'conserved'`,
+the link processes of conserved noise. `EulerMaruyama`, `Heun`, and the NumPy and Numba backends support all four.
+`Milstein`, whose derivative-free correction holds for diagonal noise only, and the LAMMPS backend support diagonal
+noise, and validation reports a system with shared, correlated, or conserved noise for them before compiling it. The compatibility page lists the declarations. In the library,
 `Binding` and `Dissociation` take `langevin=True` for chemical Langevin equations, as in `chemical_langevin_network`,
-and `correlated_geometric_brownian_motion` drives two assets with correlated processes.
+`correlated_geometric_brownian_motion` drives two assets with correlated processes, and `active_model_b` and
+`cahn_hilliard` with a `temperature` take conserved noise.
 
 SciPy, RK4, Euler-Maruyama, Milstein, and Heun handle delays, events, and drivers. Velocity Verlet, Gillespie, and map
 iteration reject delays and events with an error that names the solvers to use. The library has these models ready:
@@ -767,6 +795,113 @@ The library models built on flows are `bathtub`, `rice_milling`, `solid_waste`, 
 engineering processes, `car_dealer`, `commodity_cycle`, and `beer_game` in markets, `bass_diffusion` in innovation,
 `stock_flow_consistent_economy` in macroeconomics, and `success_to_the_successful`, `shifting_the_burden`, and
 `escalation` in organizations.
+
+## Control
+
+A control input is an adaptive parameter with bounds, `parameter(initial, adaptive=True, bounds=(lower, upper))`. Laws
+read it like a parameter, trajectories record it like a state, and a schedule, an optimal control solver, or a
+feedback controller supplies its value. Without one it keeps its initial value. `validate` reports an initial value
+outside the bounds as an error at the parameter, whose fix names the bounds.
+
+```python
+from skcomplex.core.compile import validate
+
+Heater = Element.define(
+    'Heater',
+    states={'T': 0.0},
+    parameters={'power': parameter(0.0, adaptive=True, bounds=(0, 1))},
+    laws=lambda s: [Rate(s.T, s.power - s.T)],
+)
+room = System(components=[Heater('heater')])
+print([issue.path for issue in validate(System(components=[Heater('heater', power=2.0)])).errors])
+schedule = {'heater.power': lambda t: 1.0 if t >= 1.0 else 0.0}
+heated = Simulation(room, dt=0.5, schedule=schedule).run(until=3).trajectory_
+print(heated['heater.power'])
+```
+
+### Objectives and optimal control
+
+An `Objective(expression, terminal=0, sense='min', label='objective')` law is the cost or the gain of a system. Under
+continuous time the value of a run is the integral of the running value `expression` over the run plus the terminal
+value at its horizon, the time `until` of the run, and trajectories record the running value under
+`<component path>.<label>`. An objective is a constraint law, valid under static and continuous time, so `validate`
+reports one under discrete time.
+
+Two solvers minimise a cost, or maximise a gain, over the bounded adaptive parameters of the system. `Pontryagin()`
+builds the Hamiltonian `H = L + λ · f` of the running cost `L` and the rates `f`, derives the costate equations
+`λ' = -∂H/∂x` and the stationarity condition `∂H/∂u = 0` symbolically, projects the controls onto their bounds, takes
+a bound where `H` is linear in a control, and solves the two-point problem by a forward-backward sweep.
+`Collocation(nodes, scheme)` transcribes the problem with the `'hermite-simpson'` or `'trapezoidal'` scheme and solves
+it with SciPy's `minimize`, with the Jacobians derived symbolically. Collocation handles bang-bang controls, singular
+arcs, and saddle paths on which the sweep diverges. Both solve the problem over the whole run when it starts, and
+`simulation.stepper_.solution_` holds the solution on its grid, its cost, and, for `Pontryagin`, the costates.
+
+```python
+from skcomplex.core.laws import Objective
+from skcomplex.core.solvers import Collocation, Pontryagin
+
+Plant = Element.define(
+    'Plant',
+    states={'x': 1.0},
+    parameters={'u': parameter(0.0, adaptive=True, bounds=(-10, 10))},
+    laws=lambda s: [Rate(s.x, s.u), Objective((s.x**2 + s.u**2) / 2)],
+)
+plant = System(components=[Plant('plant')])
+optimal = Simulation(plant, solver=Pontryagin(), dt=0.1).run(until=1.0)
+print(round(optimal.trajectory_['plant.u'][0], 3), round(optimal.stepper_.solution_.cost, 4))
+transcribed = Simulation(plant, solver=Collocation(nodes=21), dt=0.1).run(until=1.0)
+print(round(transcribed.trajectory_['plant.u'][0], 3))
+```
+
+Every solver declares what it supports, and the optimal control solvers declare continuous time, no space, rate,
+equation, and objective laws, real and angle states, and elements. `Pontryagin` also applies boundary laws after
+every step of its sweep, and `Collocation` keeps the states of nonnegative domains nonnegative instead. `validate`
+reports a system with noise, jumps, or updates run with them, and an objective run with a solver that does not
+optimise, whose fix lists the solvers that do.
+
+| Solver | Laws | Method |
+| --- | --- | --- |
+| `Pontryagin` | rate, equation, objective, boundary | symbolic costates and a forward-backward sweep |
+| `Collocation` | rate, equation, objective | direct transcription solved by SLSQP or trust-constr |
+
+```python
+print([issue.fix for issue in validate(plant, solver='rk4').errors])
+```
+
+### Feedback controllers
+
+Feedback controllers are realizations of the engineering field, in `skcomplex.models.engineering.realizations`, so the
+core holds none. `PID(label, plant=, integrator=, control=, measure=, kp=, ki=, kd=, setpoint=)` sets the control
+input `control` of the plant to `kp e + ki ∫ e dt - kd y'` from the error `e = setpoint - y` of its state `measure`,
+with the integral of the error in an `Integrator` element. `StateFeedback(label, plant=, control=, states=, gain=)` sets
+it to `-K x`. Both set the control after every solver step, as boundary laws, so a fixed-step solver with small steps
+makes them close to continuous controllers. The engineering models `pid_inverted_pendulum` and `lqr_oscillator` use
+them.
+
+### Linear analysis
+
+`linearize(system, controls, outputs, at)` returns the state-space matrices `A`, `B`, `C`, and `D` of a system under
+continuous time near an operating point, from its symbolic Jacobians, with the controls named by their adaptive
+parameters. `controllability(A, B)` and `observability(A, C)` return the ranks of the Kalman matrices, and
+`lqr(A, B, Q, R)` returns the gain of the linear-quadratic regulator from SciPy's solution of the Riccati equation.
+
+```python
+from skcomplex.core.analysis import controllability, linearize, lqr, observability
+
+Cart = Element.define(
+    'Cart',
+    states={'x': 0.0, 'v': 0.0},
+    parameters={'force': parameter(0.0, adaptive=True, bounds=(-1, 1))},
+    laws=lambda s: [Rate(s.x, s.v), Rate(s.v, s.force)],
+)
+model = linearize(System(components=[Cart('cart')]), outputs=['cart.x'])
+print(controllability(model.A, model.B), observability(model.A, model.C))
+print(lqr(model.A, model.B, [[1, 0], [0, 1]], [[1]]).round(3))
+```
+
+The library models with optimal controls are `optimal_harvesting` in resources, `optimal_consumption` in
+macroeconomics, `sir_vaccination` in epidemiology, and `optimal_chemotherapy` and `optimal_immunotherapy` in
+oncology.
 
 ## The model library
 
@@ -1466,6 +1601,113 @@ The library has `kinetic_wealth_welfare` in `skcomplex.models.economics.econophy
 `skcomplex.models.biology.oncology`, `kinetic_opinion` in `skcomplex.models.social.opinion_dynamics`, and `evacuation`
 and `criminality` in `skcomplex.models.social.crowds`. `evacuation` holds a crowd on a network of rooms as a site group
 on a two-dimensional lattice indexed by room and speed class, whose walking encounters read the doors of the building.
+### Automata on groups
+
+A cellular automaton needs only a group: its cells are the elements, and a cell at `g` reads the cells at `g s` for
+the elements `s` of a finite memory set (Ceccherini-Silberstein and Coornaert 2023). `GroupSpace(group, ball=r)` is the
+Cayley graph of a finitely generated group on the ball of radius `r` in its generators and their inverses, and
+`GroupSpace(group, quotient=q)` on a finite quotient, where configurations are periodic. A group space is a space of the
+lattice kind, so `LocalRule`, `Sample`, and the other lattice laws run on it with the NumPy and Numba backends, and a
+run reads only its neighbour table. Its sites are numbered by word length, `words` names their shortest words,
+`ball_sizes()` gives the growth of the balls, and cells outside a ball read the space's `fill`. The memory set is a
+`Memory` of words such as `'a'`, `'a^-1'`, or `'a*b'`, with `'1'` for the cell itself, and `Memory.generators(group)`
+gives the identity followed by every generator and its inverse.
+
+The general constructors of `skcomplex.core.space` give groups by any presentation whose word problem a library
+solves:
+
+- `finitely_presented_group(generators, relators)` takes words such as `'t*a*t^-1*a^-2'`. A free group, without
+  relators, reduces its words directly, and otherwise KBMAG in GAP looks for a confluent rewriting system by
+  Knuth-Bendix completion. A presentation it cannot complete raises `WordProblemError`, which asks for a quotient.
+- `automaton_group(recursion)` takes a Mealy automaton as the wreath recursion of its states, mapped to their sections
+  and their permutation of the alphabet, such as `{'t': ((None, 't'), (1, 0))}` for the adding machine. Elements are
+  told apart by their action on a level of the tree and, when two act alike there, by AutomGrp in GAP.
+  `quotient=n` takes the action on level `n`.
+- `permutation_group(generators)` and `matrix_group(generators, ring)` take images of points and integer matrices
+  over `'ZZ'` or `'GF(p)'`, whose elements are compared as arrays.
+
+GAP comes with the `passagemath-gap` dependency and starts on the first ball that needs it. A ball whose size bound
+exceeds `max_sites`, 100,000 by default, raises `SpaceTooLargeError` before GAP is called, and `validate` reports it as
+`space-too-large` with the largest radius that fits. A group space lacks the regular geometry of a square lattice and
+an image layout, so validation reports a checkerboard schedule as `schedule-unsupported` and an image visual as
+`visual-unsupported`. Groups on group spaces stream to Rerun with `CayleyVisual`, registered as `'cayley'`: nodes on
+rings by word length, colored by state, with the edges of the generators logged once.
+
+```python
+from skcomplex.core.laws import Totalistic
+from skcomplex.core.space import GroupSpace, Memory, finitely_presented_group, permutation_group
+
+free = finitely_presented_group(['a', 'b'])
+tree = GroupSpace(free, ball=4)
+memory = Memory.generators(free)
+Majority = Element.define(
+    'Majority',
+    states={'alive': state(0, domain=Domain.BOOLEAN)},
+    laws=lambda s: [LocalRule(s.alive, memory, Totalistic({3: 1, 4: 1, 5: 1}))],
+)
+cells = (np.random.default_rng(0).random(tree.size) < 0.5).astype(float)
+majority = System(components=[Majority.lattice('cells', tree, alive=cells)])
+print(tree.ball_sizes(), Simulation(majority, dt=1).run(until=3).trajectory_['cells.alive'].shape)
+print(GroupSpace(permutation_group([[1, 0, 2], [1, 2, 0]])).words)
+```
+
+Named groups are realizations of the automata models: `free_group`, `heisenberg`, `lamplighter`, `baumslag_solitar`,
+and `grigorchuk_group` of `skcomplex.models.computer_science.automata`. The Grigorchuk group, which acts on the binary
+tree by `a = (1, 1)(0 1)`, `b = (a, c)`, `c = (a, d)`, `d = (1, b)`, is not finitely presented, and its balls grow
+faster than any polynomial and slower than any exponential.
+
+```python
+from skcomplex.models.computer_science.automata import grigorchuk_group
+
+print(GroupSpace(grigorchuk_group(), ball=6).ball_sizes(), GroupSpace(grigorchuk_group(), quotient=3).size)
+```
+
+**Theory of automata.** `skcomplex.core.analysis` decides the properties the theory studies on finite universes, where
+they are decidable: periodic configurations on a torus or a finite quotient, and patterns on windows. The checks do
+not decide them on infinite groups. `Automaton(space, neighborhood, rule, states)` is the map on configurations of a
+local rule, with `step` and `run`.
+
+- `is_injective` and `is_surjective`, which agree on a finite universe, enumerate the configurations of small
+  universes and solve a SAT encoding with PySAT on larger ones. `is_pre_injective(automaton, window)` asks whether two
+  configurations that differ only inside a window can share their image.
+- `garden_of_eden(automaton, window)` returns a pattern without a preimage, by enumeration or by SAT on random
+  patterns.
+- `inverse(automaton, max_radius)` finds the rule of the inverse of a reversible automaton with the smallest memory,
+  and `compose(first, second)` gives the automaton of their composition.
+
+```python
+from skcomplex.core.analysis import Automaton, compose, garden_of_eden, inverse, is_surjective
+from skcomplex.core.laws import Table
+
+life = Automaton(LatticeSpace((6, 6)), Neighborhood.moore(), OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1}))
+print(is_surjective(life), garden_of_eden(life, random_state=0) is not None)
+shift = Automaton(LatticeSpace(8), Neighborhood(((1,),)), Table({(1,): 1}))
+print(compose(shift, inverse(shift)).step([1, 0, 1, 1, 0, 0, 0, 1]).tolist())
+```
+
+**Linear automata and subshifts.** `LinearAutomaton(space, neighborhood, coefficients, field)` is the element
+`sum_s a_s s` of the group ring over `'GF(p)'` or `'QQ'`. On a finite universe it is a matrix whose rank decides
+injectivity, surjectivity, and pre-injectivity together, and on `Z^d`, with `infinite=True`, its Laurent polynomial
+decides them: it is invertible when the polynomial is a monomial and surjective when it is not zero.
+`Subshift(neighborhood, forbidden)` holds the configurations without forbidden patterns: it checks configurations,
+counts the admissible ones of a window, and samples them by a Markov chain of single-cell moves.
+`configuration_entropy` gives `log |X_F| / |F|` along windows `F`, `spatial_entropy_rates` the entropy rate of every
+frame of a run, which never increases under an automaton, and `difference_pattern` the cells where two runs differ
+after one cell changes.
+
+```python
+from skcomplex.core.analysis import LinearAutomaton, Subshift, configuration_entropy
+
+laplacian = LinearAutomaton(LatticeSpace(5), Neighborhood(((-1,), (0,), (1,))), (1, -2, 1), 'GF(2)')
+golden = Subshift(Neighborhood(((0,), (1,))), [(1, 1)])
+print(laplacian.is_invertible(), laplacian.is_surjective(infinite=True))
+print([golden.count(LatticeSpace(length, boundary='fixed')) for length in range(1, 8)])
+print(configuration_entropy(golden, [LatticeSpace(24, boundary='fixed')]).round(3))
+```
+
+The library has `free_group_automaton`, `lamplighter_automaton`, `heisenberg_automaton`, `baumslag_solitar_automaton`,
+`grigorchuk_automaton`, the Laplacian `linear_ring_automaton`, and the golden mean shift `subshifts` in
+`skcomplex.models.computer_science.automata`.
 
 ## Fields
 

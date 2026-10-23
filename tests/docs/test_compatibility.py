@@ -32,6 +32,13 @@ def test_page_lists_every_law_and_solver():
             assert f'| `{key[1]}` |' in page, key
 
 
+def test_page_lists_the_spaces_and_what_they_lack():
+    """Test that a group space is a lattice-kind space that lacks a regular geometry and an image layout."""
+    page = _generator()['compatibility_page']()
+    assert _row(page, '| `GroupSpace` |') == "| `GroupSpace` | `lattice` | `image`, `regular-geometry` |"
+    assert _row(page, '| `LatticeSpace` |') == '| `LatticeSpace` | `lattice` | none |'
+
+
 def test_table_follows_declarations(monkeypatch):
     """Test that a solver whose declared support gains a law kind is listed with it at the next generation."""
     stepper = SOLVERS.resolve((Form.DISCRETE, 'iteration'))
@@ -43,5 +50,5 @@ def test_table_follows_declarations(monkeypatch):
 def test_tables_list_noise_support():
     """Test that the solver table lists the noise structures each solver declares."""
     page = _generator()['compatibility_page']()
-    assert _row(page, '| `euler-maruyama` |').endswith('| `correlated`, `diagonal`, `shared` |')
+    assert _row(page, '| `euler-maruyama` |').endswith('| `conserved`, `correlated`, `diagonal`, `shared` |')
     assert _row(page, '| `milstein` |').endswith('| `diagonal` |')

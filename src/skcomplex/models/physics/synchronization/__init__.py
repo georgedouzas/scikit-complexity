@@ -1,4 +1,4 @@
-"""Synchronization: coupled phase oscillators, pulse-coupled oscillators, and synchronized chaos."""
+"""Synchronization: coupled phase oscillators, pulse-coupled oscillators, swarmalators, and synchronized chaos."""
 
 from ._amplitude_death import GlobalCoupling, StuartLandau, heterogeneous_global_coupling, oscillator_death
 from ._chaos import (
@@ -25,6 +25,7 @@ from ._kuramoto import (
 )
 from ._networks import EdgeCoupling, Link, LogisticNode, coupled_map_lattices_on_networks, kuramoto_on_networks
 from ._pulses import IntegrateAndFireOscillator, WinfreeMeanField, WinfreeOscillator, mirollo_strogatz, winfree
+from ._swarmalators import Swarmalator, SwarmalatorCoupling, swarmalators
 
 __all__: list[str] = [
     'AggregateAveraging',
@@ -44,6 +45,8 @@ __all__: list[str] = [
     'RosslerOscillator',
     'SitedOscillator',
     'StuartLandau',
+    'Swarmalator',
+    'SwarmalatorCoupling',
     'WinfreeMeanField',
     'WinfreeOscillator',
     'aggregate_averaging_synchronization',
@@ -58,5 +61,6 @@ __all__: list[str] = [
     'nonlocal_ring_chimera',
     'oscillator_death',
     'ott_antonsen',
+    'swarmalators',
     'winfree',
 ]

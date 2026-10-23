@@ -95,6 +95,8 @@ class Simulation(BaseEstimator):
         schedule:
             A mapping from dotted parameter name to a function of time, such as a ramp of a control parameter. At every
             frame the parameter takes the value of its function at the frame's time and keeps it until the next frame.
+            An adaptive parameter, such as a bounded control input, can be scheduled too, and the trajectory records
+            its scheduled values.
 
         observables:
             The observables to compute and record at every frame, labelled by their path from the root, such as
@@ -196,6 +198,7 @@ class Simulation(BaseEstimator):
             else compile_system(self.system, self.backend, self.observables, solver=self.solver, initial_state=initial)
         )
         self._prepared_system = self.system
+        self._adaptive = self.problem_.adaptive_parameters
         self.dt_ = self._check_dt(self.problem_, until)
         self.stepper_ = resolve_solver(self.problem_, self.solver)
         self.observables_ = ObservableEvaluator(self.problem_)
@@ -313,13 +316,18 @@ class Simulation(BaseEstimator):
                 observer.on_stop()
 
     def _apply_schedule(self) -> None:
-        """Set every scheduled parameter to the value of its function at the current time."""
+        """Set every scheduled parameter and adaptive parameter to the value of its function at the current time."""
         for name, function in (self.schedule or {}).items():
+            if name in self._adaptive:
+                entry, indices = self.problem_.states.locate(name)
+                self.state_[indices] = self._check_value(name, entry, function(self.time_))
+                continue
             layout = self.problem_.parameters
             try:
                 entry, indices = layout.locate(name)
             except KeyError as error:
-                error_msg = f'No parameter named {name!r} to schedule. Available names are: {", ".join(layout.names)}.'
+                names = ', '.join([*layout.names, *self._adaptive])
+                error_msg = f'No parameter named {name!r} to schedule. Available names are: {names}.'
                 raise ParameterError(error_msg) from error
             self.parameters_[indices] = self._check_value(name, entry, function(self.time_))
 

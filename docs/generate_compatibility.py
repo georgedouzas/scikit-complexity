@@ -3,6 +3,7 @@
 from skcomplex.core.base import LawKind
 from skcomplex.core.compile import BACKENDS, law_types
 from skcomplex.core.solvers import SOLVERS
+from skcomplex.core.space import Space
 
 
 def _terms(terms: frozenset[object], every: int | None = None) -> str:
@@ -56,7 +57,8 @@ def solver_lines() -> list[str]:
         'Every solver declares what it supports. Validation checks a chosen solver against the laws, domains,',
         'components, space, and noise structures of a system, and lists the solvers that support what it lacks. A',
         'diagonal noise draws one Wiener process per state, a shared noise drives several states with one process, and',
-        'a correlated noise draws the processes of a Wiener element with a covariance.',
+        'a correlated noise draws the processes of a Wiener element with a covariance, and a conserved noise draws one',
+        'process per link of the lattice of a field.',
         '',
         '| Solver | Form | Time | Space | Laws | Domains | Components | Noise |',
         '|---|---|---|---|---|---|---|---|',
@@ -103,6 +105,39 @@ def backend_lines() -> list[str]:
     return lines
 
 
+def _spaces(base: type) -> list[type]:
+    """Return every subclass of a space class that declares its kind, recursively."""
+    found = []
+    for subclass in base.__subclasses__():
+        found += [subclass, *_spaces(subclass)]
+    return [space for space in found if 'space_kind' in vars(space) or 'lacks' in vars(space)]
+
+
+def space_lines() -> list[str]:
+    """Return the kind of every space and the options of its kind that it lacks.
+
+    Returns:
+        lines:
+            The Markdown lines of the section.
+    """
+    lines = [
+        '',
+        '## Spaces',
+        '',
+        'Every space declares its kind, which the requirements of laws and the support of solvers name, and the',
+        'options of its kind it lacks. Validation reports a law or a visual that needs an option its space lacks, such',
+        'as the checkerboard schedule, which needs the regular geometry of a square lattice.',
+        '',
+        '| Space | Kind | Lacks |',
+        '|---|---|---|',
+    ]
+    for space in sorted(_spaces(Space), key=lambda item: item.__name__):
+        lines.append(
+            f'| `{space.__name__}` | `{space.space_kind}` | {_terms(space.lacks) if space.lacks else "none"} |',
+        )
+    return lines
+
+
 def compatibility_page() -> str:
     """Return the compatibility page of laws, solvers, and backends, generated from their declarations."""
     lines = [
@@ -112,6 +147,7 @@ def compatibility_page() -> str:
         'declarations that validation reads, so it always agrees with what `validate` accepts.',
         '',
         *law_lines(),
+        *space_lines(),
         *solver_lines(),
         *backend_lines(),
     ]

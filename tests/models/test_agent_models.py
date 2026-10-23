@@ -1,9 +1,10 @@
-"""Test the agent-based models of the social and ecology modules."""
+"""Test the agent-based models of the social, ecology, and collective behaviour modules."""
 
 import networkx as nx
 import numpy as np
 
 from skcomplex.core.runtime import Simulation
+from skcomplex.models.biology.collective_behaviour import couzin_leadership
 from skcomplex.models.biology.ecology import wolf_sheep
 from skcomplex.models.economics.econophysics import boltzmann_wealth
 from skcomplex.models.social.opinion_dynamics import voter_model
@@ -57,3 +58,23 @@ def test_wolf_sheep_populations_change():
         assert len(counts) == 101
         assert len(set(counts.tolist())) > 1
     assert set(trajectory['grass.count'].tolist()) == {400.0}
+
+
+def _accuracy(informed):
+    """Return the mean cosine between the shoal's late heading and the preferred direction, over four shoals."""
+    cosines = []
+    for seed in range(4):
+        trajectory = Simulation(couzin_leadership(30, informed=informed, random_state=seed), dt=1, random_state=seed)
+        trajectory = trajectory.run(150).trajectory_
+        for frame in range(100, 151):
+            snapshot = trajectory.agents('shoal', frame)
+            heading = np.arctan2(np.mean(snapshot.values['vy']), np.mean(snapshot.values['vx']))
+            cosines.append(np.cos(heading))
+    return float(np.mean(cosines))
+
+
+def test_couzin_leadership_informed_minority_leads():
+    """Test that an informed minority turns the shoal toward its direction, more accurately when it is larger."""
+    naive, few, many = _accuracy(0.0), _accuracy(0.1), _accuracy(0.3)
+    assert naive < 0.5
+    assert 0.6 < few < many

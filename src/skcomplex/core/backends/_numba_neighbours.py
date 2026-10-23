@@ -7,7 +7,7 @@ import math
 
 import numpy as np
 import numpy.typing as npt
-from numba import njit, prange
+from numba import njit
 
 type Floats = npt.NDArray[np.float64]
 type Integers = npt.NDArray[np.int64]
@@ -170,27 +170,24 @@ def _scan(positions: Floats, member: int, reach: float, context: Context, found:
     return size
 
 
-@njit(cache=True, parallel=True)
+@njit(cache=True)
 def _within(positions: Floats, radius: float, aim: Aim, box: Box, center: bool) -> tuple[Integers, Integers]:
     """Return the members within a radius, and inside a cone, of every member as CSR rows sorted by member.
 
-    Parallel loops capture arrays and scalars only, so the tuples of the search are built inside them.
+    The search is serial: a kernel loaded from the Numba cache crashes when it calls a parallel function through a
+    cached one, and generated kernels call the searches that way.
     """
     n_members = positions.shape[0]
-    (cells, sides, origin), strides, starts, order = _grid(positions, radius, box)
-    headings, cosine, cone = aim
-    periods, periodic = box
+    context = (_grid(positions, radius, box), aim, box)
     counts = np.zeros(n_members, dtype=np.int64)
-    for member in prange(n_members):
-        context = (((cells, sides, origin), strides, starts, order), (headings, cosine, cone), (periods, periodic))
+    for member in range(n_members):
         counts[member] = _scan(positions, member, radius, context, (np.empty(0, dtype=np.int64), np.empty(0), False))
     indptr = np.zeros(n_members + 1, dtype=np.int64)
     for member in range(n_members):
         indptr[member + 1] = indptr[member] + counts[member] + (1 if center else 0)
     indices = np.empty(indptr[n_members], dtype=np.int64)
-    for member in prange(n_members):
+    for member in range(n_members):
         start, end = indptr[member], indptr[member + 1]
-        context = (((cells, sides, origin), strides, starts, order), (headings, cosine, cone), (periods, periodic))
         _scan(positions, member, radius, context, (indices[start:end], np.empty(end - start), True))
         if center:
             indices[end - 1] = member
@@ -297,7 +294,7 @@ def _nearest_of(positions: Floats, member: int, k: int, side: float, context: Co
     return candidates[np.argsort(distances, kind='mergesort')[:k]]
 
 
-@njit(cache=True, parallel=True)
+@njit(cache=True)
 def nearest_neighbours(
     positions: Floats,
     k: int,
@@ -308,7 +305,8 @@ def nearest_neighbours(
     """Return the `k` nearest other members of every member, as CSR rows sorted by member.
 
     The search starts in the cells of a grid sized for about `k` members per cell and doubles its reach until it
-    holds `k` members, every member outside the cells it searched being farther than its reach.
+    holds `k` members, every member outside the cells it searched being farther than its reach. The search is serial,
+    as in `radius_neighbours`.
 
     Args:
         positions:
@@ -334,14 +332,12 @@ def nearest_neighbours(
     k = max(0, min(k, n_members - 1))
     box = (periods, periodic)
     side = _side(positions, k, box)
-    (cells, sides, origin), strides, starts, order = _grid(positions, side, box)
-    headings = np.zeros((1, 1))
+    context = (_grid(positions, side, box), (np.zeros((1, 1)), 1.0, False), box)
     extra = 1 if center else 0
     indptr = np.arange(n_members + 1, dtype=np.int64) * (k + extra)
     indices = np.empty(indptr[n_members], dtype=np.int64)
-    for member in prange(n_members):
+    for member in range(n_members):
         start, end = indptr[member], indptr[member + 1]
-        context = (((cells, sides, origin), strides, starts, order), (headings, 1.0, False), (periods, periodic))
         if k > 0:
             indices[start : start + k] = _nearest_of(positions, member, k, side, context)
         if center:

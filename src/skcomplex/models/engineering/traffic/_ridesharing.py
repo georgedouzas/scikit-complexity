@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any, ClassVar
 
 import numpy as np
+import numpy.typing as npt
 
 from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, VisualSpec, parameter, role, state
@@ -84,7 +85,9 @@ class NearestCab:
                 The pairs of riders and the cabs sent to them.
         """
         riders = [rider for rider in left if not rider.assigned]
-        order = np.lexsort((rng.random(len(riders)), [-rider.waited for rider in riders])) if riders else []
+        order: npt.NDArray[np.intp] | list[int] = (
+            np.lexsort((rng.random(len(riders)), [-rider.waited for rider in riders])) if riders else []
+        )
         free = [cab for cab in right if cab.task == IDLE]
         pairs: list[tuple[Any, Any]] = []
         for index in order:

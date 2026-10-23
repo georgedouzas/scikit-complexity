@@ -1,17 +1,18 @@
 """Test the validation of systems against the requirements of their laws and the support of solvers and backends."""
 
 import importlib.util
+import sys
 
 import pytest
 
 from skcomplex.core.backends import NumpyBackend
-from skcomplex.core.base import Domain, OrderKind, Supports, ValidationError, parameter, role, state
+from skcomplex.core.base import Domain, OrderKind, Supports, ValidationError, VisualSpec, parameter, role, state
 from skcomplex.core.compile import Issue, ValidationReport, ValidationWarning, validate
 from skcomplex.core.components import Element
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Noise, Rate, Rule, Update
+from skcomplex.core.laws import Energy, Move, Noise, Objective, Rate, Rule, Sample, Sampler, Update, neighbors
 from skcomplex.core.solvers import GrunwaldLetnikov
-from skcomplex.core.space import DiscreteTime
+from skcomplex.core.space import DiscreteTime, GroupSpace, Memory, finitely_presented_group
 from skcomplex.core.system import System
 
 
@@ -260,3 +261,102 @@ def test_validate_fractional_state_with_fractional_solver():
     assert validate(system).ok
     assert validate(system, solver='l1').ok
     assert validate(system, solver=GrunwaldLetnikov()).ok
+
+
+class Plant(Element):
+    """Element steered by a bounded control input, with a quadratic cost."""
+
+    x: float = state(1.0)
+    u: float = parameter(0.5, adaptive=True, bounds=(0, 1))
+
+    def laws(self, s):
+        """Return the rate of the state and the cost."""
+        return [Rate(s.x, s.u - s.x), Objective(s.x**2 + s.u**2)]
+
+
+class NoisyPlant(Plant):
+    """Plant whose state is driven by noise."""
+
+    def laws(self, s):
+        """Return the laws of the plant with noise."""
+        return [*super().laws(s), Noise(s.x, 0.1)]
+
+
+class Tank(Element):
+    """Element whose objective is placed under discrete time."""
+
+    level: float = state(1.0)
+
+    def laws(self, s):
+        """Return the update of the level and its cost."""
+        return [Update(s.level, s.level / 2), Objective(s.level)]
+
+
+def test_validate_control_outside_bounds():
+    """Test that an adaptive parameter starting outside its bounds is one error at the parameter, naming its bounds."""
+    (issue,) = validate(System(components=[Plant('plant', u=2.0)])).errors
+    assert issue.path == 'plant.u'
+    assert issue.code == 'parameter-bounds'
+    assert '(0.0, 1.0)' in issue.fix
+
+
+def test_validate_objective_under_discrete_time():
+    """Test that an objective under discrete time is reported at its law, needing static or continuous time."""
+    issues = validate(System(components=[Tank('tank')], time=DiscreteTime())).errors
+    issue = next(issue for issue in issues if issue.code == 'law-time')
+    assert issue.path == 'tank'
+    assert 'Objective law' in issue.message
+    assert 'continuous, static time' in issue.message
+
+
+def test_validate_objective_with_a_solver_without_objectives():
+    """Test that an objective run with a solver that does not optimise lists the solvers that do."""
+    (issue,) = validate(System(components=[Plant('plant')]), solver='rk4').errors
+    assert 'objective' in issue.message
+    assert 'collocation, pontryagin' in issue.fix
+    assert validate(System(components=[Plant('plant')]), solver='pontryagin').ok
+
+
+def test_validate_noise_with_an_optimal_control_solver():
+    """Test that a system with a noise law validated with Pontryagin reports that the solver lacks noise laws."""
+    issues = validate(System(components=[NoisyPlant('plant')]), solver='pontryagin').errors
+    issue = next(issue for issue in issues if issue.code == 'solver-unsupported')
+    assert 'Pontryagin does not support the laws noise' in issue.message
+
+
+class GroupSpin(Element):
+    """Spin on a group space sampled with the default checkerboard schedule."""
+
+    spin: float = state(1, domain=Domain.INTEGER)
+
+    def laws(self, s):
+        """Return the Glauber sampling of a ferromagnetic energy on the generators."""
+        memory = Memory(('a', 'a^-1', 'b', 'b^-1'))
+        energy = Energy(-s.spin * sum(neighbors(s.spin, memory)), memory)
+        return [Sample(energy, Move.flip(s.spin), Sampler('glauber', 2.0))]
+
+
+def test_group_space_reports_the_checkerboard_schedule():
+    """Test that a sample with the checkerboard schedule on a group space is one issue naming the other schedules."""
+    space = GroupSpace(finitely_presented_group(['a', 'b']), ball=2)
+    issues = validate(System(components=[GroupSpin.lattice('spins', space)])).issues
+    assert [(issue.code, issue.path) for issue in issues] == [('schedule-unsupported', 'spins')]
+    assert "'synchronous'" in issues[0].fix
+    assert "'random-sequential'" in issues[0].fix
+
+
+def test_group_space_reports_an_image_visual():
+    """Test that an image visual on a group space is reported with the Cayley visual as its fix."""
+    space = GroupSpace(finitely_presented_group(['a', 'b']), ball=2)
+    group = GroupSpin.lattice('spins', space, visual=VisualSpec('image'))
+    issue = next(issue for issue in validate(System(components=[group])).issues if issue.code == 'visual-unsupported')
+    assert "'cayley'" in issue.fix
+
+
+def test_group_space_reports_a_ball_above_the_site_limit(monkeypatch):
+    """Test that a ball of radius 12 of the free group of rank 3 is reported with the largest radius, without GAP."""
+    monkeypatch.setitem(sys.modules, 'sage.all__sagemath_gap', None)
+    space = GroupSpace(finitely_presented_group(['a', 'b', 'c']), ball=12)
+    issues = validate(System(space=space)).issues
+    assert [issue.code for issue in issues] == ['space-too-large']
+    assert 'largest radius that fits is 6' in issues[0].message

@@ -33,6 +33,7 @@ from ..base import (
     SolverError,
     SpaceError,
     SpaceKind,
+    SpaceTooLargeError,
     Structure,
     Supports,
     Tensor,
@@ -41,7 +42,7 @@ from ..base import (
     VariableKind,
     declarations_of,
 )
-from ..components import Element, Group, Wiener
+from ..components import Element, Field, Group, Wiener
 from ..interactions import Match
 from ..laws import (
     Auxiliary,
@@ -62,12 +63,14 @@ from ..laws import (
     Jump,
     LocalRule,
     Noise,
+    Objective,
     Production,
     Proliferation,
     Rate,
     Relaxation,
     Rule,
     Sample,
+    Sampler,
     Substitution,
     TopologyRequest,
     Transfer,
@@ -78,7 +81,7 @@ from ..laws import (
     request_of,
 )
 from ..laws._neighbourhoods import NeighbourReduction
-from ..space import Adjacency, Cone, LatticeSpace, NetworkSpace, Space
+from ..space import Adjacency, Cone, GroupSpace, LatticeSpace, NetworkSpace, Space
 from ..system import Observable, System
 from ._backends import BACKENDS, load_backends
 from ._compiler import CensusRecord, _held_observables, _process_covariance, _with_held_observables, law_census
@@ -138,6 +141,7 @@ def law_types() -> tuple[Any, ...]:
         Transfer,
         Auxiliary,
         Invariant,
+        Objective,
         Generator,
         Dissipator,
         Production,
@@ -424,7 +428,7 @@ def _binding_issues(system: System) -> list[Issue]:
         target = next(iter(nodes), None)
         space = (getattr(target.component, 'space', None) or target.space) if target is not None else node.space
         offered = (
-            isinstance(space, LatticeSpace | NetworkSpace)
+            isinstance(space, LatticeSpace | NetworkSpace | GroupSpace)
             if over == 'neighbours'
             else bool(
                 getattr(space, 'hyperedges', ()),
@@ -436,6 +440,74 @@ def _binding_issues(system: System) -> list[Issue]:
             issues.append(Issue('binding', node.path, message, f'Give the bound group {needs}.'))
             continue
         issues += _layer_issues(node, space)
+    return issues
+
+
+def _bound_issues(system: System) -> list[Issue]:
+    """Return the adaptive parameters whose initial values lie outside their bounds."""
+    issues = []
+    for node in flatten_system(system):
+        for name, declaration in declarations_of(node.component_type, VariableKind.STATE).items():
+            if declaration.bounds is None:
+                continue
+            lower, upper = declaration.bounds
+            value = np.asarray(node.value_of(name), dtype=float)
+            if np.all((value >= lower) & (value <= upper)):
+                continue
+            path = f'{node.path}.{name}'
+            message = (
+                f'The adaptive parameter {path} starts at {value.tolist()}, outside its bounds ({lower}, {upper}).'
+            )
+            fix = f'Give {path} an initial value inside its bounds ({lower}, {upper}).'
+            issues.append(Issue('parameter-bounds', path, message, fix, error=ParameterError))
+    return issues
+
+
+def _schedule_of(law: object) -> str | None:
+    """Return the schedule of a local rule or of the sampler of a sample, the default sampler's without one."""
+    if isinstance(law, LocalRule):
+        return law.schedule
+    if isinstance(law, Sample):
+        return (law.sampler or Sampler()).schedule
+    return None
+
+
+def _space_issues(system: System, records: list[CensusRecord]) -> list[Issue]:
+    """Return the laws and visuals that need options their space lacks, and the spaces above their site limit."""
+    issues = []
+    for record in records:
+        lacks: frozenset[str] = getattr(record.space, 'lacks', frozenset())
+        if 'regular-geometry' in lacks and _schedule_of(record.law) == 'checkerboard':
+            message = (
+                f'The {type(record.law).__name__} law of {record.path} uses the checkerboard schedule, which needs the '
+                f'regular geometry of a square lattice, but the component lives on {type(record.space).__name__}.'
+            )
+            fix = (
+                "Use the 'synchronous' or the 'random-sequential' schedule of a local rule, or the "
+                "'random-sequential' or the 'colored' schedule of a sampler."
+            )
+            issues.append(Issue('schedule-unsupported', record.path, message, fix))
+    spaces: dict[int, tuple[str, Space]] = {}
+    for node in flatten_system(system):
+        space = getattr(node.component, 'space', None) or node.space
+        visual = getattr(node.component, 'visual', None)
+        if space is not None:
+            spaces.setdefault(id(space), (node.path, space))
+        if space is not None and 'image' in space.lacks and getattr(visual, 'kind', None) == 'image':
+            message = (
+                f'The image visual of {node.path} needs a regular lattice, but its space is {type(space).__name__}.'
+            )
+            issues.append(Issue('visual-unsupported', node.path, message, "Use the 'cayley' visual."))
+    if system.space is not None:
+        spaces.setdefault(id(system.space), (system.label, system.space))
+    for path, space in spaces.values():
+        try:
+            getattr(space, 'check', lambda: None)()
+        except SpaceTooLargeError as error:
+            fix = 'Ask for a smaller ball, or raise max_sites.'
+            issues.append(Issue('space-too-large', path, str(error), fix, error=SpaceTooLargeError))
+        except ValueError:
+            continue
     return issues
 
 
@@ -857,6 +929,9 @@ def _noise_needs(records: list[CensusRecord], wieners: dict[str, Wiener]) -> dic
     first: dict[object, CensusRecord] = {}
     spread: set[object] = set()
     for record in _noise_records(records):
+        if cast('Noise', record.law).conserved:
+            needs.setdefault(NoiseKind.CONSERVED, record)
+            continue
         for key, state in zip(record.processes, record.driven, strict=True):
             if key is None:
                 needs.setdefault(NoiseKind.DIAGONAL, record)
@@ -921,6 +996,34 @@ def _noise_support_issues(
     return issues
 
 
+def _is_lattice_field(component: object) -> bool:
+    """Check whether a component is a finite-difference field on a square lattice."""
+    return (
+        isinstance(component, Field)
+        and isinstance(component.space, LatticeSpace)
+        and component.space.geometry == 'square'
+        and component.discretization == 'finite-difference'
+    )
+
+
+def _conserved_issues(system: System, records: list[CensusRecord]) -> list[Issue]:
+    """Return the conserved noise laws that drive a state that is not of a finite-difference field on a lattice."""
+    components = {node.path: node.component for node in flatten_system(system)}
+    issues = []
+    for record in _noise_records(records):
+        if not cast('Noise', record.law).conserved:
+            continue
+        outside = [name for name, _ in record.driven if not _is_lattice_field(components.get(name.rpartition('.')[0]))]
+        if outside:
+            message = (
+                f'The conserved {_law_name(record)} drives {", ".join(dict.fromkeys(outside))}, but conserved noise '
+                'needs a state of a finite-difference field on a square lattice, with one process per link.'
+            )
+            fix = 'Declare the state on a `Field` of a `LatticeSpace`, or remove `conserved=True`.'
+            issues.append(Issue('noise-unsupported', record.path, message, fix))
+    return issues
+
+
 def _noise_issues(system: System, records: list[CensusRecord], solver: object, backend: object) -> list[Issue]:
     """Return the problems of the Wiener elements and the noise laws of a system."""
     wieners = dict(_wiener_nodes(system))
@@ -929,6 +1032,7 @@ def _noise_issues(system: System, records: list[CensusRecord], solver: object, b
         return issues
     issues += _convention_issues(records)
     issues += _scope_issues(records, wieners)
+    issues += _conserved_issues(system, records)
     return issues + _noise_support_issues(records, wieners, solver, backend)
 
 
@@ -1104,10 +1208,12 @@ def validate(
         code, fix = FIXES.get(type(failure), ('value', 'Correct the component as the message describes.'))
         report.issues.append(Issue(code, path, str(failure), fix, error=type(failure)))
     report.issues += bindings
+    report.issues += _bound_issues(system)
     report.issues += _law_issues(records, _declared_times(system))
     report.issues += _encounter_issues(records)
     report.issues += _neighbourhood_issues(records, system)
     report.issues += _topology_issues(records, system)
+    report.issues += _space_issues(system, records)
     owners: dict[str, set[LawKind]] = {}
     for record in records:
         owners.setdefault(record.owner, set()).add(record.law.law_kind)

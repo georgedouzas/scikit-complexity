@@ -17,6 +17,7 @@ from ._factories import sir, sirs, sis
 from ._networks import DegreeClass, Subpopulation, heterogeneous_mean_field_sis, metapopulation
 from ._outbreaks import ImmunizingDegreeClass, heterogeneous_mean_field_sir
 from ._recurrent import EpidemicCenter, Visits, delayed_sirs
+from ._vaccination import VaccinatedPopulation, sir_vaccination
 
 __all__: list[str] = [
     'ActiveHost',
@@ -35,6 +36,7 @@ __all__: list[str] = [
     'Rewiring',
     'Subpopulation',
     'Traveller',
+    'VaccinatedPopulation',
     'Visits',
     'Walker',
     'activity_driven_epidemics',
@@ -48,6 +50,7 @@ __all__: list[str] = [
     'quenched_mean_field_sis',
     'random_walker_epidemics',
     'sir',
+    'sir_vaccination',
     'sirs',
     'sis',
 ]

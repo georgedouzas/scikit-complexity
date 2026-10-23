@@ -1,5 +1,14 @@
-"""Spaces and times that systems live in: continuous, lattice, network, and mesh spaces, and time kinds."""
+"""Spaces and times that systems live in: continuous, lattice, group, network, and mesh spaces, and time kinds."""
 
+from ._cayley import GroupSpace, Memory
+from ._groups import (
+    FinitelyGeneratedGroup,
+    automaton_group,
+    finitely_presented_group,
+    matrix_group,
+    parse_word,
+    permutation_group,
+)
 from ._lattices import LatticeSpace, Neighborhood
 from ._meshes import Mesh
 from ._neighbours import Cone, Nearest, Radius, neighbour_pairs
@@ -14,8 +23,11 @@ __all__: list[str] = [
     'ContinuousSpace',
     'ContinuousTime',
     'DiscreteTime',
+    'FinitelyGeneratedGroup',
+    'GroupSpace',
     'LatticeSpace',
     'Layer',
+    'Memory',
     'Mesh',
     'Nearest',
     'Neighborhood',
@@ -26,5 +38,10 @@ __all__: list[str] = [
     'Space',
     'StaticTime',
     'Time',
+    'automaton_group',
+    'finitely_presented_group',
+    'matrix_group',
     'neighbour_pairs',
+    'parse_word',
+    'permutation_group',
 ]

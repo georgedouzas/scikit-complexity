@@ -10,14 +10,14 @@ from sage.all__sagemath_symbolics import SR
 from sage.symbolic.function import BuiltinFunction
 
 from ..base import Expression, SymbolicVector, ValidationError, symbol, vector
-from ..space import Adjacency, Cone, Layer, Nearest, Neighborhood, Radius
+from ..space import Adjacency, Cone, Layer, Memory, Nearest, Neighborhood, Radius
 from ._lattices import neighbor
 
 NEIGHBOUR_REDUCTIONS = ('sum', 'mean', 'count', 'max', 'min', 'normalized-mean')
-NEIGHBOURHOOD_TYPES = (Adjacency, Neighborhood, Radius, Nearest, Cone)
+NEIGHBOURHOOD_TYPES = (Adjacency, Neighborhood, Memory, Radius, Nearest, Cone)
 NEIGHBOURHOODS: dict[str, object] = {}
 
-type NeighbourhoodSpec = Adjacency | Neighborhood | Radius | Nearest | Cone
+type NeighbourhoodSpec = Adjacency | Neighborhood | Memory | Radius | Nearest | Cone
 
 
 def _over_symbol(over: object) -> Expression:
@@ -152,7 +152,7 @@ def neighbors(
         >>> len(values), values[0]
         (4, neighbor(spin, 0))
     """
-    if reduce is None and isinstance(over, Neighborhood):
+    if reduce is None and isinstance(over, Neighborhood | Memory):
         return vector(neighbor(expression, SR(index)) for index in range(len(over)))
     kind = 'sum' if reduce is None else reduce
     if kind not in NEIGHBOUR_REDUCTIONS:

@@ -12,7 +12,7 @@ import numpy.typing as npt
 from scipy.spatial import cKDTree
 
 from ..base import Expression, ValidationError, Variable
-from ..space import Adjacency, Cone, ContinuousSpace, LatticeSpace, Nearest, Neighborhood, NetworkSpace, Radius
+from ..space import Adjacency, Cone, ContinuousSpace, LatticeSpace, Memory, Nearest, Neighborhood, NetworkSpace, Radius
 from ._layout import Entry
 from ._printing import numpy_function
 from ._reductions import Read
@@ -460,7 +460,7 @@ def cone_heading(cone: Cone, states: Mapping[str, Variable], n_dim: int) -> str:
 
 
 def neighbour_search(
-    over: Adjacency | Neighborhood | Radius | Nearest | Cone,
+    over: Adjacency | Neighborhood | Memory | Radius | Nearest | Cone,
     space: object,
     rows: int,
     entries: Mapping[str, Entry],
@@ -509,7 +509,7 @@ def neighbour_search(
         source, target, active = changing[over.layer]
         directed = cast('NetworkSpace', space).resolve_graph(over.layer).is_directed()
         return EdgeRows(source, target, active, rows, directed, over.center)
-    if isinstance(over, Adjacency | Neighborhood):
+    if isinstance(over, Adjacency | Neighborhood | Memory):
         size = space.graph.number_of_nodes() if isinstance(space, NetworkSpace) else space.size  # type: ignore[attr-defined]
         if rows != size:
             error_msg = (

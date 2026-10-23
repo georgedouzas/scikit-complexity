@@ -8,7 +8,7 @@
 
 ## 2. Library
 
-- [ ] 2.1 Add the four probe models with curated gallery examples and review rows, verify their scenarios, and mark
+- [x] 2.1 Add the four probe models with curated gallery examples and review rows, verify their scenarios, and mark
   their inventory entries implemented
 
 ## 3. Gate

@@ -10,13 +10,14 @@ from typing import ClassVar
 import numpy as np
 
 from ..base import Requires, SpaceKind, ValidationError
+from ._cayley import GroupSpace
 from ._lattices import LatticeSpace
 from ._networks import NetworkSpace
 from ._spaces import Space
 
 
 def neighbour_pairs(space: Space | None, size: int, layer: str | None = None) -> list[tuple[int, int]]:
-    """Return the pairs of neighbouring members of a lattice or a network, each pair once.
+    """Return the pairs of neighbouring members of a lattice, a group space, or a network, each pair once.
 
     Args:
         space:
@@ -46,8 +47,13 @@ def neighbour_pairs(space: Space | None, size: int, layer: str | None = None) ->
         return [
             (first, second) for first, second in zip(sources.tolist(), targets.tolist(), strict=True) if first != second
         ]
+    if isinstance(space, GroupSpace):
+        found_edges = {
+            frozenset((first, second)): (first, second) for first, second, _ in space.edges if first != second
+        }
+        return list(found_edges.values())
     if not isinstance(space, LatticeSpace):
-        error_msg = f'Neighbours are defined on a LatticeSpace or a NetworkSpace, not on {space!r}.'
+        error_msg = f'Neighbours are defined on a LatticeSpace, a GroupSpace, or a NetworkSpace, not on {space!r}.'
         raise ValidationError(error_msg)
     dimensions = space.dimensions
     sites = np.arange(size).reshape(dimensions)

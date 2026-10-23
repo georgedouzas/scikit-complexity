@@ -9,6 +9,7 @@ from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import EulerMaruyama
 from skcomplex.models import describe
 from skcomplex.models.mathematics.stochastic_processes import birth_death_queue, on_off_intermittency
+from skcomplex.models.physics.criticality import directed_percolation_langevin, sk_game
 from skcomplex.models.physics.soft_matter import (
     biased_trap_walk,
     colored_noise_langevin,
@@ -16,6 +17,7 @@ from skcomplex.models.physics.soft_matter import (
     shaken_spring_block,
     tilted_periodic_potential,
 )
+from skcomplex.models.physics.statistical_mechanics import ehrenfest_urn
 
 STANDARD_ERRORS = 3
 
@@ -164,3 +166,46 @@ def test_birth_death_queue_stationary_distribution():
     lengths = simulation.trajectory_['queues.n'][100:]
     occupation = np.array([np.mean(lengths == n) for n in range(6)])
     assert np.all(np.abs(occupation - (1 - rho) * rho ** np.arange(6)) < 0.01)
+
+
+def _stationary_density(energy):
+    """Return the late mean activity of the directed percolation field at a fixed energy."""
+    system = directed_percolation_langevin((16, 16), energy=energy)
+    trajectory = Simulation(system, dt=1.0, solver=EulerMaruyama(dt=0.01), random_state=0).run(until=40).trajectory_
+    return float(np.asarray(trajectory['neurons.rho'])[-10:].mean())
+
+
+def test_directed_percolation_langevin_has_an_absorbing_threshold():
+    """Test that the stationary activity vanishes below the threshold energy 1 and grows above it as (nu - 1)."""
+    below = [_stationary_density(energy) for energy in (0.5, 0.8)]
+    above = [_stationary_density(energy) for energy in (1.4, 1.8)]
+    assert max(below) < 0.01
+    assert above[0] < above[1]
+    np.testing.assert_allclose(above, [0.4, 0.8], atol=0.06)
+
+
+def test_ehrenfest_urn_relaxes_to_the_binomial():
+    """Test that the urn started full relaxes to the binomial distribution of mean N / 2 and variance N / 4."""
+    counts = np.asarray(Simulation(ehrenfest_urn(40), dt=1, random_state=0).run(20000).trajectory_['urn.n'])
+    assert counts[0] == 40
+    np.testing.assert_allclose(counts[:30], 20 + 20 * (1 - 2 / 40) ** np.arange(30), atol=8)
+    frequencies = np.bincount(counts[400:].astype(int), minlength=41) / counts[400:].size
+    binomial = np.array([math.comb(40, k) for k in range(41)]) / 2**40
+    assert np.abs(frequencies - binomial).max() < 0.02
+    np.testing.assert_allclose([counts[400:].mean(), counts[400:].var()], [20, 10], rtol=0.1)
+
+
+def test_sk_game_freezes_at_low_temperature():
+    """Test that SK game agents freeze into a rewarding state at low temperature and explore noisily at high."""
+    outcomes = []
+    for temperature in (0.05, 3.0):
+        system = sk_game(128, temperature=temperature)
+        couplings = system.elements[0].values['couplings']
+        actions = np.asarray(Simulation(system, dt=1, random_state=0).run(150).trajectory_['agents.sigma'])[-50:]
+        reward = np.einsum('ti,ij,tj->t', actions, couplings, actions).mean() / actions.shape[1]
+        outcomes.append((reward, (actions[1:] != actions[:-1]).mean()))
+    (frozen_reward, frozen_flips), (noisy_reward, noisy_flips) = outcomes
+    assert frozen_flips < 0.02
+    assert noisy_flips > 0.3
+    assert frozen_reward > 1.0
+    assert noisy_reward < 0.2

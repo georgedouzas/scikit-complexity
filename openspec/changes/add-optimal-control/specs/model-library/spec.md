@@ -11,9 +11,9 @@ pendulum, and a linear-quadratic regulated oscillator as registered factories.
 - **THEN** the optimally controlled epidemic peak is lower than the uncontrolled one
 
 ### Requirement: Feedback controllers are engineering realizations
-The library SHALL provide PID and state-feedback controllers in `skcomplex.models.engineering.realizations`, as elements
-whose laws read states and set bounded adaptive parameters during a run, so their internal states are part of the
-compiled system and the core holds no controller.
+The library SHALL provide PID and state-feedback controllers in `skcomplex.models.engineering.realizations`, as
+components whose laws read states and set bounded adaptive parameters during a run, with the integral of the PID error
+in an element, so their internal states are part of the compiled system and the core holds no controller.
 
 #### Scenario: Inverted pendulum
 - **WHEN** a cart with an inverted pendulum runs from a tilt of 0.1 radians with a tuned PID controller

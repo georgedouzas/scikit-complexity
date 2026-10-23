@@ -62,6 +62,7 @@ from ..laws import (
     LocalRule,
     Move,
     Noise,
+    Objective,
     Rate,
     Reduction,
     Relaxation,
@@ -90,10 +91,11 @@ from ..laws import (
 )
 from ..laws._laws import NOISE_CONVENTIONS, Renewal
 from ..laws._neighbourhoods import NeighbourReduction
-from ..space import Adjacency, ContinuousSpace, LatticeSpace, Mesh, NetworkSpace, Space, neighbour_pairs
+from ..space import Adjacency, ContinuousSpace, GroupSpace, LatticeSpace, Mesh, NetworkSpace, Space, neighbour_pairs
 from ..system import Observable, System
 from ._backends import Backend, resolve_backend
 from ._complex import modulus_form, split_law
+from ._conserved import conserved_outputs
 from ._contractions import CompiledEncounter
 from ._encounters import ENCOUNTER_LAWS, compile_encounters
 from ._fields import DiffusiveLimit, FieldLowering, has_operators
@@ -177,8 +179,19 @@ CONTINUOUS = frozenset({Rate, Noise})
 ASSIGNED_KINDS = (Update, Boundary)
 MEMBER_REFERENCE = re.compile(r'^(?P<path>.+)\[(?P<index>-?\d+)\]$')
 LATTICE_LAWS = (LocalRule, Drive, Relaxation, Extremal, Energy, Move, Sampler)
-KERNEL_FREE = (*LATTICE_LAWS, Flux, Transfer, Auxiliary, Invariant, *ENCOUNTER_LAWS)
-DECLARED_FREE = (LocalRule, Drive, Relaxation, Extremal, Flux, Transfer, Auxiliary, Invariant, *ENCOUNTER_LAWS)
+KERNEL_FREE = (*LATTICE_LAWS, Flux, Transfer, Auxiliary, Invariant, Objective, *ENCOUNTER_LAWS)
+DECLARED_FREE = (
+    LocalRule,
+    Drive,
+    Relaxation,
+    Extremal,
+    Flux,
+    Transfer,
+    Auxiliary,
+    Invariant,
+    Objective,
+    *ENCOUNTER_LAWS,
+)
 AGENT_VIEW_NAMES = frozenset(
     {
         'id',
@@ -1079,7 +1092,7 @@ def _edge_search(
     if isinstance(space, NetworkSpace):
         sources, targets = space.list_edges(layer)
         size = space.size
-    elif isinstance(space, LatticeSpace) and edges is None and layer is None:
+    elif isinstance(space, LatticeSpace | GroupSpace) and edges is None and layer is None:
         pairs = np.array(neighbour_pairs(space, space.size), dtype=np.intp).reshape(-1, 2)
         sources, targets = pairs[:, 0].copy(), pairs[:, 1].copy()
         size = space.size
@@ -1175,7 +1188,7 @@ def _collect_laws(spec: _KernelSpec, component: object, flows: StockFlowPass, *,
         error_msg = (
             f'`laws` of {spec.owner} must return a list of Rate, Noise, FractionalNoise, Jump, Update, Transition, '
             'Emission, Boundary, Rule, Equation, Event, LocalRule, Drive, Relaxation, Extremal, Sample, Flux, '
-            'Transfer, Auxiliary, Encounter, Proliferation, or Destruction laws.'
+            'Transfer, Auxiliary, Invariant, Objective, Encounter, Proliferation, or Destruction laws.'
         )
         raise ValidationError(error_msg)
     if isinstance(spec.pairs, PairSearch) and not all(isinstance(law, Rate) for law in declared):
@@ -2870,6 +2883,8 @@ def _noise_process(key: ProcessKey | None, wieners: Mapping[str, Wiener]) -> Noi
 
 def _law_outputs(spec: _KernelSpec, law: Law, targets: list[Reference], declarations: _Declarations) -> list[Output]:
     """Return the outputs of a law for its target components, with the named Wiener process of a noise law."""
+    if isinstance(law, Noise) and law.conserved:
+        return conserved_outputs(spec.owner, law, targets, declarations.places, spec.references)
     outputs = _outputs_of(law.value, targets, f'{type(law).__name__} law of {spec.owner}')  # type: ignore[arg-type, union-attr]
     if isinstance(law, Noise) and law.process is not None:
         for item, key in zip(outputs, _process_keys(spec, law, declarations), strict=True):
@@ -3166,7 +3181,7 @@ def _state_owner(spec: _KernelSpec, law: Law, agents: set[str]) -> str:
     if isinstance(law, Rule):
         paths = [path for value in spec.roles.values() for path in ([value] if isinstance(value, str) else value)]
         return next((path for path in paths if path in agents), next(iter(paths), spec.owner))
-    if isinstance(law, Equation | Event | Energy | Sampler | Renewal | Transfer | Auxiliary | Invariant):
+    if isinstance(law, Equation | Event | Energy | Sampler | Renewal | Transfer | Auxiliary | Invariant | Objective):
         return _renewal_group(spec, law) if isinstance(law, Renewal) else spec.owner
     if isinstance(law, Relaxation):
         target = next(iter(law.targets), None)
@@ -3806,7 +3821,7 @@ def _lattice_context(spec: _KernelSpec, declarations: _Declarations, fused: bool
         block = declarations.blocks.get(owner)
         space = block.node.space if block is not None else None
         is_lattice = (
-            isinstance(space, LatticeSpace | NetworkSpace)
+            isinstance(space, LatticeSpace | NetworkSpace | GroupSpace)
             and block is not None
             and block.node.members is not None
             and not block.node.is_agent
@@ -3938,7 +3953,7 @@ def _symmetries(blocks: list[_Block]) -> list[tuple[npt.NDArray[np.intp], tuple[
                     raise ValidationError(error_msg)
                 if parity is not None:
                     signs.append((axis, -1 if parity == 'odd' else 1))
-            indices = entry.start + np.arange(place.size) * entry.columns
+            indices = entry.start + np.arange(place.size or 0) * entry.columns
             found.append((indices, space.dimensions, signs))
     return found
 

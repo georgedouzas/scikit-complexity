@@ -28,6 +28,7 @@ from ..base import (
 )
 from ..laws._laws import Law, Rule
 from ..laws._symbols import Symbols
+from ..space._cayley import GroupSpace
 from ..space._lattices import LatticeSpace
 from ..space._networks import NetworkSpace
 from ..space._spaces import Space
@@ -282,7 +283,7 @@ class Element(Component):
     def lattice(
         cls,
         label: str,
-        space: LatticeSpace | NetworkSpace,
+        space: LatticeSpace | NetworkSpace | GroupSpace,
         /,
         *,
         visual: VisualSpec | None = None,
@@ -291,19 +292,20 @@ class Element(Component):
         """Return a group of cells of this element type, one member per site of a lattice or node of a network.
 
         Laws of the element type are written for one cell, and local rules read the cells around it. Square lattice
-        groups stream to Rerun as images and other lattice groups as sites, unless a visual is given or the element
-        type declares one. The label and the lattice are given by position.
+        groups stream to Rerun as images, groups on group spaces as Cayley graphs, and other lattice groups as sites,
+        unless a visual is given or the element type declares one. The label and the lattice are given by position.
 
         Args:
             label:
                 The label of the group.
 
             space:
-                The lattice, or the network whose nodes are the sites, in the order of `graph.nodes`.
+                The lattice, the group space, or the network whose nodes are the sites, in the order of `graph.nodes`.
 
             visual:
                 The visual of the group, or `None` for the visual of the element type, and, when the type declares
-                none, an image of every state of a square lattice and the sites of other lattices.
+                none, an image of every state of a square lattice, the Cayley graph of a group space, and the sites of
+                other lattices.
 
             **values:
                 Arrays of the lattice shape, arrays in node order or mappings from node to value on a network, or
@@ -334,7 +336,7 @@ class Element(Component):
         flat = {
             name: np.ravel(value) if np.shape(value) == space.dimensions else value for name, value in values.items()
         }
-        default = 'image' if space.geometry == 'square' else 'sites'
+        default = 'cayley' if isinstance(space, GroupSpace) else 'image' if space.geometry == 'square' else 'sites'
         visual = _lattice_visual(cls, visual, default)
         return Group(label, element=cls, size=space.size, values=flat, visual=visual, space=space, on='sites')
 

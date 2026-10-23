@@ -8,7 +8,7 @@ import numba
 import numpy as np
 import pytest
 
-from skcomplex.core.backends import NumbaBackend, NumpyBackend
+from skcomplex.core.backends import NumbaBackend, NumpyBackend, _numba
 from skcomplex.core.base import BackendError, Domain, SolverError, parameter, role, vector
 from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element, Particle
@@ -223,7 +223,9 @@ def test_numpy_backend_calls_vector_call_once_per_step():
         return [-y, x]
 
     Pair = Element.define(
-        'Pair', states={'x': 1.0, 'y': 0.0}, laws=lambda s: [Update(vector([s.x, s.y]), Call(rotate, s.x, s.y))],
+        'Pair',
+        states={'x': 1.0, 'y': 0.0},
+        laws=lambda s: [Update(vector([s.x, s.y]), Call(rotate, s.x, s.y))],
     )
     trajectory = Simulation(System(components=[Pair('pair')]), backend='numpy').run(until=4).trajectory_
     assert trajectory['pair.x'].tolist() == [1.0, 0.0, -1.0, 0.0, 1.0]
@@ -283,6 +285,30 @@ def test_second_process_loads_kernels_from_cache(tmp_path):
     assert first_misses > 0
     assert second_misses == 0
     assert second_hits > 0
+
+
+def test_cached_kernels_with_metric_neighbourhoods_run_in_a_second_process(tmp_path):
+    """Test that kernels searching radius neighbourhoods run the same when a second process loads them cached."""
+    script = textwrap.dedent(
+        f"""
+        from skcomplex.core.backends import NumbaBackend
+        from skcomplex.core.runtime import Simulation
+        from skcomplex.models.physics.active_matter import nonreciprocal_vicsek
+        backend = NumbaBackend(cache_dir={str(tmp_path)!r})
+        run = Simulation(nonreciprocal_vicsek(40), dt=1.0, backend=backend, random_state=0).run(until=5)
+        print(run.trajectory_.states[-1].sum())
+        """,
+    )
+    assert _run_script(script) == _run_script(script)
+
+
+def test_cached_kernels_are_keyed_on_the_compiled_helpers(tmp_path, monkeypatch):
+    """Test that the same generated source is cached apart when the compiled helpers it imports change."""
+    text = 'VALUE = 1\n'
+    _numba._load(text, {}, tmp_path)
+    monkeypatch.setattr(_numba, 'HELPERS_FINGERPRINT', 'other helpers')
+    _numba._load(text, {}, tmp_path)
+    assert len(list(tmp_path.glob('skcomplex_kernels_*.py'))) == 2
 
 
 @pytest.mark.parametrize('backend', ['numpy', 'numba'])

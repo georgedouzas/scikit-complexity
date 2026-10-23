@@ -25,13 +25,13 @@ from ..base import (
     symbol,
     symbols_of,
 )
-from ..laws import Auxiliary, Boundary, Event, Invariant, Jump, Law, Noise, Rate, Sink, Transfer, Update
+from ..laws import Auxiliary, Boundary, Event, Invariant, Jump, Law, Noise, Objective, Rate, Sink, Transfer, Update
 from ..laws import Source as Environment
 from ..laws._flows import delay_parts
 from ._kernels import Reference
 from ._kernels import Source as Read
 from ._layout import Entry
-from ._quantities import CompiledFlow, LoopTerm, Recorded, StockFlow
+from ._quantities import CompiledFlow, CompiledObjective, LoopTerm, Recorded, StockFlow
 
 BOUNDARY_PREFIX = '__boundary'
 
@@ -191,6 +191,7 @@ class StockFlowPass:
         self._flows: list[_Born] = []
         self._records: list[_Record] = []
         self._invariants: dict[str, float] = {}
+        self._objectives: list[tuple[_Record, Expression, str]] = []
         self._terms: list[tuple[_Spec, str, str, Expression, dict[Expression, str], str | None, str | None]] = []
 
     def _quantity_of(self, target: object, spec: _Spec) -> tuple[str, str | None]:
@@ -262,13 +263,17 @@ class StockFlowPass:
             if isinstance(law, Invariant) and law.is_member:
                 expanded.append(law)
                 continue
-            if isinstance(law, Auxiliary | Transfer | Invariant):
+            if isinstance(law, Auxiliary | Transfer | Invariant | Objective):
                 label = law.label or f'flow_{index}'
                 if label in labels:
                     error_msg = f'{spec.owner} declares two flows or auxiliaries labelled {label!r}. Rename one.'
                     raise LabelError(error_msg)
                 labels.add(label)
-            if isinstance(law, Invariant):
+            if isinstance(law, Objective):
+                record = _Record(f'{spec.owner}.{law.label}', SR(_substituted(law.expression, mapping)), spec)
+                self._records.append(record)
+                self._objectives.append((record, SR(_substituted(law.terminal, mapping)), law.sense))
+            elif isinstance(law, Invariant):
                 path = f'{spec.owner}.{law.label}'
                 self._records.append(_Record(path, SR(_substituted(law.expression, mapping)), spec))
                 self._invariants[path] = law.tolerance
@@ -465,6 +470,10 @@ class StockFlowPass:
             ),
             discrete=discrete,
             invariants=dict(self._invariants),
+            objectives=tuple(
+                CompiledObjective(record.path, record.expression, terminal, sense, dict(record.spec.references))
+                for record, terminal, sense in self._objectives
+            ),
         )
 
 

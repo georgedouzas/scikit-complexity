@@ -1,4 +1,4 @@
-"""Statistical mechanics: gases, fluids, spin models, lattice processes, and master equations."""
+"""Statistical mechanics: gases, fluids, spin models, lattice processes, urns, and master equations."""
 
 from ._absorbing_processes import ReactingParticles, absorbing_birth_death
 from ._driven_particles import (
@@ -46,11 +46,13 @@ from ._quantum_spins import (
 from ._spin_glasses import BondSpin, MattisSpin, edwards_anderson, mattis_spin_glass
 from ._spins import IsingSpin, PottsSpin, XYSpin, ising, potts, xy
 from ._traps import TrapWalker, trap_model
+from ._urns import EhrenfestUrn, ehrenfest_urn
 
 __all__: list[str] = [
     'BondSpin',
     'ContactSite',
     'Dephasing',
+    'EhrenfestUrn',
     'ExclusionHops',
     'ExclusionSite',
     'FullyConnectedSpin',
@@ -82,6 +84,7 @@ __all__: list[str] = [
     'discrete_master_equation',
     'dissipative_zero_range',
     'edwards_anderson',
+    'ehrenfest_urn',
     'graph_ising',
     'ideal_gas',
     'ising',

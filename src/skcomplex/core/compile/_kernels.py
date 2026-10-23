@@ -6,7 +6,7 @@
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -267,12 +267,17 @@ class NoiseProcess:
 
         factor:
             The factor `L` with `L L^T = C` of the covariance of a Wiener element, or `None` for the identity.
+
+        links:
+            For the link processes of a conserved noise, the process of every evaluation index among the `dimension`
+            processes of the key, or -1 for a link that carries no process, otherwise `None`.
     """
 
     key: object
     index: int = 0
     dimension: int = 0
     factor: npt.NDArray[np.float64] | None = field(default=None, compare=False)
+    links: npt.NDArray[np.intp] | None = field(default=None, compare=False)
 
 
 @dataclass
@@ -646,6 +651,7 @@ class _Processes:
     local: dict[object, Indices] = field(default_factory=dict)
     starts: dict[object, int] = field(default_factory=dict)
     blocks: list[WienerBlock] = field(default_factory=list)
+    silent: int | None = None
 
     def _fresh(self, size: int) -> Indices:
         """Return the columns of new processes."""
@@ -653,10 +659,31 @@ class _Processes:
         self.count += size
         return columns
 
+    def _silent(self) -> int:
+        """Return the column of a process of zero variance, which links without a process draw."""
+        if self.silent is None:
+            self.silent = self.count
+            self.blocks.append(WienerBlock(self.count, 1, np.zeros((1, 1))))
+            self.count += 1
+        return self.silent
+
+    def _links(self, process: NoiseProcess) -> Indices:
+        """Return the link process of every evaluation index of a conserved noise output."""
+        links = cast('Indices', process.links)
+        if process.key not in self.starts:
+            self.starts[process.key] = self.count
+            self.count += process.dimension
+        start = self.starts[process.key]
+        if np.all(links >= 0):
+            return (start + links).astype(np.intp)
+        return np.where(links >= 0, start + links, self._silent()).astype(np.intp)
+
     def columns(self, process: NoiseProcess | None, size: int) -> Indices:
         """Return the process of every evaluation index of a noise output."""
         if process is None:
             return self._fresh(size)
+        if process.links is not None:
+            return self._links(process)
         if not process.dimension:
             if process.key not in self.local:
                 self.local[process.key] = self._fresh(size)

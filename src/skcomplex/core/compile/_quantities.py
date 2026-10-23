@@ -63,6 +63,34 @@ class Recorded:
 
 
 @dataclass(frozen=True)
+class CompiledObjective:
+    """Objective of a compiled system, with its running and terminal values and the references of their symbols.
+
+    Args:
+        path:
+            The path under which trajectories record the running value, `<component path>.<label>`.
+
+        expression:
+            The running value.
+
+        terminal:
+            The terminal value at the horizon of a run.
+
+        sense:
+            `'min'` for a cost or `'max'` for a gain.
+
+        references:
+            The references of the symbols of both values.
+    """
+
+    path: str
+    expression: Expression
+    terminal: Expression
+    sense: str
+    references: Mapping[Expression, Any]
+
+
+@dataclass(frozen=True)
 class LoopTerm:
     """Node of the feedback graph of a system with the expression its value or its rate is computed from.
 
@@ -121,6 +149,12 @@ class StockFlow:
 
         discrete:
             Whether flow amounts are per step rather than rates.
+
+        invariants:
+            The tolerance of every invariant by the path that trajectories record it under.
+
+        objectives:
+            The objectives that optimal control solvers optimise.
     """
 
     quantities: Mapping[str, tuple[str, ...]]
@@ -130,3 +164,4 @@ class StockFlow:
     terms: tuple[LoopTerm, ...] = ()
     discrete: bool = False
     invariants: Mapping[str, float] = field(default_factory=dict)
+    objectives: tuple[CompiledObjective, ...] = ()

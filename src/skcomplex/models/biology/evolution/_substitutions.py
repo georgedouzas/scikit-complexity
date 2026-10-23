@@ -134,7 +134,7 @@ class Substitution(Interaction):
 def _walk_observables(system: System) -> list[Observable]:
     """Return the shares of the fields and the couplings in the fitness, and the fitness of the genome."""
     couplings = system.interactions[0].couplings
-    loci = system.components[0].size
+    loci = int(system.components[0].size or 0)
     matrix = np.zeros((loci, loci)) if couplings is None else np.asarray(couplings)
     return [
         Observable('field_share', _field_share, group='genome', reduce='sum'),
