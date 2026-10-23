@@ -143,8 +143,8 @@ def test_configuration_entropy_of_an_automaton_image():
 def test_spatial_entropy_rate_does_not_increase():
     """Test that rule 18 from a random configuration of a large ring never raises the spatial entropy rate.
 
-    The block estimates of length 6 on 20,000 cells fluctuate by about 0.02, so rises within that are estimation
-    error, while the rate falls by more than 0.2 in all.
+    The block estimates of length 6 on 20,000 cells fluctuate by about 0.02, so rises within that are estimation error,
+    while the rate falls by more than 0.2 in all.
     """
     rule = _elementary(18, 20000)
     runs = rule.run(np.random.default_rng(0).integers(2, size=20000), 20)

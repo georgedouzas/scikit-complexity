@@ -105,7 +105,7 @@ def _transitions(state: list[History], counts: dict[History, Counts], index: dic
 
 @dataclass(frozen=True)
 class EpsilonMachine:
-    """ε-machine of a discrete series: its causal states and the labelled transitions between them.
+    """Epsilon-machine of a discrete series: its causal states and the labelled transitions between them.
 
     Args:
         alphabet:

@@ -951,8 +951,8 @@ def _helpers_fingerprint() -> str:
     """Return a digest of the compiled helpers that generated kernels import and of the Numba version.
 
     Numba caches a kernel with the compiled helpers it calls, but checks only the kernel's own source, so a kernel
-    cached against other helpers, such as those of another version of the library, would run stale code. The digest
-    keys the cached kernels on the helpers too.
+    cached against other helpers, such as those of another version of the library, would run stale code. The digest keys
+    the cached kernels on the helpers too.
     """
     sources = [inspect.getsource(module).encode() for module in (_numba_cells, _numba_neighbours, _numba_stencils)]
     return hashlib.sha256(b''.join([numba.__version__.encode(), *sources])).hexdigest()
