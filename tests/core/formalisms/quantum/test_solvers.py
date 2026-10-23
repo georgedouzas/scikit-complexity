@@ -36,7 +36,7 @@ Dephased = Qubit.define(
 class XXZ(Interaction):
     """Anisotropic exchange."""
 
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     target: str = role()
 
     delta: float = parameter(1.0)

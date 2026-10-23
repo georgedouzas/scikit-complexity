@@ -10,8 +10,8 @@ import numpy as np
 
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
-from ....core.formalisms.lattices import Energy, Move, Sample, Sampler, adjacent, neighbor_sum
-from ....core.laws import Law, Symbols
+from ....core.formalisms.lattices import Energy, Move, Sample, Sampler
+from ....core.laws import Law, Symbols, neighbors
 from ....core.runtime import register_model
 from ....core.space import Adjacency, NetworkSpace
 from ....core.system import System
@@ -79,7 +79,7 @@ class GraphIsingSpin(Element):
             laws:
                 The laws of the component.
         """
-        energy = -s.J * s.spin * neighbor_sum(adjacent(s.spin)) - s.h * s.spin
+        energy = -s.J * s.spin * neighbors(s.other.spin, reduce='sum') - s.h * s.spin
         return [Sample(Energy(energy, Adjacency()), Move.flip(s.spin), Sampler(self.sampler, s.temperature, 'colored'))]
 
 

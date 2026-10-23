@@ -11,7 +11,7 @@ from skcomplex.core.base import Domain, ValidationError, state, symbol, vector
 from skcomplex.core.compile import compile_system, validate
 from skcomplex.core.components import Element
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import NEIGHBOUR_REDUCTIONS, Rate, Update, neighbors, neighbourhoods_in, uniform
+from skcomplex.core.laws import NEIGHBOR_REDUCTIONS, Rate, Update, neighborhoods_in, neighbors, uniform
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4
 from skcomplex.core.space import (
@@ -71,7 +71,7 @@ def _minimum_image(difference, side):
 
 def test_neighbors_keeps_the_values_at_lattice_offsets():
     """Test that a lattice neighbourhood without a reduction gives the values at every offset, for local energies."""
-    values = neighbors(symbol('spin'), Neighborhood.von_neumann())
+    values = neighbors(symbol('spin'), Neighborhood.von_neumann(), reduce='each')
     assert [str(item) for item in values] == [f'neighbor(spin, {index})' for index in range(4)]
 
 
@@ -81,15 +81,15 @@ def test_neighbors_rejects_an_unknown_reduction():
         neighbors(1, reduce='median')
 
 
-def test_neighbourhoods_in_finds_the_neighbourhood_and_the_weight():
+def test_neighborhoods_in_finds_the_neighbourhood_and_the_weight():
     """Test that a reduction found in an expression keeps its neighbourhood, kind, and weight."""
     over = Cone(2.0, math.pi / 3, heading='phi')
-    found = neighbourhoods_in(1 + neighbors(2, over=over, reduce='normalized-mean', weight=3))
+    found = neighborhoods_in(1 + neighbors(2, over=over, reduce='normalized-mean', weight=3))
     assert [(item.over, item.kind, item.weight) for item in found] == [(over, 'normalized-mean', 3)]
 
 
 @pytest.mark.parametrize('backend', BACKENDS)
-@pytest.mark.parametrize('kind', NEIGHBOUR_REDUCTIONS)
+@pytest.mark.parametrize('kind', NEIGHBOR_REDUCTIONS)
 def test_reduction_over_a_network_matches_its_definition(kind, backend):
     """Test that every reduction over the neighbours of a network node matches the reduction of their values."""
     graph = nx.gnp_random_graph(12, 0.3, seed=1)

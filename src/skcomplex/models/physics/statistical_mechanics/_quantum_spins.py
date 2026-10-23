@@ -76,7 +76,7 @@ class XXZExchange(Interaction):
         0.5
     """
 
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     target: str = role()
 
     J: float = parameter(default=1.0, domain=Domain.REAL)

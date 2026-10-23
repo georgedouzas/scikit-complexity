@@ -131,7 +131,7 @@ class Rewiring(Interaction):
         0.01
     """
 
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     nodes: str = role()
     links: str = role()
     rate: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)

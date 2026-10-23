@@ -128,7 +128,7 @@ class CouplingDrift(Interaction):
         0.05
     """
 
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     species: str = role()
     couplings: str = role()
     noise: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)

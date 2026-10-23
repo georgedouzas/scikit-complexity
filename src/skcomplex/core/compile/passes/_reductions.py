@@ -30,13 +30,13 @@ from ...laws import (
     Call,
     Jump,
     Law,
-    NeighbourReduction,
+    NeighborReduction,
     Noise,
     Rate,
     Reduction,
     Update,
     both,
-    neighbourhoods_in,
+    neighborhoods_in,
     reductions_in,
 )
 from ...space import Adjacency
@@ -45,7 +45,7 @@ from .._complex import modulus_form
 from .._declarations import Declarations
 from .._kernels import Reference, Source
 from .._layout import Entry
-from .._neighbourhoods import ACTIVE_THRESHOLD, CompiledNeighbourhood, PairRead, default_neighbourhood, neighbour_search
+from .._neighbourhoods import ACTIVE_THRESHOLD, CompiledNeighborhood, PairRead, default_neighborhood, neighbor_search
 from .._pipeline import Pass
 from .._reads import Read
 from .._reductions import CompiledReduction, ReductionPass
@@ -97,9 +97,9 @@ class _Reductions:
     found: dict[tuple[Any, ...], CompiledReduction] = field(default_factory=dict)
     by_symbol: dict[Expression, CompiledReduction] = field(default_factory=dict)
     readers: dict[Expression, str | None] = field(default_factory=dict)
-    neighbourhoods: dict[tuple[Any, ...], CompiledNeighbourhood] = field(default_factory=dict)
-    local: dict[Expression, CompiledNeighbourhood] = field(default_factory=dict)
-    sequence: list[CompiledReduction | CompiledNeighbourhood] = field(default_factory=list)
+    neighbourhoods: dict[tuple[Any, ...], CompiledNeighborhood] = field(default_factory=dict)
+    local: dict[Expression, CompiledNeighborhood] = field(default_factory=dict)
+    sequence: list[CompiledReduction | CompiledNeighborhood] = field(default_factory=list)
 
     @property
     def parameters(self) -> int:
@@ -118,11 +118,11 @@ class _Reductions:
         if not isinstance(value, Expression):
             return value
         found = reductions_in(value)
-        local = neighbourhoods_in(value)
+        local = neighborhoods_in(value)
         if not found and not local:
             return value
         placeholders = {item.call: self._placeholder(item, spec) for item in found}
-        placeholders.update({item.call: self._neighbourhood(item, spec) for item in local})
+        placeholders.update({item.call: self._neighborhood(item, spec) for item in local})
         lowered: Expression = value
         for call in sorted(placeholders, key=lambda item: -len(str(item))):
             lowered = lowered.subs({call: placeholders[call]})
@@ -299,7 +299,7 @@ class _Reductions:
         spec.references[compiled.symbol] = Reference(compiled.entry, False, column, Source.REDUCED)
         return compiled.symbol
 
-    def _neighbour_group(self, reduction: NeighbourReduction, spec: KernelSpec, symbols: set[Expression]) -> str:
+    def _neighbor_group(self, reduction: NeighborReduction, spec: KernelSpec, symbols: set[Expression]) -> str:
         """Return the group whose members read a neighbourhood reduction and are each other's neighbours."""
         groups = set()
         for item in symbols:
@@ -383,7 +383,7 @@ class _Reductions:
         image = getattr(search, 'periods', None) is not None and entry == getattr(search, 'positions', None)
         return PairRead(read, 'other', image)
 
-    def _neighbourhood(self, reduction: NeighbourReduction, spec: KernelSpec) -> Expression:
+    def _neighborhood(self, reduction: NeighborReduction, spec: KernelSpec) -> Expression:
         """Return the placeholder of a neighbourhood reduction, compiling it the first time it is found."""
         argument = SR(self.lower(reduction.argument, spec))
         weight = SR(1) if reduction.weight is None else SR(self.lower(reduction.weight, spec))
@@ -394,24 +394,24 @@ class _Reductions:
             )
             raise ValidationError(error_msg)
         symbols = symbols_of([argument, weight]) - {self.declarations.time}
-        group = self._neighbour_group(reduction, spec, symbols)
+        group = self._neighbor_group(reduction, spec, symbols)
         block = self.declarations.blocks[group]
-        over = reduction.over if reduction.over is not None else default_neighbourhood(block.node.space)
+        over = reduction.over if reduction.over is not None else default_neighborhood(block.node.space)
         if over is None:
             error_msg = (
                 f'The neighbourhood reduction {reduction.call} of {group} names no neighbourhood, but the group lives '
                 f'on {block.node.space!r}, which has none of its own. Reduce over Radius, Nearest, or Cone.'
             )
             raise ValidationError(error_msg)
-        key = ('neighbourhood', reduction.kind, str(argument), str(weight), repr(over), group)
+        key = ('neighborhood', reduction.kind, str(argument), str(weight), repr(over), group)
         if key not in self.neighbourhoods:
             states = declarations_of(block.node.component_type, VariableKind.STATE)
             changing = self.declarations.changing_entries(group_space(block)) if block.node.active is not None else None
-            search = neighbour_search(over, block.node.space, block.rows, block.entries, states, changing=changing)
+            search = neighbor_search(over, block.node.space, block.rows, block.entries, states, changing=changing)
             reads = {item: self._pair_read(item, spec, group, search, over) for item in sorted(symbols, key=str)}
             index = len(self.neighbourhoods)
             entry = Entry(f'__neighbours_{index}', self.extent, (block.rows,), Domain.REAL, block.rows)
-            compiled = CompiledNeighbourhood(
+            compiled = CompiledNeighborhood(
                 symbol(f'_neighbours_{index}'),
                 reduction.kind,
                 argument,

@@ -18,7 +18,7 @@ from sage.all__sagemath_symbolics import SR
 
 from ...base import Expression, SolverError, ValidationError, symbol
 from ...compile import numpy_function
-from ...laws import OuterTotalistic, Table, Totalistic
+from ...laws import OuterTotalistic, Table, Totalistic, neighborhoods_in
 from ...space import Adjacency, LatticeSpace, Memory, Neighborhood, NetworkSpace, SiteSpace
 from ._laws import Drive, Energy, Extremal, LocalRule, Move, Relaxation, Sampler
 
@@ -621,12 +621,16 @@ class LatticeContext:
 
         fused:
             Whether lookup rules run as compiled loops.
+
+        others:
+            The entry name of every symbol of a neighbour, the namespace `s.other` of the laws.
     """
 
     owner: str
     states: Mapping[Expression, LatticeState]
     arguments: Mapping[Expression, tuple[str, bool, int, int]]
     fused: bool = False
+    others: Mapping[Expression, str] = field(default_factory=dict)
 
     def state(self, item: Expression, law: str) -> LatticeState:
         """Return the lattice state of a target symbol, or raise an error naming the law."""
@@ -673,26 +677,33 @@ def _calls(expression: Expression, name: str) -> list[Expression]:
     return found
 
 
-def _lower_neighbor_sums(
+def _lower_neighbor_sums(  # noqa: PLR0917
     expression: Expression,
     target: Expression,
-    neighbours: Sequence[Expression],
+    energy: Energy,
+    context: LatticeContext,
+    neighbors: Sequence[Expression],
     masks: Sequence[Expression],
-    owner: str,
 ) -> Expression:
     """Return an expression with every neighbour sum written as the masked sum over the columns of the table."""
+    owner = f'The Monte Carlo laws of {context.owner}'
+    moved = context.states[target].name
     replacements = {}
-    for call in _calls(expression, 'neighbor_sum'):
-        inner = call.operands()[0]
-        reads = {}
-        for item in _calls(inner, 'adjacent'):
-            state = item.operands()[0]
-            if state != target:
-                error_msg = f'{owner} read the neighbours of {state}, but only the moved state {target} has them.'
+    for reduction in neighborhoods_in(expression):
+        if reduction.kind != 'sum' or reduction.over not in (None, energy.over):
+            error_msg = (
+                f'{owner} reduce {reduction.call}, but a local energy only sums over the neighbourhood of the energy, '
+                f'{energy.over!r}.'
+            )
+            raise ValidationError(error_msg)
+        inner = SR(reduction.argument) if reduction.weight is None else SR(reduction.weight) * reduction.argument
+        reads = [item for item in inner.variables() if item in context.others]
+        for item in reads:
+            if context.others[item] != moved:
+                error_msg = f'{owner} read the neighbours of {item}, but only the moved state {target} has them.'
                 raise ValidationError(error_msg)
-            reads[item] = state
-        columns = [inner.subs(dict.fromkeys(reads, neighbour)) for neighbour in neighbours]
-        replacements[call] = sum((mask * column for mask, column in zip(masks, columns, strict=True)), SR(0))
+        columns = [inner.subs(dict.fromkeys(reads, neighbor)) for neighbor in neighbors]
+        replacements[reduction.call] = sum((mask * column for mask, column in zip(masks, columns, strict=True)), SR(0))
     return SR(expression).subs(replacements) if replacements else SR(expression)
 
 
@@ -718,7 +729,7 @@ def compile_rule(law: LocalRule, context: LatticeContext) -> CompiledRule:
         error_msg = f'{owner} reads and updates states of different lattices.'
         raise ValidationError(error_msg)
     space = targets[0].space
-    table = _index_table(space, law.neighborhood, owner)
+    table = _index_table(space, law.over, owner)
     rule = _as_table(law.rule)
     if isinstance(space, NetworkSpace) and isinstance(rule, Table):
         error_msg = (
@@ -748,8 +759,8 @@ def compile_rule(law: LocalRule, context: LatticeContext) -> CompiledRule:
         law.stochastic,
         context.keywords(law.rule) if lookup is None else Arguments(),  # type: ignore[arg-type]
         context.fused and lookup is not None and law.schedule == 'synchronous',
-        _degrees_of(table, law.neighborhood) if reads_degree else None,
-        _schedule_classes(law.schedule, space, law.neighborhood, table, owner),
+        _degrees_of(table, law.over) if reads_degree else None,
+        _schedule_classes(law.schedule, space, law.over, table, owner),
     )
 
 
@@ -1084,11 +1095,11 @@ def compile_monte_carlo(energy: Energy, move: Move, sampler: Sampler, context: L
         error_msg = f'{owner} use a heat-bath sampler with a rotation, which has no finite set of values to draw from.'
         raise ValidationError(error_msg)
     space = target.space
-    table = _index_table(space, energy.neighborhood, owner)
-    classes = _schedule_classes(sampler.schedule, space, energy.neighborhood, table, owner)
+    table = _index_table(space, energy.over, owner)
+    classes = _schedule_classes(sampler.schedule, space, energy.over, table, owner)
     neighbours = [symbol(f'_neighbor_{index}') for index in range(table.shape[1])]
     masks = [symbol(f'_mask_{index}') for index in range(table.shape[1])]
-    expression = _lower_neighbor_sums(SR(energy.expression), move.target, neighbours, masks, owner)
+    expression = _lower_neighbor_sums(SR(energy.expression), move.target, energy, context, neighbours, masks)
     masked = any(item in masks for item in expression.variables())
     replacements = {}
     for call in _calls(expression, 'neighbor'):
@@ -1281,7 +1292,7 @@ def compile_extremal(law: Extremal, context: LatticeContext) -> CompiledExtremal
     if len({id(state.space) for state in (*targets, key)}) > 1:
         error_msg = f'{owner} reads and updates states of different lattices.'
         raise ValidationError(error_msg)
-    members, counts = _extremal_members(_index_table(key.space, law.neighborhood, owner))
+    members, counts = _extremal_members(_index_table(key.space, law.over, owner))
     arguments = context.keywords(law.rule)
     maximum = law.extremum == 'max'
     loop = _extremal_loop(law.rule, targets, key, maximum, arguments) if context.fused else None

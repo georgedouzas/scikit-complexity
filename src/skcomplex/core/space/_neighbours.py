@@ -12,7 +12,7 @@ from ._networks import NetworkSpace
 from ._spaces import SiteSpace, Space
 
 
-def neighbour_pairs(space: Space | None, size: int, layer: str | None = None) -> list[tuple[int, int]]:
+def neighbor_pairs(space: Space | None, size: int, layer: str | None = None) -> list[tuple[int, int]]:
     """Return the pairs of neighbouring members of a space of sites, such as a lattice, or of a network, each pair once.
 
     Args:
@@ -34,8 +34,8 @@ def neighbour_pairs(space: Space | None, size: int, layer: str | None = None) ->
             The space is neither a space of sites nor a network.
 
     Examples:
-        >>> from skcomplex.core.space import LatticeSpace, neighbour_pairs
-        >>> neighbour_pairs(LatticeSpace(3, boundary='fixed'), 3)
+        >>> from skcomplex.core.space import LatticeSpace, neighbor_pairs
+        >>> neighbor_pairs(LatticeSpace(3, boundary='fixed'), 3)
         [(0, 1), (1, 2)]
     """
     if isinstance(space, NetworkSpace):
@@ -46,7 +46,7 @@ def neighbour_pairs(space: Space | None, size: int, layer: str | None = None) ->
     if not isinstance(space, SiteSpace):
         error_msg = f'Neighbours are defined on a space of sites, such as a lattice, or on a network, not on {space!r}.'
         raise ValidationError(error_msg)
-    return space.list_neighbour_pairs()
+    return space.list_neighbor_pairs()
 
 
 @dataclass(frozen=True)
@@ -171,4 +171,4 @@ class Cone:
         object.__setattr__(self, 'angle', float(self.angle))
 
 
-METRIC_NEIGHBOURHOODS = (Radius, Nearest, Cone)
+METRIC_NEIGHBORHOODS = (Radius, Nearest, Cone)

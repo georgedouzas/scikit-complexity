@@ -272,7 +272,7 @@ class LatticeSpace(SiteSpace['Neighborhood']):
         """
         return Neighborhood.radius(radius, n_dim=self.n_dim)
 
-    def list_neighbour_pairs(self) -> list[tuple[int, int]]:
+    def list_neighbor_pairs(self) -> list[tuple[int, int]]:
         """Return the pairs of distinct sites one step apart along a dimension, each pair once.
 
         Returns:
@@ -281,7 +281,7 @@ class LatticeSpace(SiteSpace['Neighborhood']):
 
         Examples:
             >>> from skcomplex.core.space import LatticeSpace
-            >>> LatticeSpace(3, boundary='fixed').list_neighbour_pairs()
+            >>> LatticeSpace(3, boundary='fixed').list_neighbor_pairs()
             [(0, 1), (1, 2)]
         """
         dimensions = self.dimensions

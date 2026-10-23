@@ -17,7 +17,7 @@ from skcomplex.core.formalisms.groups import (
 from skcomplex.core.formalisms.lattices import LocalRule
 from skcomplex.core.laws import Table, Totalistic
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.space import LatticeSpace, Memory, Neighborhood, neighbour_pairs
+from skcomplex.core.space import LatticeSpace, Memory, Neighborhood, neighbor_pairs
 from skcomplex.core.system import System
 
 HEISENBERG = ([[1, 1, 0], [0, 1, 0], [0, 0, 1]], [[1, 0, 0], [0, 1, 1], [0, 0, 1]])
@@ -105,7 +105,7 @@ def test_group_space_edges_join_sites_by_generators():
     """Test that the edges of a cyclic group of order 4 form a cycle of one generator."""
     space = GroupSpace(permutation_group([[1, 2, 3, 0]]))
     assert sorted((first, second) for first, second, _ in space.edges) == [(0, 1), (1, 3), (2, 0), (3, 2)]
-    assert len(neighbour_pairs(space, space.size)) == 4
+    assert len(neighbor_pairs(space, space.size)) == 4
 
 
 def test_group_space_rejects_a_ball_and_a_quotient():

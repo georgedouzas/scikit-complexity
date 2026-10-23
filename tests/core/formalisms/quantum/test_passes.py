@@ -38,7 +38,7 @@ from skcomplex.models.physics.realizations import Mode, Qubit, Spin
 class Heisenberg(Interaction):
     """Isotropic exchange with a coupling."""
 
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     target: str = role()
 
     J: float = parameter(1.0)

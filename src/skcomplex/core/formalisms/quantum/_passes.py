@@ -45,7 +45,7 @@ from ...compile import (
 from ...components import Group
 from ...interactions import Interaction
 from ...laws import Symbols
-from ...space import LatticeSpace, neighbour_pairs
+from ...space import LatticeSpace, neighbor_pairs
 from ...system import Observable, System, reduce_values
 from ._components import QuantumView, hilbert_state, is_quantum, view_of
 from ._laws import Dissipator, Generator, Operator
@@ -279,7 +279,7 @@ def _interaction_laws(
     interaction = node.component
     assert isinstance(interaction, Interaction)  # nosec B101: the caller passes interactions only
     parameters = {**_parameter_symbols(node, symbols, None), 't': symbol('t')}
-    if type(interaction).over == 'neighbours':
+    if type(interaction).over == 'neighbors':
         role_names = list(declarations_of(interaction, VariableKind.ROLE))
         if len(role_names) != 1:
             error_msg = (
@@ -292,7 +292,7 @@ def _interaction_laws(
             error_msg = f'Interaction {node.path} over neighbours targets {path}, which is not a quantum group.'
             raise ValidationError(error_msg)
         group = groups[path]
-        for first, second in neighbour_pairs(group.space, group.members or 1, getattr(interaction, "layer", None)):
+        for first, second in neighbor_pairs(group.space, group.members or 1, getattr(interaction, "layer", None)):
             namespace = Symbols(first=members[path][first], second=members[path][second], **parameters)
             _collect_laws(laws, f'{node.path} on the bond ({first}, {second})', interaction.laws(namespace))
         return

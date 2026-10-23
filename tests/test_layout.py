@@ -40,7 +40,7 @@ CONCEPTS = (
     'skcomplex.core.base.UnregisteredLawError',
     'skcomplex.core.base.declaration_of',
     'skcomplex.core.base.declared_fields',
-    'skcomplex.core.laws.NeighbourReduction',
+    'skcomplex.core.laws.NeighborReduction',
     'skcomplex.core.laws.NumericFunction',
     'skcomplex.core.laws.Reduction',
     'skcomplex.core.compile.partition_system',

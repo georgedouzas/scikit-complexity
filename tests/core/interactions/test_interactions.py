@@ -36,7 +36,7 @@ Oscillator = Element.define('Oscillator', states={'theta': 0.0}, parameters={'om
 class Hebbian(Interaction):
     """Weights that grow with the product of the activities at both ends of an edge."""
 
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     nodes: str = role()
     synapses: str = role()
     eta: float = parameter(1.0)
@@ -49,7 +49,7 @@ class Hebbian(Interaction):
 class Infection(Interaction):
     """Contacts recorded on edges, with an update of an end that edges cannot set."""
 
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     people: str = role()
     contacts: str = role()
 
@@ -61,7 +61,7 @@ class Infection(Interaction):
 class Contagion(Interaction):
     """Infection along the edges of a layer, without an edge group."""
 
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     people: str = role()
 
     def laws(self, s):
@@ -75,7 +75,7 @@ class Contagion(Interaction):
 class Wages(Interaction):
     """Wages that flow from the source of a work edge to its target."""
 
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     people: str = role()
     jobs: str = role()
 
@@ -87,7 +87,7 @@ class Wages(Interaction):
 class Coupling(Interaction):
     """Kuramoto coupling along the weighted edges of a network."""
 
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     oscillators: str = role()
     links: str = role()
 
@@ -235,7 +235,7 @@ def test_edge_jumps_change_the_ends_of_their_edge():
         'Spread',
         roles=['nodes'],
         parameters={'beta': 1.0},
-        over='neighbours',
+        over='neighbors',
         laws=lambda s: [Jump(s.beta * s.source.i * s.target.s, {s.target.s: -1, s.target.i: 1})],
     )
     graph = nx.DiGraph([(0, 1), (1, 2), (2, 3)])
@@ -253,7 +253,7 @@ def test_edge_interactions_run_on_lattice_bonds():
     Diffusion = Interaction.define(
         'Diffusion',
         roles=['cells'],
-        over='neighbours',
+        over='neighbors',
         laws=lambda s: [
             Rate(s.source.theta, s.target.theta - s.source.theta),
             Rate(s.target.theta, s.source.theta - s.target.theta),

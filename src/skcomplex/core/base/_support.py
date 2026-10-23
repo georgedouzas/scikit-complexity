@@ -64,7 +64,7 @@ class Binding(StrEnum):
 
     MEMBERS = 'members'
     PAIRS = 'pairs'
-    NEIGHBOURS = 'neighbours'
+    NEIGHBORS = 'neighbors'
     HYPEREDGES = 'hyperedges'
 
 
