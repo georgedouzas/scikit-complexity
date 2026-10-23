@@ -8,7 +8,7 @@ import qutip
 from skcomplex.core.base import ValidationError, symbol
 from skcomplex.core.formalisms.quantum import Dissipator, Generator, LocalOperator, Operator, QuantumView, expectation
 from skcomplex.core.laws import Symbols
-from skcomplex.core.space import LatticeSpace, NetworkSpace, neighbour_pairs
+from skcomplex.core.space import LatticeSpace, NetworkSpace, neighbor_pairs
 from skcomplex.models.physics.realizations import Mode, Qubit, Site, Spin
 
 
@@ -109,14 +109,14 @@ def test_laws_reject_values_that_are_not_operators():
         Dissipator(q.minus, 'fast')
 
 
-def test_neighbour_pairs_list_lattice_and_network_bonds():
+def test_neighbor_pairs_list_lattice_and_network_bonds():
     """Test that neighbour pairs are the bonds of periodic and open lattices and of networks."""
-    assert neighbour_pairs(LatticeSpace(4), 4) == [(0, 1), (1, 2), (2, 3), (3, 0)]
-    assert neighbour_pairs(LatticeSpace(3, boundary='fixed'), 3) == [(0, 1), (1, 2)]
-    assert len(neighbour_pairs(LatticeSpace((2, 3)), 6)) == 9
-    assert neighbour_pairs(NetworkSpace(nx.path_graph(3)), 3) == [(0, 1), (1, 2)]
+    assert neighbor_pairs(LatticeSpace(4), 4) == [(0, 1), (1, 2), (2, 3), (3, 0)]
+    assert neighbor_pairs(LatticeSpace(3, boundary='fixed'), 3) == [(0, 1), (1, 2)]
+    assert len(neighbor_pairs(LatticeSpace((2, 3)), 6)) == 9
+    assert neighbor_pairs(NetworkSpace(nx.path_graph(3)), 3) == [(0, 1), (1, 2)]
     with pytest.raises(ValidationError, match='Neighbours'):
-        neighbour_pairs(None, 2)
+        neighbor_pairs(None, 2)
 
 
 def test_site_namespace_has_projectors_and_diagonals():

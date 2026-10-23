@@ -124,7 +124,7 @@ class InfluenceDraw(Interaction):
         'influences'
     """
 
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     species: str = role()
     influences: str = role()
 

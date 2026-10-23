@@ -33,7 +33,7 @@ def _utility(agent: Any) -> float:  # noqa: ANN401
     return float(agent.good1 * agent.good2)
 
 
-def _best_neighbours(
+def _best_neighbors(
     left: Sequence[Any],
     right: Sequence[Any],
     rng: np.random.Generator,
@@ -188,7 +188,7 @@ class BilateralBarter(Interaction):
             laws:
                 The laws of the component.
         """
-        laws: list[Any] = [Match(self.traders, pairing=_best_neighbours, label='partners'), Rule(self.trade)]
+        laws: list[Any] = [Match(self.traders, pairing=_best_neighbors, label='partners'), Rule(self.trade)]
         return laws
 
     def trade(self, model: Any) -> None:  # noqa: ANN401

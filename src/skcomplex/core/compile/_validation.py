@@ -46,10 +46,10 @@ from ..laws import (
     Jump,
     Noise,
     law_classes,
-    neighbourhoods_in,
+    neighborhoods_in,
     values_of,
 )
-from ..laws._neighbourhoods import NeighbourReduction
+from ..laws._neighbourhoods import NeighborReduction
 from ..space import Adjacency, Cone, NetworkSpace, SiteSpace, Space
 from ..system import Observable, System
 from ._backends import BACKENDS, Backend
@@ -73,7 +73,7 @@ TIME_CLASSES = {
     TimeKind.DISCRETE: 'DiscreteTime()',
     TimeKind.STATIC: 'StaticTime()',
 }
-OWN_NEIGHBOURHOOD = Requires(space={SpaceKind.LATTICE, SpaceKind.NETWORK})
+OWN_NEIGHBORHOOD = Requires(space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
     LabelError: ('label', 'Give every child of a system a unique label of letters, digits, and underscores.'),
     RoleError: ('role', 'Bind every role to the path of an element, group, or member of the system.'),
@@ -164,13 +164,13 @@ def _binding_issues(nodes: list[Node]) -> list[Issue]:
         space = target.space if target is not None else node.space
         offered = (
             isinstance(space, SiteSpace | NetworkSpace)
-            if over == 'neighbours'
+            if over == 'neighbors'
             else bool(
                 getattr(space, 'hyperedges', ()),
             )
         )
         if not offered:
-            needs = 'a lattice or network space' if over == 'neighbours' else 'a network space with hyperedges'
+            needs = 'a lattice or network space' if over == 'neighbors' else 'a network space with hyperedges'
             message = f'The binding over {over} needs {needs}, but the bound members live on {space!r}.'
             issues.append(Issue('binding', node.path, message, f'Give the bound group {needs}.'))
             continue
@@ -264,15 +264,15 @@ def _law_issues(records: list[CensusRecord], times: dict[str, TimeKind | None]) 
     return issues
 
 
-def _reductions_of(value: object) -> list[NeighbourReduction]:
+def _reductions_of(value: object) -> list[NeighborReduction]:
     """Return every neighbourhood reduction of a law value, nested ones included."""
     found = []
-    stack = neighbourhoods_in(value)
+    stack = neighborhoods_in(value)
     while stack:
         reduction = stack.pop()
         found.append(reduction)
-        stack += neighbourhoods_in(reduction.argument)
-        stack += neighbourhoods_in(reduction.weight) if reduction.weight is not None else []
+        stack += neighborhoods_in(reduction.argument)
+        stack += neighborhoods_in(reduction.weight) if reduction.weight is not None else []
     return found
 
 
@@ -301,7 +301,7 @@ def _layer_reduction_issue(name: str, path: str, over: object, space: object) ->
     return Issue('binding', path, message, fix)
 
 
-def _neighbourhood_issues(records: list[CensusRecord], nodes: list[Node]) -> list[Issue]:
+def _neighborhood_issues(records: list[CensusRecord], nodes: list[Node]) -> list[Issue]:
     """Return the neighbourhood reductions whose space does not offer them, and the cones without a heading."""
     by_path = {node.path: node for node in nodes}
     issues = []
@@ -312,7 +312,7 @@ def _neighbourhood_issues(records: list[CensusRecord], nodes: list[Node]) -> lis
         reductions = {str(item.call): item for value in values for item in _reductions_of(value)}
         for reduction in reductions.values():
             over = reduction.over
-            requires = OWN_NEIGHBOURHOOD if over is None else over.requires
+            requires = OWN_NEIGHBORHOOD if over is None else over.requires
             described = 'the neighbours of its space' if over is None else repr(over)
             if not requires.accepts('space', space):
                 message = (
@@ -694,7 +694,7 @@ def _issues_of(compilation: Compilation) -> list[Issue]:
     issues = _census_issues(compilation)
     issues += _bound_issues(nodes)
     issues += _law_issues(records, declared_times(system))
-    issues += _neighbourhood_issues(records, nodes)
+    issues += _neighborhood_issues(records, nodes)
     issues += _space_issues(system, nodes)
     issues += _order_issues(nodes)
     issues += [issue for check in registered_checks() for issue in check(compilation)]

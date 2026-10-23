@@ -15,7 +15,7 @@ import scipy.sparse as sp
 from ....core.base import HilbertSpace, ValidationError, VisualSpec, state
 from ....core.components import Element
 from ....core.formalisms.quantum import LocalOperator, Operator, QuantumView, sparse_matrix
-from ....core.space import LatticeSpace, NetworkSpace, Space, neighbour_pairs
+from ....core.space import LatticeSpace, NetworkSpace, Space, neighbor_pairs
 
 DIGEST_SIZE = 8
 
@@ -74,7 +74,7 @@ def _site_space(element: 'Site') -> HilbertSpace:
     else:
         error_msg = f'Site {element.label!r} has space {space!r}. Give it a LatticeSpace or a NetworkSpace.'
         raise ValidationError(error_msg)
-    rows, columns = zip(*neighbour_pairs(space, size), strict=True) if size > 1 else ((), ())
+    rows, columns = zip(*neighbor_pairs(space, size), strict=True) if size > 1 else ((), ())
     adjacency = sp.coo_array((np.ones(len(rows)), (rows, columns)), shape=(size, size))
     laplacian = -sparse_matrix(nx.laplacian_matrix(space.graph)) if isinstance(space, NetworkSpace) else None
     operators = {'laplacian': (laplacian, True), 'adjacency': (adjacency + adjacency.T, True)}

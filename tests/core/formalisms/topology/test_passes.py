@@ -29,7 +29,7 @@ SIS = Element.define('SIS', states={'i': 0.0}, parameters={'beta': 0.3, 'gamma':
 class Rewiring(Interaction):
     """Susceptible ends of edges to infected nodes move them to susceptible nodes at a rate."""
 
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     nodes: str = role()
     links: str = role()
     w: float = parameter(0.0)
@@ -106,7 +106,7 @@ def test_requests_remove_and_add_edges_and_nodes():
     Pruning = Interaction.define(
         'Pruning',
         roles=['nodes', 'links'],
-        over='neighbours',
+        over='neighbors',
         laws=lambda s: [Update(remove_edge(), s.source.x * s.target.x)],
     )
     Leaving = Element.define('Leaving', states={'age': 0.0, 'x': 0.0}, laws=lambda s: [Update(remove_node(), s.x)])

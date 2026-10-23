@@ -27,8 +27,8 @@ from ..base import (
     vector,
 )
 from ..components import Group
-from ..laws import Jump, Law, Symbols, has_reductions, neighbourhoods_in, reductions_in
-from ..space import NetworkSpace, SiteSpace, Space, neighbour_pairs
+from ..laws import Jump, Law, Symbols, has_reductions, neighborhoods_in, reductions_in
+from ..space import NetworkSpace, SiteSpace, Space, neighbor_pairs
 from ._declarations import ACTIVE, ENDS, Block, Declarations, is_interaction
 from ._kernels import EdgeSearch, Reference, Search, Source
 from ._real_parts import real_components_of
@@ -239,7 +239,7 @@ def _outside_reductions(value: object) -> set[Expression]:
     """Return the symbols of a law value that occur outside its reductions."""
     expressions = [item for item in components_of(value) if isinstance(item, Expression)]
     found = [reduction.call for item in expressions for reduction in reductions_in(item)]
-    found += [reduction.call for item in expressions for reduction in neighbourhoods_in(item)]
+    found += [reduction.call for item in expressions for reduction in neighborhoods_in(item)]
     calls, operators = {str(call) for call in found}, {call.operator() for call in found}
     symbols: set[Expression] = set()
     stack = list(expressions)
@@ -346,7 +346,7 @@ def _edge_search(
         sources, targets = space.list_edges(layer)
         size = space.size
     elif isinstance(space, SiteSpace) and edges is None and layer is None:
-        pairs = np.array(neighbour_pairs(space, space.size), dtype=np.intp).reshape(-1, 2)
+        pairs = np.array(neighbor_pairs(space, space.size), dtype=np.intp).reshape(-1, 2)
         sources, targets = pairs[:, 0].copy(), pairs[:, 1].copy()
         size = space.size
     else:
@@ -590,7 +590,7 @@ def specs_of(block: Block, elements: dict[str, Block], time: Expression, observe
     if not is_interaction(block.node):
         return [member_spec(block, time)]
     over = type(block.node.component).over
-    if over == 'neighbours':
+    if over == 'neighbors':
         return [_edge_spec(block, elements, time)]
     if over in set(BINDINGS):
         return [BINDINGS.resolve(over)(block, elements, time)]

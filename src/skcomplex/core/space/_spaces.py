@@ -91,7 +91,7 @@ class SiteSpace[Reach](Space, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def list_neighbour_pairs(self) -> list[tuple[int, int]]:
+    def list_neighbor_pairs(self) -> list[tuple[int, int]]:
         """Return the pairs of distinct neighbouring sites, each pair once.
 
         Returns:

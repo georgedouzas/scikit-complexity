@@ -1445,7 +1445,7 @@ print(space.layer_labels, [item.tolist() for item in space.list_edges('work')])
 ### Interactions over edges
 
 A group on the edges of a network, `Group(..., on='edges')`, holds one member per edge of its layer. An interaction
-with `over = 'neighbours'` binds a group on the nodes and, optionally, a group on the edges of the same network. Its
+with `over = 'neighbors'` binds a group on the nodes and, optionally, a group on the edges of the same network. Its
 laws run once per edge and read `s.source`, `s.target`, and `s.edge`: the members at both ends and the member of the
 edge. Rate, noise, and jump laws may target any of them, and update laws the edge member. The keyword `layer` chooses
 the layer of an interaction without an edge group. Hebbian weights grow with the product of the activities at the ends:
@@ -1470,7 +1470,7 @@ Synapse = Element.define('Synapse', states={'w': 0.1})
 
 
 class Hebbian(Interaction):
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     neurons: str = role()
     synapses: str = role()
     eta: float = parameter(1.0)
@@ -2417,7 +2417,7 @@ state of every subsystem is a basis label, an index, or a vector.
 Laws receive the local operators of their subsystems, which combine by sums, products, numbers, and symbolic
 coefficients of parameters and time into an `Operator`. `Generator(operator)` adds to the Hamiltonian, with
 `ħ = 1`, and `Dissipator(operator, rate)` adds a Lindblad dissipator, which makes the system open. An interaction
-with the binding `over = 'neighbours'` is written once for a bond, with `s.first` and `s.second`, and acts on every pair
+with the binding `over = 'neighbors'` is written once for a bond, with `s.first` and `s.second`, and acts on every pair
 of neighbours of the space of the group its one role binds. Compiling checks that the Hamiltonian is Hermitian and that the dimension stays within the
 `max_dimension` of the quantum solver. A whole-system initial state, such as an entangled vector or `'ground'`, is
 given to the simulation as `initial_state={'<system label>.state': value}`.
@@ -2439,7 +2439,7 @@ from skcomplex.models.physics.realizations import Spin
 
 
 class Coupling(Interaction):
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     target: str = role()
     J: float = parameter(1.0)
 

@@ -8,7 +8,7 @@ import numpy as np
 import scipy.sparse
 
 from ..base import Expression, ValidationError
-from ..compile._neighbourhoods import CompiledNeighbourhood, EdgeRows, MetricSearch, StaticSearch
+from ..compile._neighbourhoods import CompiledNeighborhood, EdgeRows, MetricSearch, StaticSearch
 from ..compile._printing import SCALAR_DIALECT, print_expressions
 from ..compile._reductions import CompiledReduction, Read, ReductionPass
 from ..space import Cone, Nearest
@@ -114,7 +114,7 @@ def _reduction_lines(source: _Source, reduction: CompiledReduction, index: int) 
     return [*lines, f'{INDENT}p[{start}] = {value}']
 
 
-def _search_lines(source: _Source, reduction: CompiledNeighbourhood, index: int) -> list[str]:
+def _search_lines(source: _Source, reduction: CompiledNeighborhood, index: int) -> list[str]:
     """Return the lines that find the neighbours of every member, as rows `_ip<k>_` and neighbours `_ix<k>_`."""
     search = reduction.search
     if isinstance(search, StaticSearch):
@@ -178,7 +178,7 @@ def _search_lines(source: _Source, reduction: CompiledNeighbourhood, index: int)
     return [*lines, f'{INDENT}_ip{index}_, _ix{index}_ = {call}']
 
 
-def _pair_read_code(source: _Source, reduction: CompiledNeighbourhood, item: Expression, index: int) -> str:
+def _pair_read_code(source: _Source, reduction: CompiledNeighborhood, item: Expression, index: int) -> str:
     """Return the code of one symbol of a neighbourhood reduction for the reader `_i_` and the neighbour `_j_`."""
     pair = reduction.reads[item]
     read = pair.read
@@ -200,7 +200,7 @@ def _pair_read_code(source: _Source, reduction: CompiledNeighbourhood, item: Exp
     return f'{own} - (({own} - {value}) - {period} * np.rint(({own} - {value}) / {period}))'
 
 
-def _neighbourhood_lines(source: _Source, reduction: CompiledNeighbourhood, index: int) -> list[str]:
+def _neighborhood_lines(source: _Source, reduction: CompiledNeighborhood, index: int) -> list[str]:
     """Return the lines that compute a neighbourhood reduction of every member into the extended parameter vector."""
     lines = _search_lines(source, reduction, index)
     sides = {item: reduction.reads[item].side for item in reduction.symbols}
@@ -268,8 +268,8 @@ def _reduce_function(source: _Source, reductions: ReductionPass, parallel: bool)
         f'{INDENT}p[: p0.size] = p0',
     ]
     for index, reduction in enumerate(reductions.steps):
-        if isinstance(reduction, CompiledNeighbourhood):
-            lines += _neighbourhood_lines(source, reduction, index)
+        if isinstance(reduction, CompiledNeighborhood):
+            lines += _neighborhood_lines(source, reduction, index)
         else:
             lines += _reduction_lines(source, reduction, index)
     lines.append(f'{INDENT}return p')

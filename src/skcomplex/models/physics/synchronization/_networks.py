@@ -68,7 +68,7 @@ class EdgeCoupling(Interaction):
         0.5
     """
 
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     oscillators: str = role()
     links: str = role()
 

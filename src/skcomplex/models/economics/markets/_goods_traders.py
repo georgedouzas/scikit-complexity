@@ -18,7 +18,7 @@ from ....core.laws import Invariant, Law, Symbols
 from ....core.runtime import register_model
 from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import Observable, System
-from ..realizations import NeighbourPairing, cobb_douglas, trade_goods
+from ..realizations import NeighborPairing, cobb_douglas, trade_goods
 
 type Pairing = Callable[[Sequence[Any], Sequence[Any], np.random.Generator, int], list[tuple[Any, Any]]]
 
@@ -135,7 +135,7 @@ class Exchange(Interaction):
             The names of the traded goods.
 
         pairing:
-            The pairing of the matching law, such as `NeighbourPairing()`, or `None` for random pairs.
+            The pairing of the matching law, such as `NeighborPairing()`, or `None` for random pairs.
 
         quantity:
             The quantity of the bought good in every trade.
@@ -291,7 +291,7 @@ def goods_traders(
                 'exchange',
                 traders='traders',
                 goods=GOODS[:goods],
-                pairing=NeighbourPairing(),
+                pairing=NeighborPairing(),
                 quantity=quantity,
             ),
         ],

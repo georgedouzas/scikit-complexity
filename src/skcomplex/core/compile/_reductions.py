@@ -15,7 +15,7 @@ from ..base import Expression
 from ..system import reduce_values
 from ._arrays import Indices, Vector
 from ._layout import Entry
-from ._neighbourhoods import CompiledNeighbourhood
+from ._neighbourhoods import CompiledNeighborhood
 from ._printing import numpy_function
 from ._reads import Read
 
@@ -170,11 +170,11 @@ class ReductionPass:
 
     reductions: tuple[CompiledReduction, ...] = ()
     parameters: int = 0
-    neighbourhoods: tuple[CompiledNeighbourhood, ...] = ()
-    sequence: tuple[CompiledReduction | CompiledNeighbourhood, ...] = ()
+    neighbourhoods: tuple[CompiledNeighborhood, ...] = ()
+    sequence: tuple[CompiledReduction | CompiledNeighborhood, ...] = ()
 
     @property
-    def steps(self) -> tuple[CompiledReduction | CompiledNeighbourhood, ...]:
+    def steps(self) -> tuple[CompiledReduction | CompiledNeighborhood, ...]:
         """Every reduction in the order it is evaluated."""
         return self.sequence or (*self.reductions, *self.neighbourhoods)
 

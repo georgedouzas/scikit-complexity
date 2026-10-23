@@ -101,7 +101,7 @@ def lattice_rows(space: LatticeSpace, neighborhood: Neighborhood) -> Rows:
     return indptr, table[inside].astype(np.intp)
 
 
-def default_neighbourhood(space: object) -> Adjacency | Neighborhood | None:
+def default_neighborhood(space: object) -> Adjacency | Neighborhood | None:
     """Return the neighbourhood a reduction without one reads: the graph of a network or the lattice's own.
 
     Args:
@@ -113,9 +113,9 @@ def default_neighbourhood(space: object) -> Adjacency | Neighborhood | None:
             The neighbourhood, or `None` for a space without one of its own.
 
     Examples:
-        >>> from skcomplex.core.compile._neighbourhoods import default_neighbourhood
+        >>> from skcomplex.core.compile._neighbourhoods import default_neighborhood
         >>> from skcomplex.core.space import LatticeSpace
-        >>> len(default_neighbourhood(LatticeSpace((4, 4))))
+        >>> len(default_neighborhood(LatticeSpace((4, 4))))
         8
     """
     if isinstance(space, NetworkSpace):
@@ -458,7 +458,7 @@ class StaticSearch:
 type Search = StaticSearch | EdgeRows | MetricSearch
 
 
-def neighbour_search(
+def neighbor_search(
     over: Adjacency | Neighborhood | Memory | Radius | Nearest | Cone,
     space: object,
     rows: int,
@@ -614,7 +614,7 @@ class PairRead:
 
 
 @dataclass
-class CompiledNeighbourhood:
+class CompiledNeighborhood:
     """Neighbourhood reduction that laws read, one value per member, compiled into a function of its symbols.
 
     Args:

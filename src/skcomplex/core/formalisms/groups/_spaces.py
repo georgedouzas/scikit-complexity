@@ -358,7 +358,7 @@ class GroupSpace(SiteSpace[Memory]):
         sizes = self.ball_sizes()
         return Memory(tuple(self.words[: sizes[min(radius, len(sizes) - 1)]]))
 
-    def list_neighbour_pairs(self) -> list[tuple[int, int]]:
+    def list_neighbor_pairs(self) -> list[tuple[int, int]]:
         """Return the pairs of distinct sites joined by an edge of the Cayley graph, each pair once.
 
         Returns:
@@ -367,7 +367,7 @@ class GroupSpace(SiteSpace[Memory]):
 
         Examples:
             >>> from skcomplex.core.formalisms.groups import GroupSpace, permutation_group
-            >>> GroupSpace(permutation_group([[1, 2, 0]])).list_neighbour_pairs()
+            >>> GroupSpace(permutation_group([[1, 2, 0]])).list_neighbor_pairs()
             [(0, 1), (1, 2), (2, 0)]
         """
         found = {frozenset((first, second)): (first, second) for first, second, _ in self.edges if first != second}

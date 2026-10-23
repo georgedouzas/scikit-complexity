@@ -141,7 +141,7 @@ class Rewiring(Interaction):
         2.0
     """
 
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     hosts: str = role()
     contacts: str = role()
     w: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
@@ -257,7 +257,7 @@ class Expiry(Interaction):
         'hosts'
     """
 
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     hosts: str = role()
     contacts: str = role()
 

@@ -176,16 +176,16 @@ def trade_goods(
 
 
 @dataclass(frozen=True)
-class NeighbourPairing:
+class NeighborPairing:
     """Pairing of every agent with a random unpaired neighbour, a pairing of the core's matching law.
 
     The agents of the first group, in random order, each pick one agent of the second group at random among those in
     the neighbouring cells or nodes that are not yet paired, so trading partners meet only locally.
 
     Examples:
-        >>> from skcomplex.models.economics.realizations import NeighbourPairing
-        >>> NeighbourPairing()
-        NeighbourPairing()
+        >>> from skcomplex.models.economics.realizations import NeighborPairing
+        >>> NeighborPairing()
+        NeighborPairing()
     """
 
     def __call__(

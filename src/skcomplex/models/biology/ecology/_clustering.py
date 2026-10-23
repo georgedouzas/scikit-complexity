@@ -17,7 +17,7 @@ from ....core.space import LatticeSpace
 from ....core.system import Observable, System
 
 
-def _neighbour_pairs(shape: tuple[int, ...]) -> list[tuple[int, int]]:
+def _neighbor_pairs(shape: tuple[int, ...]) -> list[tuple[int, int]]:
     """Return the pairs of flat indices of every patch and each of its nearest neighbours on a periodic lattice."""
     indices = np.arange(int(np.prod(shape))).reshape(shape)
     pairs: list[tuple[int, int]] = []
@@ -176,7 +176,7 @@ def neutral_clustering(
     members = [f'patches[{index}]' for index in range(int(np.prod(lattice)))]
     interactions = []
     if beta:
-        interactions.append(Hopping('hopping', patches=members, links=_neighbour_pairs(lattice), beta=beta))
+        interactions.append(Hopping('hopping', patches=members, links=_neighbor_pairs(lattice), beta=beta))
     return System(
         components=[patches],
         interactions=interactions,

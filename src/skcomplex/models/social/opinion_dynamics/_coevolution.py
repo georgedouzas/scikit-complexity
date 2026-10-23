@@ -122,7 +122,7 @@ class Separation(Interaction):
         'ties'
     """
 
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     voters: str = role()
     ties: str = role()
 

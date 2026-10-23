@@ -12,11 +12,11 @@ from sage.symbolic.function import BuiltinFunction
 from ..base import Expression, SymbolicVector, ValidationError, symbol, vector
 from ..space import Adjacency, Cone, Layer, Memory, Nearest, Neighborhood, Radius
 
-NEIGHBOUR_REDUCTIONS = ('sum', 'mean', 'count', 'max', 'min', 'normalized-mean')
-NEIGHBOURHOOD_TYPES = (Adjacency, Neighborhood, Memory, Radius, Nearest, Cone)
-NEIGHBOURHOODS: dict[str, object] = {}
+NEIGHBOR_REDUCTIONS = ('sum', 'mean', 'count', 'max', 'min', 'normalized-mean')
+NEIGHBORHOOD_TYPES = (Adjacency, Neighborhood, Memory, Radius, Nearest, Cone)
+NEIGHBORHOODS: dict[str, object] = {}
 
-type NeighbourhoodSpec = Adjacency | Neighborhood | Memory | Radius | Nearest | Cone
+type NeighborhoodSpec = Adjacency | Neighborhood | Memory | Radius | Nearest | Cone
 
 
 def _over_symbol(over: object) -> Expression:
@@ -25,17 +25,17 @@ def _over_symbol(over: object) -> Expression:
         return SR(0)
     if isinstance(over, Layer):
         over = Adjacency(layer=over.label)
-    if not isinstance(over, NEIGHBOURHOOD_TYPES):
-        names = ', '.join(item.__name__ for item in (*NEIGHBOURHOOD_TYPES, Layer))
+    if not isinstance(over, NEIGHBORHOOD_TYPES):
+        names = ', '.join(item.__name__ for item in (*NEIGHBORHOOD_TYPES, Layer))
         error_msg = f'A neighbourhood reduction reduces over None or one of {names}, not {over!r}.'
         raise ValidationError(error_msg)
     digest = hashlib.sha256(repr(over).encode()).hexdigest()[:16]
     name = f'_over_{digest}'
-    NEIGHBOURHOODS[name] = over
+    NEIGHBORHOODS[name] = over
     return symbol(name)
 
 
-class _NeighbourReduction(BuiltinFunction):
+class _NeighborReduction(BuiltinFunction):
     """Reduction over the neighbours of a member, `neighbors(argument, weight, over, kind)`, kept unevaluated."""
 
     def __init__(self) -> None:
@@ -50,8 +50,8 @@ class _NeighbourReduction(BuiltinFunction):
         argument, weight, over, kind = operands
         parts = [str(argument)]
         if not _is_number(over, 0):
-            parts.append(f'over={NEIGHBOURHOODS.get(str(over), over)!r}')
-        parts.append(f'reduce={NEIGHBOUR_REDUCTIONS[int(SR(kind))]!r}')
+            parts.append(f'over={NEIGHBORHOODS.get(str(over), over)!r}')
+        parts.append(f'reduce={NEIGHBOR_REDUCTIONS[int(SR(kind))]!r}')
         if not _is_number(weight, 1):
             parts.append(f'weight={weight}')
         return f'neighbors({", ".join(parts)})'
@@ -63,15 +63,15 @@ def _is_number(item: Expression, value: int) -> bool:
     return bool(item.is_numeric() and item == value)
 
 
-def _reduction_of(call: Expression) -> 'NeighbourReduction':
+def _reduction_of(call: Expression) -> 'NeighborReduction':
     """Return the parts of a neighbourhood reduction call."""
     argument, weight, over, kind = call.operands()
-    return NeighbourReduction(
+    return NeighborReduction(
         call=call,
-        kind=NEIGHBOUR_REDUCTIONS[int(SR(kind))],
+        kind=NEIGHBOR_REDUCTIONS[int(SR(kind))],
         argument=argument,
         weight=None if _is_number(weight, 1) else weight,
-        over=None if _is_number(over, 0) else NEIGHBOURHOODS[str(over)],  # type: ignore[arg-type]
+        over=None if _is_number(over, 0) else NEIGHBORHOODS[str(over)],  # type: ignore[arg-type]
     )
 
 
@@ -82,13 +82,13 @@ class _Neighbor(BuiltinFunction):
         super().__init__('neighbor', nargs=2)
 
 
-REDUCE = _NeighbourReduction()
+REDUCE = _NeighborReduction()
 neighbor = _Neighbor()
 
 
 def neighbors(
     expression: object,
-    over: NeighbourhoodSpec | Layer | None = None,
+    over: NeighborhoodSpec | Layer | None = None,
     reduce: str | None = None,
     weight: object = None,
 ) -> Expression | SymbolicVector:
@@ -174,11 +174,11 @@ def neighbors(
     if reduce is None and isinstance(over, Neighborhood | Memory):
         return vector(neighbor(expression, SR(index)) for index in range(len(over)))
     kind = 'sum' if reduce is None else reduce
-    if kind not in NEIGHBOUR_REDUCTIONS:
-        error_msg = f'Unknown neighbourhood reduction {kind!r}. Use one of {", ".join(NEIGHBOUR_REDUCTIONS)}.'
+    if kind not in NEIGHBOR_REDUCTIONS:
+        error_msg = f'Unknown neighbourhood reduction {kind!r}. Use one of {", ".join(NEIGHBOR_REDUCTIONS)}.'
         raise ValidationError(error_msg)
     over_symbol = _over_symbol(over)
-    code = SR(NEIGHBOUR_REDUCTIONS.index(kind))
+    code = SR(NEIGHBOR_REDUCTIONS.index(kind))
     weighted = SR(1) if weight is None else SR(weight)
     if isinstance(expression, SymbolicVector):
         return vector(REDUCE(SR(item), weighted, over_symbol, code) for item in expression)
@@ -186,7 +186,7 @@ def neighbors(
 
 
 @dataclass(frozen=True)
-class NeighbourReduction:
+class NeighborReduction:
     """Neighbourhood reduction found in an expression, with its kind, argument, weight, and neighbourhood.
 
     Args:
@@ -207,8 +207,8 @@ class NeighbourReduction:
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import neighbors, neighbourhoods_in
-        >>> neighbourhoods_in(1 + neighbors(symbol('x'), reduce='max'))[0].kind
+        >>> from skcomplex.core.laws import neighbors, neighborhoods_in
+        >>> neighborhoods_in(1 + neighbors(symbol('x'), reduce='max'))[0].kind
         'max'
     """
 
@@ -216,10 +216,10 @@ class NeighbourReduction:
     kind: str
     argument: Expression
     weight: Expression | None
-    over: NeighbourhoodSpec | None
+    over: NeighborhoodSpec | None
 
 
-def neighbourhoods_in(expression: object) -> list[NeighbourReduction]:
+def neighborhoods_in(expression: object) -> list[NeighborReduction]:
     """Return the outermost neighbourhood reductions of an expression.
 
     Args:
@@ -232,13 +232,13 @@ def neighbourhoods_in(expression: object) -> list[NeighbourReduction]:
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import neighbors, neighbourhoods_in
-        >>> [item.kind for item in neighbourhoods_in(neighbors(symbol('x'), reduce='mean'))]
+        >>> from skcomplex.core.laws import neighbors, neighborhoods_in
+        >>> [item.kind for item in neighborhoods_in(neighbors(symbol('x'), reduce='mean'))]
         ['mean']
     """
     if not isinstance(expression, Expression | SymbolicVector | int | float):
         return []
-    found: dict[str, NeighbourReduction] = {}
+    found: dict[str, NeighborReduction] = {}
     stack = [SR(item) for item in (list(expression) if isinstance(expression, SymbolicVector) else [expression])]
     while stack:
         item = stack.pop()

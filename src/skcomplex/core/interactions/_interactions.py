@@ -10,7 +10,7 @@ from ..base import ValidationError, Variable, VariableKind
 from ..components import Component
 from ..laws import Law
 
-BINDINGS = ('members', 'pairs', 'neighbours', 'hyperedges')
+BINDINGS = ('members', 'pairs', 'neighbors', 'hyperedges')
 
 
 class Interaction(Component):
@@ -45,7 +45,7 @@ class Interaction(Component):
 
     The class variable `over` is the binding of the laws: `'members'` runs them for the bound components or members,
     `'pairs'` once per pair of members of the roles `first` and `second` closer than the parameter `cutoff`,
-    `'neighbours'` once per edge of the space of the group of nodes its role binds, and `'hyperedges'` once per
+    `'neighbors'` once per edge of the space of the group of nodes its role binds, and `'hyperedges'` once per
     hyperedge. Interactions hold no state: state on couplings lives in groups on the edges or hyperedges of a network
     space.
 
@@ -67,7 +67,7 @@ class Interaction(Component):
     def __init__(self, label: str, *, layer: str | None = None, **values: Any) -> None:  # noqa: ANN401
         super().__init__(label, **values)
         self.layer = layer
-        if layer is not None and self.over != 'neighbours':
+        if layer is not None and self.over != 'neighbors':
             error_msg = (
                 f'{type(self).__name__} {label!r} takes the layer {layer!r}, but only interactions over neighbours run '
                 'on the edges of a layer.'
@@ -140,7 +140,7 @@ class Interaction(Component):
                 A function `laws(s)` or `laws(self, s)` that returns the laws of the interaction.
 
             over:
-                The binding of the laws, such as `'neighbours'`, or `None` to inherit it.
+                The binding of the laws, such as `'neighbors'`, or `None` to inherit it.
 
         Returns:
             interaction_type:
