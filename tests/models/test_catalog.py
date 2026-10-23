@@ -8,7 +8,7 @@ import pytest
 from sklearn.base import clone
 
 from skcomplex.core.base import ValidationError
-from skcomplex.core.compile import ObservableEvaluator, compile_system, observables_of
+from skcomplex.core.compile import ObservableEvaluator, compile_system, observables_of, validate
 from skcomplex.core.components import Element, Group, runs_rules
 from skcomplex.core.formalisms.quantum import contains_quantum
 from skcomplex.core.interactions import Interaction
@@ -121,8 +121,9 @@ def test_registration_requires_defaults():
 
 @pytest.mark.parametrize('entry', catalog(), ids=lambda entry: entry.name)
 def test_model_conforms(entry, tmp_path):
-    """Test that a registered model is created, compiled, simulated, logged to Rerun, and cloned generically."""
+    """Test that a registered model is created, validated, compiled, simulated, logged, and cloned generically."""
     system = create(entry.name)
+    assert validate(system).ok
     problem = compile_system(system)
     settings = {key: value for key, value in entry.defaults.items() if key != 'until'}
     dt = settings.get('dt', 1.0)

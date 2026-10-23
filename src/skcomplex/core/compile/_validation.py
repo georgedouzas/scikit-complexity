@@ -365,7 +365,8 @@ def _space_issues(system: System, nodes: list[Node], records: list[CensusRecord]
             issues.append(Issue('space-too-large', path, str(error), fix, error=SpaceTooLargeError))
         except ValueError as error:
             fix = f'Give the {type(space).__name__} a shape, a boundary, and a geometry that it supports.'
-            issues.append(Issue('space-invalid', path, str(error), fix, error=SpaceError))
+            holder = path.rpartition('/')[0] or system.label
+            issues.append(Issue('space-invalid', holder, str(error), fix, error=SpaceError))
     return issues
 
 

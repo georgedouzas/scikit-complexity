@@ -44,6 +44,7 @@ from ..compile._backends import (
     concatenating_function,
     reads_reductions,
     register_backend,
+    report_fallbacks,
 )
 from ..compile._kernels import EdgeSearch, Kernel, Output, PairSearch, Reference, Source, jump_channels, lower_noise
 from ..compile._layout import Entry
@@ -1149,6 +1150,7 @@ class NumbaBackend(Backend):
         reduced = bool(reductions.steps)
         fused = _reductions_compile(reductions)
         compiled = {kind: fused and all(_is_compilable(kernel) for kernel in items) for kind, items in used.items()}
+        backends = report_fallbacks(self.name, used, compiled, reductions)
         source = _Source()
         if reduced and fused:
             _reduce_function(source, reductions, self.parallel and form not in EVENT_FORMS)
@@ -1182,7 +1184,7 @@ class NumbaBackend(Backend):
         entries = _layout_entries(used, reductions)
         layout = source.layout(entries)
         loop = accelerated_loop if has_loop else None
-        return self._lowering(
+        lowering = self._lowering(
             form,
             needed,
             used=used,
@@ -1195,6 +1197,8 @@ class NumbaBackend(Backend):
             reductions=reductions,
             draws=draws,
         )
+        lowering.backends = backends
+        return lowering
 
     def _lowering(
         self,

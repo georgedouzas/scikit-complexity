@@ -39,15 +39,15 @@
 
 ## 3. Compile pipeline
 
-- [ ] 3.1 Add the `Compilation` state, the `Pass` contract, and the ordering of passes by their declared reads and
+- [x] 3.1 Add the `Compilation` state, the `Pass` contract, and the ordering of passes by their declared reads and
   writes. Verify with unit tests of the ordering and of a missing input.
-- [ ] 3.2 Split `_compiler.py` into the general passes under `compile/passes/`, and register the formalism passes
+- [x] 3.2 Split `_compiler.py` into the general passes under `compile/passes/`, and register the formalism passes
   from their formalisms. Remove `_compiler.py`. Verify that every registered model compiles to the same problem as
   before, with the same equations and layout.
-- [ ] 3.3 Add `plan_partitions` and use it in both validation and compilation. Make `compile_system` continue from the
+- [x] 3.3 Add `plan_partitions` and use it in both validation and compilation. Make `compile_system` continue from the
   state that `validate` returns, so each compile flattens the system once. Verify with the "Validation and
   compilation agree" scenario and a test that counts flattenings.
-- [ ] 3.4 Report backend substitutions and Numba fallbacks with `BackendWarning`, and record the backend of each part
+- [x] 3.4 Report backend substitutions and Numba fallbacks with `BackendWarning`, and record the backend of each part
   on the problem. Report invalid lattices as `space-invalid` issues. Verify with the "Backend substituted for a form",
   "Kernel falls back to Python", "Lattice with a bad boundary", and "Invalid space among other errors" scenarios.
 
