@@ -54,7 +54,7 @@ from ..compile._reductions import CompiledReduction, Read, ReductionPass
 from ..laws import Boundary, Jump, Noise, Rate, Update
 from ..solvers import step_count
 from ..space import Cone, Nearest
-from . import _numba_cells, _numba_neighbours, _numba_stencils
+from . import _numba_neighbours, _numba_stencils
 
 DEFAULT_CACHE_DIR = Path.home() / '.cache' / 'skcomplex' / 'kernels'
 FORM_KINDS: dict[Form, list[type]] = {
@@ -79,8 +79,9 @@ HEADER = """import math
 import numpy as np
 from numba import njit, prange
 
-from skcomplex.core.backends._numba_cells import build_cells
 from skcomplex.core.backends._numba_neighbours import (
+    build_grid,
+    cell_coordinate,
     cone_neighbours,
     edge_neighbours,
     nearest_neighbours,
@@ -484,25 +485,15 @@ def _pair_loop(source: _Source, kernel: Kernel, outputs: list[tuple[int, Output]
     lines += [f'{INDENT * 2}_acc{index}_ = 0.0' for index, _ in outputs]
     for dimension in range(n_dim):
         value = f'positions_{own}[{loop}, {dimension}]'
-        side, count, origin = (
-            f'sides_{cells}[{dimension}]',
-            f'counts_{cells}[{dimension}]',
-            f'origin_{cells}[{dimension}]',
-        )
-        coordinate = (
-            f'min(int(({value} % PERIOD) // {side}), {count} - 1)'
-            if pairs.period is not None
-            else f'int(np.floor(({value} - {origin}) / {side}))'
-        )
-        lines.append(f'{INDENT * 2}_c{dimension}_ = {coordinate}')
+        lines.append(f'{INDENT * 2}_c{dimension}_ = cell_coordinate({value}, {dimension}, shape_{cells}, _box_)')
     depth = 2
     for dimension in range(n_dim):
         pad = INDENT * depth
-        counts = f'counts_{cells}[{dimension}]'
+        counts = f'shape_{cells}[0][{dimension}]'
         lines.append(f'{pad}for _o{dimension}_ in range(-1, 2):')
         if pairs.period is not None:
             lines += [
-                f'{pad}{INDENT}if {counts} == 1 and _o{dimension}_ != 0:',
+                f'{pad}{INDENT}if (_o{dimension}_ == -1 and {counts} < 3) or (_o{dimension}_ == 1 and {counts} < 2):',
                 f'{pad}{INDENT * 2}continue',
                 f'{pad}{INDENT}_g{dimension}_ = (_c{dimension}_ + _o{dimension}_) % {counts}',
             ]
@@ -546,7 +537,7 @@ def _pair_loop(source: _Source, kernel: Kernel, outputs: list[tuple[int, Output]
 
 
 def _pair_kernel(source: _Source, kernel: Kernel, name: str, parallel: bool) -> None:
-    """Add the source of a pair kernel that sums pair outputs over neighbours found with cell lists."""
+    """Add the source of a pair kernel that sums pair outputs over neighbours found in the bounded cell grids."""
     pairs = kernel.pairs
     assert isinstance(pairs, PairSearch)  # nosec B101: pair kernels hold a pair search
     same = pairs.first == pairs.second
@@ -556,15 +547,16 @@ def _pair_kernel(source: _Source, kernel: Kernel, name: str, parallel: bool) -> 
         f'@njit(cache=CACHE, parallel={parallel})',
         f'def {name}(t, x, p, L, out, offset):',
         f'{INDENT}_cutoff_ = p[{_index(source, cutoff, None)}]',
+        f'{INDENT}_box_ = (np.full({columns}, PERIOD), PERIODIC)',
     ]
     for label, entry in (('a', pairs.first), ('b', pairs.second)) if not same else (('a', pairs.first),):
         start, rows = f'_L{2 * source.slot(entry)}_', f'_L{2 * source.slot(entry) + 1}_'
-        cells = ', '.join(f'{part}_{label}' for part in ('counts', 'sides', 'origin', 'strides', 'starts', 'order'))
+        cells = ', '.join(f'{part}_{label}' for part in ('shape', 'strides', 'starts', 'order'))
         positions = f'x[{start} : {start} + rows__{label}_ * {columns}].reshape((rows__{label}_, {columns}))'
         lines += [
             f'{INDENT}rows__{label}_ = {rows}',
             f'{INDENT}positions_{label} = {positions}',
-            f'{INDENT}{cells} = build_cells(positions_{label}, _cutoff_, PERIOD, PERIODIC)',
+            f'{INDENT}{cells} = build_grid(positions_{label}, _cutoff_, _box_)',
         ]
     lines += _single_reads(source, kernel, kernel.outputs)
     outputs = list(enumerate(kernel.outputs))
@@ -956,7 +948,7 @@ def _helpers_fingerprint() -> str:
     cached against other helpers, such as those of another version of the library, would run stale code. The digest keys
     the cached kernels on the helpers too, and on the module of the step count that the stepper loops call.
     """
-    modules = (_numba_cells, _numba_neighbours, _numba_stencils, sys.modules[step_count.__module__])
+    modules = (_numba_neighbours, _numba_stencils, sys.modules[step_count.__module__])
     sources = [inspect.getsource(module).encode() for module in modules]
     return hashlib.sha256(b''.join([numba.__version__.encode(), *sources])).hexdigest()
 
