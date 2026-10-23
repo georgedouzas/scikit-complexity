@@ -6,9 +6,10 @@
 from collections.abc import Sequence
 
 import numpy as np
+from sage.all__sagemath_symbolics import sqrt
 
 from ....core.components import Element, Field
-from ....core.laws import Rate, laplacian
+from ....core.laws import Noise, Rate, laplacian
 from ....core.runtime import register_model
 from ....core.solvers import ETDRK4
 from ....core.space import LatticeSpace
@@ -30,6 +31,16 @@ CahnHilliard = Element.define(
     laws=lambda s: [Rate(s.phi, -laplacian(s.phi) - s.kappa * laplacian(laplacian(s.phi)) + laplacian(s.phi**3))],
 )
 
+ThermalCahnHilliard = Element.define(
+    'ThermalCahnHilliard',
+    states={'phi': 0.0},
+    parameters={'kappa': 1.0, 'temperature': 0.0},
+    laws=lambda s: [
+        Rate(s.phi, -laplacian(s.phi) - s.kappa * laplacian(laplacian(s.phi)) + laplacian(s.phi**3)),
+        Noise(s.phi, sqrt(2 * s.temperature), conserved=True),
+    ],
+)
+
 
 def _ordering(
     element: type[Element],
@@ -39,13 +50,17 @@ def _ordering(
     mean: float,
     kappa: float,
     random_state: int | np.random.Generator | None,
+    temperature: float = 0.0,
 ) -> System:
-    """Return a field of the order parameter that starts from small noise around a mean."""
+    """Return a field of the order parameter that starts from small noise around a mean, with conserved noise."""
     shape = tuple(shape)
     rng = np.random.default_rng(random_state)
     values = {'phi': mean + 0.05 * rng.uniform(-1.0, 1.0, shape), 'kappa': kappa}
     space = LatticeSpace(shape, spacing=length / shape[0])
-    return System(components=[Field('mixture', element, space, values=values, discretization='spectral')])
+    if not temperature:
+        return System(components=[Field('mixture', element, space, values=values, discretization='spectral')])
+    values['temperature'] = temperature
+    return System(components=[Field('mixture', ThermalCahnHilliard, space, values=values)])
 
 
 @register_model(
@@ -99,7 +114,7 @@ def allen_cahn(
 
 @register_model(
     field='physics/pattern_formation',
-    tags=('field', 'phase separation', 'coarsening', 'conserved', 'model b', 'spectral', 'pde'),
+    tags=('field', 'phase separation', 'coarsening', 'conserved', 'model b', 'spectral', 'pde', 'conserved noise'),
     references=REFERENCES,
     defaults={'until': 1000.0, 'dt': 10.0, 'solver': ETDRK4(dt=0.25)},
 )
@@ -109,6 +124,7 @@ def cahn_hilliard(
     length: float = 64.0,
     mean: float = 0.0,
     kappa: float = 1.0,
+    temperature: float = 0.0,
     random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return the Cahn-Hilliard equation, Model B, the conserved relaxation of an order parameter in a double well.
@@ -117,6 +133,10 @@ def cahn_hilliard(
     gradient of the chemical potential of the same free energy as the Allen-Cahn equation. Inside the spinodal,
     `|mean| < 1 / sqrt(3)`, small noise decomposes into domains of `phi` near 1 and -1, which coarsen by diffusion
     through the bulk so that their size grows as `t^(1/3)`, while the mean of `phi` stays fixed.
+
+    A positive temperature adds the thermal noise of Model B, `div(sqrt(2 temperature) eta)`, which conserves the mean
+    of `phi` as well. The field then uses finite differences, and an SDE solver such as `EulerMaruyama` integrates
+    it, with a step below `spacing^4 / (32 kappa)`.
 
     Args:
         shape:
@@ -131,6 +151,9 @@ def cahn_hilliard(
         kappa:
             The stiffness of the interfaces.
 
+        temperature:
+            The temperature of the conserved thermal noise, or 0 for the deterministic equation.
+
         random_state:
             The seed or generator of the initial noise of amplitude 0.05.
 
@@ -142,5 +165,15 @@ def cahn_hilliard(
         >>> from skcomplex.models.physics.pattern_formation import cahn_hilliard
         >>> cahn_hilliard((8, 8), mean=0.3).elements[0].values['kappa']
         1.0
+        >>> cahn_hilliard((8, 8), temperature=0.1).elements[0].element.__name__
+        'ThermalCahnHilliard'
     """
-    return _ordering(CahnHilliard, shape=shape, length=length, mean=mean, kappa=kappa, random_state=random_state)
+    return _ordering(
+        CahnHilliard,
+        shape=shape,
+        length=length,
+        mean=mean,
+        kappa=kappa,
+        random_state=random_state,
+        temperature=temperature,
+    )
