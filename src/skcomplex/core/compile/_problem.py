@@ -81,18 +81,6 @@ def with_initial_state(problem: 'Problem', initial_state: Mapping[str, object]) 
     return replace(problem, initial_state=state)
 
 
-class Record(Protocol):
-    """Record of something that happened at one time of a run, such as an event or a relaxation."""
-
-    @property
-    def label(self) -> str:
-        """Name of what happened."""
-
-    @property
-    def time(self) -> float:
-        """Time it happened at."""
-
-
 @dataclass(frozen=True)
 class RenewalRecord:
     """Renewals of one renewal law that fired in one pass, each at the time of its member.
@@ -219,6 +207,85 @@ class _TopologyChanges(Protocol):
 
     def presence(self, name: str, p: Vector) -> npt.NDArray[np.bool_] | None:
         """Return whether every row of the group of a variable holds a member, or `None` for a fixed group."""
+
+
+@dataclass(frozen=True)
+class _JumpChannels:
+    """Random events of one jump law, one channel per evaluation index."""
+
+    offset: int
+    targets: npt.NDArray[np.intp]
+    increments: Vector
+
+    @property
+    def size(self) -> int:
+        """Number of channels."""
+        return int(self.targets.shape[1])
+
+
+@dataclass(frozen=True)
+class _MarkovMatrix:
+    """Transition or emission matrix of a law, evaluated from the parameter vector to check its rows."""
+
+    law: str
+    function: Callable[[Vector], npt.NDArray[np.float64]]
+    reads: frozenset[int]
+
+    def violation(self, p: Vector) -> str | None:
+        """Return the description of the first negative entry or row that does not sum to one, or `None`.
+
+        Args:
+            p:
+                The parameter vector.
+
+        Returns:
+            violation:
+                The description of what is wrong with the matrix, or `None` when it is a stochastic matrix.
+        """
+        values = self.function(p)
+        for member, matrix in enumerate(values):
+            where = f' of member {member}' if values.shape[0] > 1 else ''
+            negative = np.argwhere(~(matrix >= 0))
+            if negative.size:
+                row, column = negative[0]
+                return f'the entry ({row}, {column}){where} of the {self.law} is {matrix[row, column]}, below 0'
+            sums = matrix.sum(axis=1)
+            wrong = np.flatnonzero(np.abs(sums - 1) > ROW_TOLERANCE)
+            if wrong.size:
+                return f'the row {wrong[0]}{where} of the {self.law} sums to {sums[wrong[0]]}, not 1'
+        return None
+
+
+class _SiteState(Protocol):
+    """State of a group whose members sit at the sites of a lattice or the nodes of a network."""
+
+    @property
+    def name(self) -> str:
+        """Dotted name of the state."""
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        """Number of sites along every dimension."""
+
+
+class _SiteStep(Protocol):
+    """Step that changes the states of the sites of a group once per step of a stepwise form."""
+
+    @property
+    def targets(self) -> tuple[_SiteState, ...]:
+        """States the step changes."""
+
+
+class Record(Protocol):
+    """Record of something that happened at one time of a run, such as an event or a relaxation."""
+
+    @property
+    def label(self) -> str:
+        """Name of what happened."""
+
+    @property
+    def time(self) -> float:
+        """Time it happened at."""
 
 
 @dataclass(frozen=True)
@@ -352,20 +419,6 @@ class CompiledInteraction:
 
 
 @dataclass(frozen=True)
-class _JumpChannels:
-    """Random events of one jump law, one channel per evaluation index."""
-
-    offset: int
-    targets: npt.NDArray[np.intp]
-    increments: Vector
-
-    @property
-    def size(self) -> int:
-        """Number of channels."""
-        return int(self.targets.shape[1])
-
-
-@dataclass(frozen=True)
 class WienerBlock:
     """Correlated Wiener processes of one Wiener element, a contiguous block of the processes of a problem.
 
@@ -475,39 +528,6 @@ class Draws:
 
 
 @dataclass(frozen=True)
-class _MarkovMatrix:
-    """Transition or emission matrix of a law, evaluated from the parameter vector to check its rows."""
-
-    law: str
-    function: Callable[[Vector], npt.NDArray[np.float64]]
-    reads: frozenset[int]
-
-    def violation(self, p: Vector) -> str | None:
-        """Return the description of the first negative entry or row that does not sum to one, or `None`.
-
-        Args:
-            p:
-                The parameter vector.
-
-        Returns:
-            violation:
-                The description of what is wrong with the matrix, or `None` when it is a stochastic matrix.
-        """
-        values = self.function(p)
-        for member, matrix in enumerate(values):
-            where = f' of member {member}' if values.shape[0] > 1 else ''
-            negative = np.argwhere(~(matrix >= 0))
-            if negative.size:
-                row, column = negative[0]
-                return f'the entry ({row}, {column}){where} of the {self.law} is {matrix[row, column]}, below 0'
-            sums = matrix.sum(axis=1)
-            wrong = np.flatnonzero(np.abs(sums - 1) > ROW_TOLERANCE)
-            if wrong.size:
-                return f'the row {wrong[0]}{where} of the {self.law} sums to {sums[wrong[0]]}, not 1'
-        return None
-
-
-@dataclass(frozen=True)
 class Accelerated:
     """Compiled stepper loops of a problem, which run every internal step of a frame in compiled code.
 
@@ -536,26 +556,6 @@ class Accelerated:
     euler_maruyama: Callable[..., Vector] | None = None
     gillespie: Callable[..., Vector] | None = None
     iterate: Callable[..., Vector] | None = None
-
-
-class _SiteState(Protocol):
-    """State of a group whose members sit at the sites of a lattice or the nodes of a network."""
-
-    @property
-    def name(self) -> str:
-        """Dotted name of the state."""
-
-    @property
-    def shape(self) -> tuple[int, ...]:
-        """Number of sites along every dimension."""
-
-
-class _SiteStep(Protocol):
-    """Step that changes the states of the sites of a group once per step of a stepwise form."""
-
-    @property
-    def targets(self) -> tuple[_SiteState, ...]:
-        """States the step changes."""
 
 
 @dataclass(frozen=True)

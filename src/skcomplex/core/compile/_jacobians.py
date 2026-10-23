@@ -24,10 +24,6 @@ type Symmetry = tuple[Indices, tuple[int, ...], list[tuple[int, int]]]
 PATTERN_LIMIT = 4_000_000
 
 
-class _TooDense(Exception):  # noqa: N818
-    """Raised internally when the dense blocks of a pattern exceed the size limit."""
-
-
 def _selection(
     rows: npt.NDArray[np.intp],
     columns: npt.NDArray[np.intp],
@@ -51,35 +47,6 @@ def _boolean(matrix: Any) -> Sparse:  # noqa: ANN401
 def _product(first: Any, second: Any) -> Sparse:  # noqa: ANN401
     """Return the structure of the product of two boolean structures."""
     return _boolean(scipy.sparse.csr_array(first, dtype=float) @ scipy.sparse.csr_array(second, dtype=float))
-
-
-@dataclass
-class _Partials:
-    """Partial derivatives of expressions by the symbols they read, compiled into one NumPy function."""
-
-    time: Expression
-    arguments: list[Expression]
-    expressions: list[Expression]
-    by: list[Expression]
-    _function: Callable[..., list[Any]] | None = field(default=None, init=False, repr=False)
-
-    def __post_init__(self) -> None:
-        """Differentiate every expression by every symbol it reads and compile the derivatives."""
-        self.pairs = [
-            (index, item)
-            for index, expression in enumerate(self.expressions)
-            for item in self.by
-            if item in SR(expression).variables()
-        ]
-        derivatives = [SR(self.expressions[index]).diff(item) for index, item in self.pairs]
-        self._function = numpy_function(self.time, self.arguments, derivatives) if derivatives else None
-
-    def evaluate(self, t: float, values: list[Any]) -> list[tuple[int, Expression, Any]]:
-        """Return every derivative with the index of its expression and the symbol it is taken by."""
-        if self._function is None:
-            return []
-        results = self._function(t, *values)
-        return [(index, item, value) for (index, item), value in zip(self.pairs, results, strict=True)]
 
 
 def _output_symbols(output: Output) -> set[Expression] | None:
@@ -115,6 +82,44 @@ def _mirror_projections(symmetries: Sequence[Symmetry], size: int) -> list[Spars
             values = np.concatenate([np.ones(free.size), np.full(indices.size, 0.5), np.full(indices.size, sign / 2)])
             projections.append(scipy.sparse.csr_array((values, (rows, columns)), shape=(size, size)))
     return projections
+
+
+def _is_variable(reference: Reference) -> bool:
+    """Check whether a reference stands for a state, a reduction, or a derived read, so derivatives reach the state."""
+    return reference.source in {Source.REDUCED, Source.DERIVED} or reference.is_state
+
+
+class _TooDense(Exception):  # noqa: N818
+    """Raised internally when the dense blocks of a pattern exceed the size limit."""
+
+
+@dataclass
+class _Partials:
+    """Partial derivatives of expressions by the symbols they read, compiled into one NumPy function."""
+
+    time: Expression
+    arguments: list[Expression]
+    expressions: list[Expression]
+    by: list[Expression]
+    _function: Callable[..., list[Any]] | None = field(default=None, init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        """Differentiate every expression by every symbol it reads and compile the derivatives."""
+        self.pairs = [
+            (index, item)
+            for index, expression in enumerate(self.expressions)
+            for item in self.by
+            if item in SR(expression).variables()
+        ]
+        derivatives = [SR(self.expressions[index]).diff(item) for index, item in self.pairs]
+        self._function = numpy_function(self.time, self.arguments, derivatives) if derivatives else None
+
+    def evaluate(self, t: float, values: list[Any]) -> list[tuple[int, Expression, Any]]:
+        """Return every derivative with the index of its expression and the symbol it is taken by."""
+        if self._function is None:
+            return []
+        results = self._function(t, *values)
+        return [(index, item, value) for (index, item), value in zip(self.pairs, results, strict=True)]
 
 
 class _ConservationLaw(Protocol):
@@ -541,8 +546,3 @@ class ExactJacobian:
         if reduction.weights is not None:
             return scipy.sparse.csr_array((abs(reduction.weights) != 0).astype(float) @ support.astype(float) != 0)
         return scipy.sparse.csr_array(np.asarray(support.astype(float).sum(axis=0)).reshape(1, -1) != 0)
-
-
-def _is_variable(reference: Reference) -> bool:
-    """Check whether a reference stands for a state, a reduction, or a derived read, so derivatives reach the state."""
-    return reference.source in {Source.REDUCED, Source.DERIVED} or reference.is_state

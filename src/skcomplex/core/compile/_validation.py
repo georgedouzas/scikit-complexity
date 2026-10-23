@@ -74,59 +74,6 @@ TIME_CLASSES = {
     TimeKind.STATIC: 'StaticTime()',
 }
 OWN_NEIGHBOURHOOD = Requires(space={SpaceKind.LATTICE, SpaceKind.NETWORK})
-
-
-def _subclasses(base: type) -> list[type]:
-    """Return every subclass of a class, recursively."""
-    found: list[type] = []
-    subclasses: list[type] = base.__subclasses__()
-    for subclass in subclasses:
-        found += [subclass, *_subclasses(subclass)]
-    return found
-
-
-def missing_declarations() -> list[str]:
-    """Return the primitives, solvers, and backends that do not declare their requirements or support.
-
-    Every law class declares its law kind, its time class, and its requirements, every space its kind, every registered
-    solver and backend its support. Validation reads only these declarations, so a primitive without one cannot be
-    validated.
-
-    Returns:
-        missing:
-            One sentence per missing declaration.
-
-    Examples:
-        >>> from skcomplex.core.compile import missing_declarations
-        >>> missing_declarations()
-        []
-    """
-    missing = []
-    for law in law_classes():
-        if not isinstance(getattr(law, 'law_kind', None), LawKind):
-            missing.append(f'The law {law.__name__} declares no law kind.')
-        if not isinstance(getattr(law, 'time_class', None), LawClass):
-            missing.append(f'The law {law.__name__} declares no time class.')
-        if not isinstance(getattr(law, 'requires', None), Requires):
-            missing.append(f'The law {law.__name__} declares no requirements.')
-    missing.extend(
-        f'The space {space.__name__} declares no space kind.'
-        for space in _subclasses(Space)
-        if not inspect.isabstract(space) and not isinstance(getattr(space, 'space_kind', None), SpaceKind)
-    )
-    solvers = solver_registry()
-    for key in solvers:
-        solver = solvers.resolve(key)
-        if not isinstance(getattr(solver, 'supports', None), Supports):
-            _, name = cast('tuple[Form, str]', key)
-            missing.append(f'The solver {name!r} ({solver.__name__}) declares no support.')
-    for key in BACKENDS:
-        backend = BACKENDS.resolve(key)
-        if not isinstance(getattr(backend, 'supports', None), Supports):
-            missing.append(f'The backend {key!r} ({backend.__name__}) declares no support.')
-    return list(dict.fromkeys(missing))
-
-
 FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
     LabelError: ('label', 'Give every child of a system a unique label of letters, digits, and underscores.'),
     RoleError: ('role', 'Bind every role to the path of an element, group, or member of the system.'),
@@ -145,57 +92,13 @@ REPLACEMENTS = {
 }
 
 
-@dataclass
-class ValidationReport:
-    """Every problem of a system, its solver, and its backend, with the compilation state planned so far.
-
-    Args:
-        issues:
-            The problems, in the order they were found.
-
-        compilation:
-            The compilation state through the plan of the partitions, which compilation continues from, or `None`
-            when the system tree cannot be flattened.
-
-    Examples:
-        >>> from skcomplex.core.compile import validate
-        >>> from skcomplex.core.system import System
-        >>> validate(System()).ok
-        True
-    """
-
-    issues: list[Issue] = field(default_factory=list)
-    compilation: Compilation | None = field(default=None, repr=False, compare=False)
-
-    @property
-    def errors(self) -> list[Issue]:
-        """Return the problems that stop compilation."""
-        return [issue for issue in self.issues if issue.severity == ERROR]
-
-    @property
-    def warnings(self) -> list[Issue]:
-        """Return the problems that do not stop compilation."""
-        return [issue for issue in self.issues if issue.severity == WARNING]
-
-    @property
-    def ok(self) -> bool:
-        """Check whether the report holds no error."""
-        return not self.errors
-
-    def raise_errors(self) -> None:
-        """Raise one error that lists every error of the report, after emitting its warnings.
-
-        Raises:
-            ValidationError:
-                The report holds an error.
-        """
-        for issue in self.warnings:
-            warnings.warn(str(issue), ValidationWarning, stacklevel=3)
-        if self.errors:
-            lines = '\n'.join(f'- {issue}' for issue in self.errors)
-            error_msg = f'The system is not valid, with {len(self.errors)} error(s):\n{lines}'
-            classes = {issue.error for issue in self.errors}
-            raise (classes.pop() if len(classes) == 1 else ValidationError)(error_msg)
+def _subclasses(base: type) -> list[type]:
+    """Return every subclass of a class, recursively."""
+    found: list[type] = []
+    subclasses: list[type] = base.__subclasses__()
+    for subclass in subclasses:
+        found += [subclass, *_subclasses(subclass)]
+    return found
 
 
 def _domain_kind(entry: Entry, *, vector: bool = False) -> DomainKind:
@@ -805,6 +708,48 @@ def _issues_of(compilation: Compilation) -> list[Issue]:
     return issues
 
 
+def missing_declarations() -> list[str]:
+    """Return the primitives, solvers, and backends that do not declare their requirements or support.
+
+    Every law class declares its law kind, its time class, and its requirements, every space its kind, every registered
+    solver and backend its support. Validation reads only these declarations, so a primitive without one cannot be
+    validated.
+
+    Returns:
+        missing:
+            One sentence per missing declaration.
+
+    Examples:
+        >>> from skcomplex.core.compile import missing_declarations
+        >>> missing_declarations()
+        []
+    """
+    missing = []
+    for law in law_classes():
+        if not isinstance(getattr(law, 'law_kind', None), LawKind):
+            missing.append(f'The law {law.__name__} declares no law kind.')
+        if not isinstance(getattr(law, 'time_class', None), LawClass):
+            missing.append(f'The law {law.__name__} declares no time class.')
+        if not isinstance(getattr(law, 'requires', None), Requires):
+            missing.append(f'The law {law.__name__} declares no requirements.')
+    missing.extend(
+        f'The space {space.__name__} declares no space kind.'
+        for space in _subclasses(Space)
+        if not inspect.isabstract(space) and not isinstance(getattr(space, 'space_kind', None), SpaceKind)
+    )
+    solvers = solver_registry()
+    for key in solvers:
+        solver = solvers.resolve(key)
+        if not isinstance(getattr(solver, 'supports', None), Supports):
+            _, name = cast('tuple[Form, str]', key)
+            missing.append(f'The solver {name!r} ({solver.__name__}) declares no support.')
+    for key in BACKENDS:
+        backend = BACKENDS.resolve(key)
+        if not isinstance(getattr(backend, 'supports', None), Supports):
+            missing.append(f'The backend {key!r} ({backend.__name__}) declares no support.')
+    return list(dict.fromkeys(missing))
+
+
 def validate(
     system: System,
     *,
@@ -853,3 +798,56 @@ def validate(
     if not any(issue.severity == ERROR for issue in issues):
         issues += _plan_issues(compilation)
     return ValidationReport(issues, compilation)
+
+
+@dataclass
+class ValidationReport:
+    """Every problem of a system, its solver, and its backend, with the compilation state planned so far.
+
+    Args:
+        issues:
+            The problems, in the order they were found.
+
+        compilation:
+            The compilation state through the plan of the partitions, which compilation continues from, or `None`
+            when the system tree cannot be flattened.
+
+    Examples:
+        >>> from skcomplex.core.compile import validate
+        >>> from skcomplex.core.system import System
+        >>> validate(System()).ok
+        True
+    """
+
+    issues: list[Issue] = field(default_factory=list)
+    compilation: Compilation | None = field(default=None, repr=False, compare=False)
+
+    @property
+    def errors(self) -> list[Issue]:
+        """Return the problems that stop compilation."""
+        return [issue for issue in self.issues if issue.severity == ERROR]
+
+    @property
+    def warnings(self) -> list[Issue]:
+        """Return the problems that do not stop compilation."""
+        return [issue for issue in self.issues if issue.severity == WARNING]
+
+    @property
+    def ok(self) -> bool:
+        """Check whether the report holds no error."""
+        return not self.errors
+
+    def raise_errors(self) -> None:
+        """Raise one error that lists every error of the report, after emitting its warnings.
+
+        Raises:
+            ValidationError:
+                The report holds an error.
+        """
+        for issue in self.warnings:
+            warnings.warn(str(issue), ValidationWarning, stacklevel=3)
+        if self.errors:
+            lines = '\n'.join(f'- {issue}' for issue in self.errors)
+            error_msg = f'The system is not valid, with {len(self.errors)} error(s):\n{lines}'
+            classes = {issue.error for issue in self.errors}
+            raise (classes.pop() if len(classes) == 1 else ValidationError)(error_msg)

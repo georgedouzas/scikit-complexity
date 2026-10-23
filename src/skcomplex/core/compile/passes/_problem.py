@@ -52,14 +52,6 @@ def _history(blocks: list[Block]) -> dict[str, Any]:
     return history
 
 
-def visual_of(node: Node) -> VisualSpec:
-    """Return the visual of an element, or a group's own visual when it sets one and its default otherwise."""
-    if isinstance(node.component, Group):
-        return node.component.visual if node.component.visual is not None else node.component.default_visual()
-    declared: VisualSpec = node.component_type.visual
-    return declared
-
-
 def _compiled_elements(blocks: list[Block]) -> tuple[CompiledElement, ...]:
     """Return the elements and groups that are not agents with the dotted names of their states and parameters."""
     return tuple(
@@ -131,6 +123,14 @@ def _problem_of(compilation: Compilation) -> Problem:
         matrices=cast('tuple[_MarkovMatrix, ...]', compilation.matrices),
         **functions,
     )
+
+
+def visual_of(node: Node) -> VisualSpec:
+    """Return the visual of an element, or a group's own visual when it sets one and its default otherwise."""
+    if isinstance(node.component, Group):
+        return node.component.visual if node.component.visual is not None else node.component.default_visual()
+    declared: VisualSpec = node.component_type.visual
+    return declared
 
 
 class ProblemPass(Pass):

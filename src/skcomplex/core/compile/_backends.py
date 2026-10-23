@@ -31,114 +31,37 @@ FUNCTION_KINDS: dict[str, type] = {
 }
 
 
-@dataclass
-class Lowering:
-    """Numeric functions of a form produced by a backend.
-
-    Args:
-        drift:
-            The drift function, or `None`.
-
-        diffusion:
-            The function that returns every Wiener process amplitude, or `None`.
-
-        noise_rows:
-            The state index each noise amplitude drives.
-
-        noise_columns:
-            The Wiener process each noise amplitude draws.
-
-        n_processes:
-            The number of Wiener processes.
-
-        noise_blocks:
-            The blocks of correlated processes with their covariance factors.
-
-        propensities:
-            The function that returns every jump channel rate, or `None`.
-
-        jumps:
-            The channels of every jump law.
-
-        update:
-            The next-state function of a discrete map, or `None`.
-
-        boundary:
-            The function that applies the boundary laws, or `None`.
-
-        accelerated:
-            The compiled stepper loops, or `None` when the backend has none.
-
-        backends:
-            The backend that runs the kernels of every law kind, by the kind's name, when it differs by kind.
-    """
-
-    drift: VectorFunction | None = None
-    diffusion: VectorFunction | None = None
-    noise_rows: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
-    noise_columns: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
-    n_processes: int = 0
-    noise_blocks: tuple[WienerBlock, ...] = ()
-    propensities: VectorFunction | None = None
-    jumps: tuple[_JumpChannels, ...] = ()
-    update: VectorFunction | None = None
-    boundary: VectorFunction | None = None
-    accelerated: Accelerated | None = None
-    backends: dict[str, str] = field(default_factory=dict)
+def _reads_reduction(kernel: Kernel, item: Expression) -> bool:
+    """Check whether a symbol of a kernel reads a reduction, directly or through the operand of a derived read."""
+    reference = kernel.references[item]
+    if reference.source is Source.REDUCED:
+        return True
+    if reference.source is Source.DERIVED:
+        return any(_reads_reduction(kernel, symbol) for symbol in reference.neighbor.symbols)
+    return False
 
 
-class Backend(BaseEstimator):
-    """Base class of backends, which turn kernels into the numeric functions of a form.
+def _unprinted_reduction(reductions: ReductionPass) -> str | None:
+    """Return the first reduction that does not print in the scalar dialect, or `None` when every one prints."""
+    for reduction in reductions.reductions:
+        try:
+            print_expressions(
+                [reduction.argument, reduction.condition if reduction.condition is not None else 1],
+                SCALAR_DIALECT,
+            )
+        except ValidationError:
+            return f'the {reduction.kind} reduction {reduction.argument}'
+    for neighbourhood in reductions.neighbourhoods:
+        try:
+            print_expressions([neighbourhood.argument, neighbourhood.weight], SCALAR_DIALECT)
+        except ValidationError:
+            return f'the neighbourhood {neighbourhood.kind} reduction {neighbourhood.argument}'
+    return None
 
-    Subclasses set the class variable `name` and implement `lower`.
-    """
 
-    supports: ClassVar[Supports]
-
-    name: ClassVar[str]
-
-    @abstractmethod
-    def lower(
-        self,
-        form: Form,
-        kernels: Mapping[type, list[Kernel]],
-        changes: Mapping[int, list[tuple[Reference, float]]],
-        size: int,
-        *,
-        reductions: ReductionPass | None = None,
-        draws: Draws | None = None,
-    ) -> Lowering:
-        """Return the numeric functions of a form.
-
-        Args:
-            form:
-                The form of the problem.
-
-            kernels:
-                The kernels of every law kind, in evaluation order.
-
-            changes:
-                The changes of every jump output, keyed by the output's identity.
-
-            size:
-                The size of the state vector.
-
-            reductions:
-                The reductions the kernels read, evaluated before them at every evaluation, or `None`.
-
-            draws:
-                The random values a stochastic map draws at every step into the parameter vector extended after its
-                parameters, or `None` for a deterministic problem.
-
-        Returns:
-            lowering:
-                The numeric functions.
-
-        Raises:
-            NotImplementedError:
-                The subclass does not implement the method.
-        """
-        raise NotImplementedError
+def _load_backends() -> None:
+    """Import `skcomplex.core.backends`, whose modules register the backends and the solvers that run in them."""
+    importlib.import_module('skcomplex.core.backends')
 
 
 def adding_function(kernels: list[Kernel], size: int) -> VectorFunction:
@@ -212,16 +135,6 @@ def concatenating_function(kernels: list[Kernel]) -> VectorFunction:
     return evaluate
 
 
-def _reads_reduction(kernel: Kernel, item: Expression) -> bool:
-    """Check whether a symbol of a kernel reads a reduction, directly or through the operand of a derived read."""
-    reference = kernel.references[item]
-    if reference.source is Source.REDUCED:
-        return True
-    if reference.source is Source.DERIVED:
-        return any(_reads_reduction(kernel, symbol) for symbol in reference.neighbor.symbols)
-    return False
-
-
 def reads_reductions(kernels: list[Kernel]) -> bool:
     """Check whether the outputs of kernels read reductions, so their function evaluates the reductions first.
 
@@ -234,6 +147,62 @@ def reads_reductions(kernels: list[Kernel]) -> bool:
             Whether an output reads a reduction.
     """
     return any(_reads_reduction(kernel, item) for kernel in kernels for item in kernel.arguments)
+
+
+@dataclass
+class Lowering:
+    """Numeric functions of a form produced by a backend.
+
+    Args:
+        drift:
+            The drift function, or `None`.
+
+        diffusion:
+            The function that returns every Wiener process amplitude, or `None`.
+
+        noise_rows:
+            The state index each noise amplitude drives.
+
+        noise_columns:
+            The Wiener process each noise amplitude draws.
+
+        n_processes:
+            The number of Wiener processes.
+
+        noise_blocks:
+            The blocks of correlated processes with their covariance factors.
+
+        propensities:
+            The function that returns every jump channel rate, or `None`.
+
+        jumps:
+            The channels of every jump law.
+
+        update:
+            The next-state function of a discrete map, or `None`.
+
+        boundary:
+            The function that applies the boundary laws, or `None`.
+
+        accelerated:
+            The compiled stepper loops, or `None` when the backend has none.
+
+        backends:
+            The backend that runs the kernels of every law kind, by the kind's name, when it differs by kind.
+    """
+
+    drift: VectorFunction | None = None
+    diffusion: VectorFunction | None = None
+    noise_rows: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
+    noise_columns: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
+    n_processes: int = 0
+    noise_blocks: tuple[WienerBlock, ...] = ()
+    propensities: VectorFunction | None = None
+    jumps: tuple[_JumpChannels, ...] = ()
+    update: VectorFunction | None = None
+    boundary: VectorFunction | None = None
+    accelerated: Accelerated | None = None
+    backends: dict[str, str] = field(default_factory=dict)
 
 
 def with_reductions(
@@ -264,24 +233,6 @@ def with_reductions(
         if kernels is None or reads_reductions(kernels.get(kind, [])):
             setattr(lowering, name, reductions.wrap(getattr(lowering, name)))
     return lowering
-
-
-def _unprinted_reduction(reductions: ReductionPass) -> str | None:
-    """Return the first reduction that does not print in the scalar dialect, or `None` when every one prints."""
-    for reduction in reductions.reductions:
-        try:
-            print_expressions(
-                [reduction.argument, reduction.condition if reduction.condition is not None else 1],
-                SCALAR_DIALECT,
-            )
-        except ValidationError:
-            return f'the {reduction.kind} reduction {reduction.argument}'
-    for neighbourhood in reductions.neighbourhoods:
-        try:
-            print_expressions([neighbourhood.argument, neighbourhood.weight], SCALAR_DIALECT)
-        except ValidationError:
-            return f'the neighbourhood {neighbourhood.kind} reduction {neighbourhood.argument}'
-    return None
 
 
 def report_fallbacks(
@@ -323,12 +274,58 @@ def report_fallbacks(
     return {str(cast('type[Law]', kind).law_kind): name if compiled[kind] else 'python' for kind in kinds}
 
 
-BACKENDS = Registry[type[Backend]]('backend')
+class Backend(BaseEstimator):
+    """Base class of backends, which turn kernels into the numeric functions of a form.
 
+    Subclasses set the class variable `name` and implement `lower`.
+    """
 
-def _load_backends() -> None:
-    """Import `skcomplex.core.backends`, whose modules register the backends and the solvers that run in them."""
-    importlib.import_module('skcomplex.core.backends')
+    supports: ClassVar[Supports]
+
+    name: ClassVar[str]
+
+    @abstractmethod
+    def lower(
+        self,
+        form: Form,
+        kernels: Mapping[type, list[Kernel]],
+        changes: Mapping[int, list[tuple[Reference, float]]],
+        size: int,
+        *,
+        reductions: ReductionPass | None = None,
+        draws: Draws | None = None,
+    ) -> Lowering:
+        """Return the numeric functions of a form.
+
+        Args:
+            form:
+                The form of the problem.
+
+            kernels:
+                The kernels of every law kind, in evaluation order.
+
+            changes:
+                The changes of every jump output, keyed by the output's identity.
+
+            size:
+                The size of the state vector.
+
+            reductions:
+                The reductions the kernels read, evaluated before them at every evaluation, or `None`.
+
+            draws:
+                The random values a stochastic map draws at every step into the parameter vector extended after its
+                parameters, or `None` for a deterministic problem.
+
+        Returns:
+            lowering:
+                The numeric functions.
+
+        Raises:
+            NotImplementedError:
+                The subclass does not implement the method.
+        """
+        raise NotImplementedError
 
 
 def register_backend(backend: type[Backend]) -> None:
@@ -339,6 +336,9 @@ def register_backend(backend: type[Backend]) -> None:
             The backend class.
     """
     BACKENDS.register(backend.name, backend)
+
+
+BACKENDS = Registry[type[Backend]]('backend')
 
 
 def resolve_backend(backend: str | Backend, members: int) -> Backend:

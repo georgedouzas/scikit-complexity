@@ -56,11 +56,6 @@ def _resolve_path(node: Node, role: str, label: object, elements: dict[str, Bloc
     return elements[path]
 
 
-def resolve_role(node: Node, role: str, elements: dict[str, Block]) -> Block:
-    """Return the block of the element or group bound to a role of an interaction."""
-    return _resolve_path(node, role, getattr(node.component, role), elements)
-
-
 def _resolve_member(node: Node, role: str, reference: str, elements: dict[str, Block]) -> tuple[Block, int] | None:
     """Return the group block and the member index of a member reference such as `sites[3]`, or `None` for a path."""
     match = MEMBER_REFERENCE.match(reference)
@@ -136,26 +131,6 @@ def _resolve_set(node: Node, role: str, labels: Sequence[str], elements: dict[st
         )
         raise RoleError(error_msg)
     return blocks
-
-
-def with_other(block: Block, namespace: Symbols, references: dict[Expression, Reference]) -> Symbols:
-    """Return the namespace of a group's member with `other`, the namespace of a neighbour in reductions over them.
-
-    A group that declares a variable named `other` keeps it, and its laws reduce over neighbours without it.
-    """
-    if block.node.members is None or 'other' in vars(namespace):
-        return namespace
-    other, other_references = block.namespace(Source.OTHER, alias='__other')
-    references.update(other_references)
-    return Symbols(**vars(namespace), other=other)
-
-
-def member_spec(block: Block, time: Expression) -> KernelSpec:
-    """Return the kernel spec of the intrinsic laws of an element or group."""
-    namespace, references = block.namespace(Source.MEMBER)
-    namespace = with_other(block, namespace, references)
-    group = block.node.path if block.node.members is not None else None
-    return KernelSpec(block.node.path, Symbols(t=time, **vars(namespace)), references, block.rows, group=group)
 
 
 def _set_symbols(members: list[Block], index: int) -> dict[Expression, SetSymbol]:
@@ -290,32 +265,6 @@ def _check_aligned(spec: KernelSpec, groups: list[str]) -> None:
     raise RoleError(error_msg)
 
 
-def settle_rows(spec: KernelSpec, laws: list[Law]) -> None:
-    """Set the groups an interaction is evaluated over from the member symbols its laws read outside reductions.
-
-    Laws without reductions keep the group their one group role binds to, so a single element bound next to it receives
-    the sum over the members. Groups of one size that laws read outside reductions are read member by member, row `i` of
-    each together.
-    """
-    values = [law.rate if isinstance(law, Jump) else getattr(law, 'value', None) for law in laws]
-    if not spec.groups or (len(spec.groups) == 1 and not any(has_reductions(value) for value in values)):
-        return
-    read: set[Expression] = set()
-    for law, value in zip(laws, values, strict=True):
-        read |= _outside_reductions(value)
-        read |= set(components_of(getattr(law, 'target', None)))
-    owners = {
-        reference.entry.name.rpartition('.')[0]
-        for item in read
-        if (reference := spec.references.get(item)) is not None and reference.source is Source.MEMBER
-    }
-    groups = sorted(owners & set(spec.groups))
-    _check_aligned(spec, groups)
-    spec.group = next(iter(groups), None)
-    spec.aligned = tuple(groups)
-    spec.rows = spec.groups[spec.group] if spec.group is not None else 1
-
-
 def _edge_roles(node: Node, elements: dict[str, Block]) -> tuple[Block, Block | None]:
     """Return the group of nodes and the group on edges, if any, that an interaction over neighbours binds."""
     blocks = [resolve_role(node, role, elements) for role in declarations_of(node.component, VariableKind.ROLE)]
@@ -329,11 +278,6 @@ def _edge_roles(node: Node, elements: dict[str, Block]) -> tuple[Block, Block | 
         )
         raise RoleError(error_msg)
     return nodes[0], next(iter(edges), None)
-
-
-def group_space(block: Block) -> Space | None:
-    """Return the space of a group, its own or the enclosing one, shared by the groups of one network."""
-    return block.node.space
 
 
 def _edge_layer(node: Node, nodes: Block, edges: Block | None) -> str | None:
@@ -460,6 +404,62 @@ def _edge_spec(block: Block, elements: dict[str, Block], time: Expression) -> Ke
     namespace = Symbols(t=time, **vars(parameters), **namespaces)
     group = edges.node.path if edges is not None else None
     return KernelSpec(node.path, namespace, references, search.size, search, roles=paths, group=group, groups=groups)
+
+
+def resolve_role(node: Node, role: str, elements: dict[str, Block]) -> Block:
+    """Return the block of the element or group bound to a role of an interaction."""
+    return _resolve_path(node, role, getattr(node.component, role), elements)
+
+
+def with_other(block: Block, namespace: Symbols, references: dict[Expression, Reference]) -> Symbols:
+    """Return the namespace of a group's member with `other`, the namespace of a neighbour in reductions over them.
+
+    A group that declares a variable named `other` keeps it, and its laws reduce over neighbours without it.
+    """
+    if block.node.members is None or 'other' in vars(namespace):
+        return namespace
+    other, other_references = block.namespace(Source.OTHER, alias='__other')
+    references.update(other_references)
+    return Symbols(**vars(namespace), other=other)
+
+
+def member_spec(block: Block, time: Expression) -> KernelSpec:
+    """Return the kernel spec of the intrinsic laws of an element or group."""
+    namespace, references = block.namespace(Source.MEMBER)
+    namespace = with_other(block, namespace, references)
+    group = block.node.path if block.node.members is not None else None
+    return KernelSpec(block.node.path, Symbols(t=time, **vars(namespace)), references, block.rows, group=group)
+
+
+def settle_rows(spec: KernelSpec, laws: list[Law]) -> None:
+    """Set the groups an interaction is evaluated over from the member symbols its laws read outside reductions.
+
+    Laws without reductions keep the group their one group role binds to, so a single element bound next to it receives
+    the sum over the members. Groups of one size that laws read outside reductions are read member by member, row `i` of
+    each together.
+    """
+    values = [law.rate if isinstance(law, Jump) else getattr(law, 'value', None) for law in laws]
+    if not spec.groups or (len(spec.groups) == 1 and not any(has_reductions(value) for value in values)):
+        return
+    read: set[Expression] = set()
+    for law, value in zip(laws, values, strict=True):
+        read |= _outside_reductions(value)
+        read |= set(components_of(getattr(law, 'target', None)))
+    owners = {
+        reference.entry.name.rpartition('.')[0]
+        for item in read
+        if (reference := spec.references.get(item)) is not None and reference.source is Source.MEMBER
+    }
+    groups = sorted(owners & set(spec.groups))
+    _check_aligned(spec, groups)
+    spec.group = next(iter(groups), None)
+    spec.aligned = tuple(groups)
+    spec.rows = spec.groups[spec.group] if spec.group is not None else 1
+
+
+def group_space(block: Block) -> Space | None:
+    """Return the space of a group, its own or the enclosing one, shared by the groups of one network."""
+    return block.node.space
 
 
 def state_name(spec: KernelSpec, target: Expression) -> str:

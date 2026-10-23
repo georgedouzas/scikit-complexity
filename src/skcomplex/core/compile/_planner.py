@@ -17,33 +17,6 @@ from ._issues import Issue
 SOLVERS = Registry[type[Any]]('solver')
 
 
-def solver_registry() -> Registry[type[Any]]:
-    """Return the registry of solvers, once the backends and the solvers they run have registered.
-
-    Returns:
-        solvers:
-            The registry of solver classes by form and name.
-    """
-    _load_backends()
-    return SOLVERS
-
-
-def solver_classes() -> dict[Any, list[str]]:
-    """Return every registered solver class with its names, without the `'auto'` aliases.
-
-    Returns:
-        classes:
-            The names of every solver class.
-    """
-    classes: dict[Any, list[str]] = {}
-    solvers = solver_registry()
-    for key in solvers:
-        _, name = cast('tuple[Form, str]', key)
-        if name != 'auto':
-            classes.setdefault(solvers.resolve(key), []).append(name)
-    return classes
-
-
 def _solved(kinds: set[LawKind], solvers: list[Any]) -> bool:
     """Check whether one solver of a single form runs every law kind of a set.
 
@@ -131,6 +104,33 @@ def _plan_partitions(
     found = list(solver_classes() if solvers is None else solvers)
     partitions, issues = _planned(census.system, _Owners(declared, dict(kinds), found))
     return _Plan(tuple(partitions), tuple(issues))
+
+
+def solver_registry() -> Registry[type[Any]]:
+    """Return the registry of solvers, once the backends and the solvers they run have registered.
+
+    Returns:
+        solvers:
+            The registry of solver classes by form and name.
+    """
+    _load_backends()
+    return SOLVERS
+
+
+def solver_classes() -> dict[Any, list[str]]:
+    """Return every registered solver class with its names, without the `'auto'` aliases.
+
+    Returns:
+        classes:
+            The names of every solver class.
+    """
+    classes: dict[Any, list[str]] = {}
+    solvers = solver_registry()
+    for key in solvers:
+        _, name = cast('tuple[Form, str]', key)
+        if name != 'auto':
+            classes.setdefault(solvers.resolve(key), []).append(name)
+    return classes
 
 
 @dataclass(frozen=True)
