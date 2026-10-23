@@ -96,6 +96,32 @@ def _lsoda_first_step(
     return float(step) if math.isfinite(step) and step > 0 else None
 
 
+def _position_pairs(problem: Problem) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
+    """Return the flat indices of the position components and of their velocities, in matching order."""
+    indices: dict[Expression, npt.NDArray[np.int64]] = {}
+    for entry in problem.states:
+        for column, item in enumerate(components_of(problem.symbols[entry.name])):
+            indices[item] = entry.start + np.arange(entry.rows) * entry.columns + column
+    positions, velocities = [], []
+    for name, equation in problem.equations.items():
+        if equation.is_symbol() and equation in indices:
+            positions.append(indices[problem.equation_symbols[name]])
+            velocities.append(indices[equation])
+    position_indices = np.concatenate([np.zeros(0, dtype=np.int64), *positions]).astype(np.int64)
+    velocity_indices = np.concatenate([np.zeros(0, dtype=np.int64), *velocities]).astype(np.int64)
+    covered = set(position_indices.tolist()) | set(velocity_indices.tolist())
+    missing = [
+        entry.name for entry in problem.states if not set(range(entry.start, entry.start + entry.size)) <= covered
+    ]
+    if missing:
+        error_msg = (
+            f'VelocityVerlet integrates positions and velocities, with dx/dt = v, but {", ".join(missing)} are '
+            'neither. Use RK4 or ScipyODE for this system.'
+        )
+        raise SolverError(error_msg)
+    return position_indices, velocity_indices
+
+
 def rk4_step(field: Callable[[float, Vector], Vector], time: float, state: Vector, step: float | Vector) -> Vector:
     """Return the state after one classical Runge-Kutta step, with one step length or one per state component.
 
@@ -124,32 +150,6 @@ def rk4_step(field: Callable[[float, Vector], Vector], time: float, state: Vecto
     k3 = field(time + span / 2, state + step / 2 * k2)
     k4 = field(time + span, state + step * k3)
     return state + step / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
-
-
-def _position_pairs(problem: Problem) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
-    """Return the flat indices of the position components and of their velocities, in matching order."""
-    indices: dict[Expression, npt.NDArray[np.int64]] = {}
-    for entry in problem.states:
-        for column, item in enumerate(components_of(problem.symbols[entry.name])):
-            indices[item] = entry.start + np.arange(entry.rows) * entry.columns + column
-    positions, velocities = [], []
-    for name, equation in problem.equations.items():
-        if equation.is_symbol() and equation in indices:
-            positions.append(indices[problem.equation_symbols[name]])
-            velocities.append(indices[equation])
-    position_indices = np.concatenate([np.zeros(0, dtype=np.int64), *positions]).astype(np.int64)
-    velocity_indices = np.concatenate([np.zeros(0, dtype=np.int64), *velocities]).astype(np.int64)
-    covered = set(position_indices.tolist()) | set(velocity_indices.tolist())
-    missing = [
-        entry.name for entry in problem.states if not set(range(entry.start, entry.start + entry.size)) <= covered
-    ]
-    if missing:
-        error_msg = (
-            f'VelocityVerlet integrates positions and velocities, with dx/dt = v, but {", ".join(missing)} are '
-            'neither. Use RK4 or ScipyODE for this system.'
-        )
-        raise SolverError(error_msg)
-    return position_indices, velocity_indices
 
 
 @dataclass(frozen=True)

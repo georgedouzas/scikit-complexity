@@ -52,6 +52,36 @@ def _histogram(
     return counts, (edges[:-1] + edges[1:]) / 2, float(edges[1] - edges[0])
 
 
+def agents_visual_of(agents: CompiledAgents, problem: Problem) -> AgentsVisual:
+    """Return the visual of an agent group: its declared agents visual, or the traits visual without a space.
+
+    Args:
+        agents:
+            The compiled agents.
+
+        problem:
+            The compiled problem, with the space the agents live in.
+
+    Returns:
+        visual:
+            The visual that logs the agents.
+
+    Examples:
+        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.core.viz import agents_visual_of
+        >>> from skcomplex.models import create
+        >>> problem = compile_system(create('moran_process'))
+        >>> type(agents_visual_of(problem.agents[0], problem)).__name__
+        'TraitsVisual'
+    """
+    visual: Any = resolve_visual(agents.visual)
+    if not isinstance(visual, AgentsVisual):
+        visual = AgentsVisual()
+    if problem.agent_space is None and type(visual) is AgentsVisual and visual.position is None:
+        return TraitsVisual(color_by=visual.color_by, color_range=visual.color_range)
+    return visual
+
+
 class TraitsVisual(AgentsVisual):
     """Visual that logs the traits of agents, or the states of a group, without a space as histograms and statistics.
 
@@ -200,36 +230,6 @@ class TraitsVisual(AgentsVisual):
         histogram = rrb.BarChartView(origin=f'{path}/{trait}/histogram', name=f'{path} {trait} histogram')
         first = [histogram, series] if self.histogram_first else [series, histogram]
         return [*first, rrb.TimeSeriesView(origin='/', contents=contents, name=f'{path} traits')]
-
-
-def agents_visual_of(agents: CompiledAgents, problem: Problem) -> AgentsVisual:
-    """Return the visual of an agent group: its declared agents visual, or the traits visual without a space.
-
-    Args:
-        agents:
-            The compiled agents.
-
-        problem:
-            The compiled problem, with the space the agents live in.
-
-    Returns:
-        visual:
-            The visual that logs the agents.
-
-    Examples:
-        >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.core.viz import agents_visual_of
-        >>> from skcomplex.models import create
-        >>> problem = compile_system(create('moran_process'))
-        >>> type(agents_visual_of(problem.agents[0], problem)).__name__
-        'TraitsVisual'
-    """
-    visual: Any = resolve_visual(agents.visual)
-    if not isinstance(visual, AgentsVisual):
-        visual = AgentsVisual()
-    if problem.agent_space is None and type(visual) is AgentsVisual and visual.position is None:
-        return TraitsVisual(color_by=visual.color_by, color_range=visual.color_range)
-    return visual
 
 
 register_visual('traits', TraitsVisual)
