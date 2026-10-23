@@ -300,6 +300,11 @@ The work proceeds in phases, each of which ends with a green suite.
    - the ecosystem contract, which no longer generates dataclass constructors.
 7. The full gate. Then the active changes are updated.
 
+Because the lowering of topology, renewals, fractional dynamics, control, kinetics, particles, lattices, fields, and
+agents is buried in `_compiler.py`, the pass pipeline (phase 3) lands before those formalisms move. Quantum, rewriting,
+and groups move in parallel with phase 3, because they already compile through whole-system passes or touch no
+compiler code. Phase 4 and the layout checks of task 5.1 run in parallel with both.
+
 Rollback is by branch: `development` is untouched until the gate passes.
 
 ## Open Questions
