@@ -12,6 +12,7 @@ import numpy.typing as npt
 from sklearn.metrics import normalized_mutual_info_score
 
 from ..base import AnalysisError
+from ..compile import NetworkSnapshot
 from ..space import NetworkSpace
 from ._kinds import DataKind, analysis
 from ._statistics import fit_power_law
@@ -24,11 +25,11 @@ FIT_CANDIDATES = 20
 
 
 def as_graph(network: object) -> nx.Graph:
-    """Return the NetworkX graph of a graph or a network space.
+    """Return the NetworkX graph of a graph, a network space, or a snapshot of a changing network.
 
     Args:
         network:
-            A NetworkX graph or a network space.
+            A NetworkX graph, a network space, or a network snapshot, whose nodes are its node rows.
 
     Returns:
         graph:
@@ -42,7 +43,12 @@ def as_graph(network: object) -> nx.Graph:
         return network.graph
     if isinstance(network, nx.Graph):
         return network
-    error_msg = f'A network is a NetworkX graph or a network space, not {type(network).__name__}.'
+    if isinstance(network, NetworkSnapshot):
+        graph = nx.Graph()
+        graph.add_nodes_from(network.nodes.tolist())
+        graph.add_edges_from(zip(network.sources.tolist(), network.targets.tolist(), strict=True))
+        return graph
+    error_msg = f'A network is a NetworkX graph, a network space, or a snapshot, not {type(network).__name__}.'
     raise AnalysisError(error_msg)
 
 

@@ -489,6 +489,26 @@ class Topology:
         )
         return network.snapshot(p, layer)
 
+    def presence(self, name: str, p: Vector) -> npt.NDArray[np.bool_] | None:
+        """Return whether every row of the group of a variable holds a member, or `None` for a fixed group.
+
+        Args:
+            name:
+                The dotted name of a state or parameter.
+
+            p:
+                The parameter vector of a frame.
+
+        Returns:
+            present:
+                One flag per row of the group, or `None`.
+        """
+        for network in self.networks:
+            for group in (*network.nodes, *network.edges.values()):
+                if any(entry.name == name for entry, _ in group.variables.values()):
+                    return group.present(p)
+        return None
+
     def _weights(self, item: CompiledRequest, t: float, x: Vector, p: Vector) -> Vector:
         """Return the weight of every node row as a new end of a request."""
         size = item.network.nodes[0].active.rows

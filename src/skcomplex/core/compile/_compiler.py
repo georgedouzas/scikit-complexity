@@ -1826,7 +1826,7 @@ def _with_member_shifts(spec: _KernelSpec, laws: list[Law], time: Expression) ->
         if isinstance(law, Jump):
             changes: dict[Expression, float] = defaultdict(float)
             for target, increment in law.changes.items():
-                changes[SR(shifts.lower(target))] += increment
+                changes[target if request_of(law) is not None else SR(shifts.lower(target))] += increment
             result.append(Jump(shifts.lower(law.rate), dict(changes)))
         elif isinstance(law, Rate | Noise):
             result.append(replace(law, value=shifts.lower(law.value)))

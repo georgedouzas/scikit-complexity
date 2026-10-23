@@ -9,7 +9,15 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..compile import EventRecord, ExtremalRecord, Problem, RelaxationRecord, RenewalRecord, Structure
+from ..compile import (
+    EventRecord,
+    ExtremalRecord,
+    NetworkSnapshot,
+    Problem,
+    RelaxationRecord,
+    RenewalRecord,
+    Structure,
+)
 from ..solvers import AgentSnapshot
 
 
@@ -85,6 +93,15 @@ class Trajectory:
         """Return the number of recorded frames."""
         return len(self.times)
 
+    def _present(self, name: str, values: npt.NDArray[Any]) -> npt.NDArray[Any]:
+        """Return the values of a variable with NaN in the rows of a variable group that hold no member at a frame."""
+        topology = self.problem.topology
+        if topology is None or topology.presence(name, self.parameters[0]) is None:
+            return values
+        present = np.array([topology.presence(name, row) for row in self.parameters])
+        shaped = present.reshape(present.shape + (1,) * (np.ndim(values) - present.ndim))
+        return np.where(shaped, np.asarray(values, dtype=float), np.nan)
+
     def __getitem__(self, name: str) -> npt.NDArray[Any]:
         """Return the values of a state or a parameter over time by dotted name.
 
@@ -94,7 +111,8 @@ class Trajectory:
 
         Returns:
             values:
-                One value per frame for a scalar, or one row per frame for a vector.
+                One value per frame for a scalar, or one row per frame for a vector, NaN in the rows of a variable
+                group on a network that hold no member at a frame.
 
         Raises:
             KeyError:
@@ -102,10 +120,11 @@ class Trajectory:
         """
         if name in self.problem.states:
             entry = self.problem.states.entry(name)
-            return entry.domain.decode(np.asarray(self.problem.states.read(self.states, name)))
+            return self._present(name, entry.domain.decode(np.asarray(self.problem.states.read(self.states, name))))
         if name in self.problem.parameters:
             entry = self.problem.parameters.entry(name)
-            return entry.domain.decode(np.asarray(self.problem.parameters.read(self.parameters, name)))
+            values = entry.domain.decode(np.asarray(self.problem.parameters.read(self.parameters, name)))
+            return self._present(name, values)
         if self.reporters and name in self.reporters[0]:
             return np.asarray([frame[name] for frame in self.reporters], dtype=float)
         if self.observables and name in self.observables[0]:
@@ -233,6 +252,33 @@ class Trajectory:
             error_msg = f'No agent group {group!r}. Available groups are: {", ".join(groups)}.'
             raise KeyError(error_msg)
         return groups[group]
+
+    def network(self, frame: int, nodes: str | None = None, layer: str | None = None) -> NetworkSnapshot:
+        """Return the nodes and edges of a network whose topology changes, as they are at a frame.
+
+        Args:
+            frame:
+                The index of the frame.
+
+            nodes:
+                The path of a variable group on the nodes of the network, or `None` for the first such network.
+
+            layer:
+                The layer, or `None` for the graph of the network.
+
+        Returns:
+            snapshot:
+                The rows of the nodes present and the ends and rows of the edges present.
+
+        Raises:
+            KeyError:
+                The system has no network whose topology changes.
+        """
+        topology = self.problem.topology
+        if topology is None:
+            error_msg = 'The system has no network whose topology changes. Give its groups `variable=True`.'
+            raise KeyError(error_msg)
+        return topology.read_network(self.parameters[frame], nodes, layer)
 
     def structure(self, path: str, frame: int) -> Structure:
         """Return the word, patch, or host graph of a rewritten element at a frame.

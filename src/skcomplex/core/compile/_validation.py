@@ -69,14 +69,16 @@ from ..laws import (
     Rule,
     Sample,
     Substitution,
+    TopologyRequest,
     Transfer,
     Transition,
     Update,
     neighbourhoods_in,
     outcome_sums,
+    request_of,
 )
 from ..laws._neighbourhoods import NeighbourReduction
-from ..space import Cone, LatticeSpace, NetworkSpace, Space
+from ..space import Adjacency, Cone, LatticeSpace, NetworkSpace, Space
 from ..system import Observable, System
 from ._backends import BACKENDS, load_backends
 from ._compiler import CensusRecord, _held_observables, _process_covariance, _with_held_observables, law_census
@@ -541,12 +543,24 @@ def _space_fix(requires: Requires) -> str:
     if SpaceKind.CONTINUOUS in requires.space:
         return (
             'Give the group a continuous space, such as `ContinuousSpace(10.0, 10.0)`, or reduce over the neighbours '
-            'of its network or lattice with `over=None`.'
+            'of its network or lattice with `over=None`, or over a layer with `Adjacency(layer=label)`.'
         )
     return (
         'Give the group a network or lattice space, or reduce over `Radius(r)`, `Nearest(k)`, or `Cone(r, angle)` '
-        'in a continuous space.'
+        'in a continuous space, or over a layer of a network with `Adjacency(layer=label)`.'
     )
+
+
+def _layer_reduction_issue(name: str, path: str, over: object, space: object) -> Issue | None:
+    """Return the issue of a reduction over a layer that its network does not have, or `None`."""
+    if not isinstance(over, Adjacency) or not isinstance(space, NetworkSpace) or over.layer in space.layer_labels:
+        return None
+    known = ', '.join(repr(label) for label in space.layer_labels)
+    message = (
+        f'The {name} reduces over the layer {over.layer!r}, which the network does not have. Its layers are {known}.'
+    )
+    fix = f'Reduce over one of the layers {known}, or add the layer to the network space.'
+    return Issue('binding', path, message, fix)
 
 
 def _neighbourhood_issues(records: list[CensusRecord], system: System) -> list[Issue]:
@@ -567,6 +581,10 @@ def _neighbourhood_issues(records: list[CensusRecord], system: System) -> list[I
                         f'component lives on {space}.'
                     )
                     issues.append(Issue('law-space', record.path, message, _space_fix(requires)))
+                    continue
+                layered = _layer_reduction_issue(name, record.path, over, record.space)
+                if layered is not None:
+                    issues.append(layered)
                     continue
                 node = nodes.get(record.owner)
                 if node is None or space is not SpaceKind.CONTINUOUS or over is None:
@@ -589,6 +607,57 @@ def _neighbourhood_issues(records: list[CensusRecord], system: System) -> list[I
                             "state, such as `Cone(r, angle, heading='theta')`."
                         )
                         issues.append(Issue('law-domain', record.path, f'The {name}: {error}', fix))
+    return issues
+
+
+def _fixed_groups(request: TopologyRequest, owner: Any, groups: list[Any]) -> tuple[list[str], bool]:  # noqa: ANN401
+    """Return the fixed groups a request changes, and whether its layer lacks an edge group."""
+    edges = [node for node in groups if node.component.on == 'edges' and node.component.layer == request.layer]
+    sites = [node for node in groups if node.component.on == 'sites']
+    changed = []
+    if request.on_edges or request.edges:
+        changed += edges
+    if request.kind in {'add-node', 'remove-node'}:
+        changed += sites
+    if owner is not None:
+        changed.append(owner)
+    fixed = list(dict.fromkeys(node.path for node in changed if not node.component.variable))
+    return fixed, (request.on_edges or bool(request.edges)) and not edges
+
+
+def _topology_issues(records: list[CensusRecord], system: System) -> list[Issue]:
+    """Return the topology requests that change fixed groups, or edges of a layer without a variable edge group."""
+    nodes = flatten_system(system)
+    by_path = {node.path: node for node in nodes}
+    issues = []
+    for record in records:
+        try:
+            request = request_of(record.law)
+        except ValidationError as error:
+            issues.append(Issue('value', record.path, str(error), 'Fire one request per jump, with increment 1.'))
+            continue
+        if request is None:
+            continue
+        space = record.space
+        if not isinstance(space, NetworkSpace):
+            spaces = {id(node.space): node.space for node in nodes if isinstance(node.space, NetworkSpace)}
+            space = next(iter(spaces.values())) if len(spaces) == 1 else space
+        groups = [node for node in nodes if isinstance(node.component, Group) and node.space is space]
+        owner = by_path.get(record.owner)
+        owner = owner if owner is not None and isinstance(owner.component, Group) else None
+        fixed, missing = _fixed_groups(request, owner, [node for node in groups if node.component.on])
+        if not fixed and not missing:
+            continue
+        listed = ', '.join(fixed) or 'none'
+        where = f'the layer {request.layer!r}' if request.layer is not None else 'the network'
+        message = f'The {_law_name(record)} requests {request!r}, which changes the fixed groups {listed}.'
+        if missing:
+            message += f' {where[0].upper()}{where[1:]} has no group on its edges.'
+        fix = (
+            'Give the groups on the nodes and the edges of the network `variable=True`, with a group on the edges '
+            'of every layer the request changes, `Group(..., on="edges", variable=True)`.'
+        )
+        issues.append(Issue('group-fixed', record.path, message, fix))
     return issues
 
 
@@ -1038,6 +1107,7 @@ def validate(
     report.issues += _law_issues(records, _declared_times(system))
     report.issues += _encounter_issues(records)
     report.issues += _neighbourhood_issues(records, system)
+    report.issues += _topology_issues(records, system)
     owners: dict[str, set[LawKind]] = {}
     for record in records:
         owners.setdefault(record.owner, set()).add(record.law.law_kind)

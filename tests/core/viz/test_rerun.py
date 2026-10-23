@@ -10,12 +10,20 @@ from sage.all__sagemath_symbolics import I
 
 from skcomplex.core.base import Domain, VisualSpec, state
 from skcomplex.core.compile import compile_system
-from skcomplex.core.components import Element, Field, Particle
-from skcomplex.core.laws import Rate, Rule
+from skcomplex.core.components import Element, Field, Group, Particle
+from skcomplex.core.laws import Rate, Rule, Update, add_node
 from skcomplex.core.runtime import Frame, Simulation
-from skcomplex.core.space import ContinuousSpace, LatticeSpace
+from skcomplex.core.space import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
-from skcomplex.core.viz import ImageVisual, PointsVisual, RerunObserver, ScalarsVisual, Visual, resolve_visual
+from skcomplex.core.viz import (
+    ImageVisual,
+    PointsVisual,
+    RerunObserver,
+    ScalarsVisual,
+    SiteVisual,
+    Visual,
+    resolve_visual,
+)
 from skcomplex.models import create
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population
 from skcomplex.models.physics.realizations import ConstantForce
@@ -318,3 +326,43 @@ def test_rerun_observer_logs_extra_entities_in_their_own_sanitised_namespace(mon
     logged, observer = _logged_paths(monkeypatch, tmp_path, create('lotka_volterra'), until=1, dt=0.5)
     observer.log_extra('chain angle/left side', rr.Scalars(1.0))
     assert logged[-1] == 'extra/chain_angle/left_side'
+
+
+class _AllLogs:
+    """Recording stand-in that keeps every entity path and archetype it receives."""
+
+    def __init__(self):
+        """Start with no logs."""
+        self.logs = []
+
+    def log(self, path, archetype, static=False):
+        """Keep a logged entity path and archetype."""
+        self.logs.append((path, archetype))
+
+
+def test_changing_network_logs_present_nodes_and_changed_edges():
+    """Test that a growing network logs the nodes present at every frame and its edges at every frame they change."""
+    Node = Element.define('Node', states={'age': 0.0}, laws=lambda s: [Update(s.age, s.age + 1)])
+    Link = Element.define('Link')
+    Growth = Element.define('Growth', laws=lambda s: [Update(add_node(edges=1), 1)])
+    space = NetworkSpace.complete(2)
+    system = System(
+        components=[
+            Group('nodes', element=Node, space=space, on='sites', variable=True, capacity=10),
+            Group('links', element=Link, space=space, on='edges', variable=True, capacity=10),
+            Growth('growth'),
+        ],
+        time=DiscreteTime(),
+    )
+    simulation = Simulation(system, dt=1.0, random_state=0, record=True).run(until=3)
+    trajectory, problem = simulation.trajectory_, simulation.problem_
+    element = next(item for item in problem.elements if item.path == 'nodes')
+    visual, recording = SiteVisual(), _AllLogs()
+    for index in range(len(trajectory)):
+        frame = Frame(index, trajectory.times[index], trajectory.states[index], trajectory.parameters[index], problem)
+        visual.log(recording, element, frame)
+    nodes = [archetype for _, archetype in recording.logs if type(archetype).__name__ == 'GraphNodes']
+    edges = [archetype for _, archetype in recording.logs if type(archetype).__name__ == 'GraphEdges']
+    assert [len(item.node_ids.as_arrow_array()) for item in nodes] == [2, 3, 4, 5]
+    assert len(edges) == 4
+    assert [type(view).__name__ for view in visual.views(element, problem)] == ['GraphView']

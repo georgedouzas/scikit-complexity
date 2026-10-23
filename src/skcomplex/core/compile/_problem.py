@@ -154,6 +154,9 @@ class TopologyChanges(Protocol):
     def read_network(self, p: Vector, nodes: str | None = None, layer: str | None = None) -> NetworkSnapshot:
         """Return the nodes and edges of a layer of a network at the parameters of a frame."""
 
+    def presence(self, name: str, p: Vector) -> npt.NDArray[np.bool_] | None:
+        """Return whether every row of the group of a variable holds a member, or `None` for a fixed group."""
+
 
 @dataclass(frozen=True)
 class FractionalRows:

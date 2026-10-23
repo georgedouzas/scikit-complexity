@@ -144,7 +144,8 @@ def _check_group(group: Group, scope: str) -> None:
         raise ValidationError(error_msg)
     if group.size is None and group.on is not None:
         return
-    if not (Domain.POSITIVE.contains(group.size) and Domain.INTEGER.contains(group.size)):
+    empty = group.variable and group.on in {'sites', 'edges'} and group.size == 0
+    if not empty and not (Domain.POSITIVE.contains(group.size) and Domain.INTEGER.contains(group.size)):
         error_msg = f'{where} has size {group.size!r}, which is not a positive integer.'
         raise ValidationError(error_msg)
     space = getattr(group, 'space', None)

@@ -14,7 +14,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ..base import Domain, Registry, VisualSpec
-from ..compile import CompiledAgents, CompiledElement, Problem
+from ..compile import CompiledAgents, CompiledElement, NetworkSnapshot, Problem
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
 from ..space import ContinuousSpace, LatticeSpace, NetworkSpace, Space
@@ -165,6 +165,12 @@ def _network_layout(graph: nx.Graph) -> dict[str, npt.NDArray[np.float64]]:
     else:
         layout = nx.spring_layout(graph, seed=LAYOUT_SEED)
     return {str(node): np.asarray(position, dtype=float) * scale for node, position in layout.items()}
+
+
+def _changes_topology(element: CompiledElement, problem: Problem) -> bool:
+    """Check whether a group lies on the nodes of a network whose topology changes."""
+    topology = problem.topology
+    return topology is not None and element.path in {path for path, _ in topology.layers}
 
 
 class Visual:
@@ -859,7 +865,9 @@ class SiteVisual(Visual):
 
     A triangular lattice is logged as `Points2D` at the site positions, with radii that cover the hexagonal cells of
     the sites. A lattice group on a network is logged as `GraphNodes` colored by state, at the `pos` attributes of the
-    nodes or a seeded spring layout, with its `GraphEdges` logged once as static data.
+    nodes or a seeded spring layout, with its `GraphEdges` logged once as static data. A variable group on the nodes of
+    a network whose topology changes logs the nodes present at every frame, placed by the force layout of the graph
+    view, and its edges at every frame where they change.
 
     Args:
         states:
@@ -888,6 +896,7 @@ class SiteVisual(Visual):
         self.high = high
         self._layouts: dict[int, dict[str, npt.NDArray[np.float64]]] = {}
         self._edges: set[str] = set()
+        self._changing: dict[str, int] = {}
 
     def __repr__(self) -> str:
         """Return the options."""
@@ -924,6 +933,24 @@ class SiteVisual(Visual):
         drawn = rr.GraphNodes(nodes, positions=positions, colors=self._colors(values), radii=radius, show_labels=False)
         recording.log(path, drawn)
 
+    def _log_changing(
+        self,
+        recording: rr.RecordingStream,
+        path: str,
+        snapshot: NetworkSnapshot,
+        values: npt.NDArray[np.float64],
+    ) -> None:
+        """Log the nodes present of a changing network colored by value, and its edges when they change."""
+        edges = [(str(source), str(target)) for source, target in zip(snapshot.sources, snapshot.targets, strict=True)]
+        key = hash(tuple(edges))
+        if self._changing.get(path) != key:
+            recording.log(path, rr.GraphEdges(edges, graph_type='undirected'))
+            self._changing[path] = key
+        nodes = [str(node) for node in snapshot.nodes]
+        colors = self._colors(values[snapshot.nodes]) if nodes else np.zeros((0, 4), dtype=np.uint8)
+        radius = GRID_RADIUS * NODE_SPACING / 2
+        recording.log(path, rr.GraphNodes(nodes, colors=colors, radii=radius, show_labels=False))
+
     def log(self, recording: rr.RecordingStream, element: CompiledElement, frame: Frame) -> None:
         """Log every chosen state of a triangular lattice or a network under `<path>/<state>`.
 
@@ -943,6 +970,10 @@ class SiteVisual(Visual):
                 continue
             values = np.ravel(np.asarray(frame.value(name), dtype=float))
             path = f'{element.path}/{state}'
+            if _changes_topology(element, frame.problem):
+                snapshot = frame.problem.topology.read_network(frame.parameters, element.path)  # type: ignore[union-attr]
+                self._log_changing(recording, path, snapshot, values)
+                continue
             if isinstance(space, NetworkSpace):
                 self._log_graph(recording, path, space, values)
                 continue
@@ -987,6 +1018,8 @@ class SiteVisual(Visual):
         states = [state for state in element.states if self.states is None or state in self.states]
         if not isinstance(space, NetworkSpace):
             return [rrb.Spatial2DView(origin=f'{element.path}/{state}', name=state) for state in states]
+        if _changes_topology(element, problem):
+            return [rrb.GraphView(origin=f'{element.path}/{state}', name=state) for state in states]
         positions = np.array(list(self._layout(space).values()))
         low, high = positions.min(axis=0) - NODE_SPACING, positions.max(axis=0) + NODE_SPACING
         bounds = rrb.VisualBounds2D(x_range=(low[0], high[0]), y_range=(low[1], high[1]))
