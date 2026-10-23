@@ -82,7 +82,7 @@
   and rename the `neighborhood=` keyword to `over=`, with the codemod applied. Verify with the reduction tests and the
   catalog conformance tests.
 
-- [ ] 5.4 Mirror the test tree on the source tree. Every test module tests one source module and lives at the mirrored
+- [x] 5.4 Mirror the test tree on the source tree. Every test module tests one source module and lives at the mirrored
   path: `tests/core/<package>/test_<module>.py` for `src/skcomplex/core/<package>/_<module>.py`, and
   `tests/models/<field>/<subfield>/test_<module>.py` for the models. Split the test files that cover several modules,
   move the shared helpers into the nearest `conftest.py`, and keep the repository-wide checks (layout, docstrings,
