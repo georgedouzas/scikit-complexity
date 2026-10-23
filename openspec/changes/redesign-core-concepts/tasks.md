@@ -77,7 +77,7 @@
   "Planted import", "Undeclared import", and "Compiler internal leaks" scenarios.
 - [x] 5.2 Reorder and hoist every core module until the layout test passes. Move each helper to the concept that owns
   it, and drop the internals from `__all__`. Verify with the layout test and the full suite.
-- [ ] 5.3 Unify the public spelling to `neighbors`, `Neighborhood`, and `over='neighbors'`. Fold `neighbor_sum` and
+- [x] 5.3 Unify the public spelling to `neighbors`, `Neighborhood`, and `over='neighbors'`. Fold `neighbor_sum` and
   `adjacent` into `neighbors(..., reduce='sum')`, rename `reduce=None` on lattice neighbourhoods to `reduce='each'`,
   and rename the `neighborhood=` keyword to `over=`, with the codemod applied. Verify with the reduction tests and the
   catalog conformance tests.
