@@ -25,6 +25,7 @@ from .layout_checks import (
     leaking_exports,
     misordered_definitions,
     undeclared_formalism_imports,
+    unmirrored_tests,
     upward_imports,
     wide_base_imports,
 )
@@ -601,3 +602,30 @@ def test_technique_packages_are_gone(package):
     """Test that the technique-based model packages no longer exist."""
     with pytest.raises(ModuleNotFoundError):
         importlib.import_module(f'skcomplex.models.{package}')
+
+
+def test_unmirrored_test_module_is_found(tmp_path):
+    """Test that a test module without a source module of its name is named, and mirrored ones are not."""
+    root = _plant(
+        tmp_path,
+        {
+            'skcomplex/core/compile/_compile.py': '',
+            'skcomplex/models/physics/mechanics/_springs.py': '',
+            'tests/test_layout.py': '',
+            'tests/docs/test_gallery_hooks.py': '',
+            'tests/core/compile/test_compile.py': '',
+            'tests/core/compile/test_compiler.py': '',
+            'tests/core/compile/conftest.py': '',
+            'tests/models/physics/mechanics/test_springs.py': '',
+            'tests/models/test_physics_matter.py': '',
+        },
+    )
+    assert unmirrored_tests(root, root / 'tests') == [
+        'tests/core/compile/test_compiler.py: no source module skcomplex.core.compile._compiler to test',
+        'tests/models/test_physics_matter.py: no source module skcomplex.models._physics_matter to test',
+    ]
+
+
+def test_test_tree_mirrors_source_tree():
+    """Test that every test module outside the repository-wide checks and the documentation tests a source module."""
+    assert unmirrored_tests(ROOT, TESTS) == []
