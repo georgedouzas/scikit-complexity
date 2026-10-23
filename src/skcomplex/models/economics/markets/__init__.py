@@ -1,6 +1,7 @@
-"""Markets: prices, competition, retail, inventories, and queues."""
+"""Markets: prices, competition, retail, inventories, queues, and barter on trade networks."""
 
 from ._barter import Barterer, barter, contract_curve
+from ._barter_networks import BarterTrader, BilateralBarter, wilhite_trade_networks
 from ._brock_hommes import HeuristicPricing, Speculator, brock_hommes
 from ._cobweb import Cobweb, Market, cobweb
 from ._commodities import CommodityMarket, commodity_cycle
@@ -26,7 +27,9 @@ from ._supply_chains import Brewery, Echelon, RetailDemand, SupplyLink, beer_gam
 
 __all__: list[str] = [
     'AuctionLedger',
+    'BarterTrader',
     'Barterer',
+    'BilateralBarter',
     'Brewery',
     'Car',
     'CarDealership',
@@ -85,4 +88,5 @@ __all__: list[str] = [
     'riccati_prices',
     'shops',
     'sugarscape',
+    'wilhite_trade_networks',
 ]

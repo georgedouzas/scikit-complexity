@@ -53,3 +53,5 @@
 | fractional_oscillator | orbit of order 0.8 spiralling into the origin inside the closed circle of order 1 | x of orders 1, 0.9, 0.8, 0.6 on E_2alpha(-t^2alpha) | 3.8 s, 151 frames, 63 KB |
 | fractional_van_der_pol | orbits from inside and outside winding onto one cycle at order 0.9 | cycle amplitude 2 at order 1, shrinking to ~0.5 at 0.7, same from both starts | 12.9 s, 201 frames, 76 KB |
 | fractional_lorenz | butterfly attractor in 3D at order 0.995, both wings | successive z maxima on a thin tent-shaped Lorenz map | 0.7 s, 201 frames, 102 KB |
+| koopman_slow_manifold | phase plane of 7 orbits bending sharply onto the blue slow-manifold parabola x2 = b x1^2 and running to the origin | Koopman eigenfunctions x1 and x2 - b x1^2 decay as exp(mu t) and exp(lam t), straight lines on a log scale (error 1.5e-6 in tests) | 0.7 s, 201 frames, 0.08 MB |
+| ou_driven_rossler | smeared 3D Rössler band with z spikes of varying height | maxima of x against the noisy control trace the fixed-control bifurcation diagram; the control histogram matches N(0, 0.15^2) | 10.2 s, 241 frames, 0.19 MB |

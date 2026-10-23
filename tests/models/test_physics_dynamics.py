@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.compile import compile_system
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import ScipyODE
+from skcomplex.core.solvers import RK4, ScipyODE
 from skcomplex.models import describe
 from skcomplex.models.physics.celestial_mechanics import (
     n_body,
@@ -46,6 +46,7 @@ from skcomplex.models.physics.synchronization import (
     mirollo_strogatz,
     nonlocal_ring_chimera,
     ott_antonsen,
+    swarmalators,
     winfree,
 )
 from skcomplex.models.physics.waves import schrodinger, spring_chain, standing_waves
@@ -536,3 +537,21 @@ def test_sitnikov_conserves_energy_with_circular_primaries_and_stays_symmetric()
     energy = speed**2 / 2 - 1 / np.sqrt(z**2 + 0.25)
     assert np.abs(energy - energy[0]).max() < 1e-6
     assert z.min() == pytest.approx(-0.5, abs=1e-4)
+
+
+def _swarm_order(J, K):
+    """Return the order parameters `S+`, `S-`, and the phase coherence of swarmalators at the end of a run."""
+    trajectory = Simulation(swarmalators(60, J=J, K=K), dt=1.0, solver=RK4(dt=0.1)).run(until=60).trajectory_
+    positions = np.asarray(trajectory['units.x'])[-1]
+    phases = np.asarray(trajectory['units.theta'])[-1]
+    centred = positions - positions.mean(axis=0)
+    angles = np.arctan2(centred[:, 1], centred[:, 0])
+    return [abs(np.exp(1j * (angles + sign * phases)).mean()) for sign in (1, -1)] + [abs(np.exp(1j * phases).mean())]
+
+
+def test_swarmalators_form_static_states():
+    """Test the static phase wave at K = 0, the synchronized disk at K > 0, and the asynchronous disk at K < 0."""
+    wave, sync, chaos = _swarm_order(1.0, 0.0), _swarm_order(1.0, 1.0), _swarm_order(0.1, -1.0)
+    assert max(wave[:2]) > 0.9
+    assert sync[2] > 0.99
+    assert max(chaos) < 0.2

@@ -4,7 +4,7 @@
 
 ### Requirement: Surveyed physics models
 The library SHALL provide `swarmalators`, `ehrenfest_urn`, `directed_percolation_langevin`, `sk_game`,
-`active_model_b`, `keller_segel`, `benard_marangoni`, `charged_schrodinger`, `cahn_hilliard`, and `allen_cahn` as
+`keller_segel`, `benard_marangoni`, `charged_schrodinger`, `cahn_hilliard`, and `allen_cahn` as
 registered factories built from core primitives, each with a curated gallery example.
 
 #### Scenario: Ehrenfest urn relaxes to the binomial

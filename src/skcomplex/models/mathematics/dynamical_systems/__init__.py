@@ -1,7 +1,9 @@
-"""Dynamical systems: chaotic flows, maps, and normal forms of bifurcations."""
+"""Dynamical systems: chaotic and driven flows, maps, Koopman embeddings, and normal forms of bifurcations."""
 
 from ._chaotic_ensembles import CubicWalk, DoublingMap, SkewTentMap, cubic_chaotic_map, doubling_map, skew_tent_map
+from ._driven_flows import DrivenRossler, ou_driven_rossler
 from ._flows import BlowUp, Jerk, Lorenz, Rossler, finite_time_blow_up, lorenz, rossler, sprott_jerk
+from ._koopman import SlowManifold, koopman_slow_manifold
 from ._maps import (
     BakerMap,
     CatMap,
@@ -44,6 +46,7 @@ __all__: list[str] = [
     'CubicWalk',
     'Cusp',
     'DoublingMap',
+    'DrivenRossler',
     'HenonMap',
     'Hopf',
     'IntermittencyMap',
@@ -54,6 +57,7 @@ __all__: list[str] = [
     'Rossler',
     'SaddleNode',
     'SkewTentMap',
+    'SlowManifold',
     'StandardMap',
     'SubcriticalHopf',
     'TakensBogdanov',
@@ -69,9 +73,11 @@ __all__: list[str] = [
     'henon_map',
     'hopf_form',
     'intermittency_map',
+    'koopman_slow_manifold',
     'logistic_map',
     'lorenz',
     'newton_raphson_map',
+    'ou_driven_rossler',
     'rossler',
     'saddle_node_form',
     'skew_tent_map',
