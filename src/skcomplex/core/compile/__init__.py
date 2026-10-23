@@ -2,13 +2,14 @@
 
 from ._backends import BACKENDS, Backend, Lowering, load_backends, register_backend, resolve_backend
 from ._census import Census, CensusRecord, OwnerRule, law_census, register_owner
-from ._compilation import Compilation
+from ._compilation import Compilation, Laws
 from ._compile import compile_system, partition_system
-from ._contractions import CompiledEncounter, TableValues
+from ._declarations import Declarations, member_count
 from ._fields import mesh_laplacian, spectral_multiplier
 from ._forms import register_combined, register_form
 from ._hybrid import Breakpoints, CompiledEvent, Delay, EventRecord
 from ._issues import Issue, ValidationWarning
+from ._kernels import Reference, Source
 from ._lattices import (
     CompiledDrive,
     CompiledExtremal,
@@ -66,7 +67,6 @@ __all__: list[str] = [
     'CompiledAgents',
     'CompiledDrive',
     'CompiledElement',
-    'CompiledEncounter',
     'CompiledEvent',
     'CompiledExtremal',
     'CompiledFlow',
@@ -75,6 +75,7 @@ __all__: list[str] = [
     'CompiledObjective',
     'CompiledRelaxation',
     'CompiledRule',
+    'Declarations',
     'Delay',
     'Dialect',
     'Draws',
@@ -87,6 +88,7 @@ __all__: list[str] = [
     'JumpChannels',
     'LatticeState',
     'LatticeStep',
+    'Laws',
     'Layout',
     'LoopTerm',
     'Lowering',
@@ -101,12 +103,13 @@ __all__: list[str] = [
     'PlannedPartition',
     'Problem',
     'Recorded',
+    'Reference',
     'RelaxationRecord',
     'RenewalProcess',
     'RenewalRecord',
+    'Source',
     'StockFlow',
     'SystemPass',
-    'TableValues',
     'TopologyChanges',
     'ValidationReport',
     'ValidationWarning',
@@ -119,6 +122,7 @@ __all__: list[str] = [
     'flatten_system',
     'law_census',
     'load_backends',
+    'member_count',
     'mesh_laplacian',
     'missing_declarations',
     'numpy_function',

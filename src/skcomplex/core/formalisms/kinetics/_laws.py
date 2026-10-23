@@ -4,18 +4,19 @@
 # License: MIT
 
 from dataclasses import dataclass
-from typing import Any, ClassVar
+from typing import Any, ClassVar, TypeIs
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ..base import DomainKind, Expression, LawClass, LawKind, Requires, SpaceKind, TimeKind, Trait, ValidationError
-from ._law import Law, register_laws
+from ...base import DomainKind, Expression, LawClass, LawKind, Requires, SpaceKind, TimeKind, Trait, ValidationError
+from ...laws import Law
 
 ENCOUNTER_REQUIREMENTS = Requires(time={TimeKind.CONTINUOUS}, space={SpaceKind.LATTICE}, domains={DomainKind.REAL})
 
 type Table = npt.NDArray[Any]
+type EncounterLaw = Encounter | Proliferation | Destruction
 
 
 def _table(value: object, dimensions: tuple[int, ...], description: str) -> Table:
@@ -42,6 +43,11 @@ def _check_sizes(rate: Table, outcomes: Table | None, description: str) -> None:
     raise ValidationError(error_msg)
 
 
+def is_encounter(law: Law) -> TypeIs[EncounterLaw]:
+    """Check whether a law is an encounter law, a law of the encounter kind."""
+    return law.law_kind is LawKind.ENCOUNTER
+
+
 def outcome_sums(outcomes: Table) -> Table:
     """Return the sum of an outcome table over the outcomes of every encounter.
 
@@ -56,7 +62,7 @@ def outcome_sums(outcomes: Table) -> Table:
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.laws import outcome_sums
+        >>> from skcomplex.core.formalisms.kinetics import outcome_sums
         >>> outcome_sums(np.full((2, 2, 2), 0.5)).tolist()
         [[1.0, 1.0], [1.0, 1.0]]
     """
@@ -101,7 +107,7 @@ class Encounter(Law):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Encounter
+        >>> from skcomplex.core.formalisms.kinetics import Encounter
         >>> f, g = symbol('f'), symbol('g')
         >>> Encounter(f, g, 1.0, np.full((2, 2, 2), 0.5)).transition.shape
         (2, 2, 2)
@@ -111,6 +117,7 @@ class Encounter(Law):
     time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.FORMLESS, Trait.KERNEL_FREE, Trait.DECLARABLE})
     requires: ClassVar[Requires] = ENCOUNTER_REQUIREMENTS
+    effect: ClassVar[str] = 'transition'
 
     candidate: Expression
     field: Expression
@@ -176,7 +183,7 @@ class Proliferation(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Proliferation
+        >>> from skcomplex.core.formalisms.kinetics import Proliferation
         >>> f, g = symbol('f'), symbol('g')
         >>> Proliferation(f, g, 0.5).outcomes is None
         True
@@ -186,6 +193,7 @@ class Proliferation(Law):
     time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.FORMLESS, Trait.KERNEL_FREE, Trait.DECLARABLE})
     requires: ClassVar[Requires] = ENCOUNTER_REQUIREMENTS
+    effect: ClassVar[str] = 'proliferation'
 
     candidate: Expression
     field: Expression
@@ -239,7 +247,7 @@ class Destruction(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Destruction
+        >>> from skcomplex.core.formalisms.kinetics import Destruction
         >>> f, g = symbol('f'), symbol('g')
         >>> float(Destruction(f, g, 0.2).rate)
         0.2
@@ -249,6 +257,7 @@ class Destruction(Law):
     time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
     traits: ClassVar[frozenset[Trait]] = frozenset({Trait.FORMLESS, Trait.KERNEL_FREE, Trait.DECLARABLE})
     requires: ClassVar[Requires] = ENCOUNTER_REQUIREMENTS
+    effect: ClassVar[str] = 'destruction'
 
     candidate: Expression
     field: Expression
@@ -265,7 +274,3 @@ class Destruction(Law):
         return self.candidate
 
 
-type EncounterLaw = Encounter | Proliferation | Destruction
-
-
-register_laws(Encounter, Proliferation, Destruction)

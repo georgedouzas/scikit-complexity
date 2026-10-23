@@ -44,17 +44,14 @@ from ..base import (
 )
 from ..components import Field, Group, Wiener
 from ..laws import (
-    Encounter,
     Jump,
     LocalRule,
     Noise,
-    Proliferation,
     Sample,
     Sampler,
     TopologyRequest,
     law_classes,
     neighbourhoods_in,
-    outcome_sums,
     request_of,
     values_of,
 )
@@ -82,8 +79,6 @@ TIME_CLASSES = {
     TimeKind.DISCRETE: 'DiscreteTime()',
     TimeKind.STATIC: 'StaticTime()',
 }
-PROBABILITY_TOLERANCE = 1e-9
-LISTED_ENCOUNTERS = 3
 OWN_NEIGHBOURHOOD = Requires(space={SpaceKind.LATTICE, SpaceKind.NETWORK})
 
 
@@ -403,54 +398,6 @@ def _law_issues(records: list[CensusRecord], times: dict[str, TimeKind | None]) 
                 f'{names_of(kinds)}.'
             )
             issues.append(Issue('law-time', record.path, message, fix))
-    return issues
-
-
-def _probability_sum(total: object) -> float | None:
-    """Return the sum of the outcome probabilities of one encounter as a number, or `None` when it holds a symbol."""
-    value = SR(total).simplify_full() if isinstance(total, Expression) else SR(total)
-    return float(value) if value.is_numeric() else None
-
-
-def _unnormalized(law: Encounter | Proliferation) -> list[tuple[int, int, float]]:
-    """Return the candidate and field activities of the encounters whose outcome probabilities do not sum to one."""
-    table = law.transition if isinstance(law, Encounter) else law.outcomes
-    if table is None:
-        return []
-    sums = outcome_sums(table)
-    rates = np.broadcast_to(law.rate, sums.shape)
-    found = []
-    for (candidate, field_activity), total in np.ndenumerate(sums):
-        rate = rates[candidate, field_activity]
-        if SR(rate).is_numeric() and float(SR(rate)) == 0:
-            continue
-        value = _probability_sum(total)
-        if value is not None and abs(value - 1) > PROBABILITY_TOLERANCE:
-            found.append((candidate, field_activity, value))
-    return found
-
-
-def _encounter_issues(records: list[CensusRecord]) -> list[Issue]:
-    """Return the encounter laws whose outcome probabilities do not sum to one over the outcomes of an encounter."""
-    issues = []
-    for record in records:
-        law = record.law
-        if not isinstance(law, Encounter | Proliferation):
-            continue
-        found = _unnormalized(law)
-        if not found:
-            continue
-        listed = '; '.join(
-            f'candidate activity {candidate} with field activity {field_activity} sums to {value:.6g}'
-            for candidate, field_activity, value in found[:LISTED_ENCOUNTERS]
-        )
-        more = f', and {len(found) - LISTED_ENCOUNTERS} more' if len(found) > LISTED_ENCOUNTERS else ''
-        message = (
-            f'The {type(law).__name__} law of {record.path} has outcome probabilities that do not sum to one over the '
-            f'outcomes of an encounter: {listed}{more}.'
-        )
-        fix = 'Give outcome probabilities that sum to one over the outcomes of every encounter with a nonzero rate.'
-        issues.append(Issue('encounter-probabilities', record.path, message, fix))
     return issues
 
 
@@ -938,7 +885,6 @@ def _issues_of(compilation: Compilation) -> list[Issue]:
     issues = _census_issues(compilation)
     issues += _bound_issues(nodes)
     issues += _law_issues(records, declared_times(system))
-    issues += _encounter_issues(records)
     issues += _neighbourhood_issues(records, nodes)
     issues += _topology_issues(records, nodes)
     issues += _space_issues(system, nodes, records)

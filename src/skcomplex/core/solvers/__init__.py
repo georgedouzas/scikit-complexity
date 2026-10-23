@@ -6,7 +6,6 @@ from ._collocation import Collocation
 from ._cosimulation import CoSimulation
 from ._fractional import FractionalEulerMaruyama, fractional_gaussian_noise
 from ._jumps import Gillespie, RenewalStepper
-from ._kinetics import ParticleKinetics
 from ._lattices import LatticeStepper, MonteCarlo
 from ._maps import Iteration
 from ._ode import RK4, ScipyODE, VelocityVerlet
@@ -41,7 +40,6 @@ __all__: list[str] = [
     'LatticeStepper',
     'Milstein',
     'MonteCarlo',
-    'ParticleKinetics',
     'Pontryagin',
     'RenewalStepper',
     'ScipyODE',

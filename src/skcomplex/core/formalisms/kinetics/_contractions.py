@@ -11,8 +11,8 @@ import numba
 import numpy as np
 import numpy.typing as npt
 
-from ..base import Expression
-from ._printing import numpy_function
+from ...base import Expression
+from ...compile import numpy_function
 
 type Vector = npt.NDArray[np.float64]
 type Indices = npt.NDArray[np.intp]

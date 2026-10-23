@@ -8,7 +8,7 @@ from .._census import register_owner
 from .._forms import register_combined, register_form
 from .._pipeline import register_check, register_pass
 from .._specs import register_binding
-from . import _agents, _control, _fields, _flows, _fractional, _kinetics, _lattices, _particles, _renewals, _topology
+from . import _agents, _control, _fields, _flows, _fractional, _lattices, _particles, _renewals, _topology
 from ._census import CensusPass
 from ._collect import CollectPass
 from ._complex import LowerComplexPass
@@ -63,7 +63,6 @@ FORMALISM_PASSES = (
     *_topology.PASSES,
     *_fractional.PASSES,
     *_fields.PASSES,
-    *_kinetics.PASSES,
 )
 STEPWISE_FORMS: dict[frozenset[type], Form] = {
     **_agents.STEPWISE_FORMS,

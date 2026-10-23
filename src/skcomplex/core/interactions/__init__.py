@@ -2,13 +2,10 @@
 
 from ._interactions import Interaction
 from ._matching import Match, matches, random_pairing
-from ._potentials import PairPotential, Potential
 
 __all__: list[str] = [
     'Interaction',
     'Match',
-    'PairPotential',
-    'Potential',
     'matches',
     'random_pairing',
 ]
