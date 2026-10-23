@@ -96,3 +96,42 @@ node colors from states and edge colors from edge states.
 - [Reductions over large neighbourhoods] → Segment reductions are vectorised on NumPy and fused on Numba.
 - [Generalising the lattice `neighbors` changes its signature] → The lattice call keeps working, with the lattice
   neighbourhood passed as `over`, and the existing lattice tests run unchanged.
+
+## Implementation Decisions
+
+Choices made while applying the change, where the decisions above left a question open:
+
+- Generators are class methods of `NetworkSpace`, such as `NetworkSpace.watts_strogatz(n, k, p, seed=...)`, wrapping
+  NetworkX. They take a seed or a NumPy generator, so a generator drawn from the run's random stream reproduces the
+  network. The configuration model drops the parallel edges and self-loops of the pairing.
+- The graph neighbourhood `Adjacency` takes `layer`, and `neighbors(..., over=layer)` accepts the `Layer` itself.
+  Groups take `layer=` for their edges, and interactions over neighbours take the keyword `layer`, added only to
+  interactions whose binding is `'neighbours'`, so other interactions keep their parameters.
+- An interaction over neighbours binds exactly one group on the nodes and at most one group on the edges, and its laws
+  read `s.source`, `s.target`, `s.edge`, and its parameters, not its roles. On a lattice or a group space it runs once
+  per pair of neighbouring sites, without edge groups. Edge weights of reductions read the edge group of the layer
+  through a role of an interaction, `neighbors(..., weight=s.links.w)`.
+- Groups of one network share one space after `clone`, since flattening a system maps equal network spaces, by
+  `NetworkSpace.equals`, to the first one.
+- Capacity layouts apply to variable groups on the sites or edges of a network whose element has no rules of its own.
+  Other variable groups stay agents on the Mesa backend, so existing models run unchanged. The capacity is the group's
+  `capacity`, or twice its initial size. A full capacity raises `CapacityError` instead of growing the layout and
+  compiling again, so a run keeps one layout and one set of trajectory columns.
+- The activity of every row and the ends of every edge row are hidden parameters of the capacity group, `_active`,
+  `_source`, and `_target`. Requests change them in the parameter vector, which every frame records, so a snapshot of
+  any frame is read from its parameters and a run with requests needs no state outside the problem.
+- Laws are masked symbolically: rate, noise, and jump values vanish on free rows, updates keep the value of free rows,
+  and reductions over a capacity group select its members present. Values of absent members read as NaN in
+  trajectories.
+- Topology requests are the targets of `Update` and `Jump` laws: `Update(request, probability)` and
+  `Jump(rate, {request: 1})`. The steppers of the discrete and jump forms apply them, so the compiled stepper loops are
+  left out when a problem has requests and the NumPy or Numba kernels run step by step. Rule laws do not return
+  requests in this change, since rules run on the Mesa backend, whose network grid has fixed nodes. The growth scenario
+  outside Mesa therefore grows the network by update laws.
+- A request that adds edges draws the new ends among the nodes present that are not yet joined, with weights from
+  `toward`, a function of the namespace of a candidate node, lowered with the reductions of the laws.
+- Validation reports a request on a fixed group, or on a layer without a group on its edges, with `group-fixed`, and a
+  reduction or interaction over a layer the network lacks with `binding`. The iteration and Gillespie steppers declare
+  variable groups, and every continuous, stochastic, jump, and discrete stepper declares edge groups.
+- Rerun 0.39 draws graph edges without colors, so network snapshots color the nodes by state and draw the edges plain.
+  A changing network is placed by the force layout of its graph view.
