@@ -11,7 +11,7 @@ import numpy as np
 
 from ..base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind
 from ..compile import Problem, Structure, Vector
-from ._base import Stepper, register_solver
+from ._stepper import Stepper, register_solver
 
 
 @dataclass(frozen=True)

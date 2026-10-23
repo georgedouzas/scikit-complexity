@@ -27,7 +27,7 @@ from ..compile import Partition, Problem, Vector, partition_system
 from ..components import Aggregate
 from ..system import reduce_values
 from ._agents import AgentState
-from ._base import Stepper, register_solver, resolve_solver
+from ._stepper import Stepper, register_solver, resolve_solver
 
 STEPWISE_FORMS = (Form.DISCRETE, Form.AGENT)
 TOLERANCE = 1e-9

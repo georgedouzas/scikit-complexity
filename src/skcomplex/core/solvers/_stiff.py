@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import math
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
@@ -27,7 +26,7 @@ from ..base import (
 )
 from ..compile import Problem, Vector, mesh_laplacian, numpy_function, spectral_multiplier
 from ..space import LatticeSpace, Mesh, Neighborhood, NetworkSpace
-from ._base import Stepper, register_solver
+from ._stepper import Stepper, register_solver, step_count
 
 CONTOUR_POINTS = 64
 LATTICE_BOUNDARIES = {'periodic': 'periodic', 'zero-flux': 'reflecting', 'fixed': 'fixed'}
@@ -369,7 +368,7 @@ class _SplitStepper(Stepper):
         if until <= t:
             return x
         self._prepare(p)
-        n_steps = max(1, math.ceil((until - t) / self.dt - 1e-9))
+        n_steps = step_count(t, until, self.dt)
         step = (until - t) / n_steps
         if not self._continues(t, x, step):
             self._forget()

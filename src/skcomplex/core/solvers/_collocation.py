@@ -21,8 +21,8 @@ from ..base import (
     ValidationError,
 )
 from ..compile import Vector
-from ._base import register_solver
 from ._optimal import ControlSolution, GridFunction, OptimalControlSolver, _ControlProblem
+from ._stepper import register_solver
 
 SCHEMES = ('trapezoidal', 'hermite-simpson')
 METHODS = ('SLSQP', 'trust-constr')

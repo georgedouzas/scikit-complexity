@@ -52,6 +52,7 @@ from ..compile._printing import SCALAR_DIALECT, print_expressions
 from ..compile._problem import Accelerated, Draws, Vector
 from ..compile._reductions import CompiledReduction, Read, ReductionPass
 from ..laws import Boundary, Jump, Noise, Rate, Update
+from ..solvers import step_count
 from ..space import Cone, Nearest
 from . import _numba_cells, _numba_neighbours, _numba_stencils
 
@@ -86,6 +87,7 @@ from skcomplex.core.backends._numba_neighbours import (
     radius_neighbours,
 )
 from skcomplex.core.backends._numba_stencils import neighbor_value
+from skcomplex.core.solvers import step_count
 """
 LOOPS = {
     'rk4': """
@@ -93,7 +95,7 @@ LOOPS = {
 def rk4(t, x, p, L, until, h):
     if until <= t:
         return x.copy()
-    n_steps = max(1, int(math.ceil((until - t) / h - 1e-12)))
+    n_steps = step_count(t, until, h)
     step = (until - t) / n_steps
     y = x.copy()
     for index in range(n_steps):
@@ -112,7 +114,7 @@ def rk4(t, x, p, L, until, h):
 def velocity_verlet(t, x, p, L, until, h, positions, velocities):
     if until <= t:
         return x.copy()
-    n_steps = max(1, int(math.ceil((until - t) / h - 1e-12)))
+    n_steps = step_count(t, until, h)
     step = (until - t) / n_steps
     y = x.copy()
     rates = drift(t, y, p, L)
@@ -134,7 +136,7 @@ def velocity_verlet(t, x, p, L, until, h, positions, velocities):
 def euler_maruyama(t, x, p, L, until, h, rng, rows, columns, processes, starts, sizes, offsets, factors):
     if until <= t:
         return x.copy()
-    n_steps = max(1, int(math.ceil((until - t) / h - 1e-12)))
+    n_steps = step_count(t, until, h)
     step = (until - t) / n_steps
     scale = math.sqrt(step)
     y = x.copy()
@@ -952,9 +954,10 @@ def _helpers_fingerprint() -> str:
 
     Numba caches a kernel with the compiled helpers it calls, but checks only the kernel's own source, so a kernel
     cached against other helpers, such as those of another version of the library, would run stale code. The digest keys
-    the cached kernels on the helpers too.
+    the cached kernels on the helpers too, and on the module of the step count that the stepper loops call.
     """
-    sources = [inspect.getsource(module).encode() for module in (_numba_cells, _numba_neighbours, _numba_stencils)]
+    modules = (_numba_cells, _numba_neighbours, _numba_stencils, sys.modules[step_count.__module__])
+    sources = [inspect.getsource(module).encode() for module in modules]
     return hashlib.sha256(b''.join([numba.__version__.encode(), *sources])).hexdigest()
 
 

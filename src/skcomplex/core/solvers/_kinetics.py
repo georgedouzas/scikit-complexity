@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import SR
 
 from ..base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SolverError, SpaceKind, Supports, TimeKind
 from ..compile import CompiledEncounter, Problem, Vector
-from ._base import Stepper, register_solver
+from ._stepper import Stepper, register_solver
 
 type Counts = npt.NDArray[np.int64]
 type Indices = npt.NDArray[np.intp]

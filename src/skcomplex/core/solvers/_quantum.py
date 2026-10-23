@@ -13,7 +13,7 @@ import scipy.sparse as sp
 
 from ..base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SolverError, SpaceKind, Supports, TimeKind
 from ..compile import DEFAULT_MAX_DIMENSION, Problem, QuantumProblem, QuantumTerm, Vector
-from ._base import Stepper, register_solver
+from ._stepper import Stepper, register_solver
 
 MAX_SEED = 2**32
 PURITY_TOLERANCE = 1e-8
