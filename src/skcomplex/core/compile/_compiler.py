@@ -92,6 +92,7 @@ from ..laws import (
     reductions_in,
     request_of,
     total,
+    values_of,
     variance,
     where,
 )
@@ -1922,19 +1923,6 @@ def _compile_events(hybrid: _Hybrid, time: Expression, reductions: ReductionPass
     return tuple(compiled)
 
 
-def _law_values(laws: list[Law]) -> list[Any]:
-    """Return the expressions of the laws that integrators follow, leaving out the rates of jumps."""
-    values: list[Any] = []
-    for law in laws:
-        if isinstance(law, Jump):
-            continue
-        sides = [law.lhs, law.rhs] if isinstance(law, Equation) else [getattr(law, 'value', None)]
-        for side in sides:
-            if side is not None:
-                values += [item for item in components_of(side) if isinstance(item, Expression)]
-    return values
-
-
 def _hidden_events(
     specs: list[tuple[_KernelSpec, list[Law]]],
     time: Expression,
@@ -1944,7 +1932,14 @@ def _hidden_events(
     compiled = []
     for spec, laws in specs:
         sources = flat_sources(spec.references, spec.owner)
-        for index, condition in enumerate(state_conditions_of(_law_values(laws), time)):
+        values = [
+            value
+            for law in laws
+            if isinstance(law, Law) and not isinstance(law, Jump)
+            for value in values_of(law, include=('value', 'lhs', 'rhs'))
+            if isinstance(value, Expression)
+        ]
+        for index, condition in enumerate(state_conditions_of(values, time)):
             if not set(condition.variables()) - {time} <= set(sources):
                 continue
             guard = scalar_function([condition], sources, time, spec.owner)
@@ -3479,29 +3474,11 @@ class CensusRecord:
     handles: tuple[str, ...] = ()
 
 
-def _values_of(law: object) -> list[object]:
-    """Return the values a law holds, without the process of a noise law, flattened into scalars and expressions."""
-    fields_of = getattr(law, '__dataclass_fields__', {})
-    stack = [getattr(law, name) for name in fields_of if name != 'process']
-    found: list[object] = []
-    while stack:
-        value = stack.pop()
-        if isinstance(value, Mapping):
-            stack += [*value.keys(), *value.values()]
-        elif isinstance(value, SymbolicVector | list | tuple):
-            stack += list(value)
-        elif isinstance(value, Call):
-            stack += list(value.arguments)
-        else:
-            found.append(value)
-    return found
-
-
-def _handle_uses(law: object, handles: Mapping[Expression, tuple[str, int]]) -> tuple[str, ...]:
+def _handle_uses(law: Law, handles: Mapping[Expression, tuple[str, int]]) -> tuple[str, ...]:
     """Return the Wiener handles that a law uses outside the process of a noise law."""
     if not handles:
         return ()
-    symbols = symbols_of([value for value in _values_of(law) if isinstance(value, Expression)])
+    symbols = symbols_of([value for value in values_of(law, exclude=('process',)) if isinstance(value, Expression)])
     return tuple(sorted(str(item) for item in symbols if item in handles))
 
 

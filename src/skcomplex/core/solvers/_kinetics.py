@@ -47,7 +47,8 @@ class ParticleKinetics(Stepper):
 
     Examples:
         >>> from skcomplex.core.solvers import ParticleKinetics
-        >>> ParticleKinetics(n=1000).supports.laws == {'encounter'}
+        >>> from skcomplex.core.base import LawKind
+        >>> ParticleKinetics(n=1000).supports.laws == {LawKind.ENCOUNTER}
         True
     """
 

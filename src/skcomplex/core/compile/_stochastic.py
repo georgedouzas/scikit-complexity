@@ -41,6 +41,7 @@ from ..laws import (
     Update,
     categorical,
     draws_in,
+    values_of,
     where,
 )
 from ..laws._laws import Renewal
@@ -51,6 +52,7 @@ from ._problem import Draws, MarkovMatrix, SampledDraw, Vector
 
 ALPHABET_DOMAINS = (Domain.INTEGER, Domain.NONNEGATIVE_INTEGER, Domain.BOOLEAN)
 NORMAL_KINDS = frozenset({'normal'})
+RANDOM_FIELDS = ('value', 'rate', 'changes', 'lhs', 'rhs', 'guard', 'reset', 'waiting')
 DISTRIBUTIONS = tuple(
     sorted(
         name
@@ -63,21 +65,6 @@ DISTRIBUTIONS = tuple(
 def _is_symbolic(value: object) -> bool:
     """Check whether a law value is symbolic, as opposed to a call or a Python function."""
     return isinstance(value, Expression | SymbolicVector) or not (isinstance(value, Call) or callable(value))
-
-
-def _law_values(law: Law) -> list[object]:
-    """Return the values of a law that can hold random draws."""
-    if isinstance(law, Rate | Noise | Boundary | Update):
-        return [law.value]
-    if isinstance(law, Jump):
-        return [law.rate, *law.changes.values()]
-    if isinstance(law, Equation):
-        return [law.lhs, law.rhs]
-    if isinstance(law, Event):
-        return [law.guard, *(law.reset or {}).values()]
-    if isinstance(law, Renewal):
-        return [law.waiting, *(law.reset or {}).values()]
-    return []
 
 
 def distribution_of(owner: str, description: str, draw: Draw) -> Any:  # noqa: ANN401
@@ -180,7 +167,9 @@ def check_draw_placement(owner: str, laws: list[Law]) -> None:
             A draw names a distribution that `scipy.stats` does not provide, or keywords it does not take.
     """
     for law in laws:
-        values = [value for value in _law_values(law) if _is_symbolic(value)]
+        if not isinstance(law, Rate | Noise | Boundary | Update | Jump | Equation | Event | Renewal):
+            continue
+        values = [value for value in values_of(law, include=RANDOM_FIELDS) if _is_symbolic(value)]
         found = draws_in(values)
         if found and not isinstance(law, Update | Renewal):
             error_msg = (

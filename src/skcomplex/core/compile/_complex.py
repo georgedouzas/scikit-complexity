@@ -11,7 +11,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, I, arctan2, sqrt
 
 from ..base import Expression, SymbolicVector, ValidationError, components_of
-from ..laws import Boundary, Call, Equation, Event, Jump, Law, Noise, Rate, Rule, Update
+from ..laws import Boundary, Call, Equation, Event, Jump, Law, Noise, Rate, Rule, Update, values_of
 from ._lowering import symbolic_components
 
 LINEAR = frozenset({'laplacian', 'inverse_laplacian', 'partial', 'upwind', 'derivative', 'lag', 'delayed'})
@@ -347,23 +347,6 @@ def _split_equation(equation: Equation, owner: str) -> list[Law]:
     return equations
 
 
-def _law_fields(law: Law) -> list[object]:
-    """Return the values of the fields of a law, with the arguments of a called function."""
-    values: list[object] = (
-        [getattr(law, item.name) for item in dataclasses.fields(law)] if dataclasses.is_dataclass(law) else []
-    )
-    return [item for value in values for item in (value.arguments if isinstance(value, Call) else (value,))]
-
-
-def _mapped_items(law: Law) -> list[object]:
-    """Return the states an event resets with their new values, or the states a jump changes, or nothing."""
-    if isinstance(law, Event) and law.reset is not None:
-        return [*law.reset, *law.reset.values()]
-    if isinstance(law, Jump):
-        return list(law.changes)
-    return []
-
-
 def split_law(law: Law, owner: str, state_of: Callable[[Expression], str]) -> list[Law]:
     """Return the laws of real states and real values that a law of complex states and values stands for.
 
@@ -390,7 +373,7 @@ def split_law(law: Law, owner: str, state_of: Callable[[Expression], str]) -> li
             A real state takes a complex value, a law orders complex values, a callable or a jump targets a complex
             state, or a law of a kind that takes only real values holds a complex value.
     """
-    if isinstance(law, Rule) or not any(has_complex(item) for item in [*_law_fields(law), *_mapped_items(law)]):
+    if isinstance(law, Rule) or not any(has_complex(item) for item in values_of(law)):
         return [law]
     if isinstance(law, Rate | Noise | Update | Boundary):
         return _split_assignment(law, owner, state_of)

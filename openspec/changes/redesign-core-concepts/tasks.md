@@ -8,7 +8,7 @@
 - [x] 1.2 Add the `Law` base in `laws/_law.py`, which imports only `base`. Make every law class an explicit frozen
   dataclass that derives from it and declares its `kind`, `time_class`, and `traits`. Make `Jump` reject options of
   the other clock. Verify with the "Every law shares the base" and "Option of the other clock" scenarios.
-- [ ] 1.3 Add `values_of(law, *, include=...)` to `laws`. Replace the four law-value walkers in `compile` with it.
+- [x] 1.3 Add `values_of(law, *, include=...)` to `laws`. Replace the four law-value walkers in `compile` with it.
   Verify that the compile and validation tests pass.
 - [ ] 1.4 Rewrite `Component` in `components/_component.py`, which imports only `base`. It has the explicit
   constructor, the class-level `declarations()` with derived order and lag companions, and `get_params`, and it

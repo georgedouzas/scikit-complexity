@@ -45,7 +45,6 @@ from ..base import (
 )
 from ..components import Element, Field, Group, Wiener
 from ..laws import (
-    Call,
     Encounter,
     Jump,
     Law,
@@ -59,6 +58,7 @@ from ..laws import (
     neighbourhoods_in,
     outcome_sums,
     request_of,
+    values_of,
 )
 from ..laws._neighbourhoods import NeighbourReduction
 from ..space import Adjacency, Cone, GroupSpace, LatticeSpace, NetworkSpace, Space
@@ -547,14 +547,6 @@ def _reductions_of(value: object) -> list[NeighbourReduction]:
     return found
 
 
-def _law_values(law: object) -> list[object]:
-    """Return the values of a law that may hold neighbourhood reductions."""
-    if isinstance(law, Jump):
-        return [law.rate]
-    value = getattr(law, 'value', None)
-    return list(value.arguments) if isinstance(value, Call) else [value]
-
-
 def _space_fix(requires: Requires) -> str:
     """Return the fix of a neighbourhood that the space does not offer."""
     if SpaceKind.CONTINUOUS in requires.space:
@@ -587,43 +579,44 @@ def _neighbourhood_issues(records: list[CensusRecord], system: System) -> list[I
     for record in records:
         name = f'{type(record.law).__name__} law of {record.path}'
         space = _space_kind(record.space)
-        for value in _law_values(record.law):
-            for reduction in _reductions_of(value):
-                over = reduction.over
-                requires = OWN_NEIGHBOURHOOD if over is None else over.requires
-                described = 'the neighbours of its space' if over is None else repr(over)
-                if not requires.accepts('space', space):
-                    message = (
-                        f'The {name} reduces over {described}, which needs a {_names(requires.space)} space, but the '
-                        f'component lives on {space}.'
+        values = values_of(record.law, include=('rate',) if isinstance(record.law, Jump) else ('value',))
+        reductions = {str(item.call): item for value in values for item in _reductions_of(value)}
+        for reduction in reductions.values():
+            over = reduction.over
+            requires = OWN_NEIGHBOURHOOD if over is None else over.requires
+            described = 'the neighbours of its space' if over is None else repr(over)
+            if not requires.accepts('space', space):
+                message = (
+                    f'The {name} reduces over {described}, which needs a {_names(requires.space)} space, but the '
+                    f'component lives on {space}.'
+                )
+                issues.append(Issue('law-space', record.path, message, _space_fix(requires)))
+                continue
+            layered = _layer_reduction_issue(name, record.path, over, record.space)
+            if layered is not None:
+                issues.append(layered)
+                continue
+            node = nodes.get(record.owner)
+            if node is None or space is not SpaceKind.CONTINUOUS or over is None:
+                continue
+            states = declarations_of(node.component_type, VariableKind.STATE)
+            if position_state(states) is None:
+                message = (
+                    f'The {name} reduces over {over!r}, which measures distances between positions, but '
+                    f'{record.owner} declares no vector position state.'
+                )
+                fix = 'Declare the position with `state(vector=True, position=True)`.'
+                issues.append(Issue('law-domain', record.path, message, fix))
+                continue
+            if isinstance(over, Cone):
+                try:
+                    cone_heading(over, states, getattr(record.space, 'n_dim', 0))
+                except ValidationError as error:
+                    fix = (
+                        "Declare a vector velocity, `state(vector=True, velocity_of='x')`, or name a heading "
+                        "state, such as `Cone(r, angle, heading='theta')`."
                     )
-                    issues.append(Issue('law-space', record.path, message, _space_fix(requires)))
-                    continue
-                layered = _layer_reduction_issue(name, record.path, over, record.space)
-                if layered is not None:
-                    issues.append(layered)
-                    continue
-                node = nodes.get(record.owner)
-                if node is None or space is not SpaceKind.CONTINUOUS or over is None:
-                    continue
-                states = declarations_of(node.component_type, VariableKind.STATE)
-                if position_state(states) is None:
-                    message = (
-                        f'The {name} reduces over {over!r}, which measures distances between positions, but '
-                        f'{record.owner} declares no vector position state.'
-                    )
-                    fix = 'Declare the position with `state(vector=True, position=True)`.'
-                    issues.append(Issue('law-domain', record.path, message, fix))
-                    continue
-                if isinstance(over, Cone):
-                    try:
-                        cone_heading(over, states, getattr(record.space, 'n_dim', 0))
-                    except ValidationError as error:
-                        fix = (
-                            "Declare a vector velocity, `state(vector=True, velocity_of='x')`, or name a heading "
-                            "state, such as `Cone(r, angle, heading='theta')`."
-                        )
-                        issues.append(Issue('law-domain', record.path, f'The {name}: {error}', fix))
+                    issues.append(Issue('law-domain', record.path, f'The {name}: {error}', fix))
     return issues
 
 

@@ -60,6 +60,7 @@ from ._reductions import Reduction, count, has_reductions, maximum, mean, minimu
 from ._rewriting import Affine, GraphProduction, Module, Production, Prototile, RewritingLaw, Substitution
 from ._symbols import Symbols
 from ._topology import TopologyRequest, add_edge, add_node, remove_edge, remove_node, request_of, rewire
+from ._values import values_of
 
 __all__: list[str] = [
     'NEIGHBOUR_REDUCTIONS',
@@ -165,6 +166,7 @@ __all__: list[str] = [
     'total',
     'transfer',
     'uniform',
+    'values_of',
     'variance',
     'where',
 ]
