@@ -19,7 +19,7 @@ from ..base import (
     RewritingError,
     TimeKind,
 )
-from ._law import Law
+from ._law import Law, register_laws
 
 
 class Module:
@@ -342,3 +342,6 @@ class GraphProduction(Law):
 
 
 type RewritingLaw = Production | Substitution | GraphProduction
+
+
+register_laws(Production, Substitution, GraphProduction)

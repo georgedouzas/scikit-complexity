@@ -13,7 +13,9 @@ import pytest
 
 PACKAGE = Path(__file__).parent.parent / 'src' / 'skcomplex'
 MODELLING_PACKAGES = ['base', 'space', 'laws', 'components', 'interactions', 'system']
-CORE_PACKAGES = [*MODELLING_PACKAGES, 'compile', 'solvers', 'runtime', 'viz', 'experiments', 'analysis', 'backends']
+ENGINEERING_PACKAGES = ['compile', 'solvers', 'runtime', 'viz', 'experiments', 'analysis', 'backends']
+CORE_PACKAGES = [*MODELLING_PACKAGES, *ENGINEERING_PACKAGES, 'formalisms']
+FORMALISMS = 'skcomplex.core.formalisms'
 
 
 def _module_of(path):
@@ -49,6 +51,17 @@ def _home(module):
     return '.'.join(parts[:4]) if len(parts) > 4 else '.'.join(parts[:3])
 
 
+def _core_violations(module, target):
+    """Return the violations of an import of a core module: a model, or a formalism outside the formalisms."""
+    if not module.startswith('skcomplex.core'):
+        return []
+    if target.startswith('skcomplex.models'):
+        return [f'{module}: core imports {target}']
+    if target.startswith(FORMALISMS) and not module.startswith(FORMALISMS):
+        return [f'{module}: the shared core imports the formalism {target}']
+    return []
+
+
 def _violations(path):
     """Return the layout violations of one source file."""
     module, is_package = _module_of(path)
@@ -56,8 +69,7 @@ def _violations(path):
     for target, names in _imports(path):
         if not target.startswith('skcomplex'):
             continue
-        if module.startswith('skcomplex.core') and target.startswith('skcomplex.models'):
-            found.append(f'{module}: core imports {target}')
+        found += _core_violations(module, target)
         if not module.startswith('skcomplex.models'):
             continue
         if target.startswith('skcomplex.core'):
@@ -231,6 +243,11 @@ def test_package_respects_layout():
     [
         ('core/system/_planted_check.py', 'from ...models import physics\n', 'core imports skcomplex.models'),
         (
+            'core/compile/_planted_check.py',
+            'from ..formalisms.lattices import LocalRule\n',
+            'compile._planted_check: the shared core imports the formalism skcomplex.core.formalisms.lattices',
+        ),
+        (
             'models/_planted/_check.py',
             'from ...core.compile._compiler import _compile\n',
             'private _compiler, _compile',
@@ -240,7 +257,7 @@ def test_package_respects_layout():
     ],
 )
 def test_layout_check_finds_planted_imports(relative, source, message):
-    """Test that the layout check reports a reverse, a private, and a cross-package import."""
+    """Test that the layout check reports a reverse, a formalism, a private, and a cross-package import."""
     path = PACKAGE / relative
     created = not path.parent.exists()
     path.parent.mkdir(exist_ok=True)
@@ -254,7 +271,7 @@ def test_layout_check_finds_planted_imports(relative, source, message):
 
 
 def test_core_works_without_models():
-    """Test that a system built from scratch compiles, runs, and is analysed without importing the model library."""
+    """Test that a system built from scratch compiles, runs, and is analysed without the models or a formalism."""
     code = '\n'.join(
         [
             'import sys',
@@ -268,6 +285,7 @@ def test_core_works_without_models():
             'Simulation(system, dt=0.1).run(until=1)',
             'equations_of(system)',
             "assert not any(name.startswith('skcomplex.models') for name in sys.modules), 'models imported'",
+            "assert not any(name.startswith('skcomplex.core.formalisms') for name in sys.modules), 'formalisms'",
         ],
     )
     subprocess.run([sys.executable, '-c', code], check=True)  # noqa: S603  # nosec B603: runs code written above

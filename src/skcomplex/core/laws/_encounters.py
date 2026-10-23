@@ -11,7 +11,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
 from ..base import DomainKind, Expression, LawClass, LawKind, Requires, SpaceKind, TimeKind, Trait, ValidationError
-from ._law import Law
+from ._law import Law, register_laws
 
 ENCOUNTER_REQUIREMENTS = Requires(time={TimeKind.CONTINUOUS}, space={SpaceKind.LATTICE}, domains={DomainKind.REAL})
 
@@ -266,3 +266,6 @@ class Destruction(Law):
 
 
 type EncounterLaw = Encounter | Proliferation | Destruction
+
+
+register_laws(Encounter, Proliferation, Destruction)

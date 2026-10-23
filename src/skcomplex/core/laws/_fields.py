@@ -23,7 +23,7 @@ from ..base import (
     components_of,
     vector,
 )
-from ._law import Law
+from ._law import Law, register_laws
 
 FIELD_BOUNDARIES = ('periodic', 'zero-flux', 'fixed')
 DISCRETIZATIONS = ('finite-difference', 'spectral', 'finite-volume', 'finite-element')
@@ -203,3 +203,6 @@ class Flux(Law):
     def fluxes(self) -> list[object]:
         """Flux of every dimension."""
         return list(self.flux) if isinstance(self.flux, list | tuple) else components_of(self.flux)
+
+
+register_laws(Flux)

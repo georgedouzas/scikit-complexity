@@ -20,7 +20,7 @@ from ..base import (
 )
 from ..space import Adjacency, Neighborhood
 from ..space._cayley import Memory
-from ._law import Law
+from ._law import Law, register_laws
 
 SCHEDULES = ('synchronous', 'random-sequential', 'random-site', 'checkerboard', 'colored')
 MONTE_CARLO_SCHEDULES = ('checkerboard', 'random-sequential', 'colored')
@@ -581,3 +581,6 @@ class Extremal(Law):
     def key_state(self) -> Expression:
         """Symbol of the lattice state whose extremum is searched."""
         return self.targets[0] if self.key is None else self.key
+
+
+register_laws(LocalRule, Drive, Relaxation, Energy, Move, Sampler, Sample, Extremal)

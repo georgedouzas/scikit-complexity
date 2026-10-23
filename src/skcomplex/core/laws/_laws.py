@@ -21,7 +21,7 @@ from ..base import (
     Trait,
     ValidationError,
 )
-from ._law import Law
+from ._law import Law, register_laws
 
 type Target = Expression | SymbolicVector
 type Process = str | tuple[str, ...] | Expression | SymbolicVector | None
@@ -765,3 +765,20 @@ class Equation(Law):
             raise ValueError(error_msg)
         object.__setattr__(self, 'lhs', lhs)
         object.__setattr__(self, 'rhs', rhs)
+
+
+register_laws(
+    Rate,
+    Noise,
+    FractionalNoise,
+    Jump,
+    Update,
+    Transition,
+    Emission,
+    Boundary,
+    Objective,
+    Event,
+    Renewal,
+    Rule,
+    Equation,
+)

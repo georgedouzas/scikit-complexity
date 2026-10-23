@@ -10,7 +10,7 @@ from typing import Any, ClassVar
 import numpy as np
 
 from ..base import LawClass, LawKind, Requires, TimeKind, Trait, ValidationError
-from ..laws import Law
+from ..laws import Law, register_laws
 from ..laws._laws import Rule
 
 type Pairing = Callable[[Sequence[Any], Sequence[Any], np.random.Generator, int], list[tuple[Any, Any]]]
@@ -147,3 +147,6 @@ def matches(model: Any, label: str = 'match') -> list[tuple[Any, Any]]:  # noqa:
             The pairs of agents, or none before the law runs.
     """
     return list(model.storage.get(f'match:{label}', ()))
+
+
+register_laws(Match)

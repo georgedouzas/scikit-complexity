@@ -30,6 +30,7 @@ from ..base import (
     SkcomplexError,
     SymbolicVector,
     Trait,
+    UnregisteredLawError,
     ValidationError,
     Variable,
     VariableKind,
@@ -83,6 +84,7 @@ from ..laws import (
     either,
     has_reductions,
     has_trait,
+    is_registered,
     law_classes,
     maximum,
     mean,
@@ -160,6 +162,7 @@ from ._renewals import CompiledRenewal, compile_renewal
 from ._rewriting import compile_rewriting, is_rewriting
 from ._splitting import LinearTerm, linear_terms
 from ._stochastic import DrawLowering, MatrixLaw, check_draw_placement, compile_matrix, markov_laws, stochastic_update
+from ._system_passes import claiming_pass
 from ._topology import CapacityRows, CompiledRequest, NetworkRows, Topology
 from ._tree import Node, coerce_value, flatten_system, shape_of
 from ._volumes import FiniteVolume, compile_volumes
@@ -1166,6 +1169,19 @@ def _unpacked(laws: Sequence[Any]) -> list[Any]:
     return unpacked
 
 
+def _check_registered(spec: _KernelSpec, declared: object) -> None:
+    """Raise an error for a law of a class that neither the shared core nor a formalism registered."""
+    laws = declared if isinstance(declared, list | tuple) else []
+    for law in laws:
+        if isinstance(law, Law) and not is_registered(law):
+            error_msg = (
+                f'{spec.owner} returns a {type(law).__name__} law, a law class that no formalism registered. A '
+                f'formalism must register {type(law).__name__} with `register(Formalism(..., laws=(...)))` before a '
+                'system holds its laws.'
+            )
+            raise UnregisteredLawError(error_msg)
+
+
 def _collect_laws(spec: _KernelSpec, component: object, flows: StockFlowPass, *, expand: bool = True) -> list[Law]:
     """Return the laws a component returns for its namespace after checking their kinds and expanding its flows.
 
@@ -1173,6 +1189,7 @@ def _collect_laws(spec: _KernelSpec, component: object, flows: StockFlowPass, *,
     them. Without `expand`, the laws are kept as declared, as the census of validation reads them.
     """
     declared: Any = component.laws(spec.namespace)  # type: ignore[attr-defined]
+    _check_registered(spec, declared)
     if not isinstance(declared, list | tuple) or not all(has_trait(law, Trait.DECLARABLE) for law in declared):
         names = [law.__name__ for law in law_classes(Trait.DECLARABLE)]
         error_msg = f'`laws` of {spec.owner} must return a list of {", ".join(names[:-1])}, or {names[-1]} laws.'
@@ -4221,9 +4238,12 @@ def compile_system(
 
     validate(system, backend=backend, observables=observables).raise_errors()
     system = with_observables(system, observables)
+    initial = dict(initial_state or {})
+    system_pass = claiming_pass(system)
+    if system_pass is not None:
+        return system_pass.compile(system, backend=backend, solver=solver, initial_state=initial)
     if is_rewriting(system):
         return compile_rewriting(system)
-    initial = dict(initial_state or {})
     if contains_quantum(system):
         whole = f'{system.label}.state'
         _check_initial_names(set(initial) - {whole}, [whole])

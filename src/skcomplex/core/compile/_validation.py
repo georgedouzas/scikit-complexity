@@ -4,7 +4,7 @@
 # License: MIT
 
 import warnings
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, cast
 
@@ -39,6 +39,7 @@ from ..base import (
     Supports,
     Tensor,
     TimeKind,
+    UnregisteredLawError,
     ValidationError,
     VariableKind,
     declarations_of,
@@ -47,7 +48,6 @@ from ..components import Element, Field, Group, Wiener
 from ..laws import (
     Encounter,
     Jump,
-    Law,
     LocalRule,
     Noise,
     Proliferation,
@@ -70,6 +70,7 @@ from ._neighbourhoods import cone_heading, position_state
 from ._observables import with_observables
 from ._quantum import contains_quantum
 from ._rewriting import is_rewriting
+from ._system_passes import claiming_pass
 from ._tree import flatten_system
 
 OPTIONAL_SOLVERS = {'lammps': 'lammps'}
@@ -82,6 +83,8 @@ TIME_CLASSES = {
 PROBABILITY_TOLERANCE = 1e-9
 LISTED_ENCOUNTERS = 3
 OWN_NEIGHBOURHOOD = Requires(space={SpaceKind.LATTICE, SpaceKind.NETWORK})
+
+type Check = Callable[[System, list[CensusRecord]], list[Issue]]
 
 
 def _solver_registry() -> Registry:
@@ -119,7 +122,7 @@ def missing_declarations() -> list[str]:
         []
     """
     missing = []
-    for law in _subclasses(Law):
+    for law in law_classes():
         if not isinstance(getattr(law, 'law_kind', None), LawKind):
             missing.append(f'The law {law.__name__} declares no law kind.')
         if not isinstance(getattr(law, 'time_class', None), LawClass):
@@ -151,6 +154,10 @@ FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
     RoleError: ('role', 'Bind every role to the path of an element, group, or member of the system.'),
     SpaceError: ('space-missing', 'Give the system a space whose kind the component supports.'),
     ParameterError: ('parameter', 'Give the parameter a value inside its domain.'),
+    UnregisteredLawError: (
+        'law-unregistered',
+        'Import the formalism that registers the law class, or register it in a formalism.',
+    ),
 }
 REPLACEMENTS = {
     DomainKind.CATEGORICAL: 'a jump, transition, or update law',
@@ -1088,6 +1095,16 @@ def _order_issues(system: System, records: list[CensusRecord], *, solver: object
     return issues
 
 
+def register_check(check: Check) -> None:
+    """Register a check that validation runs on every system the general compiler compiles, keeping it once.
+
+    Args:
+        check:
+            The check, which takes the system and the census of its laws and returns the issues it finds.
+    """
+    CHECKS.register(check, check)
+
+
 def validate(
     system: System,
     *,
@@ -1129,7 +1146,7 @@ def validate(
         ['solver-unsupported']
     """
     report = ValidationReport(_structure_issues(system))
-    if report.issues or is_rewriting(system) or contains_quantum(system):
+    if report.issues or claiming_pass(system) is not None or is_rewriting(system) or contains_quantum(system):
         return report
     try:
         observed = with_observables(system, observables)
@@ -1152,6 +1169,7 @@ def validate(
     report.issues += _neighbourhood_issues(records, system)
     report.issues += _topology_issues(records, system)
     report.issues += _space_issues(system, records)
+    report.issues += [issue for key in CHECKS for issue in CHECKS.resolve(key)(system, records)]
     owners: dict[str, set[LawKind]] = {}
     for record in records:
         owners.setdefault(record.owner, set()).add(record.law.law_kind)
@@ -1165,3 +1183,6 @@ def validate(
         fix = f'Choose one of {_names(BACKENDS)}.'
         report.issues.append(Issue('backend-unknown', system.label, message, fix, error=BackendError))
     return report
+
+
+CHECKS = Registry[Check]('check')

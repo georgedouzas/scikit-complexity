@@ -22,6 +22,7 @@ from ._errors import (
     SpaceError,
     SpaceTooLargeError,
     UnobservedStatesWarning,
+    UnregisteredLawError,
     ValidationError,
     WordProblemError,
 )
@@ -115,6 +116,7 @@ __all__: list[str] = [
     'TimeKind',
     'Trait',
     'UnobservedStatesWarning',
+    'UnregisteredLawError',
     'ValidationError',
     'Variable',
     'VariableKind',

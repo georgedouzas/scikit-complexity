@@ -25,7 +25,7 @@ from ..base import (
     symbol,
 )
 from ._functions import series
-from ._law import Law
+from ._law import Law, register_laws
 from ._laws import _check_value, _is_number
 
 DELAY_NAME = re.compile(r'^(?P<kind>material|smoothing)_delay(?P<order>[1-9][0-9]*)$')
@@ -442,3 +442,6 @@ def distributed_delay(value: object, time: object, order: int = 1, *, conserved:
         DELAY_FUNCTIONS[name] = _DelayFunction(name)
     function: Any = DELAY_FUNCTIONS[name]
     return function(value, time)
+
+
+register_laws(Transfer, Auxiliary, Invariant)

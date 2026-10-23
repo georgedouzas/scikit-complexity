@@ -40,6 +40,10 @@ class WordProblemError(SpaceError):
     """A group has no word problem the library can solve, so a ball of its Cayley graph cannot be built."""
 
 
+class UnregisteredLawError(ValidationError):
+    """A system holds a law of a class that neither the shared core nor a formalism registered."""
+
+
 class IncompatibleLawsError(ValidationError):
     """A system mixes law kinds that no single form supports."""
 
@@ -81,7 +85,7 @@ class RewritingError(SkcomplexError):
 
 
 class RegistryError(SkcomplexError):
-    """A name is registered twice with different meanings."""
+    """A name is registered twice with different meanings, or a registration is not valid or misses what it needs."""
 
 
 class HilbertSpaceError(SkcomplexError):

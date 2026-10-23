@@ -13,7 +13,7 @@ import scipy.sparse as sp
 from sage.all__sagemath_symbolics import SR
 
 from ..base import DomainKind, Expression, LawClass, LawKind, Requires, TimeKind, ValidationError
-from ._law import Law
+from ._law import Law, register_laws
 
 ADJOINT_NAMES = {'plus': 'minus', 'minus': 'plus', 'annihilate': 'create', 'create': 'annihilate'}
 ADJOINT_SUFFIX = '.dag'
@@ -300,3 +300,6 @@ class Dissipator(Law):
         if _coefficient(self.rate) is None:
             error_msg = f'The rate of a Dissipator is a number or a symbolic expression, but got {self.rate!r}.'
             raise ValidationError(error_msg)
+
+
+register_laws(Generator, Dissipator)

@@ -35,7 +35,7 @@ from ._lattices import (
     adjacent,
     neighbor_sum,
 )
-from ._law import Law, has_trait, law_classes
+from ._law import Law, has_trait, is_registered, law_classes, register_laws
 from ._laws import (
     Boundary,
     Call,
@@ -136,6 +136,7 @@ __all__: list[str] = [
     'has_trait',
     'inverse_laplacian',
     'is_draw',
+    'is_registered',
     'lag',
     'laplacian',
     'law_classes',
@@ -154,6 +155,7 @@ __all__: list[str] = [
     'pulse_train',
     'ramp',
     'reductions_in',
+    'register_laws',
     'remove_edge',
     'remove_node',
     'request_of',

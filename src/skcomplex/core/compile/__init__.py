@@ -41,12 +41,15 @@ from ._quantities import CompiledFlow, CompiledObjective, LoopTerm, Recorded, St
 from ._quantum import DEFAULT_MAX_DIMENSION, QuantumProblem, QuantumTerm, contains_quantum
 from ._rewriting import CompiledGraph, CompiledPatch, compile_rewriting
 from ._structures import GraphStructure, PatchStructure, Structure, WordStructure
+from ._system_passes import SystemPass, claiming_pass, register_pass
 from ._validation import (
+    Check,
     Issue,
     ValidationReport,
     ValidationWarning,
     domain_kind,
     missing_declarations,
+    register_check,
     validate,
 )
 from ._words import CompiledWord
@@ -60,6 +63,7 @@ __all__: list[str] = [
     'Backend',
     'Breakpoints',
     'CensusRecord',
+    'Check',
     'CompiledAgents',
     'CompiledDrive',
     'CompiledElement',
@@ -104,6 +108,7 @@ __all__: list[str] = [
     'RenewalRecord',
     'StockFlow',
     'Structure',
+    'SystemPass',
     'TableValues',
     'TopologyChanges',
     'ValidationReport',
@@ -111,6 +116,7 @@ __all__: list[str] = [
     'Vector',
     'VectorFunction',
     'WordStructure',
+    'claiming_pass',
     'compile_rewriting',
     'compile_system',
     'contains_quantum',
@@ -124,6 +130,8 @@ __all__: list[str] = [
     'partition_system',
     'print_expressions',
     'register_backend',
+    'register_check',
+    'register_pass',
     'resolve_backend',
     'spectral_multiplier',
     'validate',
