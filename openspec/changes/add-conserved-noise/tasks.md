@@ -9,7 +9,7 @@
 
 ## 2. Library
 
-- [ ] 2.1 Add `active_model_b`, and noise to `cahn_hilliard`, with tests, gallery examples, review rows, and their
+- [x] 2.1 Add `active_model_b`, and noise to `cahn_hilliard`, with tests, gallery examples, review rows, and their
   inventory entries
 
 ## 3. Gate

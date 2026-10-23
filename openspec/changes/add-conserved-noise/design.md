@@ -36,6 +36,11 @@ column, so every stepper that draws independent processes draws them.
   links per site.
 - A site on an edge that is not periodic draws its missing link from one process of zero variance, a block of
   `add-correlated-noise` with the factor `0`, so the steppers and backends need no change.
+- `cahn_hilliard` takes `temperature`, 0 by default. A positive temperature switches its field from the spectral to
+  the finite-difference discretization, since the dealiasing of spectral rates would leave the highest modes of the
+  link noise undamped, and the run then needs an SDE solver.
+- `active_model_b` is Active Model B+, with `lam = 1`, `zeta = 4`, and mean 0.4 by default, where the bubbles of the
+  dilute phase stop coarsening, and `zeta = 0` gives Active Model B.
 - Conserved noise holds on finite-difference fields of square lattices. A conserved law that names a process is
   rejected when it is built, and one whose amplitude reads a state fails to compile, as the non-goals state.
 
