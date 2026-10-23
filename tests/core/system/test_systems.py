@@ -19,21 +19,13 @@ from skcomplex.core.base import (
 )
 from skcomplex.core.compile import compile_system, validate
 from skcomplex.core.components import Element, Group, Particle
+from skcomplex.core.formalisms.agents import Rule
 from skcomplex.core.formalisms.quantum import Generator, QuantumView, is_quantum
 from skcomplex.core.formalisms.rewriting import Production, Rewrite, Word, structure_of
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Rate, Rule, Update
+from skcomplex.core.laws import Rate, Update
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.space import (
-    ContinuousSpace,
-    ContinuousTime,
-    DiscreteTime,
-    LatticeSpace,
-    NetworkSpace,
-    Phase,
-    Phases,
-    StaticTime,
-)
+from skcomplex.core.space import ContinuousSpace, ContinuousTime, DiscreteTime, LatticeSpace, NetworkSpace, StaticTime
 from skcomplex.core.system import System
 
 
@@ -130,15 +122,6 @@ def test_nested_system_inherits_time():
     assert validate(System(components=[nested], time=DiscreteTime())).ok
     (issue,) = validate(System(components=[nested], time=ContinuousTime())).errors
     assert issue.path == 'inner/clock'
-
-
-def test_ordered_phases_are_a_schedule():
-    """Test that a discrete time with phases lists them in order, and rejects repeated names."""
-    time = DiscreteTime(schedule=Phases([Phase('produce'), Phase('trade'), Phase('consume')]))
-    assert [phase.name for phase in time.phases] == ['produce', 'trade', 'consume']
-    assert DiscreteTime().phases == ()
-    with pytest.raises(ValidationError, match='repeat a name'):
-        Phases([Phase('trade'), Phase('trade')])
 
 
 def test_unknown_schedule_is_rejected():

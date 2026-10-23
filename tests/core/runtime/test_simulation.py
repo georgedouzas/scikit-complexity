@@ -7,7 +7,8 @@ import pytest
 
 from skcomplex.core.base import ParameterError, SimulationError, SolverError, ValidationError, parameter, state
 from skcomplex.core.components import Element
-from skcomplex.core.laws import Rate, Rule
+from skcomplex.core.formalisms.agents import Rule
+from skcomplex.core.laws import Rate
 from skcomplex.core.runtime import Observer, RealTime, Simulation
 from skcomplex.core.solvers import Gillespie
 from skcomplex.core.system import System

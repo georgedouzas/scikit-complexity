@@ -7,7 +7,8 @@ from sklearn.base import clone
 from skcomplex.core.base import LabelError, ValidationError, state
 from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
-from skcomplex.core.laws import Jump, Rate, Rule, Symbols
+from skcomplex.core.formalisms.agents import Rule
+from skcomplex.core.laws import Jump, Rate, Symbols
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System

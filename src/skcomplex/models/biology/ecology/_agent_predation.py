@@ -7,10 +7,10 @@ from typing import ClassVar
 
 import numpy as np
 
-from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, VisualSpec, parameter
 from ....core.components import Element
-from ....core.laws import Law, Rule, Symbols
+from ....core.formalisms.agents import AgentView, ModelView, Rule
+from ....core.laws import Law, Symbols
 from ....core.runtime import register_model
 from ....core.space import LatticeSpace
 from ....core.system import System

@@ -8,12 +8,12 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
-from ....core.laws import Law, Rule, Symbols
+from ....core.formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
+from ....core.laws import Law, Symbols
 from ....core.runtime import register_model
-from ....core.space import DiscreteTime, Phase, Phases
+from ....core.space import DiscreteTime
 from ....core.system import Observable, System
 from ..realizations import Market, SampleAndSwitch, Trade
 

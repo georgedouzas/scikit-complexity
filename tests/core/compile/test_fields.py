@@ -9,7 +9,8 @@ import pytest
 from skcomplex.core.base import ValidationError, state
 from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element, Field, Group
-from skcomplex.core.laws import Rate, Rule, advection, divergence, gradient, laplacian
+from skcomplex.core.formalisms.agents import Rule
+from skcomplex.core.laws import Rate, advection, divergence, gradient, laplacian
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4
 from skcomplex.core.space import LatticeSpace, NetworkSpace

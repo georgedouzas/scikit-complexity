@@ -5,7 +5,7 @@
 
 import math
 from collections import deque
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any, ClassVar, cast
 
 import mesa
@@ -16,7 +16,7 @@ from mesa.discrete_space import CellAgent, Network, OrthogonalMooreGrid, Orthogo
 from mesa.experimental.continuous_space import ContinuousSpace as MesaContinuousSpace
 from mesa.experimental.continuous_space import ContinuousSpaceAgent
 
-from ..base import (
+from ...base import (
     ComponentKind,
     ConservationError,
     DomainKind,
@@ -31,17 +31,17 @@ from ..base import (
     VariableKind,
     declarations_of,
 )
-from ..compile import CompiledAgents, ObservableEvaluator, Problem, Vector
-from ..components import Group
-from ..laws import Rule
-from ..solvers import Stepper, register_solver
-from ..solvers._agents import AgentSnapshot, AgentState
-from ..space import ContinuousSpace, LatticeSpace, NetworkSpace, Phase, Space
-from ..space._phases import DEFAULT_PHASE
-from ..space._time import DiscreteTime
+from ...compile import CompiledAgents, ObservableEvaluator, Problem, Vector
+from ...components import Group
+from ...laws import Law
+from ...solvers import AgentSnapshot, AgentState, Stepper
+from ...space import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace, Space
+from ._laws import Rule
+from ._spaces import DEFAULT_PHASE, Phase, Phases
 
 MAX_SEED = 2**31 - 1
 HISTORY_LENGTH = 10_000
+type MesaSpace = OrthogonalMooreGrid | OrthogonalVonNeumannGrid | Network | MesaContinuousSpace
 
 
 def _cell_key(location: object) -> object:
@@ -66,6 +66,114 @@ def _location_of(agent: mesa.Agent) -> object:
 def _agent_type(spec: CompiledAgents) -> Any:  # noqa: ANN401
     """Return the element type of a compiled agent element or group."""
     return spec.element.element if isinstance(spec.element, Group) else type(spec.element)
+
+
+def _build_space(space: Space | None, model: mesa.Model, n_agents: int) -> MesaSpace | None:
+    """Return the Mesa space of a framework space."""
+    if isinstance(space, LatticeSpace):
+        grid = OrthogonalVonNeumannGrid if space.neighborhood == 'von_neumann' else OrthogonalMooreGrid
+        return grid((space.width, space.height), torus=space.torus, capacity=space.capacity, random=model.random)
+    if isinstance(space, NetworkSpace):
+        return Network(space.graph, capacity=space.capacity, random=model.random, layout=None)
+    if isinstance(space, ContinuousSpace):
+        bounds = [[0.0, space.width], [0.0, space.height]]
+        return MesaContinuousSpace(bounds, torus=space.torus, random=model.random, n_agents=max(n_agents, 1))
+    return None
+
+
+def _rules_of(laws: Iterable[Law]) -> list[Rule]:
+    """Return the rules among laws, which the compiled agents and the model rules hold alone."""
+    return [law for law in laws if isinstance(law, Rule)]
+
+
+def _phase_of(rule: Rule) -> str:
+    """Return the name of the phase a rule runs in."""
+    return rule.phase or DEFAULT_PHASE
+
+
+def _phase_plan(phases: Sequence[Phase], problem: Problem) -> list[Phase] | None:
+    """Return the phases of a step with the default phase, or `None` when no phase is declared or named."""
+    rules = _rules_of(
+        [*(rule for spec in problem.agents for rule in spec.rules), *(rule for _, rule in problem.model_rules)],
+    )
+    if not phases and all(rule.phase is None for rule in rules):
+        return None
+    names = [phase.name for phase in phases]
+    if len(set(names)) != len(names):
+        error_msg = f'Phase names must be unique, and they are: {", ".join(names)}.'
+        raise SimulationError(error_msg)
+    plan = list(phases) if DEFAULT_PHASE in names else [Phase(DEFAULT_PHASE), *phases]
+    unknown = sorted({_phase_of(rule) for rule in rules} - {phase.name for phase in plan})
+    if unknown:
+        error_msg = (
+            f'Rules run in the phases {", ".join(unknown)}, which the system does not declare. Declared phases are: '
+            f'{", ".join(names) or "none"}.'
+        )
+        raise SimulationError(error_msg)
+    return plan
+
+
+def _attribute(name: str) -> Callable[[mesa.Agent], object]:
+    """Return a function that reads an attribute of an agent."""
+    return lambda agent: getattr(agent, name)
+
+
+def _snapshot_of(agents: list[mesa.Agent], reporters: Mapping[str, Callable[[mesa.Agent], object]]) -> AgentSnapshot:
+    """Return the ids, reported values, and locations of agents."""
+    agents = sorted(agents, key=lambda agent: agent.unique_id)
+    ids = np.array([agent.unique_id for agent in agents], dtype=np.int64)
+    values = {name: np.asarray([reporter(agent) for agent in agents]) for name, reporter in reporters.items()}
+    locations = [_location_of(agent) for agent in agents]
+    has_locations = any(location is not None for location in locations)
+    return AgentSnapshot(ids, values, np.asarray(locations) if has_locations else None)
+
+
+def _check_variable(spec: CompiledAgents, action: str) -> None:
+    """Raise an error when a rule changes the size of an agent element or of a group that is not variable."""
+    if isinstance(spec.element, Group) and spec.element.variable:
+        return
+    error_msg = (
+        f'A rule tries to {action} an agent of {spec.path}, whose size is fixed. Declare the group with '
+        '`variable=True`, such as `Element.group(label, size, variable=True)`, for its members to be created and '
+        'removed during a run.'
+    )
+    raise SimulationError(error_msg)
+
+
+def _member_value(value: object, index: int, size: int) -> object:
+    """Return the initial value of one agent from a per-agent array or a shared value."""
+    array = np.asarray(value)
+    if array.ndim and array.shape[0] == size:
+        item = array[index]
+        return item.item() if np.ndim(item) == 0 else item
+    return value
+
+
+def _member_location(location: object, index: int, size: int) -> object:
+    """Return the initial location of one agent from per-agent locations or one shared location."""
+    if location is None:
+        return None
+    array = np.asarray(location, dtype=object if isinstance(location, list | tuple) else None)
+    if array.ndim >= 1 and array.shape[0] == size:
+        return _cell_key(np.asarray(array[index]))
+    return _cell_key(location)
+
+
+def _shared_default(element_type: type, name: str) -> object:
+    """Return the default of a state of an element type."""
+    return element_type.get_default(name)  # type: ignore[attr-defined]
+
+
+class _AgentModel(mesa.Model):
+    """Mesa model whose step runs the agent and model rules of a stepper, so Mesa's clock moves with the run."""
+
+    def __init__(self, run_rules: Callable[[], None], rng: int) -> None:
+        self._run_rules = run_rules
+        super().__init__(rng=rng)
+
+    def step(self) -> None:
+        """Run the agent rules in random order and then the model rules."""
+        self._run_rules()
 
 
 class ModelView:
@@ -645,34 +753,6 @@ class AgentView:
         return AgentView(stepper.create_agent(target, place, values), stepper)
 
 
-class _AgentModel(mesa.Model):
-    """Mesa model whose step runs the agent and model rules of a stepper, so Mesa's clock moves with the run."""
-
-    def __init__(self, run_rules: Callable[[], None], rng: int) -> None:
-        self._run_rules = run_rules
-        super().__init__(rng=rng)
-
-    def step(self) -> None:
-        """Run the agent rules in random order and then the model rules."""
-        self._run_rules()
-
-
-type MesaSpace = OrthogonalMooreGrid | OrthogonalVonNeumannGrid | Network | MesaContinuousSpace
-
-
-def _build_space(space: Space | None, model: mesa.Model, n_agents: int) -> MesaSpace | None:
-    """Return the Mesa space of a framework space."""
-    if isinstance(space, LatticeSpace):
-        grid = OrthogonalVonNeumannGrid if space.neighborhood == 'von_neumann' else OrthogonalMooreGrid
-        return grid((space.width, space.height), torus=space.torus, capacity=space.capacity, random=model.random)
-    if isinstance(space, NetworkSpace):
-        return Network(space.graph, capacity=space.capacity, random=model.random, layout=None)
-    if isinstance(space, ContinuousSpace):
-        bounds = [[0.0, space.width], [0.0, space.height]]
-        return MesaContinuousSpace(bounds, torus=space.torus, random=model.random, n_agents=max(n_agents, 1))
-    return None
-
-
 class MesaStepper(Stepper):
     """Mesa backend of agent-based problems, one Mesa step per unit of time.
 
@@ -691,7 +771,7 @@ class MesaStepper(Stepper):
     Examples:
         >>> from skcomplex.core.base import state
         >>> from skcomplex.core.components import Element
-        >>> from skcomplex.core.laws import Rule
+        >>> from skcomplex.core.formalisms.agents import Rule
         >>> from skcomplex.core.system import System
         >>> from skcomplex.core.runtime import Simulation
         >>> class Counter(Element):
@@ -757,13 +837,18 @@ class MesaStepper(Stepper):
         self.space_: Any = _build_space(problem.agent_space, self.model_, sum(spec.size for spec in problem.agents))
         roles = {item.path: item.roles for item in problem.interactions}
         self._views = {spec.path: ModelView(self, spec.path) for spec in problem.agents}
-        self._rules = [(ModelView(self, owner, roles.get(owner)), rule) for owner, rule in problem.model_rules]
+        self._rules = [
+            (ModelView(self, owner, roles.get(owner)), rule)
+            for owner, rule in problem.model_rules
+            if isinstance(rule, Rule)
+        ]
         self._model_invariants = [
             (ModelView(self, owner, roles.get(owner)), owner, invariant)
             for owner, invariant in problem.model_invariants
         ]
         time = getattr(problem.system, 'time', None)
-        self._phases = _phase_plan(time.phases if isinstance(time, DiscreteTime) else (), problem)
+        schedule = time.schedule if isinstance(time, DiscreteTime) else None
+        self._phases = _phase_plan(schedule.phases if isinstance(schedule, Phases) else (), problem)
         owners = [(item.path, type(item.interaction)) for item in problem.interactions] + [
             (spec.path, spec.element.element if isinstance(spec.element, Group) else type(spec.element))
             for spec in problem.agents
@@ -793,7 +878,7 @@ class MesaStepper(Stepper):
         def step(agent: mesa.Agent) -> None:
             """Run the rules of the agent's type unless the agent was removed earlier in the step."""
             view = AgentView(agent, stepper)
-            for rule in spec.rules:
+            for rule in _rules_of(spec.rules):
                 if getattr(agent, 'removed_', False):
                     return
                 rule.function(view, model)
@@ -990,7 +1075,7 @@ class MesaStepper(Stepper):
             for agent in self._ordered_agents(phase):
                 spec = self.spec_of(agent)
                 view, model = AgentView(agent, self), self._views[spec.path]
-                for rule in spec.rules:
+                for rule in _rules_of(spec.rules):
                     if getattr(agent, 'removed_', False):
                         break
                     if _phase_of(rule) == phase.name:
@@ -1098,82 +1183,3 @@ class MesaStepper(Stepper):
             groups[spec.path] = _snapshot_of(agents, {name: _attribute(name) for name in spec.states})
         reporters = {f'{path}.count': float(len(snapshot)) for path, snapshot in groups.items()}
         return AgentState(groups, {**reporters, **self.reports_})
-
-
-def _phase_of(rule: Rule) -> str:
-    """Return the name of the phase a rule runs in."""
-    return rule.phase or DEFAULT_PHASE
-
-
-def _phase_plan(phases: Sequence[Phase], problem: Problem) -> list[Phase] | None:
-    """Return the phases of a step with the default phase, or `None` when no phase is declared or named."""
-    rules = [rule for spec in problem.agents for rule in spec.rules] + [rule for _, rule in problem.model_rules]
-    if not phases and all(rule.phase is None for rule in rules):
-        return None
-    names = [phase.name for phase in phases]
-    if len(set(names)) != len(names):
-        error_msg = f'Phase names must be unique, and they are: {", ".join(names)}.'
-        raise SimulationError(error_msg)
-    plan = list(phases) if DEFAULT_PHASE in names else [Phase(DEFAULT_PHASE), *phases]
-    unknown = sorted({_phase_of(rule) for rule in rules} - {phase.name for phase in plan})
-    if unknown:
-        error_msg = (
-            f'Rules run in the phases {", ".join(unknown)}, which the system does not declare. Declared phases are: '
-            f'{", ".join(names) or "none"}.'
-        )
-        raise SimulationError(error_msg)
-    return plan
-
-
-def _attribute(name: str) -> Callable[[mesa.Agent], object]:
-    """Return a function that reads an attribute of an agent."""
-    return lambda agent: getattr(agent, name)
-
-
-def _snapshot_of(agents: list[mesa.Agent], reporters: Mapping[str, Callable[[mesa.Agent], object]]) -> AgentSnapshot:
-    """Return the ids, reported values, and locations of agents."""
-    agents = sorted(agents, key=lambda agent: agent.unique_id)
-    ids = np.array([agent.unique_id for agent in agents], dtype=np.int64)
-    values = {name: np.asarray([reporter(agent) for agent in agents]) for name, reporter in reporters.items()}
-    locations = [_location_of(agent) for agent in agents]
-    has_locations = any(location is not None for location in locations)
-    return AgentSnapshot(ids, values, np.asarray(locations) if has_locations else None)
-
-
-def _check_variable(spec: CompiledAgents, action: str) -> None:
-    """Raise an error when a rule changes the size of an agent element or of a group that is not variable."""
-    if isinstance(spec.element, Group) and spec.element.variable:
-        return
-    error_msg = (
-        f'A rule tries to {action} an agent of {spec.path}, whose size is fixed. Declare the group with '
-        '`variable=True`, such as `Element.group(label, size, variable=True)`, for its members to be created and '
-        'removed during a run.'
-    )
-    raise SimulationError(error_msg)
-
-
-def _member_value(value: object, index: int, size: int) -> object:
-    """Return the initial value of one agent from a per-agent array or a shared value."""
-    array = np.asarray(value)
-    if array.ndim and array.shape[0] == size:
-        item = array[index]
-        return item.item() if np.ndim(item) == 0 else item
-    return value
-
-
-def _member_location(location: object, index: int, size: int) -> object:
-    """Return the initial location of one agent from per-agent locations or one shared location."""
-    if location is None:
-        return None
-    array = np.asarray(location, dtype=object if isinstance(location, list | tuple) else None)
-    if array.ndim >= 1 and array.shape[0] == size:
-        return _cell_key(np.asarray(array[index]))
-    return _cell_key(location)
-
-
-def _shared_default(element_type: type, name: str) -> object:
-    """Return the default of a state of an element type."""
-    return element_type.get_default(name)  # type: ignore[attr-defined]
-
-
-register_solver('mesa', MesaStepper, default=True)

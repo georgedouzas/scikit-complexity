@@ -5,10 +5,10 @@
 
 import numpy as np
 
-from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
-from ....core.laws import Law, Rule, Symbols
+from ....core.formalisms.agents import AgentView, ModelView, Rule
+from ....core.laws import Law, Symbols
 from ....core.runtime import register_model
 from ....core.system import Observable, System
 

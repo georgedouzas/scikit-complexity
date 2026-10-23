@@ -767,7 +767,8 @@ raises `ConservationError` until its holdings are settled with transfers.
 
 ```python
 from skcomplex.core.components import Element
-from skcomplex.core.laws import Invariant, Rule, transfer
+from skcomplex.core.formalisms.agents import Rule
+from skcomplex.core.laws import Invariant, transfer
 
 
 def net_worth(agent):
@@ -2095,7 +2096,7 @@ the laws, spaces, and times it does not support.
 ```python
 from skcomplex.core.base import Domain, VisualSpec, parameter, state
 from skcomplex.core.components import Element
-from skcomplex.core.laws import Rule
+from skcomplex.core.formalisms.agents import Rule
 from skcomplex.core.space import LatticeSpace
 
 
@@ -2217,7 +2218,8 @@ agents learn from their past.
   next generation of strategies with the model's random stream.
 
 ```python
-from skcomplex.core.space import DiscreteTime, Phase, Phases
+from skcomplex.core.formalisms.agents import Phase, Phases
+from skcomplex.core.space import DiscreteTime
 from skcomplex.models.economics.realizations import CallAuction, Institution, Market
 
 

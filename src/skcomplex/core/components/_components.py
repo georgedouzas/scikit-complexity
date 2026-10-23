@@ -24,7 +24,6 @@ from ..base import (
     symbol,
 )
 from ..laws import Law
-from ..laws._laws import Rule
 from ..laws._symbols import Symbols
 from ..space._lattices import LatticeSpace
 from ..space._networks import NetworkSpace, part_count
@@ -90,11 +89,11 @@ class Element(Component):
     Subclasses declare their states with `state` and their parameters with `parameter`, and can override `laws` to
     return their intrinsic dynamics. The class variable `visual` names how the state is drawn.
 
-    An element whose laws include `Rule` laws, alone or in a group, is an agent: under discrete time it runs on the
-    agent stepper, whose rules receive every member as an agent with its states as attributes. Its states then hold
-    any value, not only numbers. The class variable `remembers` maps state names to the number of past values the
-    stepper keeps of them, which `memory` returns. A member is removed only when its states tagged with a quantity are
-    settled to zero, and its states and parameters cannot take the names of the agent view, such as `location` or
+    An element whose laws have the agent trait, such as rules, alone or in a group, is an agent: under discrete time it
+    runs on the agent stepper, whose rules receive every member as an agent with its states as attributes. Its states
+    then hold any value, not only numbers. The class variable `remembers` maps state names to the number of past values
+    the stepper keeps of them, which `memory` returns. A member is removed only when its states tagged with a quantity
+    are settled to zero, and its states and parameters cannot take the names of the agent view, such as `location` or
     `alive`, or of the attributes Mesa reads, such as `position` or `model`.
 
     Args:
@@ -362,10 +361,10 @@ def probe_laws(component: object) -> list[Law] | None:
 
     Examples:
         >>> from skcomplex.core.components import Element, probe_laws
-        >>> from skcomplex.core.laws import Rule
-        >>> Walker = Element.define('Walker', laws=lambda s: [Rule(lambda agent, model: None)])
-        >>> [type(law).__name__ for law in probe_laws(Walker('walker'))]
-        ['Rule']
+        >>> from skcomplex.core.laws import Rate
+        >>> Decay = Element.define('Decay', laws=lambda s: [Rate(s.x, -s.x)])
+        >>> [type(law).__name__ for law in probe_laws(Decay('decay'))]
+        ['Rate']
     """
     if isinstance(component, Group):
         component_type: type[Component] = component.element
@@ -385,34 +384,6 @@ def probe_laws(component: object) -> list[Law] | None:
         return list(member.laws(_FreeSymbols(**{name: _FreeSymbols() for name in roles})))
     except Exception:  # noqa: BLE001
         return None
-
-
-def runs_rules(component: object) -> bool:
-    """Check whether a component runs rules of its own: a variable group, or an element or group with rule laws.
-
-    Such a component is an agent. The compiler also makes agents of the groups whose element type has no laws of its
-    own in a system with rules, unless an interaction whose laws are not rules binds them.
-
-    Args:
-        component:
-            The element, group, interaction, or system.
-
-    Returns:
-        runs_rules:
-            Whether the component is a variable group, or an element or group whose own laws include a `Rule`.
-
-    Examples:
-        >>> from skcomplex.core.components import Element, runs_rules
-        >>> from skcomplex.core.laws import Rule
-        >>> Walker = Element.define('Walker', laws=lambda s: [Rule(lambda agent, model: None)])
-        >>> runs_rules(Walker('walker')), runs_rules(Element.define('Plain')('plain'))
-        (True, False)
-    """
-    if isinstance(component, Group) and component.variable:
-        return True
-    if not isinstance(component, Element | Group):
-        return False
-    return any(isinstance(law, Rule) for law in probe_laws(component) or [])
 
 
 def _check_element(label: str, element: object) -> None:

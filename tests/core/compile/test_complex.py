@@ -13,6 +13,7 @@ from skcomplex.core.backends import LammpsBackend, NumbaBackend
 from skcomplex.core.base import BackendError, Domain, ValidationError, parameter, state
 from skcomplex.core.compile import Entry, Layout, compile_system
 from skcomplex.core.components import Element, Field
+from skcomplex.core.formalisms.agents import Rule
 from skcomplex.core.laws import (
     Call,
     Equation,
@@ -20,7 +21,6 @@ from skcomplex.core.laws import (
     Jump,
     LocalRule,
     Rate,
-    Rule,
     Update,
     derivative,
     laplacian,

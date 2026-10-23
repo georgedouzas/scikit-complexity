@@ -12,13 +12,13 @@ from skcomplex.core.analysis import conservation, flow_matrix, loop_dominance, l
 from skcomplex.core.base import ConservationError, LabelError, ValidationError, parameter, role, state
 from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
+from skcomplex.core.formalisms.agents import Rule
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import (
     Auxiliary,
     Boundary,
     Invariant,
     Rate,
-    Rule,
     Sink,
     Source,
     Transfer,

@@ -24,7 +24,7 @@ from ..base import (
 )
 from ..components import Element, Group
 from ..interactions import Interaction
-from ..laws import Invariant, Rule
+from ..laws import Invariant, Law
 from ..space import Space
 from ..system import Observable, System
 from ._contractions import CompiledEncounter
@@ -315,7 +315,7 @@ class CompiledAgents:
     states: tuple[str, ...]
     values: Mapping[str, object]
     parameters: Mapping[str, str]
-    rules: tuple[Rule, ...]
+    rules: tuple[Law, ...]
     visual: VisualSpec
     invariants: tuple[Invariant, ...] = ()
 
@@ -748,7 +748,7 @@ class Problem:
     interactions: tuple[CompiledInteraction, ...] = ()
     system: System | None = field(default=None, repr=False)
     agents: tuple[CompiledAgents, ...] = ()
-    model_rules: tuple[tuple[str, Rule], ...] = ()
+    model_rules: tuple[tuple[str, Law], ...] = ()
     model_invariants: tuple[tuple[str, Invariant], ...] = ()
     agent_space: Space | None = None
     partitions: tuple['Partition', ...] = ()

@@ -2,9 +2,10 @@
 
 from ._backends import BACKENDS, Backend, Lowering, load_backends, register_backend, resolve_backend
 from ._census import Census, CensusRecord, OwnerRule, law_census, register_owner
-from ._compilation import Compilation
+from ._compilation import BlockLaws, Compilation, Laws
 from ._compile import compile_system, partition_system
 from ._contractions import CompiledEncounter, TableValues
+from ._declarations import Block, Declarations
 from ._fields import mesh_laplacian, spectral_multiplier
 from ._forms import register_combined, register_form
 from ._hybrid import Breakpoints, CompiledEvent, Delay, EventRecord
@@ -46,10 +47,11 @@ from ._problem import (
     with_initial_state,
 )
 from ._quantities import CompiledFlow, CompiledObjective, LoopTerm, Recorded, StockFlow
-from ._specs import Binding, register_binding
+from ._specs import Binding, KernelSpec, register_binding
 from ._system_passes import SystemPass, claiming_pass
 from ._tree import Node, coerce_value, flatten_system
 from ._validation import ValidationReport, domain_kind, missing_declarations, validate
+from .passes._problem import visual_of
 
 __all__: list[str] = [
     'BACKENDS',
@@ -58,6 +60,8 @@ __all__: list[str] = [
     'Accelerated',
     'Backend',
     'Binding',
+    'Block',
+    'BlockLaws',
     'Breakpoints',
     'Census',
     'CensusRecord',
@@ -75,6 +79,7 @@ __all__: list[str] = [
     'CompiledObjective',
     'CompiledRelaxation',
     'CompiledRule',
+    'Declarations',
     'Delay',
     'Dialect',
     'Draws',
@@ -85,8 +90,10 @@ __all__: list[str] = [
     'Getter',
     'Issue',
     'JumpChannels',
+    'KernelSpec',
     'LatticeState',
     'LatticeStep',
+    'Laws',
     'Layout',
     'LoopTerm',
     'Lowering',
@@ -139,6 +146,7 @@ __all__: list[str] = [
     'run_passes',
     'spectral_multiplier',
     'validate',
+    'visual_of',
     'with_initial_state',
     'with_observables',
 ]

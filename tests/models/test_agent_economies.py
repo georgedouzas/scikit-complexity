@@ -6,11 +6,11 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import SimulationError, parameter, role, state
-from skcomplex.core.components import Element, memory
-from skcomplex.core.interactions import Interaction, Match, matches
-from skcomplex.core.laws import Rule
+from skcomplex.core.components import Element
+from skcomplex.core.formalisms.agents import Match, Phase, Phases, Rule, matches, memory
+from skcomplex.core.interactions import Interaction
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.space import DiscreteTime, LatticeSpace, Phase, Phases
+from skcomplex.core.space import DiscreteTime, LatticeSpace
 from skcomplex.core.system import Observable, System
 from skcomplex.models.economics.realizations import (
     BilateralSearch,

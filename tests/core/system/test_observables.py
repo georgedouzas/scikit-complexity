@@ -8,8 +8,9 @@ from sage.all__sagemath_symbolics import I, exp
 
 from skcomplex.core.base import Domain, RoleError, ValidationError, parameter, state, symbol
 from skcomplex.core.components import Element
+from skcomplex.core.formalisms.agents import Rule
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Rate, Rule, mean, total
+from skcomplex.core.laws import Rate, mean, total
 from skcomplex.core.runtime import Frame, Simulation
 from skcomplex.core.system import Observable, System
 from skcomplex.core.viz import RerunObserver

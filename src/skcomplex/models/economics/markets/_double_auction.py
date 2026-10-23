@@ -7,12 +7,12 @@ from typing import ClassVar
 
 import numpy as np
 
-from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
-from ....core.laws import Law, Rule, Symbols
+from ....core.formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
+from ....core.laws import Law, Symbols
 from ....core.runtime import register_model
-from ....core.space import DiscreteTime, Phase, Phases
+from ....core.space import DiscreteTime
 from ....core.system import System
 from ..realizations import CallAuction, Institution, Market, OrderBook, Trade
 
