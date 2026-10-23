@@ -214,8 +214,12 @@ to fill in as the project takes shape.
 
 - Ecosystem contract: the scikit-learn estimator contract. Components, systems, spaces, steppers, clocks, and
   simulations inherit `sklearn.base.BaseEstimator`, store constructor arguments unmodified, and expose derived state
-  with a trailing underscore. Elements and interactions declare their fields with `state`, `parameter`, and `role`,
-  which generate a keyword-only dataclass constructor.
+  with a trailing underscore. Every component, an element, a group, an interaction, or a system, derives from
+  `Component`, which takes the label and the values of the declared states, parameters, and roles in one explicit
+  constructor and lists them in `get_params`. A component type declares its fields with `state`, `parameter`, and
+  `role`, and a constructor setting that is not a declaration is taken by an explicit keyword-only `__init__` of the
+  type. No component class is turned into a dataclass or given generated attributes. Every law derives from `Law` and
+  declares its kind, its time class, and its traits as class variables.
 - Language: Python >=3.12, <3.14.
 - Platforms: Linux and macOS 13 or later. Windows is not supported because passagemath publishes no Windows wheels, and
   Windows users run the package in WSL.
@@ -249,13 +253,16 @@ to fill in as the project takes shape.
 - LAMMPS: `lammps` is a runtime dependency, with `mpich`, because the LAMMPS wheel links an MPI library it does not
   bundle.
 - Layout: library. The importable package under `src/skcomplex` is distributed to others and holds exactly two
-  packages, `skcomplex.core` and `skcomplex.models`. The core is the domain-agnostic framework. Its modelling packages
-  mirror the definition of a system and import downward through `base`, `space` (space and time), `laws`,
-  `components`, `interactions`, and `system`; its engineering packages then import downward through `compile`,
-  `solvers`, `runtime`, `viz`, `experiments`, `analysis`, and `backends`, which holds every backend, NumPy, Numba,
-  Mesa, and LAMMPS, and so sits above them. Resolving a backend or a solver imports `skcomplex.core.backends`, which
-  registers them. Every core name is a mathematical, modelling, or engineering term, and the core never imports
-  `skcomplex.models`.
+  packages, `skcomplex.core` and `skcomplex.models`. The core is the domain-agnostic framework. Its packages import
+  only the packages listed before them, in the order `base`, `space`, `laws`, `components`, `interactions`, `system`,
+  `compile`, `solvers`, `backends`, `runtime`, `viz`, `experiments`, `analysis`, and `formalisms`. The shared core
+  holds the general concepts, and `skcomplex.core.formalisms` holds one package per domain-agnostic formalism,
+  `agents`, `lattices`, `groups`, `rewriting`, `quantum`, `fields`, `kinetics`, `fractional`, `topology`,
+  `particles`, and `control`, each with its laws, components, compilation passes, solvers, backends, visuals, and
+  checks. A formalism imports only the shared core and the formalisms it declares, and no package of the shared core
+  imports a formalism. Every core name is a mathematical, modelling, or engineering term, and the core never imports
+  `skcomplex.models`. The test tree mirrors the source tree, and only the repository-wide checks sit at the root of
+  `tests`.
 - Model library: `skcomplex.models` is organised by scientific field and subfield, as
   `skcomplex.models.<field>.<subfield>`, and every model registers under the field path `<field>/<subfield>`. Models
   are examples built only from the public names of the core. Every model package is self-contained, so no model
@@ -267,7 +274,9 @@ to fill in as the project takes shape.
   combinations before models that repeat covered patterns. A layout test enforces these rules.
 - Surface: the top-level package and `skcomplex.core` re-export nothing, so every public name is imported from the
   subpackage that owns it.
-- Extension points: solvers, visuals, and any other registry in `skcomplex.core.base` accept new entries without changes to
-  existing modules. Base classes users subclass are `Element`, `Interaction`, `Potential`, `PairPotential`, `Backend`,
-  `Stepper`, `ExternalBackend`, `Clock`, `Observer`, and `Visual`.
-**Version**: 1.6.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-22
+- Extension points: a formalism declares everything it contributes in one `Formalism` and registers it with
+  `register`, which adds its laws, compilation passes, checks, stepwise forms, combined laws, owner rules, bindings,
+  solvers, default solvers, backends, and visuals to the registry of the concept that owns each. Law kinds, forms,
+  space kinds, and traits are open vocabularies. Base classes users subclass are `Element`, `Interaction`, `Law`,
+  `Potential`, `PairPotential`, `Backend`, `Stepper`, `ExternalBackend`, `Clock`, `Observer`, and `Visual`.
+**Version**: 1.7.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-23

@@ -93,7 +93,7 @@
 
 - [ ] 6.1 Rewrite the user guide's sections on components, laws, and package layout, and add a section on formalisms
   and how to write one. Regenerate the compatibility page. Verify that the documentation test runs every Python block.
-- [ ] 6.2 Amend the constitution's Project Profile:
+- [x] 6.2 Amend the constitution's Project Profile:
   - the layout with `formalisms`;
   - the ecosystem contract without generated dataclass constructors;
   - the extension points.
