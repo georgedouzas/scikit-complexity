@@ -10,11 +10,11 @@ import numpy as np
 
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
-from ....core.formalisms.lattices import Energy, Move, Sample, Sampler
 from ....core.laws import Law, Symbols, neighbors
-from ....core.runtime import register_model
 from ....core.space import Adjacency, NetworkSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.lattices import Energy, Move, Sample, Sampler
 
 NODES = 400
 DEGREE = 4

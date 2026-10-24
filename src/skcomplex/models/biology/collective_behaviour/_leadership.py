@@ -10,11 +10,11 @@ import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
 from ....core.laws import Law, Symbols
-from ....core.runtime import register_model
 from ....core.space import ContinuousSpace, DiscreteTime
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
 
 
 def _unit(vector: np.ndarray) -> np.ndarray:

@@ -6,8 +6,8 @@
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
 from ....core.laws import Law, Symbols, Transfer
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 
 def _adoption(s: Symbols) -> list[Law]:

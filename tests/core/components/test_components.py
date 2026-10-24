@@ -19,15 +19,15 @@ from skcomplex.core.base import (
     role,
     state,
 )
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element, Group
-from skcomplex.core.formalisms.agents import Rule
-from skcomplex.core.formalisms.particles import Particle
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Boundary, Jump, Rate
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.space import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import Simulation
+from skcomplex.formalisms.agents import Rule
+from skcomplex.formalisms.particles import Particle
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population, Predation
 
 Stock = Element.define('Stock', states={'n': state(1.0, domain=Domain.NONNEGATIVE)}, parameters={'k': 0.0})

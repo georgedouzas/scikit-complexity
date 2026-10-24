@@ -1,6 +1,6 @@
 """Test the `_fair_food` module of `skcomplex.models.economics.markets`."""
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models import describe
 from skcomplex.models.economics.markets import fair_food
 

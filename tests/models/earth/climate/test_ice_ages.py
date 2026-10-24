@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.earth.climate import (
     carbon_cycle,
     saltzman_glaciation,

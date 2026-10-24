@@ -11,11 +11,11 @@ from scipy.special import expit
 
 from ....core.base import Domain, parameter, role, state
 from ....core.components import Element
-from ....core.formalisms.agents import ModelView, Rule
 from ....core.interactions import Interaction
 from ....core.laws import Law, Symbols
-from ....core.runtime import register_model
 from ....core.system import Observable, System
+from ....engine.runtime import register_model
+from ....formalisms.agents import ModelView, Rule
 
 type Array = npt.NDArray[np.float64]
 

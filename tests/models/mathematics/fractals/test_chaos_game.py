@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import box_counting_dimension
 from skcomplex.core.base import ValidationError
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.analysis import box_counting_dimension
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
 
 from ..conftest import _final

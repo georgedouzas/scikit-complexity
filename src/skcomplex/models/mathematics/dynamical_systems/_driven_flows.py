@@ -6,9 +6,9 @@
 from ....core.base import Domain, parameter
 from ....core.components import Element
 from ....core.laws import Noise, Rate
-from ....core.runtime import register_model
-from ....core.solvers import EulerMaruyama
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....engine.solvers import EulerMaruyama
 
 DrivenRossler = Element.define(
     'DrivenRossler',

@@ -12,9 +12,9 @@ from sage.all__sagemath_symbolics import exp
 from ....core.base import Domain, VisualSpec, parameter, state
 from ....core.components import Element
 from ....core.laws import Jump, Law, Symbols, draw, uniform
-from ....core.runtime import register_model
 from ....core.space import ContinuousSpace
 from ....core.system import System
+from ....engine.runtime import register_model
 
 
 class TrapWalker(Element):

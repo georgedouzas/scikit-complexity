@@ -1,6 +1,6 @@
 """Test the `_collisions` module of `skcomplex.models.physics.active_matter`."""
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models import describe
 from skcomplex.models.physics.active_matter import binary_collision_flocking
 

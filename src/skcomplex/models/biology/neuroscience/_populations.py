@@ -14,8 +14,8 @@ from ....core.base import Domain, Expression, parameter, role, state
 from ....core.components import Element
 from ....core.interactions import Interaction
 from ....core.laws import Law, Rate, Symbols, mean, total
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 
 def _sigmoid(x: Expression, gain: Expression, threshold: Expression) -> Expression:

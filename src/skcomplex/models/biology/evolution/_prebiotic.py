@@ -13,8 +13,8 @@ from ....core.base import Domain, Expression, ValidationError, parameter, role, 
 from ....core.components import Element
 from ....core.interactions import Interaction
 from ....core.laws import Law, Rate, Symbols, Update, total
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 
 def _mean_fitness(master: Symbols) -> Expression:

@@ -5,11 +5,11 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import ValidationError
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
 from skcomplex.core.laws import Update, neighbors
 from skcomplex.core.space import Adjacency, Layer, NetworkSpace, neighbor_pairs
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
 
 BACKENDS = ('numpy', 'numba')
 GENERATORS = [

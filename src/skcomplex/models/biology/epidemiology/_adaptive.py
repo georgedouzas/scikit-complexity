@@ -10,12 +10,12 @@ import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.components import Element, Group
-from ....core.formalisms.topology import add_edge, remove_edge, rewire
 from ....core.interactions import Interaction
 from ....core.laws import Jump, Law, Rate, Symbols, Update, bernoulli, neighbors, where
-from ....core.runtime import register_model
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.topology import add_edge, remove_edge, rewire
 
 HIDDEN = VisualSpec('sites', {'states': []})
 

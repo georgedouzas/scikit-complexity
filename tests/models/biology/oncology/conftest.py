@@ -1,8 +1,8 @@
 """Share the run helpers and solvers of the oncology model tests."""
 
-from skcomplex.core.runtime import Simulation, Trajectory
-from skcomplex.core.solvers import ScipyODE, Stepper
 from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation, Trajectory
+from skcomplex.engine.solvers import ScipyODE, Stepper
 
 PRECISE = ScipyODE(rtol=1e-9, atol=1e-12)
 STIFF = ScipyODE(method='LSODA', rtol=1e-8, atol=1e-10)

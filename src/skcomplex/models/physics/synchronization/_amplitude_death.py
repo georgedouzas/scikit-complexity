@@ -12,8 +12,8 @@ from ....core.base import Domain, Expression, ValidationError, VisualSpec, param
 from ....core.components import Element
 from ....core.interactions import Interaction
 from ....core.laws import Rate, Symbols, mean
-from ....core.runtime import register_model
 from ....core.system import Observable, System
+from ....engine.runtime import register_model
 
 QUANTILE_GRID_SIZE = 20001
 DISTRIBUTIONS = ('lorentzian', 'quartic')

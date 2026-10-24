@@ -11,8 +11,8 @@ the previous one, and the state diverges at the finite time `t* = 1 / x0`: a sin
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'finite_time_blow_up'

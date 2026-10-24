@@ -14,9 +14,9 @@ orientation wins. The view shows the spins of a 256 x 256 torus 100 sweeps after
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import o_information
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.analysis import o_information
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'ising'

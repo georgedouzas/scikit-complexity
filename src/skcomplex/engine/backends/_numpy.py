@@ -1,0 +1,103 @@
+"""Run compiled problems in NumPy, the default backend, evaluating kernels as vectorised array operations."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from collections.abc import Mapping
+from typing import ClassVar
+
+from ...core.base import ComponentKind, DomainKind, Form, LawKind, NoiseKind, OrderKind, SpaceKind, Supports, TimeKind
+from ...core.laws import Boundary, Jump, Noise, Rate, Update
+from ..compile._backends import (
+    Backend,
+    Lowering,
+    adding_function,
+    assigning_function,
+    concatenating_function,
+    register_backend,
+    with_reductions,
+)
+from ..compile._kernels import Kernel, Reference, jump_channels, lower_noise
+from ..compile._problem import Draws
+from ..compile._reductions import ReductionPass
+
+
+class NumpyBackend(Backend):
+    """Reference backend that evaluates every kernel with NumPy array operations.
+
+    Examples:
+        >>> from skcomplex.engine.compile import compile_system
+        >>> from skcomplex.engine.backends import NumpyBackend
+        >>> from skcomplex.core.system import System
+        >>> from skcomplex.models.biology.ecology import Population
+        >>> compile_system(System(components=[Population('a')]), backend=NumpyBackend()).backend
+        'numpy'
+    """
+
+    supports: ClassVar[Supports] = Supports(
+        time=set(TimeKind),
+        space=set(SpaceKind.registered()),
+        laws=set(LawKind.registered()),
+        domains=set(DomainKind),
+        components=set(ComponentKind),
+        noise=set(NoiseKind),
+        orders=set(OrderKind),
+    )
+
+    name: ClassVar[str] = 'numpy'
+
+    def lower(
+        self,
+        form: Form,
+        kernels: Mapping[type, list[Kernel]],
+        changes: Mapping[int, list[tuple[Reference, float]]],
+        size: int,
+        *,
+        reductions: ReductionPass | None = None,
+        draws: Draws | None = None,
+    ) -> Lowering:
+        """Return the numeric functions of a form evaluated with NumPy.
+
+        Args:
+            form:
+                The form of the problem.
+
+            kernels:
+                The kernels of every law kind, in evaluation order.
+
+            changes:
+                The changes of every jump output, keyed by the output's identity.
+
+            size:
+                The size of the state vector.
+
+            reductions:
+                The reductions the kernels read, evaluated before them at every evaluation, or `None`.
+
+            draws:
+                The random values a stochastic map draws at every step into the parameter vector extended after its
+                parameters, or `None` for a deterministic problem.
+
+        Returns:
+            lowering:
+                The numeric functions.
+        """
+        del draws
+        lowering = Lowering()
+        if kernels.get(Boundary):
+            lowering.boundary = assigning_function(kernels[Boundary])
+        if form in (Form.ODE, Form.FRACTIONAL, Form.SDE):
+            lowering.drift = adding_function(kernels.get(Rate, []), size)
+        if form is Form.SDE:
+            lowering.diffusion = concatenating_function(kernels.get(Noise, []))
+            noise = lower_noise(kernels.get(Noise, []))
+            lowering.noise_rows, lowering.noise_columns, lowering.n_processes, lowering.noise_blocks = noise
+        if form is Form.JUMP:
+            lowering.propensities = concatenating_function(kernels.get(Jump, []))
+            lowering.jumps = jump_channels(kernels.get(Jump, []), changes)
+        if form is Form.DISCRETE:
+            lowering.update = assigning_function(kernels.get(Update, []))
+        return with_reductions(lowering, reductions, kernels)
+
+
+register_backend(NumpyBackend)

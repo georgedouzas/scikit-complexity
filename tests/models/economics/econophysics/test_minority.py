@@ -1,6 +1,6 @@
 """Test the `_minority` module of `skcomplex.models.economics.econophysics`."""
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.economics.econophysics import (
     minority_game,
 )

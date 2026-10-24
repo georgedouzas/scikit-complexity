@@ -15,8 +15,8 @@ traders drift towards the profitable direction faster and faster.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver, default_blueprint
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver, default_blueprint
 from skcomplex.models import create
 
 MODEL = 'arbitrage_traders'

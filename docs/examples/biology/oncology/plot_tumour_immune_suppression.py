@@ -12,9 +12,9 @@ it recruits cut it back, and it regrows once regulatory T cells, IL-10, and TGF-
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import ScipyODE
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'tumour_immune_suppression'

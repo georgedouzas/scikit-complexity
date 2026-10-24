@@ -1,6 +1,6 @@
 """Test the `_trails` module of `skcomplex.models.biology.collective_behaviour`."""
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.collective_behaviour import (
     active_walkers,
 )

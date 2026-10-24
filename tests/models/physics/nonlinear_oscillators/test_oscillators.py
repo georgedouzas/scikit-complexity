@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODE
 from skcomplex.models import run
 from skcomplex.models.physics.nonlinear_oscillators import (
     adler_equation,

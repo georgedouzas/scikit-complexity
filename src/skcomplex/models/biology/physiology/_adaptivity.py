@@ -8,8 +8,8 @@ from typing import Any
 from ....core.base import Domain, ValidationError, parameter, state
 from ....core.components import Element
 from ....core.laws import Law, Rate, Symbols, pulse_train, where
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 STRATEGIES = {'stimulus-response': (0.0, 0.0), 'adaptive': (0.5, 0.0), 'anticipatory': (0.5, 0.5)}
 

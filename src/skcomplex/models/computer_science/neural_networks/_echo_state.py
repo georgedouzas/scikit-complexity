@@ -12,8 +12,8 @@ from sage.all__sagemath_symbolics import sin, tanh
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
 from ....core.laws import Law, Symbols, Update, total
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 
 def _recurrent_weights(
@@ -122,7 +122,7 @@ def echo_state_network(
 
     The recurrent weights are sparse and Gaussian, scaled to a spectral radius below 1, so the reservoir has the echo
     state property: its activities forget their initial values and become a function of the input history alone. A
-    readout trained on these activities, as `skcomplex.core.analysis.fit_reservoir` does, turns the reservoir into a
+    readout trained on these activities, as `skcomplex.engine.analysis.fit_reservoir` does, turns the reservoir into a
     forecaster.
 
     Args:

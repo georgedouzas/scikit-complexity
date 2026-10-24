@@ -10,9 +10,9 @@ from sage.all__sagemath_symbolics import log
 from ....core.base import Domain, Expression, parameter, state
 from ....core.components import Element
 from ....core.laws import Law, Rate, Symbols, delayed, pulse_train, step, where
-from ....core.runtime import register_model
-from ....core.solvers import ScipyODE
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....engine.solvers import ScipyODE
 
 BOOK_REFERENCE = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 STIFF_SOLVER = ScipyODE(method='LSODA', rtol=1e-8, atol=1e-10)

@@ -12,8 +12,8 @@ the meadow grazes it bare and dies out within weeks, which brackets how many cow
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'meadow_capacity'

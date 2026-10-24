@@ -14,9 +14,9 @@ coefficients for long, so the dark slow walkers stay near the origin while the b
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import EulerMaruyama
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'annealed_transient_time_motion'

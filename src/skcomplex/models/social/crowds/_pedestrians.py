@@ -8,13 +8,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, Expression, parameter, role, vector
-from ....core.formalisms.particles import PairPotential, Particle
 from ....core.interactions import Interaction
 from ....core.laws import Law, Rate, Symbols
-from ....core.runtime import register_model
-from ....core.solvers import RK4
 from ....core.space import ContinuousSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....engine.solvers import RK4
+from ....formalisms.particles import PairPotential, Particle
 
 
 class Motivation(Interaction):

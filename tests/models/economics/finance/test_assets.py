@@ -2,8 +2,8 @@
 
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion
 
 

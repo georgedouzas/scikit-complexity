@@ -8,9 +8,9 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import Domain, Expression, SymbolicVector, parameter, role
-from ....core.formalisms.particles import LammpsFix, PairPotential, Potential, register_lammps_fix, register_lammps_pair
 from ....core.interactions import Interaction
 from ....core.laws import Law, Noise, Rate, Symbols
+from ....formalisms.particles import LammpsFix, PairPotential, Potential, register_lammps_fix, register_lammps_pair
 
 
 def _distance(first: SymbolicVector, second: SymbolicVector) -> Expression:

@@ -7,11 +7,11 @@ from typing import ClassVar
 
 from ....core.base import Domain, VariableKind, declarations_of, parameter, role, state
 from ....core.components import Element
-from ....core.formalisms.agents import AgentView, ModelView, Rule
 from ....core.interactions import Interaction
 from ....core.laws import Law, Symbols
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.agents import AgentView, ModelView, Rule
 
 WASH = 0
 VALET = 1

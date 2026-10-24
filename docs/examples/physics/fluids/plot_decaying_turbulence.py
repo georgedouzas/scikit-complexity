@@ -17,9 +17,9 @@ thin spiral filaments.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.formalisms.fields import ETDRK4
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
+from skcomplex.formalisms.fields import ETDRK4
 from skcomplex.models import create
 
 MODEL = 'decaying_turbulence'

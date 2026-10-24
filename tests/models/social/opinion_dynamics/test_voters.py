@@ -3,7 +3,7 @@
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.social.opinion_dynamics import (
     majority_rule,
     voter_model,

@@ -11,11 +11,11 @@ from sage.all__sagemath_symbolics import cos, exp, sin, sqrt
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.formalisms.agents import AgentView, ModelView, Rule
 from ....core.laws import Boundary, Law, Noise, Rate, Symbols, delayed, where
-from ....core.runtime import register_model
 from ....core.space import ContinuousSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.agents import AgentView, ModelView, Rule
 
 BEACON_MARGIN = 5.0
 EDGE_FRACTION = 1e-9

@@ -7,8 +7,8 @@ from ....core.base import Domain, parameter, role, state
 from ....core.components import Element
 from ....core.interactions import Interaction
 from ....core.laws import Law, Rate, Symbols, Update, lag
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 
 @register_model(

@@ -2,7 +2,7 @@
 
 import pytest
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.economics.resources import harvesting
 
 

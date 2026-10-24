@@ -11,9 +11,9 @@ from sage.all__sagemath_symbolics import I, atan2, cos, exp, sin, sqrt
 from ....core.base import Domain, Expression, VisualSpec, parameter, state, vector
 from ....core.components import Element, Group
 from ....core.laws import Law, Symbols, Update, neighbors, uniform, where
-from ....core.runtime import register_model
 from ....core.space import ContinuousSpace, DiscreteTime, Radius
 from ....core.system import Observable, System
+from ....engine.runtime import register_model
 
 HEADINGS = VisualSpec(
     'points',

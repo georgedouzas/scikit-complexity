@@ -14,8 +14,8 @@ fluctuation that takes a time growing like `exp(V phi(0))`. The time series show
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'absorbing_birth_death'

@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODE
 from skcomplex.models.biology.oncology import (
     continuous_androgen_suppression,
     ideta_intermittent_androgen,

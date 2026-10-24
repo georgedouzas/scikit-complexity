@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import avalanches, fit_power_law
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.analysis import avalanches, fit_power_law
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
 from skcomplex.models.physics.criticality import evolutionary_sk_game
 

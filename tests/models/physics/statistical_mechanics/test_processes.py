@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from scipy import ndimage
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.physics.statistical_mechanics import (
     contact_process,
     diffusion_limited_aggregation,

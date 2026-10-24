@@ -11,11 +11,11 @@ from sage.all__sagemath_symbolics import cos
 
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
-from ....core.formalisms.lattices import Energy, Move, Sample, Sampler
 from ....core.laws import Law, Symbols, neighbors, where
-from ....core.runtime import register_model
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.lattices import Energy, Move, Sample, Sampler
 
 NEAREST = Neighborhood.von_neumann()
 

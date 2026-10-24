@@ -10,13 +10,13 @@ from sage.all__sagemath_symbolics import sin
 
 from ....core.base import Domain, Expression, parameter, role, vector
 from ....core.components import Element
-from ....core.formalisms.fields import Field, laplacian
-from ....core.formalisms.particles import Particle, Potential
 from ....core.laws import Rate, Symbols
-from ....core.runtime import register_model
-from ....core.solvers import VelocityVerlet
 from ....core.space import ContinuousSpace, LatticeSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....engine.solvers import VelocityVerlet
+from ....formalisms.fields import Field, laplacian
+from ....formalisms.particles import Particle, Potential
 from ..realizations import Spring
 
 WaveString = Element.define(

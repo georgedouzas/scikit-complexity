@@ -9,9 +9,9 @@ from ....core.base import Domain, parameter, role
 from ....core.components import Wiener
 from ....core.interactions import Interaction
 from ....core.laws import Law, Noise, Rate, Symbols
-from ....core.runtime import register_model
-from ....core.solvers import EulerMaruyama
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....engine.solvers import EulerMaruyama
 from ._assets import Asset
 
 

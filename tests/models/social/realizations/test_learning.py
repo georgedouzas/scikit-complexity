@@ -4,10 +4,10 @@ import numpy as np
 
 from skcomplex.core.base import state
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.agents import Phase, Phases, Rule
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.space import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.formalisms.agents import Phase, Phases, Rule
 from skcomplex.models.social.realizations import imitate
 
 

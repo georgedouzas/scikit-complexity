@@ -8,8 +8,8 @@ import numpy as np
 from ....core.base import Domain, Expression, ValidationError, VisualSpec, parameter
 from ....core.components import Element
 from ....core.laws import Event, Law, Rate, Symbols, where
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 SHAPES = ('sinai', 'mushroom')
 

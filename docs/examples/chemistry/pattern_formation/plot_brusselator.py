@@ -12,10 +12,10 @@ Small noise around the uniform steady state grows into a pattern of spots of the
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import fields_of, structure_factor
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import RK4
-from skcomplex.core.viz import RerunObserver, default_blueprint
+from skcomplex.engine.analysis import fields_of, structure_factor
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import RK4
+from skcomplex.engine.viz import RerunObserver, default_blueprint
 from skcomplex.models import create
 
 MODEL = 'brusselator'

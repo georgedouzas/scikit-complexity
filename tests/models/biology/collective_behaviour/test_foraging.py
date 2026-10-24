@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.collective_behaviour import pheromone_foraging
 
 

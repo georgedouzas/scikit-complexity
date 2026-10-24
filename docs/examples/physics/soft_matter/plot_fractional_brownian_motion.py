@@ -14,10 +14,10 @@ more likely, so the cloud spreads slower than Brownian motion and every path loo
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import hurst_exponent
-from skcomplex.core.formalisms.fractional import FractionalEulerMaruyama
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.analysis import hurst_exponent
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
+from skcomplex.formalisms.fractional import FractionalEulerMaruyama
 from skcomplex.models import create
 
 MODEL = 'fractional_brownian_motion'

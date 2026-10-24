@@ -5,10 +5,10 @@ import pytest
 from sklearn.base import clone
 
 from skcomplex.core.base import ArgumentError, state
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Aggregate, Component, Element, Group, Wiener
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
 from skcomplex.models.biology.ecology import Population, Predation
 
 

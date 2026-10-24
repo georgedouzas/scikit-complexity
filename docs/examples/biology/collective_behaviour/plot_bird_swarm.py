@@ -12,9 +12,9 @@ repels near, form a cohesive swarm that organizes itself into a rotating mill or
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import milling_order, polar_order
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.analysis import milling_order, polar_order
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'bird_swarm'

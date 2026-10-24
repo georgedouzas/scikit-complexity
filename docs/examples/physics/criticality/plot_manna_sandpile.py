@@ -16,9 +16,9 @@ empty (dark) or holding one grain (bright), between avalanches.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import avalanches, histogram
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.analysis import avalanches, histogram
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'manna_sandpile'

@@ -6,8 +6,8 @@
 from ....core.base import Domain, Expression, parameter, state
 from ....core.components import Element
 from ....core.laws import Rate, Symbols, derivative, pulse_train, where
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 
 def _dry_friction(speed: Expression, coefficient: Expression) -> Expression:

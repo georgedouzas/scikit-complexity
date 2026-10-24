@@ -247,39 +247,42 @@ to fill in as the project takes shape.
   `playwright` 1.50 or later for the web capture backend in headless Chromium, next to `mkdocs-gallery` in the `docs`
   group. The gallery tooling lives in `docs/gallery_tools`, and `nox -s gallery` runs the examples, captures their
   screenshots, and builds the documentation with them.
-- Dependency placement: a library that `skcomplex.core` uses MUST be a runtime dependency, whatever its licence,
-  including copyleft licences such as that of `passagemath-symbolics`. An optional extra MUST hold only libraries that a
-  model of `skcomplex.models` alone needs, and a model that needs one MUST raise a named error naming the extra.
+- Dependency placement: a library that `skcomplex.core`, `skcomplex.engine`, or `skcomplex.formalisms` uses MUST be a
+  runtime dependency, whatever its licence, including copyleft licences such as that of `passagemath-symbolics`. An
+  optional extra MUST hold only libraries that a model of `skcomplex.models` alone needs, and a model that needs one
+  MUST raise a named error naming the extra.
 - Symbolic layer: Sage is imported only through `sage.all__sagemath_symbolics` and the modules it loads, and the
   framework prints expressions to NumPy, Numba, and Lepton code itself. SymPy is installed as a dependency of
   passagemath, but importing it is banned by a `ruff` rule, and laws reject SymPy values.
 - LAMMPS: `lammps` is a runtime dependency, with `mpich`, because the LAMMPS wheel links an MPI library it does not
   bundle.
-- Layout: library. The importable package under `src/skcomplex` is distributed to others and holds exactly two
-  packages, `skcomplex.core` and `skcomplex.models`. The core is the domain-agnostic framework. Its packages import
-  only the packages listed before them, in the order `base`, `space`, `laws`, `components`, `interactions`, `system`,
-  `compile`, `solvers`, `backends`, `runtime`, `viz`, `experiments`, `analysis`, and `formalisms`. The shared core
-  holds the general concepts, and `skcomplex.core.formalisms` holds one package per domain-agnostic formalism,
-  `agents`, `lattices`, `groups`, `rewriting`, `quantum`, `fields`, `kinetics`, `fractional`, `topology`,
-  `particles`, and `control`, each with its laws, components, compilation passes, solvers, backends, visuals, and
-  checks. A formalism imports only the shared core and the formalisms it declares, and no package of the shared core
-  imports a formalism. Every core name is a mathematical, modelling, or engineering term, and the core never imports
+- Layout: library. The importable package under `src/skcomplex` is distributed to others and holds exactly four
+  packages. `skcomplex.core` holds what a system is, in the order `base`, `space`, `laws`, `components`,
+  `interactions`, and `system`. `skcomplex.engine` holds what works on a system, in the order `compile`, `solvers`,
+  `backends`, `runtime`, `viz`, `experiments`, and `analysis`. `skcomplex.formalisms` holds one package per
+  domain-agnostic formalism, `agents`, `lattices`, `groups`, `rewriting`, `quantum`, `fields`, `kinetics`,
+  `fractional`, `topology`, `particles`, and `control`, each with its laws, components, compilation passes, solvers,
+  backends, visuals, and checks. `skcomplex.models` holds the model library. Within `core` and within `engine`, a
+  package imports only the packages listed before it. `core` imports no other package of `skcomplex`, `engine`
+  imports only `core`, and a formalism imports `core`, `engine`, and the formalisms it declares. Every name of `core`,
+  `engine`, and `formalisms` is a mathematical, modelling, or engineering term, and none of them imports
   `skcomplex.models`. The test tree mirrors the source tree with no exceptions, so every test module tests one module
   of `skcomplex`, and no test module checks repository conventions, documentation tooling, or documentation data.
 - Model library: `skcomplex.models` is organised by scientific field and subfield, as
   `skcomplex.models.<field>.<subfield>`, and every model registers under the field path `<field>/<subfield>`. Models
-  are examples built only from the public names of the core. Every model package is self-contained, so no model
+  are examples built only from the public names of `core`, `engine`, and `formalisms`. Every model package is self-contained, so no model
   package imports another, except that the packages of one field may import its shared realizations from
   `skcomplex.models.<field>.realizations`, such as named potentials or market protocols, which never live in the
   core. A model the core cannot express MUST be recorded as blocked by an OpenSpec change for the
   missing general capability, never worked around inside the model package. Models exist first to probe the core: a
   survey MUST record the primitives each model exercises and MUST implement models that exercise new primitives or
   combinations before models that repeat covered patterns. The import contracts enforce the import rules.
-- Surface: the top-level package and `skcomplex.core` re-export nothing, so every public name is imported from the
-  subpackage that owns it.
+- Surface: the top-level package, `skcomplex.core`, and `skcomplex.engine` re-export nothing, so every public name is
+  imported from the subpackage that owns it. `skcomplex.formalisms` re-exports only `Formalism`, `register`, and
+  `registered_formalisms`.
 - Extension points: a formalism declares everything it contributes in one `Formalism` and registers it with
   `register`, which adds its laws, compilation passes, checks, stepwise forms, combined laws, owner rules, bindings,
   solvers, default solvers, backends, and visuals to the registry of the concept that owns each. Law kinds, forms,
   space kinds, and traits are open vocabularies. Base classes users subclass are `Element`, `Interaction`, `Law`,
   `Potential`, `PairPotential`, `Backend`, `Stepper`, `ExternalBackend`, `Clock`, `Observer`, and `Visual`.
-**Version**: 1.7.1 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-24
+**Version**: 1.8.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-24

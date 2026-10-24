@@ -10,11 +10,11 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.components import Element
-from ....core.formalisms.fields import ETDRK4, Field, laplacian
 from ....core.laws import Rate
-from ....core.runtime import register_model
 from ....core.space import LatticeSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.fields import ETDRK4, Field, laplacian
 
 type Array = npt.NDArray[np.float64]
 

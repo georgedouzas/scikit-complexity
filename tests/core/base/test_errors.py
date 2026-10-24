@@ -3,8 +3,8 @@
 import pytest
 
 from skcomplex.core.base import ValidationError
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
 
 from .conftest import Person, Progression
 

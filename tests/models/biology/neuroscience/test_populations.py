@@ -6,8 +6,8 @@ import numpy as np
 import pytest
 from scipy.integrate import solve_ivp
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import ScipyODE
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import ScipyODE
 from skcomplex.models.biology.neuroscience import (
     polyhomeostatic_neuron,
     theta_neurons,

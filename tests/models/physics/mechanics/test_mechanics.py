@@ -5,8 +5,8 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import equations_of
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.analysis import equations_of
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
 from skcomplex.models.physics.mechanics import circular_billiard, newtons_cradle
 

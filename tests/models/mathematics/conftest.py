@@ -3,8 +3,8 @@
 from collections.abc import Sequence
 from typing import Any
 
-from skcomplex.core.runtime import Simulation, Trajectory
 from skcomplex.core.system import Observable, System
+from skcomplex.engine.runtime import Simulation, Trajectory
 from skcomplex.models import create
 
 

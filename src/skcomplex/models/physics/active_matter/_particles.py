@@ -12,12 +12,12 @@ from sage.all__sagemath_symbolics import cos, sin, sqrt
 
 from ....core.base import Domain, VisualSpec, parameter, state, vector
 from ....core.components import Element
-from ....core.formalisms.agents import AgentView, ModelView, Rule
 from ....core.laws import Law, Noise, Rate, Symbols
-from ....core.runtime import register_model
-from ....core.solvers import EulerMaruyama
 from ....core.space import ContinuousSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....engine.solvers import EulerMaruyama
+from ....formalisms.agents import AgentView, ModelView, Rule
 
 type Array = npt.NDArray[np.float64]
 

@@ -13,10 +13,10 @@ by short bursts in which it rises to values of order one and falls back.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import detect_events, histogram
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import EulerMaruyama
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.analysis import detect_events, histogram
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'on_off_intermittency'

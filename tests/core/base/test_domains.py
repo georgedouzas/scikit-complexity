@@ -12,8 +12,8 @@ from skcomplex.core.base import (
 from skcomplex.core.components import Element
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Rate
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
 
 from .conftest import Person, Progression
 

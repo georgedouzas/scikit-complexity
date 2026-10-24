@@ -7,15 +7,15 @@ import pytest
 from sage.all__sagemath_symbolics import abs_symbolic, cos, sin
 
 from skcomplex.core.base import ValidationError, state, symbol
-from skcomplex.core.compile import NUMPY_DIALECT, SCALAR_DIALECT, compile_system, numpy_function, print_expressions
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.particles import Particle
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Equation, Rate, Update, both, derivative, either, lag, mod, series, where
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import RK4, ScipyODE
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
+from skcomplex.engine.compile import NUMPY_DIALECT, SCALAR_DIALECT, compile_system, numpy_function, print_expressions
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import RK4, ScipyODE
+from skcomplex.formalisms.particles import Particle
 
 from .conftest import PRECISE, Mass
 

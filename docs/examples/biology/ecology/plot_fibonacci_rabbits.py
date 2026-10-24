@@ -12,8 +12,8 @@ Fibonacci numbers 1, 1, 2, 3, 5, 8, ... and grows by the golden ratio every mont
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'fibonacci_rabbits'

@@ -6,8 +6,8 @@
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
 from ....core.laws import Rate
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 CapitalStock = Element.define(
     'CapitalStock',

@@ -2,9 +2,9 @@
 
 import networkx as nx
 
-from skcomplex.core.analysis import as_graph
-from skcomplex.core.runtime import Simulation, Trajectory
 from skcomplex.core.system import System
+from skcomplex.engine.analysis import as_graph
+from skcomplex.engine.runtime import Simulation, Trajectory
 
 
 def _final_graph(system: System, until: int, seed: int = 0) -> tuple[nx.Graph, Trajectory]:

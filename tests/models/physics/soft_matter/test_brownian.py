@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.physics.soft_matter import brownian_near_wall, stochastic_resonance
 
 

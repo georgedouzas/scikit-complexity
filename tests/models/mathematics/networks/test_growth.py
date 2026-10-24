@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import fit_power_law
+from skcomplex.engine.analysis import fit_power_law
 from skcomplex.models import create
 from skcomplex.models.mathematics.networks import (
     barabasi_albert,

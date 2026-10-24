@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import entropy_rate
+from skcomplex.engine.analysis import entropy_rate
 
 from ...conftest import _series
 

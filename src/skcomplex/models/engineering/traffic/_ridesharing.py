@@ -12,12 +12,12 @@ import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.formalisms.agents import AgentView, Match, ModelView, Phase, Phases, Rule, matches
 from ....core.interactions import Interaction
 from ....core.laws import Law, Symbols, transfer
-from ....core.runtime import register_model
 from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import Observable, System
+from ....engine.runtime import register_model
+from ....formalisms.agents import AgentView, Match, ModelView, Phase, Phases, Rule, matches
 
 IDLE, PICKING_UP, DELIVERING = 0.0, 1.0, 2.0
 

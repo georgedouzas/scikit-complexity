@@ -6,8 +6,8 @@
 from ....core.base import Domain, Expression, parameter
 from ....core.components import Element
 from ....core.laws import Rate, Symbols
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 
 def _subcritical_hopf_rates(s: Symbols) -> tuple[Expression, Expression]:

@@ -13,9 +13,9 @@ from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
 from ....core.components import Element
 from ....core.interactions import Interaction
 from ....core.laws import Law, Rate, Symbols, delayed, mean
-from ....core.runtime import register_model
 from ....core.space import ContinuousSpace
 from ....core.system import System
+from ....engine.runtime import register_model
 from ._utils import _order_parameter
 
 PhaseOscillator = Element.define(

@@ -2,8 +2,8 @@
 
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import EulerMaruyama
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import EulerMaruyama
 from skcomplex.models.engineering.robotics import light_seeking_robots, swarmtaxis
 
 

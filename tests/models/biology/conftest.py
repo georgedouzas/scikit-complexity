@@ -2,9 +2,9 @@
 
 from typing import Any
 
-from skcomplex.core.runtime import Simulation, Trajectory
-from skcomplex.core.solvers import ScipyODE, Stepper
 from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation, Trajectory
+from skcomplex.engine.solvers import ScipyODE, Stepper
 from skcomplex.models import create
 
 TOLERANCE = 0.1

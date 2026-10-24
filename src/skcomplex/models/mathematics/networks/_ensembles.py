@@ -10,12 +10,12 @@ import numpy as np
 
 from ....core.base import Domain, ValidationError, VisualSpec, parameter, role, state
 from ....core.components import Element, Group
-from ....core.formalisms.topology import add_edge, remove_node, rewire
 from ....core.interactions import Interaction
 from ....core.laws import Law, Symbols, Update, maximum, neighbors, where
-from ....core.runtime import register_model
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.topology import add_edge, remove_node, rewire
 from ._growth import DEGREE_VISUAL, Link
 
 ENSEMBLES = ('erdos_renyi', 'watts_strogatz')
@@ -210,7 +210,7 @@ def network_attack(
             The strategy is unknown.
 
     Examples:
-        >>> from skcomplex.core.runtime import Simulation
+        >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.mathematics.networks import network_attack
         >>> trajectory = Simulation(network_attack(50), random_state=0).run(until=3).trajectory_
         >>> int(trajectory.network(-1).nodes.size) < 50
@@ -272,7 +272,7 @@ def random_graph_ensembles(
             The ensemble is unknown.
 
     Examples:
-        >>> from skcomplex.core.runtime import Simulation
+        >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.mathematics.networks import random_graph_ensembles
         >>> system = random_graph_ensembles(40, ensemble='watts_strogatz', steps=5)
         >>> trajectory = Simulation(system, random_state=0).run(until=5).trajectory_

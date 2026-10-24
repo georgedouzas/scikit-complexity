@@ -9,8 +9,8 @@ from typing import Any
 from ....core.base import Domain, state
 from ....core.components import Element
 from ....core.laws import Emission, Law, Symbols, Transition
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 type Matrix = Sequence[Sequence[float]]
 

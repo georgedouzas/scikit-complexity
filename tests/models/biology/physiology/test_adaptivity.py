@@ -1,6 +1,6 @@
 """Test the `_adaptivity` module of `skcomplex.models.biology.physiology`."""
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.physiology import (
     adaptive_response_costs,
 )

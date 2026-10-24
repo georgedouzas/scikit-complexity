@@ -2,8 +2,8 @@
 
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import ScipyODE
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import ScipyODE
 from skcomplex.models.chemistry.kinetics import nanoparticle_corona
 
 PROTEINS = ('albumin', 'lipoprotein', 'fibrinogen')

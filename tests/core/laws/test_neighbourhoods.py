@@ -8,12 +8,9 @@ import pytest
 from sage.all__sagemath_symbolics import atan2, cos, sin
 
 from skcomplex.core.base import Domain, ValidationError, state, symbol, vector
-from skcomplex.core.compile import compile_system, validate
 from skcomplex.core.components import Element
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import NEIGHBOR_REDUCTIONS, Rate, Update, neighborhoods_in, neighbors, uniform
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import RK4
 from skcomplex.core.space import (
     Cone,
     ContinuousSpace,
@@ -25,6 +22,9 @@ from skcomplex.core.space import (
     Radius,
 )
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import RK4
 
 BACKENDS = ('numpy', 'numba')
 GAMMA = 0.5

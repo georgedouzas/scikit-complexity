@@ -6,13 +6,13 @@
 import numpy as np
 from sage.all__sagemath_symbolics import cos, sin
 
-from ....core.analysis import linearize, lqr
 from ....core.base import Domain, Expression, parameter, state
 from ....core.components import Element
 from ....core.laws import Equation, Law, Rate, Symbols, derivative
-from ....core.runtime import register_model
-from ....core.solvers import RK4
 from ....core.system import Observable, System
+from ....engine.analysis import linearize, lqr
+from ....engine.runtime import register_model
+from ....engine.solvers import RK4
 from ..realizations import PID, Integrator, StateFeedback
 
 GRAVITY = 9.81

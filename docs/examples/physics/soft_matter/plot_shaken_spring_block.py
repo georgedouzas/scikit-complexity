@@ -15,9 +15,9 @@ stick one after the other, until the whole chain is frozen in a blocked configur
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import EulerMaruyama
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'shaken_spring_block'

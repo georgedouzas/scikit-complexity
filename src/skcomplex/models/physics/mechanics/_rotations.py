@@ -10,8 +10,8 @@ from sage.all__sagemath_symbolics import cos, sin
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
 from ....core.laws import Equation, Rate, derivative
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 RotatingSwing = Element.define(
     'RotatingSwing',

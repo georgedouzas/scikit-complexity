@@ -8,8 +8,8 @@ from sage.all__sagemath_symbolics import exp
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
 from ....core.laws import Law, Rate, Symbols, delayed
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 

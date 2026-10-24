@@ -1,6 +1,6 @@
 """Test the `_angiogenesis` module of `skcomplex.models.biology.oncology`."""
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.oncology import tumour_angiogenesis
 
 

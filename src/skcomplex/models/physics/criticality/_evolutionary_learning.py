@@ -12,8 +12,8 @@ from sage.all__sagemath_symbolics import tanh
 from ....core.base import Domain, Expression, VisualSpec, parameter, state
 from ....core.components import Element
 from ....core.laws import Law, Symbols, Update, both, minimum, mod, total, uniform, where
-from ....core.runtime import register_model
 from ....core.system import Observable, System
+from ....engine.runtime import register_model
 
 type Array = npt.NDArray[np.float64]
 

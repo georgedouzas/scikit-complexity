@@ -6,11 +6,11 @@
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, Expression, parameter, role
-from ....core.formalisms.particles import Particle, Potential
 from ....core.laws import Symbols
-from ....core.runtime import register_model
 from ....core.space import ContinuousSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.particles import Particle, Potential
 
 
 class ExponentialWell(Potential):

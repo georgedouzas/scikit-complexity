@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import controllability, linearize
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.system import System
+from skcomplex.engine.analysis import controllability, linearize
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models import run
 from skcomplex.models.engineering.control import CartPendulum
 

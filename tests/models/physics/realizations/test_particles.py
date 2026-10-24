@@ -3,12 +3,12 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.compile import compile_system
-from skcomplex.core.formalisms.particles import LammpsBackend, Particle
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import EulerMaruyama, ScipyODE, VelocityVerlet
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import EulerMaruyama, ScipyODE, VelocityVerlet
+from skcomplex.formalisms.particles import LammpsBackend, Particle
 from skcomplex.models.physics.realizations import (
     ConstantForce,
     Gravity,

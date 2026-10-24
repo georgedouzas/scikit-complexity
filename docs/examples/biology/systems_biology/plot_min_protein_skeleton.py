@@ -17,10 +17,10 @@ bright spots, and new bands leave every meeting point in the opposite directions
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import dispersion_relation
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import ScipyODE
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.analysis import dispersion_relation
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'min_protein_skeleton'

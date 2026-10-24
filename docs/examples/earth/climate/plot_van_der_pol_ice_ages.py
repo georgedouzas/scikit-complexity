@@ -13,8 +13,8 @@ termination: a relaxation oscillation with the sawtooth shape of the glacial cyc
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'van_der_pol_ice_ages'

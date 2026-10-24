@@ -11,9 +11,9 @@ import numpy as np
 from ....core.base import Domain, ValidationError, parameter, state
 from ....core.components import Element
 from ....core.laws import Law, Noise, Rate, Symbols, ramp
-from ....core.runtime import register_model
-from ....core.solvers import EulerMaruyama
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....engine.solvers import EulerMaruyama
 
 C0 = 1.10869e-8
 C1 = 9.7137e9

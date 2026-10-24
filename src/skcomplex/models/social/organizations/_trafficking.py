@@ -9,12 +9,12 @@ import numpy as np
 
 from ....core.base import Domain, VisualSpec, role, state
 from ....core.components import Element
-from ....core.formalisms.agents import AgentView, ModelView, Rule
 from ....core.interactions import Interaction
 from ....core.laws import Law, Symbols
-from ....core.runtime import register_model
 from ....core.space import LatticeSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.agents import AgentView, ModelView, Rule
 
 MONTH = 30
 QUARTER = 90

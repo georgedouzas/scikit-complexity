@@ -1,6 +1,6 @@
 """Test the `_axelrod` module of `skcomplex.models.social.opinion_dynamics`."""
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.social.opinion_dynamics import axelrod, cultural_traits, largest_region
 
 

@@ -14,9 +14,9 @@ an S-shaped curve to the whole crowd.
 import matplotlib.pyplot as plt
 import rerun.blueprint as rrb
 
-from skcomplex.core.formalisms.kinetics import ParticleKinetics
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
+from skcomplex.formalisms.kinetics import ParticleKinetics
 from skcomplex.models import create, describe
 
 MODEL = 'evacuation'

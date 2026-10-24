@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models import describe
 from skcomplex.models.economics.econophysics import (
     kinetic_wealth_exchange,

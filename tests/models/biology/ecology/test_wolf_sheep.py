@@ -1,6 +1,6 @@
 """Test the `_wolf_sheep` module of `skcomplex.models.biology.ecology`."""
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.ecology import wolf_sheep
 
 

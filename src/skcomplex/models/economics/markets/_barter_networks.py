@@ -13,12 +13,12 @@ import numpy.typing as npt
 
 from ....core.base import Domain, parameter, role, state
 from ....core.components import Element
-from ....core.formalisms.agents import AgentView, Match, ModelView, Rule, matches
 from ....core.interactions import Interaction
 from ....core.laws import Law, Symbols, transfer
-from ....core.runtime import register_model
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import Observable, System
+from ....engine.runtime import register_model
+from ....formalisms.agents import AgentView, Match, ModelView, Rule, matches
 
 TOPOLOGIES = ('complete', 'isolated', 'linked', 'small_world')
 

@@ -17,9 +17,9 @@ coarsening.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import dispersion_relation, fields_of
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.analysis import dispersion_relation, fields_of
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'nonreciprocal_cahn_hilliard'

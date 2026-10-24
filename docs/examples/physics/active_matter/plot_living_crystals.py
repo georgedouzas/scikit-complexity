@@ -18,9 +18,9 @@ import numpy as np
 from scipy.sparse.csgraph import connected_components
 from scipy.spatial import cKDTree
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import EulerMaruyama
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'living_crystals'

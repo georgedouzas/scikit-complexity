@@ -6,9 +6,9 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import ParameterError
-from skcomplex.core.compile import compile_system
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import ScipyODE
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import ScipyODE
 from skcomplex.models import run
 from skcomplex.models.engineering.circuits import (
     chua,

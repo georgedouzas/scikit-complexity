@@ -10,11 +10,11 @@ import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.formalisms.fields import Field
 from ....core.laws import Update, where
-from ....core.runtime import register_model
 from ....core.space import LatticeSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.fields import Field
 
 type Window = tuple[float, float, float, float]
 

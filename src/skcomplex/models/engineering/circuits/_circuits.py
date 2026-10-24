@@ -10,9 +10,9 @@ from sage.all__sagemath_symbolics import cos, pi, sin
 from ....core.base import Domain, Expression, ParameterError, parameter, state
 from ....core.components import Element
 from ....core.laws import Equation, Event, Rate, derivative, where
-from ....core.runtime import register_model
-from ....core.solvers import ScipyODE
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....engine.solvers import ScipyODE
 
 CHUA_NONLINEARITIES = ('piecewise-linear', 'sine')
 

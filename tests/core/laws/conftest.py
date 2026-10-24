@@ -2,7 +2,7 @@
 
 from skcomplex.core.base import parameter, state
 from skcomplex.core.components import Element
-from skcomplex.core.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODE
 
 PRECISE = ScipyODE(rtol=1e-10, atol=1e-12)
 

@@ -14,9 +14,9 @@ segregated than anyone's preference.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import like_neighbor_share
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.analysis import like_neighbor_share
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'schelling'

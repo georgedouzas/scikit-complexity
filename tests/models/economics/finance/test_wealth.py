@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.compile import compile_system
+from skcomplex.engine.compile import compile_system
 from skcomplex.models import describe
 from skcomplex.models.economics.finance import (
     bouchaud_mezard_wealth,

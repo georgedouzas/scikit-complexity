@@ -10,8 +10,8 @@ from ....core.base import Domain, ValidationError, parameter, role, state
 from ....core.components import Element
 from ....core.interactions import Interaction
 from ....core.laws import Law, Rate, Symbols, pulse
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 STAGES = ('adenylate_cyclase', 'camp', 'protein_kinase_a', 'phosphorylase_kinase', 'phosphorylase')
 

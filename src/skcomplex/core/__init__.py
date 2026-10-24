@@ -1,1 +1,1 @@
-"""Domain-agnostic framework: symbols, models, compilation, solvers, runtime, visualization, and analysis."""
+"""What a system is: its vocabulary, space and time, laws, components, interactions, and the system itself."""

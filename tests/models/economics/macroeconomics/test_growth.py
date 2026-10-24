@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models import run
 from skcomplex.models.economics.macroeconomics import Economy, SolowGrowth
 

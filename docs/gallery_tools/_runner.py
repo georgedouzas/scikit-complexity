@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.viz import RerunObserver
 
 from ._build import GalleryBuild
 from ._errors import GalleryError

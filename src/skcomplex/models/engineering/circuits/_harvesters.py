@@ -8,8 +8,8 @@ from sage.all__sagemath_symbolics import sin
 from ....core.base import Domain, Expression, parameter, state
 from ....core.components import Element
 from ....core.laws import Rate, Symbols, derivative
-from ....core.runtime import register_model
 from ....core.system import Observable, System
+from ....engine.runtime import register_model
 
 
 def _piezo_voltage(s: Symbols) -> Expression:

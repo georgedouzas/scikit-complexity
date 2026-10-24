@@ -7,8 +7,8 @@ from ....core.base import Domain, parameter, state
 from ....core.components import Element
 from ....core.interactions import Interaction
 from ....core.laws import Rate, Sink, Source, Transfer, step, where
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 INFLOW_START = 5.0
 

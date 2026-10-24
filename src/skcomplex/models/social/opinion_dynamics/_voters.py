@@ -12,12 +12,12 @@ import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.formalisms.agents import AgentView, ModelView, Rule
-from ....core.formalisms.lattices import LocalRule
 from ....core.laws import Law, Symbols, Totalistic
-from ....core.runtime import register_model
 from ....core.space import LatticeSpace, Neighborhood, NetworkSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.lattices import LocalRule
 
 type Array = npt.NDArray[np.float64]
 

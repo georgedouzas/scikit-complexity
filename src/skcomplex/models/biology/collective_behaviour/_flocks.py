@@ -11,13 +11,13 @@ from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.formalisms.agents import AgentView, ModelView, Rule
-from ....core.formalisms.particles import PairPotential, Particle
 from ....core.interactions import Interaction
 from ....core.laws import Law, Rate, Symbols
-from ....core.runtime import register_model
 from ....core.space import ContinuousSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.agents import AgentView, ModelView, Rule
+from ....formalisms.particles import PairPotential, Particle
 
 
 def _wrapped(offset: np.ndarray, size: np.ndarray) -> np.ndarray:

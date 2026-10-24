@@ -10,12 +10,12 @@ import numpy.typing as npt
 
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
-from ....core.formalisms.groups import GroupSpace
-from ....core.formalisms.lattices import LocalRule
 from ....core.laws import Law, Symbols, Totalistic
-from ....core.runtime import register_model
 from ....core.space import LatticeSpace, Memory, Neighborhood
 from ....core.system import Observable, System
+from ....engine.runtime import register_model
+from ....formalisms.groups import GroupSpace
+from ....formalisms.lattices import LocalRule
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter
 
 type Array = npt.NDArray[np.float64]

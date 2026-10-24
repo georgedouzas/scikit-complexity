@@ -10,12 +10,12 @@ from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import Domain, parameter
 from ....core.components import Element
-from ....core.formalisms.fields import Field, divergence, gradient, laplacian
 from ....core.laws import Law, Noise, Rate, Symbols
-from ....core.runtime import register_model
-from ....core.solvers import EulerMaruyama
 from ....core.space import LatticeSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....engine.solvers import EulerMaruyama
+from ....formalisms.fields import Field, divergence, gradient, laplacian
 
 
 def _active_model_b_laws(s: Symbols) -> list[Law]:

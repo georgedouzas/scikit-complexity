@@ -15,9 +15,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import flow_matrix
-from skcomplex.core.runtime import ConservationMonitor, Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.analysis import flow_matrix
+from skcomplex.engine.runtime import ConservationMonitor, Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'stock_flow_consistent_economy'

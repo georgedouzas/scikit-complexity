@@ -12,8 +12,8 @@ from ....core.base import Domain, Expression, parameter, role, state
 from ....core.components import Element
 from ....core.interactions import Interaction
 from ....core.laws import Law, Rate, Symbols, mod, where
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 
 def _pressure(chamber: Symbols, t: Expression) -> Expression:

@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import as_graph
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.analysis import as_graph
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'network_attack'

@@ -8,11 +8,11 @@ from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
-from ....core.formalisms.fields import SSPRK, Field, Flux, laplacian
 from ....core.laws import Rate
-from ....core.runtime import register_model
 from ....core.space import LatticeSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.fields import SSPRK, Field, Flux, laplacian
 
 KERNER_KONHAUSER_OFFSET = 3.72e-6
 

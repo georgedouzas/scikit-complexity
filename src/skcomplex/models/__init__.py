@@ -1,6 +1,6 @@
 """Ready-made models of every science, built from the core and organized by field and subfield."""
 
-from ..core.runtime import MODELS, ModelEntry, catalog, create, describe, register_model, run
+from ..engine.runtime import MODELS, ModelEntry, catalog, create, describe, register_model, run
 from . import (
     biology,
     chemistry,

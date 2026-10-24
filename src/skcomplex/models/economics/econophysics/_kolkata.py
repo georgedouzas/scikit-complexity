@@ -9,11 +9,11 @@ import numpy as np
 
 from ....core.base import Domain, parameter, role, state
 from ....core.components import Element
-from ....core.formalisms.agents import AgentView, ModelView, Rule
 from ....core.interactions import Interaction
 from ....core.laws import Law, Symbols
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.agents import AgentView, ModelView, Rule
 
 STRATEGIES = ('random', 'crowd_avoiding')
 

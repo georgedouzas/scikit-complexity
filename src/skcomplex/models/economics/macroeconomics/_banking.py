@@ -9,11 +9,11 @@ import numpy as np
 
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
-from ....core.formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
 from ....core.laws import Law, Symbols
-from ....core.runtime import register_model
 from ....core.space import DiscreteTime
 from ....core.system import Observable, System
+from ....engine.runtime import register_model
+from ....formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
 from ..realizations import Institution
 
 TOLERANCE = 1e-9

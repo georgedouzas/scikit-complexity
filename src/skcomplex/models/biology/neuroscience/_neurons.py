@@ -6,8 +6,8 @@
 from ....core.base import Domain, parameter
 from ....core.components import Element
 from ....core.laws import Event, Rate
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 LeakyIntegrateAndFire = Element.define(
     'LeakyIntegrateAndFire',
@@ -87,7 +87,7 @@ def integrate_and_fire(
 
     Examples:
         >>> from skcomplex.models.biology.neuroscience import integrate_and_fire
-        >>> from skcomplex.core.runtime import Simulation
+        >>> from skcomplex.engine.runtime import Simulation
         >>> trajectory = Simulation(integrate_and_fire(), dt=0.1).run(until=50.0).trajectory_
         >>> round(trajectory.events[0].time, 2)
         13.86

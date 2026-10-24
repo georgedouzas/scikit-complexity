@@ -5,8 +5,8 @@ import math
 import numpy as np
 import numpy.typing as npt
 
-from skcomplex.core.compile import Problem, compile_system
 from skcomplex.core.system import System
+from skcomplex.engine.compile import Problem, compile_system
 
 
 def _random_drift(system: System) -> tuple[Problem, npt.NDArray[np.float64], npt.NDArray[np.float64]]:

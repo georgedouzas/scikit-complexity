@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import ScipyODE
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import ScipyODE
 from skcomplex.models.physics.synchronization import (
     aggregate_averaging_synchronization,
     coupled_rossler,

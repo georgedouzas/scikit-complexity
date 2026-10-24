@@ -10,9 +10,9 @@ from sage.all__sagemath_symbolics import log
 from ....core.base import Domain, Expression, ValidationError, parameter, state
 from ....core.components import Element
 from ....core.laws import Event, Law, Rate, Symbols, pulse_train
-from ....core.runtime import register_model
-from ....core.solvers import ScipyODE
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....engine.solvers import ScipyODE
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 PATIENT_FACTORS = {

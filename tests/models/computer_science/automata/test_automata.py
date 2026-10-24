@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.computer_science.automata import langtons_ant
 
 

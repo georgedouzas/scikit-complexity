@@ -9,11 +9,11 @@ import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
 from ....core.laws import Law, Symbols
-from ....core.runtime import register_model
 from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import Observable, System
+from ....engine.runtime import register_model
+from ....formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
 from ..realizations import logit_choice
 
 

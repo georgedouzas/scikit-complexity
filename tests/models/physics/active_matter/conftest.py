@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.runtime import Trajectory
+from skcomplex.engine.runtime import Trajectory
 
 
 def _stationary_polarization(trajectory: Trajectory, start: int) -> float:

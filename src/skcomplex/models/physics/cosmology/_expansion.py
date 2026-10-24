@@ -8,8 +8,8 @@ import math
 from ....core.base import Domain, ValidationError, parameter, state
 from ....core.components import Element
 from ....core.laws import Equation, derivative
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 ScaleFactor = Element.define(
     'ScaleFactor',

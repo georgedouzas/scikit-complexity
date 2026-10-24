@@ -16,9 +16,9 @@ exponent near 1, as Barabási found for the timing of e-mails and letters.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import fit_power_law
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.analysis import fit_power_law
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'priority_queues'

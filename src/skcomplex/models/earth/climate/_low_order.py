@@ -8,9 +8,9 @@ import numpy as np
 from ....core.base import state, vector
 from ....core.components import Element
 from ....core.laws import Law, Rate, Symbols
-from ....core.runtime import register_model
 from ....core.space import ContinuousSpace
 from ....core.system import System
+from ....engine.runtime import register_model
 
 
 def _lorenz_96_laws(s: Symbols) -> list[Law]:

@@ -8,14 +8,14 @@ import pytest
 from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.base import RoleError, ValidationError, parameter, role
-from skcomplex.core.compile import compile_system, validate
 from skcomplex.core.components import Element, Group
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Jump, Rate, Update, neighbors
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import RK4
 from skcomplex.core.space import DiscreteTime, LatticeSpace, Layer, NetworkSpace
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import RK4
 from skcomplex.models.biology.ecology import Predation
 
 BACKENDS = ('numpy', 'numba')

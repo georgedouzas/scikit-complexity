@@ -13,11 +13,11 @@ from sage.all__sagemath_symbolics import cos
 
 from ....core.base import Domain, ValidationError, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.formalisms.particles import Particle
 from ....core.laws import Rate, derivative
-from ....core.runtime import register_model
 from ....core.space import ContinuousSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.particles import Particle
 from ..realizations import Gravity
 
 FIGURE_EIGHT = {

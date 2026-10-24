@@ -1,7 +1,7 @@
 """Test the `_alignment` module of `skcomplex.models.physics.active_matter`."""
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import EulerMaruyama
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import EulerMaruyama
 from skcomplex.models import describe
 from skcomplex.models.physics.active_matter import aligning_active_brownian_particles
 

@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import ValidationError
-from skcomplex.core.compile import compile_system
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.systems_biology import (
     random_boolean_network,
     yeast_cell_cycle,

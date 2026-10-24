@@ -8,8 +8,8 @@ from collections.abc import Mapping, Sequence
 from ....core.base import Domain, parameter, role
 from ....core.interactions import Interaction
 from ....core.laws import Law, Rate, Symbols
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 from ._populations import LogisticGrowth, Mortality, Population, Predation
 
 WEB_POPULATIONS = {'frogs': 50.0, 'mice': 50.0, 'snakes': 10.0, 'hawks': 5.0}

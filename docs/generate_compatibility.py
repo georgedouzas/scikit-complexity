@@ -6,10 +6,10 @@ from importlib import import_module
 
 from skcomplex.core import formalisms
 from skcomplex.core.base import LawKind
-from skcomplex.core.compile import BACKENDS, SOLVERS
-from skcomplex.core.formalisms import registered_formalisms
 from skcomplex.core.laws import law_classes
 from skcomplex.core.space import Space
+from skcomplex.engine.compile import BACKENDS, SOLVERS
+from skcomplex.formalisms import registered_formalisms
 
 
 def _import_formalisms() -> None:
