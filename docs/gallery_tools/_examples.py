@@ -390,17 +390,18 @@ def model_sources(model: str) -> list[Path]:
 
     Returns:
         paths:
-            The Python files of the subfield package, sorted, followed by those of the core package, sorted.
+            The Python files of the subfield package, sorted, followed by those of the core, the engine, and the
+            formalisms, each sorted.
 
     Examples:
         >>> from gallery_tools import model_sources
         >>> sources = model_sources('lotka_volterra')
         >>> sources[0].parent.name, sources[-1].parts[-3]
-        ('ecology', 'core')
+        ('ecology', 'formalisms')
     """
     package = importlib.import_module('skcomplex.models.' + describe(model).field.replace('/', '.'))
-    core = importlib.import_module('skcomplex.core')
+    framework = [importlib.import_module(f'skcomplex.{name}') for name in ('core', 'engine', 'formalisms')]
     return [
         *sorted(Path(str(package.__file__)).parent.rglob('*.py')),
-        *sorted(Path(str(core.__file__)).parent.rglob('*.py')),
+        *(path for module in framework for path in sorted(Path(str(module.__file__)).parent.rglob('*.py'))),
     ]

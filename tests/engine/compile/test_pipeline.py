@@ -90,7 +90,7 @@ def test_compile_system_flattens_the_system_once(monkeypatch):
     calls = []
     for name, module in list(sys.modules.items()):
         flatten = getattr(module, 'flatten_system', None)
-        if name.startswith('skcomplex.core') and callable(flatten):
+        if name.startswith('skcomplex.engine') and callable(flatten):
 
             def counted(*args, flatten=flatten, **kwargs):
                 calls.append(args[0])
