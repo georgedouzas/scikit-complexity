@@ -10,7 +10,8 @@ fast numeric functions that solvers evaluate.
 ### Requirement: The form is inferred from the law kinds
 Compiling a validated system SHALL derive its form from the laws it lowers, and the form SHALL be an internal property
 of the compiled problem rather than part of the system's definition. A system whose nested systems have different law
-classes SHALL be split into partitions. Unsupported mixes SHALL be reported by validation before compilation, not by the compiler.
+classes SHALL be split into partitions. Unsupported mixes SHALL be reported by validation before compilation, not by the
+compiler.
 
 #### Scenario: Deterministic ecology
 - **WHEN** a system contains only rate laws
@@ -28,6 +29,7 @@ classes SHALL be split into partitions. Unsupported mixes SHALL be reported by v
 #### Scenario: Mix across subsystems
 - **WHEN** one nested system contains only update laws and a sibling contains only rate laws
 - **THEN** compiling produces a partitioned problem with a discrete map partition and an ODE partition
+
 
 ### Requirement: State and parameters are addressed by path
 The compiled problem SHALL give every state variable and parameter a unique dotted name built from its element or
@@ -68,6 +70,14 @@ the group size.
 - **WHEN** the group `gas` of 500 molecules in a two-dimensional space has the state `x`
 - **THEN** the problem has a state named `gas.x` with shape `(500, 2)`
 
+### Requirement: Validation and compilation decide partitions by one rule
+Validation and compilation SHALL decide partitions by the same rule, so a system that validates without an error SHALL
+compile, and a system the compiler would reject SHALL fail validation.
+
+#### Scenario: Validation and compilation agree
+- **WHEN** every registered model is validated and compiled
+- **THEN** each model that validates without an error compiles, and no model fails compilation with a partition error
+
 ### Requirement: Laws compile to a chosen backend
 Compiling a system SHALL accept a backend, `numba`, `numpy` as the reference, or `auto` by default, which picks `numba`
 for systems whose groups hold at least 1000 members in total and `numpy` otherwise, and both backends SHALL produce the
@@ -84,6 +94,21 @@ same numeric functions for the same system.
 #### Scenario: Unknown backend
 - **WHEN** a user asks for a backend that is not registered
 - **THEN** a named error is raised that lists the registered backends
+
+
+### Requirement: Backend substitutions are reported
+When the chosen backend cannot serve the form of a problem, or a compiled kernel falls back to Python, compilation
+SHALL report it with a warning that names the backend used, the part affected, and the reason, and the compiled problem
+SHALL record which backend runs each part.
+
+#### Scenario: Backend substituted for a form
+- **WHEN** a lattice model is compiled with `backend='numba'` and its form runs on NumPy kernels
+- **THEN** compilation warns that the lattice form runs on NumPy, and the problem records NumPy for that form
+
+#### Scenario: Kernel falls back to Python
+- **WHEN** a law holds a reduction that the Numba printer cannot translate
+- **THEN** compilation warns once, naming the law kind and the reduction, and the problem records which law kinds run
+  compiled
 
 ### Requirement: The Numba backend is faster on large groups
 The Numba backend SHALL evaluate the functions of a large group faster than the NumPy backend.
