@@ -157,7 +157,7 @@ def test_register_rejects_cycle():
 def test_register_laws_rejects_classes_without_declarations():
     """Test that a class that is not a law class, or a law class without a kind, is not registered."""
     with pytest.raises(RegistryError, match='not a law class'):
-        register_laws(int)  # type: ignore[arg-type]
+        register_laws(int)
     with pytest.raises(RegistryError, match='law_kind'):
         register_laws(Undeclared)
     assert not is_registered(Undeclared)

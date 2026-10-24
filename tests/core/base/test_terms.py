@@ -41,7 +41,7 @@ def test_term_survives_copy_and_pickle():
 def test_term_is_frozen():
     """Test that a term cannot be changed."""
     with pytest.raises(AttributeError, match='frozen'):
-        Trait.FORMLESS.value = 'other'  # type: ignore[misc]
+        Trait.FORMLESS.value = 'other'
 
 
 def test_term_text_and_representation():
