@@ -20,7 +20,7 @@ from ....core.system import System
 from ....engine.runtime import register_model
 from ....engine.solvers import EulerMaruyama
 from ....formalisms.particles import Particle
-from ..realizations import LangevinThermostat
+from ..realizations.particles import LangevinThermostat
 from ._brownian import DoubleWell
 
 type Array = npt.NDArray[np.float64]

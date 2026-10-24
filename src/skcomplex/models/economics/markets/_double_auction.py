@@ -14,7 +14,8 @@ from ....core.space import DiscreteTime
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
-from ..realizations import CallAuction, Institution, Market, OrderBook, Trade
+from ..realizations._institutions import Institution
+from ..realizations._markets import CallAuction, Market, OrderBook, Trade
 
 PROTOCOLS = ('order_book', 'call_auction')
 

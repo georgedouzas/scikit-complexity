@@ -15,7 +15,7 @@ from ....core.space import DiscreteTime
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import Phase, Phases
-from ..realizations import cobb_douglas
+from ..realizations._exchange import cobb_douglas
 from ._goods_traders import Exchange
 
 GOODS = ('chocolate', 'cigarettes')

@@ -13,7 +13,7 @@ from ....core.system import Observable, System
 from ....engine.analysis import linearize, lqr
 from ....engine.runtime import register_model
 from ....engine.solvers import RK4
-from ..realizations import PID, Integrator, StateFeedback
+from ..realizations._controllers import PID, Integrator, StateFeedback
 
 GRAVITY = 9.81
 FORCE_LIMIT = 50.0

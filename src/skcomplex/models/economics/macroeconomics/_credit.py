@@ -15,7 +15,7 @@ from ....core.space import DiscreteTime
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
-from ..realizations import Market, SampleAndSwitch, Trade
+from ..realizations._markets import Market, SampleAndSwitch, Trade
 
 type Array = npt.NDArray[np.float64]
 

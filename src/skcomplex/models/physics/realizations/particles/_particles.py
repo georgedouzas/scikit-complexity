@@ -7,10 +7,10 @@
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import sqrt
 
-from ....core.base import Domain, Expression, SymbolicVector, parameter, role
-from ....core.interactions import Interaction
-from ....core.laws import Law, Noise, Rate, Symbols
-from ....formalisms.particles import LammpsFix, PairPotential, Potential, register_lammps_fix, register_lammps_pair
+from .....core.base import Domain, Expression, SymbolicVector, parameter, role
+from .....core.interactions import Interaction
+from .....core.laws import Law, Noise, Rate, Symbols
+from .....formalisms.particles import LammpsFix, PairPotential, Potential, register_lammps_fix, register_lammps_pair
 
 
 def _distance(first: SymbolicVector, second: SymbolicVector) -> Expression:
@@ -33,7 +33,7 @@ class ConstantForce(Interaction):
             The force vector. A number applies to every component.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations import ConstantForce
+        >>> from skcomplex.models.physics.realizations.particles import ConstantForce
         >>> ConstantForce('gravity', target='ball', F=[0, -9.81]).F
         [0, -9.81]
     """
@@ -69,7 +69,7 @@ class LinearDrag(Interaction):
             The drag coefficient.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations import LinearDrag
+        >>> from skcomplex.models.physics.realizations.particles import LinearDrag
         >>> LinearDrag('air', target='ball', gamma=0.1).gamma
         0.1
     """
@@ -110,7 +110,7 @@ class HarmonicPotential(Potential):
             The center. A number applies to every component.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations import HarmonicPotential
+        >>> from skcomplex.models.physics.realizations.particles import HarmonicPotential
         >>> HarmonicPotential('trap', target='ball', k=2.0).k
         2.0
     """
@@ -156,7 +156,7 @@ class Spring(Potential):
             The rest length.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations import Spring
+        >>> from skcomplex.models.physics.realizations.particles import Spring
         >>> Spring('spring', first='a', second='b', k=3.0, length=1.0).length
         1.0
     """
@@ -199,7 +199,7 @@ class Gravity(Potential):
             The gravitational constant.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations import Gravity
+        >>> from skcomplex.models.physics.realizations.particles import Gravity
         >>> Gravity('gravity', first='sun', second='earth', G=1.0).G
         1.0
     """
@@ -248,7 +248,7 @@ class LennardJones(PairPotential):
             The distance at which the potential is zero.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations import LennardJones
+        >>> from skcomplex.models.physics.realizations.particles import LennardJones
         >>> LennardJones('lj', first='gas', second='gas', cutoff=2.5).sigma
         1.0
     """
@@ -296,7 +296,7 @@ class SoftSphere(PairPotential):
             The stiffness.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations import SoftSphere
+        >>> from skcomplex.models.physics.realizations.particles import SoftSphere
         >>> SoftSphere('contact', first='gas', second='gas', cutoff=0.1, k=50.0).k
         50.0
     """
@@ -341,7 +341,7 @@ class LangevinThermostat(Interaction):
             The friction coefficient.
 
     Examples:
-        >>> from skcomplex.models.physics.realizations import LangevinThermostat
+        >>> from skcomplex.models.physics.realizations.particles import LangevinThermostat
         >>> LangevinThermostat('bath', target='gas', temperature=2.0).temperature
         2.0
     """

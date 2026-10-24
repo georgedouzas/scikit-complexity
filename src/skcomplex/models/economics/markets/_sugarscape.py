@@ -15,7 +15,7 @@ from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
-from ..realizations import Institution
+from ..realizations._institutions import Institution
 
 type Array = npt.NDArray[np.float64]
 

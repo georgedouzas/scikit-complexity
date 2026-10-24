@@ -1,6 +1,6 @@
 """Run systems frame by frame with clocks, live parameter changes, observers, trajectories, and a model catalog."""
 
-from ._catalog import MODELS, ModelEntry, catalog, create, describe, register_model, run
+from ._catalog import MODELS, ModelEntry, catalog, create, describe, register_model, run, summarize
 from ._clocks import AsFastAsPossible, Clock, RealTime
 from ._conservation import ConservationMonitor, InvariantMonitor
 from ._frames import Frame
@@ -26,4 +26,5 @@ __all__: list[str] = [
     'describe',
     'register_model',
     'run',
+    'summarize',
 ]

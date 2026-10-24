@@ -9,7 +9,7 @@ from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyama, ScipyODE, VelocityVerlet
 from skcomplex.formalisms.particles import LammpsBackend, Particle
-from skcomplex.models.physics.realizations import (
+from skcomplex.models.physics.realizations.particles import (
     ConstantForce,
     Gravity,
     LangevinThermostat,

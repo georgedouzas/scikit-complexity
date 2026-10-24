@@ -14,7 +14,7 @@ from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.particles import Particle
-from ..realizations import ConstantForce, HarmonicPotential, LinearDrag
+from ..realizations.particles import ConstantForce, HarmonicPotential, LinearDrag
 
 GRAVITY = 9.81
 WALL_POINTS = 200

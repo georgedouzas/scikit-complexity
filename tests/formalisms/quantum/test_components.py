@@ -9,7 +9,7 @@ from skcomplex.core.base import ValidationError, symbol
 from skcomplex.core.laws import Symbols
 from skcomplex.core.space import LatticeSpace, NetworkSpace, neighbor_pairs
 from skcomplex.formalisms.quantum import Dissipator, Generator, LocalOperator, Operator, QuantumView, expectation
-from skcomplex.models.physics.realizations import Mode, Qubit, Site, Spin
+from skcomplex.models.physics.realizations.quantum import Mode, Qubit, Site, Spin
 
 
 def _namespace(element, key):

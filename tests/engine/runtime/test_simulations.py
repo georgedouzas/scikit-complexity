@@ -29,7 +29,7 @@ from skcomplex.models.biology.ecology import ExponentialGrowth, LogisticGrowth, 
 from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
 from skcomplex.models.economics.finance import geometric_brownian_motion
 from skcomplex.models.economics.markets import Cobweb, Market
-from skcomplex.models.physics.realizations import ConstantForce
+from skcomplex.models.physics.realizations.particles import ConstantForce
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 
 from ...conftest import _correlated, _summed

@@ -16,7 +16,7 @@ from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.fields import ETDRK4, Field, laplacian
 from ....formalisms.quantum import Dissipator, Generator
-from ..realizations import Site
+from ..realizations.quantum import Site
 
 WaveFunction = Element.define(
     'WaveFunction',

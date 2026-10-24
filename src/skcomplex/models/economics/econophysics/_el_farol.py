@@ -16,7 +16,8 @@ from ....core.space import DiscreteTime
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
-from ..realizations import Institution, heuristics
+from ..realizations._institutions import Institution
+from ..realizations._learning import heuristics
 
 type Array = npt.NDArray[np.float64]
 

@@ -11,7 +11,7 @@ from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.particles import Particle
-from ..realizations import LangevinThermostat, LennardJones
+from ..realizations.particles import LangevinThermostat, LennardJones
 
 
 @register_model(

@@ -253,7 +253,7 @@ class LammpsBackend(ExternalBackend):
         >>> from skcomplex.formalisms.particles import LammpsBackend, Particle
         >>> from skcomplex.core.space import ContinuousSpace
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.physics.realizations import LennardJones
+        >>> from skcomplex.models.physics.realizations.particles import LennardJones
         >>> from skcomplex.engine.runtime import Simulation
         >>> system = System(
         ...     components=[Particle.group('gas', 2, x=[[0.0, 0.0], [1.5, 0.0]])],

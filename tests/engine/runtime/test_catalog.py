@@ -120,12 +120,13 @@ def test_registration_requires_defaults():
 @pytest.mark.parametrize('entry', catalog(), ids=lambda entry: entry.name)
 def test_model_conforms(entry, tmp_path):
     """Test that a registered model is created, validated, compiled, simulated, logged, and cloned generically."""
+    defaults = describe(entry.name).defaults
     system = create(entry.name)
     assert validate(system).ok
     problem = compile_system(system)
-    settings = {key: value for key, value in entry.defaults.items() if key != 'until'}
+    settings = {key: value for key, value in defaults.items() if key != 'until'}
     dt = settings.get('dt', 1.0)
-    until = min(entry.defaults.get('until', CONFORMANCE_FRAMES * dt), CONFORMANCE_FRAMES * dt)
+    until = min(defaults.get('until', CONFORMANCE_FRAMES * dt), CONFORMANCE_FRAMES * dt)
     observer = RerunObserver(entry.name, save_path=tmp_path / 'run.rrd')
     simulation = Simulation(system, observers=[observer], random_state=0, **settings).run(until=until)
     trajectory = simulation.trajectory_

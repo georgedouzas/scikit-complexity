@@ -32,7 +32,7 @@ from skcomplex.formalisms.topology import add_node
 from skcomplex.models import create
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population
 from skcomplex.models.computer_science.automata import game_of_life
-from skcomplex.models.physics.realizations import ConstantForce
+from skcomplex.models.physics.realizations.particles import ConstantForce
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 from skcomplex.models.social.opinion_dynamics import voter_model
 from skcomplex.models.social.segregation import schelling

@@ -132,7 +132,7 @@ def library_models() -> list[ModelEntry]:
         >>> 'lotka_volterra' in [entry.name for entry in library_models()]
         True
     """
-    return [entry for entry in catalog() if entry.factory.__module__.startswith('skcomplex.models.')]
+    return [entry for entry in catalog() if entry.module.startswith('skcomplex.models.')]
 
 
 def find_examples(folder: Path) -> list[Example]:

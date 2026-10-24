@@ -221,7 +221,7 @@ def entanglement_entropy(trajectory: Trajectory, subsystems: Sequence[str]) -> n
         >>> from skcomplex.engine.analysis import entanglement_entropy
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
-        >>> from skcomplex.models.physics.realizations import Spin
+        >>> from skcomplex.models.physics.realizations.quantum import Spin
         >>> singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
         >>> system = System(components=[Spin.group('pair', 2)])
         >>> trajectory = Simulation(system, dt=1.0, initial_state={'system.state': singlet}).run(until=1.0).trajectory_
@@ -268,7 +268,7 @@ def hamiltonian_of(system: System | Problem) -> Any:  # noqa: ANN401
         >>> from skcomplex.engine.analysis import hamiltonian_of
         >>> from skcomplex.formalisms.quantum import Generator
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.physics.realizations import Qubit
+        >>> from skcomplex.models.physics.realizations.quantum import Qubit
         >>> Driven = Qubit.define('Driven', parameters={'omega': 1.0}, laws=lambda s: [Generator(s.omega / 2 * s.z)])
         >>> hamiltonian_of(System(components=[Driven('q')]))
         1/2*omega_q*q.z

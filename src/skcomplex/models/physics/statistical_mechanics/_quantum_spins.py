@@ -11,7 +11,7 @@ from ....core.space import LatticeSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.quantum import Dissipator, Generator, Operator, expectation
-from ..realizations import Spin
+from ..realizations.quantum import Spin
 
 INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')
 BOUNDARIES = {'periodic': 'periodic', 'open': 'fixed'}

@@ -18,7 +18,7 @@ from skcomplex.models.biology.ecology import LogisticGrowth, Population
 from skcomplex.models.biology.epidemiology import Compartment, Recovery
 from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion
 from skcomplex.models.economics.markets import Cobweb, Market
-from skcomplex.models.physics.realizations import ConstantForce, HarmonicPotential
+from skcomplex.models.physics.realizations.particles import ConstantForce, HarmonicPotential
 
 from ...conftest import CallableGrowth
 

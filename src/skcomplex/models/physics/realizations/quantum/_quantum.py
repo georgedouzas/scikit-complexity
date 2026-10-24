@@ -12,10 +12,10 @@ import numpy.typing as npt
 import qutip
 import scipy.sparse as sp
 
-from ....core.base import HilbertSpace, ValidationError, VisualSpec, state
-from ....core.components import Element
-from ....core.space import LatticeSpace, NetworkSpace, Space, neighbor_pairs
-from ....formalisms.quantum import LocalOperator, Operator, QuantumView, sparse_matrix
+from .....core.base import HilbertSpace, ValidationError, VisualSpec, state
+from .....core.components import Element
+from .....core.space import LatticeSpace, NetworkSpace, Space, neighbor_pairs
+from .....formalisms.quantum import LocalOperator, Operator, QuantumView, sparse_matrix
 
 DIGEST_SIZE = 8
 
@@ -101,7 +101,7 @@ class Spin(Element):
 
     Examples:
         >>> from skcomplex.formalisms.quantum import QuantumView
-        >>> from skcomplex.models.physics.realizations import Spin
+        >>> from skcomplex.models.physics.realizations.quantum import Spin
         >>> QuantumView(Spin('s', j=1)).dimension
         3
     """
@@ -134,7 +134,7 @@ class Qubit(Element):
 
     Examples:
         >>> from skcomplex.formalisms.quantum import QuantumView
-        >>> from skcomplex.models.physics.realizations import Qubit
+        >>> from skcomplex.models.physics.realizations.quantum import Qubit
         >>> sorted(QuantumView(Qubit('q')).local_operators())
         ['minus', 'plus', 'x', 'y', 'z']
     """
@@ -161,7 +161,7 @@ class Mode(Element):
 
     Examples:
         >>> from skcomplex.formalisms.quantum import QuantumView
-        >>> from skcomplex.models.physics.realizations import Mode
+        >>> from skcomplex.models.physics.realizations.quantum import Mode
         >>> QuantumView(Mode('cavity', quanta=4)).dimension
         5
     """
@@ -204,7 +204,7 @@ class Site(Element):
     Examples:
         >>> from skcomplex.formalisms.quantum import QuantumView
         >>> from skcomplex.core.space import LatticeSpace
-        >>> from skcomplex.models.physics.realizations import Site
+        >>> from skcomplex.models.physics.realizations.quantum import Site
         >>> QuantumView(Site('particle', space=LatticeSpace(16))).dimension
         16
     """

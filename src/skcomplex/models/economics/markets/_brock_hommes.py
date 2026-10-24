@@ -14,7 +14,8 @@ from ....core.space import DiscreteTime
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
-from ..realizations import Institution, heuristics, logit_choice
+from ..realizations._institutions import Institution
+from ..realizations._learning import heuristics, logit_choice
 
 PREDICTORS = ('fundamentalist', 'trend')
 

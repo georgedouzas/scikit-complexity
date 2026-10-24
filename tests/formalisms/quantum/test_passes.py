@@ -32,7 +32,7 @@ from skcomplex.formalisms.quantum import (
     expectation,
 )
 from skcomplex.models.biology.ecology import Population
-from skcomplex.models.physics.realizations import Mode, Qubit, Spin
+from skcomplex.models.physics.realizations.quantum import Mode, Qubit, Spin
 
 
 class Heisenberg(Interaction):

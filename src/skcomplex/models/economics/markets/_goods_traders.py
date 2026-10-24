@@ -18,7 +18,7 @@ from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, Match, ModelView, Phase, Phases, Rule, matches
-from ..realizations import NeighborPairing, cobb_douglas, trade_goods
+from ..realizations._exchange import NeighborPairing, cobb_douglas, trade_goods
 
 type Pairing = Callable[[Sequence[Any], Sequence[Any], np.random.Generator, int], list[tuple[Any, Any]]]
 

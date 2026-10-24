@@ -66,7 +66,7 @@ class QuantumView:
 
     Examples:
         >>> from skcomplex.formalisms.quantum import QuantumView
-        >>> from skcomplex.models.physics.realizations import Qubit
+        >>> from skcomplex.models.physics.realizations.quantum import Qubit
         >>> QuantumView(Qubit('q', initial='down')).initial_vector().tolist()
         [0j, (1+0j)]
     """

@@ -2610,8 +2610,7 @@ from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
 
 from skcomplex.formalisms.particles import LammpsBackend
-from skcomplex.models.physics.realizations import LangevinThermostat, LennardJones
-
+from skcomplex.models.physics.realizations.particles import LangevinThermostat, LennardJones
 side = np.arange(10) * 1.2
 
 atoms = System(
@@ -3035,9 +3034,7 @@ from skcomplex.core.interactions import Interaction
 from skcomplex.core.space import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.physics.realizations import Spin
-
-
+from skcomplex.models.physics.realizations.quantum import Spin
 class Coupling(Interaction):
     over: ClassVar[str] = 'neighbors'
     target: str = role()
@@ -3124,7 +3121,7 @@ from pathlib import Path
 
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.formalisms.particles import Particle
-from skcomplex.models.physics.realizations import Spring
+from skcomplex.models.physics.realizations.particles import Spring
 from skcomplex.engine.viz import RerunObserver
 
 molecule = System(
@@ -3240,7 +3237,7 @@ from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
 
 from skcomplex.engine.analysis import equations_of, solve_symbolically
-from skcomplex.models.physics.realizations import HarmonicPotential
+from skcomplex.models.physics.realizations.particles import HarmonicPotential
 
 oscillator = System(
     components=[Particle('p', x=1.0)],

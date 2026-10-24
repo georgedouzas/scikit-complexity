@@ -2,11 +2,11 @@
 
 ## 1. Lazy catalog
 
-- [ ] 1.1 Build the catalog listing by scanning the model sources for `register_model`. Reject computed name, field,
+- [x] 1.1 Build the catalog listing by scanning the model sources for `register_model`. Reject computed name, field,
   or tag arguments with a named error, and import a model's module only in `create`, `run`, and `describe`. Verify
   with the scenarios "Catalog without imports", "Filter by field", "One model", "Unknown name", and "Computed
   registration argument".
-- [ ] 1.2 Stop `models/__init__.py` from importing the field packages, and add the listing-agreement test. Verify with
+- [x] 1.2 Stop `models/__init__.py` from importing the field packages, and add the listing-agreement test. Verify with
   the scenario "Listing matches registration", and measure the time of `import skcomplex.models` and `catalog()`.
 
 ## 2. Test session

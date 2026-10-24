@@ -112,6 +112,29 @@ MODELS = Registry[ModelEntry]('model')
 _FORMALISMS: dict[str, str] = {}
 
 
+def summarize(docstring: str) -> str:
+    r"""Return the description of a model from its factory's docstring: the first line, without a leading `Return`.
+
+    Args:
+        docstring:
+            The docstring of the factory, or an empty string.
+
+    Returns:
+        description:
+            The first line of the docstring, with a leading `Return ` removed and the next word capitalized.
+
+    Examples:
+        >>> from skcomplex.engine.runtime import summarize
+        >>> summarize('Return the Lotka-Volterra predator and prey.\n\nMore text.')
+        'The Lotka-Volterra predator and prey.'
+    """
+    summary = docstring.split('\n', maxsplit=1)[0]
+    if summary.startswith('Return '):
+        summary = summary.removeprefix('Return ')
+        summary = summary[0].upper() + summary[1:]
+    return summary
+
+
 def register_model(
     name: str | None = None,
     *,
@@ -185,10 +208,7 @@ def register_model(
         if required:
             error_msg = f'The factory {factory.__name__} needs defaults for {", ".join(required)} to be registered.'
             raise ValidationError(error_msg)
-        summary = description or (inspect.getdoc(factory) or '').split('\n')[0]
-        if description is None and summary.startswith('Return '):
-            summary = summary.removeprefix('Return ')
-            summary = summary[0].upper() + summary[1:]
+        summary = description or summarize(inspect.getdoc(factory) or '')
         entry = ModelEntry(
             name or factory.__name__,
             factory,

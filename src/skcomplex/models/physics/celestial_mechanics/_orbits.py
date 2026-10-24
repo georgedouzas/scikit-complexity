@@ -18,7 +18,7 @@ from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.particles import Particle
-from ..realizations import Gravity
+from ..realizations.particles import Gravity
 
 FIGURE_EIGHT = {
     'G': 1.0,

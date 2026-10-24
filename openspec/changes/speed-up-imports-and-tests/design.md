@@ -43,6 +43,17 @@ description (the first line of the factory's docstring), and the dotted module p
 - **Alternative: a generated index file.** It was rejected because the file would duplicate the registrations, and a
   forgotten regeneration would leave it stale.
 
+The catalog lives in `skcomplex.models`, which owns its sources, so the engine never imports the model library. The
+engine's `catalog`, `describe`, `create`, and `run` keep serving the models registered in its registry, and
+`skcomplex.models` wraps them. Its `catalog` returns `ModelListing` objects (name, field, description, tags,
+references, module), and code that needs the defaults or the factory calls `describe`.
+
+Importing one model must not import the rest of its field:
+- **Field packages:** the `__init__` of every field package holds only its docstring.
+- **Physics realizations:** `skcomplex.models.physics.realizations` splits into the subpackages `particles` and
+  `quantum`. Importing a particle force used to load the quantum species, and with them qutip, through the shared
+  `realizations` package.
+
 `models/__init__.py` stops importing the field packages, and it re-exports only the catalog functions. A field or
 subfield package still imports its own modules, so `from skcomplex.models.physics.mechanics import pendulum` works.
 

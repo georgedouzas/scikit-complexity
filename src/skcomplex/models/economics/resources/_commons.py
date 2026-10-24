@@ -17,7 +17,7 @@ from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, Match, ModelView, Phase, Phases, Rule, matches
-from ..realizations import Institution
+from ..realizations._institutions import Institution
 
 UNLIMITED = 1e9
 

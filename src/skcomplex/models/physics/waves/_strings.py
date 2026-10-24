@@ -17,7 +17,7 @@ from ....engine.runtime import register_model
 from ....engine.solvers import VelocityVerlet
 from ....formalisms.fields import Field, laplacian
 from ....formalisms.particles import Particle, Potential
-from ..realizations import Spring
+from ..realizations.particles import Spring
 
 WaveString = Element.define(
     'WaveString',

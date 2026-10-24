@@ -17,7 +17,7 @@ from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create, describe
 from skcomplex.models.biology.ecology import Population
-from skcomplex.models.physics.realizations import Spin
+from skcomplex.models.physics.realizations.quantum import Spin
 from skcomplex.models.physics.statistical_mechanics import total_magnetization
 
 

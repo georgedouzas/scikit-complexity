@@ -14,7 +14,7 @@ from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import Observable, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
-from ..realizations import logit_choice
+from ..realizations._learning import logit_choice
 
 
 class Consumer(Element):

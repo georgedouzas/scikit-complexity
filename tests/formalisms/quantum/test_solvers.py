@@ -20,7 +20,7 @@ from skcomplex.formalisms.quantum import (
     UnitaryEvolution,
     expectation,
 )
-from skcomplex.models.physics.realizations import Qubit, Spin
+from skcomplex.models.physics.realizations.quantum import Qubit, Spin
 
 OMEGA = 2.0
 GAMMA = 0.5

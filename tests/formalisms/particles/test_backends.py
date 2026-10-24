@@ -18,7 +18,7 @@ from skcomplex.engine.solvers import VelocityVerlet
 from skcomplex.formalisms import registered_formalisms
 from skcomplex.formalisms.particles import LammpsBackend, PairPotential, Particle
 from skcomplex.models.biology.ecology import LogisticGrowth, Mortality, Population, Predation
-from skcomplex.models.physics.realizations import (
+from skcomplex.models.physics.realizations.particles import (
     ConstantForce,
     HarmonicPotential,
     LangevinThermostat,

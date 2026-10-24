@@ -22,7 +22,7 @@ from skcomplex.formalisms.particles import PairPotential, Particle
 from skcomplex.models import create
 from skcomplex.models.biology.ecology import Population
 from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
-from skcomplex.models.physics.realizations import HarmonicPotential
+from skcomplex.models.physics.realizations.particles import HarmonicPotential
 
 CUTOFF = 2.5
 

@@ -16,7 +16,7 @@ from ....core.space import ContinuousSpace
 from ....core.system import System
 from ....engine.runtime import register_model
 from ....formalisms.particles import Particle, Potential
-from ..realizations import HarmonicPotential, LinearDrag
+from ..realizations.particles import HarmonicPotential, LinearDrag
 from ._mechanics import Pendulum
 
 
