@@ -1,5 +1,7 @@
 """Test the `_plantations` module of `skcomplex.models.economics.resources`."""
 
+import pytest
+
 from skcomplex.models.economics.resources import (
     cocoa,
 )
@@ -7,6 +9,7 @@ from skcomplex.models.economics.resources import (
 from ...conftest import _peak, _run_monitored
 
 
+@pytest.mark.slow
 def test_cocoa_booms_and_busts_without_a_subsidy():
     """Test that the cocoa area booms, then collapses under the insects, unless a full subsidy keeps the shade."""
     bust = _run_monitored(cocoa(), 0.25, 50)

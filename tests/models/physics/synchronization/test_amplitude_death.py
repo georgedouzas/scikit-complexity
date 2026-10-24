@@ -69,6 +69,7 @@ def test_oscillator_death_rejects_unknown_distribution():
         oscillator_death(10, distribution='gaussian')
 
 
+@pytest.mark.slow
 def test_heterogeneous_global_coupling_restabilizes_fixed_point():
     """Test that intermediate coupling kills the oscillations, while weak and very strong coupling do not."""
     amplitudes = {

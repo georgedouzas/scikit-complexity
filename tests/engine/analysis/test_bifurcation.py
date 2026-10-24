@@ -8,6 +8,7 @@ from skcomplex.models.mathematics.dynamical_systems import logistic_map
 from skcomplex.models.physics.nonlinear_oscillators import duffing
 
 
+@pytest.mark.slow
 def test_period_doubling_of_logistic_map():
     """Test that the logistic map has period 1 below 3, 2 between 3 and 3.449, and 4 between 3.449 and 3.544."""
     rates = np.linspace(2.8, 4.0, 241)
@@ -50,6 +51,7 @@ def test_vectorised_orbit_diagram_matches_the_serial_sweep():
         np.testing.assert_allclose(np.ravel(first), np.ravel(second), atol=1e-12)
 
 
+@pytest.mark.slow
 def test_vectorised_basins_match_the_serial_runs():
     """Test that basin stability over 200 initial conditions run as one ensemble equals the serial runs."""
     bounds = {'duffing.x': (-2.0, 2.0), 'duffing.x_d1': (-2.0, 2.0)}

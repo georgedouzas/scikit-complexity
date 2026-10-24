@@ -95,6 +95,7 @@ def test_brownian_motion_diffuses_normally():
     assert mean_squared_displacement(walks).exponent == pytest.approx(1.0, abs=0.05)
 
 
+@pytest.mark.slow
 def test_white_noise_has_no_memory():
     """Test that white noise has a Hurst exponent within 0.05 of 0.5 and integrated noise near 1.5."""
     noise = np.random.default_rng(6).standard_normal(50_000)

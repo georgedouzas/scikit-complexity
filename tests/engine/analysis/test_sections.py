@@ -13,6 +13,7 @@ from skcomplex.models.physics.mechanics import harmonic_oscillator
 from skcomplex.models.physics.nonlinear_oscillators import duffing
 
 
+@pytest.mark.slow
 def test_forced_duffing_stroboscopic_section_is_fractal():
     """Test that the chaotic forced Duffing section has thousands of distinct points, not a periodic orbit."""
     section = stroboscopic(duffing(), 2 * math.pi / 1.2, n_points=2000)

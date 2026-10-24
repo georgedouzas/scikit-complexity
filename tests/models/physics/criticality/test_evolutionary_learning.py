@@ -48,6 +48,7 @@ def test_evolutionary_sk_game_replaces_the_least_fit():
     assert np.array_equal(temperatures[5], temperatures[4])
 
 
+@pytest.mark.slow
 def test_evolutionary_sk_game_self_organisation():
     """Test the evolved low temperatures, cascades of exponent 3/2, and a reward above every fixed temperature."""
     system = create('evolutionary_sk_game', memory=0.75, random_state=SEED)

@@ -226,6 +226,7 @@ def test_unknown_noise_convention_is_rejected():
         compile_system(System(components=[_geometric('marcus')('g')]))
 
 
+@pytest.mark.slow
 def test_milstein_and_heun_converge_on_additive_noise():
     """Test that Milstein and Heun integrate an Ornstein-Uhlenbeck process to its stationary variance."""
     Ornstein = Element.define('Ornstein', states={'x': 0.0}, laws=lambda s: [Rate(s.x, -s.x), Noise(s.x, 1.0)])

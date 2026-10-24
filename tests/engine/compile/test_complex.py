@@ -260,6 +260,7 @@ def test_backends_agree_on_complex_map():
     assert np.allclose(reference.states.read(expected, 'points.z'), z**2 + c, rtol=1e-12)
 
 
+@pytest.mark.slow
 def test_complex_kernels_are_cached_on_disk(tmp_path):
     """Test that a second process loads the kernels of a complex system from the disk cache."""
     script = textwrap.dedent(

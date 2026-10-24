@@ -335,6 +335,7 @@ def test_periodic_box_wraps_member_with_same_velocity():
     assert np.allclose(trajectory['gas.v'][-1], [[1.0, 0.0]])
 
 
+@pytest.mark.slow
 def test_pair_interaction_conserves_momentum():
     """Test that soft-sphere collisions inside an isolated group keep the total momentum."""
     rng = np.random.default_rng(0)

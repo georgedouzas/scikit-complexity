@@ -264,6 +264,7 @@ def test_numba_kernels_are_cached_on_disk(tmp_path):
     assert durations[1] * 5 <= durations[0]
 
 
+@pytest.mark.slow
 def test_second_process_loads_kernels_from_cache(tmp_path):
     """Test that a second process loads every generated kernel from the disk cache without compiling it."""
     script = textwrap.dedent(
@@ -289,6 +290,7 @@ def test_second_process_loads_kernels_from_cache(tmp_path):
     assert second_hits > 0
 
 
+@pytest.mark.slow
 def test_cached_kernels_with_metric_neighbourhoods_run_in_a_second_process(tmp_path):
     """Test that kernels searching radius neighbourhoods run the same when a second process loads them cached."""
     script = textwrap.dedent(

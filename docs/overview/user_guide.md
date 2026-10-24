@@ -1457,20 +1457,20 @@ from skcomplex.core.space import ContinuousSpace
 
 rng = np.random.default_rng(0)
 gas = System(
-    components=[Particle.group('gas', 10_000, x=rng.uniform(0, 1, (10_000, 2)), v=rng.normal(0, 1, (10_000, 2)))],
+    components=[Particle.group('gas', 1_000, x=rng.uniform(0, 1, (1_000, 2)), v=rng.normal(0, 1, (1_000, 2)))],
     space=ContinuousSpace(1.0, 1.0, boundary='reflecting'),
 )
-trajectory = Simulation(gas, dt=0.01).run(until=1).trajectory_
+trajectory = Simulation(gas, dt=0.01).run(until=0.5).trajectory_
 print(trajectory['gas.x'].shape)
 ```
 
-- The label and the size of a group are given by position, `Particle.group('gas', 10_000, ...)`, so a state named
+- The label and the size of a group are given by position, `Particle.group('gas', 1_000, ...)`, so a state named
   `size` takes per-member values by keyword. States and parameters cannot be named `label`, `visual`, or `remembers`,
   and those of agents cannot take the names of the agent view, such as `location` or `alive`.
 - A value is an array whose first dimension is the size of the group, or one value shared by every member.
 - An interaction whose role binds to a group applies to every member. A single element bound next to the group
   receives the sum over the members, unless its law reads the group only through reductions.
-- Group variables are named by the group path, such as `gas.x` with shape `(10000, 2)`, and a group parameter takes
+- Group variables are named by the group path, such as `gas.x` with shape `(1000, 2)`, and a group parameter takes
   one value for every member or one value per member in `update_parameters`.
 - `ideal_gas(n_molecules, kT=..., size=...)` builds a gas of non-interacting molecules in a reflecting box.
 

@@ -53,6 +53,7 @@ def test_conserved_noise_has_site_variance_of_links():
     assert sites.var() == pytest.approx(4 * (0.5 / 0.5) ** 2 * 4, rel=0.15)
 
 
+@pytest.mark.slow
 def test_conserved_noise_gives_flat_structure_factor():
     """Test that diffusion with conserved noise has the flat structure factor `T / D` and a fixed mean."""
     field = Field('f', Diffusing, LatticeSpace((16, 16)))

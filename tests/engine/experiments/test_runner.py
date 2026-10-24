@@ -46,6 +46,7 @@ def test_factory_and_system_give_same_run():
     assert np.array_equal(by_argument.series('population.n'), by_path.series('population.n'))
 
 
+@pytest.mark.slow
 def test_ensemble_is_reproducible_across_executors():
     """Test that 20 stochastic runs with seed 7 give identical results serially and on four processes."""
     design = Grid(stochastic=[True])
@@ -104,6 +105,7 @@ def test_unknown_path_is_rejected():
         Experiment('logistic_growth', Grid(**{'growth.rate': [1.0]}), until=1).run()
 
 
+@pytest.mark.slow
 def test_process_executor_names_the_missing_main_guard(tmp_path):
     """Test that a script without a main guard that runs an experiment on processes gets a named error saying so."""
     script = tmp_path / 'script.py'

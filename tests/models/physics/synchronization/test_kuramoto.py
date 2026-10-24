@@ -62,6 +62,7 @@ def test_kuramoto_transition(factor, synchronized):
         Simulation(
             built := kuramoto(2000, K=factor * critical),
             dt=0.5,
+            solver=ScipyODE(method='RK45'),
             observables=describe('kuramoto').observables_of(built),
         )
         .run(until=100)

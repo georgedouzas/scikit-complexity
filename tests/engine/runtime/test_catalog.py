@@ -15,6 +15,7 @@ from skcomplex.models import catalog, create, describe, register_model, run
 from skcomplex.models.biology.ecology import ExponentialGrowth, Mortality, Population, Predation
 
 CONFORMANCE_FRAMES = 10
+SLOW = {'cocoa'}
 
 
 FIELDS = [
@@ -117,7 +118,11 @@ def test_registration_requires_defaults():
         register_model(field='test', defaults={'speed': 2})(needs_size)
 
 
-@pytest.mark.parametrize('entry', catalog(), ids=lambda entry: entry.name)
+@pytest.mark.parametrize(
+    'entry',
+    [pytest.param(entry, marks=pytest.mark.slow) if entry.name in SLOW else entry for entry in catalog()],
+    ids=lambda entry: entry.name,
+)
 def test_model_conforms(entry, tmp_path):
     """Test that a registered model is created, validated, compiled, simulated, logged, and cloned generically."""
     defaults = describe(entry.name).defaults
@@ -154,6 +159,7 @@ def test_jacobian_pattern_holds_finite_differences(entry):
         _probe_pattern(problem, x, problem.initial_parameters, rng)
 
 
+@pytest.mark.slow
 def test_default_runs_of_a_stochastic_model_repeat():
     """Test that default catalog runs repeat, for random initial conditions and for stochastic dynamics."""
     gas = run('ideal_gas').trajectory_['gas.v']

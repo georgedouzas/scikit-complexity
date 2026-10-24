@@ -126,6 +126,7 @@ def test_domain_growth_two_coarsening_laws():
         domain_growth([0.0], frames[:1])
 
 
+@pytest.mark.slow
 def test_pattern_wavelength_turing_patterns_on_two_domains():
     """Test that Swift-Hohenberg rolls have wavelength 2 pi and a Brusselator its critical Turing wavelength."""
     rolls = fields_of(run('swift_hohenberg').trajectory_)[-1]

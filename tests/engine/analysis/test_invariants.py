@@ -104,6 +104,7 @@ def test_kaplan_yorke_dimension_of_a_map_and_a_flow():
     assert kaplan_yorke_dimension([0.5, 0.0]) == 2
 
 
+@pytest.mark.slow
 def test_largest_lyapunov_exponent_from_data():
     """Test the largest exponents of the logistic map at r = 4 and of the Lorenz x from recorded series."""
     logistic = largest_lyapunov_exponent(_logistic(4.0, 10_000), dimension=2, trajectory_length=4, min_separation=10)
@@ -148,6 +149,7 @@ def test_recurrence_quantification_order_and_noise():
     assert sine.rate == pytest.approx(0.05, abs=0.01)
 
 
+@pytest.mark.slow
 def test_recurrence_quantification_intermittency_on_two_domains():
     """Test that intermittent logistic and Lorenz runs, sampled once per laminar orbit, are more laminar than chaos."""
     near_window = recurrence_quantification(_logistic(3.8282, 6000)[::3][:2000])

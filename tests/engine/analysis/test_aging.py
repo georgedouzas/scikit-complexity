@@ -56,6 +56,7 @@ def test_two_time_correlation_equilibrium_has_no_aging():
     assert fluctuation_dissipation_ratio(correlation[1], susceptibility, 1.0) == pytest.approx(1, abs=0.1)
 
 
+@pytest.mark.slow
 def test_two_time_correlation_aging_on_two_domains():
     """Test that an Ising quench and the trap model age: correlations grow with the age and collapse on tau / t_w."""
     system = create('ising', size=256, temperature=1.0, sampler='glauber')

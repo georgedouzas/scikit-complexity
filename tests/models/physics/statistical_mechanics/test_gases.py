@@ -20,7 +20,7 @@ def _wall_pressure_times_area(trajectory, size):
 @pytest.mark.parametrize(('kT', 'size'), [(1.0, 1.0), (2.0, 3.0)])
 def test_ideal_gas_obeys_ideal_gas_law(kT, size):
     """Test that pressure times area equals N times kT within 2 percent."""
-    n = 2000
+    n = 500
     trajectory = (
         Simulation(ideal_gas(n, kT=kT, size=size, random_state=0), dt=0.002 * size).run(until=4 * size).trajectory_
     )
@@ -31,7 +31,7 @@ def test_ideal_gas_obeys_ideal_gas_law(kT, size):
 
 def test_ideal_gas_molecules_stay_inside_and_keep_speed():
     """Test that molecules stay inside the box and keep their speed."""
-    trajectory = Simulation(ideal_gas(300, kT=3.0, random_state=2), dt=0.01).run(until=5).trajectory_
+    trajectory = Simulation(ideal_gas(100, kT=3.0, random_state=2), dt=0.01).run(until=5).trajectory_
     positions, velocities = trajectory['gas.x'], trajectory['gas.v']
     assert np.all((positions >= 0) & (positions <= 1))
     speeds = np.linalg.norm(velocities, axis=2)

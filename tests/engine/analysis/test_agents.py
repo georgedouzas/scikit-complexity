@@ -185,6 +185,7 @@ def test_clark_evans_ratio_random_and_ordered_positions():
     assert nearest_neighbor_distances(lattice[:3]).tolist() == pytest.approx([1.0, 1.0, 1.0])
 
 
+@pytest.mark.slow
 def test_radial_distribution_of_a_gas_and_a_fluid():
     """Test that an ideal gas gives g = 1 and a dense Lennard-Jones fluid peaks at 2^(1/6) sigma."""
     rng = np.random.default_rng(5)

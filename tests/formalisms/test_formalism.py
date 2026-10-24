@@ -131,6 +131,7 @@ def test_law_from_outside_formalism_validates_compiles_and_simulates():
     assert found == {'valid': True, 'form': True, 'solver': True, 'final': pytest.approx(2 * 0.36787944117144233)}
 
 
+@pytest.mark.slow
 def test_register_of_fields_registers_its_dependency():
     """Test that importing the fields formalism registers both fields and the lattices it builds on."""
     found = _run(

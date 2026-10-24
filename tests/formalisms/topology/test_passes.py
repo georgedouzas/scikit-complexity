@@ -56,6 +56,7 @@ def _growing(size, capacity, *, edges=2):
     )
 
 
+@pytest.mark.slow
 def test_preferential_attachment_gives_a_tail_exponent_near_three():
     """Test that Barabási-Albert growth to 10,000 nodes with two edges each gives a degree tail exponent near 3."""
     simulation = Simulation(_growing(3, 10_003), dt=1000.0, random_state=3).run(until=10_000)

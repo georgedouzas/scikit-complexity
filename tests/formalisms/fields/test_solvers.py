@@ -143,6 +143,7 @@ def test_numerical_fluxes_conserve(riemann):
     assert initial.min() - 1e-12 <= values.min() <= values.max() <= initial.max() + 1e-12
 
 
+@pytest.mark.slow
 def test_dam_break_conserves_water():
     """Test that the dam break conserves its water and keeps the depth between the two initial depths."""
     values = Simulation(shallow_water(), dt=0.05).run(until=0.5).trajectory_['channel.h']
@@ -205,7 +206,8 @@ def test_convection_onset():
     """Test that perturbations decay at Rayleigh number 500 and grow into steady rolls at 1000."""
     amplitudes = {}
     for rayleigh in (500.0, 1000.0):
-        trajectory = Simulation(rayleigh_benard(rayleigh, shape=(16, 16)), dt=1.0).run(until=10).trajectory_
+        simulation = Simulation(rayleigh_benard(rayleigh, shape=(16, 16)), dt=1.0, solver=ETDRK4(dt=0.01))
+        trajectory = simulation.run(until=10).trajectory_
         amplitudes[rayleigh] = np.abs(trajectory['flow.theta']).max(axis=1)
     assert amplitudes[500.0][-1] < 1e-6
     assert amplitudes[1000.0][-1] > 0.1
@@ -229,7 +231,7 @@ def test_poisson_needs_spectral_field():
 
 def test_swift_hohenberg_rolls():
     """Test that Swift-Hohenberg above onset forms rolls with a wavelength within 5% of 2 pi."""
-    simulation = Simulation(swift_hohenberg(), dt=10.0).run(until=200)
+    simulation = Simulation(swift_hohenberg(), dt=10.0, solver=ETDRK4(dt=0.5)).run(until=200)
     values = simulation.trajectory_.lattice('cells.u')[-1]
     n, length = values.shape[0], 16 * math.pi
     spectrum = np.abs(np.fft.fft2(values)) ** 2

@@ -2,6 +2,7 @@
 
 import networkx as nx
 import numpy as np
+import pytest
 
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.neuroscience import (
@@ -25,6 +26,7 @@ def test_kinouchi_copelli_activity_dies_out_below_and_persists_above_the_critica
         assert (trajectory['neurons.phase'][-50:] == 1).any() == persists
 
 
+@pytest.mark.slow
 def test_kinouchi_copelli_dynamic_range_peaks_at_the_critical_point():
     """Test that the dynamic range of the response to the stimulus peaks at a branching ratio of 1."""
     graph = nx.gnp_random_graph(2000, 10 / 1999, seed=0)

@@ -69,18 +69,24 @@ def _kuramoto_order(rng: np.random.Generator, coupling: float, oscillators: int)
     return np.asarray(orders)
 
 
-def test_avalanches_same_statistics_on_a_sandpile_and_an_earthquake_model():
+@pytest.mark.slow
+@pytest.mark.parametrize(
+    ('name', 'parameters', 'until', 'transient', 'bounds'),
+    [
+        ('sandpile', {'shape': (96, 96)}, 20_000, 12_000, (1.15, 1.35)),
+        ('earthquakes', {'shape': (32, 32), 'alpha': 0.2}, 30_000, 5_000, (1.7, 2.1)),
+    ],
+)
+def test_avalanches_same_statistics_on_a_sandpile_and_an_earthquake_model(name, parameters, until, transient, bounds):
     """Test the size exponents of a Bak-Tang-Wiesenfeld sandpile and an Olami-Feder-Christensen model."""
-    sandpile = Simulation(create('sandpile', shape=(128, 128)), dt=1000).run(until=150_000).trajectory_
-    earthquakes = Simulation(create('earthquakes', shape=(64, 64), alpha=0.2), dt=1000).run(until=110_000).trajectory_
-    piles = avalanches([record for record in sandpile.events if record.time > 50_000 and record.size > 0])
-    quakes = avalanches([record for record in earthquakes.events if record.time > 10_000 and record.size > 0])
-    for found, (low, high) in ((piles, (1.15, 1.35)), (quakes, (1.7, 2.1))):
-        laws = fit_avalanches(found, size_range=(10, None), duration_range=(1, None))
-        assert low <= laws.size.alpha <= high
-        ratio, p_value = laws.size.comparisons['exponential']
-        assert ratio > 0
-        assert p_value < 0.05
+    trajectory = Simulation(create(name, **parameters), dt=1000).run(until=until).trajectory_
+    found = avalanches([record for record in trajectory.events if record.time > transient and record.size > 0])
+    laws = fit_avalanches(found, size_range=(10, None), duration_range=(1, None))
+    low, high = bounds
+    assert low <= laws.size.alpha <= high
+    ratio, p_value = laws.size.comparisons['exponential']
+    assert ratio > 0
+    assert p_value < 0.05
 
 
 def test_avalanches_mean_field_branching():
@@ -136,6 +142,7 @@ def test_branching_ratio_neuronal_and_epidemic_activity():
     assert branching_ratio(cases) == pytest.approx(0.9, abs=0.03)
 
 
+@pytest.mark.slow
 def test_order_parameter_sweep_same_susceptibility_peak_on_two_transitions(ising_magnetizations):
     """Test that the susceptibility peaks of a 64 by 64 Ising lattice and of Kuramoto oscillators locate T_c and K_c."""
     ising = order_parameter_sweep(

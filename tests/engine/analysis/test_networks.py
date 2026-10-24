@@ -90,6 +90,7 @@ def _adaptive_voter_frames(rng: np.random.Generator) -> list[nx.Graph]:
     return frames
 
 
+@pytest.mark.slow
 def test_summarize_network_small_world():
     """Test that rewiring 1 percent of a ring lattice keeps its clustering and shortens its paths."""
     regular = summarize_network(nx.watts_strogatz_graph(1000, 10, 0.0, seed=0))
@@ -163,6 +164,7 @@ def test_motif_counts_of_four_nodes():
         motif_zscores(nx.path_graph(3), null='shuffle')
 
 
+@pytest.mark.slow
 def test_network_frames_growing_network():
     """Test that frames of a preferential attachment run give one row each and a degree exponent near 3."""
     graph = nx.barabasi_albert_graph(10_000, 2, seed=0)

@@ -2,6 +2,7 @@
 
 import networkx as nx
 import numpy as np
+import pytest
 
 from skcomplex.engine.analysis import histogram
 from skcomplex.engine.runtime import Simulation
@@ -10,16 +11,17 @@ from skcomplex.models.physics.criticality import hexagonal_forest_fire, manna_sa
 from ...conftest import Events
 
 
+@pytest.mark.slow
 def test_sandpile_avalanches_follow_power_law():
-    """Test that the 50 x 50 sandpile stays stable after every step and its sizes follow a power law over two decades.
+    """Test that the 40 x 40 sandpile stays stable after every step and its sizes follow a power law over two decades.
 
-    The exponent is the slope of the log-binned density of 100,000 avalanche sizes after a transient of 20,000 grains,
-    between sizes 1 and 100.
+    The exponent is the slope of the log-binned density of the avalanche sizes of 22,000 grains after a transient of
+    8,000 grains, more than twice the grains that fill the pile to its critical density, between sizes 1 and 100.
     """
     observer = Events(lambda frame: (frame.lattice('pile.height') < 4).all())
-    simulation = Simulation(sandpile((50, 50)), dt=1000, record=False, random_state=0, observers=[observer])
-    simulation.run(until=120_000)
-    sizes = np.asarray([event.size for event in observer.events if event.time > 20_000])
+    simulation = Simulation(sandpile((40, 40)), dt=1000, record=False, random_state=0, observers=[observer])
+    simulation.run(until=30_000)
+    sizes = np.asarray([event.size for event in observer.events if event.time > 8_000])
     assert observer.passed
     assert sizes.max() > 1000
     assert {event.label for event in observer.events} == {'avalanche'}

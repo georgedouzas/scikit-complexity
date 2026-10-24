@@ -19,6 +19,7 @@ def _ishigami(s):
     return sin(s.p.x1) + 7 * sin(s.p.x2) ** 2 + 0.1 * s.p.x3**4 * sin(s.p.x1)
 
 
+@pytest.mark.slow
 def test_sobol_indices_of_ishigami():
     """Test that Sobol first-order indices of the Ishigami function match the known values within 0.05."""
     system = System(components=[Point('p')])

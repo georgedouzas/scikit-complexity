@@ -25,6 +25,7 @@ class Images:
         self.images.append((path, archetype))
 
 
+@pytest.mark.slow
 def test_ising_transition():
     """Test that the ensemble magnetisation of a 64 x 64 Ising lattice drops below one half between 2.2 and 2.4."""
     temperatures = [1.5, 2.0, 2.2, 2.4, 3.0, 3.5]

@@ -308,6 +308,7 @@ def _order(phases):
     return np.abs(np.exp(1j * phases).mean(axis=1))
 
 
+@pytest.mark.slow
 def test_kuramoto_synchronizes_above_the_critical_coupling():
     """Test that 1000 oscillators on a complete graph stay incoherent below `2 gamma` and synchronize above it."""
     below = Simulation(_kuramoto(0.5 * CRITICAL), dt=0.5, solver=RK4(dt=0.1), backend='numba').run(10.0)
