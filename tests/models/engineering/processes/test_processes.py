@@ -2,7 +2,7 @@
 
 import pytest
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.engineering.processes import bathtub, cascade_classifier
 
 from ...conftest import _run_monitored

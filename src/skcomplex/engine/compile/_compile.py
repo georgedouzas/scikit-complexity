@@ -8,8 +8,8 @@ from typing import cast
 
 import numpy as np
 
-from ..base import Form
-from ..system import Observable, System
+from ...core.base import Form
+from ...core.system import Observable, System
 from ._backends import Backend
 from ._compilation import Compilation
 from ._declarations import is_interaction
@@ -146,7 +146,7 @@ def compile_system(
             Validation finds problems of more than one kind, all listed in the message.
 
     Examples:
-        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> problem = compile_system(
@@ -195,7 +195,7 @@ def partition_system(system: System, backend: str | Backend = 'auto') -> Problem
             A partition mixes law kinds that no form supports.
 
     Examples:
-        >>> from skcomplex.core.compile import partition_system
+        >>> from skcomplex.engine.compile import partition_system
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> system = System(

@@ -2,8 +2,8 @@
 
 from typing import Any
 
-from skcomplex.core.runtime import Simulation, Trajectory
 from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation, Trajectory
 
 
 def _run(system: System, until: float, dt: float, **settings: Any) -> Trajectory:  # noqa: ANN401

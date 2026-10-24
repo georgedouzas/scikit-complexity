@@ -12,9 +12,9 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import GF, QQ, LaurentPolynomialRing, matrix
 
-from ..base import AnalysisError
-from ..laws import OuterTotalistic, Table, Totalistic
-from ..space import LatticeSpace, Memory, Neighborhood, SiteSpace
+from ...core.base import AnalysisError
+from ...core.laws import OuterTotalistic, Table, Totalistic
+from ...core.space import LatticeSpace, Memory, Neighborhood, SiteSpace
 from ._information import entropy_rate
 from ._kinds import DataKind, analysis
 from ._lazy import module
@@ -161,7 +161,7 @@ class Automaton:
             The number of values of a cell.
 
     Examples:
-        >>> from skcomplex.core.analysis import Automaton
+        >>> from skcomplex.engine.analysis import Automaton
         >>> from skcomplex.core.laws import Totalistic
         >>> from skcomplex.core.space import LatticeSpace, Neighborhood
         >>> parity = Automaton(LatticeSpace(5), Neighborhood.radius(), Totalistic(lambda total: total % 2))
@@ -367,7 +367,7 @@ def is_injective(automaton: Automaton, *, method: str = 'auto') -> bool:
             The method is unknown, or enumeration is asked for too many configurations.
 
     Examples:
-        >>> from skcomplex.core.analysis import Automaton, is_injective
+        >>> from skcomplex.engine.analysis import Automaton, is_injective
         >>> from skcomplex.core.laws import Table
         >>> from skcomplex.core.space import LatticeSpace, Neighborhood
         >>> shift = Automaton(LatticeSpace(8), Neighborhood(((1,),)), Table({(1,): 1}))
@@ -399,7 +399,7 @@ def is_surjective(automaton: Automaton, *, method: str = 'auto') -> bool:
             The method is unknown, or enumeration is asked for too many configurations.
 
     Examples:
-        >>> from skcomplex.core.analysis import Automaton, is_surjective
+        >>> from skcomplex.engine.analysis import Automaton, is_surjective
         >>> from skcomplex.core.laws import Totalistic
         >>> from skcomplex.core.space import LatticeSpace, Neighborhood
         >>> majority = Automaton(LatticeSpace(8), Neighborhood.radius(), Totalistic(lambda total: total >= 2))
@@ -431,7 +431,7 @@ def is_pre_injective(automaton: Automaton, window: Sequence[int] | None = None, 
             The method is unknown, or enumeration is asked for too many configurations.
 
     Examples:
-        >>> from skcomplex.core.analysis import Automaton, is_pre_injective
+        >>> from skcomplex.engine.analysis import Automaton, is_pre_injective
         >>> from skcomplex.core.laws import Totalistic
         >>> from skcomplex.core.space import LatticeSpace, Neighborhood
         >>> xor = Automaton(LatticeSpace(6), Neighborhood(((0,), (1,))), Totalistic(lambda total: total % 2))
@@ -477,7 +477,7 @@ def garden_of_eden(
             A configuration whose values on the window have no preimage, or `None`.
 
     Examples:
-        >>> from skcomplex.core.analysis import Automaton, garden_of_eden
+        >>> from skcomplex.engine.analysis import Automaton, garden_of_eden
         >>> from skcomplex.core.laws import Totalistic
         >>> from skcomplex.core.space import LatticeSpace, Neighborhood
         >>> majority = Automaton(LatticeSpace(5), Neighborhood.radius(), Totalistic(lambda total: total >= 2))
@@ -520,7 +520,7 @@ def inverse(automaton: Automaton, max_radius: int = 2) -> Automaton | None:
             The universe has too many configurations to enumerate.
 
     Examples:
-        >>> from skcomplex.core.analysis import Automaton, inverse
+        >>> from skcomplex.engine.analysis import Automaton, inverse
         >>> from skcomplex.core.laws import Table
         >>> from skcomplex.core.space import LatticeSpace, Neighborhood
         >>> shift = Automaton(LatticeSpace(6), Neighborhood(((1,),)), Table({(1,): 1}))
@@ -566,7 +566,7 @@ def compose(first: Automaton, second: Automaton) -> Automaton:
             The automata have different spaces or numbers of states.
 
     Examples:
-        >>> from skcomplex.core.analysis import Automaton, compose
+        >>> from skcomplex.engine.analysis import Automaton, compose
         >>> from skcomplex.core.laws import Table
         >>> from skcomplex.core.space import LatticeSpace, Neighborhood
         >>> space = LatticeSpace(5)
@@ -624,7 +624,7 @@ def difference_pattern(
             One row per step, the initial one first, true where the runs differ.
 
     Examples:
-        >>> from skcomplex.core.analysis import Automaton, difference_pattern
+        >>> from skcomplex.engine.analysis import Automaton, difference_pattern
         >>> from skcomplex.core.laws import Totalistic
         >>> from skcomplex.core.space import LatticeSpace, Neighborhood
         >>> parity = Automaton(LatticeSpace(7), Neighborhood.radius(), Totalistic(lambda total: total % 2))
@@ -664,7 +664,7 @@ def spatial_entropy_rates(
             One entropy rate per row.
 
     Examples:
-        >>> from skcomplex.core.analysis import spatial_entropy_rates
+        >>> from skcomplex.engine.analysis import spatial_entropy_rates
         >>> spatial_entropy_rates([[0, 1] * 50, [0, 0] * 50], 2).tolist()
         [0.0, 0.0]
     """
@@ -691,7 +691,7 @@ class Subshift:
             The number of values of a cell.
 
     Examples:
-        >>> from skcomplex.core.analysis import Subshift
+        >>> from skcomplex.engine.analysis import Subshift
         >>> from skcomplex.core.space import LatticeSpace, Neighborhood
         >>> golden = Subshift(Neighborhood(((0,), (1,))), [(1, 1)])
         >>> golden.count(LatticeSpace(6, boundary='fixed'))
@@ -873,7 +873,7 @@ def configuration_entropy(
             One entropy per window.
 
     Examples:
-        >>> from skcomplex.core.analysis import Subshift, configuration_entropy
+        >>> from skcomplex.engine.analysis import Subshift, configuration_entropy
         >>> from skcomplex.core.space import LatticeSpace, Neighborhood
         >>> golden = Subshift(Neighborhood(((0,), (1,))), [(1, 1)])
         >>> configuration_entropy(golden, [LatticeSpace(20, boundary='fixed')]).round(3).tolist()
@@ -931,7 +931,7 @@ class LinearAutomaton:
             `'GF(p)'` for the field of a prime number `p` of elements, or `'QQ'` for the rationals.
 
     Examples:
-        >>> from skcomplex.core.analysis import LinearAutomaton
+        >>> from skcomplex.engine.analysis import LinearAutomaton
         >>> from skcomplex.core.space import LatticeSpace, Neighborhood
         >>> rule90 = LinearAutomaton(LatticeSpace(6), Neighborhood(((-1,), (1,))), (1, 1), 'GF(2)')
         >>> rule90.step([0, 0, 1, 0, 0, 0]).tolist()

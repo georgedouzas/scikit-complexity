@@ -7,7 +7,6 @@ import numpy as np
 import pytest
 import shapely
 
-from skcomplex.core.analysis import box_counting_dimension
 from skcomplex.core.base import (
     Form,
     IncompatibleLawsError,
@@ -18,9 +17,13 @@ from skcomplex.core.base import (
     parameter,
     symbol,
 )
-from skcomplex.core.compile import claiming_pass, compile_system
-from skcomplex.core.formalisms import registered_formalisms
-from skcomplex.core.formalisms.rewriting import (
+from skcomplex.core.system import System
+from skcomplex.engine.analysis import box_counting_dimension
+from skcomplex.engine.compile import claiming_pass, compile_system
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import StructureState
+from skcomplex.formalisms import registered_formalisms
+from skcomplex.formalisms.rewriting import (
     Affine,
     GraphProduction,
     HostGraph,
@@ -38,9 +41,6 @@ from skcomplex.core.formalisms.rewriting import (
     WordGeometry,
     WordStructure,
 )
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import StructureState
-from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import Population
 
 X = symbol('x')

@@ -1,14 +1,14 @@
-"""Test the `_spatial` module of `skcomplex.core.analysis`."""
+"""Test the `_spatial` module of `skcomplex.engine.analysis`."""
 
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError
+from skcomplex.engine.analysis import (
     box_counting_dimension,
     correlation_function,
     label_clusters,
 )
-from skcomplex.core.base import AnalysisError
 
 PERCOLATION_THRESHOLD = 0.5927
 

@@ -7,7 +7,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
-from ...base import (
+from ...core.base import (
     Expression,
     LawClass,
     LawKind,
@@ -16,8 +16,8 @@ from ...base import (
     TimeKind,
     Trait,
 )
-from ...laws import Law, OuterTotalistic, Table, Totalistic
-from ...space import Adjacency, Memory, Neighborhood
+from ...core.laws import Law, OuterTotalistic, Table, Totalistic
+from ...core.space import Adjacency, Memory, Neighborhood
 
 SCHEDULES = ('synchronous', 'random-sequential', 'random-site', 'checkerboard', 'colored')
 MONTE_CARLO_SCHEDULES = ('checkerboard', 'random-sequential', 'colored')
@@ -70,7 +70,7 @@ class LocalRule(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.formalisms.lattices import LocalRule
+        >>> from skcomplex.formalisms.lattices import LocalRule
         >>> from skcomplex.core.laws import Totalistic
         >>> from skcomplex.core.space import Neighborhood
         >>> LocalRule(symbol('cell'), Neighborhood.radius(), Totalistic({2: 1})).schedule
@@ -116,7 +116,7 @@ class Drive(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.formalisms.lattices import Drive
+        >>> from skcomplex.formalisms.lattices import Drive
         >>> Drive(symbol('height'), lambda values, *, random: values + 1).target
         height
     """
@@ -168,7 +168,7 @@ class Relaxation(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.formalisms.lattices import LocalRule, Relaxation
+        >>> from skcomplex.formalisms.lattices import LocalRule, Relaxation
         >>> from skcomplex.core.space import Neighborhood
         >>> height = symbol('height')
         >>> topple = LocalRule(height, Neighborhood.von_neumann(center=True), lambda z, *n: z - 4 * (z >= 4))
@@ -212,7 +212,7 @@ class Energy(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.formalisms.lattices import Energy
+        >>> from skcomplex.formalisms.lattices import Energy
         >>> from skcomplex.core.laws import neighbors
         >>> from skcomplex.core.space import Neighborhood
         >>> spin, J = symbol('spin'), symbol('J')
@@ -250,7 +250,7 @@ class Move(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.formalisms.lattices import Move
+        >>> from skcomplex.formalisms.lattices import Move
         >>> Move.random_value(symbol('color'), range(3)).values
         (0.0, 1.0, 2.0)
     """
@@ -337,7 +337,7 @@ class Sampler(Law):
             `'random-sequential'` to visit the sites one at a time in a random order.
 
     Examples:
-        >>> from skcomplex.core.formalisms.lattices import Sampler
+        >>> from skcomplex.formalisms.lattices import Sampler
         >>> Sampler('glauber', 2.0).schedule
         'checkerboard'
     """
@@ -379,7 +379,7 @@ class Sample(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.formalisms.lattices import Energy, Move, Sample, Sampler
+        >>> from skcomplex.formalisms.lattices import Energy, Move, Sample, Sampler
         >>> from skcomplex.core.space import Neighborhood
         >>> spin = symbol('spin')
         >>> law = Sample(Energy(-spin, Neighborhood.von_neumann()), Move.flip(spin), Sampler('glauber', 2.0))
@@ -435,7 +435,7 @@ class Extremal(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.formalisms.lattices import Extremal
+        >>> from skcomplex.formalisms.lattices import Extremal
         >>> from skcomplex.core.space import Neighborhood
         >>> law = Extremal(symbol('fitness'), Neighborhood.radius(), lambda values, *, random: random)
         >>> law.extremum, law.repeat

@@ -10,8 +10,8 @@ from sage.all__sagemath_symbolics import sin
 from ....core.base import Domain, Expression, parameter, state
 from ....core.components import Element
 from ....core.laws import Auxiliary, Law, Rate, Sink, Source, Symbols, Transfer, lookup, step, where
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 from ._delays import delay3, smooth
 
 MONTHS_PER_YEAR = 12.0

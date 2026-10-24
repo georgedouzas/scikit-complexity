@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._adapters import Ensemble
 from ._kinds import DataKind, analysis
 
@@ -55,7 +55,7 @@ def ergodicity_breaking(values: npt.ArrayLike | Ensemble) -> float:
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import ergodicity_breaking
+        >>> from skcomplex.engine.analysis import ergodicity_breaking
         >>> ergodicity_breaking([[1.0, -1.0, 1.0, -1.0], [-1.0, 1.0, -1.0, 1.0]])
         0.0
         >>> ergodicity_breaking([[1.0, 1.0], [-1.0, -1.0]])
@@ -116,7 +116,7 @@ def fluctuation_metric(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import fluctuation_metric
+        >>> from skcomplex.engine.analysis import fluctuation_metric
         >>> frozen = np.repeat([[1.0], [-1.0]], 100, axis=1)
         >>> found = fluctuation_metric(frozen)
         >>> float(found.metric[-1]), round(found.exponent, 6)
@@ -157,7 +157,7 @@ def ergodicity_distance(values: npt.ArrayLike | Ensemble, bins: int = BINS) -> f
             The values hold fewer than two runs.
 
     Examples:
-        >>> from skcomplex.core.analysis import ergodicity_distance
+        >>> from skcomplex.engine.analysis import ergodicity_distance
         >>> ergodicity_distance([[0.0, 1.0, 0.0, 1.0], [1.0, 0.0, 1.0, 0.0]])
         0.0
         >>> ergodicity_distance([[0.0, 0.0], [1.0, 1.0]])

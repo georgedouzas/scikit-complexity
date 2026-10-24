@@ -11,7 +11,7 @@ from typing import Any
 import numpy as np
 from scipy.optimize import brentq
 
-from ..base import SolverError
+from ...core.base import SolverError
 from ..compile import CompiledEvent, EventRecord, Problem, Record, Vector
 
 type Interpolant = Callable[[float], Vector]

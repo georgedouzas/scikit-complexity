@@ -5,7 +5,7 @@
 
 from typing import cast
 
-from ...base import symbol
+from ....core.base import symbol
 from .._compilation import Compilation
 from .._declarations import Declarations, check_symbol_names
 from .._pipeline import Pass

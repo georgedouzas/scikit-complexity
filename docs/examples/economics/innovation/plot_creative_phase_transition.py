@@ -15,8 +15,8 @@ final diversity jumps discontinuously as the rule density crosses the critical l
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'creative_phase_transition'

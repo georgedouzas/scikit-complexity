@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import ValidationError, VisualSpec
-from skcomplex.core.runtime import Observer, Simulation
-from skcomplex.core.viz import BodiesVisual, resolve_visual
+from skcomplex.engine.runtime import Observer, Simulation
+from skcomplex.engine.viz import BodiesVisual, resolve_visual
 from skcomplex.models import create
 
 

@@ -10,10 +10,10 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
+from ...core.space import ContinuousSpace, LatticeSpace, NetworkSpace, Space
 from ..compile import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
-from ..space import ContinuousSpace, LatticeSpace, NetworkSpace, Space
 from ._colors import _widened, colors_of
 from ._utils import GRID_RADIUS, NODE_SPACING, UPWARD, _network_layout, _radius_of
 from ._visuals import Visual, register_visual
@@ -52,7 +52,7 @@ class AgentsVisual(Visual):
             The name of a state that holds the position of every agent, or `None` for the location in the space.
 
     Examples:
-        >>> from skcomplex.core.viz import AgentsVisual
+        >>> from skcomplex.engine.viz import AgentsVisual
         >>> AgentsVisual(color_by='opinion').color_by
         'opinion'
     """
@@ -198,8 +198,8 @@ class AgentsVisual(Visual):
                 position state.
 
         Examples:
-            >>> from skcomplex.core.compile import compile_system
-            >>> from skcomplex.core.viz import AgentsVisual
+            >>> from skcomplex.engine.compile import compile_system
+            >>> from skcomplex.engine.viz import AgentsVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('voter_model'))
             >>> type(AgentsVisual().views(problem.agents[0], problem)[0]).__name__

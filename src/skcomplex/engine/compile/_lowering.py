@@ -8,7 +8,7 @@ import numbers
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ..base import Expression, SymbolicVector, ValidationError
+from ...core.base import Expression, SymbolicVector, ValidationError
 
 SHIFT = 'shift_member'
 

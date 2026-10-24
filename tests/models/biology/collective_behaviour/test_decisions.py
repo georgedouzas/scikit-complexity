@@ -2,7 +2,7 @@
 
 import pytest
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.collective_behaviour import (
     binary_ant_decision,
     rats,

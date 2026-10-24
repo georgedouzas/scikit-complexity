@@ -1,6 +1,6 @@
 """Agent-based models: rules written as code, matchings, phases of a step, agent memories, and the Mesa backend."""
 
-from ...base import Form
+from ...core.base import Form
 from .._formalism import Formalism, register
 from ._backends import AgentView, MesaStepper, ModelView
 from ._components import memory

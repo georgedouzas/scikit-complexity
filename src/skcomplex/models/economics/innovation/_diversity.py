@@ -6,8 +6,8 @@
 from ....core.base import Domain, Expression, state
 from ....core.components import Element
 from ....core.laws import Update, where
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 
 def _new_entities(previous: Expression, current: Expression, r: Expression) -> Expression:

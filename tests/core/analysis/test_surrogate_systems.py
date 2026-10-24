@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import Series, fit_dmd
+from skcomplex.engine.analysis import Series, fit_dmd
 
 
 def _series(labels):

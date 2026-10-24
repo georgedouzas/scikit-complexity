@@ -3,13 +3,13 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError, UnobservedStatesWarning
+from skcomplex.engine.analysis import (
     causal_emergence,
     effective_information,
     partition_coarse_grain,
     transition_matrix,
 )
-from skcomplex.core.base import AnalysisError, UnobservedStatesWarning
 
 BLOCKS = np.asarray([[0.3, 0.7], [0.6, 0.4]])
 NOISY_STATES = 7

@@ -1,7 +1,7 @@
 """Test the `_langevin` module of `skcomplex.models.engineering.traffic`."""
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import RK4, EulerMaruyama
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import RK4, EulerMaruyama
 from skcomplex.models.engineering.traffic import langevin_traffic, traffic_density_equation
 
 

@@ -9,9 +9,9 @@ from typing import Any
 
 import numpy as np
 
+from ...core.system import Observable, System
 from ..compile import Problem, observables_of
 from ..runtime import Frame, Observer, Simulation, Trajectory
-from ..system import Observable, System
 from ._designs import Row
 from ._results import RunResult
 from ._scenarios import Scenario

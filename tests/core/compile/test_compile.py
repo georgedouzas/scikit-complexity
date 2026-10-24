@@ -1,4 +1,4 @@
-"""Test the `_compile` module of `skcomplex.core.compile`."""
+"""Test the `_compile` module of `skcomplex.engine.compile`."""
 
 import time
 
@@ -21,13 +21,13 @@ from skcomplex.core.base import (
     role,
     symbol,
 )
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.particles import PairPotential, Particle
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Boundary, Jump, Noise, Rate, Update, mod
 from skcomplex.core.space import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
+from skcomplex.formalisms.particles import PairPotential, Particle
 from skcomplex.models.biology.ecology import ExponentialGrowth, LogisticGrowth, Population, Predation
 from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
 from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion

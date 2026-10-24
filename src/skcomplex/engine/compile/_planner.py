@@ -7,8 +7,8 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any, cast
 
-from ..base import Form, IncompatibleLawsError, LawKind, Registry
-from ..system import System
+from ...core.base import Form, IncompatibleLawsError, LawKind, Registry
+from ...core.system import System
 from ._backends import _load_backends
 from ._census import Census
 from ._forms import fits_form

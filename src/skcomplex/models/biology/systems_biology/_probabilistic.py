@@ -12,8 +12,8 @@ from ....core.base import Domain, Expression, ValidationError, role, state
 from ....core.components import Element
 from ....core.interactions import Interaction
 from ....core.laws import Law, Symbols, Update, categorical, where
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 from ._boolean import _pattern
 
 type Candidates = Sequence[tuple[Sequence[int], float]]

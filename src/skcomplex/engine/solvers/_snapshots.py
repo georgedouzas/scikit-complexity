@@ -63,7 +63,7 @@ class StructureState:
             A mapping from dotted reporter name, such as `<path>.length`, to its value.
 
     Examples:
-        >>> from skcomplex.core.solvers import StructureState
+        >>> from skcomplex.engine.solvers import StructureState
         >>> StructureState(reporters={'cantor.length': 1.0}).reporters['cantor.length']
         1.0
     """

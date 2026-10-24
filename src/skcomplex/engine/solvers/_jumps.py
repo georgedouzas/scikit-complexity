@@ -7,7 +7,7 @@ from typing import ClassVar
 
 import numpy as np
 
-from ..base import (
+from ...core.base import (
     ComponentKind,
     DomainKind,
     Form,
@@ -31,10 +31,10 @@ class Gillespie(Stepper):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.epidemiology import Compartment, Recovery
-        >>> from skcomplex.core.solvers import Gillespie
+        >>> from skcomplex.engine.solvers import Gillespie
         >>> problem = compile_system(
         ...     System(
         ...         components=[Compartment('I', n=10), Compartment('R', n=0)],
@@ -153,11 +153,11 @@ class RenewalStepper(Stepper):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.components import Element
         >>> from skcomplex.core.laws import Jump, draw
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.core.solvers import RenewalStepper
+        >>> from skcomplex.engine.solvers import RenewalStepper
         >>> Counter = Element.define(
         ...     'Counter',
         ...     states={'n': 0.0},

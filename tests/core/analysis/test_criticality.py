@@ -6,7 +6,8 @@ import numpy as np
 import pytest
 from scipy import optimize
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError
+from skcomplex.engine.analysis import (
     Avalanches,
     avalanches,
     branching_ratio,
@@ -17,8 +18,7 @@ from skcomplex.core.analysis import (
     order_parameter_sweep,
     replica_overlap,
 )
-from skcomplex.core.base import AnalysisError
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
 
 from .conftest import ISING_TEMPERATURES

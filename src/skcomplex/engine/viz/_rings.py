@@ -7,7 +7,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ..base import wrap_angle
+from ...core.base import wrap_angle
 from ..compile import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 from ._colors import _phase_colors
@@ -42,7 +42,7 @@ class PhaseRingVisual(Visual):
             member, or `None` for the member index.
 
     Examples:
-        >>> from skcomplex.core.viz import PhaseRingVisual
+        >>> from skcomplex.engine.viz import PhaseRingVisual
         >>> PhaseRingVisual('theta').phase
         'theta'
     """

@@ -1,16 +1,16 @@
-"""Test the `_components` module of `skcomplex.core.formalisms.fields`."""
+"""Test the `_components` module of `skcomplex.formalisms.fields`."""
 
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import structure_factor
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.fields import Field, laplacian
 from skcomplex.core.laws import Noise, Rate
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import EulerMaruyama, Heun
 from skcomplex.core.space import LatticeSpace
 from skcomplex.core.system import System
+from skcomplex.engine.analysis import structure_factor
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import EulerMaruyama, Heun
+from skcomplex.formalisms.fields import Field, laplacian
 
 Conserved = Element.define(
     'Conserved',

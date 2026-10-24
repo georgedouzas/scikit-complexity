@@ -10,7 +10,7 @@ from typing import Protocol, runtime_checkable
 import numpy as np
 import numpy.typing as npt
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._kinds import DataKind, analysis
 from ._lazy import module
 from ._statistics import PowerLawFit, fit_power_law
@@ -84,7 +84,7 @@ def avalanches(source: npt.ArrayLike | Sequence['_Relaxation'], threshold: float
             The sizes, the durations, and the profiles.
 
     Examples:
-        >>> from skcomplex.core.analysis import avalanches
+        >>> from skcomplex.engine.analysis import avalanches
         >>> found = avalanches([0, 1, 2, 1, 0, 3, 0])
         >>> found.sizes.tolist(), found.durations.tolist()
         ([4.0, 3.0], [3.0, 1.0])
@@ -157,7 +157,7 @@ def fit_avalanches(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import Avalanches, fit_avalanches
+        >>> from skcomplex.engine.analysis import Avalanches, fit_avalanches
         >>> rng = np.random.default_rng(0)
         >>> sizes = np.floor((1 - rng.random(5000)) ** (-1 / 0.5))
         >>> laws = fit_avalanches(Avalanches(sizes, sizes, []), size_range=(1, None), duration_range=(1, None))
@@ -243,7 +243,7 @@ def crackling_noise(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import Avalanches, crackling_noise
+        >>> from skcomplex.engine.analysis import Avalanches, crackling_noise
         >>> durations = np.repeat(np.arange(1.0, 21.0), 20)
         >>> round(crackling_noise(Avalanches(durations**2, durations, [])).exponent, 3)
         2.0
@@ -292,7 +292,7 @@ def branching_ratio(activity: npt.ArrayLike, max_step: int = 40, *, dt: float = 
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import branching_ratio
+        >>> from skcomplex.engine.analysis import branching_ratio
         >>> rng = np.random.default_rng(0)
         >>> activity = np.zeros(20_000)
         >>> activity[0] = 100
@@ -372,7 +372,7 @@ def order_parameter_sweep(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import order_parameter_sweep
+        >>> from skcomplex.engine.analysis import order_parameter_sweep
         >>> rng = np.random.default_rng(0)
         >>> samples = [rng.normal(0, width, 1000) for width in (0.1, 0.5, 0.2)]
         >>> order_parameter_sweep([1.0, 2.0, 3.0], samples, 100).peak > 1.5
@@ -404,7 +404,7 @@ def replica_overlap(first: npt.ArrayLike, second: npt.ArrayLike) -> Array | floa
             The overlap, ±1 for identical or reversed configurations and near 0 for independent ones.
 
     Examples:
-        >>> from skcomplex.core.analysis import replica_overlap
+        >>> from skcomplex.engine.analysis import replica_overlap
         >>> replica_overlap([1, -1, 1, 1], [1, -1, -1, 1])
         0.5
     """
@@ -449,7 +449,7 @@ def fit_order_exponent(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import fit_order_exponent
+        >>> from skcomplex.engine.analysis import fit_order_exponent
         >>> temperatures = np.linspace(0.9, 0.99, 10)
         >>> round(fit_order_exponent(temperatures, np.sqrt(1 - temperatures), 1.0), 6)
         0.5

@@ -8,10 +8,15 @@ import pytest
 from sage.all__sagemath_symbolics import cos
 
 from skcomplex.core.base import ValidationError
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
-from skcomplex.core.experiments import Experiment, Grid
-from skcomplex.core.formalisms.lattices import (
+from skcomplex.core.laws import OuterTotalistic, Table, Totalistic, neighbors
+from skcomplex.core.space import Adjacency, LatticeSpace, Neighborhood, NetworkSpace
+from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.experiments import Experiment, Grid
+from skcomplex.engine.runtime import Frame, Simulation
+from skcomplex.engine.viz import RerunObserver, SiteVisual
+from skcomplex.formalisms.lattices import (
     CompiledExtremal,
     Energy,
     Extremal,
@@ -21,11 +26,6 @@ from skcomplex.core.formalisms.lattices import (
     Sample,
     Sampler,
 )
-from skcomplex.core.laws import OuterTotalistic, Table, Totalistic, neighbors
-from skcomplex.core.runtime import Frame, Simulation
-from skcomplex.core.space import Adjacency, LatticeSpace, Neighborhood, NetworkSpace
-from skcomplex.core.system import System
-from skcomplex.core.viz import RerunObserver, SiteVisual
 from skcomplex.models.physics.criticality import hexagonal_forest_fire
 from skcomplex.models.physics.statistical_mechanics import graph_ising
 

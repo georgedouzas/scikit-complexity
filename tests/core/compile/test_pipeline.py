@@ -5,8 +5,8 @@ import sys
 import pytest
 
 from skcomplex.core.base import PipelineError
-from skcomplex.core.compile import Compilation, Pass, compile_system, order_passes, run_passes
 from skcomplex.core.system import System
+from skcomplex.engine.compile import Compilation, Pass, compile_system, order_passes, run_passes
 from skcomplex.models import create
 
 

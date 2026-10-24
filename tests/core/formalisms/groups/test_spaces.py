@@ -7,18 +7,18 @@ import pytest
 
 from skcomplex.core.base import Domain, SpaceKind, SpaceTooLargeError, ValidationError, state
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.groups import (
+from skcomplex.core.laws import Table, Totalistic
+from skcomplex.core.space import LatticeSpace, Memory, Neighborhood, neighbor_pairs
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.formalisms.groups import (
     GroupSpace,
     automaton_group,
     finitely_presented_group,
     matrix_group,
     permutation_group,
 )
-from skcomplex.core.formalisms.lattices import LocalRule
-from skcomplex.core.laws import Table, Totalistic
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.space import LatticeSpace, Memory, Neighborhood, neighbor_pairs
-from skcomplex.core.system import System
+from skcomplex.formalisms.lattices import LocalRule
 
 HEISENBERG = ([[1, 1, 0], [0, 1, 0], [0, 0, 1]], [[1, 0, 0], [0, 1, 1], [0, 0, 1]])
 GRIGORCHUK = {

@@ -13,14 +13,14 @@ from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.formalisms.fields import Field, advection, divergence, gradient, laplacian
-from ....core.formalisms.particles import Particle
 from ....core.interactions import Interaction
 from ....core.laws import Law, Noise, Rate, Symbols
-from ....core.runtime import register_model
-from ....core.solvers import RK4, EulerMaruyama
 from ....core.space import ContinuousSpace, LatticeSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....engine.solvers import RK4, EulerMaruyama
+from ....formalisms.fields import Field, advection, divergence, gradient, laplacian
+from ....formalisms.particles import Particle
 from ._particles import ActiveParticle
 
 type Array = npt.NDArray[np.float64]

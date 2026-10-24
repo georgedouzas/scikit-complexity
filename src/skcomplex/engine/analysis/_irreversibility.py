@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._kinds import DataKind, analysis
 from ._transitions import stationary_distribution, transition_counts
 
@@ -40,7 +40,7 @@ def entropy_production(rates: npt.ArrayLike) -> float:
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import entropy_production
+        >>> from skcomplex.engine.analysis import entropy_production
         >>> ring = 2 * np.roll(np.eye(5), 1, axis=1) + np.roll(np.eye(5), -1, axis=1)
         >>> bool(abs(entropy_production(ring) - np.log(2)) < 1e-12)
         True
@@ -90,7 +90,7 @@ def jump_entropy_production(paths: npt.ArrayLike, rates: npt.ArrayLike, duration
             The entropy of every path and the mean rate.
 
     Examples:
-        >>> from skcomplex.core.analysis import jump_entropy_production
+        >>> from skcomplex.engine.analysis import jump_entropy_production
         >>> jump_entropy_production([0, 1, 0, 1], [[0, 2], [1, 0]], 3.0).entropies.round(3).tolist()
         [0.693]
     """
@@ -135,7 +135,7 @@ def langevin_entropy_production(
             The entropy of every path and the mean rate.
 
     Examples:
-        >>> from skcomplex.core.analysis import langevin_entropy_production
+        >>> from skcomplex.engine.analysis import langevin_entropy_production
         >>> langevin_entropy_production([[0.0, 0.5, 1.0]], 1.0, 1.0, 0.5).rate
         1.0
     """
@@ -168,7 +168,7 @@ def count_entropy_production(states: npt.ArrayLike, n_states: int | None = None,
             The estimated entropy production per unit time.
 
     Examples:
-        >>> from skcomplex.core.analysis import count_entropy_production
+        >>> from skcomplex.engine.analysis import count_entropy_production
         >>> count_entropy_production([0, 1, 0, 1, 0])
         0.0
     """
@@ -220,7 +220,7 @@ def fluctuation_theorem(entropies: npt.ArrayLike, bins: int = 40) -> Fluctuation
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import fluctuation_theorem
+        >>> from skcomplex.engine.analysis import fluctuation_theorem
         >>> samples = np.random.default_rng(0).normal(1.0, np.sqrt(2.0), 200_000)
         >>> round(fluctuation_theorem(samples).slope, 1)
         1.0
@@ -308,7 +308,7 @@ def uncertainty_relation(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import uncertainty_relation
+        >>> from skcomplex.engine.analysis import uncertainty_relation
         >>> currents = np.random.default_rng(0).normal(10.0, np.sqrt(30.0), 5000)
         >>> relation = uncertainty_relation(currents, entropy_production=10.0, random_state=0)
         >>> round(relation.product, 1), relation.holds

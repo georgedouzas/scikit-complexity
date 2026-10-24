@@ -3,14 +3,14 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.backends import NumpyBackend
 from skcomplex.core.base import Form, OrderKind, Supports, ValidationError, state
-from skcomplex.core.compile import compile_system, validate
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.fractional import FractionalNoise, GrunwaldLetnikov
 from skcomplex.core.laws import Noise, Rate
 from skcomplex.core.space import DiscreteTime
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumpyBackend
+from skcomplex.engine.compile import compile_system, validate
+from skcomplex.formalisms.fractional import FractionalNoise, GrunwaldLetnikov
 
 
 def _fractional(amplitude, hurst):

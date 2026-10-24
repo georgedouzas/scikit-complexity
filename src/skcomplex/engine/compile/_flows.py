@@ -13,7 +13,7 @@ from typing import Any, Protocol
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ..base import (
+from ...core.base import (
     ConservationError,
     Domain,
     Expression,
@@ -24,9 +24,22 @@ from ..base import (
     symbol,
     symbols_of,
 )
-from ..laws import Auxiliary, Boundary, Event, Invariant, Jump, Law, Noise, Objective, Rate, Sink, Transfer, Update
-from ..laws import Source as Environment
-from ..laws._flows import delay_parts
+from ...core.laws import (
+    Auxiliary,
+    Boundary,
+    Event,
+    Invariant,
+    Jump,
+    Law,
+    Noise,
+    Objective,
+    Rate,
+    Sink,
+    Transfer,
+    Update,
+)
+from ...core.laws import Source as Environment
+from ...core.laws._flows import delay_parts
 from ._arrays import Vector
 from ._kernels import Reference
 from ._kernels import Source as Read

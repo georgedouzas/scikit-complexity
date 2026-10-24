@@ -10,9 +10,9 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...compile import CompiledAgents, CompiledElement, Problem
-from ...runtime import Frame
-from ...viz import Visual, colors_of, log_scalars
+from ...engine.compile import CompiledAgents, CompiledElement, Problem
+from ...engine.runtime import Frame
+from ...engine.viz import Visual, colors_of, log_scalars
 from ._components import Patch, Word
 from ._structures import GraphStructure, PatchStructure, Structure, WordStructure
 
@@ -79,7 +79,7 @@ class GeometryVisual(Visual):
             The side in pixels of the image of a filled patch.
 
     Examples:
-        >>> from skcomplex.core.formalisms.rewriting import GeometryVisual
+        >>> from skcomplex.formalisms.rewriting import GeometryVisual
         >>> GeometryVisual(filled=True)
         GeometryVisual(filled=True, resolution=512)
     """
@@ -149,8 +149,8 @@ class GeometryVisual(Visual):
                 otherwise, followed by the time series view.
 
         Examples:
-            >>> from skcomplex.core.compile import compile_system
-            >>> from skcomplex.core.formalisms.rewriting import GeometryVisual
+            >>> from skcomplex.engine.compile import compile_system
+            >>> from skcomplex.formalisms.rewriting import GeometryVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('koch_curve'))
             >>> [type(view).__name__ for view in GeometryVisual().views(problem.elements[0], problem)]

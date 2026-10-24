@@ -8,11 +8,8 @@ import numpy as np
 import pytest
 from scipy import stats
 
-from skcomplex.core.analysis import conservation, loop_dominance, loops
 from skcomplex.core.base import ConservationError, LabelError, ValidationError, parameter, role, state
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.agents import Rule
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import (
     Auxiliary,
@@ -29,9 +26,12 @@ from skcomplex.core.laws import (
     transfer,
     where,
 )
-from skcomplex.core.runtime import ConservationMonitor, Simulation
 from skcomplex.core.space import DiscreteTime
 from skcomplex.core.system import System
+from skcomplex.engine.analysis import conservation, loop_dominance, loops
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import ConservationMonitor, Simulation
+from skcomplex.formalisms.agents import Rule
 
 
 class Tanks(Element):

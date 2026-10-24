@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._kinds import DataKind, analysis
 from ._utils import sample_columns
 
@@ -87,7 +87,7 @@ def surrogate_test(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import o_information, surrogate_test
+        >>> from skcomplex.engine.analysis import o_information, surrogate_test
         >>> bit = np.random.default_rng(0).integers(0, 2, 500)
         >>> test = surrogate_test(o_information, np.column_stack([bit, bit, bit]), n=19, random_state=0)
         >>> round(test.value, 1), test.p_value

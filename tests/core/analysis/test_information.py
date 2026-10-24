@@ -3,7 +3,8 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError
+from skcomplex.engine.analysis import (
     block_entropy,
     correlation_information,
     entropy_rate,
@@ -16,7 +17,6 @@ from skcomplex.core.analysis import (
     symbolize,
     transfer_entropy,
 )
-from skcomplex.core.base import AnalysisError
 
 
 def test_periodic_sequence():

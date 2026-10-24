@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy import ndimage
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._kinds import DataKind, analysis
 from ._utils import real_array
 
@@ -83,7 +83,7 @@ def label_clusters(occupied: npt.ArrayLike, *, periodic: bool = False, diagonal:
             The labels and the sizes of the clusters.
 
     Examples:
-        >>> from skcomplex.core.analysis import label_clusters
+        >>> from skcomplex.engine.analysis import label_clusters
         >>> grid = [[1, 0, 1], [0, 0, 0], [1, 0, 1]]
         >>> label_clusters(grid).sizes.tolist(), label_clusters(grid, periodic=True).sizes.tolist()
         ([1, 1, 1, 1], [4])
@@ -117,7 +117,7 @@ def correlation_function(field: npt.ArrayLike, max_r: int | None = None) -> tupl
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import correlation_function
+        >>> from skcomplex.engine.analysis import correlation_function
         >>> distances, values = correlation_function(np.random.default_rng(0).normal(size=(64, 64)), 3)
         >>> float(values[0]), bool(abs(values[1]) < 0.1)
         (1.0, True)
@@ -155,7 +155,7 @@ def box_counting_dimension(occupied: npt.ArrayLike, sizes: npt.ArrayLike | None 
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import box_counting_dimension
+        >>> from skcomplex.engine.analysis import box_counting_dimension
         >>> round(box_counting_dimension(np.ones((256, 256), dtype=bool)), 2)
         2.0
     """

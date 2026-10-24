@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ..base import (
+from ...core.base import (
     Domain,
     Expression,
     LabelError,
@@ -26,9 +26,9 @@ from ..base import (
     symbol,
     vector,
 )
-from ..components import Group
-from ..laws import Jump, Law, Symbols, has_reductions, neighborhoods_in, reductions_in
-from ..space import NetworkSpace, SiteSpace, Space, neighbor_pairs
+from ...core.components import Group
+from ...core.laws import Jump, Law, Symbols, has_reductions, neighborhoods_in, reductions_in
+from ...core.space import NetworkSpace, SiteSpace, Space, neighbor_pairs
 from ._declarations import ACTIVE, ENDS, Block, Declarations, is_interaction
 from ._kernels import EdgeSearch, Reference, Search, Source
 from ._real_parts import real_components_of

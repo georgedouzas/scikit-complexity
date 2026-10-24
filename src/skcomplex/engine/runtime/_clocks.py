@@ -29,7 +29,7 @@ class AsFastAsPossible(Clock):
     """Clock that never waits.
 
     Examples:
-        >>> from skcomplex.core.runtime import AsFastAsPossible
+        >>> from skcomplex.engine.runtime import AsFastAsPossible
         >>> clock = AsFastAsPossible()
         >>> clock.start()
         >>> clock.wait(10.0)
@@ -46,7 +46,7 @@ class RealTime(Clock):
             The number of simulated time units per second of wall time.
 
     Examples:
-        >>> from skcomplex.core.runtime import RealTime
+        >>> from skcomplex.engine.runtime import RealTime
         >>> clock = RealTime(speed=100.0)
         >>> clock.start()
         >>> clock.wait(1.0)

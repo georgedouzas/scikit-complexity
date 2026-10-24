@@ -1,6 +1,6 @@
 """Test the `_stem_cells` module of `skcomplex.models.biology.oncology`."""
 
-from skcomplex.core.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODE
 from skcomplex.models.biology.oncology import (
     bone_marrow_blood_leukaemia,
     leukaemia_stem_cells,

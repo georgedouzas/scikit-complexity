@@ -12,8 +12,8 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, dirac_delta, sgn
 
+from ...core.system import System
 from ..compile import SCALAR_DIALECT, Problem, print_expressions
-from ..system import System
 from ._stability import Dynamics, dynamics_of
 
 FUNCTIONS: dict[str, Callable[..., Any]] = {}
@@ -158,7 +158,7 @@ def lyapunov_spectrum(
             The system is not an ODE or a discrete map, has callable laws, or has a group above the member limit.
 
     Examples:
-        >>> from skcomplex.core.analysis import lyapunov_spectrum
+        >>> from skcomplex.engine.analysis import lyapunov_spectrum
         >>> from skcomplex.models.mathematics.dynamical_systems import logistic_map
         >>> float(lyapunov_spectrum(logistic_map(r=4.0), until=20000)[0].round(2))
         0.69

@@ -6,8 +6,8 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from ...base import ValidationError
-from ...space import Schedule
+from ...core.base import ValidationError
+from ...core.space import Schedule
 
 ACTIVATIONS = ('random', 'sequential', 'simultaneous', 'by-type')
 DEFAULT_PHASE = 'default'
@@ -38,7 +38,7 @@ class Phase:
             declaration.
 
     Examples:
-        >>> from skcomplex.core.formalisms.agents import Phase
+        >>> from skcomplex.formalisms.agents import Phase
         >>> Phase('trade', activation='simultaneous', repeat=3)
         Phase(name='trade', activation='simultaneous', repeat=3, groups=None)
     """
@@ -66,7 +66,7 @@ class Phases(Schedule):
             The phases, each with its rules and activation policy.
 
     Examples:
-        >>> from skcomplex.core.formalisms.agents import Phase, Phases
+        >>> from skcomplex.formalisms.agents import Phase, Phases
         >>> [phase.name for phase in Phases([Phase('produce'), Phase('trade')]).phases]
         ['produce', 'trade']
     """

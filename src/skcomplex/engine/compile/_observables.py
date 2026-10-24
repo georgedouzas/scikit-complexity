@@ -13,7 +13,7 @@ import numpy.typing as npt
 import scipy.sparse
 from sage.all__sagemath_symbolics import SR, I
 
-from ..base import (
+from ...core.base import (
     Domain,
     Expression,
     Form,
@@ -26,9 +26,9 @@ from ..base import (
     symbols_of,
     vector,
 )
-from ..components import Aggregate
-from ..laws import Reduction, Symbols, count, maximum, mean, minimum, reductions_in, total, variance
-from ..system import Observable, System, reduce_values
+from ...core.components import Aggregate
+from ...core.laws import Reduction, Symbols, count, maximum, mean, minimum, reductions_in, total, variance
+from ...core.system import Observable, System, reduce_values
 from ._arrays import Vector
 from ._complex import joined_complex
 from ._declarations import Block, Declarations
@@ -429,7 +429,7 @@ class ObservableEvaluator:
             The compiled problem.
 
     Examples:
-        >>> from skcomplex.core.compile import ObservableEvaluator, compile_system
+        >>> from skcomplex.engine.compile import ObservableEvaluator, compile_system
         >>> from skcomplex.core.system import Observable, System
         >>> from skcomplex.models.biology.ecology import Population
         >>> system = System(components=[Population.group('herd', 2, n=[2.0, 6.0])])

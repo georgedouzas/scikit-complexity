@@ -4,10 +4,10 @@ import numpy as np
 
 from skcomplex.core.base import state
 from skcomplex.core.components import Element, Group
-from skcomplex.core.formalisms.agents import Match, Rule, matches, random_pairing
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.formalisms.agents import Match, Rule, matches, random_pairing
 
 
 class Trader(Element):

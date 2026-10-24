@@ -3,8 +3,8 @@
 import pytest
 
 from skcomplex.core.base import SimulationError
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.system import Observable, System
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.economics.realizations import (
     Institution,
 )

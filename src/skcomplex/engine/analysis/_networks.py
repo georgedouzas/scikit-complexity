@@ -11,9 +11,9 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.metrics import normalized_mutual_info_score
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
+from ...core.space import NetworkSpace
 from ..compile import NetworkSnapshot
-from ..space import NetworkSpace
 from ._kinds import DataKind, analysis
 from ._statistics import fit_power_law
 
@@ -82,7 +82,7 @@ def degrees(network: object) -> npt.NDArray[np.int64]:
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.core.analysis import degrees
+        >>> from skcomplex.engine.analysis import degrees
         >>> degrees(nx.star_graph(3)).tolist()
         [3, 1, 1, 1]
     """
@@ -139,7 +139,7 @@ def summarize_network(network: object) -> NetworkSummary:
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.core.analysis import summarize_network
+        >>> from skcomplex.engine.analysis import summarize_network
         >>> summary = summarize_network(nx.cycle_graph(10))
         >>> summary.mean_degree, summary.clustering, summary.diameter
         (2.0, 0.0, 5)
@@ -180,7 +180,7 @@ def centrality(network: object, kind: str = 'degree') -> dict[object, float]:
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.core.analysis import centrality
+        >>> from skcomplex.engine.analysis import centrality
         >>> centrality(nx.star_graph(3), 'betweenness')[0]
         1.0
     """
@@ -214,7 +214,7 @@ def degree_moments(network: object, orders: Sequence[int] = (1, 2)) -> list[floa
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.core.analysis import degree_moments
+        >>> from skcomplex.engine.analysis import degree_moments
         >>> degree_moments(nx.star_graph(3))
         [1.5, 3.0]
     """
@@ -242,7 +242,7 @@ def assortativity(network: object, attribute: str | None = None, *, numeric: boo
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.core.analysis import assortativity
+        >>> from skcomplex.engine.analysis import assortativity
         >>> graph = nx.Graph([(0, 1), (2, 3)])
         >>> nx.set_node_attributes(graph, {0: 'a', 1: 'a', 2: 'b', 3: 'b'}, 'group')
         >>> assortativity(graph, 'group')
@@ -270,7 +270,7 @@ def neighbor_degree(network: object) -> tuple[npt.NDArray[np.int64], npt.NDArray
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.core.analysis import neighbor_degree
+        >>> from skcomplex.engine.analysis import neighbor_degree
         >>> found = neighbor_degree(nx.star_graph(3))
         >>> found[0].tolist(), found[1].tolist()
         ([1, 3], [3.0, 1.0])
@@ -334,7 +334,7 @@ def communities(
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.core.analysis import communities
+        >>> from skcomplex.engine.analysis import communities
         >>> graph = nx.disjoint_union(nx.complete_graph(5), nx.complete_graph(5))
         >>> found = communities(graph, reference=[0] * 5 + [1] * 5, random_state=0)
         >>> round(found.modularity, 2), found.agreement
@@ -380,7 +380,7 @@ def network_frames(
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.core.analysis import network_frames
+        >>> from skcomplex.engine.analysis import network_frames
         >>> rows = network_frames([nx.path_graph(3), nx.complete_graph(3)])
         >>> [row['clustering'] for row in rows]
         [0.0, 1.0]

@@ -7,8 +7,8 @@ from sage.all__sagemath_symbolics import abs_symbolic
 
 from ....core.components import Element
 from ....core.laws import Rate
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 StommelBoxes = Element.define(
     'StommelBoxes',

@@ -7,8 +7,12 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import SolverError, parameter, role
-from skcomplex.core.compile import compile_system
-from skcomplex.core.formalisms.quantum import (
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.space import LatticeSpace
+from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import Simulation
+from skcomplex.formalisms.quantum import (
     Dissipator,
     Generator,
     LindbladEvolution,
@@ -16,10 +20,6 @@ from skcomplex.core.formalisms.quantum import (
     UnitaryEvolution,
     expectation,
 )
-from skcomplex.core.interactions import Interaction
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.space import LatticeSpace
-from skcomplex.core.system import System
 from skcomplex.models.physics.realizations import Qubit, Spin
 
 OMEGA = 2.0

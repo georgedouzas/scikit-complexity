@@ -5,8 +5,8 @@
 
 from ....core.components import Element
 from ....core.laws import Rate
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 SlowManifold = Element.define(
     'SlowManifold',

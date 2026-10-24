@@ -7,7 +7,12 @@ import numpy as np
 import pytest
 from scipy.spatial import cKDTree
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError, Domain, VisualSpec, state
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Law, Symbols
+from skcomplex.core.space import ContinuousSpace, LatticeSpace
+from skcomplex.core.system import System
+from skcomplex.engine.analysis import (
     clark_evans_ratio,
     coarse_grain,
     kinetic_temperature,
@@ -22,13 +27,8 @@ from skcomplex.core.analysis import (
     snapshots_of,
     structure_factor,
 )
-from skcomplex.core.base import AnalysisError, Domain, VisualSpec, state
-from skcomplex.core.components import Element
-from skcomplex.core.formalisms.agents import AgentView, ModelView, Rule
-from skcomplex.core.laws import Law, Symbols
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.space import ContinuousSpace, LatticeSpace
-from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.formalisms.agents import AgentView, ModelView, Rule
 from skcomplex.models import run
 
 

@@ -1,7 +1,7 @@
 """Test the `_groups` module of `skcomplex.models.computer_science.automata`."""
 
-from skcomplex.core.formalisms.groups import GroupSpace, automaton_group, parse_word
 from skcomplex.core.space import Memory
+from skcomplex.formalisms.groups import GroupSpace, automaton_group, parse_word
 from skcomplex.models.computer_science.automata import (
     grigorchuk_group,
     heisenberg,

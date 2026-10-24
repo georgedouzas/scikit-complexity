@@ -7,10 +7,10 @@ from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, Expression, parameter, state
 from ....core.components import Element
-from ....core.formalisms.control import Collocation
 from ....core.laws import Law, Objective, Rate, Symbols
-from ....core.runtime import register_model
 from ....core.system import Observable, System
+from ....engine.runtime import register_model
+from ....formalisms.control import Collocation
 
 MAX_EFFORT = 1.0
 

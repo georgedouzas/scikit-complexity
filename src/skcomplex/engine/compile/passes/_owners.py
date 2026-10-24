@@ -9,8 +9,8 @@ from typing import cast
 
 from sage.all__sagemath_symbolics import SR
 
-from ...base import Expression, SymbolicVector, vector
-from ...laws import Invariant, Jump, Law, Noise, Rate, Update
+from ....core.base import Expression, SymbolicVector, vector
+from ....core.laws import Invariant, Jump, Law, Noise, Rate, Update
 from .._census import kind_of, law_owner
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations

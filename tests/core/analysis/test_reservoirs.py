@@ -3,12 +3,12 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import Series, fit_reservoir
 from skcomplex.core.base import AnalysisError
-from skcomplex.core.compile import validate
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import ScipyODE
 from skcomplex.core.space import DiscreteTime
+from skcomplex.engine.analysis import Series, fit_reservoir
+from skcomplex.engine.compile import validate
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import ScipyODE
 from skcomplex.models import create
 
 LYAPUNOV_TIME = 1 / 0.906

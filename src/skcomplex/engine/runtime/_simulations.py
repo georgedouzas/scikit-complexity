@@ -12,7 +12,8 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.base import BaseEstimator
 
-from ..base import Domain, Form, ParameterError, SimulationError, ValidationError
+from ...core.base import Domain, Form, ParameterError, SimulationError, ValidationError
+from ...core.system import Observable, System
 from ..compile import (
     Backend,
     Entry,
@@ -24,7 +25,6 @@ from ..compile import (
     with_initial_state,
 )
 from ..solvers import AgentState, Stepper, StructureState, resolve_solver
-from ..system import Observable, System
 from ._clocks import AsFastAsPossible, Clock
 from ._conservation import InvariantMonitor
 from ._frames import Frame
@@ -126,7 +126,7 @@ class Simulation(BaseEstimator):
     Examples:
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import LogisticGrowth, Population
-        >>> from skcomplex.core.runtime import Simulation
+        >>> from skcomplex.engine.runtime import Simulation
         >>> system = System(
         ...     components=[Population('rabbits', n=10)],
         ...     interactions=[LogisticGrowth('growth', target='rabbits', r=1.0, K=100)],
@@ -430,7 +430,7 @@ class Simulation(BaseEstimator):
         Examples:
             >>> from skcomplex.core.system import System
             >>> from skcomplex.models.biology.ecology import LogisticGrowth, Population
-            >>> from skcomplex.core.runtime import Simulation
+            >>> from skcomplex.engine.runtime import Simulation
             >>> system = System(
             ...     components=[Population('rabbits', n=10)],
             ...     interactions=[LogisticGrowth('growth', target='rabbits', r=1.0, K=100)],

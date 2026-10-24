@@ -3,7 +3,8 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError
+from skcomplex.engine.analysis import (
     aging_collapse,
     collapse_distributions,
     fields_of,
@@ -11,8 +12,7 @@ from skcomplex.core.analysis import (
     response,
     two_time_correlation,
 )
-from skcomplex.core.base import AnalysisError
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
 
 RUNS = 20_000

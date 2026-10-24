@@ -10,8 +10,8 @@ from concurrent.futures.process import BrokenProcessPool
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from ..base import ExperimentError, ValidationError
-from ..system import Observable
+from ...core.base import ExperimentError, ValidationError
+from ...core.system import Observable
 from ._designs import Design
 from ._results import ExperimentResult
 from ._scenarios import Scenario
@@ -66,7 +66,7 @@ class Experiment(BaseEstimator):
             The observables of every run, or `None` for the standard observables of a registered model.
 
     Examples:
-        >>> from skcomplex.core.experiments import Experiment, Grid
+        >>> from skcomplex.engine.experiments import Experiment, Grid
         >>> from skcomplex.models.biology.ecology import logistic_growth
         >>> result = Experiment('logistic_growth', Grid(r=[0.5, 1.0]), until=5, outputs=['population.n']).run()
         >>> len(result.rows)

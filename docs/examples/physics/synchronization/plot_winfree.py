@@ -13,8 +13,8 @@ coupling, and at strong coupling the response wins over the drive and every osci
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver, default_blueprint
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver, default_blueprint
 from skcomplex.models import create, describe
 
 MODEL = 'winfree'

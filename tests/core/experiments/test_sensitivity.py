@@ -1,4 +1,4 @@
-"""Test the `_sensitivity` module of `skcomplex.core.experiments`."""
+"""Test the `_sensitivity` module of `skcomplex.engine.experiments`."""
 
 import math
 
@@ -6,10 +6,10 @@ import pytest
 from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.components import Element
-from skcomplex.core.experiments import (
+from skcomplex.core.system import Observable, System
+from skcomplex.engine.experiments import (
     sensitivity,
 )
-from skcomplex.core.system import Observable, System
 
 Point = Element.define('Point', parameters={'x1': 0.0, 'x2': 0.0, 'x3': 0.0})
 

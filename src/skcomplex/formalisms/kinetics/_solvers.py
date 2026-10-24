@@ -10,9 +10,9 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ...base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SolverError, SpaceKind, Supports, TimeKind
-from ...compile import Problem, Vector
-from ...solvers import Stepper
+from ...core.base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SolverError, SpaceKind, Supports, TimeKind
+from ...engine.compile import Problem, Vector
+from ...engine.solvers import Stepper
 from ._contractions import CompiledEncounter
 from ._passes import KineticProblem
 
@@ -48,7 +48,7 @@ class ParticleKinetics(Stepper):
             The largest time step.
 
     Examples:
-        >>> from skcomplex.core.formalisms.kinetics import ParticleKinetics
+        >>> from skcomplex.formalisms.kinetics import ParticleKinetics
         >>> from skcomplex.core.base import LawKind
         >>> ParticleKinetics(n=1000).supports.laws == {LawKind.ENCOUNTER}
         True

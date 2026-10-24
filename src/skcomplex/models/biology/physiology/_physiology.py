@@ -9,12 +9,12 @@ import numpy as np
 
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
-from ....core.formalisms.fields import Field, laplacian
 from ....core.laws import Rate, delayed
-from ....core.runtime import register_model
-from ....core.solvers import RK4
 from ....core.space import LatticeSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....engine.solvers import RK4
+from ....formalisms.fields import Field, laplacian
 
 FitzHughNagumo = Element.define(
     'FitzHughNagumo',

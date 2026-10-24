@@ -9,10 +9,10 @@ import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.formalisms.agents import AgentView, ModelView, Rule
 from ....core.laws import Jump, Law, Noise, Rate, Symbols, Update, bernoulli, normal
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.agents import AgentView, ModelView, Rule
 
 PersistentWalker = Element.define(
     'PersistentWalker',

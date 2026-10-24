@@ -4,15 +4,15 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError
+from skcomplex.engine.analysis import (
     dissimilarity_index,
     fields_of,
     interface_density,
     like_neighbor_share,
     snapshots_of,
 )
-from skcomplex.core.base import AnalysisError
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create, run
 
 EMPTY = -1.0

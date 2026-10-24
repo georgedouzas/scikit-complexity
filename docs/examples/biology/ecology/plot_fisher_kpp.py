@@ -13,8 +13,8 @@ is at capacity, ahead of it the line is empty, and the front keeps its shape whi
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver, default_blueprint
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver, default_blueprint
 from skcomplex.models import create
 
 MODEL = 'fisher_kpp'

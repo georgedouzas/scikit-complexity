@@ -16,8 +16,8 @@ in cycles of boom and bust.
 import matplotlib.pyplot as plt
 import rerun.blueprint as rrb
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe
 
 MODEL = 'tragedy_of_the_commons'

@@ -13,8 +13,8 @@ red cells and the quiescent cells fall, all settling over a few years at new ste
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'erythropoiesis_mercaptopurine'

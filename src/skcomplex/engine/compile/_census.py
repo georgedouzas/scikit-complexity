@@ -9,7 +9,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from ..base import (
+from ...core.base import (
     ComponentKind,
     Expression,
     Registry,
@@ -24,8 +24,8 @@ from ..base import (
     symbol,
     symbols_of,
 )
-from ..components import Group
-from ..laws import (
+from ...core.components import Group
+from ...core.laws import (
     Boundary,
     Equation,
     Event,
@@ -40,8 +40,8 @@ from ..laws import (
     law_classes,
     values_of,
 )
-from ..space import Space
-from ..system import System
+from ...core.space import Space
+from ...core.system import System
 from ._declarations import Block, Declarations, is_interaction
 from ._kernels import EdgeSearch, PairSearch
 from ._layout import Entry

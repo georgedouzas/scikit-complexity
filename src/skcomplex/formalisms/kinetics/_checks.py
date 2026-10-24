@@ -8,8 +8,8 @@ from typing import cast
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ...base import Expression
-from ...compile import Census, Compilation, Issue
+from ...core.base import Expression
+from ...engine.compile import Census, Compilation, Issue
 from ._laws import Encounter, Proliferation, outcome_sums
 
 PROBABILITY_TOLERANCE = 1e-9

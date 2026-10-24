@@ -5,12 +5,12 @@ import pytest
 from sage.all__sagemath_symbolics import sin, tanh
 
 from skcomplex.core.base import ValidationError
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.fields import Field, Mesh, SplitOperator, laplacian, mesh_laplacian
 from skcomplex.core.laws import Rate, count, maximum, mean, minimum, total, variance, where
 from skcomplex.core.space import LatticeSpace
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
+from skcomplex.formalisms.fields import Field, Mesh, SplitOperator, laplacian, mesh_laplacian
 from skcomplex.models.biology.ecology import FisherKPP
 from skcomplex.models.chemistry.pattern_formation import gray_scott
 from skcomplex.models.physics.fluids import kuramoto_sivashinsky

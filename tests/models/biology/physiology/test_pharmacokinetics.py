@@ -2,8 +2,8 @@
 
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import ScipyODE
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import ScipyODE
 from skcomplex.models.biology.physiology import two_compartment_pharmacokinetics
 
 PRECISE = ScipyODE(rtol=1e-10, atol=1e-14)

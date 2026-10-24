@@ -10,12 +10,12 @@ import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.formalisms.agents import ModelView, Rule
 from ....core.interactions import Interaction
 from ....core.laws import Law, Symbols, Update, neighbors, where
-from ....core.runtime import register_model
 from ....core.space import Adjacency, DiscreteTime, NetworkSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.agents import ModelView, Rule
 
 
 class Discussant(Element):
@@ -231,7 +231,7 @@ def hegselmann_krause(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.runtime import Simulation
+        >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.social.opinion_dynamics import hegselmann_krause
         >>> trajectory = Simulation(hegselmann_krause(50, confidence=0.3), random_state=0).run(until=20).trajectory_
         >>> len(np.unique(np.round(trajectory['people.opinion'][-1], 6))) <= 3

@@ -5,10 +5,10 @@ import pytest
 
 from skcomplex.core.base import Domain, ValidationError, state
 from skcomplex.core.components import Element, Group
-from skcomplex.core.formalisms.kinetics import distribution_from, members_from, moment
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.space import ContinuousTime, LatticeSpace
 from skcomplex.core.system import Observable, System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.formalisms.kinetics import distribution_from, members_from, moment
 
 CLASSES = np.arange(9.0)
 

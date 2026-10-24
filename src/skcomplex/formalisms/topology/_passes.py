@@ -8,8 +8,10 @@ from typing import Any, cast
 
 from sage.all__sagemath_symbolics import SR
 
-from ...base import ValidationError
-from ...compile import (
+from ...core.base import ValidationError
+from ...core.laws import Jump, Law, Update
+from ...core.space import NetworkSpace
+from ...engine.compile import (
     Block,
     BlockLaws,
     Compilation,
@@ -30,8 +32,6 @@ from ...compile import (
     masked_value,
     member_spec,
 )
-from ...laws import Jump, Law, Update
-from ...space import NetworkSpace
 from ._changes import CompiledRequest, NetworkRows, Topology
 from ._requests import TopologyRequest, request_of
 

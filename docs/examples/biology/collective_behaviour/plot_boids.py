@@ -14,8 +14,8 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'boids'

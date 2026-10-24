@@ -11,7 +11,7 @@ from typing import Any, cast
 import numpy as np
 import numpy.typing as npt
 
-from ..base import (
+from ...core.base import (
     AnyDomain,
     Domain,
     LabelError,
@@ -21,11 +21,11 @@ from ..base import (
     ValidationError,
     Variable,
 )
-from ..components import Element, Group, probe_laws
-from ..interactions import Interaction
-from ..laws import has_trait
-from ..space import LatticeSpace, NetworkSpace, Space, part_count
-from ..system import System
+from ...core.components import Element, Group, probe_laws
+from ...core.interactions import Interaction
+from ...core.laws import has_trait
+from ...core.space import LatticeSpace, NetworkSpace, Space, part_count
+from ...core.system import System
 
 LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
 MAX_SHOWN_COMPONENTS = 10

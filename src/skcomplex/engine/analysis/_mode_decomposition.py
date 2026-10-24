@@ -11,9 +11,9 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.base import TransformerMixin, clone
 
-from ..base import vector
-from ..laws import Law, Rate, Symbols
-from ..space import ContinuousTime
+from ...core.base import vector
+from ...core.laws import Law, Rate, Symbols
+from ...core.space import ContinuousTime
 from ._kinds import DataKind, analysis
 from ._lazy import module
 from ._surrogate_systems import (
@@ -117,7 +117,7 @@ class ModeDecomposition(Surrogate):
 
         Examples:
             >>> import numpy as np
-            >>> from skcomplex.core.analysis import Series, fit_dmd
+            >>> from skcomplex.engine.analysis import Series, fit_dmd
             >>> times = np.arange(0.0, 5.0, 0.1)
             >>> series = Series(times, np.exp(-times)[:, None], ['x'])
             >>> fit_dmd(series).forecast([0.0, 1.0]).round(4).tolist()
@@ -171,7 +171,7 @@ def fit_dmd(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import Series, fit_dmd
+        >>> from skcomplex.engine.analysis import Series, fit_dmd
         >>> times = np.arange(0.0, 10.0, 0.1)
         >>> series = Series(times, np.column_stack([np.cos(times), np.sin(times)]), ['x', 'y'])
         >>> np.sort(fit_dmd(series).eigenvalues.imag).round(6).tolist()

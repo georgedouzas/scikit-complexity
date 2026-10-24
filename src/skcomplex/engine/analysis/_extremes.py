@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._kinds import DataKind, analysis
 
 type Array = npt.NDArray[np.float64]
@@ -76,7 +76,7 @@ def fit_extreme_values(values: npt.ArrayLike, block: int) -> ExtremeValueFit:
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import fit_extreme_values
+        >>> from skcomplex.engine.analysis import fit_extreme_values
         >>> samples = np.random.default_rng(0).exponential(size=200_000)
         >>> round(fit_extreme_values(samples, 100).shape, 1)
         0.0
@@ -105,7 +105,7 @@ def record_counts(sequences: npt.ArrayLike) -> npt.NDArray[np.int64]:
             length for independent values.
 
     Examples:
-        >>> from skcomplex.core.analysis import record_counts
+        >>> from skcomplex.engine.analysis import record_counts
         >>> record_counts([[1, 3, 2, 5], [4, 3, 2, 1]]).tolist()
         [3, 1]
     """
@@ -154,7 +154,7 @@ def fit_stable(values: npt.ArrayLike) -> StableFit:
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import fit_stable
+        >>> from skcomplex.engine.analysis import fit_stable
         >>> round(fit_stable(np.random.default_rng(0).standard_cauchy(500)).alpha, 0)
         1.0
     """
@@ -224,7 +224,7 @@ def compare_with_law(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import compare_with_law
+        >>> from skcomplex.engine.analysis import compare_with_law
         >>> fit = compare_with_law(np.random.default_rng(0).exponential(2.0, 1000), fixed={'loc': 0})
         >>> round(fit.parameters['scale'], 0), fit.p_value > 0.05
         (2.0, True)

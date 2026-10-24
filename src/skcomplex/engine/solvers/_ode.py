@@ -14,7 +14,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.integrate import BDF, DOP853, LSODA, RK23, RK45, OdeSolver, Radau
 
-from ..base import (
+from ...core.base import (
     NUMERIC_DOMAINS,
     ComponentKind,
     Expression,
@@ -212,10 +212,10 @@ class ScipyODE(Stepper):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
-        >>> from skcomplex.core.solvers import ScipyODE
+        >>> from skcomplex.engine.solvers import ScipyODE
         >>> problem = compile_system(
         ...     System(components=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1)]),
         ... )
@@ -627,10 +627,10 @@ class RK4(Stepper):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
-        >>> from skcomplex.core.solvers import RK4
+        >>> from skcomplex.engine.solvers import RK4
         >>> problem = compile_system(
         ...     System(components=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1)]),
         ... )
@@ -771,12 +771,12 @@ class VelocityVerlet(Stepper):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.space import ContinuousSpace
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.core.formalisms.particles import Particle
+        >>> from skcomplex.formalisms.particles import Particle
         >>> from skcomplex.models.physics.realizations import ConstantForce
-        >>> from skcomplex.core.solvers import VelocityVerlet
+        >>> from skcomplex.engine.solvers import VelocityVerlet
         >>> problem = compile_system(
         ...     System(
         ...         components=[Particle('ball')],

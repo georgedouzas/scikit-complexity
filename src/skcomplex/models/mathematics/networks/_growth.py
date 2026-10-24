@@ -7,11 +7,11 @@ from typing import ClassVar
 
 from ....core.base import Domain, VisualSpec, parameter, state
 from ....core.components import Element, Group
-from ....core.formalisms.topology import add_edge, add_node
 from ....core.laws import Law, Symbols, Update, neighbors, total, where
-from ....core.runtime import register_model
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.topology import add_edge, add_node
 
 DEGREE_VISUAL = VisualSpec('sites', {'states': ['degree']})
 SMALLEST_TOTAL = 1e-12
@@ -288,7 +288,7 @@ def barabasi_albert(n_nodes: int = 303, *, edges: int = 2, seed_nodes: int = 3) 
             The model, with the groups `nodes` and `links` and the arrival `growth`.
 
     Examples:
-        >>> from skcomplex.core.runtime import Simulation
+        >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.mathematics.networks import barabasi_albert
         >>> trajectory = Simulation(barabasi_albert(13), random_state=0).run(until=10).trajectory_
         >>> int(trajectory.network(-1).sources.size)

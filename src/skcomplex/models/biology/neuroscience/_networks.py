@@ -12,12 +12,12 @@ from scipy.ndimage import convolve
 
 from ....core.base import Domain, Expression, parameter, role, state
 from ....core.components import Element
-from ....core.formalisms.fields import Field, laplacian
 from ....core.interactions import Interaction
 from ....core.laws import Event, Law, Rate, Symbols, delayed, maximum
-from ....core.runtime import register_model
 from ....core.space import LatticeSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.fields import Field, laplacian
 
 type Array = npt.NDArray[np.float64]
 

@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODE
 from skcomplex.models import describe
 from skcomplex.models.physics.synchronization import (
     mirollo_strogatz,

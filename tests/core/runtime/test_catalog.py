@@ -1,4 +1,4 @@
-"""Test the `_catalog` module of `skcomplex.core.runtime`."""
+"""Test the `_catalog` module of `skcomplex.engine.runtime`."""
 
 import pickle  # nosec B403: the tests pickle and load only objects they create
 
@@ -7,10 +7,10 @@ import pytest
 from sklearn.base import clone
 
 from skcomplex.core.base import ValidationError
-from skcomplex.core.compile import compile_system, observables_of, validate
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.system import System
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.compile import compile_system, observables_of, validate
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import catalog, create, describe, register_model, run
 from skcomplex.models.biology.ecology import ExponentialGrowth, Mortality, Population, Predation
 

@@ -2,8 +2,8 @@
 
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import RK4
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import RK4
 from skcomplex.models.biology.physiology import (
     aliev_panfilov,
 )

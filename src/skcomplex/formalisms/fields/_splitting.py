@@ -9,8 +9,8 @@ from typing import Any
 
 from sage.all__sagemath_symbolics import SR
 
-from ...base import Expression
-from ...compile import Reference, Source
+from ...core.base import Expression
+from ...engine.compile import Reference, Source
 from ._components import Field
 
 OPERATORS = ('laplacian', 'partial', 'inverse_laplacian')

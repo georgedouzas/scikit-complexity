@@ -14,9 +14,9 @@ from ....core.components import Element, Group
 from ....core.interactions import Interaction
 from ....core.laws import Law, Symbols, Update, neighbors
 from ....core.laws import Rate as RateLaw
-from ....core.runtime import register_model
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import Observable, System
+from ....engine.runtime import register_model
 from ._kuramoto import PhaseOscillator
 from ._utils import _order_parameter
 

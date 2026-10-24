@@ -6,8 +6,8 @@
 from ....core.base import Domain, Expression, parameter, state
 from ....core.components import Element
 from ....core.laws import Law, Rate, Symbols
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 
 def _saturating(rate: Expression, constant: Expression, amount: Expression) -> Expression:

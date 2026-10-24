@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.physiology import (
     coagulation_positive_feedback,
     glucose_dual_hormone_control,

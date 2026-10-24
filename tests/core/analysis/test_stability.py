@@ -4,12 +4,12 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import SR
 
-from skcomplex.core.analysis import divergence, fixed_points, jacobian, nullclines, stability
 from skcomplex.core.base import AnalysisError
 from skcomplex.core.components import Element
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Rate, total
 from skcomplex.core.system import System
+from skcomplex.engine.analysis import divergence, fixed_points, jacobian, nullclines, stability
 from skcomplex.models.biology.ecology import lotka_volterra
 from skcomplex.models.biology.epidemiology import sir
 from skcomplex.models.mathematics.dynamical_systems import logistic_map, lorenz

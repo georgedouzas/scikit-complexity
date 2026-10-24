@@ -11,9 +11,9 @@ from typing import Any
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ..base import Expression, SolverError, SymbolicVector, ValidationError, components_of, symbol, symbols_of
-from ..laws import Draw, draws_in, has_reductions, is_draw
-from ..laws._laws import Renewal
+from ...core.base import Expression, SolverError, SymbolicVector, ValidationError, components_of, symbol, symbols_of
+from ...core.laws import Draw, draws_in, has_reductions, is_draw
+from ...core.laws._laws import Renewal
 from ._arrays import Indices, Vector
 from ._kernels import Reference, Source
 from ._layout import Entry

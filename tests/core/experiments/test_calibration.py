@@ -1,9 +1,9 @@
-"""Test the `_calibration` module of `skcomplex.core.experiments`."""
+"""Test the `_calibration` module of `skcomplex.engine.experiments`."""
 
 import numpy as np
 import pytest
 
-from skcomplex.core.experiments import (
+from skcomplex.engine.experiments import (
     calibrate,
 )
 

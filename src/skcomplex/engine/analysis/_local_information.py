@@ -53,7 +53,7 @@ def local_entropy(values: npt.ArrayLike, *, estimator: str = 'plugin', base: flo
             The estimator is unknown.
 
     Examples:
-        >>> from skcomplex.core.analysis import local_entropy
+        >>> from skcomplex.engine.analysis import local_entropy
         >>> local_entropy([0, 0, 0, 1]).round(3).tolist()
         [0.415, 0.415, 0.415, 2.0]
     """
@@ -93,7 +93,7 @@ def local_mutual_information(
             The estimator is unknown.
 
     Examples:
-        >>> from skcomplex.core.analysis import local_mutual_information
+        >>> from skcomplex.engine.analysis import local_mutual_information
         >>> local_mutual_information([0, 0, 1, 1], [0, 0, 1, 0]).round(3).tolist()
         [0.415, 0.415, 1.0, -0.585]
     """
@@ -146,7 +146,7 @@ def local_transfer_entropy(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import local_transfer_entropy
+        >>> from skcomplex.engine.analysis import local_transfer_entropy
         >>> x = np.random.default_rng(0).integers(0, 2, 10000)
         >>> round(float(local_transfer_entropy(x, np.roll(x, 1)).mean()), 1)
         1.0

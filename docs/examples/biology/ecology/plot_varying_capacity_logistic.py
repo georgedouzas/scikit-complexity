@@ -13,8 +13,8 @@ it started and settles on a cycle of one season. The cycle lags behind the capac
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'varying_capacity_logistic'

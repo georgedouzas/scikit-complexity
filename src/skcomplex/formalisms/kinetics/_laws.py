@@ -10,8 +10,18 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ...base import DomainKind, Expression, LawClass, LawKind, Requires, SpaceKind, TimeKind, Trait, ValidationError
-from ...laws import Law
+from ...core.base import (
+    DomainKind,
+    Expression,
+    LawClass,
+    LawKind,
+    Requires,
+    SpaceKind,
+    TimeKind,
+    Trait,
+    ValidationError,
+)
+from ...core.laws import Law
 
 ENCOUNTER_REQUIREMENTS = Requires(time={TimeKind.CONTINUOUS}, space={SpaceKind.LATTICE}, domains={DomainKind.REAL})
 
@@ -62,7 +72,7 @@ def outcome_sums(outcomes: Table) -> Table:
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.formalisms.kinetics import outcome_sums
+        >>> from skcomplex.formalisms.kinetics import outcome_sums
         >>> outcome_sums(np.full((2, 2, 2), 0.5)).tolist()
         [[1.0, 1.0], [1.0, 1.0]]
     """
@@ -107,7 +117,7 @@ class Encounter(Law):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.formalisms.kinetics import Encounter
+        >>> from skcomplex.formalisms.kinetics import Encounter
         >>> f, g = symbol('f'), symbol('g')
         >>> Encounter(f, g, 1.0, np.full((2, 2, 2), 0.5)).transition.shape
         (2, 2, 2)
@@ -183,7 +193,7 @@ class Proliferation(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.formalisms.kinetics import Proliferation
+        >>> from skcomplex.formalisms.kinetics import Proliferation
         >>> f, g = symbol('f'), symbol('g')
         >>> Proliferation(f, g, 0.5).outcomes is None
         True
@@ -247,7 +257,7 @@ class Destruction(Law):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.formalisms.kinetics import Destruction
+        >>> from skcomplex.formalisms.kinetics import Destruction
         >>> f, g = symbol('f'), symbol('g')
         >>> float(Destruction(f, g, 0.2).rate)
         0.2

@@ -1,6 +1,6 @@
 """Test the `_sugarscape` module of `skcomplex.models.economics.markets`."""
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.economics.markets import sugarscape
 from skcomplex.models.economics.markets._sugarscape import gini
 

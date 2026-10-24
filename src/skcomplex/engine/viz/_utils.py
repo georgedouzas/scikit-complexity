@@ -54,7 +54,7 @@ def log_scalars(recording: rr.RecordingStream, path: str, value: object) -> None
 
     Examples:
         >>> import rerun as rr
-        >>> from skcomplex.core.viz import log_scalars
+        >>> from skcomplex.engine.viz import log_scalars
         >>> log_scalars(rr.RecordingStream('example'), 'value', 1.0 + 2.0j)
     """
     values = np.ravel(np.asarray(value))

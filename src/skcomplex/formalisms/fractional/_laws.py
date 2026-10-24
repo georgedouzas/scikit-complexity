@@ -5,7 +5,7 @@
 
 from dataclasses import dataclass, field
 
-from ...laws import Noise, Process, Target
+from ...core.laws import Noise, Process, Target
 
 
 @dataclass(frozen=True, init=False)
@@ -35,7 +35,7 @@ class FractionalNoise(Noise):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.formalisms.fractional import FractionalNoise
+        >>> from skcomplex.formalisms.fractional import FractionalNoise
         >>> x, D = symbol('x'), symbol('D')
         >>> FractionalNoise(x, 2 * D, hurst=0.7).hurst
         0.7

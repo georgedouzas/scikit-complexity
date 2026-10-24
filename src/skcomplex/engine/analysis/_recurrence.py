@@ -10,7 +10,7 @@ import numpy.typing as npt
 from scipy import sparse, stats
 from scipy.spatial import cKDTree
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._kinds import DataKind, analysis
 
 type Array = npt.NDArray[np.float64]
@@ -80,7 +80,7 @@ def recurrence_matrix(
             The symmetric boolean recurrence matrix, with a true diagonal.
 
     Examples:
-        >>> from skcomplex.core.analysis import recurrence_matrix
+        >>> from skcomplex.engine.analysis import recurrence_matrix
         >>> recurrence_matrix([0.0, 0.1, 5.0], 0.5).toarray().astype(int).tolist()
         [[1, 1, 0], [1, 1, 0], [0, 0, 1]]
     """
@@ -175,7 +175,7 @@ def recurrence_quantification(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import delay_embedding, recurrence_quantification
+        >>> from skcomplex.engine.analysis import delay_embedding, recurrence_quantification
         >>> sine = delay_embedding(np.sin(np.arange(2000) * 0.1), 2, 15)
         >>> bool(recurrence_quantification(sine).determinism > 0.95)
         True

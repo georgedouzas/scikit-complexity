@@ -12,9 +12,9 @@ domain with a pattern of separate spots, while the substrate `u` is used up wher
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import RK4
-from skcomplex.core.viz import RerunObserver, default_blueprint
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import RK4
+from skcomplex.engine.viz import RerunObserver, default_blueprint
 from skcomplex.models import create
 
 MODEL = 'gray_scott'

@@ -2,8 +2,8 @@
 
 import numpy as np
 
-from skcomplex.core.analysis import dispersion_relation
-from skcomplex.core.solvers import ScipyODE
+from skcomplex.engine.analysis import dispersion_relation
+from skcomplex.engine.solvers import ScipyODE
 from skcomplex.models.biology.systems_biology import (
     min_protein_skeleton,
 )

@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..base import Expression
+from ...core.base import Expression
 
 
 @dataclass(frozen=True)

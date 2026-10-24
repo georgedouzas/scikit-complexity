@@ -4,12 +4,12 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sin
 
-from skcomplex.core.analysis import controllability, linearize, lqr, observability
 from skcomplex.core.base import AnalysisError, ValidationError, parameter, state
 from skcomplex.core.components import Element
 from skcomplex.core.laws import Rate, Update
 from skcomplex.core.space import DiscreteTime
 from skcomplex.core.system import System
+from skcomplex.engine.analysis import controllability, linearize, lqr, observability
 
 Driven = Element.define(
     'Driven',

@@ -9,8 +9,8 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ...base import SpaceKind
-from ...space import Space
+from ...core.base import SpaceKind
+from ...core.space import Space
 
 
 def _skfem() -> Any:  # noqa: ANN401
@@ -31,7 +31,7 @@ class Mesh(Space):
             The node indices of every triangle or tetrahedron, one column per cell.
 
     Examples:
-        >>> from skcomplex.core.formalisms.fields import Mesh
+        >>> from skcomplex.formalisms.fields import Mesh
         >>> mesh = Mesh.rectangle(4, 3)
         >>> mesh.size, mesh.n_dim
         (20, 2)

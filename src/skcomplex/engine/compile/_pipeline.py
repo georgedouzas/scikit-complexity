@@ -9,7 +9,7 @@ from collections import defaultdict
 from collections.abc import Callable, Collection, Iterable, Sequence
 from typing import ClassVar
 
-from ..base import PipelineError, Registry
+from ...core.base import PipelineError, Registry
 from ._compilation import Compilation
 from ._issues import Issue
 from ._system_passes import SystemPass, register_system_pass
@@ -117,7 +117,7 @@ def order_passes(passes: Sequence['Pass'], present: Collection[str] = ()) -> lis
             field, or the passes read each other's fields in a cycle.
 
     Examples:
-        >>> from skcomplex.core.compile import Pass, order_passes
+        >>> from skcomplex.engine.compile import Pass, order_passes
         >>> class Lower(Pass):
         ...     reads, writes = ('layout',), ('lowered',)
         ...     def run(self, compilation):

@@ -12,8 +12,10 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ...base import Expression, ValidationError, VariableKind, declarations_of
-from ...compile import (
+from ...core.base import Expression, ValidationError, VariableKind, declarations_of
+from ...core.laws import Boundary, Law, Noise, Rate, Update
+from ...core.space import LatticeSpace
+from ...engine.compile import (
     Block,
     Census,
     CensusRecord,
@@ -31,8 +33,6 @@ from ...compile import (
     Vector,
     target_references,
 )
-from ...laws import Boundary, Law, Noise, Rate, Update
-from ...space import LatticeSpace
 from ._components import Field
 from ._conserved import conserved_outputs
 from ._laws import Flux

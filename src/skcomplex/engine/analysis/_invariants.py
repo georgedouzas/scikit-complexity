@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.spatial import cKDTree
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._kinds import DataKind, analysis
 from ._transitions import stationary_distribution
 
@@ -85,7 +85,7 @@ def correlation_dimension(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import correlation_dimension
+        >>> from skcomplex.engine.analysis import correlation_dimension
         >>> points = np.random.default_rng(0).random((5000, 2))
         >>> round(correlation_dimension(points).dimension, 1)
         2.0
@@ -121,7 +121,7 @@ def kaplan_yorke_dimension(exponents: npt.ArrayLike) -> float:
             The dimension, with `j` the largest number of exponents whose sum is nonnegative.
 
     Examples:
-        >>> from skcomplex.core.analysis import kaplan_yorke_dimension
+        >>> from skcomplex.engine.analysis import kaplan_yorke_dimension
         >>> round(kaplan_yorke_dimension([0.906, 0.0, -14.572]), 2)
         2.06
     """
@@ -149,7 +149,7 @@ def kolmogorov_sinai_entropy(exponents: npt.ArrayLike) -> float:
             The entropy rate of the dynamics in nats per unit time.
 
     Examples:
-        >>> from skcomplex.core.analysis import kolmogorov_sinai_entropy
+        >>> from skcomplex.engine.analysis import kolmogorov_sinai_entropy
         >>> kolmogorov_sinai_entropy([0.9, 0.0, -14.5])
         0.9
     """
@@ -199,7 +199,7 @@ def largest_lyapunov_exponent(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import largest_lyapunov_exponent
+        >>> from skcomplex.engine.analysis import largest_lyapunov_exponent
         >>> x = np.empty(5000)
         >>> x[0] = 0.3
         >>> for t in range(1, x.size):
@@ -244,7 +244,7 @@ def invariant_density(
             The edges of the bins and the density in every bin.
 
     Examples:
-        >>> from skcomplex.core.analysis import invariant_density
+        >>> from skcomplex.engine.analysis import invariant_density
         >>> invariant_density([0.1, 0.2, 0.6, 0.7], 2, (0.0, 1.0))[1].tolist()
         [1.0, 1.0]
     """
@@ -296,7 +296,7 @@ def ulam_chain(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import ulam_chain
+        >>> from skcomplex.engine.analysis import ulam_chain
         >>> chain = ulam_chain(lambda x: np.mod(2 * x, 1), np.linspace(0, 1, 5))
         >>> chain.density.round(2).tolist()
         [1.0, 1.0, 1.0, 1.0]

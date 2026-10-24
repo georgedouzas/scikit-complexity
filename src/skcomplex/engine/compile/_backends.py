@@ -13,8 +13,8 @@ from typing import ClassVar, cast
 import numpy as np
 from sklearn.base import BaseEstimator
 
-from ..base import BackendError, BackendWarning, Expression, Form, Registry, Supports, ValidationError
-from ..laws import Boundary, Jump, Law, Noise, Rate, Update
+from ...core.base import BackendError, BackendWarning, Expression, Form, Registry, Supports, ValidationError
+from ...core.laws import Boundary, Jump, Law, Noise, Rate, Update
 from ._arrays import Indices, Vector
 from ._kernels import Kernel, Reference, Source, add_into, assign_into
 from ._printing import SCALAR_DIALECT, print_expressions
@@ -60,8 +60,8 @@ def _unprinted_reduction(reductions: ReductionPass) -> str | None:
 
 
 def _load_backends() -> None:
-    """Import `skcomplex.core.backends`, whose modules register the backends and the solvers that run in them."""
-    importlib.import_module('skcomplex.core.backends')
+    """Import `skcomplex.engine.backends`, whose modules register the backends and the solvers that run in them."""
+    importlib.import_module('skcomplex.engine.backends')
 
 
 def adding_function(kernels: list[Kernel], size: int) -> VectorFunction:

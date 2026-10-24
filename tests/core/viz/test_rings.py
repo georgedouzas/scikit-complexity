@@ -2,8 +2,8 @@
 
 import numpy as np
 
-from skcomplex.core.runtime import Frame, Simulation
-from skcomplex.core.viz import PhaseRingVisual, default_blueprint
+from skcomplex.engine.runtime import Frame, Simulation
+from skcomplex.engine.viz import PhaseRingVisual, default_blueprint
 from skcomplex.models import create
 
 

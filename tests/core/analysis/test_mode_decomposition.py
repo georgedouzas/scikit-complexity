@@ -6,15 +6,15 @@ import numpy as np
 import pytest
 from sklearn.preprocessing import PolynomialFeatures
 
-from skcomplex.core.analysis import Series, fit_dmd
 from skcomplex.core.base import AnalysisError
-from skcomplex.core.compile import compile_system, validate
 from skcomplex.core.components import Element
 from skcomplex.core.laws import Rate
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import ScipyODE, resolve_solver
 from skcomplex.core.space import ContinuousTime
 from skcomplex.core.system import System
+from skcomplex.engine.analysis import Series, fit_dmd
+from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import ScipyODE, resolve_solver
 
 MATRIX = np.asarray([[-0.1, 2.0, 0.0], [-2.0, -0.3, 0.5], [0.0, 0.0, -0.5]])
 

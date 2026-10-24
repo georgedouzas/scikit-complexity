@@ -8,7 +8,7 @@ from typing import Any
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ..base import Registry, VisualSpec
+from ...core.base import Registry, VisualSpec
 from ..compile import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 

@@ -1,6 +1,6 @@
 """Lattice dynamics: local rules, drives, relaxations, extremal updates, Monte Carlo sampling, and their steppers."""
 
-from ...base import Form
+from ...core.base import Form
 from .._formalism import Formalism, register
 from ._laws import Drive, Energy, Extremal, LocalRule, Move, Relaxation, Sample, Sampler
 from ._passes import CHECKS, OWNER_RULES, STEPWISE_FORMS, LatticeProblemPass, UnpackSamplesPass

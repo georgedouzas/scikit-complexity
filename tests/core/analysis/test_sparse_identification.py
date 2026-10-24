@@ -2,11 +2,11 @@
 
 import numpy as np
 
-from skcomplex.core.analysis import Series, fit_sindy
-from skcomplex.core.compile import compile_system, validate
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import ScipyODE, resolve_solver
 from skcomplex.core.space import ContinuousTime
+from skcomplex.engine.analysis import Series, fit_sindy
+from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import ScipyODE, resolve_solver
 from skcomplex.models import create
 
 LORENZ_TERMS = {

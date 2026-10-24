@@ -9,9 +9,9 @@ from sage.all__sagemath_symbolics import sqrt, tanh
 from skcomplex.core.components import Element
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Rate
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import ScipyODE
 from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import ScipyODE
 from skcomplex.models.engineering.traffic import (
     delayed_car_following,
     intelligent_driver_model,

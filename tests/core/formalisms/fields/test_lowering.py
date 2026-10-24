@@ -7,15 +7,15 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import ValidationError, state
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element, Group
-from skcomplex.core.formalisms.agents import Rule
-from skcomplex.core.formalisms.fields import Field, advection, divergence, gradient, laplacian
 from skcomplex.core.laws import Rate
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import RK4
 from skcomplex.core.space import LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import RK4
+from skcomplex.formalisms.agents import Rule
+from skcomplex.formalisms.fields import Field, advection, divergence, gradient, laplacian
 
 Heat = Element.define(
     'Heat',

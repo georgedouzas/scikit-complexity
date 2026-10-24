@@ -13,9 +13,9 @@ from sage.all__sagemath_symbolics import I, atan2, cos, exp, sin
 from ....core.base import Domain, Expression, VisualSpec, parameter, state, vector
 from ....core.components import Element
 from ....core.laws import Law, Symbols, Update, neighbors, uniform
-from ....core.runtime import register_model
 from ....core.space import ContinuousSpace, DiscreteTime, Radius
 from ....core.system import Observable, System
+from ....engine.runtime import register_model
 
 SPECIES = VisualSpec('points', {'position': 'x', 'radius': 0.04, 'color_by': 'species', 'color_range': (0.0, 1.0)})
 

@@ -1,7 +1,7 @@
 """Test the `_support` module of `skcomplex.core.base`."""
 
 from skcomplex.core.base import NoiseKind
-from skcomplex.core.solvers import EulerMaruyama, Heun, Milstein
+from skcomplex.engine.solvers import EulerMaruyama, Heun, Milstein
 
 
 def test_declared_noise_support():

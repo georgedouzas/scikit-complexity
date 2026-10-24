@@ -11,11 +11,11 @@ import numpy as np
 import numpy.typing as npt
 import qutip
 
-from ..base import AnalysisError, Form, ParameterError
+from ...core.base import AnalysisError, Form, ParameterError
+from ...core.laws import Symbols
+from ...core.system import System
 from ..compile import Layout, Problem, Vector, compile_system
-from ..laws import Symbols
 from ..runtime import Trajectory
-from ..system import System
 
 DIAGONAL_TOLERANCE = 1e-12
 SECTOR_TOLERANCE = 1e-9
@@ -129,7 +129,7 @@ def spectrum(
             A parameter name is not part of the system.
 
     Examples:
-        >>> from skcomplex.core.analysis import spectrum
+        >>> from skcomplex.engine.analysis import spectrum
         >>> from skcomplex.models import create
         >>> spectrum(create('quantum_heisenberg', n_sites=4), k=2).energies.round(6).tolist()
         [-2.0, -1.0]
@@ -160,7 +160,7 @@ def ground_state(
             The ground state energy and the ground state vector.
 
     Examples:
-        >>> from skcomplex.core.analysis import ground_state
+        >>> from skcomplex.engine.analysis import ground_state
         >>> from skcomplex.models import create
         >>> energy, state = ground_state(create('quantum_heisenberg', n_sites=4))
         >>> round(energy, 6), state.shape
@@ -186,7 +186,7 @@ def purity(trajectory: Trajectory) -> npt.NDArray[np.float64]:
             The trajectory is not quantum.
 
     Examples:
-        >>> from skcomplex.core.analysis import purity
+        >>> from skcomplex.engine.analysis import purity
         >>> from skcomplex.models import run
         >>> trajectory = run('quantum_heisenberg', n_sites=4, gamma=0.5, settings={'until': 1.0}).trajectory_
         >>> bool(purity(trajectory)[-1] < 1)
@@ -218,9 +218,9 @@ def entanglement_entropy(trajectory: Trajectory, subsystems: Sequence[str]) -> n
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import entanglement_entropy
+        >>> from skcomplex.engine.analysis import entanglement_entropy
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.core.runtime import Simulation
+        >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.physics.realizations import Spin
         >>> singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
         >>> system = System(components=[Spin.group('pair', 2)])
@@ -265,8 +265,8 @@ def hamiltonian_of(system: System | Problem) -> Any:  # noqa: ANN401
             The system is not quantum.
 
     Examples:
-        >>> from skcomplex.core.analysis import hamiltonian_of
-        >>> from skcomplex.core.formalisms.quantum import Generator
+        >>> from skcomplex.engine.analysis import hamiltonian_of
+        >>> from skcomplex.formalisms.quantum import Generator
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.physics.realizations import Qubit
         >>> Driven = Qubit.define('Driven', parameters={'omega': 1.0}, laws=lambda s: [Generator(s.omega / 2 * s.z)])

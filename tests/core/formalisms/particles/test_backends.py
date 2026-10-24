@@ -9,14 +9,14 @@ import pytest
 from sage.all__sagemath_symbolics import arcsinh, exp
 
 from skcomplex.core.base import BackendError, Domain, Form, parameter
-from skcomplex.core.compile import SOLVERS, compile_system
-from skcomplex.core.formalisms import registered_formalisms
-from skcomplex.core.formalisms.particles import LammpsBackend, PairPotential, Particle
 from skcomplex.core.laws import where
-from skcomplex.core.runtime import RealTime, Simulation
-from skcomplex.core.solvers import VelocityVerlet
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
+from skcomplex.engine.compile import SOLVERS, compile_system
+from skcomplex.engine.runtime import RealTime, Simulation
+from skcomplex.engine.solvers import VelocityVerlet
+from skcomplex.formalisms import registered_formalisms
+from skcomplex.formalisms.particles import LammpsBackend, PairPotential, Particle
 from skcomplex.models.biology.ecology import LogisticGrowth, Mortality, Population, Predation
 from skcomplex.models.physics.realizations import (
     ConstantForce,
@@ -247,6 +247,6 @@ def test_lammps_runs_10000_atoms_in_real_time():
 def test_lammps_backend_is_registered_from_particles():
     """Test that the particles formalism defines the LAMMPS backend and registers it as the solver `'lammps'`."""
     (particles,) = [item for item in registered_formalisms() if item.name == 'particles']
-    assert LammpsBackend.__module__ == 'skcomplex.core.formalisms.particles._backends'
+    assert LammpsBackend.__module__ == 'skcomplex.formalisms.particles._backends'
     assert particles.solvers['lammps'] is LammpsBackend
     assert SOLVERS.resolve((Form.SDE, 'lammps')) is LammpsBackend

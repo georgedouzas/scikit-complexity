@@ -12,9 +12,9 @@ from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
 from ....core.components import Element
 from ....core.interactions import Interaction
 from ....core.laws import Jump, Law, Symbols, shift_member, where
-from ....core.runtime import register_model
 from ....core.space import ContinuousSpace, LatticeSpace
 from ....core.system import System
+from ....engine.runtime import register_model
 
 type Array = npt.NDArray[np.float64]
 

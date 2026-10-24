@@ -13,8 +13,8 @@ waits and stay put, so the cloud spreads slower and slower and keeps a sharp pea
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'continuous_time_random_walk'

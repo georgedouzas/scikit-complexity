@@ -3,11 +3,11 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import purity
 from skcomplex.core.base import ValidationError
-from skcomplex.core.formalisms.fields import ETDRK4
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.analysis import purity
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
+from skcomplex.formalisms.fields import ETDRK4
 from skcomplex.models import create
 from skcomplex.models.physics.waves import schrodinger
 

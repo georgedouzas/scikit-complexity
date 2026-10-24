@@ -7,8 +7,10 @@ import itertools
 from dataclasses import replace
 from typing import cast
 
-from ...base import Form, Trait, ValidationError
-from ...compile import (
+from ...core.base import Form, Trait, ValidationError
+from ...core.laws import Law, has_trait
+from ...core.space import NetworkSpace, SiteSpace
+from ...engine.compile import (
     BlockLaws,
     Census,
     Compilation,
@@ -23,8 +25,6 @@ from ...compile import (
     resolve_backend,
     target_references,
 )
-from ...laws import Law, has_trait
-from ...space import NetworkSpace, SiteSpace
 from ._laws import Drive, Energy, Extremal, LocalRule, Move, Relaxation, Sample, Sampler
 from ._steps import (
     LatticeContext,

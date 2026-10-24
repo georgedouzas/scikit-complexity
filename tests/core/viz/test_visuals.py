@@ -3,12 +3,12 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.formalisms.particles import Particle
-from skcomplex.core.runtime import Frame, Observer, Simulation
-from skcomplex.core.solvers import AgentSnapshot
 from skcomplex.core.space import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System
-from skcomplex.core.viz import AgentsVisual, ImageVisual, PointsVisual, ScalarsVisual
+from skcomplex.engine.runtime import Frame, Observer, Simulation
+from skcomplex.engine.solvers import AgentSnapshot
+from skcomplex.engine.viz import AgentsVisual, ImageVisual, PointsVisual, ScalarsVisual
+from skcomplex.formalisms.particles import Particle
 from skcomplex.models import create
 from skcomplex.models.physics.statistical_mechanics import XYSpin
 

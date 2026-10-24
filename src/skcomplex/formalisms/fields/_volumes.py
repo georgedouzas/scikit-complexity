@@ -12,9 +12,9 @@ import numpy.typing as npt
 import scipy.sparse
 from sage.all__sagemath_symbolics import SR, solve
 
-from ...base import Expression, ValidationError, symbol
-from ...compile import Reference, Source, numpy_function
-from ...space import LatticeSpace
+from ...core.base import Expression, ValidationError, symbol
+from ...core.space import LatticeSpace
+from ...engine.compile import Reference, Source, numpy_function
 from ._components import Field
 from ._laws import Flux
 

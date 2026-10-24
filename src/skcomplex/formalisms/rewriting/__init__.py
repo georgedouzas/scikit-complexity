@@ -1,6 +1,6 @@
 """Rewriting systems: productions on words, substitutions of tiles, graph productions, and their geometry."""
 
-from ...base import Form
+from ...core.base import Form
 from .._formalism import Formalism, register
 from ._components import HostGraph, Patch, Word, structure_of
 from ._geometry import WordGeometry

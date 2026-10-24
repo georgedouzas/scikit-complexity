@@ -1,6 +1,6 @@
 """Quantum dynamics: operators, Hamiltonian and dissipator laws, quantum elements, and QuTiP solvers."""
 
-from ...base import Form
+from ...core.base import Form
 from .._formalism import Formalism, register
 from ._components import QuantumView, hilbert_state, is_quantum, view_of
 from ._laws import Dissipator, Generator, LocalOperator, Operator, sparse_matrix

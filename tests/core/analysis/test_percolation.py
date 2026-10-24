@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import cluster_sizes, fit_power_law, label_clusters, percolation, spanning_probability
+from skcomplex.engine.analysis import cluster_sizes, fit_power_law, label_clusters, percolation, spanning_probability
 
 THRESHOLD = 0.5927
 

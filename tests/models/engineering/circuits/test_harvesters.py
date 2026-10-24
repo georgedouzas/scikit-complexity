@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models import describe
 from skcomplex.models.engineering.circuits import (
     vibration_energy_harvester,

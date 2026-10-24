@@ -11,12 +11,12 @@ import numpy.typing as npt
 
 from ....core.base import Domain, Expression, parameter, role, state
 from ....core.components import Element, Group
-from ....core.formalisms.kinetics import Encounter, moment
 from ....core.interactions import Interaction
 from ....core.laws import Law, Symbols
-from ....core.runtime import register_model
 from ....core.space import ContinuousTime, LatticeSpace
 from ....core.system import Observable, System
+from ....engine.runtime import register_model
+from ....formalisms.kinetics import Encounter, moment
 
 EVACUATION_REFERENCES = ('Bellomo et al. 2017', 'Bellomo and Gibelli 2015', 'Agnelli, Colasuonno, and Knopoff 2015')
 

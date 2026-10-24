@@ -1,4 +1,4 @@
-"""Formalisms that add their laws, components, compilation, solvers, backends, visuals, and checks to the core."""
+"""Formalisms that add laws, components, compilation, solvers, backends, visuals, and checks to core and engine."""
 
 from ._formalism import Formalism, register, registered_formalisms
 

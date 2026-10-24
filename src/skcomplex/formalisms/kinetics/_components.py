@@ -7,8 +7,8 @@
 import numpy as np
 import numpy.typing as npt
 
-from ...base import ValidationError, VariableKind, declarations_of
-from ...components import Element, Group
+from ...core.base import ValidationError, VariableKind, declarations_of
+from ...core.components import Element, Group
 
 type Values = npt.NDArray[np.float64]
 
@@ -92,7 +92,7 @@ def distribution_from(
     Examples:
         >>> from skcomplex.core.base import state
         >>> from skcomplex.core.components import Element
-        >>> from skcomplex.core.formalisms.kinetics import distribution_from
+        >>> from skcomplex.formalisms.kinetics import distribution_from
         >>> class Density(Element):
         ...     f: float = state(default=0.0)
         >>> distribution = distribution_from([0.0, 1.0, 1.0, 2.0], 'wealth', [0.0, 1.0, 2.0], element=Density)
@@ -164,7 +164,7 @@ def members_from(
     Examples:
         >>> from skcomplex.core.base import state
         >>> from skcomplex.core.components import Element
-        >>> from skcomplex.core.formalisms.kinetics import members_from
+        >>> from skcomplex.formalisms.kinetics import members_from
         >>> class Trader(Element):
         ...     wealth: float = state(default=0.0)
         >>> traders = members_from([0.0, 1.0, 0.0], Trader, 4, activities=[0.0, 1.0, 2.0], random_state=0)

@@ -15,7 +15,7 @@ import qutip
 import scipy.sparse as sp
 from sage.all__sagemath_symbolics import SR
 
-from ...base import (
+from ...core.base import (
     Domain,
     Expression,
     Form,
@@ -27,7 +27,12 @@ from ...base import (
     symbol,
     vector,
 )
-from ...compile import (
+from ...core.components import Group
+from ...core.interactions import Interaction
+from ...core.laws import Symbols
+from ...core.space import LatticeSpace, neighbor_pairs
+from ...core.system import Observable, System, reduce_values
+from ...engine.compile import (
     CompiledElement,
     CompiledInteraction,
     Entry,
@@ -42,11 +47,6 @@ from ...compile import (
     numpy_function,
     spectral_multiplier,
 )
-from ...components import Group
-from ...interactions import Interaction
-from ...laws import Symbols
-from ...space import LatticeSpace, neighbor_pairs
-from ...system import Observable, System, reduce_values
 from ._components import QuantumView, hilbert_state, is_quantum, view_of
 from ._laws import Dissipator, Generator, Operator
 

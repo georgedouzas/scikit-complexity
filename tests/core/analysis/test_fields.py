@@ -6,7 +6,10 @@ import numpy as np
 import pytest
 from scipy.spatial import cKDTree
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError
+from skcomplex.core.space import LatticeSpace
+from skcomplex.core.system import System
+from skcomplex.engine.analysis import (
     coarse_grain,
     correlation_length,
     dispersion_relation,
@@ -17,11 +20,8 @@ from skcomplex.core.analysis import (
     pattern_wavelength,
     structure_factor,
 )
-from skcomplex.core.base import AnalysisError
-from skcomplex.core.formalisms.fields import Field
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.space import LatticeSpace
-from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.formalisms.fields import Field
 from skcomplex.models import create, run
 from skcomplex.models.chemistry.pattern_formation import Brusselator
 

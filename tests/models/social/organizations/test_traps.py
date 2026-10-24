@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import loops
+from skcomplex.engine.analysis import loops
 from skcomplex.models.social.organizations import escalation, shifting_the_burden, success_to_the_successful
 
 from ...conftest import _run_seeded

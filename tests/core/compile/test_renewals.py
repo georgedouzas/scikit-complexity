@@ -3,10 +3,10 @@
 import pytest
 
 from skcomplex.core.base import Form, ValidationError
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
 from skcomplex.core.laws import Jump, Rate, Update, draw, mean, normal
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
 
 Counter = Element.define(
     'Counter',

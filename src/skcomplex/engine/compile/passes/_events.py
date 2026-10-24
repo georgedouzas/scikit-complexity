@@ -13,8 +13,8 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ...base import Domain, Expression, SymbolicVector, ValidationError, components_of, symbol, symbols_of, vector
-from ...laws import Boundary, Event, Jump, Law, Noise, Rate, Update, values_of
+from ....core.base import Domain, Expression, SymbolicVector, ValidationError, components_of, symbol, symbols_of, vector
+from ....core.laws import Boundary, Event, Jump, Law, Noise, Rate, Update, values_of
 from .._arrays import Vector
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations

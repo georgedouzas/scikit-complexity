@@ -4,9 +4,9 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import ValidationError
-from skcomplex.core.compile import compile_system
-from skcomplex.core.solvers import EulerMaruyama
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.solvers import EulerMaruyama
 from skcomplex.models import describe
 from skcomplex.models.chemistry.kinetics import (
     Binding,

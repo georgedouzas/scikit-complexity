@@ -8,7 +8,7 @@ from typing import ClassVar
 
 import numpy as np
 
-from ..base import BackendError, Form
+from ...core.base import BackendError, Form
 from ..compile import Problem
 from ..solvers import Stepper
 

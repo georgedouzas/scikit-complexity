@@ -11,11 +11,11 @@ import numpy.typing as npt
 
 from ....core.base import Domain, parameter
 from ....core.components import Element
-from ....core.formalisms.fields import Field, IMEXEuler, Mesh, laplacian
 from ....core.laws import Rate
-from ....core.runtime import register_model
 from ....core.space import LatticeSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.fields import Field, IMEXEuler, Mesh, laplacian
 
 type Array = npt.NDArray[np.float64]
 

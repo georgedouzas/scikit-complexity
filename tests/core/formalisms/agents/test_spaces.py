@@ -5,10 +5,10 @@ import pytest
 
 from skcomplex.core.base import SimulationError, ValidationError, state
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.agents import Phase, Phases, Rule
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.space import DiscreteTime, Schedule
 from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.formalisms.agents import Phase, Phases, Rule
 
 
 def test_ordered_phases_are_a_schedule():

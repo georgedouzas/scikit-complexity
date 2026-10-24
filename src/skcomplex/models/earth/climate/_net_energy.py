@@ -6,8 +6,8 @@
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
 from ....core.laws import Auxiliary, Law, Rate, Sink, Source, Symbols, Transfer
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 
 def _energy_laws(s: Symbols) -> list[Law]:

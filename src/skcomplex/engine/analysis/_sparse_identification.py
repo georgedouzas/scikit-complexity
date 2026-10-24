@@ -10,9 +10,9 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..base import Expression
-from ..laws import Law, Rate, Symbols
-from ..space import ContinuousTime
+from ...core.base import Expression
+from ...core.laws import Law, Rate, Symbols
+from ...core.space import ContinuousTime
 from ._kinds import DataKind, analysis
 from ._lazy import module
 from ._surrogate_systems import (
@@ -142,7 +142,7 @@ def fit_sindy(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import Series, fit_sindy
+        >>> from skcomplex.engine.analysis import Series, fit_sindy
         >>> times = np.arange(0.0, 2.0, 0.001)
         >>> model = fit_sindy(Series(times, np.exp(-2 * times)[:, None], ['x']), degree=1)
         >>> model.features, model.coefficients.round(3).tolist()

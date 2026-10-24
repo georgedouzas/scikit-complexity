@@ -10,12 +10,12 @@ from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.components import Element, Group
-from ....core.formalisms.topology import rewire
 from ....core.interactions import Interaction
 from ....core.laws import Law, Symbols, Update, neighbors, uniform, where
-from ....core.runtime import register_model
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.topology import rewire
 
 SMALLEST_DEGREE = 1e-9
 OPINION_VISUAL = VisualSpec('sites', {'states': ['opinion'], 'low': 0.0, 'high': 1.0})
@@ -270,7 +270,7 @@ def coevolving_voter(
             The model, with the groups `voters` and `ties` and the interaction `separation`.
 
     Examples:
-        >>> from skcomplex.core.runtime import Simulation
+        >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.social.opinion_dynamics import coevolving_voter
         >>> trajectory = Simulation(coevolving_voter(30), random_state=0).run(until=5).trajectory_
         >>> int(trajectory.network(-1).sources.size) == int(trajectory.network(0).sources.size)

@@ -1,8 +1,8 @@
-"""Test the `_scenarios` module of `skcomplex.core.experiments`."""
+"""Test the `_scenarios` module of `skcomplex.engine.experiments`."""
 
 import numpy as np
 
-from skcomplex.core.experiments import (
+from skcomplex.engine.experiments import (
     Experiment,
     Scenario,
 )

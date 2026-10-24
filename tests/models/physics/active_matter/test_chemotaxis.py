@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import fields_of
 from skcomplex.core.base import SolverError
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.analysis import fields_of
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.physics.active_matter import keller_segel
 
 

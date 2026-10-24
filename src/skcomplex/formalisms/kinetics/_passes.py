@@ -8,7 +8,7 @@ from typing import Any, cast
 
 import numpy as np
 
-from ...compile import (
+from ...engine.compile import (
     Backend,
     Compilation,
     Declarations,

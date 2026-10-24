@@ -5,7 +5,10 @@ import pytest
 from sage.all__sagemath_symbolics import GF, matrix
 from scipy.linalg import circulant
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError
+from skcomplex.core.laws import OuterTotalistic, Table, Totalistic
+from skcomplex.core.space import LatticeSpace, Memory, Neighborhood
+from skcomplex.engine.analysis import (
     Automaton,
     LinearAutomaton,
     Subshift,
@@ -19,10 +22,7 @@ from skcomplex.core.analysis import (
     is_surjective,
     spatial_entropy_rates,
 )
-from skcomplex.core.base import AnalysisError
-from skcomplex.core.formalisms.groups import GroupSpace, permutation_group
-from skcomplex.core.laws import OuterTotalistic, Table, Totalistic
-from skcomplex.core.space import LatticeSpace, Memory, Neighborhood
+from skcomplex.formalisms.groups import GroupSpace, permutation_group
 
 LIFE = OuterTotalistic({(0, 3): 1, (1, 2): 1, (1, 3): 1})
 GOLDEN_RATIO = (1 + np.sqrt(5)) / 2

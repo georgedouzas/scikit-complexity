@@ -10,8 +10,8 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ...base import SpaceKind, SpaceTooLargeError, ValidationError
-from ...space import Memory, SiteSpace
+from ...core.base import SpaceKind, SpaceTooLargeError, ValidationError
+from ...core.space import Memory, SiteSpace
 from ._groups import FinitelyGeneratedGroup, Word, WordProblem, _column, _format_word, _letters, parse_word
 
 MAX_SITES = 100_000
@@ -145,7 +145,7 @@ class GroupSpace(SiteSpace[Memory]):
             The space has both a ball and a quotient, or the ball has a negative radius.
 
     Examples:
-        >>> from skcomplex.core.formalisms.groups import GroupSpace, permutation_group
+        >>> from skcomplex.formalisms.groups import GroupSpace, permutation_group
         >>> space = GroupSpace(permutation_group([[1, 0, 2], [1, 2, 0]]), ball=1)
         >>> space.size, space.words
         (4, ['1', 'a', 'b', 'b^-1'])
@@ -276,7 +276,7 @@ class GroupSpace(SiteSpace[Memory]):
         """Position of every site on rings by word length, spread evenly around each ring.
 
         Examples:
-            >>> from skcomplex.core.formalisms.groups import GroupSpace, permutation_group
+            >>> from skcomplex.formalisms.groups import GroupSpace, permutation_group
             >>> GroupSpace(permutation_group([[1, 0]]), ball=1).positions.round(3).tolist()
             [[0.0, 0.0], [1.0, 0.0]]
         """
@@ -296,7 +296,7 @@ class GroupSpace(SiteSpace[Memory]):
                 The sizes of the balls.
 
         Examples:
-            >>> from skcomplex.core.formalisms.groups import GroupSpace, permutation_group
+            >>> from skcomplex.formalisms.groups import GroupSpace, permutation_group
             >>> GroupSpace(permutation_group([[1, 0, 2], [1, 2, 0]]), ball=3).ball_sizes()
             [1, 4, 6, 6]
         """
@@ -318,7 +318,7 @@ class GroupSpace(SiteSpace[Memory]):
                 The neighbourhood is not a memory set, or one of its words has a factor that is not a generator.
 
         Examples:
-            >>> from skcomplex.core.formalisms.groups import GroupSpace, permutation_group
+            >>> from skcomplex.formalisms.groups import GroupSpace, permutation_group
             >>> from skcomplex.core.space import Memory
             >>> space = GroupSpace(permutation_group([[1, 2, 0]]))
             >>> space.index_table(Memory(('1', 'a'))).tolist()
@@ -351,7 +351,7 @@ class GroupSpace(SiteSpace[Memory]):
                 The memory set.
 
         Examples:
-            >>> from skcomplex.core.formalisms.groups import GroupSpace, permutation_group
+            >>> from skcomplex.formalisms.groups import GroupSpace, permutation_group
             >>> GroupSpace(permutation_group([[1, 0, 2], [1, 2, 0]]), ball=3).compute_ball(1).elements
             ('1', 'a', 'b', 'b^-1')
         """
@@ -366,7 +366,7 @@ class GroupSpace(SiteSpace[Memory]):
                 The sites of every pair of neighbours.
 
         Examples:
-            >>> from skcomplex.core.formalisms.groups import GroupSpace, permutation_group
+            >>> from skcomplex.formalisms.groups import GroupSpace, permutation_group
             >>> GroupSpace(permutation_group([[1, 2, 0]])).list_neighbor_pairs()
             [(0, 1), (1, 2), (2, 0)]
         """

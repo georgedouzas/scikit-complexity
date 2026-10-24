@@ -6,12 +6,12 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import SolverError
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
 from skcomplex.core.laws import Noise
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import EulerMaruyama, Heun
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import EulerMaruyama, Heun
 from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion, geometric_brownian_motion
 
 from ..conftest import _correlated

@@ -3,12 +3,12 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.backends import NumbaBackend
 from skcomplex.core.base import Domain, parameter
-from skcomplex.core.compile import compile_system
-from skcomplex.core.formalisms.particles import PairPotential, Particle
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumbaBackend
+from skcomplex.engine.compile import compile_system
+from skcomplex.formalisms.particles import PairPotential, Particle
 
 CUTOFF = 2.5
 

@@ -17,9 +17,9 @@ warm and cold plumes side by side.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.formalisms.fields import ETDRK4
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver, default_blueprint
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver, default_blueprint
+from skcomplex.formalisms.fields import ETDRK4
 from skcomplex.models import create
 
 MODEL = 'rayleigh_benard'

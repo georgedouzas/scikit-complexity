@@ -16,7 +16,7 @@ from mesa.discrete_space import CellAgent, Network, OrthogonalMooreGrid, Orthogo
 from mesa.experimental.continuous_space import ContinuousSpace as MesaContinuousSpace
 from mesa.experimental.continuous_space import ContinuousSpaceAgent
 
-from ...base import (
+from ...core.base import (
     ComponentKind,
     ConservationError,
     DomainKind,
@@ -31,11 +31,11 @@ from ...base import (
     VariableKind,
     declarations_of,
 )
-from ...compile import CompiledAgents, ObservableEvaluator, Problem, Vector
-from ...components import Group
-from ...laws import Law
-from ...solvers import AgentSnapshot, AgentState, Stepper
-from ...space import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace, Space
+from ...core.components import Group
+from ...core.laws import Law
+from ...core.space import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace, Space
+from ...engine.compile import CompiledAgents, ObservableEvaluator, Problem, Vector
+from ...engine.solvers import AgentSnapshot, AgentState, Stepper
 from ._laws import Rule
 from ._spaces import DEFAULT_PHASE, Phase, Phases
 
@@ -771,9 +771,9 @@ class MesaStepper(Stepper):
     Examples:
         >>> from skcomplex.core.base import state
         >>> from skcomplex.core.components import Element
-        >>> from skcomplex.core.formalisms.agents import Rule
+        >>> from skcomplex.formalisms.agents import Rule
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.core.runtime import Simulation
+        >>> from skcomplex.engine.runtime import Simulation
         >>> class Counter(Element):
         ...     count: float = state(0.0)
         ...

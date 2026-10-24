@@ -13,8 +13,8 @@ phases lock across the whole network, and the order parameter `r` climbs from no
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver, default_blueprint
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver, default_blueprint
 from skcomplex.models import create, describe
 
 MODEL = 'kuramoto_on_networks'

@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ..base import CapacityError, VariableKind, declarations_of
+from ...core.base import CapacityError, VariableKind, declarations_of
 from ._arrays import Indices, Vector
 from ._declarations import ACTIVE, ENDS, Block, Declarations
 from ._layout import Entry

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._kinds import DataKind, analysis
 
 type Array = npt.NDArray[np.float64]
@@ -60,7 +60,7 @@ def two_time_correlation(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import two_time_correlation
+        >>> from skcomplex.engine.analysis import two_time_correlation
         >>> two_time_correlation(np.ones((4, 10)), [2], [0, 3]).tolist()
         [[1.0, 1.0]]
     """
@@ -115,7 +115,7 @@ def aging_collapse(waiting: Sequence[float], lags: npt.ArrayLike, correlations: 
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import aging_collapse
+        >>> from skcomplex.engine.analysis import aging_collapse
         >>> lags = np.linspace(1, 100, 100)
         >>> curves = [np.exp(-lags / tw) for tw in (10, 100)]
         >>> collapse = aging_collapse([10, 100], lags, curves)
@@ -169,7 +169,7 @@ def collapse_distributions(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import collapse_distributions
+        >>> from skcomplex.engine.analysis import collapse_distributions
         >>> rng = np.random.default_rng(0)
         >>> collapse = collapse_distributions({t: t * rng.exponential(1, 100_000) for t in (10, 100)})
         >>> bool(collapse.spread < 0.1)
@@ -211,7 +211,7 @@ def response(perturbed: npt.ArrayLike, unperturbed: npt.ArrayLike, field: float)
             The integrated response at every frame.
 
     Examples:
-        >>> from skcomplex.core.analysis import response
+        >>> from skcomplex.engine.analysis import response
         >>> response([[1.0, 2.0]], [[1.0, 1.0]], 0.5).tolist()
         [0.0, 2.0]
     """
@@ -243,7 +243,7 @@ def fluctuation_dissipation_ratio(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import fluctuation_dissipation_ratio
+        >>> from skcomplex.engine.analysis import fluctuation_dissipation_ratio
         >>> lags = np.linspace(0, 3, 30)
         >>> round(fluctuation_dissipation_ratio(np.exp(-lags), 1 - np.exp(-lags), 1.0), 6)
         1.0

@@ -13,8 +13,8 @@ import rerun as rr
 import rerun.blueprint as rrb
 from rerun.chunk import RrdReader
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 
 from ._cache import ScreenshotCache, cache_key
 from ._capture import capture_thumbnail, first_view
@@ -39,7 +39,7 @@ def finished_observers(variables: Mapping[str, Any]) -> list[RerunObserver]:
 
     Examples:
         >>> from gallery_tools import finished_observers
-        >>> from skcomplex.core.viz import RerunObserver
+        >>> from skcomplex.engine.viz import RerunObserver
         >>> finished_observers({'observer': RerunObserver(save_path='run.rrd', blueprint='default')})
         []
     """

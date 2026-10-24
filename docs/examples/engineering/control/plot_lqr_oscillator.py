@@ -15,10 +15,10 @@ comes to rest in a few seconds.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import linearize
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.system import System
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.analysis import linearize
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe
 
 MODEL = 'lqr_oscillator'

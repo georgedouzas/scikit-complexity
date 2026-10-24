@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._kinds import DataKind, analysis
 
 type Array = npt.NDArray[np.float64]
@@ -167,7 +167,7 @@ def epsilon_machine(symbols: npt.ArrayLike, max_length: int = 3, *, significance
             The longest history is shorter than one symbol, or not shorter than the series.
 
     Examples:
-        >>> from skcomplex.core.analysis import epsilon_machine
+        >>> from skcomplex.engine.analysis import epsilon_machine
         >>> machine = epsilon_machine([0, 0, 1] * 300, 3)
         >>> len(machine.histories), round(machine.statistical_complexity, 3), round(machine.entropy_rate, 3)
         (3, 1.585, 0.0)

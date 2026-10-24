@@ -2,9 +2,9 @@
 
 import numpy as np
 
-from skcomplex.core.compile import compile_system
-from skcomplex.core.solvers import Iteration
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.solvers import Iteration
 from skcomplex.models.economics.markets import Cobweb, Market
 
 

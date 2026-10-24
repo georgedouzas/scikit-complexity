@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import loops
+from skcomplex.engine.analysis import loops
 from skcomplex.models.engineering.processes import food_relief, irrigation, rice_milling, solid_waste
 
 from ...conftest import _run_monitored

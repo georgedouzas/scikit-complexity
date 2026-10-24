@@ -10,9 +10,9 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, max_symbolic, min_symbolic
 
-from ..base import AnalysisError, Expression, components_of, domain_of, symbol
+from ...core.base import AnalysisError, Expression, components_of, domain_of, symbol
+from ...core.laws import where
 from ..compile import Entry, Problem
-from ..laws import where
 
 MEMBER_LIMIT = 64
 

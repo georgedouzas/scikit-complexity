@@ -33,7 +33,7 @@ SCAFFOLD = '''"""
 {caption}
 """
 
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import run
 
 MODEL = '{name}'

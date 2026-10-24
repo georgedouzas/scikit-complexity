@@ -13,10 +13,10 @@ import rerun as rr
 import rerun.blueprint as rrb
 from rerun import bindings
 
-from ..base import ValidationError
+from ...core.base import ValidationError
+from ...core.space import NetworkSpace
 from ..compile import CompiledElement, Problem, RenewalRecord
 from ..runtime import Frame, Observer
-from ..space import NetworkSpace
 from ._agents import AgentsVisual
 from ._blueprints import default_blueprint, save_blueprint
 from ._traits import agents_visual_of
@@ -99,8 +99,8 @@ class RerunObserver(Observer):
         >>> from pathlib import Path
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
-        >>> from skcomplex.core.runtime import Simulation
-        >>> from skcomplex.core.viz import RerunObserver
+        >>> from skcomplex.engine.runtime import Simulation
+        >>> from skcomplex.engine.viz import RerunObserver
         >>> system = System(components=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1)])
         >>> path = Path(tempfile.mkdtemp()) / 'growth.rrd'
         >>> _ = Simulation(system, dt=0.1, observers=[RerunObserver('growth', save_path=path)]).run(until=1)

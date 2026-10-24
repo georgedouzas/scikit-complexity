@@ -13,8 +13,8 @@ the wavelength `2π`. Patches of rolls with different orientations meet at defec
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import fields_of, pattern_wavelength, structure_factor
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.analysis import fields_of, pattern_wavelength, structure_factor
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import run
 
 MODEL = 'swift_hohenberg'

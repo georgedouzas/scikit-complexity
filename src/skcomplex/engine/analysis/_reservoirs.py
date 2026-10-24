@@ -10,9 +10,9 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..base import AnalysisError, vector
-from ..laws import Call, Law, Symbols, Update
-from ..space import DiscreteTime
+from ...core.base import AnalysisError, vector
+from ...core.laws import Call, Law, Symbols, Update
+from ...core.space import DiscreteTime
 from ._kinds import DataKind, analysis
 from ._lazy import module
 from ._surrogate_systems import (
@@ -223,7 +223,7 @@ class ReservoirModel(Surrogate):
 
         Examples:
             >>> import numpy as np
-            >>> from skcomplex.core.analysis import Series, fit_reservoir
+            >>> from skcomplex.engine.analysis import Series, fit_reservoir
             >>> times = np.arange(400.0)
             >>> model = fit_reservoir(Series(times, np.sin(0.1 * times)[:, None], ['x']))
             >>> bool(abs(model.forecast(10)[-1, 0] - np.sin(0.1 * 409)) < 0.01)
@@ -318,7 +318,7 @@ def fit_reservoir(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import Series, fit_reservoir
+        >>> from skcomplex.engine.analysis import Series, fit_reservoir
         >>> times = np.arange(400.0)
         >>> model = fit_reservoir(Series(times, np.sin(0.1 * times)[:, None], ['x']))
         >>> model.states

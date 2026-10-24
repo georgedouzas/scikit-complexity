@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.runtime import Trajectory
+from skcomplex.engine.runtime import Trajectory
 
 
 def magnetization(trajectory: Trajectory) -> float:

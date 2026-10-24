@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.spatial import cKDTree
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._information import mutual_information, symbolize
 from ._kinds import DataKind, analysis
 
@@ -45,7 +45,7 @@ def delay_embedding(values: npt.ArrayLike, dimension: int, delay: int = 1) -> Ar
             The series is too short for one vector.
 
     Examples:
-        >>> from skcomplex.core.analysis import delay_embedding
+        >>> from skcomplex.engine.analysis import delay_embedding
         >>> delay_embedding([0, 1, 2, 3, 4], 2, 2).tolist()
         [[0.0, 2.0], [1.0, 3.0], [2.0, 4.0]]
     """
@@ -77,7 +77,7 @@ def auto_mutual_information(values: npt.ArrayLike, max_delay: int = 100, bins: i
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import auto_mutual_information
+        >>> from skcomplex.engine.analysis import auto_mutual_information
         >>> information = auto_mutual_information(np.random.default_rng(0).standard_normal(10_000), 2, bins=4)
         >>> round(float(information[0]), 2), bool(information[1] < 0.01)
         (2.0, True)
@@ -124,7 +124,7 @@ def false_nearest_neighbors(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import false_nearest_neighbors
+        >>> from skcomplex.engine.analysis import false_nearest_neighbors
         >>> x = np.sin(np.arange(3000) * 0.05)
         >>> false_nearest_neighbors(x, 30, 3).round(2).tolist()[1:]
         [0.0, 0.0]
@@ -216,7 +216,7 @@ def embed(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import embed
+        >>> from skcomplex.engine.analysis import embed
         >>> x = np.sin(np.arange(5000) * 0.05)
         >>> embedding = embed(x, delay=31)
         >>> embedding.delay, embedding.dimension

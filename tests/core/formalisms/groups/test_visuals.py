@@ -4,13 +4,13 @@ import numpy as np
 
 from skcomplex.core.base import Domain, state
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.groups import CayleyVisual, GroupSpace, finitely_presented_group
-from skcomplex.core.formalisms.lattices import LocalRule
 from skcomplex.core.laws import Totalistic
-from skcomplex.core.runtime import Frame, Simulation
 from skcomplex.core.space import Memory
 from skcomplex.core.system import System
-from skcomplex.core.viz import default_blueprint
+from skcomplex.engine.runtime import Frame, Simulation
+from skcomplex.engine.viz import default_blueprint
+from skcomplex.formalisms.groups import CayleyVisual, GroupSpace, finitely_presented_group
+from skcomplex.formalisms.lattices import LocalRule
 
 
 class Parity(Element):

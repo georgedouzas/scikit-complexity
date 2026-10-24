@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.solvers import ScipyODE
+from skcomplex.engine.solvers import ScipyODE
 from skcomplex.models import describe, run
 from skcomplex.models.biology.ecology import (
     lotka_volterra_with_harvesting,

@@ -13,7 +13,7 @@ import numpy as np
 import numpy.typing as npt
 from networkx.algorithms import isomorphism
 
-from ...base import (
+from ...core.base import (
     Domain,
     Form,
     IncompatibleLawsError,
@@ -24,7 +24,10 @@ from ...base import (
     declarations_of,
     symbol,
 )
-from ...compile import (
+from ...core.components import Element, Group
+from ...core.laws import Symbols
+from ...core.system import System
+from ...engine.compile import (
     CompiledElement,
     CompiledInteraction,
     Entry,
@@ -34,9 +37,6 @@ from ...compile import (
     SystemPass,
     flatten_system,
 )
-from ...components import Element, Group
-from ...laws import Symbols
-from ...system import System
 from ._components import HostGraph, Patch, structure_of
 from ._interactions import Rewriting
 from ._laws import GraphProduction, Production, RewritingLaw, Substitution
@@ -151,10 +151,10 @@ def compile_rewriting(system: System) -> 'RewritingProblem':
             A production, substitution, or graph production is malformed.
 
     Examples:
-        >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.core.formalisms.rewriting import Word
-        >>> from skcomplex.core.formalisms.rewriting import Rewrite
-        >>> from skcomplex.core.formalisms.rewriting import Production
+        >>> from skcomplex.engine.compile import compile_system
+        >>> from skcomplex.formalisms.rewriting import Word
+        >>> from skcomplex.formalisms.rewriting import Rewrite
+        >>> from skcomplex.formalisms.rewriting import Production
         >>> from skcomplex.core.system import System
         >>> system = System(
         ...     components=[Word('algae', axiom='A')],

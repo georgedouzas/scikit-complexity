@@ -4,16 +4,16 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import SR, cos, diff, function, sin, sqrt
 
-from skcomplex.core.analysis import equations_of, solve_symbolically
 from skcomplex.core.base import AnalysisError, role, state
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.particles import Particle
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Rate, Update, derivative, lag
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
+from skcomplex.engine.analysis import equations_of, solve_symbolically
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import Simulation
+from skcomplex.formalisms.particles import Particle
 from skcomplex.models.biology.ecology import LogisticGrowth, Population
 from skcomplex.models.biology.epidemiology import Compartment, Recovery
 from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion

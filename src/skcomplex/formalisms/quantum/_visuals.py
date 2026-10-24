@@ -8,10 +8,10 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...compile import CompiledAgents, CompiledElement, Problem
-from ...runtime import Frame
-from ...space import LatticeSpace
-from ...viz import SPACE_TIME, ImageVisual, log_scalars
+from ...core.space import LatticeSpace
+from ...engine.compile import CompiledAgents, CompiledElement, Problem
+from ...engine.runtime import Frame
+from ...engine.viz import SPACE_TIME, ImageVisual, log_scalars
 from ._components import view_of
 from ._passes import QuantumProblem
 
@@ -53,7 +53,7 @@ class ExpectationVisual(ImageVisual):
             The largest number of rows of the space-time image, or `None` for as many as sites, between 64 and 256.
 
     Examples:
-        >>> from skcomplex.core.formalisms.quantum import ExpectationVisual
+        >>> from skcomplex.formalisms.quantum import ExpectationVisual
         >>> ExpectationVisual(low=-0.5, high=0.5)
         ExpectationVisual(states=None, low=-0.5, high=0.5, history=None)
     """

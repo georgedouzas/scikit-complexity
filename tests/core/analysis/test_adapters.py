@@ -4,7 +4,11 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError, Domain, parameter, state
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Jump
+from skcomplex.core.system import System
+from skcomplex.engine.analysis import (
     ANALYSES,
     AnalysisEntry,
     DataKind,
@@ -20,12 +24,8 @@ from skcomplex.core.analysis import (
     snapshots_of,
     structure_factor,
 )
-from skcomplex.core.base import AnalysisError, Domain, parameter, state
-from skcomplex.core.components import Element
-from skcomplex.core.experiments import Experiment
-from skcomplex.core.laws import Jump
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.system import System
+from skcomplex.engine.experiments import Experiment
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create, run
 
 BirthDeath = Element.define(

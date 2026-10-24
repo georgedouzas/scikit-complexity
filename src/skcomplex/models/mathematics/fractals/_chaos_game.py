@@ -12,9 +12,9 @@ from sage.all__sagemath_symbolics import SR
 from ....core.base import Expression, ValidationError, VisualSpec, state, vector
 from ....core.components import Element
 from ....core.laws import Law, Symbols, Update, categorical, where
-from ....core.runtime import register_model
 from ....core.space import ContinuousSpace
 from ....core.system import System
+from ....engine.runtime import register_model
 
 type AffineMap = Sequence[float]
 

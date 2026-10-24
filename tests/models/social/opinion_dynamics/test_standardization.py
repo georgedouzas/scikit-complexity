@@ -5,7 +5,7 @@ import pytest
 from scipy.optimize import brentq
 from scipy.special import gammaln
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models import describe
 from skcomplex.models.social.opinion_dynamics import standardized_agents
 

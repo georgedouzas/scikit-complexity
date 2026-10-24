@@ -7,15 +7,15 @@ import sys
 import pytest
 
 from skcomplex.core.base import Domain, Form, NoiseKind, ValidationError, VisualSpec, parameter, role, state
-from skcomplex.core.compile import SOLVERS, Issue, ValidationReport, ValidationWarning, compile_system, validate
 from skcomplex.core.components import Element, Wiener
-from skcomplex.core.formalisms.agents import Rule
-from skcomplex.core.formalisms.groups import GroupSpace, finitely_presented_group
-from skcomplex.core.formalisms.lattices import Energy, Move, Sample, Sampler
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Noise, Objective, Rate, Update, neighbors
 from skcomplex.core.space import DiscreteTime, LatticeSpace, Memory
 from skcomplex.core.system import System
+from skcomplex.engine.compile import SOLVERS, Issue, ValidationReport, ValidationWarning, compile_system, validate
+from skcomplex.formalisms.agents import Rule
+from skcomplex.formalisms.groups import GroupSpace, finitely_presented_group
+from skcomplex.formalisms.lattices import Energy, Move, Sample, Sampler
 
 from ..conftest import Holding, _correlated
 from .conftest import _pair
@@ -315,7 +315,7 @@ def test_validate_fractional_state_without_its_formalism_names_the_formalism():
     """Test that a fractional state with no fractional solver registered gives an error naming the formalism."""
     script = (
         'from skcomplex.core.base import state\n'
-        'from skcomplex.core.compile import validate\n'
+        'from skcomplex.engine.compile import validate\n'
         'from skcomplex.core.components import Element\n'
         'from skcomplex.core.system import System\n'
         "Kind = Element.define('Kind', states={'x': state(1.0, order=0.5)})\n"
@@ -325,7 +325,7 @@ def test_validate_fractional_state_without_its_formalism_names_the_formalism():
     command = [sys.executable, '-c', script]
     output = subprocess.run(command, capture_output=True, text=True, check=True).stdout  # noqa: S603  # nosec B603
     assert output.startswith('order-unsupported')
-    assert 'skcomplex.core.formalisms.fractional' in output
+    assert 'skcomplex.formalisms.fractional' in output
 
 
 class Misuse(Interaction):

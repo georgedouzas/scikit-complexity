@@ -1,6 +1,6 @@
 """Test the `_criminality` module of `skcomplex.models.social.crowds`."""
 
-from skcomplex.core.compile import validate
+from skcomplex.engine.compile import validate
 from skcomplex.models import create
 
 from ...conftest import _trajectory

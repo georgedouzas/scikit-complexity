@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import epsilon_machine
 from skcomplex.core.base import AnalysisError
+from skcomplex.engine.analysis import epsilon_machine
 
 
 def _golden_mean(steps: int, seed: int) -> np.ndarray:

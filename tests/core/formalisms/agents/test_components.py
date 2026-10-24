@@ -1,12 +1,12 @@
-"""Test the `_components` module of `skcomplex.core.formalisms.agents`."""
+"""Test the `_components` module of `skcomplex.formalisms.agents`."""
 
 import pytest
 
 from skcomplex.core.base import state
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.agents import Rule, memory
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.formalisms.agents import Rule, memory
 
 
 class Saver(Element):

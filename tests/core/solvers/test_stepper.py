@@ -4,10 +4,11 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import SolverError
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
 from skcomplex.core.laws import Noise, Rate
-from skcomplex.core.solvers import (
+from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.solvers import (
     RK4,
     EulerMaruyama,
     Gillespie,
@@ -19,7 +20,6 @@ from skcomplex.core.solvers import (
     resolve_solver,
     step_count,
 )
-from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population
 from skcomplex.models.economics.markets import Cobweb, Market
 

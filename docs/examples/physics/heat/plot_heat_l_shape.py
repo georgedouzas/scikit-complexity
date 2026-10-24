@@ -12,9 +12,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.formalisms.fields import IMEXEuler
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
+from skcomplex.formalisms.fields import IMEXEuler
 from skcomplex.models import create, describe
 
 MODEL = 'heat_l_shape'

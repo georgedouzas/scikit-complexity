@@ -8,8 +8,8 @@ from sage.all__sagemath_symbolics import exp
 from ....core.base import Domain, Expression, parameter, state
 from ....core.components import Element
 from ....core.laws import Event, Law, Rate, Symbols
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 type GateRates = dict[str, tuple[Expression, Expression]]
 

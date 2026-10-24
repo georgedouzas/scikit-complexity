@@ -5,9 +5,9 @@ import pytest
 from scipy.optimize import brentq
 
 from skcomplex.core.base import ValidationError
-from skcomplex.core.compile import missing_declarations
-from skcomplex.core.formalisms.control import Collocation
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.compile import missing_declarations
+from skcomplex.engine.runtime import Simulation
+from skcomplex.formalisms.control import Collocation
 
 
 def _singular_level(cost, discount):

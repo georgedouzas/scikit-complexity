@@ -5,15 +5,15 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import mittag_leffler
 from skcomplex.core.base import Form, SolverError, state
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.fractional import FractionalABM, GrunwaldLetnikov, L1Scheme
 from skcomplex.core.laws import Rate, Update
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import RK4, CoSimulation
 from skcomplex.core.system import System
+from skcomplex.engine.analysis import mittag_leffler
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import RK4, CoSimulation
+from skcomplex.formalisms.fractional import FractionalABM, GrunwaldLetnikov, L1Scheme
 
 SCHEMES = [GrunwaldLetnikov, L1Scheme, FractionalABM]
 

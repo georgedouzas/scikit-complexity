@@ -4,13 +4,13 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import HorizonError, SolverError
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.fractional import FractionalEulerMaruyama, FractionalNoise, fractional_gaussian_noise
 from skcomplex.core.laws import Noise
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import EulerMaruyama
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.formalisms.fractional import FractionalEulerMaruyama, FractionalNoise, fractional_gaussian_noise
 
 
 def _walkers(hurst, members=1000, fractional=True):

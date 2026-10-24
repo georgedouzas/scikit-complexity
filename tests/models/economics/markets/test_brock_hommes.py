@@ -3,7 +3,7 @@
 import numpy as np
 from scipy.special import expit
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.economics.markets import brock_hommes
 
 

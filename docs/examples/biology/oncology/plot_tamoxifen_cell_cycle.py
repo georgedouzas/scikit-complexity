@@ -12,9 +12,9 @@ A continuous infusion of tamoxifen and its metabolite kills cells in the growth 
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import ScipyODE
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import ScipyODE
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'tamoxifen_cell_cycle'

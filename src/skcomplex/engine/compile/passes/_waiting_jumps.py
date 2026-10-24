@@ -9,9 +9,9 @@ from typing import cast
 
 import numpy as np
 
-from ...base import Domain, Expression, Form, components_of, symbol
-from ...laws import Jump, Law, Noise, Rate
-from ...laws._laws import Renewal
+from ....core.base import Domain, Expression, Form, components_of, symbol
+from ....core.laws import Jump, Law, Noise, Rate
+from ....core.laws._laws import Renewal
 from .._compilation import BlockLaws, Compilation, Laws
 from .._declarations import Declarations
 from .._pipeline import Pass

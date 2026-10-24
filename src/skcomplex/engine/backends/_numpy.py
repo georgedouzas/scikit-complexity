@@ -6,7 +6,8 @@
 from collections.abc import Mapping
 from typing import ClassVar
 
-from ..base import ComponentKind, DomainKind, Form, LawKind, NoiseKind, OrderKind, SpaceKind, Supports, TimeKind
+from ...core.base import ComponentKind, DomainKind, Form, LawKind, NoiseKind, OrderKind, SpaceKind, Supports, TimeKind
+from ...core.laws import Boundary, Jump, Noise, Rate, Update
 from ..compile._backends import (
     Backend,
     Lowering,
@@ -19,15 +20,14 @@ from ..compile._backends import (
 from ..compile._kernels import Kernel, Reference, jump_channels, lower_noise
 from ..compile._problem import Draws
 from ..compile._reductions import ReductionPass
-from ..laws import Boundary, Jump, Noise, Rate, Update
 
 
 class NumpyBackend(Backend):
     """Reference backend that evaluates every kernel with NumPy array operations.
 
     Examples:
-        >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.core.backends import NumpyBackend
+        >>> from skcomplex.engine.compile import compile_system
+        >>> from skcomplex.engine.backends import NumpyBackend
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import Population
         >>> compile_system(System(components=[Population('a')]), backend=NumpyBackend()).backend

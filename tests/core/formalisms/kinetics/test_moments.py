@@ -4,14 +4,14 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import Domain, ValidationError, parameter, role, state, symbol
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element, Group
-from skcomplex.core.formalisms.kinetics import Encounter, moment
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Rate
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.space import ContinuousTime, LatticeSpace
 from skcomplex.core.system import Observable, System
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import Simulation
+from skcomplex.formalisms.kinetics import Encounter, moment
 
 CLASSES = 9
 ACTIVITIES = np.linspace(0.0, 1.0, CLASSES)

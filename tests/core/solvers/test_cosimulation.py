@@ -6,14 +6,14 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import Form, IncompatibleLawsError, SolverError, ValidationError, parameter, role, state
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Aggregate, Element
-from skcomplex.core.formalisms.agents import Rule
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Rate
-from skcomplex.core.runtime import RealTime, Simulation
-from skcomplex.core.solvers import CoSimulation, ScipyODE
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import RealTime, Simulation
+from skcomplex.engine.solvers import CoSimulation, ScipyODE
+from skcomplex.formalisms.agents import Rule
 from skcomplex.models.biology.ecology import ExponentialGrowth, LogisticGrowth, Mortality, Population, Predation
 from skcomplex.models.economics.markets import Cobweb, Market
 from skcomplex.models.economics.resources import harvesting

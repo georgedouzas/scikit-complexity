@@ -5,10 +5,10 @@ import pytest
 
 from skcomplex.core.base import SolverError, parameter, state
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.control import Pontryagin
 from skcomplex.core.laws import Objective, Rate
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.formalisms.control import Pontryagin
 
 
 class Quartic(Element):

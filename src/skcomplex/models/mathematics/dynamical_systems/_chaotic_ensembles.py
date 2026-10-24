@@ -9,8 +9,8 @@ from sage.all__sagemath_symbolics import floor
 from ....core.base import Domain, Expression, VisualSpec, parameter
 from ....core.components import Element
 from ....core.laws import Symbols, Update, mod, where
-from ....core.runtime import register_model
 from ....core.system import Observable, System
+from ....engine.runtime import register_model
 
 DOUBLING_DENOMINATOR = 1125899906840747.0
 

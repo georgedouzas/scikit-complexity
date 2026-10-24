@@ -4,15 +4,15 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import Domain, ValidationError, parameter, role, state
-from skcomplex.core.compile import compile_system, validate
 from skcomplex.core.components import Element, Group
-from skcomplex.core.formalisms import registered_formalisms
-from skcomplex.core.formalisms.kinetics import Destruction, Encounter, ParticleKinetics, Proliferation
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import RK4
 from skcomplex.core.space import ContinuousTime, DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import RK4
+from skcomplex.formalisms import registered_formalisms
+from skcomplex.formalisms.kinetics import Destruction, Encounter, ParticleKinetics, Proliferation
 
 CLASSES = 9
 

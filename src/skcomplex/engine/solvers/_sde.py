@@ -9,7 +9,7 @@ from typing import ClassVar, cast
 
 import numpy as np
 
-from ..base import (
+from ...core.base import (
     NUMERIC_DOMAINS,
     ComponentKind,
     Form,
@@ -146,10 +146,10 @@ class EulerMaruyama(SDEScheme):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion
-        >>> from skcomplex.core.solvers import EulerMaruyama
+        >>> from skcomplex.engine.solvers import EulerMaruyama
         >>> problem = compile_system(
         ...     System(
         ...         components=[Asset('stock', price=100)],
@@ -294,9 +294,9 @@ class Milstein(SDEScheme):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.models.economics.finance import geometric_brownian_motion
-        >>> from skcomplex.core.solvers import Milstein
+        >>> from skcomplex.engine.solvers import Milstein
         >>> problem = compile_system(geometric_brownian_motion())
         >>> stepper = Milstein(dt=0.01)
         >>> stepper.initialize(problem, np.random.default_rng(0))
@@ -379,9 +379,9 @@ class Heun(SDEScheme):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.models.economics.finance import geometric_brownian_motion
-        >>> from skcomplex.core.solvers import Heun
+        >>> from skcomplex.engine.solvers import Heun
         >>> problem = compile_system(geometric_brownian_motion())
         >>> stepper = Heun(dt=0.01)
         >>> stepper.initialize(problem, np.random.default_rng(0))

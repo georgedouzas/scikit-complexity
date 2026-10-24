@@ -7,9 +7,9 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from ...base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind
-from ...compile import Problem, Vector
-from ...solvers import Stepper, StructureState
+from ...core.base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind
+from ...engine.compile import Problem, Vector
+from ...engine.solvers import Stepper, StructureState
 from ._passes import RewritingProblem
 
 
@@ -20,12 +20,12 @@ class Rewriter(Stepper):
     sizes. Stochastic productions and the order of graph matches draw from the simulation's random stream.
 
     Examples:
-        >>> from skcomplex.core.formalisms.rewriting import Word
-        >>> from skcomplex.core.formalisms.rewriting import Rewrite
-        >>> from skcomplex.core.formalisms.rewriting import Production
+        >>> from skcomplex.formalisms.rewriting import Word
+        >>> from skcomplex.formalisms.rewriting import Rewrite
+        >>> from skcomplex.formalisms.rewriting import Production
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.core.runtime import Simulation
-        >>> from skcomplex.core.formalisms.rewriting import Rewriter
+        >>> from skcomplex.engine.runtime import Simulation
+        >>> from skcomplex.formalisms.rewriting import Rewriter
         >>> system = System(
         ...     components=[Word('algae', axiom='A')],
         ...     interactions=[Rewrite('rules', target='algae', rules=[Production('A', 'AB'), Production('B', 'A')])],

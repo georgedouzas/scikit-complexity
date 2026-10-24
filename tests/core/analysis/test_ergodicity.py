@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import Ensemble, ergodicity_breaking, ergodicity_distance, fluctuation_metric
 from skcomplex.core.base import AnalysisError
+from skcomplex.engine.analysis import Ensemble, ergodicity_breaking, ergodicity_distance, fluctuation_metric
 
 RUNS = 200
 STEPS = 20_000

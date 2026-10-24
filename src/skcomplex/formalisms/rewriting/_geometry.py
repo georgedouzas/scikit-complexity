@@ -6,7 +6,7 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from ...base import RewritingError
+from ...core.base import RewritingError
 
 ACTIONS = frozenset(
     {
@@ -69,7 +69,7 @@ class WordGeometry:
             The initial heading in degrees in two dimensions, measured from the x axis.
 
     Examples:
-        >>> from skcomplex.core.formalisms.rewriting import WordGeometry
+        >>> from skcomplex.formalisms.rewriting import WordGeometry
         >>> WordGeometry(angle=60.0, contraction=1 / 3).meanings()['F']
         'draw'
     """

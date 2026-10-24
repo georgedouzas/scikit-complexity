@@ -4,7 +4,7 @@ import math
 
 import numpy as np
 
-from skcomplex.core.analysis import lyapunov_spectrum
+from skcomplex.engine.analysis import lyapunov_spectrum
 from skcomplex.models import run
 from skcomplex.models.mathematics.dynamical_systems import (
     baker_map,

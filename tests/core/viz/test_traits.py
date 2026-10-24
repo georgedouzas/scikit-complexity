@@ -5,13 +5,13 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.base import VisualSpec
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
 from skcomplex.core.laws import Update, uniform
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import AgentSnapshot
 from skcomplex.core.system import System
-from skcomplex.core.viz import AgentsVisual, RerunObserver, TraitsVisual, agents_visual_of, default_blueprint
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import AgentSnapshot
+from skcomplex.engine.viz import AgentsVisual, RerunObserver, TraitsVisual, agents_visual_of, default_blueprint
 from skcomplex.models import create
 
 

@@ -13,7 +13,7 @@ from typing import Any, cast
 import numpy as np
 from sage.all__sagemath_symbolics import SR, matrix
 
-from ...base import (
+from ....core.base import (
     Expression,
     SymbolicVector,
     Trait,
@@ -24,8 +24,8 @@ from ...base import (
     symbol,
     vector,
 )
-from ...laws import Boundary, Call, Equation, Event, Jump, Law, Noise, Rate, Symbols, Update, has_trait
-from ...laws._laws import Renewal
+from ....core.laws import Boundary, Call, Equation, Event, Jump, Law, Noise, Rate, Symbols, Update, has_trait
+from ....core.laws._laws import Renewal
 from .._compilation import BlockLaws, Compilation
 from .._complex import split_law
 from .._declarations import Block, Declarations, is_interaction

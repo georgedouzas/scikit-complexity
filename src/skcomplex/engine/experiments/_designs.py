@@ -11,7 +11,7 @@ import numpy as np
 from scipy.stats import qmc
 from sklearn.base import BaseEstimator
 
-from ..base import ValidationError
+from ...core.base import ValidationError
 
 type Row = dict[str, Any]
 
@@ -90,7 +90,7 @@ class Rows(Design):
             One mapping from factory argument or dotted path to value per row.
 
     Examples:
-        >>> from skcomplex.core.experiments import Rows
+        >>> from skcomplex.engine.experiments import Rows
         >>> Rows([{'growth.r': 0.5}, {'growth.r': 1.0}]).rows()
         [{'growth.r': 0.5}, {'growth.r': 1.0}]
     """
@@ -122,7 +122,7 @@ class Grid(Design):
             The values of each factory argument or dotted path.
 
     Examples:
-        >>> from skcomplex.core.experiments import Grid
+        >>> from skcomplex.engine.experiments import Grid
         >>> len(Grid(r=[0.5, 1.0], K=[100, 200, 300]).rows())
         6
     """
@@ -160,7 +160,7 @@ class RandomDesign(_Sampled):
             A pair `(low, high)` or a SciPy distribution per factory argument or dotted path.
 
     Examples:
-        >>> from skcomplex.core.experiments import RandomDesign
+        >>> from skcomplex.engine.experiments import RandomDesign
         >>> len(RandomDesign(5, r=(0.1, 1.0), random_state=0).rows())
         5
     """
@@ -180,7 +180,7 @@ class LatinHypercube(_Sampled):
             A pair `(low, high)` or a SciPy distribution per factory argument or dotted path.
 
     Examples:
-        >>> from skcomplex.core.experiments import LatinHypercube
+        >>> from skcomplex.engine.experiments import LatinHypercube
         >>> rows = LatinHypercube(4, r=(0.0, 1.0), random_state=0).rows()
         >>> sorted(int(row['r'] * 4) for row in rows)
         [0, 1, 2, 3]
@@ -205,7 +205,7 @@ class SobolDesign(_Sampled):
             A pair `(low, high)` or a SciPy distribution per factory argument or dotted path.
 
     Examples:
-        >>> from skcomplex.core.experiments import SobolDesign
+        >>> from skcomplex.engine.experiments import SobolDesign
         >>> len(SobolDesign(8, r=(0.0, 1.0), random_state=0).rows())
         8
     """

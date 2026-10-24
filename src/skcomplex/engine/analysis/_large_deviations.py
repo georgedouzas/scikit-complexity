@@ -12,10 +12,10 @@ import numpy as np
 import numpy.typing as npt
 from scipy import linalg, special
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
+from ...core.system import System
 from ..compile import Problem
 from ..runtime import Simulation, Trajectory
-from ..system import System
 from ._kinds import DataKind, analysis
 
 type Array = npt.NDArray[np.float64]
@@ -55,7 +55,7 @@ def tilted_generating_function(rates: npt.ArrayLike, weights: npt.ArrayLike, k: 
             The generating function at every tilt.
 
     Examples:
-        >>> from skcomplex.core.analysis import tilted_generating_function
+        >>> from skcomplex.engine.analysis import tilted_generating_function
         >>> tilted_generating_function([[2.0]], [[1.0]], [0.0, 1.0]).round(4).tolist()
         [0.0, 3.4366]
     """
@@ -98,7 +98,7 @@ def block_generating_function(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import block_generating_function
+        >>> from skcomplex.engine.analysis import block_generating_function
         >>> counts = np.random.default_rng(0).poisson(0.2, 1_000_000)
         >>> bool(abs(block_generating_function(counts, [1.0], 10, 0.1)[0] - 2 * (np.e - 1)) < 0.2)
         True
@@ -133,7 +133,7 @@ def legendre_transform(k: npt.ArrayLike, function: npt.ArrayLike, values: npt.Ar
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import legendre_transform
+        >>> from skcomplex.engine.analysis import legendre_transform
         >>> k = np.linspace(-3, 3, 6001)
         >>> round(float(legendre_transform(k, 2 * (np.exp(k) - 1), [3.0])[0]), 4)
         0.2164
@@ -190,7 +190,7 @@ def histogram_rate_function(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import histogram_rate_function
+        >>> from skcomplex.engine.analysis import histogram_rate_function
         >>> rng = np.random.default_rng(0)
         >>> samples = {n: rng.binomial(n, 0.5, 200_000) / n for n in (50, 100, 200)}
         >>> rate = histogram_rate_function(samples, 21, (0.0, 1.0))
@@ -252,7 +252,7 @@ def reweight(values: npt.ArrayLike, log_weights: npt.ArrayLike) -> Reweighted:
             The weights, the reweighted mean, and the effective sample size.
 
     Examples:
-        >>> from skcomplex.core.analysis import reweight
+        >>> from skcomplex.engine.analysis import reweight
         >>> round(reweight([-1.0, 1.0], [0.0, 0.0]).mean, 6)
         0.0
     """
@@ -345,7 +345,7 @@ def cloning(
             The population is smaller than 2, or the duration is not a positive multiple of the interval.
 
     Examples:
-        >>> from skcomplex.core.analysis import cloning
+        >>> from skcomplex.engine.analysis import cloning
         >>> from skcomplex.core.components import Element
         >>> from skcomplex.core.laws import Jump
         >>> from skcomplex.core.system import System

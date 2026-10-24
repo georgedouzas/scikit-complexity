@@ -16,9 +16,9 @@ import numpy as np
 from matching.games import HospitalResident
 
 from ....core.base import role
-from ....core.formalisms.agents import Rule
 from ....core.interactions import Interaction
 from ....core.laws import Law, Symbols
+from ....formalisms.agents import Rule
 
 type Preference = Callable[[Any, Any], float]
 

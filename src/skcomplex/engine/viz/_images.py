@@ -11,7 +11,7 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ..base import Domain
+from ...core.base import Domain
 from ..compile import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 from ._colors import _levels_of, _phase_colors, palette_colors
@@ -44,7 +44,7 @@ class ImageVisual(Visual):
             image, or `None` for as many rows as the lattice has sites, between 64 and 256.
 
     Examples:
-        >>> from skcomplex.core.viz import ImageVisual
+        >>> from skcomplex.engine.viz import ImageVisual
         >>> ImageVisual(low=0, high=1)
         ImageVisual(states=None, low=0, high=1, history=None)
     """
@@ -160,8 +160,8 @@ class ImageVisual(Visual):
                 dimension.
 
         Examples:
-            >>> from skcomplex.core.compile import compile_system
-            >>> from skcomplex.core.viz import ImageVisual
+            >>> from skcomplex.engine.compile import compile_system
+            >>> from skcomplex.engine.viz import ImageVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('gray_scott', shape=(16, 16)))
             >>> [str(view.origin) for view in ImageVisual().views(problem.elements[0], problem)]

@@ -10,8 +10,8 @@ from ....core.base import Domain, Expression, parameter
 from ....core.components import Element
 from ....core.interactions import Interaction
 from ....core.laws import Event, Law, Rate, Symbols, maximum, mean, where
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 from ._utils import _order_parameter
 
 

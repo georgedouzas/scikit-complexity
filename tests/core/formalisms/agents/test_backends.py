@@ -20,14 +20,14 @@ from skcomplex.core.base import (
     role,
     state,
 )
-from skcomplex.core.compile import compile_system, validate
 from skcomplex.core.components import Element, Group
-from skcomplex.core.formalisms.agents import AgentView, MesaStepper, Rule, runs_rules
-from skcomplex.core.formalisms.agents._passes import AGENT_RESERVED_NAMES
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.space import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.runtime import Simulation
+from skcomplex.formalisms.agents import AgentView, MesaStepper, Rule, runs_rules
+from skcomplex.formalisms.agents._passes import AGENT_RESERVED_NAMES
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population
 
 

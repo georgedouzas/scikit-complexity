@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 import powerlaw
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._kinds import DataKind, analysis
 from ._utils import real_array
 
@@ -182,7 +182,7 @@ def histogram(values: npt.ArrayLike, bins: int = 30, *, log: bool = False) -> tu
             Logarithmic bins are asked for samples that are not all positive.
 
     Examples:
-        >>> from skcomplex.core.analysis import histogram
+        >>> from skcomplex.engine.analysis import histogram
         >>> edges, density = histogram([1, 2, 4, 8], bins=3, log=True)
         >>> edges.round(2).tolist()
         [1.0, 2.0, 4.0, 8.0]
@@ -212,7 +212,7 @@ def ccdf(values: npt.ArrayLike) -> tuple[Array, Array]:
             The sorted distinct values and `P(X >= x)` at each of them.
 
     Examples:
-        >>> from skcomplex.core.analysis import ccdf
+        >>> from skcomplex.engine.analysis import ccdf
         >>> ccdf([1, 1, 2, 4])[1].tolist()
         [1.0, 0.5, 0.25]
     """
@@ -272,7 +272,7 @@ def fit_power_law(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import fit_power_law
+        >>> from skcomplex.engine.analysis import fit_power_law
         >>> samples = (1 - np.random.default_rng(0).random(5000)) ** (-1 / 1.5)
         >>> round(float(fit_power_law(samples, xmin=1.0, bootstrap=0).alpha), 1)
         2.5
@@ -312,7 +312,7 @@ def hill(values: npt.ArrayLike, k: int) -> float:
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import hill
+        >>> from skcomplex.engine.analysis import hill
         >>> samples = (1 - np.random.default_rng(0).random(20000)) ** (-1 / 1.5)
         >>> round(hill(samples, 2000), 1)
         1.5
@@ -337,7 +337,7 @@ def gini(values: npt.ArrayLike) -> float:
             The Gini coefficient.
 
     Examples:
-        >>> from skcomplex.core.analysis import gini
+        >>> from skcomplex.engine.analysis import gini
         >>> gini([1, 1, 1, 1]), gini([0, 0, 0, 4])
         (0.0, 0.75)
     """

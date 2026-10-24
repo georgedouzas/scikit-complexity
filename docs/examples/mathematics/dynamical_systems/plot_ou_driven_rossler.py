@@ -19,8 +19,8 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.signal import find_peaks
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe
 
 MODEL = 'ou_driven_rossler'

@@ -9,9 +9,9 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from ..base import Registry, ValidationError
+from ...core.base import Registry, ValidationError
+from ...core.system import Observable, System
 from ..compile import compile_system
-from ..system import Observable, System
 from ._simulations import Simulation
 
 type Factory = Callable[..., System]
@@ -162,7 +162,7 @@ def register_model(
     Examples:
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import Population
-        >>> from skcomplex.core.runtime import create, register_model
+        >>> from skcomplex.engine.runtime import create, register_model
         >>> @register_model(field='examples/demo', references=('This docstring',), defaults={'until': 5})
         ... def constant_population(n: float = 3.0) -> System:
         ...     '''Return one population that does not change.'''

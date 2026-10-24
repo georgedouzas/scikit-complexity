@@ -10,9 +10,9 @@ from pathlib import Path
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ..base import ValidationError
+from ...core.base import ValidationError
+from ...core.system import Observable, System
 from ..compile import CompiledAgents, CompiledElement, Problem, compile_system, observables_of
-from ..system import Observable, System
 from ._points import PointsVisual
 from ._scalars import ScalarsVisual
 from ._traits import agents_visual_of
@@ -230,7 +230,7 @@ def primary_view(system: System | Problem) -> rrb.View:
             No visual of the system declares a view.
 
     Examples:
-        >>> from skcomplex.core.viz import primary_view
+        >>> from skcomplex.engine.viz import primary_view
         >>> from skcomplex.models import create
         >>> view = primary_view(create('gray_scott', shape=(16, 16)))
         >>> type(view).__name__, str(view.origin)
@@ -279,7 +279,7 @@ def default_blueprint(
             No view has the name or the origin of `primary`.
 
     Examples:
-        >>> from skcomplex.core.viz import default_blueprint
+        >>> from skcomplex.engine.viz import default_blueprint
         >>> from skcomplex.models import create
         >>> blueprint = default_blueprint(create('lotka_volterra'))
         >>> [(type(view).__name__, str(view.name)) for view in blueprint.root_container.contents]
@@ -324,7 +324,7 @@ def save_blueprint(blueprint: rrb.Blueprint, path: str | Path, *, application_id
     Examples:
         >>> import tempfile
         >>> from pathlib import Path
-        >>> from skcomplex.core.viz import default_blueprint, save_blueprint
+        >>> from skcomplex.engine.viz import default_blueprint, save_blueprint
         >>> from skcomplex.models import create
         >>> path = save_blueprint(default_blueprint(create('lorenz')), Path(tempfile.mkdtemp()) / 'lorenz.rbl')
         >>> path.suffix, path.stat().st_size > 0

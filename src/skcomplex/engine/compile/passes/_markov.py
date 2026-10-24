@@ -7,7 +7,7 @@ from typing import cast
 
 import numpy as np
 
-from ...base import ValidationError
+from ....core.base import ValidationError
 from .._compilation import BlockLaws, Compilation
 from .._declarations import Declarations
 from .._pipeline import Pass

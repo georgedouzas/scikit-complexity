@@ -8,17 +8,17 @@ import numba
 import numpy as np
 import pytest
 
-from skcomplex.core.backends import NumbaBackend, NumpyBackend, _numba
 from skcomplex.core.base import BackendError, BackendWarning, Domain, SolverError, parameter, role, vector
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.particles import PairPotential, Particle
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Call, Jump, Noise, Rate, Update
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import RK4, EulerMaruyama, Gillespie, Iteration, VelocityVerlet
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumbaBackend, NumpyBackend, _numba
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import RK4, EulerMaruyama, Gillespie, Iteration, VelocityVerlet
+from skcomplex.formalisms.particles import PairPotential, Particle
 from skcomplex.models import create
 from skcomplex.models.biology.ecology import Population
 from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
@@ -249,8 +249,8 @@ def test_numba_kernels_are_cached_on_disk(tmp_path):
     script = textwrap.dedent(
         f"""
         import time
-        from skcomplex.core.compile import compile_system
-        from skcomplex.core.backends import NumbaBackend
+        from skcomplex.engine.compile import compile_system
+        from skcomplex.engine.backends import NumbaBackend
         from skcomplex.models.physics.statistical_mechanics import ideal_gas
         start = time.perf_counter()
         problem = compile_system(ideal_gas(2000, random_state=0), backend=NumbaBackend(cache_dir={str(tmp_path)!r}))
@@ -269,8 +269,8 @@ def test_second_process_loads_kernels_from_cache(tmp_path):
     script = textwrap.dedent(
         f"""
         import sys
-        from skcomplex.core.compile import compile_system
-        from skcomplex.core.backends import NumbaBackend
+        from skcomplex.engine.compile import compile_system
+        from skcomplex.engine.backends import NumbaBackend
         from skcomplex.models.physics.statistical_mechanics import ideal_gas
         problem = compile_system(ideal_gas(2000, random_state=0), backend=NumbaBackend(cache_dir={str(tmp_path)!r}))
         problem.drift(0.0, problem.initial_state, problem.initial_parameters)
@@ -293,8 +293,8 @@ def test_cached_kernels_with_metric_neighbourhoods_run_in_a_second_process(tmp_p
     """Test that kernels searching radius neighbourhoods run the same when a second process loads them cached."""
     script = textwrap.dedent(
         f"""
-        from skcomplex.core.backends import NumbaBackend
-        from skcomplex.core.runtime import Simulation
+        from skcomplex.engine.backends import NumbaBackend
+        from skcomplex.engine.runtime import Simulation
         from skcomplex.models.physics.active_matter import nonreciprocal_vicsek
         backend = NumbaBackend(cache_dir={str(tmp_path)!r})
         run = Simulation(nonreciprocal_vicsek(40), dt=1.0, backend=backend, random_state=0).run(until=5)

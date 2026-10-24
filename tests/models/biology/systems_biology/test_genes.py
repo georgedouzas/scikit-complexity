@@ -2,8 +2,8 @@
 
 import numpy as np
 
-from skcomplex.core.analysis import autocorrelation
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.analysis import autocorrelation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.systems_biology import (
     negative_autoregulation,
     repressilator,

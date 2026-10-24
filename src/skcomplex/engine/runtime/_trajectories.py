@@ -53,7 +53,7 @@ class Trajectory:
     Examples:
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
-        >>> from skcomplex.core.runtime import Simulation
+        >>> from skcomplex.engine.runtime import Simulation
         >>> system = System(components=[Population('a', n=1)], interactions=[ExponentialGrowth('g', target='a', r=1)])
         >>> trajectory = Simulation(system, dt=0.5).run(until=1).trajectory_
         >>> trajectory.times.tolist()
@@ -147,9 +147,9 @@ class Trajectory:
 
         Examples:
             >>> import numpy as np
-            >>> from skcomplex.core.compile import compile_system
+            >>> from skcomplex.engine.compile import compile_system
             >>> from skcomplex.core.system import replicate
-            >>> from skcomplex.core.runtime import Simulation
+            >>> from skcomplex.engine.runtime import Simulation
             >>> from skcomplex.models.mathematics.dynamical_systems import logistic_map
             >>> ensemble = replicate(logistic_map(), 3, {'map.x': [0.1, 0.2, 0.3]})
             >>> trajectory = Simulation(ensemble, dt=1).run(until=2).trajectory_
@@ -192,7 +192,7 @@ class Trajectory:
                 The locations at every frame, empty arrays for frames without locations.
 
         Examples:
-            >>> from skcomplex.core.runtime import Simulation
+            >>> from skcomplex.engine.runtime import Simulation
             >>> from skcomplex.models import create
             >>> trajectory = Simulation(create('boids'), random_state=0).run(until=2).trajectory_
             >>> [locations.shape[1] for locations in trajectory.agent_locations('flock')]

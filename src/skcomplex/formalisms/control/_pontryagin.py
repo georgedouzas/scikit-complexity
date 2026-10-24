@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, solve
 
-from ...base import (
+from ...core.base import (
     ComponentKind,
     DomainKind,
     Expression,
@@ -20,7 +20,7 @@ from ...base import (
     Supports,
     TimeKind,
 )
-from ...compile import Vector
+from ...engine.compile import Vector
 from ._optimal import ControlSolution, GridFunction, OptimalControlSolver, _ControlProblem
 
 MIN_RELAXATION = 1e-3
@@ -101,8 +101,8 @@ class Pontryagin(OptimalControlSolver):
         >>> from skcomplex.core.base import parameter
         >>> from skcomplex.core.components import Element
         >>> from skcomplex.core.laws import Objective, Rate
-        >>> from skcomplex.core.runtime import Simulation
-        >>> from skcomplex.core.formalisms.control import Pontryagin
+        >>> from skcomplex.engine.runtime import Simulation
+        >>> from skcomplex.formalisms.control import Pontryagin
         >>> from skcomplex.core.system import System
         >>> Plant = Element.define(
         ...     'Plant',

@@ -6,7 +6,9 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError
+from skcomplex.core.space import NetworkSpace
+from skcomplex.engine.analysis import (
     autocorrelation,
     ccdf,
     degrees,
@@ -20,8 +22,6 @@ from skcomplex.core.analysis import (
     mean_squared_displacement,
     power_spectrum,
 )
-from skcomplex.core.base import AnalysisError
-from skcomplex.core.space import NetworkSpace
 
 
 def test_power_law_exponent_recovered():

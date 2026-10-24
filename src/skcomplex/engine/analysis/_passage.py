@@ -8,7 +8,7 @@ from collections.abc import Sequence
 import numpy as np
 import numpy.typing as npt
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._kinds import DataKind, analysis
 
 type Array = npt.NDArray[np.float64]
@@ -68,7 +68,7 @@ def first_passage_times(
             Neither a threshold nor states are given, or the direction is unknown.
 
     Examples:
-        >>> from skcomplex.core.analysis import first_passage_times
+        >>> from skcomplex.engine.analysis import first_passage_times
         >>> first_passage_times([[0, 1, 2, 3], [0, 0, 0, 0]], 2).tolist()
         [2.0, nan]
     """
@@ -104,7 +104,7 @@ def hitting_probabilities(paths: npt.ArrayLike, states: Sequence[float]) -> dict
             The share of paths that hit every state before the others, the rest never hitting any.
 
     Examples:
-        >>> from skcomplex.core.analysis import hitting_probabilities
+        >>> from skcomplex.engine.analysis import hitting_probabilities
         >>> hitting_probabilities([[1, 2, 3], [1, 0, 0], [1, 2, 2]], [0, 3])
         {0: 0.3333333333333333, 3: 0.3333333333333333}
     """
@@ -133,7 +133,7 @@ def return_times(values: npt.ArrayLike, level: float = 0.0, times: npt.ArrayLike
             The time between every return and the next.
 
     Examples:
-        >>> from skcomplex.core.analysis import return_times
+        >>> from skcomplex.engine.analysis import return_times
         >>> return_times([0, 1, 0, -1, -2, -1, 0]).tolist()
         [2.0, 4.0]
     """
@@ -168,7 +168,7 @@ def laminar_durations(
             The duration of every complete laminar phase, between two bursts.
 
     Examples:
-        >>> from skcomplex.core.analysis import laminar_durations
+        >>> from skcomplex.engine.analysis import laminar_durations
         >>> laminar_durations([1, 0, 0, 1, 0, 1], 0.5).tolist()
         [2.0, 1.0]
     """

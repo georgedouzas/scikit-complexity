@@ -10,9 +10,9 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
+from ...core.space import LatticeSpace, NetworkSpace
 from ..compile import CompiledAgents, CompiledElement, NetworkSnapshot, Problem
 from ..runtime import Frame
-from ..space import LatticeSpace, NetworkSpace
 from ._colors import palette_colors
 from ._utils import GRID_RADIUS, NODE_SPACING, _network_layout
 from ._visuals import Visual, register_visual
@@ -50,7 +50,7 @@ class SiteVisual(Visual):
             The value of the brightest color, or `None` for the largest value of every frame.
 
     Examples:
-        >>> from skcomplex.core.viz import SiteVisual
+        >>> from skcomplex.engine.viz import SiteVisual
         >>> SiteVisual(low=0, high=2)
         SiteVisual(states=None, low=0, high=2)
     """
@@ -171,11 +171,11 @@ class SiteVisual(Visual):
         Examples:
             >>> import networkx as nx
             >>> from skcomplex.core.base import state
-            >>> from skcomplex.core.compile import compile_system
+            >>> from skcomplex.engine.compile import compile_system
             >>> from skcomplex.core.components import Element
             >>> from skcomplex.core.space import NetworkSpace
             >>> from skcomplex.core.system import System
-            >>> from skcomplex.core.viz import SiteVisual
+            >>> from skcomplex.engine.viz import SiteVisual
             >>> Node = Element.define('Node', states={'value': state(0.0)})
             >>> system = System(components=[Node.lattice('nodes', NetworkSpace(nx.cycle_graph(4)))])
             >>> problem = compile_system(system)

@@ -5,7 +5,11 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Jump
+from skcomplex.core.system import System
+from skcomplex.engine.analysis import (
     count_entropy_production,
     entropy_production,
     fluctuation_theorem,
@@ -13,11 +17,7 @@ from skcomplex.core.analysis import (
     langevin_entropy_production,
     uncertainty_relation,
 )
-from skcomplex.core.base import AnalysisError
-from skcomplex.core.components import Element
-from skcomplex.core.laws import Jump
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
 
 RING = 2 * np.roll(np.eye(5), 1, axis=1) + np.roll(np.eye(5), -1, axis=1)
 

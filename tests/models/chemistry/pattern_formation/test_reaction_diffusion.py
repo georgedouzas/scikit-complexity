@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.runtime import Frame, Simulation
-from skcomplex.core.solvers import RK4
-from skcomplex.core.viz import RerunObserver, resolve_visual
+from skcomplex.engine.runtime import Frame, Simulation
+from skcomplex.engine.solvers import RK4
+from skcomplex.engine.viz import RerunObserver, resolve_visual
 from skcomplex.models.chemistry.pattern_formation import brusselator, gray_scott, schnakenberg
 from skcomplex.models.physics.heat import heat_diffusion
 

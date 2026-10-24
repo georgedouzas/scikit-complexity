@@ -18,8 +18,8 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.optimize import brentq
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe
 
 MODEL = 'binary_collision_flocking'

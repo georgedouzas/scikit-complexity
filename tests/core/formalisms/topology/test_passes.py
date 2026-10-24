@@ -6,17 +6,17 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import as_graph, fit_power_law
 from skcomplex.core.base import CapacityError, ComponentKind, SpaceKind, parameter, role
-from skcomplex.core.compile import compile_system, missing_declarations, validate
 from skcomplex.core.components import Element, Group
-from skcomplex.core.formalisms.topology import TopologyRequest, add_edge, add_node, remove_edge, remove_node, rewire
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Jump, Update, neighbors, total
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import RK4, Gillespie, Iteration
 from skcomplex.core.space import Adjacency, DiscreteTime, Layer, NetworkSpace, Radius
 from skcomplex.core.system import System
+from skcomplex.engine.analysis import as_graph, fit_power_law
+from skcomplex.engine.compile import compile_system, missing_declarations, validate
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import RK4, Gillespie, Iteration
+from skcomplex.formalisms.topology import TopologyRequest, add_edge, add_node, remove_edge, remove_node, rewire
 
 BACKENDS = ('numpy', 'numba')
 

@@ -9,11 +9,11 @@ import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
 from ....core.components import Element
-from ....core.formalisms.fields import ETDRK4, Field, laplacian
 from ....core.laws import Noise, Rate
-from ....core.runtime import register_model
 from ....core.space import LatticeSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.fields import ETDRK4, Field, laplacian
 
 REFERENCES = ('Brauns and Marchetti 2024', 'Allen and Cahn 1979', 'Cahn and Hilliard 1958', 'Bray 1994')
 

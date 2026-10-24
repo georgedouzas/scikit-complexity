@@ -3,7 +3,8 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError
+from skcomplex.engine.analysis import (
     local_entropy,
     local_mutual_information,
     local_transfer_entropy,
@@ -12,7 +13,6 @@ from skcomplex.core.analysis import (
     total_correlation,
     transfer_entropy,
 )
-from skcomplex.core.base import AnalysisError
 
 
 def test_local_mutual_information_gaussian_mean_is_global():

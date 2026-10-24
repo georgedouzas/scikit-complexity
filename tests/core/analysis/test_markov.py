@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import committor, implied_timescales, markov_state_model, mean_first_passage_time
+from skcomplex.engine.analysis import committor, implied_timescales, markov_state_model, mean_first_passage_time
 
 THREE_STATES = np.asarray([[0.90, 0.08, 0.02], [0.04 / 0.3, 1 - 0.04 / 0.3 - 0.12, 0.12], [0.05, 0.18, 0.77]])
 

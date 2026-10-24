@@ -12,10 +12,10 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
+from ...core.system import System, replicate
 from ..compile import compile_system
 from ..experiments import Experiment, Grid, RandomDesign, Source, resolve_source
 from ..runtime import Simulation, Trajectory
-from ..system import System, replicate
 
 RUN_SETTINGS = ('solver', 'backend')
 
@@ -135,7 +135,7 @@ def orbit_diagram(
             The kept values for every value of the parameter.
 
     Examples:
-        >>> from skcomplex.core.analysis import orbit_diagram
+        >>> from skcomplex.engine.analysis import orbit_diagram
         >>> from skcomplex.models.mathematics.dynamical_systems import logistic_map
         >>> diagram = orbit_diagram('logistic_map', 'map.r', [2.9, 3.2], 'map.x', transient=1000, keep=20, dt=1)
         >>> diagram.periods().tolist()
@@ -230,7 +230,7 @@ def basin_stability(
             The fraction and standard error of each attractor.
 
     Examples:
-        >>> from skcomplex.core.analysis import basin_stability
+        >>> from skcomplex.engine.analysis import basin_stability
         >>> from skcomplex.models.biology.ecology import logistic_growth
         >>> result = basin_stability('logistic_growth', {'population.n': (0.1, 10)},
         ...                          lambda trajectory: 'capacity', n=5, until=5)

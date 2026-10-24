@@ -12,11 +12,11 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 from scipy import optimize
 
-from ..base import AnalysisError, VariableKind, declarations_of, symbol
-from ..components import Element
-from ..laws import Rate, Symbols
-from ..space import LatticeSpace
-from ..system import System
+from ...core.base import AnalysisError, VariableKind, declarations_of, symbol
+from ...core.components import Element
+from ...core.laws import Rate, Symbols
+from ...core.space import LatticeSpace
+from ...core.system import System
 from ._kinds import DataKind, analysis
 from ._spatial import correlation_function
 
@@ -220,7 +220,7 @@ def structure_factor(field: npt.ArrayLike, *, spacing: float = 1.0, frames: bool
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import structure_factor
+        >>> from skcomplex.engine.analysis import structure_factor
         >>> x = np.arange(64)
         >>> stripes = np.cos(2 * np.pi * x / 8)[:, None] * np.ones(64)
         >>> factor = structure_factor(stripes)
@@ -277,7 +277,7 @@ def correlation_length(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import correlation_length
+        >>> from skcomplex.engine.analysis import correlation_length
         >>> noise = np.random.default_rng(0).standard_normal((20, 64, 64))
         >>> bool(correlation_length(noise, frames=True) < 0.5)
         True
@@ -316,7 +316,7 @@ def domain_size(field: npt.ArrayLike, *, method: str = 'moment', spacing: float 
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import domain_size
+        >>> from skcomplex.engine.analysis import domain_size
         >>> x = np.arange(64)
         >>> stripes = np.sign(np.cos(2 * np.pi * x / 16))
         >>> domain_size(stripes, method='zero')
@@ -388,7 +388,7 @@ def domain_growth(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import domain_growth
+        >>> from skcomplex.engine.analysis import domain_growth
         >>> x = np.arange(256)
         >>> stack = [np.sign(np.cos(2 * np.pi * x / (8 * t))) for t in (1, 2, 4)]
         >>> round(domain_growth([1, 2, 4], stack, method='zero').exponent, 2)
@@ -443,7 +443,7 @@ def pattern_wavelength(field: npt.ArrayLike, *, spacing: float = 1.0) -> Pattern
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import pattern_wavelength
+        >>> from skcomplex.engine.analysis import pattern_wavelength
         >>> x = np.arange(64)
         >>> pattern = pattern_wavelength(np.cos(2 * np.pi * x / 8)[:, None] * np.ones(64))
         >>> pattern.wavelength, round(pattern.orientation, 2)
@@ -501,7 +501,7 @@ def number_fluctuations(density: npt.ArrayLike, boxes: npt.ArrayLike | None = No
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import number_fluctuations
+        >>> from skcomplex.engine.analysis import number_fluctuations
         >>> counts = np.random.default_rng(0).poisson(5.0, (20, 64, 64))
         >>> round(number_fluctuations(counts).exponent, 1)
         0.5
@@ -581,7 +581,7 @@ def dispersion_relation(system: System, at: Mapping[str, float] | None = None) -
             an operator other than the Laplacian.
 
     Examples:
-        >>> from skcomplex.core.analysis import dispersion_relation
+        >>> from skcomplex.engine.analysis import dispersion_relation
         >>> from skcomplex.models.chemistry.pattern_formation import brusselator
         >>> relation = dispersion_relation(brusselator((64,), b=1.9, Dv=8.0))
         >>> bool(relation.growth_rates.max() > 0), bool(relation.growth_rates[0] < 0)

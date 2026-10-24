@@ -91,7 +91,7 @@ def markov_state_model(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import markov_state_model
+        >>> from skcomplex.engine.analysis import markov_state_model
         >>> path = np.random.default_rng(0).integers(0, 2, 10_000)
         >>> markov_state_model(path).transition_matrix.round(1).tolist()
         [[0.5, 0.5], [0.5, 0.5]]
@@ -146,7 +146,7 @@ def implied_timescales(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import implied_timescales
+        >>> from skcomplex.engine.analysis import implied_timescales
         >>> path = (np.arange(10_000) // 50) % 2
         >>> implied_timescales(path, [1, 2]).shape
         (2, 1)
@@ -173,7 +173,7 @@ def committor(matrix: npt.ArrayLike, source: Sequence[int], target: Sequence[int
             The probability for every state, 0 on the source and 1 on the target.
 
     Examples:
-        >>> from skcomplex.core.analysis import committor
+        >>> from skcomplex.engine.analysis import committor
         >>> committor([[0.5, 0.5, 0.0], [0.25, 0.5, 0.25], [0.0, 0.5, 0.5]], [0], [2]).tolist()
         [0.0, 0.5, 1.0]
     """
@@ -214,7 +214,7 @@ def mean_first_passage_time(
             The mean first-passage time.
 
     Examples:
-        >>> from skcomplex.core.analysis import mean_first_passage_time
+        >>> from skcomplex.engine.analysis import mean_first_passage_time
         >>> mean_first_passage_time([[0.5, 0.5], [0.5, 0.5]], [0], [1])
         2.0
     """

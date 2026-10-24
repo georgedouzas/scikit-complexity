@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..base import ValidationError
+from ...core.base import ValidationError
 
 
 def real_array(values: npt.ArrayLike, argument: str) -> npt.NDArray[np.float64]:

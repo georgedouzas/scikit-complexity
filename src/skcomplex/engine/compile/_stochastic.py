@@ -14,7 +14,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 from scipy import stats
 
-from ..base import (
+from ...core.base import (
     Categorical,
     Domain,
     Expression,
@@ -26,7 +26,7 @@ from ..base import (
     symbols_of,
     vector,
 )
-from ..laws import (
+from ...core.laws import (
     Boundary,
     Call,
     Draw,
@@ -44,7 +44,7 @@ from ..laws import (
     values_of,
     where,
 )
-from ..laws._laws import Renewal
+from ...core.laws._laws import Renewal
 from ._arrays import Vector
 from ._kernels import Reference, Source
 from ._layout import Entry

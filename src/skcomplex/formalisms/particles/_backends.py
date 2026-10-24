@@ -13,8 +13,7 @@ import numpy as np
 import numpy.typing as npt
 from lammps import lammps
 
-from ...backends import ExternalBackend
-from ...base import (
+from ...core.base import (
     NUMERIC_DOMAINS,
     BackendError,
     ComponentKind,
@@ -30,12 +29,13 @@ from ...base import (
     declarations_of,
     symbol,
 )
-from ...compile import SOLVERS, CompiledElement, CompiledInteraction, Problem, Vector, compile_system
-from ...interactions import Interaction
-from ...laws import Symbols
-from ...solvers import step_count
-from ...space import ContinuousSpace
-from ...system import System
+from ...core.interactions import Interaction
+from ...core.laws import Symbols
+from ...core.space import ContinuousSpace
+from ...core.system import System
+from ...engine.backends import ExternalBackend
+from ...engine.compile import SOLVERS, CompiledElement, CompiledInteraction, Problem, Vector, compile_system
+from ...engine.solvers import step_count
 from ._components import Particle
 from ._interactions import PairPotential
 from ._lepton import lepton_expression
@@ -170,7 +170,7 @@ def register_lammps_pair(interaction: type[PairPotential], style: str, arguments
             which the backend appends.
 
     Examples:
-        >>> from skcomplex.core.formalisms.particles import NATIVE_PAIRS, PairPotential, register_lammps_pair
+        >>> from skcomplex.formalisms.particles import NATIVE_PAIRS, PairPotential, register_lammps_pair
         >>> class Flat(PairPotential):
         ...     def pair_energy(self, s, r):
         ...         return 0 * r
@@ -192,7 +192,7 @@ def register_lammps_fix(interaction: type[Interaction], command: FixCommand) -> 
             The function of the values of the fix that returns its LAMMPS command.
 
     Examples:
-        >>> from skcomplex.core.formalisms.particles import NATIVE_FIXES, register_lammps_fix
+        >>> from skcomplex.formalisms.particles import NATIVE_FIXES, register_lammps_fix
         >>> from skcomplex.core.interactions import Interaction
         >>> class Push(Interaction):
         ...     pass
@@ -250,11 +250,11 @@ class LammpsBackend(ExternalBackend):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.formalisms.particles import LammpsBackend, Particle
+        >>> from skcomplex.formalisms.particles import LammpsBackend, Particle
         >>> from skcomplex.core.space import ContinuousSpace
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.physics.realizations import LennardJones
-        >>> from skcomplex.core.runtime import Simulation
+        >>> from skcomplex.engine.runtime import Simulation
         >>> system = System(
         ...     components=[Particle.group('gas', 2, x=[[0.0, 0.0], [1.5, 0.0]])],
         ...     interactions=[LennardJones('lj', first='gas', second='gas', cutoff=2.5)],

@@ -13,8 +13,8 @@ twelve thousand cells, far below the carrying capacity of a billion.
 import matplotlib.pyplot as plt
 from scipy.optimize import fsolve
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'tcr_gene_therapy'

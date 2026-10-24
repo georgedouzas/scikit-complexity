@@ -12,10 +12,10 @@ from typing import cast
 
 from sage.all__sagemath_symbolics import SR
 
-from ...base import Expression, SymbolicVector, ValidationError, components_of
-from ...components import Wiener
-from ...laws import Law, Noise, Rate
-from ...laws._laws import NOISE_CONVENTIONS
+from ....core.base import Expression, SymbolicVector, ValidationError, components_of
+from ....core.components import Wiener
+from ....core.laws import Law, Noise, Rate
+from ....core.laws._laws import NOISE_CONVENTIONS
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
 from .._noise import process_covariance, process_keys

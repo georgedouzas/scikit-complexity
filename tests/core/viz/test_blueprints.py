@@ -4,13 +4,12 @@ import pytest
 import rerun.blueprint as rrb
 
 from skcomplex.core.base import ValidationError, VisualSpec, state
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.fields import Field
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.space import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System
-from skcomplex.core.viz import (
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import (
     AgentsVisual,
     ImageVisual,
     PointsVisual,
@@ -21,6 +20,7 @@ from skcomplex.core.viz import (
     primary_view,
     save_blueprint,
 )
+from skcomplex.formalisms.fields import Field
 from skcomplex.models import create
 from skcomplex.models.biology.ecology import Population
 from skcomplex.models.physics.heat import Heat

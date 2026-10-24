@@ -10,9 +10,9 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...compile import CompiledAgents, CompiledElement, Problem
-from ...runtime import Frame
-from ...viz import NODE_SPACING, UPWARD, Visual, palette_colors
+from ...engine.compile import CompiledAgents, CompiledElement, Problem
+from ...engine.runtime import Frame
+from ...engine.viz import NODE_SPACING, UPWARD, Visual, palette_colors
 from ._spaces import GroupSpace
 
 NODE_SHARE = 0.15
@@ -36,7 +36,7 @@ class CayleyVisual(Visual):
             The value of the brightest color, or `None` for the largest value of every frame.
 
     Examples:
-        >>> from skcomplex.core.formalisms.groups import CayleyVisual
+        >>> from skcomplex.formalisms.groups import CayleyVisual
         >>> CayleyVisual(low=0, high=1)
         CayleyVisual(states=None, low=0, high=1)
     """

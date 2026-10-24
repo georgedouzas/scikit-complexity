@@ -12,8 +12,8 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ...base import Expression, RewritingError, symbols_of
-from ...compile import numpy_function
+from ...core.base import Expression, RewritingError, symbols_of
+from ...engine.compile import numpy_function
 from ._components import Word
 from ._geometry import WordGeometry
 from ._kernels import (

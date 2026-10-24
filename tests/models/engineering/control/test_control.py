@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import RK4
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import RK4
 from skcomplex.models import describe
 from skcomplex.models.engineering.control import pendulum_swing_up, pid_loop, satellite_transfer, thermostat
 

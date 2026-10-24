@@ -8,8 +8,12 @@ import re
 from dataclasses import replace
 from typing import cast
 
-from ...base import BackendError, Domain, LabelError, ValidationError, VariableKind, VisualSpec, declarations_of
-from ...compile import (
+from ...core.base import BackendError, Domain, LabelError, ValidationError, VariableKind, VisualSpec, declarations_of
+from ...core.components import Group, probe_laws
+from ...core.interactions import Interaction
+from ...core.laws import Invariant, Law
+from ...core.space import Space
+from ...engine.compile import (
     Block,
     BlockLaws,
     Compilation,
@@ -22,10 +26,6 @@ from ...compile import (
     Problem,
     visual_of,
 )
-from ...components import Group, probe_laws
-from ...interactions import Interaction
-from ...laws import Invariant, Law
-from ...space import Space
 from ._laws import Match, Rule, runs_rules
 
 MEMBER_SUFFIX = re.compile(r'\[-?\d+\]$')

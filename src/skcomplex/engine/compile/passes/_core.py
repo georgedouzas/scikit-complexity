@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ...base import Form
+from ....core.base import Form
 from .._census import register_owner
 from .._forms import register_combined, register_form
 from .._pipeline import register_pass

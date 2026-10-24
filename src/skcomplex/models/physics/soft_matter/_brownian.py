@@ -11,8 +11,8 @@ from sage.all__sagemath_symbolics import cos, sqrt
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
 from ....core.laws import Boundary, Law, Noise, Rate, Symbols
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 DoubleWell = Element.define(
     'DoubleWell',

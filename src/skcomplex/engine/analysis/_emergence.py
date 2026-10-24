@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
-from ..base import AnalysisError, UnobservedStatesWarning
+from ...core.base import AnalysisError, UnobservedStatesWarning
 from ._kinds import DataKind, analysis
 from ._transitions import stationary_distribution
 
@@ -192,7 +192,7 @@ def partition_coarse_grain(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import partition_coarse_grain
+        >>> from skcomplex.engine.analysis import partition_coarse_grain
         >>> partition_coarse_grain([0, 1, 2, 3, 2], [0, 0, 1, 1]).tolist()
         [0, 0, 1, 1, 1]
         >>> partition_coarse_grain(np.full((4, 4), 0.25), [0, 0, 0, 1], matrix=True).tolist()
@@ -253,7 +253,7 @@ def effective_information(matrix: npt.ArrayLike) -> EffectiveInformation:
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import effective_information
+        >>> from skcomplex.engine.analysis import effective_information
         >>> effective_information(np.eye(4)).information
         2.0
         >>> round(effective_information([[0.5, 0.5], [0.5, 0.5]]).information, 12)
@@ -341,7 +341,7 @@ def causal_emergence(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import causal_emergence
+        >>> from skcomplex.engine.analysis import causal_emergence
         >>> matrix = np.zeros((4, 4))
         >>> matrix[:3, :3], matrix[3, 3] = 1 / 3, 1.0
         >>> found = causal_emergence(matrix)

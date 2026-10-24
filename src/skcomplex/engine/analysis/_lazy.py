@@ -21,7 +21,7 @@ def module(name: str) -> ModuleType:
             The imported module.
 
     Examples:
-        >>> from skcomplex.core.analysis._lazy import module
+        >>> from skcomplex.engine.analysis._lazy import module
         >>> module('math').sqrt(4.0)
         2.0
     """

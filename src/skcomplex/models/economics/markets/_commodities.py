@@ -6,8 +6,8 @@
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
 from ....core.laws import Auxiliary, Law, Sink, Source, Symbols, Transfer, distributed_delay, lookup, step
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 PRICE_TABLE = ((0.0, 3.0), (0.5, 1.8), (1.0, 1.0), (1.5, 0.65), (2.0, 0.5), (3.0, 0.4))
 INVESTMENT_TABLE = ((0.0, 0.0), (0.5, 0.1), (1.0, 1.0), (1.25, 2.5), (1.5, 4.0), (2.0, 5.0), (3.0, 5.5))

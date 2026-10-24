@@ -41,7 +41,7 @@ def cluster_sizes(
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.core.analysis import cluster_sizes
+        >>> from skcomplex.engine.analysis import cluster_sizes
         >>> cluster_sizes([[1, 1, 0], [0, 0, 1]]).tolist(), cluster_sizes(nx.path_graph(3)).tolist()
         ([2, 1], [3])
     """
@@ -91,7 +91,7 @@ def percolation(data: npt.ArrayLike | nx.Graph, *, diagonal: bool = False) -> Pe
             The percolation observables.
 
     Examples:
-        >>> from skcomplex.core.analysis import percolation
+        >>> from skcomplex.engine.analysis import percolation
         >>> result = percolation([[1, 1, 0], [1, 0, 1]])
         >>> result.strength, result.mean_size, result.spanning
         (0.5, 1.0, True)
@@ -129,7 +129,7 @@ def spanning_probability(grids: Sequence[npt.ArrayLike], *, diagonal: bool = Fal
             The spanning probability.
 
     Examples:
-        >>> from skcomplex.core.analysis import spanning_probability
+        >>> from skcomplex.engine.analysis import spanning_probability
         >>> spanning_probability([[[1], [1]], [[1], [0]]])
         0.5
     """

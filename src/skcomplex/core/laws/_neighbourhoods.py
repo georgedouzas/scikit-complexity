@@ -141,7 +141,7 @@ def neighbors(
         The differences to the neighbours on a path graph relax every member towards them:
 
         >>> import networkx as nx
-        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.components import Element
         >>> from skcomplex.core.laws import Rate, neighbors
         >>> from skcomplex.core.space import NetworkSpace

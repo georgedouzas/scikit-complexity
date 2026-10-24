@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
-from ..base import Registry
+from ...core.base import Registry
 
 type Function = Callable[..., Any]
 
@@ -17,7 +17,7 @@ class DataKind(StrEnum):
     """Kind of data an analysis consumes, whatever model or measurement produced it.
 
     Examples:
-        >>> from skcomplex.core.analysis import DataKind
+        >>> from skcomplex.engine.analysis import DataKind
         >>> DataKind('field').reading
         'a grid of values, or frames of grids'
     """
@@ -93,7 +93,7 @@ def analysis[F: Function](kind: DataKind) -> Callable[[F], F]:
             The decorator, which returns the function unchanged.
 
     Examples:
-        >>> from skcomplex.core.analysis import ANALYSES, DataKind
+        >>> from skcomplex.engine.analysis import ANALYSES, DataKind
         >>> ANALYSES.resolve('structure_factor').kind
         <DataKind.FIELD: 'field'>
     """

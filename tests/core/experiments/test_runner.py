@@ -1,4 +1,4 @@
-"""Test the `_runner` module of `skcomplex.core.experiments`."""
+"""Test the `_runner` module of `skcomplex.engine.experiments`."""
 
 import os
 import subprocess  # nosec B404: the test runs a script it writes itself with this interpreter
@@ -9,12 +9,12 @@ import pytest
 
 from skcomplex.core.base import ValidationError, state
 from skcomplex.core.components import Element
-from skcomplex.core.experiments import (
+from skcomplex.core.laws import Update
+from skcomplex.core.system import System
+from skcomplex.engine.experiments import (
     Experiment,
     Grid,
 )
-from skcomplex.core.laws import Update
-from skcomplex.core.system import System
 from skcomplex.models.biology.ecology import logistic_growth
 from skcomplex.models.biology.epidemiology import sir
 
@@ -33,7 +33,7 @@ def last_value(trajectory):
 
 SCRIPT_WITHOUT_GUARD = """
 import skcomplex.models.mathematics.dynamical_systems
-from skcomplex.core.analysis import orbit_diagram
+from skcomplex.engine.analysis import orbit_diagram
 
 orbit_diagram('logistic_map', 'map.r', [2.9, 3.2], 'map.x', transient=10, keep=2, dt=1, executor='process')
 """

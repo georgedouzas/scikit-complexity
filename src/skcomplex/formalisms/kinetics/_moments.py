@@ -8,8 +8,8 @@ import math
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ...base import Expression, ValidationError
-from ...laws import total
+from ...core.base import Expression, ValidationError
+from ...core.laws import total
 
 
 def _coordinates(coordinates: object) -> np.ndarray:
@@ -73,7 +73,7 @@ def moment(
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.formalisms.kinetics import moment
+        >>> from skcomplex.formalisms.kinetics import moment
         >>> from skcomplex.core.laws import reductions_in
         >>> f = symbol('f')
         >>> moment(f, 0, [0.0, 1.0, 2.0])

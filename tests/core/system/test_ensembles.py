@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import ValidationError
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.system import replicate
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.ecology import lotka_volterra
 from skcomplex.models.mathematics.dynamical_systems import logistic_map
 

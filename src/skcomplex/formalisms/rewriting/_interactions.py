@@ -6,11 +6,11 @@
 from collections.abc import Sequence
 from typing import Any
 
-from ...base import (
+from ...core.base import (
     role,
 )
-from ...interactions import Interaction
-from ...laws import Symbols
+from ...core.interactions import Interaction
+from ...core.laws import Symbols
 from ._laws import RewritingLaw
 
 
@@ -29,8 +29,8 @@ class Rewriting(Interaction):
 
     Examples:
         >>> from skcomplex.core.base import parameter
-        >>> from skcomplex.core.formalisms.rewriting import Rewriting
-        >>> from skcomplex.core.formalisms.rewriting import Module, Production
+        >>> from skcomplex.formalisms.rewriting import Rewriting
+        >>> from skcomplex.formalisms.rewriting import Module, Production
         >>> from skcomplex.core.base import symbol
         >>> class Halving(Rewriting):
         ...     ratio: float = parameter(0.5)
@@ -76,8 +76,8 @@ class Rewrite(Rewriting):
                 The path of the rewritten element.
 
     Examples:
-        >>> from skcomplex.core.formalisms.rewriting import Rewrite
-        >>> from skcomplex.core.formalisms.rewriting import Production
+        >>> from skcomplex.formalisms.rewriting import Rewrite
+        >>> from skcomplex.formalisms.rewriting import Production
         >>> Rewrite('rules', target='algae', rules=[Production('A', 'AB'), Production('B', 'A')]).rules[1]
         B → A
     """

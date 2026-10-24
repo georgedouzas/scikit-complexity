@@ -7,9 +7,14 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import SolverError, ValidationError
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.fields import (
+from skcomplex.core.laws import Rate
+from skcomplex.core.space import LatticeSpace
+from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import Frame, Simulation
+from skcomplex.engine.viz import RerunObserver, resolve_visual
+from skcomplex.formalisms.fields import (
     ETDRK4,
     IMEX2,
     SSPRK,
@@ -22,11 +27,6 @@ from skcomplex.core.formalisms.fields import (
     inverse_laplacian,
     laplacian,
 )
-from skcomplex.core.laws import Rate
-from skcomplex.core.runtime import Frame, Simulation
-from skcomplex.core.space import LatticeSpace
-from skcomplex.core.system import System
-from skcomplex.core.viz import RerunObserver, resolve_visual
 from skcomplex.models.biology.ecology import logistic_growth
 from skcomplex.models.physics.fluids import (
     burgers,

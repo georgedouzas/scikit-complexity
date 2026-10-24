@@ -10,12 +10,12 @@ from sage.all__sagemath_symbolics import cos, sign, sin, sqrt
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.formalisms.particles import Particle, Potential
 from ....core.interactions import Interaction
 from ....core.laws import Equation, Event, Rate, Symbols, derivative
-from ....core.runtime import register_model
 from ....core.space import ContinuousSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.particles import Particle, Potential
 from ..realizations import HarmonicPotential, LinearDrag
 from ._mechanics import Pendulum
 

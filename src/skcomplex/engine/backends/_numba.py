@@ -16,7 +16,7 @@ from typing import Any, ClassVar
 import numba
 import numpy as np
 
-from ..base import (
+from ...core.base import (
     NUMERIC_DOMAINS,
     ComponentKind,
     DomainKind,
@@ -28,6 +28,7 @@ from ..base import (
     Supports,
     TimeKind,
 )
+from ...core.laws import Boundary, Jump, Noise, Rate, Update
 from ..compile._arrays import Vector
 from ..compile._backends import (
     AUTO_MEMBERS,
@@ -45,7 +46,6 @@ from ..compile._layout import Entry
 from ..compile._neighbourhoods import EdgeRows, MetricSearch
 from ..compile._problem import Accelerated, Draws
 from ..compile._reductions import ReductionPass
-from ..laws import Boundary, Jump, Noise, Rate, Update
 from ..solvers import step_count
 from . import _numba_neighbours, _numba_stencils
 from ._numba_kernels import _edge_kernel, _entry_function, _is_compilable, _member_kernel, _output_count, _pair_kernel
@@ -67,7 +67,7 @@ HEADER = """import math
 import numpy as np
 from numba import njit, prange
 
-from skcomplex.core.backends._numba_neighbours import (
+from skcomplex.engine.backends._numba_neighbours import (
     build_grid,
     cell_coordinate,
     cone_neighbours,
@@ -75,8 +75,8 @@ from skcomplex.core.backends._numba_neighbours import (
     nearest_neighbours,
     radius_neighbours,
 )
-from skcomplex.core.backends._numba_stencils import neighbor_value
-from skcomplex.core.solvers import step_count
+from skcomplex.engine.backends._numba_stencils import neighbor_value
+from skcomplex.engine.solvers import step_count
 """
 
 
@@ -175,7 +175,7 @@ class NumbaBackend(Backend):
             the compiled loops of jump processes and discrete maps call once per event always run serially.
 
     Examples:
-        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> system = System(

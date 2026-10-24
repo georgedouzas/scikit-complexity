@@ -11,7 +11,7 @@ import numpy.typing as npt
 import scipy.fft
 import scipy.linalg
 
-from ...base import (
+from ...core.base import (
     NUMERIC_DOMAINS,
     ComponentKind,
     Form,
@@ -25,8 +25,8 @@ from ...base import (
     TimeKind,
     ValidationError,
 )
-from ...compile import Problem, Vector
-from ...solvers import Stepper
+from ...engine.compile import Problem, Vector
+from ...engine.solvers import Stepper
 
 EIGENVALUE_TOLERANCE = 1e-10
 GRID_TOLERANCE = 1e-9
@@ -70,7 +70,7 @@ def fractional_gaussian_noise(n: int, hurst: float, size: int, rng: np.random.Ge
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.formalisms.fractional import fractional_gaussian_noise
+        >>> from skcomplex.formalisms.fractional import fractional_gaussian_noise
         >>> noise = fractional_gaussian_noise(100, 0.75, 2000, np.random.default_rng(0))
         >>> noise.shape
         (100, 2000)
@@ -118,11 +118,11 @@ class FractionalEulerMaruyama(Stepper):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.components import Element
-        >>> from skcomplex.core.formalisms.fractional import FractionalNoise
+        >>> from skcomplex.formalisms.fractional import FractionalNoise
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.core.formalisms.fractional import FractionalEulerMaruyama
+        >>> from skcomplex.formalisms.fractional import FractionalEulerMaruyama
         >>> Walker = Element.define(
         ...     'Walker',
         ...     states={'x': 0.0},

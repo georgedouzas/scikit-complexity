@@ -11,7 +11,7 @@ from typing import Any, cast
 
 import numpy as np
 
-from ..base import (
+from ...core.base import (
     BackendError,
     Categorical,
     Domain,
@@ -41,17 +41,17 @@ from ..base import (
     VariableKind,
     declarations_of,
 )
-from ..components import Element, Group, Wiener
-from ..laws import (
+from ...core.components import Element, Group, Wiener
+from ...core.laws import (
     Jump,
     Noise,
     law_classes,
     neighborhoods_in,
     values_of,
 )
-from ..laws._neighbourhoods import NeighborReduction
-from ..space import Adjacency, Cone, NetworkSpace, SiteSpace, Space
-from ..system import Observable, System
+from ...core.laws._neighbourhoods import NeighborReduction
+from ...core.space import Adjacency, Cone, NetworkSpace, SiteSpace, Space
+from ...core.system import Observable, System
 from ._backends import BACKENDS, Backend
 from ._census import Census, CensusRecord
 from ._compilation import Compilation
@@ -396,7 +396,7 @@ def _order_issues(nodes: list[Node]) -> list[Issue]:
         for name, declaration in declarations_of(node.component_type, VariableKind.STATE).items()
         if declaration.is_fractional
     ]
-    fix = 'Import the formalism of fractional orders, `skcomplex.core.formalisms.fractional`.'
+    fix = 'Import the formalism of fractional orders, `skcomplex.formalisms.fractional`.'
     return [
         Issue(
             'order-unsupported',
@@ -720,7 +720,7 @@ def missing_declarations() -> list[str]:
             One sentence per missing declaration.
 
     Examples:
-        >>> from skcomplex.core.compile import missing_declarations
+        >>> from skcomplex.engine.compile import missing_declarations
         >>> missing_declarations()
         []
     """
@@ -784,7 +784,7 @@ def validate(
             The problems found, with the compilation state.
 
     Examples:
-        >>> from skcomplex.core.compile import validate
+        >>> from skcomplex.engine.compile import validate
         >>> from skcomplex.models import create
         >>> validate(create('lotka_volterra')).ok
         True
@@ -813,7 +813,7 @@ class ValidationReport:
             when the system tree cannot be flattened.
 
     Examples:
-        >>> from skcomplex.core.compile import validate
+        >>> from skcomplex.engine.compile import validate
         >>> from skcomplex.core.system import System
         >>> validate(System()).ok
         True

@@ -14,8 +14,8 @@ dead ends. The view shows a 128 x 128 lattice at `p = 0.6` once the fire has gon
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'site_percolation'

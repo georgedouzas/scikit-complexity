@@ -8,12 +8,12 @@ from sage.all__sagemath_symbolics import cos, sin
 
 from ....core.base import Domain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.formalisms.particles import Particle
 from ....core.interactions import Interaction
 from ....core.laws import Equation, Event, Rate, derivative
-from ....core.runtime import register_model
 from ....core.space import ContinuousSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.particles import Particle
 from ..realizations import ConstantForce, HarmonicPotential, LinearDrag
 
 GRAVITY = 9.81
@@ -332,7 +332,7 @@ def bouncing_ball(h: float = 1.0, v: float = 0.0, *, g: float = 9.81, e: float =
 
     Examples:
         >>> from skcomplex.models.physics.mechanics import bouncing_ball
-        >>> from skcomplex.core.runtime import Simulation
+        >>> from skcomplex.engine.runtime import Simulation
         >>> trajectory = Simulation(bouncing_ball(), dt=0.01).run(until=1.0).trajectory_
         >>> round(trajectory.events[0].time, 6)
         0.451524

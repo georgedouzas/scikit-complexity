@@ -4,13 +4,13 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import Domain, SolverError, ValidationError, state
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element, Group
-from skcomplex.core.formalisms.lattices import Drive, Energy, LocalRule, Move, Relaxation, Sample, Sampler
 from skcomplex.core.laws import OuterTotalistic, Table, Totalistic, neighbors
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.space import LatticeSpace, Neighborhood
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import Simulation
+from skcomplex.formalisms.lattices import Drive, Energy, LocalRule, Move, Relaxation, Sample, Sampler
 from skcomplex.models.computer_science.automata import elementary_automaton, game_of_life
 from skcomplex.models.physics.criticality import forest_fire
 from skcomplex.models.physics.statistical_mechanics import ising, xy

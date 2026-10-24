@@ -12,9 +12,9 @@ from ....core.base import Domain, Expression, ValidationError, parameter, role, 
 from ....core.components import Element
 from ....core.interactions import Interaction
 from ....core.laws import Jump, Law, Noise, Rate, Symbols, where
-from ....core.runtime import register_model
-from ....core.solvers import EulerMaruyama
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....engine.solvers import EulerMaruyama
 
 
 def _langevin_laws(propensity: Expression, changes: Mapping[Expression, int]) -> list[Law]:

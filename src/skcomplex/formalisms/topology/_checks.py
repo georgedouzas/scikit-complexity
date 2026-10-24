@@ -5,10 +5,10 @@
 
 from typing import Any, cast
 
-from ...base import ValidationError
-from ...compile import Census, CensusRecord, Compilation, Issue, Node
-from ...components import Group
-from ...space import NetworkSpace
+from ...core.base import ValidationError
+from ...core.components import Group
+from ...core.space import NetworkSpace
+from ...engine.compile import Census, CensusRecord, Compilation, Issue, Node
 from ._requests import TopologyRequest, request_of
 
 

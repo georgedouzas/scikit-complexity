@@ -69,7 +69,7 @@ class Memory:
                 The memory set.
 
         Examples:
-            >>> from skcomplex.core.formalisms.groups import finitely_presented_group
+            >>> from skcomplex.formalisms.groups import finitely_presented_group
             >>> from skcomplex.core.space import Memory
             >>> Memory.generators(finitely_presented_group(['a', 'b'])).elements
             ('1', 'a', 'a^-1', 'b', 'b^-1')

@@ -12,8 +12,8 @@ import qutip
 import scipy.sparse as sp
 from sage.all__sagemath_symbolics import SR
 
-from ...base import DomainKind, Expression, LawClass, LawKind, Requires, TimeKind, ValidationError
-from ...laws import Law
+from ...core.base import DomainKind, Expression, LawClass, LawKind, Requires, TimeKind, ValidationError
+from ...core.laws import Law
 
 ADJOINT_NAMES = {'plus': 'minus', 'minus': 'plus', 'annihilate': 'create', 'create': 'annihilate'}
 ADJOINT_SUFFIX = '.dag'
@@ -63,7 +63,7 @@ class LocalOperator:
 
     Examples:
         >>> import qutip
-        >>> from skcomplex.core.formalisms.quantum import LocalOperator
+        >>> from skcomplex.formalisms.quantum import LocalOperator
         >>> LocalOperator('plus', qutip.sigmap()).adjoint().name
         'minus'
     """
@@ -106,7 +106,7 @@ class Operator:
     Examples:
         >>> import qutip
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.formalisms.quantum import LocalOperator, Operator
+        >>> from skcomplex.formalisms.quantum import LocalOperator, Operator
         >>> x = LocalOperator('x', qutip.sigmax(), hermitian=True)
         >>> a, b = Operator({(('a', x),): 1}), Operator({(('b', x),): 1})
         >>> symbol('J') * a * b
@@ -207,7 +207,7 @@ class Operator:
 
         Examples:
             >>> import qutip
-            >>> from skcomplex.core.formalisms.quantum import LocalOperator, Operator
+            >>> from skcomplex.formalisms.quantum import LocalOperator, Operator
             >>> plus = LocalOperator('plus', qutip.sigmap())
             >>> (2j * Operator({(('q', plus),): 1})).adjoint()
             (-2j)*q.minus
@@ -239,7 +239,7 @@ class Generator(Law):
 
     Examples:
         >>> import qutip
-        >>> from skcomplex.core.formalisms.quantum import Generator, LocalOperator, Operator
+        >>> from skcomplex.formalisms.quantum import Generator, LocalOperator, Operator
         >>> z = LocalOperator('z', qutip.sigmaz(), hermitian=True)
         >>> Generator(Operator({(('q', z),): 0.5}))
         Generator(operator=0.5*q.z)
@@ -279,7 +279,7 @@ class Dissipator(Law):
 
     Examples:
         >>> import qutip
-        >>> from skcomplex.core.formalisms.quantum import Dissipator, LocalOperator, Operator
+        >>> from skcomplex.formalisms.quantum import Dissipator, LocalOperator, Operator
         >>> minus = LocalOperator('minus', qutip.sigmam())
         >>> Dissipator(Operator({(('q', minus),): 1}), 0.1).rate
         0.1

@@ -5,7 +5,7 @@
 
 import numpy as np
 
-from ..base import ConservationError, SimulationError
+from ...core.base import ConservationError, SimulationError
 from ..compile import Problem, StockFlow, Vector
 from ._frames import Frame
 from ._observers import Observer
@@ -30,7 +30,7 @@ class ConservationMonitor(Observer):
             The total of every quantity at the latest frame.
 
     Examples:
-        >>> from skcomplex.core.runtime import ConservationMonitor, Simulation
+        >>> from skcomplex.engine.runtime import ConservationMonitor, Simulation
         >>> from skcomplex.models import create
         >>> monitor = ConservationMonitor()
         >>> _ = Simulation(create('bathtub'), dt=1, observers=[monitor]).run(10)

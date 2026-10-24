@@ -15,10 +15,18 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 from scipy.sparse import diags
 
-from ...base import Expression, ValidationError, domain_of, symbol
-from ...compile import LATTICE_BOUNDARIES, MODES, NeighborRead, Reference, Source, numpy_function, spectral_multiplier
-from ...laws import where
-from ...space import Adjacency, LatticeSpace, Neighborhood, NetworkSpace
+from ...core.base import Expression, ValidationError, domain_of, symbol
+from ...core.laws import where
+from ...core.space import Adjacency, LatticeSpace, Neighborhood, NetworkSpace
+from ...engine.compile import (
+    LATTICE_BOUNDARIES,
+    MODES,
+    NeighborRead,
+    Reference,
+    Source,
+    numpy_function,
+    spectral_multiplier,
+)
 from ._components import Field
 from ._spaces import Mesh
 

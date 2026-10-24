@@ -10,7 +10,7 @@ from typing import ClassVar
 import numpy as np
 from scipy.special import gamma
 
-from ...base import (
+from ...core.base import (
     NUMERIC_DOMAINS,
     ComponentKind,
     Form,
@@ -21,8 +21,8 @@ from ...base import (
     Supports,
     TimeKind,
 )
-from ...compile import Problem, Vector
-from ...solvers import Stepper
+from ...engine.compile import Problem, Vector
+from ...engine.solvers import Stepper
 
 GRID_TOLERANCE = 1e-9
 CHANGE_TOLERANCE = 1e-12
@@ -437,11 +437,11 @@ class GrunwaldLetnikov(ConvolutionStepper):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.base import state
-        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.components import Element
         >>> from skcomplex.core.laws import Rate
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.core.formalisms.fractional import GrunwaldLetnikov
+        >>> from skcomplex.formalisms.fractional import GrunwaldLetnikov
         >>> Relaxing = Element.define('Relaxing', states={'x': state(1.0, order=0.5)}, laws=lambda s: [Rate(s.x, -s.x)])
         >>> problem = compile_system(System(components=[Relaxing('a')]))
         >>> stepper = GrunwaldLetnikov(dt=0.001)
@@ -486,11 +486,11 @@ class L1Scheme(ConvolutionStepper):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.base import state
-        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.components import Element
         >>> from skcomplex.core.laws import Rate
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.core.formalisms.fractional import L1Scheme
+        >>> from skcomplex.formalisms.fractional import L1Scheme
         >>> Relaxing = Element.define('Relaxing', states={'x': state(1.0, order=0.5)}, laws=lambda s: [Rate(s.x, -s.x)])
         >>> problem = compile_system(System(components=[Relaxing('a')]))
         >>> stepper = L1Scheme(dt=0.001)
@@ -530,11 +530,11 @@ class FractionalABM(CaputoStepper):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.base import state
-        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.components import Element
         >>> from skcomplex.core.laws import Rate
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.core.formalisms.fractional import FractionalABM
+        >>> from skcomplex.formalisms.fractional import FractionalABM
         >>> Relaxing = Element.define('Relaxing', states={'x': state(1.0, order=0.5)}, laws=lambda s: [Rate(s.x, -s.x)])
         >>> problem = compile_system(System(components=[Relaxing('a')]))
         >>> stepper = FractionalABM(dt=0.001)

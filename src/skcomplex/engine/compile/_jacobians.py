@@ -12,7 +12,7 @@ import numpy.typing as npt
 import scipy.sparse
 from sage.all__sagemath_symbolics import SR
 
-from ..base import Expression, ValidationError, symbols_of
+from ...core.base import Expression, ValidationError, symbols_of
 from ._arrays import Indices, Vector
 from ._kernels import Kernel, Output, Reference, Source, member_indices
 from ._printing import numpy_function

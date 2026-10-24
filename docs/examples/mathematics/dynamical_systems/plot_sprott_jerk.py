@@ -17,9 +17,9 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.signal import find_peaks
 
-from skcomplex.core.analysis import lyapunov_spectrum
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.analysis import lyapunov_spectrum
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'sprott_jerk'

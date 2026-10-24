@@ -1,14 +1,14 @@
-"""Test the `_observables` module of `skcomplex.core.compile`."""
+"""Test the `_observables` module of `skcomplex.engine.compile`."""
 
 import pytest
 
-from skcomplex.core.compile import ObservableEvaluator, compile_system, observables_of
 from skcomplex.core.components import Element, Group
-from skcomplex.core.formalisms.agents import runs_rules
-from skcomplex.core.formalisms.quantum import contains_quantum
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Rate
 from skcomplex.core.system import System
+from skcomplex.engine.compile import ObservableEvaluator, compile_system, observables_of
+from skcomplex.formalisms.agents import runs_rules
+from skcomplex.formalisms.quantum import contains_quantum
 from skcomplex.models import catalog, create
 
 ObservedValue = Element.define('ObservedValue', states={'y': 0.0})

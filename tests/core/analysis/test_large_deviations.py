@@ -6,7 +6,11 @@ import numpy as np
 import pytest
 from scipy import special
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Jump
+from skcomplex.core.system import System
+from skcomplex.engine.analysis import (
     block_generating_function,
     cloning,
     histogram_rate_function,
@@ -14,10 +18,6 @@ from skcomplex.core.analysis import (
     reweight,
     tilted_generating_function,
 )
-from skcomplex.core.base import AnalysisError
-from skcomplex.core.components import Element
-from skcomplex.core.laws import Jump
-from skcomplex.core.system import System
 
 
 def _mean_field_magnetizations(size: int, beta: float, field: float, samples: int, seed: int) -> np.ndarray:

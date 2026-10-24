@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 import ordpy
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._information import break_ties, kl_divergence, shannon_entropy
 from ._kinds import DataKind, analysis
 from ._lazy import module
@@ -44,7 +44,7 @@ def sample_entropy(values: npt.ArrayLike, dimension: int = 2, tolerance: float =
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import sample_entropy
+        >>> from skcomplex.engine.analysis import sample_entropy
         >>> sample_entropy([0.2, 0.8] * 500)
         0.0
     """
@@ -72,7 +72,7 @@ def approximate_entropy(values: npt.ArrayLike, dimension: int = 2, tolerance: fl
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import approximate_entropy
+        >>> from skcomplex.engine.analysis import approximate_entropy
         >>> bool(approximate_entropy(np.random.default_rng(0).standard_normal(1000)) > 1)
         True
     """
@@ -127,7 +127,7 @@ def multiscale_entropy(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import multiscale_entropy
+        >>> from skcomplex.engine.analysis import multiscale_entropy
         >>> entropies = multiscale_entropy(np.random.default_rng(0).standard_normal(5000), (1, 5)).entropies
         >>> bool(entropies[1] < entropies[0])
         True
@@ -164,7 +164,7 @@ def spectral_entropy(values: npt.ArrayLike, dt: float = 1.0, *, normalize: bool 
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import spectral_entropy
+        >>> from skcomplex.engine.analysis import spectral_entropy
         >>> bool(spectral_entropy(np.sin(2 * np.pi * 64 * np.arange(4096) / 4096)) < 0.1)
         True
     """
@@ -234,7 +234,7 @@ def complexity_entropy(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import complexity_entropy
+        >>> from skcomplex.engine.analysis import complexity_entropy
         >>> plane = complexity_entropy(np.random.default_rng(0).standard_normal(50_000), 4)
         >>> round(plane.entropy, 2), round(plane.complexity, 2)
         (1.0, 0.0)
@@ -289,7 +289,7 @@ def ensemble_entropy(samples: npt.ArrayLike, reference: npt.ArrayLike) -> Ensemb
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import ensemble_entropy
+        >>> from skcomplex.engine.analysis import ensemble_entropy
         >>> runs = np.random.default_rng(0).integers(0, 2, (10_000, 3))
         >>> bool(ensemble_entropy(runs, [0.5, 0.5]).divergence.max() < 0.001)
         True

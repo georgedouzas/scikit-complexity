@@ -11,16 +11,16 @@ from sage.all__sagemath_symbolics import ceil, sin
 from scipy.integrate import solve_ivp
 
 from skcomplex.core.base import Domain, SolverError, ValidationError, parameter, role
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.fields import CrankNicolson, Field, laplacian
-from skcomplex.core.formalisms.particles import PairPotential, Particle
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Event, Rate, delayed, mean, step, total, where
-from skcomplex.core.runtime import RealTime, Simulation
-from skcomplex.core.solvers import RK4, ScipyODE, VelocityVerlet
 from skcomplex.core.space import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import RealTime, Simulation
+from skcomplex.engine.solvers import RK4, ScipyODE, VelocityVerlet
+from skcomplex.formalisms.fields import CrankNicolson, Field, laplacian
+from skcomplex.formalisms.particles import PairPotential, Particle
 from skcomplex.models import create, run
 from skcomplex.models.biology.ecology import ExponentialGrowth, FisherKPP, Population, fisher_kpp
 from skcomplex.models.physics.heat import heat_diffusion

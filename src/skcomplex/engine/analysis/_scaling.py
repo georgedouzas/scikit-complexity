@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy import optimize
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._kinds import DataKind, analysis
 
 type Array = npt.NDArray[np.float64]
@@ -57,7 +57,7 @@ def binder_cumulant(samples: npt.ArrayLike) -> float:
             2/3 deep in an ordered phase and 0 for Gaussian fluctuations about 0.
 
     Examples:
-        >>> from skcomplex.core.analysis import binder_cumulant
+        >>> from skcomplex.engine.analysis import binder_cumulant
         >>> round(binder_cumulant([1.0, -1.0, 1.0]), 4)
         0.6667
     """
@@ -85,7 +85,7 @@ def binder_crossings(parameters: npt.ArrayLike, cumulants: Mapping[int, npt.Arra
             Fewer than 2 sizes are given.
 
     Examples:
-        >>> from skcomplex.core.analysis import binder_crossings
+        >>> from skcomplex.engine.analysis import binder_crossings
         >>> binder_crossings([1.0, 2.0, 3.0], {8: [0.6, 0.5, 0.2], 16: [0.65, 0.5, 0.1]}).tolist()
         [2.0]
     """
@@ -173,7 +173,7 @@ def scaling_collapse(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import scaling_collapse
+        >>> from skcomplex.engine.analysis import scaling_collapse
         >>> grid = np.linspace(-1, 1, 401)
         >>> curves = {size: np.tanh(grid * size) for size in (8, 16, 32)}
         >>> round(scaling_collapse(grid, curves, critical=0.2, nu=1.5, fit=('critical', 'nu')).nu, 1)

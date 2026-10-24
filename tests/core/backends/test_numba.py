@@ -1,10 +1,10 @@
-"""Test the `_numba` module of `skcomplex.core.backends`."""
+"""Test the `_numba` module of `skcomplex.engine.backends`."""
 
 import time
 
 import pytest
 
-from skcomplex.core.compile import compile_system
+from skcomplex.engine.compile import compile_system
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 
 

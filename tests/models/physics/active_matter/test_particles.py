@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import EulerMaruyama
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import EulerMaruyama
 from skcomplex.models.physics.active_matter import (
     active_brownian_particles,
     active_ornstein_uhlenbeck_particles,

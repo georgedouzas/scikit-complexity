@@ -3,7 +3,7 @@
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.physiology import (
     closed_contour_cell_exchange,
     nanotube_gap_junction_exchange,

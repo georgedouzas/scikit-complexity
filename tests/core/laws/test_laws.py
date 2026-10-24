@@ -15,7 +15,6 @@ from skcomplex.core.base import (
     state,
     symbol,
 )
-from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import (
@@ -30,9 +29,10 @@ from skcomplex.core.laws import (
     step,
     where,
 )
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import VelocityVerlet
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import VelocityVerlet
 
 from .conftest import PRECISE, Mass
 

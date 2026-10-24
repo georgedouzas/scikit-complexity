@@ -14,10 +14,10 @@ fluctuates around one state for a while and then switches to the other, again an
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import histogram
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import EulerMaruyama
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.analysis import histogram
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'chemical_langevin_equation'

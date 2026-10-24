@@ -7,11 +7,11 @@
 import numpy as np
 import scipy.sparse
 
-from ..base import Expression, ValidationError
+from ...core.base import Expression, ValidationError
+from ...core.space import Cone, Nearest
 from ..compile._neighbourhoods import CompiledNeighborhood, EdgeRows, MetricSearch, StaticSearch
 from ..compile._printing import SCALAR_DIALECT, print_expressions
 from ..compile._reductions import CompiledReduction, Read, ReductionPass
-from ..space import Cone, Nearest
 from ._numba_source import INDENT, _hoist_layout, _Source
 
 

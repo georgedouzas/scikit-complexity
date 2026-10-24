@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.engineering.traffic import (
     charbonneau_traffic,
     ring_road_drivers,

@@ -7,7 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
-from ...base import Requires, SpaceKind, ValidationError
+from ...core.base import Requires, SpaceKind, ValidationError
 
 TOPOLOGY_KINDS = ('add-edge', 'remove-edge', 'rewire', 'add-node', 'remove-node')
 EDGE_KINDS = ('add-edge', 'remove-edge', 'rewire')
@@ -52,7 +52,7 @@ class TopologyRequest:
             The kind or the kept end is unknown, or the number of edges is negative.
 
     Examples:
-        >>> from skcomplex.core.formalisms.topology import rewire
+        >>> from skcomplex.formalisms.topology import rewire
         >>> rewire(keep='target').kind
         'rewire'
     """
@@ -113,7 +113,7 @@ def add_edge(*, toward: Toward = None, edges: int = 1, layer: str | None = None,
             The request, the target of an update or jump law of a group on the nodes.
 
     Examples:
-        >>> from skcomplex.core.formalisms.topology import add_edge
+        >>> from skcomplex.formalisms.topology import add_edge
         >>> add_edge(edges=2).edges
         2
     """
@@ -132,7 +132,7 @@ def remove_edge(*, layer: str | None = None) -> TopologyRequest:
             The request, the target of an update or jump law of an interaction over neighbours.
 
     Examples:
-        >>> from skcomplex.core.formalisms.topology import remove_edge
+        >>> from skcomplex.formalisms.topology import remove_edge
         >>> remove_edge().kind
         'remove-edge'
     """
@@ -160,7 +160,7 @@ def rewire(*, keep: str = 'source', toward: Toward = None, layer: str | None = N
             The request, the target of an update or jump law of an interaction over neighbours.
 
     Examples:
-        >>> from skcomplex.core.formalisms.topology import rewire
+        >>> from skcomplex.formalisms.topology import rewire
         >>> rewire(keep='target').keep
         'target'
     """
@@ -191,7 +191,7 @@ def add_node(*, edges: int = 0, toward: Toward = None, layer: str | None = None,
             The request, the target of an update or jump law.
 
     Examples:
-        >>> from skcomplex.core.formalisms.topology import add_node
+        >>> from skcomplex.formalisms.topology import add_node
         >>> from skcomplex.core.laws import neighbors
         >>> add_node(edges=2, toward=lambda node: neighbors(1)).edges
         2
@@ -207,7 +207,7 @@ def remove_node() -> TopologyRequest:
             The request, the target of an update or jump law of a group on the nodes.
 
     Examples:
-        >>> from skcomplex.core.formalisms.topology import remove_node
+        >>> from skcomplex.formalisms.topology import remove_node
         >>> remove_node().kind
         'remove-node'
     """
@@ -231,7 +231,7 @@ def request_of(law: object) -> TopologyRequest | None:
 
     Examples:
         >>> from skcomplex.core.laws import Update
-        >>> from skcomplex.core.formalisms.topology import remove_node, request_of
+        >>> from skcomplex.formalisms.topology import remove_node, request_of
         >>> request_of(Update(remove_node(), 0.1)).kind
         'remove-node'
     """

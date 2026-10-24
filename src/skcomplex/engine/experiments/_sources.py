@@ -7,10 +7,10 @@ import dataclasses
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
-from ..base import ValidationError
+from ...core.base import ValidationError
+from ...core.system import Observable, System
 from ..compile import Problem, compile_system
 from ..runtime import MODELS
-from ..system import Observable, System
 
 type Source = str | Callable[..., System] | System
 PROBLEMS: dict[tuple[Any, ...], Problem] = {}

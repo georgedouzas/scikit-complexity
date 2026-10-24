@@ -15,9 +15,9 @@ with one jump where the phase wraps from pi to -pi.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import RK4
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import RK4
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'swarmalators'

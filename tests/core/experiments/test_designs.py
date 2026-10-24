@@ -1,8 +1,8 @@
-"""Test the `_designs` module of `skcomplex.core.experiments`."""
+"""Test the `_designs` module of `skcomplex.engine.experiments`."""
 
 import pytest
 
-from skcomplex.core.experiments import (
+from skcomplex.engine.experiments import (
     Grid,
     LatinHypercube,
     RandomDesign,

@@ -2,8 +2,8 @@
 
 import numpy as np
 
-from skcomplex.core.analysis import DataKind, signature_analysis
-from skcomplex.core.experiments import Experiment
+from skcomplex.engine.analysis import DataKind, signature_analysis
+from skcomplex.engine.experiments import Experiment
 from skcomplex.models import run
 
 

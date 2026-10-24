@@ -6,8 +6,11 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
-from ..base import Form, Registry, RegistryError
-from ..compile import (
+from ..core.base import Form, Registry, RegistryError
+from ..core.components import Component
+from ..core.laws import Law, register_laws
+from ..core.space import Space
+from ..engine.compile import (
     Backend,
     Binding,
     Check,
@@ -22,11 +25,8 @@ from ..compile import (
     register_owner,
     register_pass,
 )
-from ..components import Component
-from ..laws import Law, register_laws
-from ..solvers import Stepper, register_solver
-from ..space import Space
-from ..viz import Visual, register_visual
+from ..engine.solvers import Stepper, register_solver
+from ..engine.viz import Visual, register_visual
 
 
 def _check_acyclic(formalism: 'Formalism') -> None:
@@ -98,7 +98,7 @@ def register(formalism: 'Formalism') -> None:
             law class misses a declaration.
 
     Examples:
-        >>> from skcomplex.core.formalisms import Formalism, register
+        >>> from skcomplex.formalisms import Formalism, register
         >>> register(Formalism('dependent', depends=('missing',)))
         Traceback (most recent call last):
         ...
@@ -126,7 +126,7 @@ def registered_formalisms() -> tuple['Formalism', ...]:
             The registered formalisms.
 
     Examples:
-        >>> from skcomplex.core.formalisms import registered_formalisms
+        >>> from skcomplex.formalisms import registered_formalisms
         >>> all(formalism.name for formalism in registered_formalisms())
         True
     """
@@ -189,7 +189,7 @@ class Formalism:
             How the kernel spec of an interaction is built, by the binding it declares, such as `'pairs'`.
 
     Examples:
-        >>> from skcomplex.core.formalisms import Formalism
+        >>> from skcomplex.formalisms import Formalism
         >>> Formalism('empty').depends
         ()
     """

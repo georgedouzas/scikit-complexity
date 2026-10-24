@@ -11,12 +11,12 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ..base import AnalysisError, Categorical, Domain, Form
+from ...core.base import AnalysisError, Categorical, Domain, Form
+from ...core.space import ContinuousSpace, LatticeSpace, NetworkSpace
+from ...core.system import System
 from ..compile import Problem, compile_system, observables_of
 from ..experiments import ExperimentResult
 from ..runtime import Trajectory
-from ..space import ContinuousSpace, LatticeSpace, NetworkSpace
-from ..system import System
 from ._kinds import ANALYSES, AnalysisEntry, DataKind
 
 type Array = npt.NDArray[np.float64]
@@ -291,7 +291,7 @@ def data_kinds(source: Trajectory | System | ExperimentResult | npt.ArrayLike) -
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import data_kinds
+        >>> from skcomplex.engine.analysis import data_kinds
         >>> data_kinds(np.zeros((8, 8)))
         [<DataKind.FIELD: 'field'>, <DataKind.SERIES: 'series'>]
     """
@@ -353,7 +353,7 @@ def series_of(trajectory: Trajectory, names: Sequence[str] | None = None) -> Ser
             The trajectory has no scalar series and no names are given.
 
     Examples:
-        >>> from skcomplex.core.analysis import series_of
+        >>> from skcomplex.engine.analysis import series_of
         >>> from skcomplex.models import run
         >>> series = series_of(run('lotka_volterra', settings={'until': 1.0}).trajectory_)
         >>> series.labels, series.values.shape[1]
@@ -409,7 +409,7 @@ def path_of(trajectory: Trajectory, name: str | None = None) -> JumpPath:
             The trajectory has no discrete state.
 
     Examples:
-        >>> from skcomplex.core.analysis import path_of
+        >>> from skcomplex.engine.analysis import path_of
         >>> from skcomplex.models import run
         >>> path = path_of(run('poisson_process', settings={'until': 20.0, 'random_state': 0}).trajectory_)
         >>> bool((path.states[1:] != path.states[:-1]).any(axis=1).all())
@@ -448,7 +448,7 @@ def fields_of(trajectory: Trajectory, name: str | None = None) -> Array:
             The trajectory has no lattice or grid state.
 
     Examples:
-        >>> from skcomplex.core.analysis import fields_of
+        >>> from skcomplex.engine.analysis import fields_of
         >>> from skcomplex.models import run
         >>> fields_of(run('ising', size=16, settings={'until': 3}).trajectory_).shape
         (4, 16, 16)
@@ -482,7 +482,7 @@ def snapshots_of(trajectory: Trajectory, group: str | None = None) -> Snapshots:
             The trajectory has no agent or particle group of that path.
 
     Examples:
-        >>> from skcomplex.core.analysis import snapshots_of
+        >>> from skcomplex.engine.analysis import snapshots_of
         >>> from skcomplex.models import run
         >>> trajectory = run('run_and_tumble', n_agents=5, settings={'until': 3}).trajectory_
         >>> snapshots_of(trajectory).positions.shape
@@ -514,7 +514,7 @@ def networks_of(trajectory: Trajectory) -> list[nx.Graph]:
             The trajectory has no network.
 
     Examples:
-        >>> from skcomplex.core.analysis import networks_of
+        >>> from skcomplex.engine.analysis import networks_of
         >>> from skcomplex.models import run
         >>> graphs = networks_of(run('network_diffusion', settings={'until': 0.2}).trajectory_)
         >>> len(graphs), graphs[0].number_of_nodes()
@@ -568,8 +568,8 @@ def ensemble_of(result: ExperimentResult, name: str) -> Ensemble:
             The common times, one row per run, the design rows, and the seeds.
 
     Examples:
-        >>> from skcomplex.core.analysis import ensemble_of
-        >>> from skcomplex.core.experiments import Experiment
+        >>> from skcomplex.engine.analysis import ensemble_of
+        >>> from skcomplex.engine.experiments import Experiment
         >>> result = Experiment('logistic_growth', replicates=3, until=5, outputs=['population.n']).run()
         >>> ensemble_of(result, 'population.n').values.shape[0]
         3
@@ -623,7 +623,7 @@ def analyses_for(source: Trajectory | System | ExperimentResult | npt.ArrayLike)
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import analyses_for
+        >>> from skcomplex.engine.analysis import analyses_for
         >>> found = {item.name: item.reading for item in analyses_for(np.zeros((8, 8)))}
         >>> found['structure_factor'], found['autocorrelation']
         ('the array as one grid', 'every column of the array as a series')

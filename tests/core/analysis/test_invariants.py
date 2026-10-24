@@ -7,7 +7,8 @@ import pytest
 from scipy.integrate import solve_ivp
 from scipy.signal import find_peaks
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError
+from skcomplex.engine.analysis import (
     correlation_dimension,
     delay_embedding,
     embed,
@@ -20,7 +21,6 @@ from skcomplex.core.analysis import (
     recurrence_quantification,
     ulam_chain,
 )
-from skcomplex.core.base import AnalysisError
 from skcomplex.models.mathematics.dynamical_systems import henon_map, logistic_map, lorenz
 
 

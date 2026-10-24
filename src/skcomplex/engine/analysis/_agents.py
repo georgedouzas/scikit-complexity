@@ -11,7 +11,7 @@ import numpy.typing as npt
 from scipy import stats
 from scipy.spatial import cKDTree
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._extremes import GoodnessOfFit
 from ._kinds import DataKind, analysis
 
@@ -54,7 +54,7 @@ def polar_order(headings: npt.ArrayLike, *, vectors: bool = False) -> Array | fl
             1 when every agent moves the same way and about `1 / sqrt(n)` for random headings, one value per frame.
 
     Examples:
-        >>> from skcomplex.core.analysis import polar_order
+        >>> from skcomplex.engine.analysis import polar_order
         >>> polar_order([0.0, 0.0, 0.0]), round(polar_order([0.0, 3.141592653589793]), 6)
         (1.0, 0.0)
     """
@@ -76,7 +76,7 @@ def nematic_order(headings: npt.ArrayLike) -> Array | float:
             1 when every agent moves along the same axis, either way.
 
     Examples:
-        >>> from skcomplex.core.analysis import nematic_order
+        >>> from skcomplex.engine.analysis import nematic_order
         >>> round(nematic_order([0.0, 3.141592653589793]), 6)
         1.0
     """
@@ -97,7 +97,7 @@ def phase_order(phases: npt.ArrayLike) -> complex | npt.NDArray[np.complex128]:
             The complex mean, whose modulus is the synchrony and whose argument is the mean phase.
 
     Examples:
-        >>> from skcomplex.core.analysis import phase_order
+        >>> from skcomplex.engine.analysis import phase_order
         >>> phase_order([0.0, 0.0])
         (1+0j)
     """
@@ -122,7 +122,7 @@ def milling_order(positions: npt.ArrayLike, velocities: npt.ArrayLike) -> Array 
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import milling_order
+        >>> from skcomplex.engine.analysis import milling_order
         >>> angles = np.linspace(0, 2 * np.pi, 8, endpoint=False)
         >>> ring = np.column_stack([np.cos(angles), np.sin(angles)])
         >>> round(milling_order(ring, np.column_stack([-ring[:, 1], ring[:, 0]])), 6)
@@ -152,7 +152,7 @@ def kinetic_temperature(velocities: npt.ArrayLike, mass: float = 1.0) -> Array |
             The temperature, one value per frame.
 
     Examples:
-        >>> from skcomplex.core.analysis import kinetic_temperature
+        >>> from skcomplex.engine.analysis import kinetic_temperature
         >>> kinetic_temperature([[1.0, 0.0], [0.0, 1.0]])
         0.5
     """
@@ -185,7 +185,7 @@ def maxwell_boltzmann_test(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import maxwell_boltzmann_test
+        >>> from skcomplex.engine.analysis import maxwell_boltzmann_test
         >>> velocities = np.random.default_rng(0).normal(0, 1.5, (2000, 3))
         >>> maxwell_boltzmann_test(velocities).p_value > 0.05
         True
@@ -214,7 +214,7 @@ def nearest_neighbor_distances(positions: npt.ArrayLike, box: npt.ArrayLike | No
             One distance per agent.
 
     Examples:
-        >>> from skcomplex.core.analysis import nearest_neighbor_distances
+        >>> from skcomplex.engine.analysis import nearest_neighbor_distances
         >>> nearest_neighbor_distances([[0.5, 0.0], [9.5, 0.0]], box=[10.0, 10.0]).tolist()
         [1.0, 1.0]
     """
@@ -239,7 +239,7 @@ def clark_evans_ratio(positions: npt.ArrayLike, box: npt.ArrayLike) -> float:
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import clark_evans_ratio
+        >>> from skcomplex.engine.analysis import clark_evans_ratio
         >>> points = np.random.default_rng(0).random((5000, 2))
         >>> round(clark_evans_ratio(points, [1.0, 1.0]), 1)
         1.0
@@ -282,7 +282,7 @@ def radial_distribution(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import radial_distribution
+        >>> from skcomplex.engine.analysis import radial_distribution
         >>> distances, g = radial_distribution(np.random.default_rng(0).random((4000, 2)) * 10, [10.0, 10.0], bins=10)
         >>> bool(np.all(np.abs(g - 1) < 0.1))
         True
@@ -338,7 +338,7 @@ def coarse_grain(
             The shape does not have one entry per dimension of the box.
 
     Examples:
-        >>> from skcomplex.core.analysis import coarse_grain
+        >>> from skcomplex.engine.analysis import coarse_grain
         >>> coarse_grain([[0.1, 0.1], [0.2, 0.1], [0.9, 0.9]], [1.0, 1.0], [2, 2]).tolist()
         [[2.0, 0.0], [0.0, 1.0]]
     """

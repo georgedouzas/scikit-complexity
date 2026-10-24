@@ -7,7 +7,8 @@ import numpy as np
 import pytest
 from scipy import stats
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError
+from skcomplex.engine.analysis import (
     autocorrelation_time,
     detrended_fluctuation,
     early_warning,
@@ -19,7 +20,6 @@ from skcomplex.core.analysis import (
     permutation_entropy,
     symbolize,
 )
-from skcomplex.core.base import AnalysisError
 
 
 def _truncated_power_law(size: int, rng: np.random.Generator) -> np.ndarray:

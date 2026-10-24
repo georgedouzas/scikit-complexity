@@ -43,7 +43,7 @@ class ScalarsVisual(Visual):
             The indices of the components of vector states to log, or `None` for every component.
 
     Examples:
-        >>> from skcomplex.core.viz import ScalarsVisual
+        >>> from skcomplex.engine.viz import ScalarsVisual
         >>> ScalarsVisual()
         ScalarsVisual()
     """
@@ -100,8 +100,8 @@ class ScalarsVisual(Visual):
                 A time series view with the element path as origin, or no view for an element without states.
 
         Examples:
-            >>> from skcomplex.core.compile import compile_system
-            >>> from skcomplex.core.viz import ScalarsVisual
+            >>> from skcomplex.engine.compile import compile_system
+            >>> from skcomplex.engine.viz import ScalarsVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('lotka_volterra'))
             >>> view = ScalarsVisual().views(problem.elements[0], problem)[0]

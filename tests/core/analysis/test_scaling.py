@@ -5,14 +5,14 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError
+from skcomplex.engine.analysis import (
     binder_crossings,
     binder_cumulant,
     order_parameter_sweep,
     scaling_collapse,
     spanning_probability,
 )
-from skcomplex.core.base import AnalysisError
 
 from .conftest import ISING_SIZES, ISING_TEMPERATURES
 

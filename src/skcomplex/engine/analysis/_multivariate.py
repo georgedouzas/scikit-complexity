@@ -13,7 +13,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._kinds import DataKind, analysis
 from ._lazy import module
 from ._utils import real_array, sample_columns
@@ -136,7 +136,7 @@ def total_correlation(data: npt.ArrayLike, *, estimator: str = 'plugin', base: f
             The estimator is unknown.
 
     Examples:
-        >>> from skcomplex.core.analysis import total_correlation
+        >>> from skcomplex.engine.analysis import total_correlation
         >>> round(total_correlation([[0, 0, 0], [1, 1, 1]]), 6)
         2.0
     """
@@ -178,7 +178,7 @@ def dual_total_correlation(
             The estimator is unknown.
 
     Examples:
-        >>> from skcomplex.core.analysis import dual_total_correlation
+        >>> from skcomplex.engine.analysis import dual_total_correlation
         >>> round(dual_total_correlation([[0, 0, 0], [1, 1, 1]]), 6)
         1.0
     """
@@ -214,7 +214,7 @@ def o_information(data: npt.ArrayLike, *, estimator: str = 'plugin', base: float
             The estimator is unknown.
 
     Examples:
-        >>> from skcomplex.core.analysis import o_information
+        >>> from skcomplex.engine.analysis import o_information
         >>> xor = [[0, 0, 0], [0, 1, 1], [1, 0, 1], [1, 1, 0]]
         >>> round(o_information(xor), 6), round(o_information([[0, 0, 0], [1, 1, 1]]), 6)
         (-1.0, 1.0)
@@ -258,7 +258,7 @@ def o_information_gradients(
             The estimator is unknown.
 
     Examples:
-        >>> from skcomplex.core.analysis import o_information_gradients
+        >>> from skcomplex.engine.analysis import o_information_gradients
         >>> xor = [[0, 0, 0], [0, 1, 1], [1, 0, 1], [1, 1, 0]]
         >>> o_information_gradients(xor).round(6).tolist()
         [-1.0, -1.0, -1.0]
@@ -339,7 +339,7 @@ def partial_information(
             The redundancy measure is unknown.
 
     Examples:
-        >>> from skcomplex.core.analysis import partial_information
+        >>> from skcomplex.engine.analysis import partial_information
         >>> parts = partial_information([0, 0, 1, 1], [0, 1, 0, 1], [0, 1, 1, 0])
         >>> round(parts.synergy, 6), round(parts.redundancy, 6)
         (1.0, 0.0)

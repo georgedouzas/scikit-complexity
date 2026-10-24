@@ -15,10 +15,10 @@ run: an interpenetrating labyrinth of yellow and purple domains of equal area.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import fields_of, structure_factor
-from skcomplex.core.formalisms.fields import ETDRK4
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.analysis import fields_of, structure_factor
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
+from skcomplex.formalisms.fields import ETDRK4
 from skcomplex.models import create
 
 MODEL = 'cahn_hilliard'

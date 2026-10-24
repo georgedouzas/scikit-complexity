@@ -1,11 +1,10 @@
-"""Test the `_simulations` module of `skcomplex.core.runtime`."""
+"""Test the `_simulations` module of `skcomplex.engine.runtime`."""
 
 import time
 
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import flow_matrix
 from skcomplex.core.base import (
     ParameterError,
     SimulationError,
@@ -15,15 +14,16 @@ from skcomplex.core.base import (
     state,
 )
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.agents import Rule
-from skcomplex.core.formalisms.particles import Particle
 from skcomplex.core.laws import (
     Rate,
 )
-from skcomplex.core.runtime import ConservationMonitor, Observer, RealTime, Simulation
-from skcomplex.core.solvers import Gillespie
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
+from skcomplex.engine.analysis import flow_matrix
+from skcomplex.engine.runtime import ConservationMonitor, Observer, RealTime, Simulation
+from skcomplex.engine.solvers import Gillespie
+from skcomplex.formalisms.agents import Rule
+from skcomplex.formalisms.particles import Particle
 from skcomplex.models import create
 from skcomplex.models.biology.ecology import ExponentialGrowth, LogisticGrowth, Population
 from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery

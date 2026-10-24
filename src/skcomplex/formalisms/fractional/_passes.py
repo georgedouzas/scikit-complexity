@@ -12,7 +12,7 @@ from typing import Any, cast
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ...base import (
+from ...core.base import (
     BackendError,
     Expression,
     Form,
@@ -26,7 +26,8 @@ from ...base import (
     declarations_of,
     symbols_of,
 )
-from ...compile import (
+from ...core.laws import Law, Noise
+from ...engine.compile import (
     BACKENDS,
     BlockLaws,
     Census,
@@ -49,7 +50,6 @@ from ...compile import (
     solver_classes,
     state_name,
 )
-from ...laws import Law, Noise
 from ._laws import FractionalNoise
 
 

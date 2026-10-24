@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.optimize import Bounds, minimize
 
-from ...base import (
+from ...core.base import (
     ComponentKind,
     DomainKind,
     LawKind,
@@ -20,7 +20,7 @@ from ...base import (
     TimeKind,
     ValidationError,
 )
-from ...compile import Vector
+from ...engine.compile import Vector
 from ._optimal import ControlSolution, GridFunction, OptimalControlSolver, _ControlProblem
 
 SCHEMES = ('trapezoidal', 'hermite-simpson')
@@ -111,8 +111,8 @@ class Collocation(OptimalControlSolver):
         >>> from skcomplex.core.base import parameter
         >>> from skcomplex.core.components import Element
         >>> from skcomplex.core.laws import Objective, Rate
-        >>> from skcomplex.core.runtime import Simulation
-        >>> from skcomplex.core.formalisms.control import Collocation
+        >>> from skcomplex.engine.runtime import Simulation
+        >>> from skcomplex.formalisms.control import Collocation
         >>> from skcomplex.core.system import System
         >>> Plant = Element.define(
         ...     'Plant',

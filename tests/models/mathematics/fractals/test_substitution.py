@@ -4,11 +4,11 @@ import numpy as np
 import pytest
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import box_counting_dimension
 from skcomplex.core.base import ValidationError
-from skcomplex.core.formalisms.rewriting import GeometryVisual
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver, primary_view
+from skcomplex.engine.analysis import box_counting_dimension
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver, primary_view
+from skcomplex.formalisms.rewriting import GeometryVisual
 from skcomplex.models import create, describe, run
 
 

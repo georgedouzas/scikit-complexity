@@ -5,8 +5,8 @@
 
 from typing import cast
 
-from ...base import Form
-from ...laws import Rate
+from ....core.base import Form
+from ....core.laws import Rate
 from .._compilation import Compilation
 from .._declarations import Declarations
 from .._jacobians import ExactJacobian

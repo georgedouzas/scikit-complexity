@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import numpy.typing as npt
 
-from ..base import Form
+from ...core.base import Form
 from ..experiments import ExperimentResult
 from ..runtime import Trajectory
 from ._adapters import Snapshots, data_kinds, ensemble_of, fields_of, networks_of, path_of, series_of, snapshots_of
@@ -259,7 +259,7 @@ def signature_analysis(source: Trajectory | ExperimentResult) -> list[Signature]
             One signature per data kind, in the order agents, field, network, path, series, ensemble.
 
     Examples:
-        >>> from skcomplex.core.analysis import signature_analysis
+        >>> from skcomplex.engine.analysis import signature_analysis
         >>> from skcomplex.models import run
         >>> trajectory = run('lotka_volterra', settings={'until': 20.0}).trajectory_
         >>> [signature.title for signature in signature_analysis(trajectory)]

@@ -1,1 +1,1 @@
-"""Tests of `skcomplex.core.runtime`."""
+"""Tests of `skcomplex.engine.runtime`."""

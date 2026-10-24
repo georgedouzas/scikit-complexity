@@ -9,8 +9,8 @@ from typing import cast
 
 from sage.all__sagemath_symbolics import SR
 
-from ...base import Expression
-from ...laws import Boundary, Jump, Law, Noise, Rate, Update
+from ....core.base import Expression
+from ....core.laws import Boundary, Jump, Law, Noise, Rate, Update
 from .._compilation import Compilation, Laws
 from .._declarations import Declarations
 from .._members import MemberShifts

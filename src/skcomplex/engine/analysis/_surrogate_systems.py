@@ -12,12 +12,12 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ..base import AnalysisError, Expression
-from ..components import Element
-from ..laws import Law, Symbols
+from ...core.base import AnalysisError, Expression
+from ...core.components import Element
+from ...core.laws import Law, Symbols
+from ...core.space import Time
+from ...core.system import System
 from ..runtime import Trajectory
-from ..space import Time
-from ..system import System
 from ._adapters import Series, series_of
 
 type Array = npt.NDArray[np.float64]

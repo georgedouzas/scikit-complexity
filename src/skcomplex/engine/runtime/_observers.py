@@ -5,7 +5,7 @@
 
 import numpy as np
 
-from ..base import SimulationError
+from ...core.base import SimulationError
 from ..compile import Problem, Vector
 from ._frames import Frame
 from ._trajectories import Trajectory
@@ -43,7 +43,7 @@ class Recorder(Observer):
     Examples:
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import Population
-        >>> from skcomplex.core.runtime import Recorder, Simulation
+        >>> from skcomplex.engine.runtime import Recorder, Simulation
         >>> recorder = Recorder()
         >>> _ = Simulation(System(components=[Population('a')]), dt=1, observers=[recorder]).run(until=2)
         >>> len(recorder.trajectory)

@@ -11,11 +11,11 @@ from typing import ClassVar
 import pytest
 
 from skcomplex.core.base import Domain, LawClass, LawKind, RegistryError, Requires, Trait, state
-from skcomplex.core.compile import validate
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms import Formalism, register
 from skcomplex.core.laws import Law, Symbols, is_registered, register_laws
 from skcomplex.core.system import System
+from skcomplex.engine.compile import validate
+from skcomplex.formalisms import Formalism, register
 
 ROOT = Path(__file__).parents[3]
 
@@ -66,7 +66,7 @@ def test_registered_formalisms_list_contributions():
     found = _run(
         'import json\n'
         'from tests.core.formalisms import outside\n'
-        'from skcomplex.core.formalisms import registered_formalisms\n'
+        'from skcomplex.formalisms import registered_formalisms\n'
         "(item,) = [item for item in registered_formalisms() if item.name == 'outside']\n"
         'print(json.dumps({\n'
         "    'kinds': [law.law_kind.name for law in item.laws],\n"
@@ -82,9 +82,9 @@ def test_register_adds_contributions_to_their_registries():
     found = _run(
         'import json\n'
         'from tests.core.formalisms import outside\n'
-        'from skcomplex.core.formalisms import register, registered_formalisms\n'
+        'from skcomplex.formalisms import register, registered_formalisms\n'
         'from skcomplex.core.laws import law_classes\n'
-        'from skcomplex.core.compile import SOLVERS\n'
+        'from skcomplex.engine.compile import SOLVERS\n'
         'register(outside.FORMALISM)\n'
         'print(json.dumps({\n'
         "    'law': outside.Decay in law_classes(),\n"
@@ -101,7 +101,7 @@ def test_register_rejects_another_formalism_of_a_registered_name():
         'import json\n'
         'from tests.core.formalisms import outside\n'
         'from skcomplex.core.base import RegistryError\n'
-        'from skcomplex.core.formalisms import Formalism, register\n'
+        'from skcomplex.formalisms import Formalism, register\n'
         'try:\n'
         "    register(Formalism('outside'))\n"
         'except RegistryError as error:\n'
@@ -116,8 +116,8 @@ def test_law_from_outside_formalism_validates_compiles_and_simulates():
     found = _run(
         'import json\n'
         'from tests.core.formalisms.outside import DECAYING, ExactDecay, Nucleus\n'
-        'from skcomplex.core.compile import compile_system, validate\n'
-        'from skcomplex.core.runtime import Simulation\n'
+        'from skcomplex.engine.compile import compile_system, validate\n'
+        'from skcomplex.engine.runtime import Simulation\n'
         'from skcomplex.core.system import System\n'
         "system = System(components=[Nucleus('a', n=2.0, k=0.5)])\n"
         'simulation = Simulation(system, dt=0.5).run(until=2)\n'
@@ -135,8 +135,8 @@ def test_register_of_fields_registers_its_dependency():
     """Test that importing the fields formalism registers both fields and the lattices it builds on."""
     found = _run(
         'import json\n'
-        'import skcomplex.core.formalisms.fields\n'
-        'from skcomplex.core.formalisms import registered_formalisms\n'
+        'import skcomplex.formalisms.fields\n'
+        'from skcomplex.formalisms import registered_formalisms\n'
         'print(json.dumps([item.name for item in registered_formalisms()]))\n',
     )
     assert found == ['lattices', 'fields']

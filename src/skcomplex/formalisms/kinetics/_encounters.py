@@ -10,9 +10,9 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ...base import Expression, ValidationError, symbols_of
-from ...compile import Reference, Source
-from ...laws import Law
+from ...core.base import Expression, ValidationError, symbols_of
+from ...core.laws import Law
+from ...engine.compile import Reference, Source
 from ._contractions import CompiledEncounter, Indices, TableValues
 from ._laws import Destruction, Encounter, EncounterLaw, is_encounter
 

@@ -12,7 +12,7 @@ from typing import Any, cast
 import numpy as np
 from sage.all__sagemath_symbolics import I
 
-from ..base import (
+from ...core.base import (
     Domain,
     Expression,
     LabelError,
@@ -26,9 +26,9 @@ from ..base import (
     symbol,
     vector,
 )
-from ..components import Element, Group, Wiener
-from ..laws import Symbols
-from ..space import NetworkSpace
+from ...core.components import Element, Group, Wiener
+from ...core.laws import Symbols
+from ...core.space import NetworkSpace
 from ._arrays import Vector
 from ._kernels import Reference, Source
 from ._layout import Entry

@@ -8,8 +8,8 @@ from typing import Any
 from ....core.base import Domain, state
 from ....core.components import Element
 from ....core.laws import Jump, Law, Symbols
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
 
 
 class PolyaUrn(Element):

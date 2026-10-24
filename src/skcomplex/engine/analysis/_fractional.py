@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import ComplexField, RealField
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 
 ASYMPTOTIC_SCALE = 50.0
 LARGEST_SCALE = 2000.0
@@ -122,7 +122,7 @@ def mittag_leffler(alpha: float, beta: float, z: npt.ArrayLike) -> npt.NDArray[A
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import mittag_leffler
+        >>> from skcomplex.engine.analysis import mittag_leffler
         >>> bool(np.isclose(mittag_leffler(1.0, 1.0, -2.0), np.exp(-2.0)))
         True
         >>> round(float(mittag_leffler(0.5, 1.0, -1.0)), 6)

@@ -122,7 +122,7 @@ def emergence_criteria(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import emergence_criteria
+        >>> from skcomplex.engine.analysis import emergence_criteria
         >>> bits = np.random.default_rng(0).integers(0, 2, (5000, 3))
         >>> bool(abs(emergence_criteria(bits, bits.sum(axis=1) % 2).psi) < 0.01)
         True
@@ -167,7 +167,7 @@ def closure(micro: npt.ArrayLike, partition: Partition, *, history: int = 1, bas
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import closure
+        >>> from skcomplex.engine.analysis import closure
         >>> micro = np.random.default_rng(0).integers(0, 4, 5000)
         >>> round(closure(micro, [0, 0, 1, 1]).gap, 2)
         0.0

@@ -11,9 +11,9 @@ from typing import Any
 from sage.all__sagemath_symbolics import SR, desolve, desolve_laplace, desolve_system, diff, function
 from sage.symbolic.function_factory import function as formal_function
 
-from ..base import AnalysisError, Expression, Form, components_of
+from ...core.base import AnalysisError, Expression, Form, components_of
+from ...core.system import System
 from ..compile import Problem, compile_system
-from ..system import System
 from ._assumptions import declare_domains
 from ._fractional import mittag_leffler
 
@@ -252,7 +252,7 @@ def equations_of(system: System) -> dict[str, Expression]:
             The system is a jump process or a quantum system.
 
     Examples:
-        >>> from skcomplex.core.analysis import equations_of
+        >>> from skcomplex.engine.analysis import equations_of
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import LogisticGrowth, Population
         >>> system = System(
@@ -295,7 +295,7 @@ def solve_symbolically(system: System, *, use_initial_state: bool = False) -> di
             Maxima cannot solve, or needs the sign of a parameter.
 
     Examples:
-        >>> from skcomplex.core.analysis import solve_symbolically
+        >>> from skcomplex.engine.analysis import solve_symbolically
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
         >>> system = System(

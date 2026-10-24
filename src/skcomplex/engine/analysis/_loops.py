@@ -12,11 +12,11 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
-from ..base import AnalysisError, ConservationError, Expression, symbols_of
+from ...core.base import AnalysisError, ConservationError, Expression, symbols_of
+from ...core.laws._flows import delay_parts
+from ...core.system import System
 from ..compile import LoopTerm, Problem, StockFlow, compile_system, numpy_function
-from ..laws._flows import delay_parts
 from ..runtime import Trajectory
-from ..system import System
 
 POLARITIES = {1: 'reinforcing', -1: 'balancing', 0: 'neutral'}
 
@@ -248,7 +248,7 @@ def loops(system: System | Problem, at: npt.ArrayLike | None = None) -> Loops:
             The system is partitioned, or a law reads a group.
 
     Examples:
-        >>> from skcomplex.core.analysis import loops
+        >>> from skcomplex.engine.analysis import loops
         >>> from skcomplex.models import create
         >>> [loop.polarity for loop in loops(create('bass_diffusion')).loops]
         ['reinforcing', 'balancing']
@@ -280,8 +280,8 @@ def loop_dominance(trajectory: Trajectory) -> LoopDominance:
             The system has no feedback loop.
 
     Examples:
-        >>> from skcomplex.core.analysis import loop_dominance
-        >>> from skcomplex.core.runtime import Simulation
+        >>> from skcomplex.engine.analysis import loop_dominance
+        >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models import create
         >>> trajectory = Simulation(create('bass_diffusion'), dt=1).run(2).trajectory_
         >>> loop_dominance(trajectory).gains.shape
@@ -324,7 +324,7 @@ def conservation(system: System | Problem) -> dict[str, Expression]:
             The internal flows of a quantity do not cancel.
 
     Examples:
-        >>> from skcomplex.core.analysis import conservation
+        >>> from skcomplex.engine.analysis import conservation
         >>> from skcomplex.models import create
         >>> conservation(create('bathtub'))
         {'water': inflow_tub*where(t >= 5.0, 1.0, 0) - where(water_tub > 0, outflow_tub, 0)}
@@ -370,8 +370,8 @@ def flow_matrix(trajectory: Trajectory, frame: int = -1, quantity: str | None = 
             The transaction-flow matrix.
 
     Examples:
-        >>> from skcomplex.core.analysis import flow_matrix
-        >>> from skcomplex.core.runtime import Simulation
+        >>> from skcomplex.engine.analysis import flow_matrix
+        >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models import create
         >>> trajectory = Simulation(create('bathtub', water=20.0), dt=1).run(6).trajectory_
         >>> flow_matrix(trajectory).values.sum(axis=1).tolist()

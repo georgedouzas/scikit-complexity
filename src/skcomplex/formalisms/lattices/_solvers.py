@@ -6,9 +6,9 @@
 import math
 from typing import ClassVar, cast
 
-from ...base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind
-from ...compile import Vector
-from ...solvers import Stepper
+from ...core.base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind
+from ...engine.compile import Vector
+from ...engine.solvers import Stepper
 from ._steps import CompiledExtremal, CompiledRelaxation, LatticeStep
 
 
@@ -20,9 +20,9 @@ class LatticeStepper(Stepper):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.models.computer_science.automata import elementary_automaton
-        >>> from skcomplex.core.formalisms.lattices import LatticeStepper
+        >>> from skcomplex.formalisms.lattices import LatticeStepper
         >>> problem = compile_system(elementary_automaton(30, size=11))
         >>> stepper = LatticeStepper()
         >>> stepper.initialize(problem, np.random.default_rng(0))
@@ -81,9 +81,9 @@ class MonteCarlo(LatticeStepper):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.models.physics.statistical_mechanics import ising
-        >>> from skcomplex.core.formalisms.lattices import MonteCarlo
+        >>> from skcomplex.formalisms.lattices import MonteCarlo
         >>> problem = compile_system(ising(size=8, temperature=1.0))
         >>> stepper = MonteCarlo()
         >>> stepper.initialize(problem, np.random.default_rng(0))

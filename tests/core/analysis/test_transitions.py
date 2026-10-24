@@ -6,7 +6,8 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError
+from skcomplex.engine.analysis import (
     detailed_balance,
     relaxation_times,
     spectral_gap,
@@ -14,7 +15,6 @@ from skcomplex.core.analysis import (
     transition_counts,
     transition_matrix,
 )
-from skcomplex.core.base import AnalysisError
 
 
 def _chain(matrix: np.ndarray, steps: int, rng: np.random.Generator) -> np.ndarray:

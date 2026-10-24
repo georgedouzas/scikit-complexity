@@ -4,10 +4,10 @@ import numpy as np
 
 from skcomplex.core.base import parameter, state
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.agents import Phase, Phases, Rule
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.space import DiscreteTime
 from skcomplex.core.system import Observable, System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.formalisms.agents import Phase, Phases, Rule
 from skcomplex.models import run
 from skcomplex.models.economics.realizations import (
     Institution,

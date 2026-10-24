@@ -14,9 +14,9 @@ planted blocks, and the edges packed inside the blocks close far more triangles 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import ccdf, degrees, motif_zscores, networks_of
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.analysis import ccdf, degrees, motif_zscores, networks_of
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create, describe
 
 MODEL = 'network_structure_analysis'

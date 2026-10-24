@@ -13,13 +13,13 @@ from sage.all__sagemath_symbolics import SR, exp, sin, sqrt
 
 from ....core.base import Domain, VisualSpec, parameter, role, state, vector
 from ....core.components import Element
-from ....core.formalisms.particles import Particle
 from ....core.interactions import Interaction
 from ....core.laws import Boundary, Law, Noise, Rate, Symbols, pulse_train, where
-from ....core.runtime import register_model
-from ....core.solvers import EulerMaruyama
 from ....core.space import ContinuousSpace
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....engine.solvers import EulerMaruyama
+from ....formalisms.particles import Particle
 from ..realizations import LangevinThermostat
 from ._brownian import DoubleWell
 

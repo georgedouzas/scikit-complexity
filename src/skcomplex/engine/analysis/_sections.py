@@ -9,11 +9,11 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ..base import AnalysisError, Form
+from ...core.base import AnalysisError, Form
+from ...core.system import System
 from ..compile import CompiledEvent, EventRecord, Problem, Vector, compile_system
 from ..runtime import Simulation
 from ..solvers import Stepper
-from ..system import System
 
 type Array = npt.NDArray[np.float64]
 
@@ -114,7 +114,7 @@ def poincare_section(
             The system is not a flow, or the state is not a scalar state.
 
     Examples:
-        >>> from skcomplex.core.analysis import poincare_section
+        >>> from skcomplex.engine.analysis import poincare_section
         >>> from skcomplex.models.physics.mechanics import harmonic_oscillator
         >>> section = poincare_section(harmonic_oscillator(), 'mass.x', direction=1, until=20.0)
         >>> len(section) > 2
@@ -183,7 +183,7 @@ def stroboscopic(
 
     Examples:
         >>> import math
-        >>> from skcomplex.core.analysis import stroboscopic
+        >>> from skcomplex.engine.analysis import stroboscopic
         >>> from skcomplex.models.physics.nonlinear_oscillators import duffing
         >>> section = stroboscopic(duffing(), 2 * math.pi / 1.2, n_points=50, transient=10)
         >>> len(section)

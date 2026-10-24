@@ -1,6 +1,6 @@
 """Fractional dynamics: states of fractional order, Caputo schemes, and fractional noise."""
 
-from ...base import Form
+from ...core.base import Form
 from .._formalism import Formalism, register
 from ._laws import FractionalNoise
 from ._noise import FractionalEulerMaruyama, fractional_gaussian_noise

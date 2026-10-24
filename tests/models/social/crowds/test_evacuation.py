@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.formalisms.kinetics import ParticleKinetics
+from skcomplex.formalisms.kinetics import ParticleKinetics
 
 from ...conftest import _trajectory
 

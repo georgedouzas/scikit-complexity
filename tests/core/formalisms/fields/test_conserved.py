@@ -5,13 +5,13 @@ import numpy as np
 import pytest
 
 from skcomplex.core.base import NoiseKind, ValidationError, symbol
-from skcomplex.core.compile import compile_system, validate
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.fields import Field
 from skcomplex.core.laws import Noise
-from skcomplex.core.solvers import EulerMaruyama, Heun, Milstein
 from skcomplex.core.space import LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.solvers import EulerMaruyama, Heun, Milstein
+from skcomplex.formalisms.fields import Field
 
 Conserved = Element.define(
     'Conserved',

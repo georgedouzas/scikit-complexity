@@ -11,7 +11,7 @@ import numpy.typing as npt
 import tidynamics
 from scipy import signal, stats
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._kinds import DataKind, analysis
 from ._utils import real_array
 
@@ -69,7 +69,7 @@ def autocorrelation(values: npt.ArrayLike, max_lag: int | None = None) -> Array:
             The autocorrelation per lag, 1 at lag 0.
 
     Examples:
-        >>> from skcomplex.core.analysis import autocorrelation
+        >>> from skcomplex.engine.analysis import autocorrelation
         >>> autocorrelation([1.0, -1.0, 1.0, -1.0], max_lag=1).round(2).tolist()
         [1.0, -0.75]
     """
@@ -99,7 +99,7 @@ def autocorrelation_time(values: npt.ArrayLike, dt: float = 1.0) -> float:
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import autocorrelation_time
+        >>> from skcomplex.engine.analysis import autocorrelation_time
         >>> rng = np.random.default_rng(0)
         >>> x = np.zeros(50_000)
         >>> for t in range(1, x.size):
@@ -130,7 +130,7 @@ def power_spectrum(values: npt.ArrayLike, dt: float = 1.0) -> tuple[Array, Array
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import power_spectrum
+        >>> from skcomplex.engine.analysis import power_spectrum
         >>> times = np.arange(4096) * 0.01
         >>> frequencies, density = power_spectrum(np.sin(2 * np.pi * 5 * times), dt=0.01)
         >>> round(float(frequencies[density.argmax()]))
@@ -201,7 +201,7 @@ def mean_squared_displacement(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import mean_squared_displacement
+        >>> from skcomplex.engine.analysis import mean_squared_displacement
         >>> walks = np.cumsum(np.random.default_rng(0).standard_normal((2000, 500)), axis=0)
         >>> displacement = mean_squared_displacement(walks)
         >>> round(displacement.exponent, 1), round(displacement.diffusion, 1)
@@ -277,7 +277,7 @@ def detrended_fluctuation(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import detrended_fluctuation
+        >>> from skcomplex.engine.analysis import detrended_fluctuation
         >>> noise = np.random.default_rng(0).standard_normal(5000)
         >>> round(detrended_fluctuation(np.cumsum(noise)).exponent, 1)
         1.5
@@ -339,7 +339,7 @@ def hurst_exponent(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import hurst_exponent
+        >>> from skcomplex.engine.analysis import hurst_exponent
         >>> round(hurst_exponent(np.random.default_rng(0).standard_normal(20000)), 1)
         0.5
     """
@@ -410,7 +410,7 @@ def early_warning(values: npt.ArrayLike, window: int, *, detrend: bool = True) -
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import early_warning
+        >>> from skcomplex.engine.analysis import early_warning
         >>> rng = np.random.default_rng(0)
         >>> x = np.zeros(2000)
         >>> for t in range(1, 2000):

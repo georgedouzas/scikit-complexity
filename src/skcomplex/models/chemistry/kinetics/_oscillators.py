@@ -6,9 +6,9 @@
 from ....core.base import Domain, state
 from ....core.components import Element
 from ....core.laws import Rate
-from ....core.runtime import register_model
-from ....core.solvers import ScipyODE
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....engine.solvers import ScipyODE
 
 BrusselatorReaction = Element.define(
     'BrusselatorReaction',

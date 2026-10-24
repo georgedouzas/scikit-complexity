@@ -5,11 +5,11 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import equations_of, mittag_leffler, solve_symbolically
 from skcomplex.core.base import AnalysisError, parameter, state
 from skcomplex.core.components import Element
 from skcomplex.core.laws import Rate
 from skcomplex.core.system import System
+from skcomplex.engine.analysis import equations_of, mittag_leffler, solve_symbolically
 
 
 class Relaxing(Element):

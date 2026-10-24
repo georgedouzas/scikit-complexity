@@ -11,7 +11,7 @@ from typing import Any, Protocol
 import numpy as np
 import numpy.typing as npt
 
-from ..base import (
+from ...core.base import (
     Expression,
     Form,
     SymbolicVector,
@@ -21,11 +21,11 @@ from ..base import (
     VisualSpec,
     declarations_of,
 )
-from ..components import Element, Group
-from ..interactions import Interaction
-from ..laws import Invariant, Law
-from ..space import Space
-from ..system import Observable, System
+from ...core.components import Element, Group
+from ...core.interactions import Interaction
+from ...core.laws import Invariant, Law
+from ...core.space import Space
+from ...core.system import Observable, System
 from ._arrays import Vector
 from ._hybrid import CompiledEvent, _Breakpoints, _Delay
 from ._layout import Layout

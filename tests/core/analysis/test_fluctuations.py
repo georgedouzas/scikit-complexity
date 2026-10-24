@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import event_counts, fano_factor, kramers_moyal, relative_fluctuations
 from skcomplex.core.base import AnalysisError
+from skcomplex.engine.analysis import event_counts, fano_factor, kramers_moyal, relative_fluctuations
 from skcomplex.models import run
 
 

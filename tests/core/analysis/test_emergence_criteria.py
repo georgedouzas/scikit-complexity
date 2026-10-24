@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import closure, emergence_criteria
 from skcomplex.core.base import AnalysisError
+from skcomplex.engine.analysis import closure, emergence_criteria
 
 LUMPABLE = np.array(
     [

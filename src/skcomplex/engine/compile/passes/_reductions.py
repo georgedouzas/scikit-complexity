@@ -13,7 +13,7 @@ import numpy.typing as npt
 import scipy.sparse
 from sage.all__sagemath_symbolics import SR, I
 
-from ...base import (
+from ....core.base import (
     Domain,
     Expression,
     RoleError,
@@ -25,7 +25,7 @@ from ...base import (
     symbols_of,
     vector,
 )
-from ...laws import (
+from ....core.laws import (
     Boundary,
     Call,
     Jump,
@@ -39,7 +39,7 @@ from ...laws import (
     neighborhoods_in,
     reductions_in,
 )
-from ...space import Adjacency
+from ....core.space import Adjacency
 from .._compilation import Compilation, Laws
 from .._complex import modulus_form
 from .._declarations import Declarations

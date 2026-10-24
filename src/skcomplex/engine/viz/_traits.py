@@ -11,10 +11,10 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
+from ...core.space import Space
 from ..compile import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 from ..solvers import AgentSnapshot
-from ..space import Space
 from ._agents import AgentsVisual
 from ._colors import SERIES_COLORS, _widened
 from ._visuals import register_visual, resolve_visual
@@ -69,8 +69,8 @@ def agents_visual_of(agents: CompiledAgents, problem: Problem) -> AgentsVisual:
             The visual that logs the agents.
 
     Examples:
-        >>> from skcomplex.core.compile import compile_system
-        >>> from skcomplex.core.viz import agents_visual_of
+        >>> from skcomplex.engine.compile import compile_system
+        >>> from skcomplex.engine.viz import agents_visual_of
         >>> from skcomplex.models import create
         >>> problem = compile_system(create('moran_process'))
         >>> type(agents_visual_of(problem.agents[0], problem)).__name__
@@ -118,7 +118,7 @@ class TraitsVisual(AgentsVisual):
             distribution matters more than its statistics, such as clustered opinions.
 
     Examples:
-        >>> from skcomplex.core.viz import TraitsVisual
+        >>> from skcomplex.engine.viz import TraitsVisual
         >>> TraitsVisual(color_by='fitness').bins
         20
     """

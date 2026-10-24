@@ -3,14 +3,14 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError
+from skcomplex.engine.analysis import (
     first_passage_times,
     fit_power_law,
     hitting_probabilities,
     laminar_durations,
     return_times,
 )
-from skcomplex.core.base import AnalysisError
 
 RUNS = 2000
 

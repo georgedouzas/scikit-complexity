@@ -2,12 +2,12 @@
 
 import numpy as np
 
-from skcomplex.core.analysis import fields_of
-from skcomplex.core.formalisms.fields import Field
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import EulerMaruyama
 from skcomplex.core.space import LatticeSpace
 from skcomplex.core.system import System
+from skcomplex.engine.analysis import fields_of
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import EulerMaruyama
+from skcomplex.formalisms.fields import Field
 from skcomplex.models.physics.active_matter import ActiveScalar, active_model_b
 
 

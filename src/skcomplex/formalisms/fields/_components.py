@@ -6,12 +6,12 @@
 from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 
-from ...base import (
+from ...core.base import (
     ComponentKind,
     VisualSpec,
 )
-from ...components import Element, Group
-from ...space import LatticeSpace, NetworkSpace
+from ...core.components import Element, Group
+from ...core.space import LatticeSpace, NetworkSpace
 from ._laws import FIELD_BOUNDARIES
 from ._spaces import Mesh
 
@@ -58,7 +58,7 @@ class Field(Group):
 
     Examples:
         >>> from skcomplex.core.components import Element
-        >>> from skcomplex.core.formalisms.fields import Field, laplacian
+        >>> from skcomplex.formalisms.fields import Field, laplacian
         >>> from skcomplex.core.laws import Rate
         >>> from skcomplex.core.space import LatticeSpace
         >>> Heat = Element.define(
@@ -139,7 +139,7 @@ class Field(Group):
 
         Examples:
             >>> from skcomplex.core.components import Element
-            >>> from skcomplex.core.formalisms.fields import Field
+            >>> from skcomplex.formalisms.fields import Field
             >>> from skcomplex.core.space import LatticeSpace
             >>> Heat = Element.define('Heat', states={'u': 0.0})
             >>> Field('plate', Heat, LatticeSpace((4, 4))).default_visual().kind

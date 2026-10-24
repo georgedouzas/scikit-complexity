@@ -7,7 +7,7 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._kinds import DataKind, analysis
 
 type Array = npt.NDArray[np.float64]
@@ -80,7 +80,7 @@ def like_neighbor_share(
             A node of a graph has no state.
 
     Examples:
-        >>> from skcomplex.core.analysis import like_neighbor_share
+        >>> from skcomplex.engine.analysis import like_neighbor_share
         >>> like_neighbor_share([[1, 1, 2, 2]] * 4, diagonal=False)
         0.75
     """
@@ -110,7 +110,7 @@ def interface_density(data: npt.ArrayLike | nx.Graph, *, attribute: str = 'state
             A node of a graph has no state.
 
     Examples:
-        >>> from skcomplex.core.analysis import interface_density
+        >>> from skcomplex.engine.analysis import interface_density
         >>> interface_density([[1, 1, -1, -1]] * 4)
         0.25
     """
@@ -138,7 +138,7 @@ def dissimilarity_index(states: npt.ArrayLike, units: npt.ArrayLike) -> float:
             The states do not hold exactly two groups.
 
     Examples:
-        >>> from skcomplex.core.analysis import dissimilarity_index
+        >>> from skcomplex.engine.analysis import dissimilarity_index
         >>> dissimilarity_index([0, 0, 1, 1], [0, 0, 1, 1]), dissimilarity_index([0, 1, 0, 1], [0, 0, 1, 1])
         (1.0, 0.0)
     """

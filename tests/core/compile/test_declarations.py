@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-import skcomplex.core.compile._validation as validation
+import skcomplex.engine.compile._validation as validation
 from skcomplex.core.base import (
     DomainKind,
     Form,
@@ -19,14 +19,14 @@ from skcomplex.core.base import (
     TimeKind,
     vocabulary,
 )
-from skcomplex.core.compile import BACKENDS, SOLVERS, missing_declarations
-from skcomplex.core.formalisms.agents import Rule
-from skcomplex.core.formalisms.fields import Field, Mesh
-from skcomplex.core.formalisms.lattices import Sampler
-from skcomplex.core.formalisms.quantum import Generator
 from skcomplex.core.laws import Rate, Update, law_classes
-from skcomplex.core.solvers import Stepper
 from skcomplex.core.space import ContinuousSpace, LatticeSpace, NetworkSpace
+from skcomplex.engine.compile import BACKENDS, SOLVERS, missing_declarations
+from skcomplex.engine.solvers import Stepper
+from skcomplex.formalisms.agents import Rule
+from skcomplex.formalisms.fields import Field, Mesh
+from skcomplex.formalisms.lattices import Sampler
+from skcomplex.formalisms.quantum import Generator
 
 INVENTORY = Path(__file__).parents[3] / 'docs' / 'overview' / 'inventory.toml'
 

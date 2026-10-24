@@ -23,12 +23,12 @@ from skcomplex.core.base import (
     state,
     symbol,
 )
-from skcomplex.core.compile import CompiledElement, Entry, Layout, Problem, SystemPass, Vector
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms import Formalism, register
 from skcomplex.core.laws import Law, Symbols
-from skcomplex.core.solvers import Stepper
 from skcomplex.core.system import System
+from skcomplex.engine.compile import CompiledElement, Entry, Layout, Problem, SystemPass, Vector
+from skcomplex.engine.solvers import Stepper
+from skcomplex.formalisms import Formalism, register
 
 DECAY = LawKind('DECAY', 'decay')
 DECAYING = Form('DECAYING', 'exponential decay')

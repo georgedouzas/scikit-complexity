@@ -12,12 +12,12 @@ from scipy.spatial import KDTree
 
 from ....core.base import Domain, Expression, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.formalisms.agents import AgentView, ModelView, Rule
 from ....core.interactions import Interaction
 from ....core.laws import Law, Symbols
-from ....core.runtime import register_model
 from ....core.space import ContinuousSpace
 from ....core.system import Observable, System
+from ....engine.runtime import register_model
+from ....formalisms.agents import AgentView, ModelView, Rule
 
 type Array = npt.NDArray[np.float64]
 

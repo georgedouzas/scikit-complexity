@@ -7,11 +7,11 @@ import pytest
 
 from skcomplex.core.base import role, state
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.agents import Match, Phase, Phases, Rule, matches
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.space import DiscreteTime
 from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.formalisms.agents import Match, Phase, Phases, Rule, matches
 from skcomplex.models.economics.realizations import (
     BilateralSearch,
     CallAuction,

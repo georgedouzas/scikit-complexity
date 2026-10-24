@@ -9,9 +9,9 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..base import Expression, ValidationError, components_of
-from ..components import Wiener
-from ..laws import Noise
+from ...core.base import Expression, ValidationError, components_of
+from ...core.components import Wiener
+from ...core.laws import Noise
 from ._declarations import Declarations
 from ._kernels import NoiseProcess
 from ._specs import KernelSpec

@@ -8,7 +8,7 @@ from typing import ClassVar
 
 import numpy as np
 
-from ..base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind
+from ...core.base import ComponentKind, DomainKind, Form, LawKind, OrderKind, SpaceKind, Supports, TimeKind
 from ..compile import Problem, Vector
 from ._hybrid import reject_hybrid
 from ._stepper import Stepper, register_solver
@@ -21,10 +21,10 @@ class Iteration(Stepper):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.economics.markets import Cobweb, Market
-        >>> from skcomplex.core.solvers import Iteration
+        >>> from skcomplex.engine.solvers import Iteration
         >>> problem = compile_system(
         ...     System(components=[Market('m', price=1)], interactions=[Cobweb('c', target='m', a=10, b=2, c=1, d=1)]),
         ... )

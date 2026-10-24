@@ -12,8 +12,8 @@ and a constant drug infusion ends the bursts by clearing the tumour in one of it
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'delayed_resting_hunting_chemotherapy'

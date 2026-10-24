@@ -3,14 +3,14 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError
+from skcomplex.engine.analysis import (
     dual_total_correlation,
     o_information,
     o_information_gradients,
     partial_information,
     total_correlation,
 )
-from skcomplex.core.base import AnalysisError
 
 SAMPLES = 20_000
 

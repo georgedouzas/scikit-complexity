@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.formalisms.control import Pontryagin
+from skcomplex.formalisms.control import Pontryagin
 from skcomplex.models import run
 
 

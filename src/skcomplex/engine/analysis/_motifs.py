@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import networkx as nx
 import numpy as np
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._kinds import DataKind, analysis
 from ._networks import as_graph
 
@@ -128,7 +128,7 @@ def motif_counts(network: object, size: int = 3) -> dict[str, int]:
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.core.analysis import motif_counts
+        >>> from skcomplex.engine.analysis import motif_counts
         >>> motif_counts(nx.complete_graph(4))
         {'path': 0, 'triangle': 4}
         >>> motif_counts(nx.complete_graph(4), 4)
@@ -205,7 +205,7 @@ def motif_zscores(
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.core.analysis import motif_zscores
+        >>> from skcomplex.engine.analysis import motif_zscores
         >>> graph = nx.gnm_random_graph(30, 60, seed=0)
         >>> scores = motif_zscores(graph, samples=10, random_state=0)
         >>> sorted(scores.zscores)

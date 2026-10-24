@@ -12,8 +12,8 @@ unit with the largest input wins and settles at an activity equal to its input, 
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'winners_take_all'

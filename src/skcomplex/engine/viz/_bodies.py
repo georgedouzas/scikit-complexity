@@ -12,7 +12,7 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ..base import ValidationError
+from ...core.base import ValidationError
 from ..compile import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
 from ._points import TRAIL_LENGTH
@@ -137,7 +137,7 @@ class BodiesVisual(Visual):
             The radius of the bodies, or `None` for a share of the extent of the view.
 
     Examples:
-        >>> from skcomplex.core.viz import BodiesVisual
+        >>> from skcomplex.engine.viz import BodiesVisual
         >>> BodiesVisual(('x', 'y'), trail=None).trail is None
         True
     """

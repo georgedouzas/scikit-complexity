@@ -9,9 +9,9 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from ...base import LawClass, LawKind, Requires, TimeKind, Trait, ValidationError
-from ...components import Element, Group, probe_laws
-from ...laws import Law
+from ...core.base import LawClass, LawKind, Requires, TimeKind, Trait, ValidationError
+from ...core.components import Element, Group, probe_laws
+from ...core.laws import Law
 
 type Pairing = Callable[[Sequence[Any], Sequence[Any], np.random.Generator, int], list[tuple[Any, Any]]]
 
@@ -38,7 +38,7 @@ def random_pairing(left: Sequence[Any], right: Sequence[Any], rng: np.random.Gen
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.formalisms.agents import random_pairing
+        >>> from skcomplex.formalisms.agents import random_pairing
         >>> pairs = random_pairing(list(range(5)), list('abc'), np.random.default_rng(0), 1)
         >>> len(pairs)
         3
@@ -96,7 +96,7 @@ def runs_rules(component: object) -> bool:
 
     Examples:
         >>> from skcomplex.core.components import Element
-        >>> from skcomplex.core.formalisms.agents import Rule, runs_rules
+        >>> from skcomplex.formalisms.agents import Rule, runs_rules
         >>> Walker = Element.define('Walker', laws=lambda s: [Rule(lambda agent, model: None)])
         >>> runs_rules(Walker('walker')), runs_rules(Element.define('Plain')('plain'))
         (True, False)
@@ -125,7 +125,7 @@ class Rule(Law):
             default phase.
 
     Examples:
-        >>> from skcomplex.core.formalisms.agents import Rule
+        >>> from skcomplex.formalisms.agents import Rule
         >>> rule = Rule(lambda agent, model: None)
         >>> callable(rule.function)
         True
@@ -173,7 +173,7 @@ class Match(Law):
             The capacity is not a positive integer.
 
     Examples:
-        >>> from skcomplex.core.formalisms.agents import Match
+        >>> from skcomplex.formalisms.agents import Match
         >>> Match('buyers', 'sellers', label='trades').capacity
         1
     """

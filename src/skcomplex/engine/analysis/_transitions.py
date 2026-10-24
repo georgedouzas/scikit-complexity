@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy import linalg, stats
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._kinds import DataKind, analysis
 
 type Array = npt.NDArray[np.float64]
@@ -59,7 +59,7 @@ def transition_counts(states: npt.ArrayLike, n_states: int | None = None, lag: i
             The counts, one row per origin and one column per destination.
 
     Examples:
-        >>> from skcomplex.core.analysis import transition_counts
+        >>> from skcomplex.engine.analysis import transition_counts
         >>> transition_counts([0, 1, 1, 0]).tolist()
         [[0, 1], [1, 1]]
     """
@@ -88,7 +88,7 @@ def transition_matrix(states: npt.ArrayLike, n_states: int | None = None, lag: i
             The probability of every destination from every origin, the identity row for unvisited states.
 
     Examples:
-        >>> from skcomplex.core.analysis import transition_matrix
+        >>> from skcomplex.engine.analysis import transition_matrix
         >>> transition_matrix([0, 1, 0, 1, 1]).tolist()
         [[0.0, 1.0], [0.5, 0.5]]
     """
@@ -119,7 +119,7 @@ def stationary_distribution(matrix: npt.ArrayLike, *, rates: bool = False) -> Ar
             The matrix is not square.
 
     Examples:
-        >>> from skcomplex.core.analysis import stationary_distribution
+        >>> from skcomplex.engine.analysis import stationary_distribution
         >>> stationary_distribution([[0.5, 0.5], [0.25, 0.75]]).round(3).tolist()
         [0.333, 0.667]
     """
@@ -149,7 +149,7 @@ def spectral_gap(matrix: npt.ArrayLike, *, rates: bool = False) -> float:
             The matrix is not square.
 
     Examples:
-        >>> from skcomplex.core.analysis import spectral_gap
+        >>> from skcomplex.engine.analysis import spectral_gap
         >>> round(spectral_gap([[0.5, 0.5], [0.5, 0.5]]), 12)
         1.0
     """
@@ -182,7 +182,7 @@ def relaxation_times(matrix: npt.ArrayLike, *, rates: bool = False, dt: float = 
             The matrix is not square.
 
     Examples:
-        >>> from skcomplex.core.analysis import relaxation_times
+        >>> from skcomplex.engine.analysis import relaxation_times
         >>> relaxation_times([[-1.0, 1.0], [1.0, -1.0]], rates=True).tolist()
         [0.5]
     """
@@ -241,7 +241,7 @@ def detailed_balance(
             The net currents, the statistic, its p-value, and the verdict.
 
     Examples:
-        >>> from skcomplex.core.analysis import detailed_balance
+        >>> from skcomplex.engine.analysis import detailed_balance
         >>> detailed_balance([0, 1, 2] * 1000).balanced
         False
     """

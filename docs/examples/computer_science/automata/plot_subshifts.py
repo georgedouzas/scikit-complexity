@@ -12,10 +12,10 @@ shift, the configurations without two adjacent ones, whose number grows as the p
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import Subshift, configuration_entropy
-from skcomplex.core.runtime import Simulation
 from skcomplex.core.space import LatticeSpace, Neighborhood
-from skcomplex.core.viz import RerunObserver
+from skcomplex.engine.analysis import Subshift, configuration_entropy
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
 MODEL = 'subshifts'

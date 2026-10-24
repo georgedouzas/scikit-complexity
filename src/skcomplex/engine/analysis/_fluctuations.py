@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._kinds import DataKind, analysis
 from ._lazy import module
 
@@ -33,7 +33,7 @@ def fano_factor(values: npt.ArrayLike) -> float:
             The mean is 0.
 
     Examples:
-        >>> from skcomplex.core.analysis import fano_factor
+        >>> from skcomplex.engine.analysis import fano_factor
         >>> fano_factor([1, 3, 1, 3])
         0.5
     """
@@ -66,7 +66,7 @@ def event_counts(event_times: npt.ArrayLike, window: float, *, start: float = 0.
             The number of events in every window.
 
     Examples:
-        >>> from skcomplex.core.analysis import event_counts
+        >>> from skcomplex.engine.analysis import event_counts
         >>> event_counts([0.1, 0.2, 1.5, 2.2], 1.0, end=3.0).tolist()
         [2.0, 1.0, 1.0]
     """
@@ -111,7 +111,7 @@ def relative_fluctuations(samples: Mapping[float, npt.ArrayLike]) -> RelativeFlu
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import relative_fluctuations
+        >>> from skcomplex.engine.analysis import relative_fluctuations
         >>> rng = np.random.default_rng(0)
         >>> samples = {size: rng.poisson(size, 5000) for size in (10, 100, 1000)}
         >>> round(relative_fluctuations(samples).exponent, 1)
@@ -173,7 +173,7 @@ def kramers_moyal(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import kramers_moyal
+        >>> from skcomplex.engine.analysis import kramers_moyal
         >>> rng = np.random.default_rng(0)
         >>> x = np.zeros(100_000)
         >>> for t in range(1, x.size):

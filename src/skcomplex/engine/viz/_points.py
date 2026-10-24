@@ -55,7 +55,7 @@ class PointsVisual(Visual):
             The number of recent positions the trail of each point holds, or 0 for no trail.
 
     Examples:
-        >>> from skcomplex.core.viz import PointsVisual
+        >>> from skcomplex.engine.viz import PointsVisual
         >>> PointsVisual(position='x', color_by='v').color_by
         'v'
     """
@@ -184,8 +184,8 @@ class PointsVisual(Visual):
                 dimensions, followed by a time series view of the other logged states, if any.
 
         Examples:
-            >>> from skcomplex.core.compile import compile_system
-            >>> from skcomplex.core.viz import PointsVisual
+            >>> from skcomplex.engine.compile import compile_system
+            >>> from skcomplex.engine.viz import PointsVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('ideal_gas', n_molecules=10, n_dim=3))
             >>> views = PointsVisual(position='x', states=()).views(problem.elements[0], problem)

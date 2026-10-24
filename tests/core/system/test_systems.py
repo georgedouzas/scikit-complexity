@@ -17,18 +17,18 @@ from skcomplex.core.base import (
     role,
     state,
 )
-from skcomplex.core.compile import compile_system, validate
 from skcomplex.core.components import Element, Group
-from skcomplex.core.formalisms.agents import Rule
-from skcomplex.core.formalisms.particles import PairPotential, Particle
-from skcomplex.core.formalisms.quantum import Generator, QuantumView, is_quantum
-from skcomplex.core.formalisms.rewriting import Production, Rewrite, Word, structure_of
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import Rate, Update
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import ScipyODE
 from skcomplex.core.space import ContinuousSpace, ContinuousTime, DiscreteTime, LatticeSpace, NetworkSpace, StaticTime
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system, validate
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import ScipyODE
+from skcomplex.formalisms.agents import Rule
+from skcomplex.formalisms.particles import PairPotential, Particle
+from skcomplex.formalisms.quantum import Generator, QuantumView, is_quantum
+from skcomplex.formalisms.rewriting import Production, Rewrite, Word, structure_of
 from skcomplex.models.biology.ecology import Population
 
 

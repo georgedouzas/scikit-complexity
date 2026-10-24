@@ -6,8 +6,8 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 
-from ..base import Registry
-from ..system import System
+from ...core.base import Registry
+from ...core.system import System
 from ._problem import Problem
 
 SYSTEM_PASSES = Registry['SystemPass']('system pass')
@@ -35,7 +35,7 @@ def claiming_pass(system: System) -> 'SystemPass | None':
             The pass that compiles the system, or `None`.
 
     Examples:
-        >>> from skcomplex.core.compile import claiming_pass
+        >>> from skcomplex.engine.compile import claiming_pass
         >>> from skcomplex.models import create
         >>> claiming_pass(create('lotka_volterra')) is None
         True

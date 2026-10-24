@@ -5,9 +5,9 @@ from typing import Any
 
 import numpy as np
 
-from skcomplex.core.runtime import ConservationMonitor, Frame, Observer, Simulation, Trajectory
-from skcomplex.core.solvers import Stepper
 from skcomplex.core.system import System
+from skcomplex.engine.runtime import ConservationMonitor, Frame, Observer, Simulation, Trajectory
+from skcomplex.engine.solvers import Stepper
 from skcomplex.models import create, describe
 
 

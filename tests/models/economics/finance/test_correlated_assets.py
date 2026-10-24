@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import EulerMaruyama
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import EulerMaruyama
 from skcomplex.models.economics.finance import (
     correlated_geometric_brownian_motion,
 )

@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models.physics.waves import charged_schrodinger
 
 

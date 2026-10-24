@@ -7,10 +7,10 @@ from typing import ClassVar
 
 from ....core.base import Domain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.formalisms.agents import AgentView, ModelView, Rule
 from ....core.laws import Jump, Law, Symbols
-from ....core.runtime import register_model
 from ....core.system import System
+from ....engine.runtime import register_model
+from ....formalisms.agents import AgentView, ModelView, Rule
 
 PoissonCounter = Element.define(
     'PoissonCounter',

@@ -6,7 +6,8 @@ import numpy as np
 import pytest
 from scipy.integrate import solve_ivp
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError
+from skcomplex.engine.analysis import (
     active_information_storage,
     approximate_entropy,
     break_ties,
@@ -25,8 +26,7 @@ from skcomplex.core.analysis import (
     transfer_entropy,
     tsallis_entropy,
 )
-from skcomplex.core.base import AnalysisError
-from skcomplex.core.runtime import Simulation
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create, run
 
 RUNS = 20_000

@@ -3,8 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ..base import Expression
-from ..space import LatticeSpace
+from ...core.base import Expression
+from ...core.space import LatticeSpace
 
 
 def shift_arguments(call: Expression) -> tuple[Expression, int, str, float]:
@@ -21,7 +21,7 @@ def shift_arguments(call: Expression) -> tuple[Expression, int, str, float]:
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.compile._shifts import shift_arguments
+        >>> from skcomplex.engine.compile._shifts import shift_arguments
         >>> from skcomplex.core.laws import shift_member
         >>> shift_arguments(shift_member(symbol('x'), -2, boundary='fixed', fill=1.0))
         (x, -2, 'fixed', 1.0)

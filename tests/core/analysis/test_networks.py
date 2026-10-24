@@ -6,7 +6,8 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError
+from skcomplex.engine.analysis import (
     assortativity,
     centrality,
     communities,
@@ -18,7 +19,6 @@ from skcomplex.core.analysis import (
     snapshots_of,
     summarize_network,
 )
-from skcomplex.core.base import AnalysisError
 from skcomplex.models import run
 
 

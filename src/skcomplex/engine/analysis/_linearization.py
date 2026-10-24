@@ -11,9 +11,9 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 from scipy.linalg import solve_continuous_are
 
-from ..base import AnalysisError, Expression, Form, ValidationError
+from ...core.base import AnalysisError, Expression, Form, ValidationError
+from ...core.system import System
 from ..compile import Problem, compile_system
-from ..system import System
 from ._stability import dynamics_of
 
 type Matrix = npt.NDArray[np.float64]
@@ -96,7 +96,7 @@ def controllability(A: npt.ArrayLike, B: npt.ArrayLike) -> int:
             The rank of the controllability matrix.
 
     Examples:
-        >>> from skcomplex.core.analysis import controllability
+        >>> from skcomplex.engine.analysis import controllability
         >>> controllability([[0, 1], [-1, 0]], [[0], [1]])
         2
     """
@@ -125,7 +125,7 @@ def observability(A: npt.ArrayLike, C: npt.ArrayLike) -> int:
             The rank of the observability matrix.
 
     Examples:
-        >>> from skcomplex.core.analysis import observability
+        >>> from skcomplex.engine.analysis import observability
         >>> observability([[0, 1], [-1, 0]], [[0, 1]])
         2
     """
@@ -157,7 +157,7 @@ def lqr(A: npt.ArrayLike, B: npt.ArrayLike, Q: npt.ArrayLike, R: npt.ArrayLike) 
             The gain matrix, one row per control and one column per state.
 
     Examples:
-        >>> from skcomplex.core.analysis import lqr
+        >>> from skcomplex.engine.analysis import lqr
         >>> lqr([[0.0]], [[1.0]], [[1.0]], [[1.0]]).round(6).tolist()
         [[1.0]]
     """
@@ -206,7 +206,7 @@ def linearize(
             A name is not an adaptive parameter, a state, or a control, or the system has no symbolic vector field.
 
     Examples:
-        >>> from skcomplex.core.analysis import controllability, linearize
+        >>> from skcomplex.engine.analysis import controllability, linearize
         >>> from skcomplex.core.base import parameter
         >>> from skcomplex.core.components import Element
         >>> from skcomplex.core.laws import Rate

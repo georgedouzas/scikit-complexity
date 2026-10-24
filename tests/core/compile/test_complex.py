@@ -8,20 +8,20 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import I, arg, conjugate, exp, gamma, imag_part, real_part
 
-from skcomplex.core.analysis import power_spectrum
-from skcomplex.core.backends import NumbaBackend
 from skcomplex.core.base import BackendError, Domain, ValidationError, parameter, state
-from skcomplex.core.compile import Entry, Layout, compile_system
 from skcomplex.core.components import Element
-from skcomplex.core.formalisms.agents import Rule
-from skcomplex.core.formalisms.fields import ETDRK4, IMEX2, CrankNicolson, Field, IMEXEuler, laplacian
-from skcomplex.core.formalisms.lattices import LocalRule
-from skcomplex.core.formalisms.particles import LammpsBackend
 from skcomplex.core.laws import Call, Equation, Event, Jump, Rate, Update, derivative, mod, total, where
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import RK4, ScipyODE
 from skcomplex.core.space import LatticeSpace, Neighborhood
 from skcomplex.core.system import Observable, System
+from skcomplex.engine.analysis import power_spectrum
+from skcomplex.engine.backends import NumbaBackend
+from skcomplex.engine.compile import Entry, Layout, compile_system
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import RK4, ScipyODE
+from skcomplex.formalisms.agents import Rule
+from skcomplex.formalisms.fields import ETDRK4, IMEX2, CrankNicolson, Field, IMEXEuler, laplacian
+from skcomplex.formalisms.lattices import LocalRule
+from skcomplex.formalisms.particles import LammpsBackend
 from skcomplex.models.physics.pattern_formation import GinzburgLandau
 
 STIFF = (IMEXEuler(dt=0.05), IMEX2(dt=0.05), CrankNicolson(dt=0.05))
@@ -265,8 +265,8 @@ def test_complex_kernels_are_cached_on_disk(tmp_path):
     script = textwrap.dedent(
         f"""
         import sys
-        from skcomplex.core.compile import compile_system
-        from skcomplex.core.backends import NumbaBackend
+        from skcomplex.engine.compile import compile_system
+        from skcomplex.engine.backends import NumbaBackend
         from skcomplex.models.mathematics.fractals import mandelbrot
         problem = compile_system(mandelbrot((64, 64)), backend=NumbaBackend(cache_dir={str(tmp_path)!r}))
         problem.update(0.0, problem.initial_state, problem.initial_parameters)

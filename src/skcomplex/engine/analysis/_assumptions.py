@@ -7,7 +7,7 @@ from collections.abc import Iterable, Mapping
 
 from sage.symbolic.assumptions import assume, forget
 
-from ..base import Categorical, Domain, Expression, domain_of
+from ...core.base import Categorical, Domain, Expression, domain_of
 
 DECLARED: set[str] = set()
 SIGNS: dict[str, Expression] = {}

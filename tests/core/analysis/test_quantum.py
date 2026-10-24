@@ -3,7 +3,9 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import (
+from skcomplex.core.base import AnalysisError, ParameterError
+from skcomplex.core.system import System
+from skcomplex.engine.analysis import (
     entanglement_entropy,
     equations_of,
     ground_state,
@@ -11,10 +13,8 @@ from skcomplex.core.analysis import (
     purity,
     spectrum,
 )
-from skcomplex.core.base import AnalysisError, ParameterError
-from skcomplex.core.compile import compile_system
-from skcomplex.core.runtime import Simulation
-from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create, describe
 from skcomplex.models.biology.ecology import Population
 from skcomplex.models.physics.realizations import Spin

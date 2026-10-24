@@ -2,7 +2,7 @@
 
 import networkx as nx
 
-from skcomplex.core.experiments import Experiment, Grid
+from skcomplex.engine.experiments import Experiment, Grid
 from skcomplex.models.physics.statistical_mechanics import graph_ising
 
 from .conftest import magnetization

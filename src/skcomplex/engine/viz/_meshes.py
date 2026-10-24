@@ -34,7 +34,7 @@ class MeshVisual(Visual):
             The value of the brightest color, or `None` for the largest value of every frame.
 
     Examples:
-        >>> from skcomplex.core.viz import MeshVisual
+        >>> from skcomplex.engine.viz import MeshVisual
         >>> MeshVisual(low=0.0)
         MeshVisual(states=None, low=0.0, high=None)
     """
@@ -116,8 +116,8 @@ class MeshVisual(Visual):
                 One 3D spatial view per chosen state, with `<path>/<state>` as origin.
 
         Examples:
-            >>> from skcomplex.core.compile import compile_system
-            >>> from skcomplex.core.viz import MeshVisual
+            >>> from skcomplex.engine.compile import compile_system
+            >>> from skcomplex.engine.viz import MeshVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('heat_l_shape', refine=1))
             >>> [type(view).__name__ for view in MeshVisual().views(problem.elements[0], problem)]

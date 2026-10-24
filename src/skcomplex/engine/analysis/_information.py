@@ -13,7 +13,7 @@ import numpy.typing as npt
 import ordpy
 from scipy import stats
 
-from ..base import AnalysisError
+from ...core.base import AnalysisError
 from ._kinds import DataKind, analysis
 from ._lazy import module
 from ._utils import real_array
@@ -103,7 +103,7 @@ def ordinal_patterns(values: npt.ArrayLike, order: int = 3, *, delay: int = 1) -
             One symbol per window, from 0 to `order! - 1`, distinct for distinct rank patterns.
 
     Examples:
-        >>> from skcomplex.core.analysis import ordinal_patterns
+        >>> from skcomplex.engine.analysis import ordinal_patterns
         >>> ordinal_patterns([1.0, 2.0, 3.0, 2.5, 0.5], order=3).tolist()
         [0, 1, 5]
     """
@@ -149,7 +149,7 @@ def symbolize(
             The method is unknown.
 
     Examples:
-        >>> from skcomplex.core.analysis import symbolize
+        >>> from skcomplex.engine.analysis import symbolize
         >>> symbolize([0.1, 0.9, 0.4, 0.6], 'quantiles', 2).tolist()
         [0, 1, 0, 1]
     """
@@ -185,7 +185,7 @@ def shannon_entropy(values: npt.ArrayLike, *, base: float = 2.0, probabilities: 
             The entropy.
 
     Examples:
-        >>> from skcomplex.core.analysis import shannon_entropy
+        >>> from skcomplex.engine.analysis import shannon_entropy
         >>> shannon_entropy([0, 1, 0, 1]), shannon_entropy([0.25] * 4, probabilities=True)
         (1.0, 2.0)
     """
@@ -221,7 +221,7 @@ def renyi_entropy(
             The entropy.
 
     Examples:
-        >>> from skcomplex.core.analysis import renyi_entropy
+        >>> from skcomplex.engine.analysis import renyi_entropy
         >>> [round(renyi_entropy([0.25] * 4, order, probabilities=True), 12) for order in (0, 1, 2, float('inf'))]
         [2.0, 2.0, 2.0, 2.0]
     """
@@ -252,7 +252,7 @@ def tsallis_entropy(values: npt.ArrayLike, index: float = 2.0, *, probabilities:
             The entropy, the Shannon entropy in nats at index 1.
 
     Examples:
-        >>> from skcomplex.core.analysis import tsallis_entropy
+        >>> from skcomplex.engine.analysis import tsallis_entropy
         >>> tsallis_entropy([0.5, 0.5], 2, probabilities=True)
         0.5
     """
@@ -281,7 +281,7 @@ def kl_divergence(p: npt.ArrayLike, q: npt.ArrayLike, *, base: float = 2.0) -> f
             The divergence, infinite when `q` is 0 where `p` is not.
 
     Examples:
-        >>> from skcomplex.core.analysis import kl_divergence
+        >>> from skcomplex.engine.analysis import kl_divergence
         >>> kl_divergence([0.5, 0.5], [0.5, 0.5])
         0.0
     """
@@ -307,7 +307,7 @@ def block_entropy(symbols: npt.ArrayLike, m: int, *, base: float = 2.0) -> float
             The block entropy `S_m`.
 
     Examples:
-        >>> from skcomplex.core.analysis import block_entropy
+        >>> from skcomplex.engine.analysis import block_entropy
         >>> round(block_entropy([0, 0, 1, 1] * 50, 2), 3)
         2.0
     """
@@ -359,7 +359,7 @@ def entropy_rate(symbols: npt.ArrayLike, max_m: int = 8, *, base: float = 2.0) -
             The entropy rate per symbol.
 
     Examples:
-        >>> from skcomplex.core.analysis import entropy_rate
+        >>> from skcomplex.engine.analysis import entropy_rate
         >>> round(entropy_rate([0, 0, 1, 1] * 100, 4), 3)
         0.0
     """
@@ -408,7 +408,7 @@ def excess_entropy(symbols: npt.ArrayLike, max_m: int = 8, *, base: float = 2.0)
             The information that the past holds about the future.
 
     Examples:
-        >>> from skcomplex.core.analysis import excess_entropy
+        >>> from skcomplex.engine.analysis import excess_entropy
         >>> round(excess_entropy([0, 0, 1, 1] * 100, 4), 3)
         2.0
     """
@@ -436,7 +436,7 @@ def mutual_information(first: npt.ArrayLike, second: npt.ArrayLike, *, base: flo
             `H(X) + H(Y) - H(X, Y)`.
 
     Examples:
-        >>> from skcomplex.core.analysis import mutual_information
+        >>> from skcomplex.engine.analysis import mutual_information
         >>> mutual_information([0, 1, 0, 1], [0, 1, 0, 1])
         1.0
     """
@@ -464,7 +464,7 @@ def active_information_storage(symbols: npt.ArrayLike, history: int = 1, *, base
             `I(X_t ; X_{t-history}, ..., X_{t-1})`, estimated by plug-in counts.
 
     Examples:
-        >>> from skcomplex.core.analysis import active_information_storage
+        >>> from skcomplex.engine.analysis import active_information_storage
         >>> round(active_information_storage([0, 0, 1, 1] * 100, 2), 3)
         1.0
     """
@@ -524,7 +524,7 @@ def transfer_entropy(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import transfer_entropy
+        >>> from skcomplex.engine.analysis import transfer_entropy
         >>> x = np.random.default_rng(0).integers(0, 2, 10000)
         >>> y = np.roll(x, 1)
         >>> round(transfer_entropy(x, y), 1), round(transfer_entropy(y, x), 1)
@@ -572,7 +572,7 @@ def break_ties(values: npt.ArrayLike, ties: str = 'random', random_state: int | 
             The tie rule is unknown.
 
     Examples:
-        >>> from skcomplex.core.analysis import break_ties
+        >>> from skcomplex.engine.analysis import break_ties
         >>> broken = break_ties([1.0, 1.0, 2.0], random_state=0)
         >>> len(set(broken.tolist())), bool(broken[2] > broken[:2].max())
         (3, True)
@@ -638,7 +638,7 @@ def permutation_entropy(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import permutation_entropy
+        >>> from skcomplex.engine.analysis import permutation_entropy
         >>> permutation_entropy(np.arange(100.0))
         0.0
     """
@@ -670,7 +670,7 @@ def lempel_ziv_complexity(symbols: npt.ArrayLike, *, normalize: bool = True) -> 
             The complexity.
 
     Examples:
-        >>> from skcomplex.core.analysis import lempel_ziv_complexity
+        >>> from skcomplex.engine.analysis import lempel_ziv_complexity
         >>> lempel_ziv_complexity([0] * 64, normalize=False)
         2.0
     """

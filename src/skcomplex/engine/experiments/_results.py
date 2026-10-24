@@ -60,7 +60,7 @@ class ExperimentResult:
             The results of every run, in the experiment's order.
 
     Examples:
-        >>> from skcomplex.core.experiments import Experiment, Grid
+        >>> from skcomplex.engine.experiments import Experiment, Grid
         >>> from skcomplex.models.biology.epidemiology import sir
         >>> result = Experiment('sir', Grid(gamma=[0.1, 0.2]), until=10).run()
         >>> [row['gamma'] for row in result.rows]

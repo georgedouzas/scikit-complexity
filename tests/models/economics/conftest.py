@@ -5,8 +5,8 @@ from typing import Any
 
 import numpy.typing as npt
 
-from skcomplex.core.runtime import Simulation, Trajectory
 from skcomplex.core.system import Observable, System
+from skcomplex.engine.runtime import Simulation, Trajectory
 
 
 def _run(system: System, until: float, **settings: Any) -> Trajectory:  # noqa: ANN401

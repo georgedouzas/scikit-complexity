@@ -8,7 +8,7 @@ from typing import Any
 
 from sklearn.base import BaseEstimator
 
-from ..system import System
+from ...core.system import System
 
 
 class Scenario(BaseEstimator):
@@ -32,7 +32,7 @@ class Scenario(BaseEstimator):
             A system that replaces the model's system, for structural changes, or `None`.
 
     Examples:
-        >>> from skcomplex.core.experiments import Scenario
+        >>> from skcomplex.engine.experiments import Scenario
         >>> Scenario('quota', schedule=[(50.0, 'harvest.effort', 0.025)]).schedule
         [(50.0, 'harvest.effort', 0.025)]
     """

@@ -5,10 +5,10 @@
 
 from typing import cast
 
-from ...base import Expression, ValidationError, VariableKind, components_of, declarations_of
-from ...interactions import Interaction
-from ...laws import Boundary, Law, Symbols, either, mod, where
-from ...space import ContinuousSpace
+from ....core.base import Expression, ValidationError, VariableKind, components_of, declarations_of
+from ....core.interactions import Interaction
+from ....core.laws import Boundary, Law, Symbols, either, mod, where
+from ....core.space import ContinuousSpace
 from .._compilation import BlockLaws, Compilation
 from .._declarations import Block, is_interaction
 from .._kernels import PairSearch, Source

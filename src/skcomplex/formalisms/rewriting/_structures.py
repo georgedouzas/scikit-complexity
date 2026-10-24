@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 import shapely
 
-from ...base import ValidationError
+from ...core.base import ValidationError
 from ._laws import Module, Prototile
 
 type Array = npt.NDArray[Any]
@@ -197,7 +197,7 @@ class WordStructure(Structure):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.formalisms.rewriting import WordStructure
+        >>> from skcomplex.formalisms.rewriting import WordStructure
         >>> str(WordStructure(('A', 'B'), np.array([0, 1, 0]), np.zeros((3, 0)), 2))
         'ABA'
     """
@@ -303,8 +303,8 @@ class PatchStructure(Structure):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.formalisms.rewriting import PatchStructure
-        >>> from skcomplex.core.formalisms.rewriting import Prototile
+        >>> from skcomplex.formalisms.rewriting import PatchStructure
+        >>> from skcomplex.formalisms.rewriting import Prototile
         >>> patch = PatchStructure([Prototile('interval', [(0, 0), (1, 0)])], [0], np.eye(3)[None], 0)
         >>> patch.length()
         1.0
@@ -405,7 +405,7 @@ class GraphStructure(Structure):
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.core.formalisms.rewriting import GraphStructure
+        >>> from skcomplex.formalisms.rewriting import GraphStructure
         >>> GraphStructure(nx.cycle_graph(4), 0).parts
         4
     """

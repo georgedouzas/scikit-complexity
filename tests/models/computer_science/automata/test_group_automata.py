@@ -3,10 +3,10 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import Subshift
-from skcomplex.core.formalisms.groups import CayleyVisual
-from skcomplex.core.runtime import Frame, Simulation
 from skcomplex.core.space import Memory, Neighborhood
+from skcomplex.engine.analysis import Subshift
+from skcomplex.engine.runtime import Frame, Simulation
+from skcomplex.formalisms.groups import CayleyVisual
 from skcomplex.models import catalog, create
 from skcomplex.models.computer_science.automata import (
     baumslag_solitar_automaton,

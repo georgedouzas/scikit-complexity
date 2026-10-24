@@ -9,7 +9,7 @@ from typing import Any, ClassVar, cast
 import numpy as np
 from sklearn.base import clone
 
-from ..base import (
+from ...core.base import (
     ComponentKind,
     Domain,
     DomainKind,
@@ -23,9 +23,9 @@ from ..base import (
     TimeKind,
     ValidationError,
 )
+from ...core.components import Aggregate
+from ...core.system import reduce_values
 from ..compile import Partition, Problem, Vector, partition_system
-from ..components import Aggregate
-from ..system import reduce_values
 from ._snapshots import AgentState
 from ._stepper import Stepper, register_solver, resolve_solver
 
@@ -63,8 +63,8 @@ class CoSimulation(Stepper):
     Examples:
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.ecology import ExponentialGrowth, Population
-        >>> from skcomplex.core.runtime import Simulation
-        >>> from skcomplex.core.solvers import CoSimulation
+        >>> from skcomplex.engine.runtime import Simulation
+        >>> from skcomplex.engine.solvers import CoSimulation
         >>> system = System(
         ...     components=[
         ...         System('a', components=[Population('x', n=1)], interactions=[ExponentialGrowth('g', target='x')]),
