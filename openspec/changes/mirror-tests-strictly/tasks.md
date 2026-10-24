@@ -10,7 +10,7 @@
 
 ## 2. Import contracts
 
-- [ ] 2.1 Add `import-linter` to the `checks` dependency group, and run it from the `checks` session. Write the
+- [x] 2.1 Add `import-linter` to the `checks` dependency group, and run it from the `checks` session. Write the
   contracts of the design: core package layers, core without models, shared core without formalisms, formalism
   dependencies, models without private core modules, and self-contained model packages. Verify that `lint-imports`
   passes, and that a planted upward import and a planted formalism import each fail it.
