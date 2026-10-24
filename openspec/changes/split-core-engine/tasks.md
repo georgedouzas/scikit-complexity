@@ -17,7 +17,7 @@
 
 ## 3. Profile and verification
 
-- [ ] 3.1 Update the constitution's Project Profile: the layout, the extension points, and the surface. Bump the minor
+- [x] 3.1 Update the constitution's Project Profile: the layout, the extension points, and the surface. Bump the minor
   version.
 - [ ] 3.2 Compare the compiled problems and trajectories of every model with the latest records, and verify that none
   differs.
