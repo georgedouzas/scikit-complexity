@@ -122,7 +122,7 @@ class Collocation(OptimalControlSolver):
         ... )
         >>> solver = Collocation(nodes=51, scheme='hermite-simpson')
         >>> simulation = Simulation(System(components=[Plant('plant')]), solver=solver).run(until=1.0)
-        >>> round(simulation.trajectory_['plant.u'][0], 3)
+        >>> float(round(simulation.trajectory_['plant.u'][0], 3))
         -0.762
     """
 

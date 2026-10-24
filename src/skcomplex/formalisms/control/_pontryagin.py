@@ -111,7 +111,7 @@ class Pontryagin(OptimalControlSolver):
         ...     laws=lambda s: [Rate(s.x, s.u), Objective((s.x**2 + s.u**2) / 2)],
         ... )
         >>> simulation = Simulation(System(components=[Plant('plant')]), solver=Pontryagin()).run(until=1.0)
-        >>> round(simulation.trajectory_['plant.u'][0], 3)
+        >>> float(round(simulation.trajectory_['plant.u'][0], 3))
         -0.762
     """
 
