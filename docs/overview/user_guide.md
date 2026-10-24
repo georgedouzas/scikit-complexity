@@ -84,7 +84,10 @@ layer, needs an explicit `__init__` on its type.
 `get_params` reads the keyword arguments of these constructors along the class hierarchy, so a setting clones and
 prints like a declared value.
 
-```python
+```python continuation
+from skcomplex.core.laws import Jump
+from sklearn.base import clone
+
 class SwitchedBirth(Birth):
     def __init__(self, label, *, stochastic=False, **values):
         super().__init__(label, **values)
@@ -122,6 +125,8 @@ A system holds only laws of registered classes. The shared core registers its ge
 registered classes, optionally only those with a trait.
 
 ```python
+from skcomplex.core.laws import Rate
+
 from skcomplex.core.base import LawKind, Trait
 from skcomplex.core.laws import Boundary, Law, law_classes
 
@@ -132,6 +137,10 @@ print(Trait.FORMLESS in Boundary.traits, Rate in law_classes(Trait.DECLARABLE))
 A law can also be a Python function of time and current values, which covers rules that have no closed form.
 
 ```python
+from skcomplex.core.base import role
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Rate
+
 class Threshold(Interaction):
     target: str = role()
 
@@ -148,6 +157,10 @@ symbolic remainder, so `skcomplex.core.laws` adds `where`, `either`, `both`, and
 included.
 
 ```python
+from skcomplex.core.base import Domain, parameter, role
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Rate
+
 from sage.all__sagemath_symbolics import exp, sqrt
 
 from skcomplex.core.laws import where
@@ -183,6 +196,10 @@ one-off models. The types behave like classes in groups, cloning, and parameter 
 assigned to a module-level name equal to their name.
 
 ```python
+from skcomplex.core.base import Domain, parameter, state
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Rate
+
 from skcomplex.core.components import Element
 
 SpeciesDefined = Element.define('SpeciesDefined', states={'n': state(10.0, domain=Domain.NONNEGATIVE)})
@@ -203,6 +220,9 @@ after every frame. Trajectories return booleans and labels, and `Simulation(...,
 any state that leaves its domain.
 
 ```python
+from skcomplex.core.base import Domain, state
+from skcomplex.core.components import Element
+
 health = Domain.categorical('susceptible', 'infected', 'recovered')
 Person = Element.define('Person', states={'health': state('susceptible', domain=health)})
 Rotor = Element.define('Rotor', states={'theta': state(0.0, domain=Domain.ANGLE)})
@@ -251,6 +271,9 @@ order for the solvers.
 - A companion is not a class attribute. `Pendulum.declarations()` lists it after its state.
 
 ```python
+from skcomplex.core.base import Domain, state
+from skcomplex.core.components import Element
+
 from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.laws import Equation, derivative
@@ -304,7 +327,7 @@ States and parameters are named by their path, such as `meadow/rabbits.n` and `h
 solver is `ScipyODE` with SciPy's `LSODA`, which starts with Adams methods and switches to BDF methods while the system
 is stiff, so stiff systems also run with the default solver.
 
-```python
+```python continuation
 from skcomplex.core.runtime import RealTime, Simulation
 
 trajectory = Simulation(landscape, dt=0.1).run(until=10).trajectory_
@@ -340,6 +363,11 @@ a history of dense output and step no further than the smallest delay, by the me
 history is the initial value, or what the state declares with `state(..., history=value or function of time)`.
 
 ```python
+from skcomplex.core.base import state
+from skcomplex.core.components import Element
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 import numpy as np
 
 from skcomplex.core.laws import Event, Noise, Rate, delayed, step
@@ -362,6 +390,12 @@ them all with their times and the states before and after the reset. A guard tha
 raises an error that names the chattering event.
 
 ```python
+from skcomplex.core.base import state
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Event, Rate, derivative
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 Ball = Element.define(
     'Ball',
     states={'h': state(default=1.0, order=2)},
@@ -381,6 +415,11 @@ trains, and the solvers stop at every one and evaluate the inputs on the correct
 exact to the solver tolerance.
 
 ```python
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Rate, step
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 Filter = Element.define(
     'Filter',
     states={'y': 0.0},
@@ -396,6 +435,11 @@ Itô equation. `EulerMaruyama` has strong order 1/2. `Milstein`, in Platen's der
 diagonal noise, and `Heun` averages the drift over every step.
 
 ```python
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Noise, Rate
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 from skcomplex.core.solvers import Milstein
 
 Growth = Element.define(
@@ -417,6 +461,12 @@ component, and every member of a group, can share. The covariance is fixed when 
 it once, so the steppers scale standard normal increments drawn from the run's random generator.
 
 ```python
+import numpy as np
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Noise
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 from skcomplex.core.base import role
 from skcomplex.core.components import Wiener
 from skcomplex.core.interactions import Interaction
@@ -458,6 +508,12 @@ on every link, and the field uses finite differences on a square lattice. Valida
 any other state with the code `noise-unsupported`.
 
 ```python
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Noise, Rate
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.solvers import EulerMaruyama
+from skcomplex.core.system import System
+
 from sage.all__sagemath_symbolics import sqrt
 
 from skcomplex.core.formalisms.fields import Field, laplacian
@@ -508,6 +564,10 @@ does not depend on the order of the laws. The NumPy and Numba backends give equa
 and categorical draws.
 
 ```python
+from skcomplex.core.components import Element
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 from skcomplex.core.laws import Update, bernoulli, normal, where
 
 Persistent = Element.define(
@@ -541,6 +601,11 @@ every row sums to 1, and `update_parameters` checks again every matrix a changed
 with a `ParameterError` before it applies.
 
 ```python
+from skcomplex.core.base import Domain, state
+from skcomplex.core.components import Element
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 from skcomplex.core.laws import Emission, Transition
 
 Source = Element.define(
@@ -579,6 +644,11 @@ listing the closest names, and keywords the distribution does not take. In updat
 every member before each step, and the map then steps in Python with the backend's compiled update.
 
 ```python
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Update
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 from skcomplex.core.laws import draw
 
 Flier = Element.define(
@@ -605,6 +675,11 @@ renewals. `RK4` and `EulerMaruyama` stop every member at its own renewals when t
 the step at every renewal time for all members when a law sums over the group. Other steppers reject these jumps.
 
 ```python
+from skcomplex.core.components import Element
+from skcomplex.core.laws import draw, normal
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 from skcomplex.core.laws import Jump
 
 Walker = Element.define(
@@ -634,6 +709,10 @@ reject fractional noise with an error that names `FractionalEulerMaruyama`. `fra
 noise paths themselves.
 
 ```python
+from skcomplex.core.components import Element
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 from skcomplex.core.formalisms.fractional import FractionalEulerMaruyama, FractionalNoise
 
 Rough = Element.define('Rough', states={'x': 0.0}, laws=lambda s: [FractionalNoise(s.x, 1, hurst=0.3)])
@@ -673,6 +752,11 @@ fractional state between frames, such as one the simulation's interventions make
 changed state.
 
 ```python
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Rate
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 from skcomplex.core.analysis import mittag_leffler
 from skcomplex.core.base import state
 from skcomplex.core.formalisms.fractional import L1Scheme
@@ -708,6 +792,12 @@ appear by label, or a reduction over a group's members of a variable or an expre
 functions, so that systems pickle, and a lambda raises an error.
 
 ```python
+from skcomplex.core.base import Domain, state
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Rate
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 import numpy as np
 from sage.all__sagemath_symbolics import I, exp
 
@@ -744,7 +834,13 @@ value at every frame. A law of another partition reads the observable as held at
 agents and equations exchange macroscopic quantities in a co-simulation. An observable with a Python function as
 `reduce`, or one over agents, is read only from another partition, and reading it in its own partition raises an error.
 
-```python
+```python continuation
+import numpy as np
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Rate
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import Observable, System
+
 from sage.all__sagemath_symbolics import cos, sin
 
 MeanField = Interaction.define(
@@ -782,6 +878,11 @@ later laws use through `auxiliary.symbol`, and trajectories record it too. `look
 piecewise linear between its points and flat outside them.
 
 ```python
+from skcomplex.core.base import state
+from skcomplex.core.components import Element
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 from skcomplex.core.laws import Auxiliary, Sink, Source, Transfer, lookup
 
 
@@ -807,7 +908,9 @@ flows cancel. The compiler accumulates that inflow in the hidden state `__bounda
 `ConservationMonitor` checks at every frame that each total changed only by it. `flow_matrix(trajectory, frame)` is
 the transaction-flow matrix of a frame, one row per flow and one column per holder, whose rows sum to zero.
 
-```python
+```python continuation
+from skcomplex.core.runtime import Simulation
+
 from skcomplex.core.analysis import conservation, flow_matrix
 from skcomplex.core.runtime import ConservationMonitor
 
@@ -825,7 +928,7 @@ realizations in `skcomplex.models.engineering.processes`.
 `loops(system)` derives the signed dependency graph of states, auxiliaries, and flows from the laws, and lists its
 feedback loops with their polarity, and `loop_dominance(trajectory)` ranks the loops by their gains at every frame.
 
-```python
+```python continuation
 from skcomplex.core.analysis import loop_dominance, loops
 
 for loop in loops(crowd).loops:
@@ -841,6 +944,10 @@ value, and the stepper checks it for every agent after every step. Removing an a
 raises `ConservationError` until its holdings are settled with transfers.
 
 ```python
+from skcomplex.core.base import state
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 from skcomplex.core.components import Element
 from skcomplex.core.formalisms.agents import Rule
 from skcomplex.core.laws import Invariant, transfer
@@ -882,6 +989,12 @@ feedback controller supplies its value. Without one it keeps its initial value. 
 outside the bounds as an error at the parameter, whose fix names the bounds.
 
 ```python
+from skcomplex.core.base import parameter
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Rate
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 from skcomplex.core.compile import validate
 
 Heater = Element.define(
@@ -915,6 +1028,12 @@ arcs, and saddle paths on which the sweep diverges. Both solve the problem over 
 `simulation.stepper_.solution_` holds the solution on its grid, its cost, and, for `Pontryagin`, the costates.
 
 ```python
+from skcomplex.core.base import parameter
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Rate
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 from skcomplex.core.formalisms.control import Collocation, Pontryagin
 from skcomplex.core.laws import Objective
 
@@ -942,7 +1061,9 @@ optimise, whose fix lists the solvers that do.
 | `Pontryagin` | rate, equation, objective, boundary | symbolic costates and a forward-backward sweep |
 | `Collocation` | rate, equation, objective | direct transcription solved by SLSQP or trust-constr |
 
-```python
+```python continuation
+from skcomplex.core.compile import validate
+
 print([issue.fix for issue in validate(plant, solver='rk4').errors])
 ```
 
@@ -964,6 +1085,11 @@ parameters. `controllability(A, B)` and `observability(A, C)` return the ranks o
 `lqr(A, B, Q, R)` returns the gain of the linear-quadratic regulator from SciPy's solution of the Riccati equation.
 
 ```python
+from skcomplex.core.base import parameter
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Rate
+from skcomplex.core.system import System
+
 from skcomplex.core.analysis import controllability, linearize, lqr, observability
 
 Cart = Element.define(
@@ -1321,6 +1447,9 @@ A group holds N identical elements of one type as arrays with one row per member
 and every law written for one member runs over all members with array operations.
 
 ```python
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 import numpy as np
 
 from skcomplex.core.formalisms.particles import Particle
@@ -1367,6 +1496,13 @@ evaluated once per evaluation, before the member laws, at a cost linear in the s
   receive.
 
 ```python
+import numpy as np
+from skcomplex.core.components import Element
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Rate
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 from sage.all__sagemath_symbolics import tanh
 
 from skcomplex.core.laws import total
@@ -1399,6 +1535,12 @@ A role also binds to an element set, a list of single elements of one type. The 
 element, the elements keep their own state names, and reductions over the role reduce over the set.
 
 ```python
+from skcomplex.core.components import Element
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Rate, total
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 Inhibition = Interaction.define(
     'Inhibition',
     roles=['units'],
@@ -1468,6 +1610,11 @@ Numba backends. The ring roads of `optimal_velocity` and `intelligent_driver_mod
 `mod` for the headway across the point where positions wrap.
 
 ```python
+from skcomplex.core.components import Element
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 import numpy as np
 from sage.all__sagemath_symbolics import tanh
 
@@ -1500,8 +1647,16 @@ entries, `pattern()` returns `None` and an implicit solver estimates a dense Jac
 `ScipyODE(method='RK45')` suit large groups with reductions.
 
 ```python
-from skcomplex.core.compile import compile_system
+import numpy as np
+from sage.all__sagemath_symbolics import tanh
 
+from skcomplex.core.compile import compile_system
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Rate, total
+from skcomplex.core.system import System
+
+Unit = Element.define('Unit', states={'x': 0.0}, laws=lambda s: [Rate(s.x, -s.x + tanh(total(s.x)))])
+units = System(components=[Unit.group('units', 50, x=np.linspace(-1, 1, 50))])
 problem = compile_system(units)
 jacobian = problem.jacobian(0.0, problem.initial_state, problem.initial_parameters)
 print(jacobian.shape, problem.jacobian.pattern().nnz)
@@ -1517,6 +1672,12 @@ A pair interaction is written once for a pair of members and summed over every p
 group or between two groups. `PairPotential` derives the forces from a pair energy.
 
 ```python
+import numpy as np
+from skcomplex.core.formalisms.particles import Particle
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.space import ContinuousSpace
+from skcomplex.core.system import System
+
 from skcomplex.core.base import Domain, parameter
 from skcomplex.core.formalisms.particles import PairPotential
 
@@ -1562,6 +1723,12 @@ one per neighbour, that also receives the parameters it names and, for stochasti
 Tables and totalistic rules run as lookups, fused into one compiled loop on the Numba backend.
 
 ```python
+import numpy as np
+from skcomplex.core.base import Domain, state
+from skcomplex.core.components import Element
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 from skcomplex.core.formalisms.lattices import LocalRule
 from skcomplex.core.laws import OuterTotalistic
 from skcomplex.core.space import LatticeSpace, Neighborhood
@@ -1590,6 +1757,8 @@ relaxation is recorded among the trajectory's events with its size, duration, an
 that count as updates, such as the toppling sites of a sandpile.
 
 ```python
+from skcomplex.core.runtime import Simulation
+
 from skcomplex.models.physics.criticality import sandpile
 
 trajectory = Simulation(sandpile((20, 20)), dt=100, random_state=0).run(until=2000).trajectory_
@@ -1603,6 +1772,12 @@ a move is derived symbolically, sweeps update the two sublattices in turn, and t
 changes live.
 
 ```python
+from skcomplex.core.base import Domain, state
+from skcomplex.core.components import Element
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.space import LatticeSpace, Neighborhood
+from skcomplex.core.system import System
+
 from skcomplex.core.formalisms.lattices import Energy, Move, Sample, Sampler
 from skcomplex.core.laws import neighbors
 
@@ -1630,6 +1805,13 @@ degrees, so direction `k + 3` modulo 6 is opposite to direction `k`, as lattice 
 are the hexagons of a hexagonal tiling.
 
 ```python
+import numpy as np
+from skcomplex.core.components import Element
+from skcomplex.core.formalisms.lattices import LocalRule
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.space import LatticeSpace, Neighborhood
+from skcomplex.core.system import System
+
 Burn = Element.define(
     'Burn',
     states={'fire': 0.0},
@@ -1657,6 +1839,12 @@ the neighbour graph in turn, which NetworkX computes once per law. The checkerbo
 of square lattices.
 
 ```python
+from skcomplex.core.base import Domain, state
+from skcomplex.core.components import Element
+from skcomplex.core.formalisms.lattices import Energy, Move, Sample, Sampler
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 import networkx as nx
 
 from skcomplex.core.laws import neighbors
@@ -1687,6 +1875,12 @@ backend the applications of a step run in one compiled loop when Numba compiles 
 arguments by position or keyword, with no keyword-only arguments, and both backends give the same events.
 
 ```python
+import numpy as np
+from skcomplex.core.components import Element
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.space import LatticeSpace, Neighborhood
+from skcomplex.core.system import System
+
 from skcomplex.core.formalisms.lattices import Extremal
 
 
@@ -1891,6 +2085,8 @@ activity, and the activity values are an array that the laws and the moments rec
 needed, and a population of several functional subsystems is several such groups.
 
 ```python
+import numpy as np
+
 from skcomplex.core.base import Domain, parameter, role, state
 from skcomplex.core.components import Element, Group
 from skcomplex.core.space import ContinuousTime, LatticeSpace
@@ -1928,7 +2124,13 @@ into another subsystem.
   field activities and the sum, before compilation.
 - A system with encounters has no exact Jacobian, so implicit solvers estimate it by finite differences.
 
-```python
+```python continuation
+import numpy as np
+from skcomplex.core.base import parameter, role
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.space import ContinuousTime, LatticeSpace
+from skcomplex.core.system import System
+
 from skcomplex.core.compile import validate
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.formalisms.kinetics import Encounter
@@ -1974,7 +2176,15 @@ External actions need no primitive of their own.
 - A macro-scale action, such as a recruitment of security forces proportional to the mean criminality, is a `Rate` law
   that reads the moments of a distribution.
 
-```python
+```python continuation
+import numpy as np
+from skcomplex.core.base import parameter, role
+from skcomplex.core.formalisms.kinetics import Encounter
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.space import ContinuousTime, LatticeSpace
+from skcomplex.core.system import System
+
 class Policy(Interaction):
     population: str = role()
     government: str = role()
@@ -2007,7 +2217,10 @@ so the central order-2 moment is the variance. Moments are expressions of `total
 vector with one weight per reduced member, so laws read them and observables record them. An observable of a group
 receives the namespace of one member, and its function must be defined at module level so that it pickles.
 
-```python
+```python continuation
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import Observable
+
 from skcomplex.core.formalisms.kinetics import moment
 
 
@@ -2038,7 +2251,11 @@ form, and the error against the ODE solution falls as one over the square root o
 time, lattice spaces, site groups, and encounter laws only, so validation reports a rate law with it and lists the
 solvers that run it.
 
-```python
+```python continuation
+import numpy as np
+from skcomplex.core.compile import validate
+from skcomplex.core.runtime import Simulation
+
 from skcomplex.core.formalisms.kinetics import ParticleKinetics
 
 sampled = Simulation(economy, dt=10.0, solver=ParticleKinetics(n=20_000), random_state=0).run(until=100)
@@ -2054,7 +2271,9 @@ activity, so the density is 1. `members_from(distribution, element, n, activitie
 variable group from a distribution. A model can then run one level in a partition of a co-simulation and feed another
 level its moments.
 
-```python
+```python continuation
+from skcomplex.core.components import Element
+
 from skcomplex.core.formalisms.kinetics import distribution_from, members_from
 
 Trader = Element.define('Trader', states={'w': 0.0})
@@ -2100,6 +2319,13 @@ an image layout, so validation reports a checkerboard schedule as `schedule-unsu
 rings by word length, colored by state, with the edges of the generators logged once.
 
 ```python
+import numpy as np
+from skcomplex.core.base import Domain, state
+from skcomplex.core.components import Element
+from skcomplex.core.formalisms.lattices import LocalRule
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 from skcomplex.core.formalisms.groups import GroupSpace, finitely_presented_group, permutation_group
 from skcomplex.core.laws import Totalistic
 from skcomplex.core.space import Memory
@@ -2124,6 +2350,8 @@ tree by `a = (1, 1)(0 1)`, `b = (a, c)`, `c = (a, d)`, `d = (1, b)`, is not fini
 faster than any polynomial and slower than any exponential.
 
 ```python
+from skcomplex.core.formalisms.groups import GroupSpace
+
 from skcomplex.models.computer_science.automata import grigorchuk_group
 
 print(GroupSpace(grigorchuk_group(), ball=6).ball_sizes(), GroupSpace(grigorchuk_group(), quotient=3).size)
@@ -2143,6 +2371,9 @@ local rule, with `step` and `run`.
   and `compose(first, second)` gives the automaton of their composition.
 
 ```python
+from skcomplex.core.laws import OuterTotalistic
+from skcomplex.core.space import LatticeSpace, Neighborhood
+
 from skcomplex.core.analysis import Automaton, compose, garden_of_eden, inverse, is_surjective
 from skcomplex.core.laws import Table
 
@@ -2163,6 +2394,8 @@ frame of a run, which never increases under an automaton, and `difference_patter
 after one cell changes.
 
 ```python
+from skcomplex.core.space import LatticeSpace, Neighborhood
+
 from skcomplex.core.analysis import LinearAutomaton, Subshift, configuration_entropy
 
 laplacian = LinearAutomaton(LatticeSpace(5), Neighborhood(((-1,), (0,), (1,))), (1, -2, 1), 'GF(2)')
@@ -2184,6 +2417,13 @@ the neighbouring sites through differential operators. The method of lines turns
 equations, so every ODE solver and backend runs it.
 
 ```python
+import numpy as np
+from skcomplex.core.components import Element
+from skcomplex.core.laws import Rate
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.space import LatticeSpace
+from skcomplex.core.system import System
+
 from skcomplex.core.formalisms.fields import Field, laplacian
 
 Diffusion = Element.define(
@@ -2238,6 +2478,14 @@ solves per Fourier mode for spectral fields. `ETDRK4` integrates it exactly per 
 equations take steps far beyond the explicit limit.
 
 ```python
+import numpy as np
+from skcomplex.core.components import Element
+from skcomplex.core.formalisms.fields import Field, laplacian
+from skcomplex.core.laws import Rate
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.space import LatticeSpace
+from skcomplex.core.system import System
+
 from skcomplex.core.formalisms.fields import ETDRK4, divergence
 
 Chaos = Element.define(
@@ -2268,6 +2516,8 @@ a symbolic form cannot give, and `'dense'` for the dense estimate. Explicit meth
 call spans more than 1000 stable steps of the diffusion of a field.
 
 ```python
+from skcomplex.core.runtime import Simulation
+
 from skcomplex.core.solvers import ScipyODE
 from skcomplex.models.biology.ecology import fisher_kpp
 
@@ -2295,6 +2545,8 @@ for `RK4`, `EulerMaruyama`, `Gillespie`, and `Iteration`. The default `'auto'` p
 hold at least 1000 members in total, because compiling takes a second or two that small systems do not win back.
 
 ```python
+from skcomplex.core.runtime import Simulation
+
 from skcomplex.core.backends import NumbaBackend
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 from skcomplex.core.solvers import RK4
@@ -2310,6 +2562,11 @@ A law value can be a function called once per member with `Call(function, *argum
 runs inside the compiled kernels, and the NumPy backend calls it from Python.
 
 ```python
+from skcomplex.core.base import parameter, role
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 import numba
 
 from skcomplex.core.laws import Call, Rate
@@ -2346,8 +2603,16 @@ trajectories, live parameters, and Rerun visualization. `LammpsBackend` runs par
 integrates them with velocity Verlet.
 
 ```python
+import numpy as np
+from skcomplex.core.formalisms.particles import Particle
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.space import ContinuousSpace
+from skcomplex.core.system import System
+
 from skcomplex.core.formalisms.particles import LammpsBackend
 from skcomplex.models.physics.realizations import LangevinThermostat, LennardJones
+
+side = np.arange(10) * 1.2
 
 atoms = System(
     components=[Particle.group('atoms', 100, x=np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2))],
@@ -2391,6 +2656,9 @@ activated in random order. Mesa declares what it runs like any solver, so `valid
 the laws, spaces, and times it does not support.
 
 ```python
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 from skcomplex.core.base import Domain, VisualSpec, parameter, state
 from skcomplex.core.components import Element
 from skcomplex.core.formalisms.agents import Rule
@@ -2447,6 +2715,13 @@ print(trajectory['foragers.count'][-1], len(trajectory.agents('foragers', 20)))
   has Boltzmann wealth exchange, and `skcomplex.models.biology.ecology` has the wolf and sheep model.
 
 ```python
+from skcomplex.core.base import parameter, role
+from skcomplex.core.components import Element
+from skcomplex.core.formalisms.agents import Rule
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 from skcomplex.core.space import ContinuousSpace
 
 
@@ -2515,6 +2790,13 @@ agents learn from their past.
   next generation of strategies with the model's random stream.
 
 ```python
+import numpy as np
+from skcomplex.core.base import parameter, state
+from skcomplex.core.components import Element
+from skcomplex.core.formalisms.agents import Rule
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 from skcomplex.core.formalisms.agents import Phase, Phases
 from skcomplex.core.space import DiscreteTime
 from skcomplex.models.economics.realizations import CallAuction, Institution, Market
@@ -2570,6 +2852,12 @@ become states, and its model attributes become parameters, which then change liv
 like those of any system. Mesa still runs the steps, as the backend of agent systems.
 
 ```python
+from skcomplex.core.base import parameter, state
+from skcomplex.core.components import Element
+from skcomplex.core.formalisms.agents import Rule
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 from skcomplex.core.space import DiscreteTime
 
 
@@ -2603,6 +2891,9 @@ A `Rewrite` interaction rewrites its target with fixed rules. Strings are words 
 `Module` gives a symbol parameters.
 
 ```python
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 from skcomplex.core.formalisms.rewriting import Module, Production, Rewrite, Word
 
 algae = System(
@@ -2621,6 +2912,10 @@ parameters written as expressions of them and of the parameters of a `Rewriting`
 `update_parameters` change between generations.
 
 ```python
+from skcomplex.core.formalisms.rewriting import Module, Production, Word
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 from skcomplex.core.base import parameter, symbol
 from skcomplex.core.formalisms.rewriting import Rewriting
 
@@ -2654,6 +2949,10 @@ maps relative to it. Structures with a geometry report `<element>.length` and `<
 `bounds()` and `raster(resolution)`, a boolean grid that `box_counting_dimension` reads.
 
 ```python
+from skcomplex.core.formalisms.rewriting import Production, Rewrite, Word
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 from skcomplex.core.analysis import box_counting_dimension
 from skcomplex.core.formalisms.rewriting import Affine, Patch, Prototile, Substitution, WordGeometry
 
@@ -2686,6 +2985,10 @@ A `GraphProduction` gives a left graph, an interface, and a right graph that sha
 drawn from the random stream, and skips matches whose deleted nodes would leave dangling edges.
 
 ```python
+from skcomplex.core.formalisms.rewriting import Rewrite
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 import networkx as nx
 
 from skcomplex.core.formalisms.rewriting import GraphProduction, HostGraph
@@ -2780,6 +3083,8 @@ owns its target, so an interaction of the parent system may contribute to severa
 elements mix law kinds raises `IncompatibleLawsError` with its path and the suggestion to split it.
 
 ```python
+from skcomplex.core.runtime import Simulation
+
 from skcomplex.core.compile import compile_system
 from skcomplex.models.economics.resources import harvesting
 
@@ -2811,6 +3116,9 @@ print(round(trajectory['land/stock.n'][-1]), trajectory.agents('village/farmers'
 tree, each element type chooses its visual, and parameters appear under `parameters/`.
 
 ```python
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.system import System
+
 import tempfile
 from pathlib import Path
 
@@ -2856,7 +3164,10 @@ blueprint:
 blueprint with `blueprint='default'` or a blueprint of your own, and writes it next to a saved recording as a `.rbl` file.
 `save_blueprint` writes any blueprint to a file.
 
-```python
+```python continuation
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.viz import RerunObserver
+
 import rerun.blueprint as rrb
 
 from skcomplex.core.viz import default_blueprint, primary_view, save_blueprint
@@ -2907,6 +3218,8 @@ print([round(float(row['land/stock.n'])) for row in stocks.rows])
   covariance of the estimates with R², RMSE, MAE, and MAPE.
 
 ```python
+from skcomplex.core.experiments import calibrate
+
 import numpy as np
 
 times = np.arange(0.0, 21.0)
@@ -2922,6 +3235,10 @@ exactly where Maxima can, with `desolve` for one equation and `desolve_system` f
 coefficients.
 
 ```python
+from skcomplex.core.formalisms.particles import Particle
+from skcomplex.core.space import ContinuousSpace
+from skcomplex.core.system import System
+
 from skcomplex.core.analysis import equations_of, solve_symbolically
 from skcomplex.models.physics.realizations import HarmonicPotential
 
@@ -2960,6 +3277,8 @@ print(diagram.periods())
 event, and `stroboscopic` samples a periodically forced system once per period.
 
 ```python
+import numpy as np
+
 import math
 
 from skcomplex.core.analysis import stroboscopic
@@ -2977,6 +3296,8 @@ bootstrap p-value, and compares the power law with exponential, log-normal, stre
 power-law tails.
 
 ```python
+import numpy as np
+
 from skcomplex.core.analysis import detect_events, fit_power_law, gini
 
 samples = (1 - np.random.default_rng(0).random(5000)) ** (-1 / 1.5)
@@ -2997,6 +3318,8 @@ Lindgren's information theory of complex systems. Ordinal patterns are coded by 
 permutation with `ordpy`, with a delay and of any length, and the Lempel-Ziv parsing comes from `antropy`.
 
 ```python
+import numpy as np
+
 from skcomplex.core.analysis import entropy_rate, excess_entropy, hurst_exponent, transfer_entropy
 
 noise = np.random.default_rng(1).standard_normal(20_000)
@@ -3011,6 +3334,8 @@ radially averaged correlations, and `box_counting_dimension` measures fractals. 
 `centrality` measure NetworkX graphs and network spaces.
 
 ```python
+import numpy as np
+
 import networkx as nx
 
 from skcomplex.core.analysis import box_counting_dimension, label_clusters, summarize_network
@@ -3037,6 +3362,8 @@ result, or an array, with the adapter that feeds each and how it reads the objec
 new analysis under its kind.
 
 ```python
+import numpy as np
+
 from skcomplex.core.analysis import analyses_for, data_kinds, fields_of, series_of, structure_factor
 from skcomplex.models import run
 
@@ -3055,7 +3382,7 @@ wavelength, the polar and milling orders of moving agents or their nearest-neigh
 of networks, and the mean with a 90 percent band of ensembles. The gallery draws it for every example that names no
 analysis of its own.
 
-```python
+```python continuation
 from skcomplex.core.analysis import signature_analysis
 
 for signature in signature_analysis(predation):
@@ -3075,6 +3402,8 @@ about its next value, and `transfer_entropy` estimates the flow between series b
 nearest-neighbour estimator of `ennemi` on continuous values.
 
 ```python
+import numpy as np
+
 import math
 
 from skcomplex.core.analysis import complexity_entropy, renyi_entropy, sample_entropy, transfer_entropy
@@ -3101,7 +3430,9 @@ measure of `dit`. `local_entropy`, `local_mutual_information`, and `local_transf
 sample, and their means equal the global measures. `surrogate_test` compares any of these measures with its values on
 copies of the data whose variables are shuffled independently.
 
-```python
+```python continuation
+import numpy as np
+
 from skcomplex.core.analysis import o_information, partial_information, surrogate_test
 
 bits = rng.integers(0, 2, (5000, 2))
@@ -3120,7 +3451,9 @@ and the micro past predict the macro future. A gap of zero means the coarse-grai
 reconstructs the causal states of a discrete series by causal-state splitting, with their transitions, statistical
 complexity, and entropy rate.
 
-```python
+```python continuation
+import numpy as np
+
 from skcomplex.core.analysis import closure, emergence_criteria, epsilon_machine
 
 parity = rng.integers(0, 2, (5000, 4))
@@ -3145,6 +3478,8 @@ density of a map. `recurrence_matrix` and `recurrence_quantification` give the r
 laminarity, line lengths, trapping time, and line entropy of embedded series.
 
 ```python
+import numpy as np
+
 from skcomplex.core.analysis import (
     correlation_dimension,
     delay_embedding,
@@ -3180,6 +3515,9 @@ held out by `validation`.
   reservoir as states, and starts at the last sample, so a run is the autonomous forecast.
 
 ```python
+import numpy as np
+from skcomplex.core.runtime import Simulation
+
 from skcomplex.core.analysis import Series, fit_dmd, fit_reservoir, fit_sindy
 from skcomplex.core.compile import validate
 
@@ -3211,6 +3549,8 @@ for systems whose tilted generators are too large to write down. `markov_state_m
 `record_counts`, `fit_stable`, and `compare_with_law` describe extremes and limit laws.
 
 ```python
+import numpy as np
+
 from skcomplex.core.analysis import (
     entropy_production,
     legendre_transform,
@@ -3232,6 +3572,10 @@ whose increment is counted, or a function of the trajectory of each interval. A 
 effective size collapses, a sign that the estimate is biased.
 
 ```python
+import numpy as np
+from skcomplex.core.components import Element
+from skcomplex.core.system import System
+
 from skcomplex.core.analysis import cloning, uncertainty_relation
 from skcomplex.core.laws import Jump
 
@@ -3257,6 +3601,8 @@ for at most 10 states. In the chain of Hoel, Albantakis, and Tononi, seven noisy
 macro state that carries more effective information than the micro states.
 
 ```python
+import numpy as np
+
 from skcomplex.core.analysis import causal_emergence, effective_information, partition_coarse_grain
 
 noisy = np.zeros((8, 8))
@@ -3275,6 +3621,8 @@ time averages, which decays as `1 / t` for ergodic runs and levels off for froze
 median total-variation distance between the values of one run over time and the values of the whole ensemble.
 
 ```python
+import numpy as np
+
 from skcomplex.core.analysis import ergodicity_breaking, ergodicity_distance, fluctuation_metric
 
 rng = np.random.default_rng(0)
@@ -3298,6 +3646,8 @@ and returns the growth rate and frequency of every mode, exact for the model's d
 is a Turing instability, and a growing mode with a nonzero frequency travels.
 
 ```python
+import numpy as np
+
 from skcomplex.core.analysis import binder_cumulant, dispersion_relation, pattern_wavelength, percolation
 from skcomplex.models.chemistry.pattern_formation import brusselator
 
@@ -3319,6 +3669,9 @@ boxes, and `coarse_grain` turns agents into density or polarization fields for t
 `like_neighbor_share`, `interface_density`, and `dissimilarity_index` measure segregation on grids and networks.
 
 ```python
+import numpy as np
+from skcomplex.models import run
+
 from skcomplex.core.analysis import clark_evans_ratio, coarse_grain, polar_order, snapshots_of
 
 flock = snapshots_of(run('boids', settings={'until': 5}).trajectory_)
@@ -3337,6 +3690,8 @@ sweep with the peak of the susceptibility, `fit_order_exponent` fits the order-p
 `replica_overlap` compares replicas.
 
 ```python
+import numpy as np
+
 from skcomplex.core.analysis import avalanches, branching_ratio
 
 found = avalanches([0, 1, 3, 2, 0, 0, 4, 1, 0])
@@ -3358,6 +3713,8 @@ switches or the configuration model, and `network_frames` measures every frame o
 model `network_structure_analysis` records a network with these measures.
 
 ```python
+import networkx as nx
+
 from skcomplex.core.analysis import communities, motif_counts
 
 club = nx.karate_club_graph()

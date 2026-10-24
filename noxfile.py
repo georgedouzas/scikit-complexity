@@ -146,6 +146,8 @@ def checks(session: nox.Session, file: str) -> None:
     session.run('pdm', 'install', '-dG', 'checks', '--no-default', external=True)
     if arg in ['quality', 'all']:
         session.run('ruff', 'check', file)
+        if file == 'src':
+            session.run('lint-imports', env={'PYTHONPATH': 'src'})
     if arg in ['types', 'all']:
         session.run('mypy', file)
     if arg in ['security', 'all']:
@@ -186,9 +188,9 @@ def tests(session: nox.Session) -> None:
     session.run('pdm', 'install', '-dG', 'tests', external=True)
     env = {'COVERAGE_FILE': f'.coverage.{session.python}'}
     if session.posargs:
-        session.run('pytest', '-n', 'auto', '-k', *session.posargs, 'tests', env=env)
+        session.run('pytest', '-n', 'auto', '-k', *session.posargs, env=env)
     else:
-        session.run('pytest', '-n', 'auto', 'tests', env=env)
+        session.run('pytest', '-n', 'auto', env=env)
     session.run('coverage', 'combine')
     session.run('coverage', 'report')
     session.run('coverage', 'html')

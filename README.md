@@ -95,7 +95,7 @@ system = System(
 A simulation runs it and records the trajectory. Adding a `RerunObserver` streams the run to the Rerun viewer, and a
 `RealTime` clock paces it against wall time:
 
-```python
+```python continuation
 from skcomplex.core.runtime import RealTime, Simulation
 from skcomplex.core.viz import RerunObserver
 
@@ -111,7 +111,9 @@ print(trajectory['rabbits.n'].max())
 
 A simulation started with `start` runs in the background, and its parameters can change while it runs:
 
-```python
+```python continuation
+from skcomplex.core.runtime import RealTime, Simulation
+
 simulation = Simulation(system, dt=0.05, clock=RealTime(speed=20.0)).start(until=30)
 simulation.update_parameters({'hunt.a': 0.2})
 simulation.wait()
@@ -121,6 +123,9 @@ A new law takes a few lines. The namespace `s` holds the symbols of the interact
 bound to its roles:
 
 ```python
+from skcomplex.core.system import System
+from skcomplex.models.biology.ecology import LogisticGrowth, Population
+
 from skcomplex.core.analysis import equations_of
 from skcomplex.core.base import Domain, parameter, role
 from skcomplex.core.interactions import Interaction

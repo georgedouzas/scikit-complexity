@@ -225,8 +225,11 @@ to fill in as the project takes shape.
   Windows users run the package in WSL.
 - Build and tooling: PDM with SCM-derived versioning and a `src`
   layout. The `nox` sessions are `formatting`, `checks`, `tests`, `docs`, `gallery`, `changelog`, and `release`. The
-  gate covers `ruff`, `mypy`, `bandit`, `pip-audit`, `deptry`, `pydoclint`, and `interrogate`, with `pytest` under
-  branch coverage and randomized ordering. Docstring examples and the Python blocks of the README and the user guide run as tests.
+  gate covers `ruff`, `mypy`, `bandit`, `pip-audit`, `deptry`, `pydoclint`, `interrogate`, and `import-linter`, whose
+  contracts in `pyproject.toml` enforce the import rules of the layout, with `pytest` under branch coverage and
+  randomized ordering. The test session runs the docstring examples through pytest's doctest collection and the Python
+  blocks of the README and the user guide through `pytest-markdown-docs`. The documentation build checks the model
+  inventory.
 - Runtime dependencies: `numpy` 2.1 or later, `scipy` for numeric integration, `passagemath-symbolics` as the Sage
   symbolic layer every law is written in and lowered from, `passagemath-maxima` for exact solutions, `cysignals` at a
   version the passagemath wheels need, `numba` for the compiled backend, `lammps` for the LAMMPS backend, `mesa` for agent-based models, `networkx`
@@ -261,8 +264,8 @@ to fill in as the project takes shape.
   `particles`, and `control`, each with its laws, components, compilation passes, solvers, backends, visuals, and
   checks. A formalism imports only the shared core and the formalisms it declares, and no package of the shared core
   imports a formalism. Every core name is a mathematical, modelling, or engineering term, and the core never imports
-  `skcomplex.models`. The test tree mirrors the source tree, and only the repository-wide checks sit at the root of
-  `tests`.
+  `skcomplex.models`. The test tree mirrors the source tree with no exceptions, so every test module tests one module
+  of `skcomplex`, and no test module checks repository conventions, documentation tooling, or documentation data.
 - Model library: `skcomplex.models` is organised by scientific field and subfield, as
   `skcomplex.models.<field>.<subfield>`, and every model registers under the field path `<field>/<subfield>`. Models
   are examples built only from the public names of the core. Every model package is self-contained, so no model
@@ -271,7 +274,7 @@ to fill in as the project takes shape.
   core. A model the core cannot express MUST be recorded as blocked by an OpenSpec change for the
   missing general capability, never worked around inside the model package. Models exist first to probe the core: a
   survey MUST record the primitives each model exercises and MUST implement models that exercise new primitives or
-  combinations before models that repeat covered patterns. A layout test enforces these rules.
+  combinations before models that repeat covered patterns. The import contracts enforce the import rules.
 - Surface: the top-level package and `skcomplex.core` re-export nothing, so every public name is imported from the
   subpackage that owns it.
 - Extension points: a formalism declares everything it contributes in one `Formalism` and registers it with
@@ -279,4 +282,4 @@ to fill in as the project takes shape.
   solvers, default solvers, backends, and visuals to the registry of the concept that owns each. Law kinds, forms,
   space kinds, and traits are open vocabularies. Base classes users subclass are `Element`, `Interaction`, `Law`,
   `Potential`, `PairPotential`, `Backend`, `Stepper`, `ExternalBackend`, `Clock`, `Observer`, and `Visual`.
-**Version**: 1.7.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-23
+**Version**: 1.7.1 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-24

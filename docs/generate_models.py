@@ -14,6 +14,7 @@ from skcomplex.models import catalog, create, describe
 sys.path.insert(0, str(Path(__file__).parent))
 
 from gallery_tools import Example, build_from_environment, find_examples
+from inventory_checks import InventoryError, inventory_problems
 
 DOCS = Path(__file__).parent
 INVENTORY = DOCS / 'overview' / 'inventory.toml'
@@ -305,9 +306,20 @@ def fields() -> list[str]:
 
 
 def main() -> None:
-    """Write the coverage page and the field pages into the documentation."""
+    """Write the coverage page and the field pages into the documentation, after checking the inventory.
+
+    Raises:
+        InventoryError:
+            The inventory disagrees with the catalog or breaks its own rules.
+    """
     import mkdocs_gen_files  # noqa: PLC0415
 
+    problems = inventory_problems()
+    if problems:
+        error_msg = 'The model inventory has problems. Fix each in docs/overview/inventory.toml:\n- ' + '\n- '.join(
+            problems,
+        )
+        raise InventoryError(error_msg)
     with mkdocs_gen_files.open('models/coverage.md', 'w') as file:
         file.write(coverage_page())
     for field in fields():

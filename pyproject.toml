@@ -104,6 +104,7 @@ checks = [
     "interrogate>=1.7.0",
     "pydoclint>=0.9.1",
     "deptry>=0.25.1",
+    "import-linter>=2.15",
 ]
 tests = [
     "pytest>=8.2.2",
@@ -111,6 +112,7 @@ tests = [
     "pytest-randomly>=3.15.0",
     "pytest-xdist>=3.6.1",
     "quantecon>=0.10",
+    "pytest-markdown-docs>=0.9.2",
 ]
 changelog = [
     "git-changelog>=2.5.2",
@@ -227,10 +229,201 @@ DEP002 = [
 # pandas is optional: `ExperimentResult.to_frame` imports it on demand and names it when it is missing.
 DEP004 = ["pandas"]
 
+[tool.importlinter]
+root_package = "skcomplex"
+
+[[tool.importlinter.contracts]]
+name = "Core packages import only the packages listed before them"
+type = "layers"
+containers = ["skcomplex.core"]
+layers = [
+    "formalisms",
+    "analysis",
+    "experiments",
+    "viz",
+    "runtime",
+    "backends",
+    "solvers",
+    "compile",
+    "system",
+    "interactions",
+    "components",
+    "laws",
+    "space",
+    "base",
+]
+
+[[tool.importlinter.contracts]]
+name = "The core never imports the models"
+type = "forbidden"
+source_modules = ["skcomplex.core"]
+forbidden_modules = ["skcomplex.models"]
+
+[[tool.importlinter.contracts]]
+name = "The shared core never imports a formalism"
+type = "forbidden"
+source_modules = [
+    "skcomplex.core.analysis",
+    "skcomplex.core.experiments",
+    "skcomplex.core.viz",
+    "skcomplex.core.runtime",
+    "skcomplex.core.backends",
+    "skcomplex.core.solvers",
+    "skcomplex.core.compile",
+    "skcomplex.core.system",
+    "skcomplex.core.interactions",
+    "skcomplex.core.components",
+    "skcomplex.core.laws",
+    "skcomplex.core.space",
+    "skcomplex.core.base",
+]
+forbidden_modules = [
+    "skcomplex.core.formalisms.agents",
+    "skcomplex.core.formalisms.control",
+    "skcomplex.core.formalisms.fields",
+    "skcomplex.core.formalisms.fractional",
+    "skcomplex.core.formalisms.groups",
+    "skcomplex.core.formalisms.kinetics",
+    "skcomplex.core.formalisms.lattices",
+    "skcomplex.core.formalisms.particles",
+    "skcomplex.core.formalisms.quantum",
+    "skcomplex.core.formalisms.rewriting",
+    "skcomplex.core.formalisms.topology",
+]
+
+[[tool.importlinter.contracts]]
+name = "Formalisms import only the formalisms they declare"
+type = "independence"
+modules = [
+    "skcomplex.core.formalisms.agents",
+    "skcomplex.core.formalisms.control",
+    "skcomplex.core.formalisms.fields",
+    "skcomplex.core.formalisms.fractional",
+    "skcomplex.core.formalisms.groups",
+    "skcomplex.core.formalisms.kinetics",
+    "skcomplex.core.formalisms.lattices",
+    "skcomplex.core.formalisms.particles",
+    "skcomplex.core.formalisms.quantum",
+    "skcomplex.core.formalisms.rewriting",
+    "skcomplex.core.formalisms.topology",
+]
+ignore_imports = ["skcomplex.core.formalisms.fields -> skcomplex.core.formalisms.lattices"]
+
+[[tool.importlinter.contracts]]
+name = "Models import only public core modules"
+type = "forbidden"
+source_modules = ["skcomplex.models"]
+forbidden_modules = ["skcomplex.core.**"]
+allow_indirect_imports = true
+ignore_imports = [
+    "skcomplex.models -> skcomplex.core.*",
+    "skcomplex.models.** -> skcomplex.core.*",
+    "skcomplex.models.** -> skcomplex.core.formalisms.*",
+]
+
+[[tool.importlinter.contracts]]
+name = "Model subfield packages are self-contained"
+type = "independence"
+modules = [
+    "skcomplex.models.biology.collective_behaviour",
+    "skcomplex.models.biology.ecology",
+    "skcomplex.models.biology.epidemiology",
+    "skcomplex.models.biology.evolution",
+    "skcomplex.models.biology.neuroscience",
+    "skcomplex.models.biology.oncology",
+    "skcomplex.models.biology.physiology",
+    "skcomplex.models.biology.systems_biology",
+    "skcomplex.models.chemistry.kinetics",
+    "skcomplex.models.chemistry.pattern_formation",
+    "skcomplex.models.computer_science.automata",
+    "skcomplex.models.computer_science.evolutionary_computation",
+    "skcomplex.models.computer_science.neural_networks",
+    "skcomplex.models.earth.climate",
+    "skcomplex.models.earth.oceanography",
+    "skcomplex.models.earth.seismology",
+    "skcomplex.models.economics.econophysics",
+    "skcomplex.models.economics.finance",
+    "skcomplex.models.economics.innovation",
+    "skcomplex.models.economics.macroeconomics",
+    "skcomplex.models.economics.markets",
+    "skcomplex.models.economics.resources",
+    "skcomplex.models.engineering.circuits",
+    "skcomplex.models.engineering.control",
+    "skcomplex.models.engineering.power_systems",
+    "skcomplex.models.engineering.processes",
+    "skcomplex.models.engineering.robotics",
+    "skcomplex.models.engineering.traffic",
+    "skcomplex.models.mathematics.dynamical_systems",
+    "skcomplex.models.mathematics.fractals",
+    "skcomplex.models.mathematics.fractional_dynamics",
+    "skcomplex.models.mathematics.networks",
+    "skcomplex.models.mathematics.stochastic_processes",
+    "skcomplex.models.physics.active_matter",
+    "skcomplex.models.physics.celestial_mechanics",
+    "skcomplex.models.physics.cosmology",
+    "skcomplex.models.physics.criticality",
+    "skcomplex.models.physics.fluids",
+    "skcomplex.models.physics.heat",
+    "skcomplex.models.physics.mechanics",
+    "skcomplex.models.physics.nonlinear_oscillators",
+    "skcomplex.models.physics.pattern_formation",
+    "skcomplex.models.physics.soft_matter",
+    "skcomplex.models.physics.statistical_mechanics",
+    "skcomplex.models.physics.synchronization",
+    "skcomplex.models.physics.waves",
+    "skcomplex.models.social.cooperation",
+    "skcomplex.models.social.crowds",
+    "skcomplex.models.social.opinion_dynamics",
+    "skcomplex.models.social.organizations",
+    "skcomplex.models.social.segregation",
+    "skcomplex.models.social.spreading",
+]
+
+[[tool.importlinter.contracts]]
+name = "Models of economics use only the realizations of their own field"
+type = "forbidden"
+source_modules = ["skcomplex.models.economics"]
+forbidden_modules = [
+    "skcomplex.models.engineering.realizations",
+    "skcomplex.models.physics.realizations",
+    "skcomplex.models.social.realizations",
+]
+
+[[tool.importlinter.contracts]]
+name = "Models of engineering use only the realizations of their own field"
+type = "forbidden"
+source_modules = ["skcomplex.models.engineering"]
+forbidden_modules = [
+    "skcomplex.models.economics.realizations",
+    "skcomplex.models.physics.realizations",
+    "skcomplex.models.social.realizations",
+]
+
+[[tool.importlinter.contracts]]
+name = "Models of physics use only the realizations of their own field"
+type = "forbidden"
+source_modules = ["skcomplex.models.physics"]
+forbidden_modules = [
+    "skcomplex.models.economics.realizations",
+    "skcomplex.models.engineering.realizations",
+    "skcomplex.models.social.realizations",
+]
+
+[[tool.importlinter.contracts]]
+name = "Models of social use only the realizations of their own field"
+type = "forbidden"
+source_modules = ["skcomplex.models.social"]
+forbidden_modules = [
+    "skcomplex.models.economics.realizations",
+    "skcomplex.models.engineering.realizations",
+    "skcomplex.models.physics.realizations",
+]
+
 [tool.pytest.ini_options]
 python_files = ["test_*.py"]
-addopts = "--cov=src --cov=tests"
-testpaths = ["tests"]
+addopts = "--cov=src --cov=tests --doctest-modules --markdown-docs"
+testpaths = ["tests", "src/skcomplex", "README.md", "docs/overview/user_guide.md"]
+doctest_optionflags = ["ELLIPSIS"]
 
 [tool.coverage.run]
 branch = true
