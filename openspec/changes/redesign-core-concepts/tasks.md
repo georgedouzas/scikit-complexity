@@ -102,7 +102,7 @@
 
 ## 7. Gate
 
-- [ ] 7.1 Run formatting, checks, the docs build, and the tests through nox. Compare every gallery example's
+- [x] 7.1 Run formatting, checks, the docs build, and the tests through nox. Compare every gallery example's
   recording with the cache from before the change, and explain each difference by a fixed defect. Verify that all of
   them pass.
 
