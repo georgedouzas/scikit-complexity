@@ -23,7 +23,7 @@
 
 ## 4. Profile and gate
 
-- [ ] 4.1 Update the constitution's Project Profile. Name the gate tools, now including `import-linter` and the
+- [x] 4.1 Update the constitution's Project Profile. Name the gate tools, now including `import-linter` and the
   doctest and Markdown collection, replace the sentence about a layout test with the import contracts, and bump the
   patch version.
 - [ ] 4.2 Run formatting, checks, the docs build, and tests through nox, and verify that all of them pass.
