@@ -65,7 +65,7 @@ def test_registered_formalisms_list_contributions():
     """Test that a registered formalism is listed with its law kinds, its form, and its solvers."""
     found = _run(
         'import json\n'
-        'from tests.core.formalisms import outside\n'
+        'from tests.formalisms import outside\n'
         'from skcomplex.formalisms import registered_formalisms\n'
         "(item,) = [item for item in registered_formalisms() if item.name == 'outside']\n"
         'print(json.dumps({\n'
@@ -81,7 +81,7 @@ def test_register_adds_contributions_to_their_registries():
     """Test that registering a formalism adds its laws and solvers, and that registering it again changes nothing."""
     found = _run(
         'import json\n'
-        'from tests.core.formalisms import outside\n'
+        'from tests.formalisms import outside\n'
         'from skcomplex.formalisms import register, registered_formalisms\n'
         'from skcomplex.core.laws import law_classes\n'
         'from skcomplex.engine.compile import SOLVERS\n'
@@ -99,7 +99,7 @@ def test_register_rejects_another_formalism_of_a_registered_name():
     """Test that a second formalism under a registered name is rejected."""
     found = _run(
         'import json\n'
-        'from tests.core.formalisms import outside\n'
+        'from tests.formalisms import outside\n'
         'from skcomplex.core.base import RegistryError\n'
         'from skcomplex.formalisms import Formalism, register\n'
         'try:\n'
@@ -115,7 +115,7 @@ def test_law_from_outside_formalism_validates_compiles_and_simulates():
     """Test that a law of an outside formalism validates, compiles with its pass, and simulates with its solver."""
     found = _run(
         'import json\n'
-        'from tests.core.formalisms.outside import DECAYING, ExactDecay, Nucleus\n'
+        'from tests.formalisms.outside import DECAYING, ExactDecay, Nucleus\n'
         'from skcomplex.engine.compile import compile_system, validate\n'
         'from skcomplex.engine.runtime import Simulation\n'
         'from skcomplex.core.system import System\n'

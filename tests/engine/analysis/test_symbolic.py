@@ -20,7 +20,7 @@ from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion
 from skcomplex.models.economics.markets import Cobweb, Market
 from skcomplex.models.physics.realizations import ConstantForce, HarmonicPotential
 
-from ..conftest import CallableGrowth
+from ...conftest import CallableGrowth
 
 
 def test_equations_of_logistic_growth():

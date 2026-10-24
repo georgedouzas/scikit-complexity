@@ -233,18 +233,19 @@ DEP004 = ["pandas"]
 root_package = "skcomplex"
 
 [[tool.importlinter.contracts]]
+name = "Formalisms build on the engine, which builds on the core"
+type = "layers"
+layers = [
+    "skcomplex.formalisms",
+    "skcomplex.engine",
+    "skcomplex.core",
+]
+
+[[tool.importlinter.contracts]]
 name = "Core packages import only the packages listed before them"
 type = "layers"
 containers = ["skcomplex.core"]
 layers = [
-    "formalisms",
-    "analysis",
-    "experiments",
-    "viz",
-    "runtime",
-    "backends",
-    "solvers",
-    "compile",
     "system",
     "interactions",
     "components",
@@ -254,42 +255,28 @@ layers = [
 ]
 
 [[tool.importlinter.contracts]]
-name = "The core never imports the models"
-type = "forbidden"
-source_modules = ["skcomplex.core"]
-forbidden_modules = ["skcomplex.models"]
+name = "Engine packages import only the packages listed before them"
+type = "layers"
+containers = ["skcomplex.engine"]
+layers = [
+    "analysis",
+    "experiments",
+    "viz",
+    "runtime",
+    "backends",
+    "solvers",
+    "compile",
+]
 
 [[tool.importlinter.contracts]]
-name = "The shared core never imports a formalism"
+name = "The core, the engine, and the formalisms never import the models"
 type = "forbidden"
 source_modules = [
-    "skcomplex.engine.analysis",
-    "skcomplex.engine.experiments",
-    "skcomplex.engine.viz",
-    "skcomplex.engine.runtime",
-    "skcomplex.engine.backends",
-    "skcomplex.engine.solvers",
-    "skcomplex.engine.compile",
-    "skcomplex.core.system",
-    "skcomplex.core.interactions",
-    "skcomplex.core.components",
-    "skcomplex.core.laws",
-    "skcomplex.core.space",
-    "skcomplex.core.base",
+    "skcomplex.core",
+    "skcomplex.engine",
+    "skcomplex.formalisms",
 ]
-forbidden_modules = [
-    "skcomplex.formalisms.agents",
-    "skcomplex.formalisms.control",
-    "skcomplex.formalisms.fields",
-    "skcomplex.formalisms.fractional",
-    "skcomplex.formalisms.groups",
-    "skcomplex.formalisms.kinetics",
-    "skcomplex.formalisms.lattices",
-    "skcomplex.formalisms.particles",
-    "skcomplex.formalisms.quantum",
-    "skcomplex.formalisms.rewriting",
-    "skcomplex.formalisms.topology",
-]
+forbidden_modules = ["skcomplex.models"]
 
 [[tool.importlinter.contracts]]
 name = "Formalisms import only the formalisms they declare"
@@ -310,14 +297,19 @@ modules = [
 ignore_imports = ["skcomplex.formalisms.fields -> skcomplex.formalisms.lattices"]
 
 [[tool.importlinter.contracts]]
-name = "Models import only public core modules"
+name = "Models import only public modules of the core, the engine, and the formalisms"
 type = "forbidden"
 source_modules = ["skcomplex.models"]
-forbidden_modules = ["skcomplex.core.**"]
+forbidden_modules = [
+    "skcomplex.core.**",
+    "skcomplex.engine.**",
+    "skcomplex.formalisms.**",
+]
 allow_indirect_imports = true
 ignore_imports = [
-    "skcomplex.models -> skcomplex.core.*",
+    "skcomplex.models -> skcomplex.engine.*",
     "skcomplex.models.** -> skcomplex.core.*",
+    "skcomplex.models.** -> skcomplex.engine.*",
     "skcomplex.models.** -> skcomplex.formalisms.*",
 ]
 

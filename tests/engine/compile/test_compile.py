@@ -35,7 +35,7 @@ from skcomplex.models.economics.markets import Cobweb, Market
 from skcomplex.models.physics.realizations import ConstantForce, HarmonicPotential
 from skcomplex.models.physics.statistical_mechanics import ParticleSite, ZeroRangeHop
 
-from ..conftest import CallableGrowth, Node, _correlated, _summed
+from ...conftest import CallableGrowth, Node, _correlated, _summed
 from .conftest import _pair
 
 

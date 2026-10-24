@@ -14,7 +14,7 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import EulerMaruyama, Heun
 from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion, geometric_brownian_motion
 
-from ..conftest import _correlated
+from ...conftest import _correlated
 
 
 def test_euler_maruyama_without_noise_matches_ode():

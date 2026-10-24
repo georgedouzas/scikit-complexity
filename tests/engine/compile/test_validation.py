@@ -17,7 +17,7 @@ from skcomplex.formalisms.agents import Rule
 from skcomplex.formalisms.groups import GroupSpace, finitely_presented_group
 from skcomplex.formalisms.lattices import Energy, Move, Sample, Sampler
 
-from ..conftest import Holding, _correlated
+from ...conftest import Holding, _correlated
 from .conftest import _pair
 
 
