@@ -248,9 +248,9 @@ to fill in as the project takes shape.
   group. The gallery tooling lives in `docs/gallery_tools`, and `nox -s gallery` runs the examples, captures their
   screenshots, and builds the documentation with them.
 - Dependency placement: a library that `skcomplex.core`, `skcomplex.engine`, or `skcomplex.formalisms` uses MUST be a
-  runtime dependency, whatever its licence,
-  including copyleft licences such as that of `passagemath-symbolics`. An optional extra MUST hold only libraries that a
-  model of `skcomplex.models` alone needs, and a model that needs one MUST raise a named error naming the extra.
+  runtime dependency, whatever its licence, including copyleft licences such as that of `passagemath-symbolics`. An
+  optional extra MUST hold only libraries that a model of `skcomplex.models` alone needs, and a model that needs one
+  MUST raise a named error naming the extra.
 - Symbolic layer: Sage is imported only through `sage.all__sagemath_symbolics` and the modules it loads, and the
   framework prints expressions to NumPy, Numba, and Lepton code itself. SymPy is installed as a dependency of
   passagemath, but importing it is banned by a `ruff` rule, and laws reject SymPy values.
