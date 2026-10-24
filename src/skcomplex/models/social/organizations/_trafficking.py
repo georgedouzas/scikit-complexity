@@ -3,15 +3,15 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar, cast
+from typing import Any, ClassVar, cast
 
 import numpy as np
 
-from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, VisualSpec, role, state
 from ....core.components import Element
+from ....core.formalisms.agents import AgentView, ModelView, Rule
 from ....core.interactions import Interaction
-from ....core.laws import Law, Rule, Symbols
+from ....core.laws import Law, Symbols
 from ....core.runtime import register_model
 from ....core.space import LatticeSpace
 from ....core.system import System
@@ -101,14 +101,17 @@ class DailyMovements(Interaction):
         label:
             The label of the interaction.
 
-        women:
-            The path of the group of travellers.
-
-        premises:
-            The path of the group of premises, which the rule reads and updates.
-
         n_cities:
             The number of cities, vertical bands of equal width.
+
+        **values:
+            The values of the declared variables, by name:
+
+            women:
+                The path of the group of travellers.
+
+            premises:
+                The path of the group of premises, which the rule reads and updates.
 
     Examples:
         >>> from skcomplex.models.social.organizations import DailyMovements
@@ -118,7 +121,16 @@ class DailyMovements(Interaction):
 
     women: str = role()
     premises: str = role()
-    n_cities: int = 3
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        n_cities: int = 3,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.n_cities = n_cities
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the daily rule.

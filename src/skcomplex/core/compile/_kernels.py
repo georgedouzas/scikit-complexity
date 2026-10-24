@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections import defaultdict
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from enum import Enum
@@ -13,14 +14,18 @@ import numpy.typing as npt
 from scipy.spatial import cKDTree
 
 from ..base import Expression, ValidationError, symbols_of
-from ..laws import NumericFunction
+from ..laws import Law, NumericFunction
+from ._arrays import Indices, Vector
 from ._layout import Entry, Layout
 from ._printing import numpy_function
-from ._problem import JumpChannels, Vector, WienerBlock
+from ._problem import WienerBlock, _JumpChannels
 
-type Indices = npt.NDArray[np.intp]
 type Pairs = tuple[Indices, Indices] | None
 type Reader = Callable[[Vector, Vector, Pairs, float], Any]
+type Offset = tuple[int, ...]
+
+MODES = {'periodic': 0, 'zero-flux': 1, 'fixed': 2}
+LATTICE_BOUNDARIES = {'periodic': 'periodic', 'zero-flux': 'reflecting', 'fixed': 'fixed'}
 
 
 def _single_reader(is_state: bool, index: int) -> Reader:
@@ -121,6 +126,104 @@ class Reference:
         return self.entry.start + np.arange(self.entry.rows) * self.entry.columns + self.column
 
 
+def add_into(output: Vector, target: Reference, values: Vector, pairs: tuple[Indices, Indices] | None) -> None:
+    """Add the values of one output to the target component of a flat vector.
+
+    Args:
+        output:
+            The flat vector to add to.
+
+        target:
+            The target component.
+
+        values:
+            One value per evaluation index.
+
+        pairs:
+            The pairs of a pair kernel, or `None` in member mode.
+    """
+    if target.source is Source.SINGLE:
+        output[target.index] += values.sum()
+        return
+    column = output[target.members]
+    if target.source is Source.MEMBER:
+        column += values
+    else:
+        assert pairs is not None
+        np.add.at(column, pairs[0] if target.source is Source.FIRST else pairs[1], values)
+
+
+def assign_into(output: Vector, target: Reference, values: Vector) -> None:
+    """Set the target component of a flat vector to the values of one output.
+
+    Args:
+        output:
+            The flat vector to write to.
+
+        target:
+            The target component, read per member or as a single element.
+
+        values:
+            One value per evaluation index.
+    """
+    if target.source is not Source.MEMBER:
+        output[target.index] = values[0]
+        return
+    output[target.members] = values
+
+
+@dataclass
+class EdgeSearch:
+    """Edges of a network layer that an interaction over neighbours runs its laws on, one evaluation index per edge.
+
+    The edges are fixed node index arrays, or on a network whose topology changes, hidden parameters of its variable
+    edge group that topology requests rewrite, read as node indices at every evaluation.
+
+    Args:
+        sources:
+            The node index of the source of every edge of a fixed layer.
+
+        targets:
+            The node index of the target of every edge of a fixed layer.
+
+        source:
+            The parameter entry of the sources of a changing layer, or `None` for fixed edges.
+
+        target:
+            The parameter entry of the targets of a changing layer, or `None` for fixed edges.
+    """
+
+    sources: Indices
+    targets: Indices
+    source: Entry | None = None
+    target: Entry | None = None
+    second: None = field(default=None, init=False, repr=False)
+
+    @property
+    def size(self) -> int:
+        """Number of edges, the capacity of a changing layer."""
+        return int(self.sources.size if self.source is None else self.source.rows)
+
+    def find(self, x: Vector, p: Vector) -> tuple[Indices, Indices]:
+        """Return the source and target node of every edge.
+
+        Args:
+            x:
+                The state vector, which the edges do not depend on.
+
+            p:
+                The parameter vector, which holds the edges of a changing layer.
+
+        Returns:
+            pairs:
+                The source and target node indices.
+        """
+        del x
+        if self.source is None or self.target is None:
+            return self.sources, self.targets
+        return self.source.view(p)[:, 0].astype(np.intp), self.target.view(p)[:, 0].astype(np.intp)
+
+
 @dataclass
 class PairSearch:
     """Neighbour search that returns the pairs of members closer than a cutoff.
@@ -196,59 +299,47 @@ class PairSearch:
         return first_positions - (difference - self.period * np.rint(difference / self.period))
 
 
-@dataclass
-class EdgeSearch:
-    """Edges of a network layer that an interaction over neighbours runs its laws on, one evaluation index per edge.
+type Search = PairSearch | EdgeSearch
 
-    The edges are fixed node index arrays, or on a network whose topology changes, hidden parameters of its variable
-    edge group that topology requests rewrite, read as node indices at every evaluation.
+
+def member_indices(reference: Reference, rows: int, pairs: Search | None = None) -> Indices:
+    """Return the flat index of a target component for every evaluation index of a member or edge kernel.
 
     Args:
-        sources:
-            The node index of the source of every edge of a fixed layer.
+        reference:
+            The target component.
 
-        targets:
-            The node index of the target of every edge of a fixed layer.
+        rows:
+            The number of evaluation indices of the kernel.
 
-        source:
-            The parameter entry of the sources of a changing layer, or `None` for fixed edges.
+        pairs:
+            The edges of an edge kernel, whose ends targets of the source and target roles index, or `None`.
 
-        target:
-            The parameter entry of the targets of a changing layer, or `None` for fixed edges.
+    Returns:
+        indices:
+            One flat index per evaluation index.
+
+    Raises:
+        ValidationError:
+            A target of an end of an edge lies on a network whose edges change.
     """
-
-    sources: Indices
-    targets: Indices
-    source: Entry | None = None
-    target: Entry | None = None
-    second: None = field(default=None, init=False, repr=False)
-
-    @property
-    def size(self) -> int:
-        """Number of edges, the capacity of a changing layer."""
-        return int(self.sources.size if self.source is None else self.source.rows)
-
-    def find(self, x: Vector, p: Vector) -> tuple[Indices, Indices]:
-        """Return the source and target node of every edge.
-
-        Args:
-            x:
-                The state vector, which the edges do not depend on.
-
-            p:
-                The parameter vector, which holds the edges of a changing layer.
-
-        Returns:
-            pairs:
-                The source and target node indices.
-        """
-        del x
-        if self.source is None or self.target is None:
-            return self.sources, self.targets
-        return self.source.view(p)[:, 0].astype(np.intp), self.target.view(p)[:, 0].astype(np.intp)
-
-
-type Search = PairSearch | EdgeSearch
+    if reference.source is Source.MEMBER:
+        return reference.flat_indices
+    if reference.source in {Source.FIRST, Source.SECOND} and isinstance(pairs, EdgeSearch):
+        if pairs.source is not None:
+            error_msg = (
+                f'A law targets {reference.entry.name} at an end of the edges of a network whose edges change, whose '
+                'ends a fixed channel cannot follow. Target the edge member, or the node through its own laws.'
+            )
+            raise ValidationError(error_msg)
+        ends = pairs.sources if reference.source is Source.FIRST else pairs.targets
+        return (reference.entry.start + ends * reference.entry.columns + reference.column).astype(np.intp)
+    if reference.source is Source.NEIGHBOR:
+        table = np.asarray(reference.neighbor.table, dtype=np.intp)
+        inside = table < reference.entry.rows
+        flat = reference.entry.start + table * reference.entry.columns + reference.column
+        return np.where(inside, flat, -1).astype(np.intp)
+    return np.full(rows, reference.entry.start + reference.column, dtype=np.intp)
 
 
 @dataclass(frozen=True)
@@ -557,90 +648,73 @@ class Kernel:
         return np.broadcast_to(result.reshape(-1)[: output.components], (size, output.components))
 
 
-def add_into(output: Vector, target: Reference, values: Vector, pairs: tuple[Indices, Indices] | None) -> None:
-    """Add the values of one output to the target component of a flat vector.
+def lower_noise(kernels: list[Kernel]) -> tuple[Indices, Indices, int, tuple[WienerBlock, ...]]:
+    """Return the state and the Wiener process of every amplitude of noise kernels, with the processes they draw.
+
+    Processes are numbered in order of first use. An output without a named process takes one new process per
+    evaluation index, so noise without named processes draws one process per amplitude in evaluation order.
 
     Args:
-        output:
-            The flat vector to add to.
-
-        target:
-            The target component.
-
-        values:
-            One value per evaluation index.
-
-        pairs:
-            The pairs of a pair kernel, or `None` in member mode.
-    """
-    if target.source is Source.SINGLE:
-        output[target.index] += values.sum()
-        return
-    column = output[target.members]
-    if target.source is Source.MEMBER:
-        column += values
-    else:
-        assert pairs is not None
-        np.add.at(column, pairs[0] if target.source is Source.FIRST else pairs[1], values)
-
-
-def assign_into(output: Vector, target: Reference, values: Vector) -> None:
-    """Set the target component of a flat vector to the values of one output.
-
-    Args:
-        output:
-            The flat vector to write to.
-
-        target:
-            The target component, read per member or as a single element.
-
-        values:
-            One value per evaluation index.
-    """
-    if target.source is not Source.MEMBER:
-        output[target.index] = values[0]
-        return
-    output[target.members] = values
-
-
-def member_indices(reference: Reference, rows: int, pairs: Search | None = None) -> Indices:
-    """Return the flat index of a target component for every evaluation index of a member or edge kernel.
-
-    Args:
-        reference:
-            The target component.
-
-        rows:
-            The number of evaluation indices of the kernel.
-
-        pairs:
-            The edges of an edge kernel, whose ends targets of the source and target roles index, or `None`.
+        kernels:
+            The noise kernels in evaluation order.
 
     Returns:
-        indices:
-            One flat index per evaluation index.
+        rows:
+            One state index per amplitude.
 
-    Raises:
-        ValidationError:
-            A target of an end of an edge lies on a network whose edges change.
+        columns:
+            One process index per amplitude.
+
+        processes:
+            The number of processes.
+
+        blocks:
+            The blocks of correlated processes with their covariance factors.
     """
-    if reference.source is Source.MEMBER:
-        return reference.flat_indices
-    if reference.source in {Source.FIRST, Source.SECOND} and isinstance(pairs, EdgeSearch):
-        if pairs.source is not None:
-            error_msg = (
-                f'A law targets {reference.entry.name} at an end of the edges of a network whose edges change, whose '
-                'ends a fixed channel cannot follow. Target the edge member, or the node through its own laws.'
-            )
-            raise ValidationError(error_msg)
-        ends = pairs.sources if reference.source is Source.FIRST else pairs.targets
-        return (reference.entry.start + ends * reference.entry.columns + reference.column).astype(np.intp)
-    if reference.source is Source.NEIGHBOR:
-        table = np.asarray(reference.neighbor.table, dtype=np.intp)
-        inside = table < reference.entry.rows
-        flat = reference.entry.start + table * reference.entry.columns + reference.column
-        return np.where(inside, flat, -1).astype(np.intp)
-    return np.full(rows, reference.entry.start + reference.column, dtype=np.intp)
+    rows, columns, processes = [], [], _Processes()
+    for kernel in kernels:
+        for item in kernel.outputs:
+            indices = member_indices(item.target, kernel.rows, kernel.pairs)  # type: ignore[arg-type]
+            rows.append(indices)
+            columns.append(processes.columns(item.process, indices.size))
+    empty = np.zeros(0, dtype=np.intp)
+    return (
+        np.concatenate([empty, *rows]).astype(np.intp),
+        np.concatenate([empty, *columns]).astype(np.intp),
+        processes.count,
+        tuple(processes.blocks),
+    )
+
+
+def jump_channels(
+    kernels: list[Kernel],
+    changes: Mapping[int, list[tuple[Reference, float]]],
+) -> tuple[_JumpChannels, ...]:
+    """Return the channels of every jump law of jump kernels.
+
+    Args:
+        kernels:
+            The jump kernels in evaluation order.
+
+        changes:
+            The changes of every jump output, keyed by the output's identity.
+
+    Returns:
+        channels:
+            One set of channels per jump law.
+    """
+    channels, offset = [], 0
+    for kernel in kernels:
+        for item in kernel.outputs:
+            law_changes = changes[id(item)]
+            targets = np.array(
+                [member_indices(reference, kernel.rows, kernel.pairs) for reference, _ in law_changes],
+                dtype=np.intp,
+            ).reshape(len(law_changes), kernel.rows)
+            increments = np.array([increment for _, increment in law_changes], dtype=float)
+            channels.append(_JumpChannels(offset, targets, increments))
+            offset += kernel.rows
+    return tuple(channels)
 
 
 @dataclass
@@ -703,70 +777,64 @@ class _Processes:
         return np.full(size, self.starts[process.key] + process.index, dtype=np.intp)
 
 
-def lower_noise(kernels: list[Kernel]) -> tuple[Indices, Indices, int, tuple[WienerBlock, ...]]:
-    """Return the state and the Wiener process of every amplitude of noise kernels, with the processes they draw.
+@dataclass(frozen=True, eq=False)
+class NeighborRead:
+    """How a symbol reads a field at a neighbouring site of every member.
 
-    Processes are numbered in order of first use. An output without a named process takes one new process per
-    evaluation index, so noise without named processes draws one process per amplitude in evaluation order.
+    Args:
+        table:
+            The member index of the neighbour of every member, with the number of members for the fixed value.
+
+        ghost:
+            The value read outside fixed edges, or `None` when no neighbour is outside.
+
+        sizes:
+            The lattice shape, or `None` on a network.
+
+        steps:
+            The offset of the neighbour on a lattice, or `None` on a network.
+
+        mode:
+            0 for periodic, 1 for zero-flux, and 2 for fixed edges.
+    """
+
+    table: Indices
+    ghost: float | None
+    sizes: tuple[int, ...] | None
+    steps: Offset | None
+    mode: int
+
+    def read(self, column: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+        """Return the neighbour's value of every member from the column of values.
+
+        Args:
+            column:
+                One value per member.
+
+        Returns:
+            values:
+                The value at the neighbour of every member.
+        """
+        if self.ghost is None:
+            return column[self.table]
+        return np.append(column, self.ghost)[self.table]
+
+
+@dataclass
+class Lowered:
+    """Kernels of every law kind, with the changes of every jump output and the law of every output.
 
     Args:
         kernels:
-            The noise kernels in evaluation order.
+            The kernels of every law kind, in evaluation order.
 
-    Returns:
-        rows:
-            One state index per amplitude.
+        jump_changes:
+            The state changes of every jump output, keyed by the output's identity.
 
-        columns:
-            One process index per amplitude.
-
-        processes:
-            The number of processes.
-
-        blocks:
-            The blocks of correlated processes with their covariance factors.
+        laws:
+            The kernel spec and the law every output was lowered from, keyed by the output's identity.
     """
-    rows, columns, processes = [], [], _Processes()
-    for kernel in kernels:
-        for item in kernel.outputs:
-            indices = member_indices(item.target, kernel.rows, kernel.pairs)  # type: ignore[arg-type]
-            rows.append(indices)
-            columns.append(processes.columns(item.process, indices.size))
-    empty = np.zeros(0, dtype=np.intp)
-    return (
-        np.concatenate([empty, *rows]).astype(np.intp),
-        np.concatenate([empty, *columns]).astype(np.intp),
-        processes.count,
-        tuple(processes.blocks),
-    )
 
-
-def jump_channels(
-    kernels: list[Kernel],
-    changes: Mapping[int, list[tuple[Reference, float]]],
-) -> tuple[JumpChannels, ...]:
-    """Return the channels of every jump law of jump kernels.
-
-    Args:
-        kernels:
-            The jump kernels in evaluation order.
-
-        changes:
-            The changes of every jump output, keyed by the output's identity.
-
-    Returns:
-        channels:
-            One set of channels per jump law.
-    """
-    channels, offset = [], 0
-    for kernel in kernels:
-        for item in kernel.outputs:
-            law_changes = changes[id(item)]
-            targets = np.array(
-                [member_indices(reference, kernel.rows, kernel.pairs) for reference, _ in law_changes],
-                dtype=np.intp,
-            ).reshape(len(law_changes), kernel.rows)
-            increments = np.array([increment for _, increment in law_changes], dtype=float)
-            channels.append(JumpChannels(offset, targets, increments))
-            offset += kernel.rows
-    return tuple(channels)
+    kernels: dict[type, list[Kernel]] = field(default_factory=lambda: defaultdict(list))
+    jump_changes: dict[int, list[tuple[Reference, float]]] = field(default_factory=dict)
+    laws: dict[int, tuple[Any, Law]] = field(default_factory=dict)

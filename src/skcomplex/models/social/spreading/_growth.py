@@ -3,13 +3,15 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 import numpy as np
 
-from ....core.backends import ModelView
 from ....core.base import Domain, parameter, role, state
 from ....core.components import Element
+from ....core.formalisms.agents import ModelView, Rule
 from ....core.interactions import Interaction
-from ....core.laws import Law, Rule, Symbols
+from ....core.laws import Law, Symbols
 from ....core.runtime import register_model
 from ....core.system import System
 
@@ -50,11 +52,14 @@ class Writing(Interaction):
         label:
             The label of the interaction.
 
-        target:
-            The path of the group of words.
-
         words_per_step:
             The number of words written per step.
+
+        **values:
+            The values of the declared variables, by name:
+
+            target:
+                The path of the group of words.
 
     Examples:
         >>> from skcomplex.models.social.spreading import Writing
@@ -63,7 +68,16 @@ class Writing(Interaction):
     """
 
     target: str = role()
-    words_per_step: int = 100
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        words_per_step: int = 100,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.words_per_step = words_per_step
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the writing rule.

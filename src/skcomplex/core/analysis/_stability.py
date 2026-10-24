@@ -13,12 +13,22 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, matrix, solve
 from scipy.optimize import root
 
-from ..base import AnalysisError, Expression, Form, components_of, declare_domains
+from ..base import AnalysisError, Expression, Form, components_of
 from ..compile import Problem, compile_system
 from ..system import System
+from ._assumptions import declare_domains
 from ._groups import expand_groups
 
 ZERO = 1e-9
+
+
+def _is_point(solution: Mapping[Expression, Expression], symbols: list[Expression]) -> bool:
+    """Check that a solution fixes every state, without the free parameters `r1`, `r2`, ...
+
+    of solution families.
+    """
+    free = {str(item) for value in solution.values() for item in SR(value).variables()}
+    return all(item in solution for item in symbols) and not any(re.fullmatch(r'r\d+', name) for name in free)
 
 
 @dataclass(frozen=True)
@@ -56,6 +66,48 @@ class Dynamics:
     def time(self) -> Expression:
         """Time symbol of the equations."""
         return self.problem.time
+
+
+def _numeric_points(dynamics: Dynamics) -> list[dict[str, Any]]:
+    """Return fixed points found numerically from a grid of starting points."""
+    values = [
+        rate.subs(dynamics.parameters) - (item if dynamics.discrete else 0)
+        for item, rate in zip(dynamics.symbols, dynamics.rates, strict=True)
+    ]
+    functions = [value.function(*dynamics.symbols) for value in values]
+    found: list[npt.NDArray[np.float64]] = []
+    rng = np.random.default_rng(0)
+    for start in rng.uniform(-10, 10, (50, len(dynamics.symbols))):
+        result = root(lambda point: [float(function(*point)) for function in functions], start)
+        if result.success and not any(np.allclose(result.x, other, atol=1e-6) for other in found):
+            found.append(result.x)
+    return [dict(zip(dynamics.names, map(float, point), strict=True)) for point in found]
+
+
+def _classify_map(eigenvalues: npt.NDArray[np.complex128]) -> str:
+    """Return the stability class of a fixed point of a map from its eigenvalues."""
+    moduli = np.abs(eigenvalues)
+    if np.all(moduli < 1 - ZERO):
+        return 'stable'
+    if np.all(moduli > 1 + ZERO):
+        return 'unstable'
+    return 'saddle' if np.any(moduli < 1 - ZERO) and np.any(moduli > 1 + ZERO) else 'marginal'
+
+
+def _classify(eigenvalues: npt.NDArray[np.complex128], *, discrete: bool) -> str:
+    """Return the stability class of a fixed point from its eigenvalues."""
+    if discrete:
+        return _classify_map(eigenvalues)
+    scale = max(1.0, float(np.abs(eigenvalues).max()))
+    real = eigenvalues.real / scale
+    oscillating = bool(np.any(np.abs(eigenvalues.imag) > ZERO * scale))
+    if np.all(real < -ZERO):
+        return 'stable focus' if oscillating else 'stable node'
+    if np.all(real > ZERO):
+        return 'unstable focus' if oscillating else 'unstable node'
+    if np.any(real > ZERO) and np.any(real < -ZERO):
+        return 'saddle'
+    return 'centre' if oscillating and np.all(np.abs(real) <= ZERO) else 'marginal'
 
 
 def dynamics_of(system: System | Problem, parameters: Mapping[str, float] | None = None) -> Dynamics:
@@ -188,31 +240,6 @@ def fixed_points(system: System | Problem, parameters: Mapping[str, float] | Non
     return points or _numeric_points(dynamics)
 
 
-def _is_point(solution: Mapping[Expression, Expression], symbols: list[Expression]) -> bool:
-    """Check that a solution fixes every state, without the free parameters `r1`, `r2`, ...
-
-    of solution families.
-    """
-    free = {str(item) for value in solution.values() for item in SR(value).variables()}
-    return all(item in solution for item in symbols) and not any(re.fullmatch(r'r\d+', name) for name in free)
-
-
-def _numeric_points(dynamics: Dynamics) -> list[dict[str, Any]]:
-    """Return fixed points found numerically from a grid of starting points."""
-    values = [
-        rate.subs(dynamics.parameters) - (item if dynamics.discrete else 0)
-        for item, rate in zip(dynamics.symbols, dynamics.rates, strict=True)
-    ]
-    functions = [value.function(*dynamics.symbols) for value in values]
-    found: list[npt.NDArray[np.float64]] = []
-    rng = np.random.default_rng(0)
-    for start in rng.uniform(-10, 10, (50, len(dynamics.symbols))):
-        result = root(lambda point: [float(function(*point)) for function in functions], start)
-        if result.success and not any(np.allclose(result.x, other, atol=1e-6) for other in found):
-            found.append(result.x)
-    return [dict(zip(dynamics.names, map(float, point), strict=True)) for point in found]
-
-
 @dataclass(frozen=True)
 class Stability:
     """Linear stability of a fixed point.
@@ -268,32 +295,6 @@ def stability(
     numeric = np.array([[complex(SR(entry).subs(numbers)) for entry in row] for row in values.rows()], dtype=complex)
     eigenvalues = np.linalg.eigvals(numeric)
     return Stability(eigenvalues, _classify(eigenvalues, discrete=dynamics.discrete))
-
-
-def _classify_map(eigenvalues: npt.NDArray[np.complex128]) -> str:
-    """Return the stability class of a fixed point of a map from its eigenvalues."""
-    moduli = np.abs(eigenvalues)
-    if np.all(moduli < 1 - ZERO):
-        return 'stable'
-    if np.all(moduli > 1 + ZERO):
-        return 'unstable'
-    return 'saddle' if np.any(moduli < 1 - ZERO) and np.any(moduli > 1 + ZERO) else 'marginal'
-
-
-def _classify(eigenvalues: npt.NDArray[np.complex128], *, discrete: bool) -> str:
-    """Return the stability class of a fixed point from its eigenvalues."""
-    if discrete:
-        return _classify_map(eigenvalues)
-    scale = max(1.0, float(np.abs(eigenvalues).max()))
-    real = eigenvalues.real / scale
-    oscillating = bool(np.any(np.abs(eigenvalues.imag) > ZERO * scale))
-    if np.all(real < -ZERO):
-        return 'stable focus' if oscillating else 'stable node'
-    if np.all(real > ZERO):
-        return 'unstable focus' if oscillating else 'unstable node'
-    if np.any(real > ZERO) and np.any(real < -ZERO):
-        return 'saddle'
-    return 'centre' if oscillating and np.all(np.abs(real) <= ZERO) else 'marginal'
 
 
 def nullclines(system: System | Problem) -> dict[str, Expression]:

@@ -5,11 +5,12 @@
 from typing import Any, ClassVar
 
 from ....core.base import Domain, ValidationError, parameter, role
+from ....core.formalisms.quantum import Dissipator, Generator, Operator, expectation
 from ....core.interactions import Interaction
-from ....core.laws import Dissipator, Generator, Operator, Symbols
+from ....core.laws import Symbols
 from ....core.runtime import register_model
 from ....core.space import LatticeSpace
-from ....core.system import System, expectation
+from ....core.system import System
 from ..realizations import Spin
 
 INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')
@@ -75,7 +76,7 @@ class XXZExchange(Interaction):
         0.5
     """
 
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     target: str = role()
 
     J: float = parameter(default=1.0, domain=Domain.REAL)

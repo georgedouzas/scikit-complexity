@@ -1,132 +1,28 @@
-"""Define the components systems are built from: elements, aggregates, and groups of elements."""
+"""Define the components systems are built from: elements, and groups of identical elements."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import dataclasses
-import inspect
 from collections.abc import Callable, Mapping
-from typing import Any, ClassVar, dataclass_transform
+from typing import Any, ClassVar
 
 import numpy as np
-from sklearn.base import BaseEstimator
 
 from ..base import (
     ComponentKind,
-    LabelError,
+    Domain,
     Requires,
     SpaceError,
+    ValidationError,
     VariableKind,
     VisualSpec,
-    companions_of,
-    declaration_of,
     declarations_of,
-    parameter,
-    role,
-    state,
-    symbol,
 )
-from ..laws._laws import Law, Rule
-from ..laws._symbols import Symbols
-from ..space._cayley import GroupSpace
-from ..space._lattices import LatticeSpace
-from ..space._networks import NetworkSpace
-from ..space._spaces import Space
+from ..laws import Law
+from ..space import LatticeSpace, NetworkSpace, SiteSpace, Space, part_count
+from ._component import Component
 
-
-def _check_reserved(cls: type, reserved: frozenset[str]) -> None:
-    """Raise an error for a state or parameter whose name a component or the views of rules reserve."""
-    for name, value in vars(cls).items():
-        if name in reserved and declaration_of(value) is not None:
-            error_msg = (
-                f'{cls.__name__} declares the variable {name!r}, whose name is reserved. Rename it, since '
-                f'{", ".join(sorted(reserved))} are reserved names.'
-            )
-            raise LabelError(error_msg)
-
-
-@dataclass_transform(kw_only_default=True, field_specifiers=(dataclasses.field, state, parameter, role))
-@dataclasses.dataclass(eq=False, repr=False)
-class Component(BaseEstimator):
-    """Base class of elements and interactions.
-
-    Every subclass becomes a dataclass whose fields after `label` are keyword-only, so the constructor stores every
-    argument unmodified under its own name. A state or parameter whose name is in `reserved_names` raises `LabelError`
-    when the subclass is created.
-
-    Args:
-        label:
-            The label of the component, unique among the children of its system.
-    """
-
-    reserved_names: ClassVar[frozenset[str]] = frozenset({'label'})
-    label: str
-
-    def __init_subclass__(cls, **kwargs: Any) -> None:  # noqa: ANN401
-        """Add the companion states of higher-order and lagged states, and turn the subclass into a dataclass."""
-        super().__init_subclass__(**kwargs)
-        _check_reserved(cls, cls.reserved_names)
-        annotations = dict(inspect.get_annotations(cls))
-        for name, value in list(vars(cls).items()):
-            declaration = declaration_of(value)
-            if declaration is None or (declaration.order == 1 and not declaration.lags):
-                continue
-            default = value.default if value.default is not dataclasses.MISSING else 0.0
-            for companion, field in companions_of(name, declaration, default).items():
-                if companion not in vars(cls):
-                    setattr(cls, companion, field)
-                    annotations[companion] = Any
-        cls.__annotations__ = annotations
-        dataclasses.dataclass(kw_only=True, eq=False, repr=False)(cls)
-
-    def laws(self, s: Symbols) -> list[Law]:
-        """Return the laws of the component.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
-
-
-def _is_declaration(value: object) -> bool:
-    """Check whether a value is a field declared with `state`, `parameter`, or `role`."""
-    return isinstance(value, dataclasses.Field)
-
-
-def _method(laws: Callable[..., list[Law]]) -> Callable[..., list[Law]]:
-    """Return a `laws` method from a function of the namespace, or of the component and the namespace."""
-    if len(inspect.signature(laws).parameters) >= 2:  # noqa: PLR2004
-        return laws
-
-    def method(self: Component, s: Symbols) -> list[Law]:
-        """Return the laws of the function."""
-        return laws(s)
-
-    method.__doc__ = laws.__doc__ or 'Return the laws of the component.'
-    return method
-
-
-def _define(
-    base: type['Component'],
-    *,
-    name: str,
-    fields: Mapping[str, Any],
-    laws: Callable[..., list[Law]] | None,
-    attributes: Mapping[str, Any],
-    module: str,
-) -> type:
-    """Return a new component type with declared fields, a laws function, and class attributes."""
-    namespace: dict[str, Any] = {'__annotations__': dict.fromkeys(fields, Any), '__module__': module, **attributes}
-    namespace.update(fields)
-    namespace['__qualname__'] = name
-    if laws is not None:
-        namespace['laws'] = _method(laws)
-    return type(name, (base,), namespace)
+PARTS = ('sites', 'edges', 'hyperedges')
 
 
 def _lattice_visual(element: type, visual: VisualSpec | None, default: str) -> VisualSpec:
@@ -137,11 +33,69 @@ def _lattice_visual(element: type, visual: VisualSpec | None, default: str) -> V
     return VisualSpec(default) if declared == VisualSpec() else declared
 
 
-def _caller_module() -> str:
-    """Return the module name of the code that defines a component type, so the type pickles by reference there."""
-    frame = inspect.currentframe()
-    caller = frame.f_back.f_back if frame is not None and frame.f_back is not None else None
-    return caller.f_globals.get('__name__', __name__) if caller is not None else __name__
+def _check_element(label: str, element: object) -> None:
+    """Raise an error for a group whose element type is not an `Element` subclass."""
+    if isinstance(element, type) and issubclass(element, Element):
+        return
+    error_msg = f'Group {label!r} has element {element!r}, which is not an Element subclass.'
+    raise ValidationError(error_msg)
+
+
+def _check_size(group: 'Group') -> None:
+    """Raise an error for a group whose size is not a positive integer, except an empty variable group on parts."""
+    if group.size is None and group.on is not None:
+        return
+    empty = group.variable and group.on in {'sites', 'edges'} and group.size == 0
+    if empty or (Domain.POSITIVE.contains(group.size) and Domain.INTEGER.contains(group.size)):
+        return
+    error_msg = f'Group {group.label!r} has size {group.size!r}, which is not a positive integer.'
+    raise ValidationError(error_msg)
+
+
+def _check_value_names(group: 'Group') -> None:
+    """Raise an error for a value whose name the element type of a group does not declare."""
+    unknown = sorted(set(group.values or {}) - set(group.element.get_argument_names()))
+    if not unknown:
+        return
+    states = ', '.join(declarations_of(group.element, VariableKind.STATE)) or 'none'
+    parameters = ', '.join(declarations_of(group.element, VariableKind.PARAMETER)) or 'none'
+    error_msg = (
+        f'Group {group.label!r} sets {", ".join(unknown)}, which {group.element.__name__} does not declare. Its '
+        f'states are {states}, and its parameters are {parameters}.'
+    )
+    raise ValidationError(error_msg)
+
+
+def _check_value_rows(group: 'Group') -> None:
+    """Raise an error for a numeric per-member value whose first dimension is not the size of a group."""
+    if group.size is None:
+        return
+    declarations = group.element.declarations()
+    dimensions = group.space.dimensions if isinstance(group.space, LatticeSpace) else None
+    for name, value in (group.values or {}).items():
+        declaration = declarations.get(name)
+        if declaration is None or not isinstance(declaration.domain, Domain):
+            continue
+        try:
+            shape = np.shape(value)
+        except ValueError:
+            continue
+        shared = 1 if declaration.vector else 0
+        if len(shape) <= shared or shape[0] == group.size or shape == dimensions:
+            continue
+        error_msg = (
+            f'Group {group.label!r} has {shape[0]} values of {name} for {group.size} members. Give one value per '
+            'member, or one value shared by every member.'
+        )
+        raise ValidationError(error_msg)
+
+
+def _check_group(group: 'Group') -> None:
+    """Raise an error for a group whose element type, size, value names, or value rows are not valid."""
+    _check_element(group.label, group.element)
+    _check_size(group)
+    _check_value_names(group)
+    _check_value_rows(group)
 
 
 class Element(Component):
@@ -150,11 +104,11 @@ class Element(Component):
     Subclasses declare their states with `state` and their parameters with `parameter`, and can override `laws` to
     return their intrinsic dynamics. The class variable `visual` names how the state is drawn.
 
-    An element whose laws include `Rule` laws, alone or in a group, is an agent: under discrete time it runs on the
-    agent stepper, whose rules receive every member as an agent with its states as attributes. Its states then hold
-    any value, not only numbers. The class variable `remembers` maps state names to the number of past values the
-    stepper keeps of them, which `memory` returns. A member is removed only when its states tagged with a quantity are
-    settled to zero, and its states and parameters cannot take the names of the agent view, such as `location` or
+    An element whose laws have the agent trait, such as rules, alone or in a group, is an agent: under discrete time it
+    runs on the agent stepper, whose rules receive every member as an agent with its states as attributes. Its states
+    then hold any value, not only numbers. The class variable `remembers` maps state names to the number of past values
+    the stepper keeps of them, which `memory` returns. A member is removed only when its states tagged with a quantity
+    are settled to zero, and its states and parameters cannot take the names of the agent view, such as `location` or
     `alive`, or of the attributes Mesa reads, such as `position` or `model`.
 
     Args:
@@ -225,12 +179,8 @@ class Element(Component):
             >>> Decaying('atoms', n=10.0)
             Decaying(label='atoms', n=10.0)
         """
-        fields = {
-            **{key: value if _is_declaration(value) else state(value) for key, value in (states or {}).items()},
-            **{key: value if _is_declaration(value) else parameter(value) for key, value in (parameters or {}).items()},
-        }
         attributes = {} if visual is None else {'visual': visual}
-        return _define(cls, name=name, fields=fields, laws=laws, attributes=attributes, module=_caller_module())
+        return cls._define(name, states=states, parameters=parameters, laws=laws, attributes=attributes)
 
     @classmethod
     def group(
@@ -283,7 +233,7 @@ class Element(Component):
     def lattice(
         cls,
         label: str,
-        space: LatticeSpace | NetworkSpace | GroupSpace,
+        space: SiteSpace | NetworkSpace,
         /,
         *,
         visual: VisualSpec | None = None,
@@ -292,7 +242,7 @@ class Element(Component):
         """Return a group of cells of this element type, one member per site of a lattice or node of a network.
 
         Laws of the element type are written for one cell, and local rules read the cells around it. Square lattice
-        groups stream to Rerun as images, groups on group spaces as Cayley graphs, and other lattice groups as sites,
+        groups stream to Rerun as images, and groups on other spaces of sites with the default visual of their space,
         unless a visual is given or the element type declares one. The label and the lattice are given by position.
 
         Args:
@@ -300,11 +250,12 @@ class Element(Component):
                 The label of the group.
 
             space:
-                The lattice, the group space, or the network whose nodes are the sites, in the order of `graph.nodes`.
+                The lattice or other space of sites, or the network whose nodes are the sites, in the order of
+                `graph.nodes`.
 
             visual:
                 The visual of the group, or `None` for the visual of the element type, and, when the type declares
-                none, an image of every state of a square lattice, the Cayley graph of a group space, and the sites of
+                none, the default visual of the space, an image of every state of a square lattice and the sites of
                 other lattices.
 
             **values:
@@ -336,176 +287,11 @@ class Element(Component):
         flat = {
             name: np.ravel(value) if np.shape(value) == space.dimensions else value for name, value in values.items()
         }
-        default = 'cayley' if isinstance(space, GroupSpace) else 'image' if space.geometry == 'square' else 'sites'
-        visual = _lattice_visual(cls, visual, default)
+        visual = _lattice_visual(cls, visual, space.default_visual)
         return Group(label, element=cls, size=space.size, values=flat, visual=visual, space=space, on='sites')
 
 
-class Aggregate(Element):
-    """Summary of a group, the count of its members or a reduction of one of its states, held in the state `value`.
-
-    In a co-simulation the scheduler computes the value at every synchronisation point, so partitions that cannot
-    see a group's members, such as differential equations next to agents, read the group through the aggregate.
-
-    Args:
-        label:
-            The label of the aggregate.
-
-        group:
-            The path of the agent group or element group, relative to the system that holds the aggregate.
-
-        reduce:
-            `'count'`, `'sum'`, `'mean'`, or a function of the array of the variable's values.
-
-        variable:
-            The state the reduction reads, unused for `'count'`.
-
-        value:
-            The initial value, before the first synchronisation point.
-
-    Examples:
-        >>> from skcomplex.core.components import Aggregate
-        >>> Aggregate('size', group='farmers').reduce
-        'count'
-    """
-
-    group: str = ''  # type: ignore[assignment]  # the summarised group's label replaces the group constructor
-    reduce: str | Callable[[Any], float] = 'count'
-    variable: str | None = None
-    value: float = state(default=0.0)
-
-
-PARTS = ('sites', 'edges', 'hyperedges')
-BINDINGS = ('members', 'pairs', 'neighbours', 'hyperedges')
-
-
-def _is_state(item: dataclasses.Field) -> bool:
-    """Check whether a dataclass field is declared with `state`."""
-    declaration = declaration_of(item)
-    return declaration is not None and declaration.kind is VariableKind.STATE
-
-
-def part_count(space: Space, on: str, label: str, layer: str | None = None) -> int:
-    """Return the number of parts of a space a group has one member on.
-
-    Args:
-        space:
-            The space.
-
-        on:
-            `'sites'`, `'edges'`, or `'hyperedges'`.
-
-        label:
-            The label of the group, named in errors.
-
-        layer:
-            The layer of a network whose edges the group lives on, or `None` for the graph of the network.
-
-    Returns:
-        count:
-            The number of sites, edges, or hyperedges.
-
-    Raises:
-        SpaceError:
-            The space does not have the part.
-    """
-    graph = getattr(space, 'graph', None)
-    if on == 'sites' and graph is not None:
-        return int(graph.number_of_nodes())
-    if on == 'sites' and hasattr(space, 'size'):
-        return int(space.size)
-    if on == 'edges' and isinstance(space, NetworkSpace):
-        return int(space.resolve_graph(layer).number_of_edges())
-    hyperedges = getattr(space, 'hyperedges', None)
-    if on == 'hyperedges' and hyperedges:
-        return len(hyperedges)
-    needs = 'a network space with hyperedges' if on == 'hyperedges' else 'a network space' if on == 'edges' else 'sites'
-    error_msg = f'Group {label!r} lives on {on}, which need {needs}, but its space is {space!r}.'
-    raise SpaceError(error_msg)
-
-
-class _FreeSymbols(Symbols):
-    """Namespace that returns a free symbol for every name, so laws can be listed before the states are declared."""
-
-    def __getattr__(self, name: str) -> Any:  # noqa: ANN401
-        """Return a free symbol of the name, or a namespace of free symbols for `other`, the neighbour of a member."""
-        if name.startswith('__'):
-            raise AttributeError(name)
-        if name == 'other':
-            return _FreeSymbols()
-        return symbol(name)
-
-
-def probe_laws(component: object) -> list[Law] | None:
-    """Return the laws of a component for a namespace of free symbols, before its states are declared.
-
-    A group returns the laws of a representative member, and an interaction reads one namespace of free symbols per
-    role. Laws that cannot be written with free symbols, such as laws that index a vector state, are not listed.
-
-    Args:
-        component:
-            The element, group, or interaction.
-
-    Returns:
-        laws:
-            The laws, or `None` when they cannot be listed.
-
-    Examples:
-        >>> from skcomplex.core.components import Element, probe_laws
-        >>> from skcomplex.core.laws import Rule
-        >>> Walker = Element.define('Walker', laws=lambda s: [Rule(lambda agent, model: None)])
-        >>> [type(law).__name__ for law in probe_laws(Walker('walker'))]
-        ['Rule']
-    """
-    if isinstance(component, Group):
-        component_type: type[Component] = component.element
-    elif isinstance(component, Component):
-        component_type = type(component)
-    else:
-        return None
-    if component_type.laws is Component.laws:
-        return []
-    roles = declarations_of(component_type, VariableKind.ROLE)
-    try:
-        member = (
-            component.element(component.label, **(component.values or {}))
-            if isinstance(component, Group)
-            else component
-        )
-        return list(member.laws(_FreeSymbols(**{name: _FreeSymbols() for name in roles})))
-    except Exception:  # noqa: BLE001
-        return None
-
-
-def runs_rules(component: object) -> bool:
-    """Check whether a component runs rules of its own: a variable group, or an element or group with rule laws.
-
-    Such a component is an agent. The compiler also makes agents of the groups whose element type has no laws of its
-    own in a system with rules, unless an interaction whose laws are not rules binds them.
-
-    Args:
-        component:
-            The element, group, interaction, or system.
-
-    Returns:
-        runs_rules:
-            Whether the component is a variable group, or an element or group whose own laws include a `Rule`.
-
-    Examples:
-        >>> from skcomplex.core.components import Element, runs_rules
-        >>> from skcomplex.core.laws import Rule
-        >>> Walker = Element.define('Walker', laws=lambda s: [Rule(lambda agent, model: None)])
-        >>> runs_rules(Walker('walker')), runs_rules(Element.define('Plain')('plain'))
-        (True, False)
-    """
-    if isinstance(component, Group) and component.variable:
-        return True
-    if not isinstance(component, Element | Group):
-        return False
-    return any(isinstance(law, Rule) for law in probe_laws(component) or [])
-
-
-class Group(BaseEstimator):
+class Group(Component):
     """Group of identical elements of one type, whose variables are arrays with one row per member.
 
     Groups are usually created with `Element.group`. A value is either an array whose first dimension is the size of
@@ -553,6 +339,10 @@ class Group(BaseEstimator):
         SpaceError:
             The part is unknown, or the space does not have it, such as edges outside a network.
 
+        ValidationError:
+            The element type is not an `Element` subclass, the size is not a positive integer, a value names a
+            variable the element type does not declare, or a per-member value does not have one row per member.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.core.components import Group
@@ -585,7 +375,7 @@ class Group(BaseEstimator):
         layer: str | None = None,
         capacity: int | None = None,
     ) -> None:
-        self.label = label
+        super().__init__(label)
         self.element = element
         self.size = size if size is not None or on is None or space is None else part_count(space, on, label, layer)
         self.values = values
@@ -599,7 +389,23 @@ class Group(BaseEstimator):
         if on is not None and on not in PARTS:
             error_msg = f'Group {label!r} lives on {on!r}. Use one of {", ".join(PARTS)}.'
             raise SpaceError(error_msg)
+        _check_group(self)
 
     def __repr__(self, N_CHAR_MAX: int = 700) -> str:
         """Return the label, element type, and size."""
         return f'Group({self.label!r}, element={self.element.__name__}, size={self.size})'
+
+    def default_visual(self) -> VisualSpec:
+        """Return the visual of the group when it sets none, the visual of its element type.
+
+        Returns:
+            visual:
+                The visual.
+
+        Examples:
+            >>> from skcomplex.core.components import Group
+            >>> from skcomplex.models.biology.ecology import Population
+            >>> Group('herds', element=Population, size=3).default_visual() == Population.visual
+            True
+        """
+        return self.element.visual

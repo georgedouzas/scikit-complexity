@@ -1,0 +1,705 @@
+"""Test the `_compile` module of `skcomplex.core.compile`."""
+
+import time
+
+import numpy as np
+import pytest
+import sympy  # noqa: TID251  # the test passes a SymPy expression to check that laws reject it
+
+from skcomplex.core.base import (
+    Domain,
+    Expression,
+    Form,
+    IncompatibleLawsError,
+    LabelError,
+    RoleError,
+    SpaceError,
+    SymbolicVector,
+    ValidationError,
+    domain_of,
+    parameter,
+    role,
+    symbol,
+)
+from skcomplex.core.compile import compile_system
+from skcomplex.core.components import Element
+from skcomplex.core.formalisms.particles import PairPotential, Particle
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Boundary, Jump, Noise, Rate, Update, mod
+from skcomplex.core.space import ContinuousSpace, LatticeSpace
+from skcomplex.core.system import System
+from skcomplex.models.biology.ecology import ExponentialGrowth, LogisticGrowth, Population, Predation
+from skcomplex.models.biology.epidemiology import Compartment, Infection, Recovery
+from skcomplex.models.economics.finance import Asset, GeometricBrownianMotion
+from skcomplex.models.economics.markets import Cobweb, Market
+from skcomplex.models.physics.realizations import ConstantForce, HarmonicPotential
+from skcomplex.models.physics.statistical_mechanics import ParticleSite, ZeroRangeHop
+
+from ..conftest import CallableGrowth, Node, _correlated, _summed
+from .conftest import _pair
+
+
+class Undeclared(Interaction):
+    """Interaction that uses a symbol it does not declare."""
+
+    target: str = role()
+
+    def laws(self, s):
+        """Return a law with an undeclared symbol."""
+        return [Rate(s.target.n, symbol('k') * s.target.n)]
+
+
+class DoubleUpdate(Interaction):
+    """Interaction that updates the same state twice."""
+
+    target: str = role()
+
+    def laws(self, s):
+        """Return two updates of one state."""
+        return [Update(s.target.price, 1), Update(s.target.price, 2)]
+
+
+def _ecology(growth):
+    """Return a system of one population under a growth interaction."""
+    return System(components=[Population('rabbits', n=10)], interactions=[growth])
+
+
+Hub = Element.define('Hub', states={'y': 0.0})
+
+
+class SiteDrive(Interaction):
+    """Growth of a hub at the rate of the state of one site."""
+
+    hub: str = role()
+    site: str = role()
+
+    def laws(self, s):
+        """Return the growth of the hub."""
+        return [Rate(s.hub.y, s.site.x)]
+
+
+class SitesDrive(Interaction):
+    """Growth of a hub at the rate of the summed states of several sites."""
+
+    hub: str = role()
+    sites: list[str] = role(variadic=True)
+
+    def laws(self, s):
+        """Return the growth of the hub."""
+        return [Rate(s.hub.y, sum((item.x for item in s.sites), 0))]
+
+
+def _hub_and_sites(interaction):
+    """Return a hub and a group of five sites with states 0 to 4, coupled by an interaction."""
+    return System(components=[Node.group('sites', 5, x=np.arange(5.0)), Hub('hub')], interactions=[interaction])
+
+
+def _compile_time(n_links):
+    """Return the shortest of two compile times of a zero-range ring written with one interaction per link."""
+    sites = ParticleSite.lattice('sites', LatticeSpace(n_links), n=np.ones(n_links))
+    links = [
+        ZeroRangeHop(f'hop_{index}', link=[f'sites[{index}]', f'sites[{(index + 1) % n_links}]'])
+        for index in range(n_links)
+    ]
+    system = System(components=[sites], interactions=links)
+    durations = []
+    for _ in range(2):
+        start = time.perf_counter()
+        compile_system(system, backend='numpy')
+        durations.append(time.perf_counter() - start)
+    return min(durations)
+
+
+CUTOFF = 2.5
+
+
+class LennardJones(PairPotential):
+    """Lennard-Jones pair potential."""
+
+    epsilon: float = parameter(1.0, domain=Domain.POSITIVE)
+    sigma: float = parameter(1.0, domain=Domain.POSITIVE)
+
+    def pair_energy(self, s, r):
+        """Return `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)`."""
+        return 4 * s.epsilon * ((s.sigma / r) ** 12 - (s.sigma / r) ** 6)
+
+
+class Doubling(Interaction):
+    """Interaction with a callable rate over a group."""
+
+    target: str = role()
+
+    def laws(self, s):
+        """Return a callable rate equal to twice the member counts."""
+        name = f'{self.target}.n'
+        return [Rate(s.target.n, lambda t, values: 2 * values[name])]
+
+
+class Birth(Interaction):
+    """Stochastic birth of every member of a group."""
+
+    target: str = role()
+    rate: float = parameter(1.0, domain=Domain.POSITIVE)
+
+    def laws(self, s):
+        """Return one jump per member."""
+        return [Jump(s.rate * s.target.n, {s.target.n: 1})]
+
+
+class Volatility(Interaction):
+    """Noise on every member of a group."""
+
+    target: str = role()
+
+    def laws(self, s):
+        """Return the noise amplitude `n`."""
+        return [Noise(s.target.n, s.target.n)]
+
+
+class Halving(Interaction):
+    """Discrete halving of every member of a group."""
+
+    target: str = role()
+
+    def laws(self, s):
+        """Return the next value `n / 2`."""
+        return [Update(s.target.n, s.target.n / 2)]
+
+
+class SingleUpdateFromGroup(Interaction):
+    """Update of a single element from a group, which has no meaning."""
+
+    target: str = role()
+    total: str = role()
+
+    def laws(self, s):
+        """Return an update of the single element."""
+        return [Update(s.total.n, s.target.n)]
+
+
+def _lennard_jones_gas(n, seed=0):
+    """Return a gas of Lennard-Jones particles on a jittered lattice."""
+    rng = np.random.default_rng(seed)
+    side = int(np.ceil(np.sqrt(n)))
+    grid = np.stack(np.meshgrid(np.arange(side), np.arange(side)), axis=-1).reshape(-1, 2)[:n] * 1.2
+    return System(
+        components=[Particle.group('gas', n, x=grid + rng.normal(0, 0.05, (n, 2)), v=rng.normal(0, 0.5, (n, 2)))],
+        interactions=[LennardJones('lj', first='gas', second='gas', cutoff=CUTOFF)],
+        space=ContinuousSpace(n_dim=2),
+    )
+
+
+RECEIVED: dict[str, object] = {}
+
+
+class Recorder(Interaction):
+    """Interaction that records the symbols it receives and adds no change."""
+
+    target: str = role()
+
+    def laws(self, s):
+        """Record the symbols and return a zero rate on the velocity."""
+        RECEIVED.update(x=s.target.x, m=s.target.m)
+        return [Rate(s.target.v, 0)]
+
+
+class SympyGrowth(Interaction):
+    """Interaction whose rate is a SymPy expression."""
+
+    target: str = role()
+
+    def laws(self, s):
+        """Return a SymPy rate."""
+        return [Rate(s.target.n, sympy.Symbol('r') * 2)]
+
+
+@pytest.mark.parametrize(
+    ('system', 'form'),
+    [
+        (_ecology(LogisticGrowth('growth', target='rabbits')), Form.ODE),
+        (
+            System(
+                components=[Asset('stock', price=100)],
+                interactions=[GeometricBrownianMotion('gbm', target='stock')],
+            ),
+            Form.SDE,
+        ),
+        (
+            System(
+                components=[Compartment('I', n=5), Compartment('R')],
+                interactions=[Recovery('rec', infected='I', recovered='R', stochastic=True)],
+            ),
+            Form.JUMP,
+        ),
+        (System(components=[Market('m')], interactions=[Cobweb('c', target='m')]), Form.DISCRETE),
+        (System(components=[Population('a')]), Form.ODE),
+    ],
+)
+def test_compile_system_infers_form(system, form):
+    """Test that the form follows from the law kinds."""
+    assert compile_system(system).form is form
+
+
+def test_compile_system_mixed_kinds_raises_error():
+    """Test that updates and rates in one system are rejected."""
+    system = System(
+        components=[Market('m'), Population('a')],
+        interactions=[Cobweb('c', target='m'), ExponentialGrowth('g', target='a')],
+    )
+    with pytest.raises(IncompatibleLawsError, match='rate: a; update: m'):
+        compile_system(system)
+
+
+def test_compile_system_names_nested_states_by_path():
+    """Test that nested states are named by their path."""
+    system = System(components=[System('meadow', components=[Population('rabbits', n=3)])])
+    problem = compile_system(system)
+    assert problem.states.names == ['meadow/rabbits.n']
+    assert problem.initial_state.tolist() == [3.0]
+
+
+def test_compile_system_couples_subsystems():
+    """Test that an interaction couples elements of two subsystems."""
+    system = System(
+        components=[
+            System('forest', components=[Population('foxes', n=2)]),
+            System('meadow', components=[Population('rabbits', n=5)]),
+        ],
+        interactions=[Predation('hunt', predator='forest/foxes', prey='meadow/rabbits', a=1.0, b=0.5)],
+    )
+    problem = compile_system(system)
+    derivative = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
+    assert derivative.tolist() == [5.0, -10.0]
+
+
+def test_compile_system_drift_takes_parameters():
+    """Test that the drift reflects the parameter vector it receives."""
+    problem = compile_system(_ecology(ExponentialGrowth('growth', target='rabbits', r=1.0)))
+    x = problem.initial_state
+    assert problem.drift(0.0, x, np.array([1.0])).tolist() == [10.0]
+    assert problem.drift(0.0, x, np.array([2.0])).tolist() == [20.0]
+
+
+def test_compile_system_callable_law_is_evaluated():
+    """Test that a callable rate is added to the drift and left out of the equations."""
+    problem = compile_system(_ecology(CallableGrowth('growth', target='rabbits', r=3.0)))
+    assert problem.drift(0.0, problem.initial_state, problem.initial_parameters).tolist() == [30.0]
+    assert problem.has_callables
+    assert problem.equations == {}
+
+
+def test_compile_system_rates_add_up():
+    """Test that two forces on one particle add up."""
+    system = System(
+        components=[Particle('p', x=1.0, m=2.0)],
+        interactions=[ConstantForce('push', target='p', F=4.0), HarmonicPotential('trap', target='p', k=6.0)],
+        space=ContinuousSpace(n_dim=1),
+    )
+    problem = compile_system(system)
+    assert problem.drift(0.0, problem.initial_state, problem.initial_parameters).tolist() == [0.0, -1.0]
+
+
+def test_compile_system_keeps_oscillator_equations():
+    """Test that the velocity equation of an oscillator is `-k * (x - center) / m`."""
+    system = System(
+        components=[Particle('p')],
+        interactions=[HarmonicPotential('trap', target='p')],
+        space=ContinuousSpace(n_dim=1),
+    )
+    problem = compile_system(system)
+    x, v = problem.state_symbols
+    k = problem.symbols['trap.k']
+    m = problem.symbols['p.m']
+    (center,) = problem.symbols['trap.center']
+    assert problem.equations['p.x[0]'] == v
+    assert (problem.equations['p.v[0]'] + k * (x - center) / m).simplify_full() == 0
+
+
+def test_compile_system_vector_state_takes_space_dimension():
+    """Test that vector states have one component per dimension."""
+    problem = compile_system(System(components=[Particle('p')], space=ContinuousSpace(n_dim=2)))
+    assert problem.states.component_names == ['p.x[0]', 'p.x[1]', 'p.v[0]', 'p.v[1]']
+
+
+def test_compile_system_vector_state_without_space_raises_error():
+    """Test that a vector state needs a space."""
+    with pytest.raises(SpaceError, match='must have a space'):
+        compile_system(System(components=[Particle('p')]))
+
+
+@pytest.mark.parametrize('m', [-2.0, 0.0, 'm'])
+def test_compile_system_value_outside_domain_raises_error(m):
+    """Test that a parameter outside its domain is rejected."""
+    system = System(components=[Particle('p', m=m)], space=ContinuousSpace(n_dim=1))
+    with pytest.raises(ValidationError, match=r'p\.m'):
+        compile_system(system)
+
+
+def test_compile_system_wrong_shape_raises_error():
+    """Test that a vector value of the wrong size is rejected."""
+    system = System(components=[Particle('p', x=[1, 2, 3])], space=ContinuousSpace(n_dim=2))
+    with pytest.raises(ValidationError, match='shape'):
+        compile_system(system)
+
+
+def test_compile_system_unknown_role_raises_error():
+    """Test that a role must name an element."""
+    system = _ecology(LogisticGrowth('growth', target='foxes'))
+    with pytest.raises(RoleError, match="'target' to 'foxes'"):
+        compile_system(system)
+
+
+def test_compile_system_duplicate_label_raises_error():
+    """Test that siblings must have distinct labels."""
+    system = System(components=[Population('a'), Population('a')])
+    with pytest.raises(LabelError, match="'a'"):
+        compile_system(system)
+
+
+def test_compile_system_invalid_label_raises_error():
+    """Test that labels must be words."""
+    with pytest.raises(LabelError, match='not valid'):
+        compile_system(System(components=[Population('a.b')]))
+
+
+def test_compile_system_undeclared_symbol_raises_error():
+    """Test that laws may only use declared symbols."""
+    with pytest.raises(ValidationError, match='symbols k'):
+        compile_system(_ecology(Undeclared('bad', target='rabbits')))
+
+
+def test_compile_system_double_update_raises_error():
+    """Test that a state takes one update law."""
+    system = System(components=[Market('m')], interactions=[DoubleUpdate('bad', target='m')])
+    with pytest.raises(ValidationError, match='second time'):
+        compile_system(system)
+
+
+def test_compile_system_jump_stoichiometry():
+    """Test that jump changes become rows of the stoichiometry matrix."""
+    system = System(
+        components=[Compartment('S', n=9), Compartment('I', n=1)],
+        interactions=[Infection('inf', susceptible='S', infected='I', beta=0.5, stochastic=True)],
+    )
+    problem = compile_system(system)
+    assert problem.stoichiometry.tolist() == [[-1.0, 1.0]]
+    assert problem.propensities(0.0, problem.initial_state, problem.initial_parameters).tolist() == [4.5]
+
+
+@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+def test_compile_variadic_role_sums_any_number_of_inputs(backend):
+    """Test that a variadic role binds a sequence of elements that laws read as a tuple of namespaces."""
+    problem = compile_system(_summed(['a', 'b', 'c']), backend=backend)
+    state = problem.update(0.0, problem.initial_state, problem.initial_parameters)
+    assert problem.states.read(state, 'target.x') == 7.0
+    assert problem.interactions[0].roles['inputs'] == ('a', 'b', 'c')
+
+
+@pytest.mark.parametrize('backend', ['numpy', 'numba'])
+def test_compile_variadic_member_reference_reads_one_member(backend):
+    """Test that a member reference of a variadic role reads the states of that member of a group."""
+    problem = compile_system(_summed(['hub', 'nodes[3]'], weights=[0.0, 1.0]), backend=backend)
+    state = problem.update(0.0, problem.initial_state, problem.initial_parameters)
+    assert problem.states.read(state, 'target.x') == 3.0
+
+
+@pytest.mark.parametrize(
+    ('inputs', 'match'),
+    [
+        (['a', 'nodes[12]'], r"sum .*'nodes\[12\]'.*'inputs'.*10 members"),
+        (['a', 'nodes'], 'binds the group nodes'),
+        (['a', 'missing'], "'missing'"),
+        ('a', 'Bind a list'),
+    ],
+)
+def test_compile_variadic_role_with_wrong_entry_raises_error(inputs, match):
+    """Test that a variadic entry naming a missing member, a group, or no element raises a role error."""
+    with pytest.raises(RoleError, match=match):
+        compile_system(_summed(inputs))
+
+
+def test_compile_plain_role_binds_one_group_member():
+    """Test that a plain role bound to a member reference reads that member like a variadic entry does."""
+    plain = compile_system(_hub_and_sites(SiteDrive('link', hub='hub', site='sites[3]')))
+    variadic = compile_system(_hub_and_sites(SitesDrive('link', hub='hub', sites=['sites[3]'])))
+    for problem in (plain, variadic):
+        drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
+        assert problem.states.read(drift, 'hub.y') == 3.0
+    assert plain.interactions[0].roles['site'] == 'sites[3]'
+
+
+def test_compile_plain_role_past_group_end_raises_error():
+    """Test that a plain role bound past the end of a group names the interaction, role, reference, and size."""
+    with pytest.raises(RoleError, match=r"link binds 'sites\[7\]' to its role 'site', but sites holds 5 members"):
+        compile_system(_hub_and_sites(SiteDrive('link', hub='hub', site='sites[7]')))
+
+
+def test_compile_per_entry_parameter_with_wrong_length_raises_error():
+    """Test that a per-entry parameter of another length than its role names the interaction and both lengths."""
+    with pytest.raises(ValidationError, match=r"sum .*'weights' 2 values.*'inputs' binds 3 entries"):
+        compile_system(_summed(['a', 'b', 'c'], weights=[1.0, 2.0]))
+
+
+def test_compile_per_entry_parameter_has_one_component_per_entry():
+    """Test that a per-entry parameter is laid out with one addressable component per entry."""
+    problem = compile_system(_summed(['a', 'b', 'c'], weights=[1.0, 2.0, 3.0]))
+    assert problem.parameters.component_names == ['sum.weights[0]', 'sum.weights[1]', 'sum.weights[2]']
+
+
+def test_compile_system_time_grows_linearly_with_interactions():
+    """Test that compiling 800 one-link interactions takes at most 2.5 times as long as compiling 400."""
+    assert _compile_time(800) <= 2.5 * _compile_time(400)
+
+
+def test_compile_group_time_does_not_grow_with_size():
+    """Test that compiling 100000 members takes no longer than 10 members within a factor of 2."""
+
+    def compile_time(n):
+        start = time.perf_counter()
+        compile_system(
+            System(
+                components=[Particle.group('gas', n)],
+                space=ContinuousSpace(1.0, 1.0, boundary='reflecting'),
+            ),
+        )
+        return time.perf_counter() - start
+
+    compile_time(10)
+    assert compile_time(100_000) <= 2 * compile_time(10) + 0.05
+
+
+def test_compile_group_names_states_by_group_path():
+    """Test that a group state is named by its group path with the group shape."""
+    problem = compile_system(System(components=[Particle.group('gas', 500)], space=ContinuousSpace(n_dim=2)))
+    assert problem.states.entry('gas.x').shape == (500, 2)
+    assert problem.equations['gas.x[i, 0]'] == problem.symbols['gas.v'][0]
+
+
+def test_compile_pair_forces_match_brute_force_sum():
+    """Test that pair forces equal the sum over members closer than the cutoff."""
+    problem = compile_system(_lennard_jones_gas(60))
+    x, p = problem.initial_state, problem.initial_parameters
+    positions = problem.states.read(x, 'gas.x')
+    accelerations = problem.states.read(problem.drift(0.0, x, p), 'gas.v')
+    expected = np.zeros_like(positions)
+    for i in range(len(positions)):
+        for j in range(len(positions)):
+            separation = positions[i] - positions[j]
+            r = np.linalg.norm(separation)
+            if i != j and r < CUTOFF:
+                expected[i] += 24 * (2 / r**13 - 1 / r**7) * separation / r
+    assert np.allclose(accelerations, expected, rtol=1e-10, atol=1e-10)
+
+
+def test_compile_pair_forces_between_two_groups():
+    """Test that a pair interaction between two groups attracts both beyond the potential minimum."""
+    system = System(
+        components=[Particle.group('a', 1, x=[[0.0, 0.0]]), Particle.group('b', 1, x=[[1.5, 0.0]])],
+        interactions=[LennardJones('lj', first='a', second='b', cutoff=CUTOFF)],
+        space=ContinuousSpace(n_dim=2),
+    )
+    problem = compile_system(system)
+    drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
+    a, b = problem.states.read(drift, 'a.v'), problem.states.read(drift, 'b.v')
+    assert a[0, 0] > 0
+    assert np.allclose(a, -b)
+
+
+def test_compile_pair_forces_use_minimum_image():
+    """Test that periodic pair interactions use minimum image distances."""
+    system = System(
+        components=[Particle.group('gas', 2, x=[[0.1, 0.5], [9.6, 0.5]])],
+        interactions=[LennardJones('lj', first='gas', second='gas', cutoff=CUTOFF, period=10.0)],
+        space=ContinuousSpace(n_dim=2),
+    )
+    problem = compile_system(system)
+    accelerations = problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'gas.v')
+    assert accelerations[0, 0] > 0
+    assert accelerations[1, 0] < 0
+
+
+def test_compile_reflecting_box_keeps_ode_form():
+    """Test that a reflecting box adds boundary laws without changing the form."""
+    problem = compile_system(
+        System(
+            components=[Particle.group('gas', 4)],
+            space=ContinuousSpace(1.0, 1.0, boundary='reflecting'),
+        ),
+    )
+    assert problem.form.name == 'ODE'
+    assert problem.boundary is not None
+
+
+def test_compile_periodic_box_wraps_positions():
+    """Test that a periodic box wraps a position that left the box."""
+    problem = compile_system(
+        System(
+            components=[Particle.group('gas', 1, x=[[1.25, 0.5]], v=[[1.0, 0.0]])],
+            space=ContinuousSpace(1.0, 1.0, boundary='periodic'),
+        ),
+    )
+    state = problem.boundary(0.0, problem.initial_state, problem.initial_parameters)
+    assert np.allclose(problem.states.read(state, 'gas.x'), [[0.25, 0.5]])
+    assert np.allclose(problem.states.read(state, 'gas.v'), [[1.0, 0.0]])
+
+
+def test_compile_group_callable_rate():
+    """Test that a callable law over a group returns one value per member."""
+    problem = compile_system(
+        System(
+            components=[Population.group('herds', 3, n=[1.0, 2.0, 3.0])],
+            interactions=[Doubling('d', target='herds')],
+        ),
+    )
+    assert problem.drift(0.0, problem.initial_state, problem.initial_parameters).tolist() == [2.0, 4.0, 6.0]
+    assert problem.has_callables
+
+
+def test_compile_group_jumps_have_one_channel_per_member():
+    """Test that a jump law over a group has one channel per member."""
+    problem = compile_system(
+        System(
+            components=[Population.group('herds', 3, n=[1.0, 2.0, 3.0])],
+            interactions=[Birth('birth', target='herds')],
+        ),
+    )
+    assert problem.propensities(0.0, problem.initial_state, problem.initial_parameters).tolist() == [1.0, 2.0, 3.0]
+    assert problem.stoichiometry.tolist() == np.eye(3).tolist()
+
+
+def test_compile_group_noise_has_one_process_per_member():
+    """Test that a noise law over a group drives every member with its own process."""
+    problem = compile_system(
+        System(
+            components=[Population.group('herds', 3, n=[1.0, 2.0, 3.0])],
+            interactions=[Volatility('vol', target='herds')],
+        ),
+    )
+    assert problem.noise_rows.tolist() == [0, 1, 2]
+    assert problem.diffusion(0.0, problem.initial_state, problem.initial_parameters).tolist() == [1.0, 2.0, 3.0]
+
+
+def test_compile_group_updates_every_member():
+    """Test that a discrete update over a group updates every member."""
+    problem = compile_system(
+        System(components=[Population.group('herds', 2, n=[4.0, 8.0])], interactions=[Halving('half', target='herds')]),
+    )
+    assert problem.update(0.0, problem.initial_state, problem.initial_parameters).tolist() == [2.0, 4.0]
+    assert problem.equations['herds.n[i]'] == problem.symbols['herds.n'] / 2
+
+
+def test_compile_update_of_single_element_from_group_raises_error():
+    """Test that an update cannot set a single element from a group."""
+    system = System(
+        components=[Population.group('herds', 2), Population('total')],
+        interactions=[SingleUpdateFromGroup('sum', target='herds', total='total')],
+    )
+    with pytest.raises(ValidationError, match='single element from a group'):
+        compile_system(system)
+
+
+def test_compile_boundary_twice_raises_error():
+    """Test that a state takes one boundary law."""
+    Wrap = Interaction.define('Wrap', roles=['target'], laws=lambda s: [Boundary(s.target.x[0], mod(s.target.x[0], 1))])
+    system = System(
+        components=[Particle.group('gas', 2)],
+        interactions=[Wrap('wrap', target='gas')],
+        space=ContinuousSpace(1.0, boundary='reflecting'),
+    )
+    with pytest.raises(ValidationError, match='second time'):
+        compile_system(system)
+
+
+def test_compile_system_without_processes_keeps_identity_columns():
+    """Test that noise laws that name no process get one process per amplitude and no correlated block."""
+    Walker = Element.define('Walker', states={'x': 0.0}, laws=lambda s: [Noise(s.x, 1.0), Noise(s.x, 2.0)])
+    problem = compile_system(System(components=[Walker.group('walkers', 3)]))
+    np.testing.assert_array_equal(problem.noise_columns, np.arange(6))
+    assert problem.n_processes == 6
+    assert problem.noise_blocks == ()
+
+
+def test_compile_system_shares_local_process():
+    """Test that two laws of one element on one local process share one column."""
+    problem = compile_system(System(components=[_pair()('pair')]))
+    np.testing.assert_array_equal(problem.noise_columns, [0, 0])
+    assert problem.n_processes == 1
+
+
+def test_compile_system_gives_members_their_own_local_process():
+    """Test that a local process of a group law gives every member its own process."""
+    problem = compile_system(System(components=[_pair().group('pairs', 3)]))
+    np.testing.assert_array_equal(problem.noise_columns, [0, 1, 2, 0, 1, 2])
+
+
+def test_compile_system_factors_covariance():
+    """Test that a Wiener element with a covariance lowers to one block whose factor reproduces it."""
+    problem = compile_system(_correlated([[1.0, 0.6], [0.6, 2.0]]))
+    (block,) = problem.noise_blocks
+    assert (block.start, block.size) == (0, 2)
+    np.testing.assert_allclose(block.factor @ block.factor.T, [[1.0, 0.6], [0.6, 2.0]])
+
+
+def test_compile_system_factors_singular_covariance():
+    """Test that perfectly correlated processes compile with an eigenvalue factor."""
+    (block,) = compile_system(_correlated([[1.0, 1.0], [1.0, 1.0]])).noise_blocks
+    np.testing.assert_allclose(block.factor @ block.factor.T, np.ones((2, 2)), atol=1e-12)
+
+
+def test_stratonovich_correction_covers_cross_terms():
+    """Test that a shared Stratonovich process adds the cross terms `C G_kl dG_ij/dx_k` to the drift."""
+    problem = compile_system(System(components=[_pair(conventions=('stratonovich', 'stratonovich'))('pair')]))
+    drift = problem.drift(0.0, np.asarray([2.0, 3.0]), problem.initial_parameters)
+    np.testing.assert_allclose(drift, [0.5 * 0.5 * 0.5 * 2.0, 0.5 * 0.5 * 0.5 * 3.0])
+
+
+def test_stratonovich_correction_of_several_laws_adds_up():
+    """Test that two Stratonovich laws with independent processes on one state compile and add their corrections."""
+    Twice = Element.define(
+        'Twice',
+        states={'x': 1.0},
+        laws=lambda s: [Noise(s.x, s.x, convention='stratonovich'), Noise(s.x, 2 * s.x, convention='stratonovich')],
+    )
+    problem = compile_system(System(components=[Twice('twice')]))
+    drift = problem.drift(0.0, np.asarray([2.0]), problem.initial_parameters)
+    assert drift[0] == pytest.approx(0.5 * 2.0 + 0.5 * 4 * 2.0)
+
+
+def test_components_receive_sage_symbols_and_vectors():
+    """Test that scalar symbols are Sage expressions with their domains and vector states are Sage vectors."""
+    system = System(
+        components=[Particle('p')],
+        interactions=[Recorder('record', target='p')],
+        space=ContinuousSpace(n_dim=3),
+    )
+    compile_system(system)
+    assert isinstance(RECEIVED['x'], SymbolicVector)
+    assert len(RECEIVED['x']) == 3
+    assert all(isinstance(component, Expression) and component.is_symbol() for component in RECEIVED['x'])
+    assert RECEIVED['m'].is_real()
+    assert domain_of(RECEIVED['m']) is Domain.POSITIVE
+
+
+def test_sympy_rate_is_rejected():
+    """Test that a SymPy rate raises a validation error that names the law, the interaction, and Sage."""
+    system = System(components=[Population('herd')], interactions=[SympyGrowth('growth', target='herd')])
+    with pytest.raises(ValidationError, match=r'Rate law of growth has the SymPy value .*Sage'):
+        compile_system(system)
+
+
+@pytest.mark.benchmark
+def test_small_system_drift_is_fast():
+    """Test that the NumPy drift of 20 logistic populations takes at most 250 microseconds and is correct."""
+    system = System(
+        components=[Population(f'p{index}', n=1.0 + index) for index in range(20)],
+        interactions=[LogisticGrowth(f'g{index}', target=f'p{index}', r=1.0, K=100) for index in range(20)],
+    )
+    problem = compile_system(system, backend='numpy')
+    x, p = problem.initial_state, problem.initial_parameters
+    expected = x * (1 - x / 100)
+    assert problem.drift(0.0, x, p) == pytest.approx(expected)
+    repeats = 500
+    start = time.perf_counter()
+    for _ in range(repeats):
+        problem.drift(0.0, x, p)
+    assert (time.perf_counter() - start) / repeats <= 250e-6

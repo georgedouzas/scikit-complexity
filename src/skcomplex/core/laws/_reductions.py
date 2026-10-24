@@ -187,6 +187,19 @@ def _call(name: str, expression: object, over: object, condition: object, weight
     return function(SR(expression), kept, _weights_symbol(weights), _over_symbol(over))
 
 
+def _reduction_of(call: Expression) -> 'Reduction':
+    """Return the parts of a reduction call."""
+    argument, condition, weights, over = call.operands()
+    return Reduction(
+        call=call,
+        kind=KINDS[call.operator()],
+        argument=argument,
+        condition=None if _is_trivial(condition, 1) else condition,
+        weights=None if _is_trivial(weights, 0) else WEIGHTS[str(weights)],
+        over=None if _is_trivial(over, 0) else over,
+    )
+
+
 def total(
     expression: object,
     over: object = None,
@@ -434,19 +447,6 @@ class Reduction:
     condition: Expression | None
     weights: Any
     over: Expression | None
-
-
-def _reduction_of(call: Expression) -> Reduction:
-    """Return the parts of a reduction call."""
-    argument, condition, weights, over = call.operands()
-    return Reduction(
-        call=call,
-        kind=KINDS[call.operator()],
-        argument=argument,
-        condition=None if _is_trivial(condition, 1) else condition,
-        weights=None if _is_trivial(weights, 0) else WEIGHTS[str(weights)],
-        over=None if _is_trivial(over, 0) else over,
-    )
 
 
 def reductions_in(expression: object) -> list[Reduction]:

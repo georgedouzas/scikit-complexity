@@ -6,8 +6,9 @@
 from collections.abc import Callable
 from typing import Any
 
+from ....core.formalisms.agents import Rule
 from ....core.interactions import Interaction
-from ....core.laws import Law, Rule, Symbols
+from ....core.laws import Law, Symbols
 
 
 class Institution(Interaction):
@@ -29,14 +30,26 @@ class Institution(Interaction):
         phase:
             The phase the institution acts in, or `None` for the default phase.
 
+        **values:
+            The values of the declared variables, by name.
+
     Examples:
         >>> from skcomplex.models.economics.realizations import Institution
         >>> Institution('regulator', rule=lambda model: None).phase is None
         True
     """
 
-    rule: Callable[[Any], None] | None = None
-    phase: str | None = None
+    def __init__(
+        self,
+        label: str,
+        *,
+        rule: Callable[[Any], None] | None = None,
+        phase: str | None = None,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.rule = rule
+        self.phase = phase
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the rule of the institution in its phase.

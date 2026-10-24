@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
+from typing import Any
 
 from sage.all__sagemath_symbolics import SR
 
@@ -58,17 +59,20 @@ class ProbabilisticFunction(Interaction):
         label:
             The label of the interaction.
 
-        target:
-            The path of the updated node, a `ProbabilisticNode`.
-
-        inputs:
-            The paths of the input nodes, in the order of the bits of the tables.
-
         tables:
             The candidate truth tables.
 
         probabilities:
             The probability of every table.
+
+        **values:
+            The values of the declared variables, by name:
+
+            target:
+                The path of the updated node, a `ProbabilisticNode`.
+
+            inputs:
+                The paths of the input nodes, in the order of the bits of the tables.
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import ProbabilisticFunction
@@ -81,8 +85,18 @@ class ProbabilisticFunction(Interaction):
 
     target: str = role()
     inputs: list[str] = role(variadic=True)
-    tables: Sequence[Sequence[int]] = ((0,),)
-    probabilities: Sequence[float] = (1.0,)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        tables: Sequence[Sequence[int]] = ((0,),),
+        probabilities: Sequence[float] = (1.0,),
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.tables = tables
+        self.probabilities = probabilities
 
     def _table_value(self, inputs: list[Expression], table: Sequence[int]) -> Expression:
         """Return the value of one truth table of the inputs."""

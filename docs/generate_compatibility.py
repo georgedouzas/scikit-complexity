@@ -1,9 +1,28 @@
-"""Generate the compatibility page from the requirements of the laws and the support of the solvers and backends."""
+"""Generate the compatibility page from the declarations of the laws, solvers, backends, and formalisms."""
 
+import pkgutil
+from collections.abc import Iterable
+from importlib import import_module
+
+from skcomplex.core import formalisms
 from skcomplex.core.base import LawKind
-from skcomplex.core.compile import BACKENDS, law_types
-from skcomplex.core.solvers import SOLVERS
+from skcomplex.core.compile import BACKENDS, SOLVERS
+from skcomplex.core.formalisms import registered_formalisms
+from skcomplex.core.laws import law_classes
 from skcomplex.core.space import Space
+
+
+def _import_formalisms() -> None:
+    """Import every formalism, so its laws, spaces, solvers, and backends are registered."""
+    for module in pkgutil.iter_modules(formalisms.__path__):
+        if module.ispkg:
+            import_module(f'{formalisms.__name__}.{module.name}')
+
+
+def _names(items: Iterable[object]) -> str:
+    """Return the names of classes, terms, or keys in declaration order, `none` for no item."""
+    names = [getattr(item, '__name__', str(item)) for item in items]
+    return ', '.join(f'`{name}`' for name in names) or 'none'
 
 
 def _terms(terms: frozenset[object], every: int | None = None) -> str:
@@ -34,10 +53,10 @@ def law_lines() -> list[str]:
         '| Law | Kind | Class | Time | Space | Domains |',
         '|---|---|---|---|---|---|',
     ]
-    for law in law_types():
+    for law in law_classes():
         requires = law.requires
         lines.append(
-            f'| `{law.__name__}` | `{law.law_kind}` | {law.law_kind.law_class} | {_terms(requires.time)} | '
+            f'| `{law.__name__}` | `{law.law_kind}` | {law.time_class} | {_terms(requires.time)} | '
             f'{_terms(requires.space)} | {_terms(requires.domains)} |',
         )
     return lines
@@ -72,7 +91,7 @@ def solver_lines() -> list[str]:
             key[0].name,
             _terms(supports.time),
             _terms(supports.space, 5),
-            _terms(supports.laws, len(LawKind)),
+            _terms(supports.laws, len(LawKind.registered())),
             _terms(supports.domains, 12),
             _terms(supports.components, 7),
             _noise_terms(supports.noise),
@@ -100,7 +119,11 @@ def backend_lines() -> list[str]:
     ]
     for key in sorted(BACKENDS):
         supports = BACKENDS.resolve(key).supports
-        cells = [_terms(supports.laws, len(LawKind)), _terms(supports.domains, 12), _noise_terms(supports.noise)]
+        cells = [
+            _terms(supports.laws, len(LawKind.registered())),
+            _terms(supports.domains, 12),
+            _noise_terms(supports.noise),
+        ]
         lines.append(f'| `{key}` | {" | ".join(cells)} |')
     return lines
 
@@ -138,8 +161,42 @@ def space_lines() -> list[str]:
     return lines
 
 
+def formalism_lines() -> list[str]:
+    """Return the contributions of every registered formalism.
+
+    Returns:
+        lines:
+            The Markdown lines of the section.
+    """
+    lines = [
+        '',
+        '## Formalisms',
+        '',
+        'Every formalism registers its contributions when it is imported, and the tables above list them with those of',
+        'the shared core. A formalism registers after the formalisms it depends on.',
+        '',
+        '| Formalism | Depends on | Laws | Components | Forms | Passes | Solvers | Backends | Visuals |',
+        '|---|---|---|---|---|---|---|---|---|',
+    ]
+    for formalism in registered_formalisms():
+        cells = [
+            f'`{formalism.name}`',
+            _names(formalism.depends),
+            _names(formalism.laws),
+            _names(formalism.components),
+            _names(formalism.forms),
+            _names(type(item) for item in formalism.passes),
+            _names(formalism.solvers),
+            _names(formalism.backends),
+            _names(formalism.visuals),
+        ]
+        lines.append(f'| {" | ".join(cells)} |')
+    return lines
+
+
 def compatibility_page() -> str:
-    """Return the compatibility page of laws, solvers, and backends, generated from their declarations."""
+    """Return the compatibility page of laws, spaces, solvers, backends, and formalisms, from their declarations."""
+    _import_formalisms()
     lines = [
         '# Compatibility',
         '',
@@ -150,6 +207,7 @@ def compatibility_page() -> str:
         *space_lines(),
         *solver_lines(),
         *backend_lines(),
+        *formalism_lines(),
     ]
     return '\n'.join(lines) + '\n'
 

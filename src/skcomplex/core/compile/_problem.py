@@ -4,8 +4,8 @@
 # License: MIT
 
 import itertools
-from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from dataclasses import dataclass, field, replace
 from typing import Any, Protocol
 
 import numpy as np
@@ -15,28 +15,70 @@ from ..base import (
     Expression,
     Form,
     SymbolicVector,
+    ValidationError,
     Variable,
     VariableKind,
     VisualSpec,
     declarations_of,
-    real_components_of,
 )
 from ..components import Element, Group
 from ..interactions import Interaction
-from ..laws import Invariant, Rule
+from ..laws import Invariant, Law
 from ..space import Space
-from ..system import System
-from ._contractions import CompiledEncounter
-from ._hybrid import Breakpoints, CompiledEvent, Delay
-from ._lattices import LatticeStep, lattice_shape
+from ..system import Observable, System
+from ._arrays import Vector
+from ._hybrid import CompiledEvent, _Breakpoints, _Delay
 from ._layout import Layout
-from ._quantities import CompiledObjective, StockFlow
+from ._quantities import StockFlow, _CompiledObjective
+from ._real_parts import real_components_of
 from ._reductions import CompiledReduction
 
 ROW_TOLERANCE = 1e-9
 
-type Vector = npt.NDArray[np.float64]
 type VectorFunction = Callable[[float, Vector, Vector], Vector]
+type Getter = Callable[[float, Vector, Vector, Mapping[str, Any]], Any]
+
+
+def _check_initial_names(unknown: set[str], names: Sequence[str]) -> None:
+    """Raise an error for initial values of states the problem does not have."""
+    if unknown:
+        error_msg = (
+            f'The initial state names {", ".join(sorted(unknown))}, which are not states of the system. Use the dotted '
+            f'names of states, such as {", ".join(list(names)[:3])}.'
+        )
+        raise ValidationError(error_msg)
+
+
+def with_initial_state(problem: 'Problem', initial_state: Mapping[str, object]) -> 'Problem':
+    """Return a problem whose initial state takes given values of some states.
+
+    Args:
+        problem:
+            The compiled problem.
+
+        initial_state:
+            The initial values by dotted state name.
+
+    Returns:
+        problem:
+            The problem with the new initial state, or the same problem when no value is given.
+
+    Raises:
+        ValidationError:
+            A name is not a state of the problem, or a value has the wrong shape.
+    """
+    if not initial_state:
+        return problem
+    _check_initial_names(set(initial_state) - set(problem.states.names), problem.states.names)
+    state = problem.initial_state.copy()
+    for name, value in initial_state.items():
+        entry = problem.states.entry(name)
+        try:
+            state[entry.indices] = entry.encode(value)
+        except ValueError as error:
+            error_msg = f'The initial value of {name} does not fit its shape {entry.shape}: {error}'
+            raise ValidationError(error_msg) from error
+    return replace(problem, initial_state=state)
 
 
 @dataclass(frozen=True)
@@ -76,7 +118,7 @@ class RenewalRecord:
         return float(np.max(self.times))
 
 
-class RenewalProcess(Protocol):
+class _RenewalProcess(Protocol):
     """Renewal law compiled for the members of its component, which renew on their own clocks."""
 
     @property
@@ -133,7 +175,7 @@ class NetworkSnapshot:
     edges: npt.NDArray[np.intp]
 
 
-class TopologyChanges(Protocol):
+class _TopologyChanges(Protocol):
     """Topology requests of a problem, which the stepper applies between steps, and the networks they change."""
 
     @property
@@ -165,6 +207,85 @@ class TopologyChanges(Protocol):
 
     def presence(self, name: str, p: Vector) -> npt.NDArray[np.bool_] | None:
         """Return whether every row of the group of a variable holds a member, or `None` for a fixed group."""
+
+
+@dataclass(frozen=True)
+class _JumpChannels:
+    """Random events of one jump law, one channel per evaluation index."""
+
+    offset: int
+    targets: npt.NDArray[np.intp]
+    increments: Vector
+
+    @property
+    def size(self) -> int:
+        """Number of channels."""
+        return int(self.targets.shape[1])
+
+
+@dataclass(frozen=True)
+class _MarkovMatrix:
+    """Transition or emission matrix of a law, evaluated from the parameter vector to check its rows."""
+
+    law: str
+    function: Callable[[Vector], npt.NDArray[np.float64]]
+    reads: frozenset[int]
+
+    def violation(self, p: Vector) -> str | None:
+        """Return the description of the first negative entry or row that does not sum to one, or `None`.
+
+        Args:
+            p:
+                The parameter vector.
+
+        Returns:
+            violation:
+                The description of what is wrong with the matrix, or `None` when it is a stochastic matrix.
+        """
+        values = self.function(p)
+        for member, matrix in enumerate(values):
+            where = f' of member {member}' if values.shape[0] > 1 else ''
+            negative = np.argwhere(~(matrix >= 0))
+            if negative.size:
+                row, column = negative[0]
+                return f'the entry ({row}, {column}){where} of the {self.law} is {matrix[row, column]}, below 0'
+            sums = matrix.sum(axis=1)
+            wrong = np.flatnonzero(np.abs(sums - 1) > ROW_TOLERANCE)
+            if wrong.size:
+                return f'the row {wrong[0]}{where} of the {self.law} sums to {sums[wrong[0]]}, not 1'
+        return None
+
+
+class _SiteState(Protocol):
+    """State of a group whose members sit at the sites of a lattice or the nodes of a network."""
+
+    @property
+    def name(self) -> str:
+        """Dotted name of the state."""
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        """Number of sites along every dimension."""
+
+
+class _SiteStep(Protocol):
+    """Step that changes the states of the sites of a group once per step of a stepwise form."""
+
+    @property
+    def targets(self) -> tuple[_SiteState, ...]:
+        """States the step changes."""
+
+
+class Record(Protocol):
+    """Record of something that happened at one time of a run, such as an event or a relaxation."""
+
+    @property
+    def label(self) -> str:
+        """Name of what happened."""
+
+    @property
+    def time(self) -> float:
+        """Time it happened at."""
 
 
 @dataclass(frozen=True)
@@ -271,7 +392,7 @@ class CompiledAgents:
     states: tuple[str, ...]
     values: Mapping[str, object]
     parameters: Mapping[str, str]
-    rules: tuple[Rule, ...]
+    rules: tuple[Law, ...]
     visual: VisualSpec
     invariants: tuple[Invariant, ...] = ()
 
@@ -295,32 +416,6 @@ class CompiledInteraction:
     path: str
     interaction: Interaction
     roles: Mapping[str, str | tuple[str, ...]]
-
-
-@dataclass(frozen=True)
-class JumpChannels:
-    """Random events of one jump law, one channel per evaluation index.
-
-    Args:
-        offset:
-            The index of the first channel among all channels of the problem.
-
-        targets:
-            The flat state index changed by each change, one row per change and one column per channel, or -1 where
-            a change at a member offset falls past a fixed end and changes nothing.
-
-        increments:
-            The increment of each change.
-    """
-
-    offset: int
-    targets: npt.NDArray[np.intp]
-    increments: Vector
-
-    @property
-    def size(self) -> int:
-        """Number of channels."""
-        return int(self.targets.shape[1])
 
 
 @dataclass(frozen=True)
@@ -430,50 +525,6 @@ class Draws:
         state = np.zeros(0) if x is None else x
         for item in self.sampled:
             q[item.start : item.start + item.rows] = item.sample(t, state, q, rng)
-
-
-@dataclass(frozen=True)
-class MarkovMatrix:
-    """Transition or emission matrix of a law, evaluated from the parameter vector to check its rows.
-
-    Args:
-        law:
-            The description of the law, such as `transition law of chain.x`.
-
-        function:
-            The function `f(p)` that returns the matrix of every evaluation row, of shape `(rows, n, m)`.
-
-        reads:
-            The indices of the parameter vector that the matrix reads.
-    """
-
-    law: str
-    function: Callable[[Vector], npt.NDArray[np.float64]]
-    reads: frozenset[int]
-
-    def violation(self, p: Vector) -> str | None:
-        """Return the description of the first negative entry or row that does not sum to one, or `None`.
-
-        Args:
-            p:
-                The parameter vector.
-
-        Returns:
-            violation:
-                The description of what is wrong with the matrix, or `None` when it is a stochastic matrix.
-        """
-        values = self.function(p)
-        for member, matrix in enumerate(values):
-            where = f' of member {member}' if values.shape[0] > 1 else ''
-            negative = np.argwhere(~(matrix >= 0))
-            if negative.size:
-                row, column = negative[0]
-                return f'the entry ({row}, {column}){where} of the {self.law} is {matrix[row, column]}, below 0'
-            sums = matrix.sum(axis=1)
-            wrong = np.flatnonzero(np.abs(sums - 1) > ROW_TOLERANCE)
-            if wrong.size:
-                return f'the row {wrong[0]}{where} of the {self.law} sums to {sums[wrong[0]]}, not 1'
-        return None
 
 
 @dataclass(frozen=True)
@@ -594,8 +645,8 @@ class Problem:
             The values of states before the start, by dotted state path, as numbers or functions of time.
 
         lattice:
-            The local rules, drives, relaxations, and Monte Carlo sampling of a lattice problem, in the order they
-            apply within a step.
+            The steps that change the states of sites, such as the local rules of a lattice problem, in the order
+            they apply within a step.
 
         linear:
             The linear terms with constant coefficients of the rates of fields, which implicit and exponential solvers
@@ -671,17 +722,15 @@ class Problem:
             The quantities, flows, auxiliaries, and feedback terms of the system, or `None` for partitioned and Mesa
             problems.
 
-        encounters:
-            The encounter laws, whose gain and loss rates the drift holds and particle solvers sample.
-
         backend:
             The name of the backend that produced the numeric functions.
 
+        backends:
+            The backend that runs every part of the problem: its form by the form's name, and the kernels of every law
+            kind by the kind's name, `'python'` for kernels that a compiling backend runs in Python.
+
         accelerated:
             The compiled stepper loops, or `None` when the backend has none for this problem.
-
-        rewriting:
-            The compiled rewriting systems of the words, patches, and host graphs of a rewriting system.
 
         topology:
             The topology requests of the laws and the networks they change, which the stepper applies between steps,
@@ -703,16 +752,16 @@ class Problem:
     interactions: tuple[CompiledInteraction, ...] = ()
     system: System | None = field(default=None, repr=False)
     agents: tuple[CompiledAgents, ...] = ()
-    model_rules: tuple[tuple[str, Rule], ...] = ()
+    model_rules: tuple[tuple[str, Law], ...] = ()
     model_invariants: tuple[tuple[str, Invariant], ...] = ()
     agent_space: Space | None = None
     partitions: tuple['Partition', ...] = ()
     companions: Mapping[str, tuple[str, str, int]] = field(default_factory=dict)
-    delays: tuple[Delay, ...] = ()
+    delays: tuple[_Delay, ...] = ()
     events: tuple[CompiledEvent, ...] = ()
-    breakpoints: Breakpoints = field(default_factory=Breakpoints)
+    breakpoints: _Breakpoints = field(default_factory=_Breakpoints)
     history: Mapping[str, Any] = field(default_factory=dict)
-    lattice: tuple[LatticeStep, ...] = field(default=(), repr=False)
+    lattice: tuple[_SiteStep, ...] = field(default=(), repr=False)
     stable_step: float | None = None
     diffusive_limits: tuple[Any, ...] = field(default=(), repr=False)
     linear: tuple[Any, ...] = field(default=(), repr=False)
@@ -727,28 +776,27 @@ class Problem:
     n_processes: int = 0
     noise_blocks: tuple[WienerBlock, ...] = field(default=(), repr=False)
     propensities: VectorFunction | None = field(default=None, repr=False)
-    jumps: tuple[JumpChannels, ...] = field(default=(), repr=False)
+    jumps: tuple[_JumpChannels, ...] = field(default=(), repr=False)
     update: Callable[..., Vector] | None = field(default=None, repr=False)
     boundary: VectorFunction | None = field(default=None, repr=False)
     draws: Draws | None = field(default=None, repr=False)
-    matrices: tuple[MarkovMatrix, ...] = field(default=(), repr=False)
-    renewals: tuple[RenewalProcess, ...] = field(default=(), repr=False)
+    matrices: tuple[_MarkovMatrix, ...] = field(default=(), repr=False)
+    renewals: tuple[_RenewalProcess, ...] = field(default=(), repr=False)
     fractional: tuple[FractionalRows, ...] = field(default=(), repr=False)
     orders: Vector = field(default_factory=lambda: np.zeros(0), repr=False)
 
     stock_flow: StockFlow | None = field(default=None, repr=False)
-    encounters: tuple[CompiledEncounter, ...] = field(default=(), repr=False)
     backend: str = 'numpy'
+    backends: Mapping[str, str] = field(default_factory=dict)
     accelerated: Accelerated | None = field(default=None, repr=False)
-    rewriting: tuple[Any, ...] = field(default=(), repr=False)
-    topology: TopologyChanges | None = field(default=None, repr=False)
+    topology: _TopologyChanges | None = field(default=None, repr=False)
 
     def _flatten_symbols(self, layout: Layout) -> list[Expression]:
         """Return the symbols of the entries of a layout as a flat list."""
         return [item for entry in layout for item in real_components_of(self.symbols[entry.name])]
 
     @property
-    def objectives(self) -> tuple[CompiledObjective, ...]:
+    def objectives(self) -> tuple[_CompiledObjective, ...]:
         """Objectives of the system, which optimal control solvers optimise."""
         return () if self.stock_flow is None else self.stock_flow.objectives
 
@@ -778,6 +826,20 @@ class Problem:
     def parameter_symbols(self) -> list[Expression]:
         """Symbols of the parameter components of interactions, single elements, and one member of every group."""
         return self._flatten_symbols(self.parameters)
+
+    def observable_getters(self, observables: Iterable[tuple[str, Observable]]) -> dict[str, Getter] | None:
+        """Return the getters of observables by path when the problem evaluates them itself, or `None` otherwise.
+
+        Args:
+            observables:
+                The path of the declaring system and the observable, for every observable of the system tree.
+
+        Returns:
+            getters:
+                The getters by observable path, or `None` for the evaluator of the shared core.
+        """
+        del observables
+        return None
 
     def max_speed(self, x: Vector, p: Vector) -> float | None:
         """Return the largest wave speed of the conservation laws, or `None` without them.
@@ -823,9 +885,10 @@ class Problem:
             shape:
                 The number of sites along every dimension.
         """
-        found = lattice_shape(name, self.lattice)
-        if found is not None:
-            return found
+        for step in self.lattice:
+            for state in step.targets:
+                if state.name == name:
+                    return state.shape
         owner = name.rpartition('.')[0]
         for element in self.elements:
             space = getattr(element.element, 'space', None)

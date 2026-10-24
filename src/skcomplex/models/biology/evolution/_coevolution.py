@@ -3,13 +3,16 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, state
 from ....core.components import Element
-from ....core.laws import Extremal, Law, Symbols
+from ....core.formalisms.lattices import Extremal
+from ....core.laws import Law, Symbols
 from ....core.runtime import register_model
 from ....core.space import Adjacency, LatticeSpace, Neighborhood, NetworkSpace
 from ....core.system import System
@@ -36,14 +39,17 @@ class Species(Element):
         label:
             The label of the species or the lattice group.
 
-        fitness:
-            The initial fitness.
-
         updates:
             The number of updates per step.
 
         neighbors:
             `'ring'` for the two neighbours on a ring or `'graph'` for the neighbours of a node.
+
+        **values:
+            The values of the declared variables, by name:
+
+            fitness:
+                The initial fitness.
 
     Examples:
         >>> from skcomplex.models.biology.evolution import Species
@@ -52,8 +58,18 @@ class Species(Element):
     """
 
     fitness: float = state(default=0.5, domain=Domain.NONNEGATIVE)
-    updates: int = 200
-    neighbors: str = 'ring'
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        updates: int = 200,
+        neighbors: str = 'ring',
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.updates = updates
+        self.neighbors = neighbors
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the extremal update of the least fit species and its neighbours.

@@ -10,7 +10,8 @@ import numpy.typing as npt
 
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
-from ....core.laws import Jump, Law, LocalRule, Rate, Symbols
+from ....core.formalisms.lattices import LocalRule
+from ....core.laws import Jump, Law, Rate, Symbols
 from ....core.runtime import register_model
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System

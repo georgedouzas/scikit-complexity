@@ -9,13 +9,13 @@ from typing import Any, ClassVar, cast
 
 import numpy as np
 
-from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.interactions import Interaction, Match, matches
-from ....core.laws import Invariant, Law, Rule, Symbols, transfer
+from ....core.formalisms.agents import AgentView, Match, ModelView, Phase, Phases, Rule, matches
+from ....core.interactions import Interaction
+from ....core.laws import Invariant, Law, Symbols, transfer
 from ....core.runtime import register_model
-from ....core.space import DiscreteTime, LatticeSpace, Phase, Phases
+from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import Observable, System
 from ..realizations import OrderBook, Trade
 
@@ -202,11 +202,14 @@ class Book(Interaction):
         label:
             The label of the book.
 
-        traders:
-            The path of the group of traders.
-
         opening:
             The price before the first trade.
+
+        **values:
+            The values of the declared variables, by name:
+
+            traders:
+                The path of the group of traders.
 
     Examples:
         >>> from skcomplex.models.economics.finance import Book
@@ -216,7 +219,16 @@ class Book(Interaction):
 
     reports: ClassVar[tuple[str, ...]] = ('price', 'volume')
     traders: str = role()
-    opening: float = 100.0
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        opening: float = 100.0,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.opening = opening
 
     def laws(self, s: Symbols) -> list[Any]:
         """Return the matching of orders, the settlement rule, and the invariants of money and shares.

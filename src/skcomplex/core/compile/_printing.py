@@ -41,28 +41,7 @@ CONDITION = 'np.where('
 QUIET_ERRORS = "with np.errstate(divide='ignore', invalid='ignore', over='ignore'):"
 
 type Printed = tuple[str, int]
-
-
-class _Key:
-    """Key of an expression in tables, equal to keys of structurally identical expressions.
-
-    Sage's `==` builds a relation whose truth Maxima may be asked to prove, so tables of expressions compare keys
-    structurally instead.
-    """
-
-    __slots__ = ('_hash', 'item')
-
-    def __init__(self, item: Expression) -> None:
-        self.item = item
-        self._hash = hash(item)
-
-    def __hash__(self) -> int:
-        """Return the hash of the expression."""
-        return self._hash
-
-    def __eq__(self, other: object) -> bool:
-        """Check whether two keys hold structurally identical expressions."""
-        return isinstance(other, _Key) and bool(self.item.is_trivially_equal(other.item))
+NAMESPACE = {'np': np, 'erf': scipy.special.erf, 'erfc': scipy.special.erfc, 'gamma': scipy.special.gamma}
 
 
 def _is_sum(item: Expression) -> bool:
@@ -94,6 +73,46 @@ def _is_negative(value: Any) -> bool:  # noqa: ANN401
 def _numeric(item: Expression) -> Any:  # noqa: ANN401
     """Return the Python or Sage number of a numeric expression."""
     return item.pyobject()
+
+
+class _Key:
+    """Key of an expression in tables, equal to keys of structurally identical expressions.
+
+    Sage's `==` builds a relation whose truth Maxima may be asked to prove, so tables of expressions compare keys
+    structurally instead.
+    """
+
+    __slots__ = ('_hash', 'item')
+
+    def __init__(self, item: Expression) -> None:
+        self.item = item
+        self._hash = hash(item)
+
+    def __hash__(self) -> int:
+        """Return the hash of the expression."""
+        return self._hash
+
+    def __eq__(self, other: object) -> bool:
+        """Check whether two keys hold structurally identical expressions."""
+        return isinstance(other, _Key) and bool(self.item.is_trivially_equal(other.item))
+
+
+def _subexpressions(expressions: Sequence[Expression]) -> Counter[_Key]:
+    """Return how often every compound subexpression occurs in expressions."""
+    counts: Counter[_Key] = Counter()
+    stack = list(expressions)
+    while stack:
+        item = stack.pop()
+        if item.operator() is None:
+            continue
+        if _is_reciprocal(item):
+            stack.append(item.operands()[0])
+            continue
+        key = _Key(item)
+        counts[key] += 1
+        if counts[key] == 1:
+            stack.extend(item.operands())
+    return counts
 
 
 @dataclass(frozen=True)
@@ -158,6 +177,69 @@ class Dialect:
         return self.error(error_msg)
 
 
+def print_expressions(
+    expressions: Sequence[Expression],
+    dialect: Dialect,
+    names: Callable[[Expression], str] = str,
+    prefix: str = '_cse',
+    *,
+    shared: bool = True,
+) -> tuple[list[tuple[str, str]], list[str]]:
+    """Return the code of expressions, with every repeated compound subexpression bound to a numbered name.
+
+    Args:
+        expressions:
+            The expressions.
+
+        dialect:
+            The target language.
+
+        names:
+            The function that gives the code name of a symbol.
+
+        prefix:
+            The prefix of the names of bound subexpressions.
+
+        shared:
+            Whether repeated subexpressions are bound to names, for languages without assignments.
+
+    Returns:
+        code:
+            The assignments of bound subexpressions in the order they must run, and the code of every expression.
+
+    Raises:
+        ValidationError:
+            An expression uses a function the dialect has no equivalent for, with the dialect's error type.
+
+    Examples:
+        >>> from skcomplex.core.compile import NUMPY_DIALECT, print_expressions
+        >>> from skcomplex.core.base import symbol
+        >>> x = symbol('x')
+        >>> print_expressions([(x + 1) ** 2, 3 * (x + 1) ** 2], NUMPY_DIALECT)
+        ([('_cse0', '(x + 1)**2')], ['_cse0', '3*_cse0'])
+    """
+    expressions = [SR(expression) for expression in expressions]
+    printer = _Printer(dialect, names)
+    counts = _subexpressions(expressions)
+    assignments: list[tuple[str, str]] = []
+
+    def bind(item: Expression) -> None:
+        """Bind the repeated subexpressions of an expression, innermost first."""
+        key = _Key(item)
+        if item.operator() is None or key in printer.bound:
+            return
+        for operand in item.operands():
+            bind(operand)
+        if counts[key] > 1:
+            name = f'{prefix}{len(assignments)}'
+            assignments.append((name, printer.print(item)[0]))
+            printer.bound[key] = name
+
+    for expression in expressions if shared else ():
+        bind(expression)
+    return assignments, [printer.print(expression)[0] for expression in expressions]
+
+
 NUMPY_DIALECT = Dialect(
     'NumPy',
     {
@@ -195,6 +277,8 @@ NUMPY_DIALECT = Dialect(
     PYTHON_RELATIONS,
     complex_numbers=True,
 )
+
+
 SCALAR_DIALECT = Dialect(
     'Numba',
     {
@@ -231,7 +315,49 @@ SCALAR_DIALECT = Dialect(
     },
     PYTHON_RELATIONS,
 )
-NAMESPACE = {'np': np, 'erf': scipy.special.erf, 'erfc': scipy.special.erfc, 'gamma': scipy.special.gamma}
+
+
+def numpy_function(
+    time: Expression,
+    arguments: Sequence[Expression],
+    expressions: Sequence[Expression],
+) -> Callable[..., list[Any]]:
+    """Return a NumPy function of time and arguments that evaluates expressions over arrays.
+
+    NumPy evaluates both values of a condition, so a function of expressions with conditions runs in a NumPy error
+    state that ignores division, invalid, and overflow warnings.
+
+    Args:
+        time:
+            The time symbol, the first argument of the function.
+
+        arguments:
+            The symbols passed after time, in order.
+
+        expressions:
+            The expressions the function returns as a list.
+
+    Returns:
+        function:
+            The function `f(t, *arguments)`.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.compile import numpy_function
+        >>> from skcomplex.core.base import symbol
+        >>> t, x = symbol('t'), symbol('x')
+        >>> numpy_function(t, [x], [t * x, x**2])(2.0, np.array([1.0, 3.0]))
+        [array([2., 6.]), array([1., 9.])]
+    """
+    names = {item: f'_a{index}' for index, item in enumerate(arguments)} | {time: 't'}
+    assignments, codes = print_expressions(expressions, NUMPY_DIALECT, lambda item: names[item])
+    body = [*(f'{name} = {code}' for name, code in assignments), f'return [{", ".join(codes)}]']
+    if any(CONDITION in code for _, code in assignments) or any(CONDITION in code for code in codes):
+        body = [QUIET_ERRORS, *(f'    {line}' for line in body)]
+    lines = [f'def _function(t, {", ".join(names[item] for item in arguments)}):', *(f'    {line}' for line in body)]
+    namespace = dict(NAMESPACE)
+    exec('\n'.join(lines), namespace)  # noqa: S102  # nosec B102: runs code printed from the model's own expressions
+    return namespace['_function']
 
 
 @dataclass
@@ -353,127 +479,3 @@ class _Printer:
             return self.template(RELATIONS[function], item.operands())
         name = function.name() if hasattr(function, 'name') else str(function)
         return self.template(name, item.operands())
-
-
-def _subexpressions(expressions: Sequence[Expression]) -> Counter[_Key]:
-    """Return how often every compound subexpression occurs in expressions."""
-    counts: Counter[_Key] = Counter()
-    stack = list(expressions)
-    while stack:
-        item = stack.pop()
-        if item.operator() is None:
-            continue
-        if _is_reciprocal(item):
-            stack.append(item.operands()[0])
-            continue
-        key = _Key(item)
-        counts[key] += 1
-        if counts[key] == 1:
-            stack.extend(item.operands())
-    return counts
-
-
-def print_expressions(
-    expressions: Sequence[Expression],
-    dialect: Dialect,
-    names: Callable[[Expression], str] = str,
-    prefix: str = '_cse',
-    *,
-    shared: bool = True,
-) -> tuple[list[tuple[str, str]], list[str]]:
-    """Return the code of expressions, with every repeated compound subexpression bound to a numbered name.
-
-    Args:
-        expressions:
-            The expressions.
-
-        dialect:
-            The target language.
-
-        names:
-            The function that gives the code name of a symbol.
-
-        prefix:
-            The prefix of the names of bound subexpressions.
-
-        shared:
-            Whether repeated subexpressions are bound to names, for languages without assignments.
-
-    Returns:
-        code:
-            The assignments of bound subexpressions in the order they must run, and the code of every expression.
-
-    Raises:
-        ValidationError:
-            An expression uses a function the dialect has no equivalent for, with the dialect's error type.
-
-    Examples:
-        >>> from skcomplex.core.compile import NUMPY_DIALECT, print_expressions
-        >>> from skcomplex.core.base import symbol
-        >>> x = symbol('x')
-        >>> print_expressions([(x + 1) ** 2, 3 * (x + 1) ** 2], NUMPY_DIALECT)
-        ([('_cse0', '(x + 1)**2')], ['_cse0', '3*_cse0'])
-    """
-    expressions = [SR(expression) for expression in expressions]
-    printer = _Printer(dialect, names)
-    counts = _subexpressions(expressions)
-    assignments: list[tuple[str, str]] = []
-
-    def bind(item: Expression) -> None:
-        """Bind the repeated subexpressions of an expression, innermost first."""
-        key = _Key(item)
-        if item.operator() is None or key in printer.bound:
-            return
-        for operand in item.operands():
-            bind(operand)
-        if counts[key] > 1:
-            name = f'{prefix}{len(assignments)}'
-            assignments.append((name, printer.print(item)[0]))
-            printer.bound[key] = name
-
-    for expression in expressions if shared else ():
-        bind(expression)
-    return assignments, [printer.print(expression)[0] for expression in expressions]
-
-
-def numpy_function(
-    time: Expression,
-    arguments: Sequence[Expression],
-    expressions: Sequence[Expression],
-) -> Callable[..., list[Any]]:
-    """Return a NumPy function of time and arguments that evaluates expressions over arrays.
-
-    NumPy evaluates both values of a condition, so a function of expressions with conditions runs in a NumPy error
-    state that ignores division, invalid, and overflow warnings.
-
-    Args:
-        time:
-            The time symbol, the first argument of the function.
-
-        arguments:
-            The symbols passed after time, in order.
-
-        expressions:
-            The expressions the function returns as a list.
-
-    Returns:
-        function:
-            The function `f(t, *arguments)`.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.compile import numpy_function
-        >>> from skcomplex.core.base import symbol
-        >>> t, x = symbol('t'), symbol('x')
-        >>> numpy_function(t, [x], [t * x, x**2])(2.0, np.array([1.0, 3.0]))
-        [array([2., 6.]), array([1., 9.])]
-    """
-    names = {item: f'_a{index}' for index, item in enumerate(arguments)} | {time: 't'}
-    assignments, codes = print_expressions(expressions, NUMPY_DIALECT, lambda item: names[item])
-    body = [*(f'{name} = {code}' for name, code in assignments), f'return [{", ".join(codes)}]']
-    if any(CONDITION in code for _, code in assignments) or any(CONDITION in code for code in codes):
-        body = [QUIET_ERRORS, *(f'    {line}' for line in body)]
-    lines = [f'def _function(t, {", ".join(names[item] for item in arguments)}):', *(f'    {line}' for line in body)]
-    namespace = dict(NAMESPACE)
-    exec('\n'.join(lines), namespace)  # noqa: S102  # nosec B102: runs code printed from the model's own expressions
-    return namespace['_function']

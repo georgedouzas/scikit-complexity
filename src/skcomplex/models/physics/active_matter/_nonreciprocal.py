@@ -4,7 +4,7 @@
 # License: MIT
 
 import math
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -53,35 +53,38 @@ class NonreciprocalMover(Element):
         label:
             The label of the mover.
 
-        x:
-            The position.
-
-        theta:
-            The heading.
-
-        species:
-            The species, 0 for A or 1 for B.
-
-        v0:
-            The speed.
-
-        eta:
-            The width of the uniform noise of the heading.
-
-        J_aa:
-            The alignment of A with A.
-
-        J_ab:
-            The alignment of A with B.
-
-        J_ba:
-            The alignment of B with A.
-
-        J_bb:
-            The alignment of B with B.
-
         radius:
             The radius of the neighbourhood.
+
+        **values:
+            The values of the declared variables, by name:
+
+            x:
+                The position.
+
+            theta:
+                The heading.
+
+            species:
+                The species, 0 for A or 1 for B.
+
+            v0:
+                The speed.
+
+            eta:
+                The width of the uniform noise of the heading.
+
+            J_aa:
+                The alignment of A with A.
+
+            J_ab:
+                The alignment of A with B.
+
+            J_ba:
+                The alignment of B with A.
+
+            J_bb:
+                The alignment of B with B.
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import NonreciprocalMover
@@ -99,7 +102,16 @@ class NonreciprocalMover(Element):
     J_ab: float = parameter(default=1.0)
     J_ba: float = parameter(default=1.0)
     J_bb: float = parameter(default=1.0)
-    radius: float = 1.0
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        radius: float = 1.0,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.radius = radius
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the alignment of the heading with the species-weighted neighbours and the step along it.

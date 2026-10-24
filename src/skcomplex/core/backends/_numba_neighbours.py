@@ -1,4 +1,4 @@
-"""Find the neighbours of members within a radius, among the nearest, or inside a cone with cell lists in Numba."""
+"""Bin members into bounded cell grids and find their neighbours within a radius, among the nearest, or in a cone."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,17 +23,6 @@ FEWEST_CELLS = 64
 
 
 @njit(cache=True)
-def _coordinate(value: float, dimension: int, shape: Shape, box: Box) -> int:
-    """Return the cell coordinate of a position component, inside the grid of a shape of counts, sides, and origin."""
-    counts, sides, origin = shape
-    periods, periodic = box
-    if periodic:
-        wrapped = value % periods[dimension]
-        return min(int(wrapped // sides[dimension]), counts[dimension] - 1)
-    return max(0, min(int((value - origin[dimension]) // sides[dimension]), counts[dimension] - 1))
-
-
-@njit(cache=True)
 def _shape(side: float, low: Floats, high: Floats, box: Box) -> Shape:
     """Return the cell counts, sides, and origin of a grid of cells of at least a side over a box."""
     periods, periodic = box
@@ -47,47 +36,6 @@ def _shape(side: float, low: Floats, high: Floats, box: Box) -> Shape:
         else:
             counts[dimension] = int((high[dimension] - low[dimension]) // side) + 1
     return counts, sides, low
-
-
-@njit(cache=True)
-def _grid(positions: Floats, side: float, box: Box) -> Grid:
-    """Return a grid of cells of at least a side, coarsened to a few cells per member, with the members binned.
-
-    The grid is the shape of counts, sides, and origin, the strides, the start of every cell in the order, and the
-    members in cell order.
-    """
-    n_members, n_dim = positions.shape
-    low, high = np.zeros(n_dim), np.zeros(n_dim)
-    if not box[1] and n_members > 0:
-        for dimension in range(n_dim):
-            low[dimension] = positions[:, dimension].min()
-            high[dimension] = positions[:, dimension].max()
-    limit = max(FEWEST_CELLS, CELLS_PER_MEMBER * n_members)
-    shape = _shape(side, low, high, box)
-    while np.prod(shape[0].astype(np.float64)) > limit:
-        side *= 2.0
-        shape = _shape(side, low, high, box)
-    counts = shape[0]
-    strides = np.ones(n_dim, dtype=np.int64)
-    for dimension in range(1, n_dim):
-        strides[dimension] = strides[dimension - 1] * counts[dimension - 1]
-    n_cells = strides[n_dim - 1] * counts[n_dim - 1]
-    cells = np.empty(n_members, dtype=np.int64)
-    starts = np.zeros(n_cells + 1, dtype=np.int64)
-    for member in range(n_members):
-        flat = 0
-        for dimension in range(n_dim):
-            flat += _coordinate(positions[member, dimension], dimension, shape, box) * strides[dimension]
-        cells[member] = flat
-        starts[flat + 1] += 1
-    for cell in range(n_cells):
-        starts[cell + 1] += starts[cell]
-    filled = starts[:-1].copy()
-    order = np.empty(n_members, dtype=np.int64)
-    for member in range(n_members):
-        order[filled[cells[member]]] = member
-        filled[cells[member]] += 1
-    return shape, strides, starts, order
 
 
 @njit(cache=True)
@@ -119,7 +67,7 @@ def _cells_around(positions: Floats, member: int, reach: float, context: Context
     low = np.empty(n_dim, dtype=np.int64)
     high = np.empty(n_dim, dtype=np.int64)
     for dimension in range(n_dim):
-        center = _coordinate(positions[member, dimension], dimension, shape, box)
+        center = cell_coordinate(positions[member, dimension], dimension, shape, box)
         steps = math.ceil(reach / sides[dimension])
         if box[1] and 2 * steps + 1 >= counts[dimension]:
             low[dimension], high[dimension] = 0, counts[dimension] - 1
@@ -178,7 +126,7 @@ def _within(positions: Floats, radius: float, aim: Aim, box: Box, center: bool) 
     cached one, and generated kernels call the searches that way.
     """
     n_members = positions.shape[0]
-    context = (_grid(positions, radius, box), aim, box)
+    context = (build_grid(positions, radius, box), aim, box)
     counts = np.zeros(n_members, dtype=np.int64)
     for member in range(n_members):
         counts[member] = _scan(positions, member, radius, context, (np.empty(0, dtype=np.int64), np.empty(0), False))
@@ -193,6 +141,151 @@ def _within(positions: Floats, radius: float, aim: Aim, box: Box, center: bool) 
             indices[end - 1] = member
         indices[start:end] = np.sort(indices[start:end])
     return indptr, indices
+
+
+@njit(cache=True)
+def _side(positions: Floats, k: int, box: Box) -> float:
+    """Return the side of cells that hold about `k + 1` members each."""
+    n_members, n_dim = positions.shape
+    periods, periodic = box
+    volume = 1.0
+    for dimension in range(n_dim):
+        if periodic:
+            volume *= periods[dimension]
+        elif n_members > 0:
+            volume *= max(positions[:, dimension].max() - positions[:, dimension].min(), 1e-12)
+    side = (volume * (k + 1) / max(n_members, 1)) ** (1.0 / n_dim)
+    return side if side > 0 else 1.0
+
+
+@njit(cache=True)
+def _nearest_of(positions: Floats, member: int, k: int, side: float, context: Context) -> Integers:
+    """Return the `k` nearest other members of a member, doubling the reach of the search until it holds them."""
+    reach = side
+    nothing = (np.empty(0, dtype=np.int64), np.empty(0), False)
+    size = _scan(positions, member, reach, context, nothing)
+    while size < k:
+        reach *= 2.0
+        size = _scan(positions, member, reach, context, nothing)
+    candidates, distances = np.empty(size, dtype=np.int64), np.empty(size)
+    _scan(positions, member, reach, context, (candidates, distances, True))
+    return candidates[np.argsort(distances, kind='mergesort')[:k]]
+
+
+@njit(cache=True)
+def _edge_counts(
+    p: Floats,
+    ends: tuple[int, int, int],
+    n_edges: int,
+    n_nodes: int,
+    flags: tuple[bool, bool],
+) -> Integers:
+    """Return the start of the neighbours of every node along the active edge rows, and their number last."""
+    sources, targets, actives = ends
+    directed, center = flags
+    counts = np.zeros(n_nodes + 1, dtype=np.int64)
+    for edge in range(n_edges):
+        if p[actives + edge] > 0.5:  # noqa: PLR2004
+            counts[int(p[sources + edge]) + 1] += 1
+            counts[int(p[targets + edge]) + 1] += 0 if directed else 1
+    for node in range(n_nodes if center else 0):
+        counts[node + 1] += 1
+    return np.cumsum(counts)
+
+
+@njit(cache=True)
+def _sorted_rows(indptr: Integers, indices: Integers, edges: Integers) -> None:
+    """Sort the neighbours of every node, keeping their edges aligned."""
+    for node in range(indptr.size - 1):
+        start, end = indptr[node], indptr[node + 1]
+        order = np.argsort(indices[start:end], kind='mergesort')
+        indices[start:end] = indices[start:end][order]
+        edges[start:end] = edges[start:end][order]
+
+
+@njit(cache=True)
+def cell_coordinate(value: float, dimension: int, shape: Shape, box: Box) -> int:
+    """Return the cell coordinate of a position component, inside the grid of a shape of counts, sides, and origin.
+
+    Args:
+        value:
+            The position component.
+
+        dimension:
+            The dimension of the component.
+
+        shape:
+            The cell counts, sides, and origin of the grid.
+
+        box:
+            The sides of the periodic box and whether the space is periodic.
+
+    Returns:
+        coordinate:
+            The cell coordinate, clamped to the grid in an open space.
+    """
+    counts, sides, origin = shape
+    periods, periodic = box
+    if periodic:
+        wrapped = value % periods[dimension]
+        return min(int(wrapped // sides[dimension]), counts[dimension] - 1)
+    return max(0, min(int((value - origin[dimension]) // sides[dimension]), counts[dimension] - 1))
+
+
+@njit(cache=True)
+def build_grid(positions: Floats, side: float, box: Box) -> Grid:
+    """Return a grid of cells of at least a side, coarsened to a few cells per member, with the members binned.
+
+    The grid holds at most eight cells per member, and at least 64, so members far apart do not allocate a cell for
+    every side between them.
+
+    Args:
+        positions:
+            One row of position components per member.
+
+        side:
+            The smallest side of a cell.
+
+        box:
+            The sides of the periodic box and whether the space is periodic.
+
+    Returns:
+        grid:
+            The shape of cell counts, sides, and origin, the strides, the start of every cell in the order, and the
+            members in cell order.
+    """
+    n_members, n_dim = positions.shape
+    low, high = np.zeros(n_dim), np.zeros(n_dim)
+    if not box[1] and n_members > 0:
+        for dimension in range(n_dim):
+            low[dimension] = positions[:, dimension].min()
+            high[dimension] = positions[:, dimension].max()
+    limit = max(FEWEST_CELLS, CELLS_PER_MEMBER * n_members)
+    shape = _shape(side, low, high, box)
+    while np.prod(shape[0].astype(np.float64)) > limit:
+        side *= 2.0
+        shape = _shape(side, low, high, box)
+    counts = shape[0]
+    strides = np.ones(n_dim, dtype=np.int64)
+    for dimension in range(1, n_dim):
+        strides[dimension] = strides[dimension - 1] * counts[dimension - 1]
+    n_cells = strides[n_dim - 1] * counts[n_dim - 1]
+    cells = np.empty(n_members, dtype=np.int64)
+    starts = np.zeros(n_cells + 1, dtype=np.int64)
+    for member in range(n_members):
+        flat = 0
+        for dimension in range(n_dim):
+            flat += cell_coordinate(positions[member, dimension], dimension, shape, box) * strides[dimension]
+        cells[member] = flat
+        starts[flat + 1] += 1
+    for cell in range(n_cells):
+        starts[cell + 1] += starts[cell]
+    filled = starts[:-1].copy()
+    order = np.empty(n_members, dtype=np.int64)
+    for member in range(n_members):
+        order[filled[cells[member]]] = member
+        filled[cells[member]] += 1
+    return shape, strides, starts, order
 
 
 @njit(cache=True)
@@ -266,35 +359,6 @@ def cone_neighbours(  # noqa: PLR0917
 
 
 @njit(cache=True)
-def _side(positions: Floats, k: int, box: Box) -> float:
-    """Return the side of cells that hold about `k + 1` members each."""
-    n_members, n_dim = positions.shape
-    periods, periodic = box
-    volume = 1.0
-    for dimension in range(n_dim):
-        if periodic:
-            volume *= periods[dimension]
-        elif n_members > 0:
-            volume *= max(positions[:, dimension].max() - positions[:, dimension].min(), 1e-12)
-    side = (volume * (k + 1) / max(n_members, 1)) ** (1.0 / n_dim)
-    return side if side > 0 else 1.0
-
-
-@njit(cache=True)
-def _nearest_of(positions: Floats, member: int, k: int, side: float, context: Context) -> Integers:
-    """Return the `k` nearest other members of a member, doubling the reach of the search until it holds them."""
-    reach = side
-    nothing = (np.empty(0, dtype=np.int64), np.empty(0), False)
-    size = _scan(positions, member, reach, context, nothing)
-    while size < k:
-        reach *= 2.0
-        size = _scan(positions, member, reach, context, nothing)
-    candidates, distances = np.empty(size, dtype=np.int64), np.empty(size)
-    _scan(positions, member, reach, context, (candidates, distances, True))
-    return candidates[np.argsort(distances, kind='mergesort')[:k]]
-
-
-@njit(cache=True)
 def nearest_neighbours(
     positions: Floats,
     k: int,
@@ -332,7 +396,7 @@ def nearest_neighbours(
     k = max(0, min(k, n_members - 1))
     box = (periods, periodic)
     side = _side(positions, k, box)
-    context = (_grid(positions, side, box), (np.zeros((1, 1)), 1.0, False), box)
+    context = (build_grid(positions, side, box), (np.zeros((1, 1)), 1.0, False), box)
     extra = 1 if center else 0
     indptr = np.arange(n_members + 1, dtype=np.int64) * (k + extra)
     indices = np.empty(indptr[n_members], dtype=np.int64)
@@ -344,37 +408,6 @@ def nearest_neighbours(
             indices[end - 1] = member
         indices[start:end] = np.sort(indices[start:end])
     return indptr, indices
-
-
-@njit(cache=True)
-def _edge_counts(
-    p: Floats,
-    ends: tuple[int, int, int],
-    n_edges: int,
-    n_nodes: int,
-    flags: tuple[bool, bool],
-) -> Integers:
-    """Return the start of the neighbours of every node along the active edge rows, and their number last."""
-    sources, targets, actives = ends
-    directed, center = flags
-    counts = np.zeros(n_nodes + 1, dtype=np.int64)
-    for edge in range(n_edges):
-        if p[actives + edge] > 0.5:  # noqa: PLR2004
-            counts[int(p[sources + edge]) + 1] += 1
-            counts[int(p[targets + edge]) + 1] += 0 if directed else 1
-    for node in range(n_nodes if center else 0):
-        counts[node + 1] += 1
-    return np.cumsum(counts)
-
-
-@njit(cache=True)
-def _sorted_rows(indptr: Integers, indices: Integers, edges: Integers) -> None:
-    """Sort the neighbours of every node, keeping their edges aligned."""
-    for node in range(indptr.size - 1):
-        start, end = indptr[node], indptr[node + 1]
-        order = np.argsort(indices[start:end], kind='mergesort')
-        indices[start:end] = indices[start:end][order]
-        edges[start:end] = edges[start:end][order]
 
 
 @njit(cache=True)

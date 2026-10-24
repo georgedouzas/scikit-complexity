@@ -1,23 +1,31 @@
 """Compile systems into problems of one mathematical form with fast numeric functions."""
 
-from ._backends import BACKENDS, Backend, Lowering, load_backends, register_backend, resolve_backend
-from ._compiler import CensusRecord, compile_system, law_census, partition_system, with_initial_state
-from ._contractions import CompiledEncounter, TableValues
-from ._fields import mesh_laplacian, spectral_multiplier
-from ._hybrid import Breakpoints, CompiledEvent, Delay, EventRecord
-from ._lattices import (
-    CompiledDrive,
-    CompiledExtremal,
-    CompiledMonteCarlo,
-    CompiledRelaxation,
-    CompiledRule,
-    ExtremalRecord,
-    LatticeState,
-    LatticeStep,
-    RelaxationRecord,
+from ._arrays import Vector
+from ._backends import BACKENDS, Backend, Lowering, reads_reductions, register_backend, resolve_backend
+from ._capacity import CapacityRows, capacity_rows
+from ._census import Census, CensusRecord, OwnerRule, register_owner
+from ._compilation import BlockLaws, Compilation, Laws
+from ._compile import compile_system, partition_system
+from ._declarations import Block, Declarations, is_interaction, member_count
+from ._forms import register_combined, register_form
+from ._hybrid import CompiledEvent, EventRecord
+from ._issues import Issue, ValidationWarning, names_of
+from ._kernels import (
+    LATTICE_BOUNDARIES,
+    MODES,
+    EdgeSearch,
+    Kernel,
+    Lowered,
+    NeighborRead,
+    NoiseProcess,
+    Output,
+    Reference,
+    Source,
 )
 from ._layout import Entry, Layout
-from ._observables import ObservableEvaluator, observables_of, with_observables
+from ._observables import ObservableEvaluator, observables_of
+from ._pipeline import Check, Pass, order_passes, register_check, register_pass, run_passes
+from ._planner import SOLVERS, solver_classes, solver_registry
 from ._printing import NUMPY_DIALECT, SCALAR_DIALECT, Dialect, numpy_function, print_expressions
 from ._problem import (
     Accelerated,
@@ -26,109 +34,127 @@ from ._problem import (
     CompiledInteraction,
     Draws,
     FractionalRows,
-    JumpChannels,
-    MarkovMatrix,
+    Getter,
     NetworkSnapshot,
     Partition,
     Problem,
-    RenewalProcess,
+    Record,
     RenewalRecord,
-    TopologyChanges,
-    Vector,
     VectorFunction,
+    with_initial_state,
 )
-from ._quantities import CompiledFlow, CompiledObjective, LoopTerm, Recorded, StockFlow
-from ._quantum import DEFAULT_MAX_DIMENSION, QuantumProblem, QuantumTerm, contains_quantum
-from ._rewriting import CompiledGraph, CompiledPatch, compile_rewriting
-from ._structures import GraphStructure, PatchStructure, Structure, WordStructure
-from ._validation import (
-    Issue,
-    ValidationReport,
-    ValidationWarning,
-    domain_kind,
-    law_types,
-    missing_declarations,
-    validate,
+from ._quantities import LoopTerm, StockFlow
+from ._reductions import ReductionPass
+from ._specs import (
+    Binding,
+    KernelSpec,
+    group_space,
+    mask_of,
+    masked_value,
+    member_spec,
+    register_binding,
+    state_name,
+    target_references,
 )
-from ._words import CompiledWord
+from ._spectral import spectral_multiplier
+from ._system_passes import SystemPass, claiming_pass
+from ._tree import Node, coerce_value, declared_times, flatten_system
+from ._validation import ValidationReport, missing_declarations, validate
+from .passes._problem import visual_of
 
 __all__: list[str] = [
     'BACKENDS',
-    'DEFAULT_MAX_DIMENSION',
+    'LATTICE_BOUNDARIES',
+    'MODES',
     'NUMPY_DIALECT',
     'SCALAR_DIALECT',
+    'SOLVERS',
     'Accelerated',
     'Backend',
-    'Breakpoints',
+    'Binding',
+    'Block',
+    'BlockLaws',
+    'CapacityRows',
+    'Census',
     'CensusRecord',
+    'Check',
+    'Compilation',
     'CompiledAgents',
-    'CompiledDrive',
     'CompiledElement',
-    'CompiledEncounter',
     'CompiledEvent',
-    'CompiledExtremal',
-    'CompiledFlow',
-    'CompiledGraph',
     'CompiledInteraction',
-    'CompiledMonteCarlo',
-    'CompiledObjective',
-    'CompiledPatch',
-    'CompiledRelaxation',
-    'CompiledRule',
-    'CompiledWord',
-    'Delay',
+    'Declarations',
     'Dialect',
     'Draws',
+    'EdgeSearch',
     'Entry',
     'EventRecord',
-    'ExtremalRecord',
     'FractionalRows',
-    'GraphStructure',
+    'Getter',
     'Issue',
-    'JumpChannels',
-    'LatticeState',
-    'LatticeStep',
+    'Kernel',
+    'KernelSpec',
+    'Laws',
     'Layout',
     'LoopTerm',
+    'Lowered',
     'Lowering',
-    'MarkovMatrix',
+    'NeighborRead',
     'NetworkSnapshot',
+    'Node',
+    'NoiseProcess',
     'ObservableEvaluator',
+    'Output',
+    'OwnerRule',
     'Partition',
-    'PatchStructure',
+    'Pass',
     'Problem',
-    'QuantumProblem',
-    'QuantumTerm',
-    'Recorded',
-    'RelaxationRecord',
-    'RenewalProcess',
+    'Record',
+    'ReductionPass',
+    'Reference',
     'RenewalRecord',
+    'Source',
     'StockFlow',
-    'Structure',
-    'TableValues',
-    'TopologyChanges',
+    'SystemPass',
     'ValidationReport',
     'ValidationWarning',
     'Vector',
     'VectorFunction',
-    'WordStructure',
-    'compile_rewriting',
+    'capacity_rows',
+    'claiming_pass',
+    'coerce_value',
     'compile_system',
-    'contains_quantum',
-    'domain_kind',
-    'law_census',
-    'law_types',
-    'load_backends',
-    'mesh_laplacian',
+    'declared_times',
+    'flatten_system',
+    'group_space',
+    'is_interaction',
+    'mask_of',
+    'masked_value',
+    'member_count',
+    'member_spec',
     'missing_declarations',
+    'names_of',
     'numpy_function',
     'observables_of',
+    'order_passes',
     'partition_system',
     'print_expressions',
+    'reads_reductions',
     'register_backend',
+    'register_binding',
+    'register_check',
+    'register_combined',
+    'register_form',
+    'register_owner',
+    'register_pass',
     'resolve_backend',
+    'run_passes',
+    'solver_classes',
+    'solver_registry',
     'spectral_multiplier',
+    'state_name',
+    'target_references',
     'validate',
+    'visual_of',
     'with_initial_state',
-    'with_observables',
 ]

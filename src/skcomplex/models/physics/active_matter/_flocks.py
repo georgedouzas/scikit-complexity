@@ -159,7 +159,7 @@ def _flock(element: type[Element], n_particles: int, size: float, seed: int, **v
 
 @register_model(
     field='physics/active_matter',
-    tags=('active matter', 'flocking', 'alignment', 'discrete time', 'neighbourhood'),
+    tags=('active matter', 'flocking', 'alignment', 'discrete time', 'neighborhood'),
     references=('Vicsek et al. 1995', 'Argun et al. 2021', 'Jensen 2023', 'Vicsek and Zafeiris 2012'),
     defaults={'until': 200.0, 'dt': 1.0},
     observables=lambda system: _orders('flock'),
@@ -211,7 +211,7 @@ def vicsek(
 
 @register_model(
     field='physics/active_matter',
-    tags=('active matter', 'flocking', 'cohesion', 'discrete time', 'neighbourhood'),
+    tags=('active matter', 'flocking', 'cohesion', 'discrete time', 'neighborhood'),
     references=('Grégoire and Chaté 2004', 'Vicsek and Zafeiris 2012'),
     defaults={'until': 300.0, 'dt': 1.0},
     observables=lambda system: _orders('flock'),
@@ -272,7 +272,7 @@ def gregoire_chate(
 
 @register_model(
     field='physics/active_matter',
-    tags=('active matter', 'flocking', 'nematic', 'discrete time', 'neighbourhood'),
+    tags=('active matter', 'flocking', 'nematic', 'discrete time', 'neighborhood'),
     references=('Ginelli et al. 2010', 'Chaté 2020'),
     defaults={'until': 300.0, 'dt': 1.0},
     observables=lambda system: _orders('flock'),

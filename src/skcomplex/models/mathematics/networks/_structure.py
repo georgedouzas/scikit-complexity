@@ -9,10 +9,10 @@ import networkx as nx
 import numpy as np
 
 from ....core.analysis import assortativity, centrality, communities, motif_zscores, summarize_network
-from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, VisualSpec, state
 from ....core.components import Element
-from ....core.laws import Law, Rule, Symbols
+from ....core.formalisms.agents import AgentView, ModelView, Rule
+from ....core.laws import Law, Symbols
 from ....core.runtime import register_model
 from ....core.space import NetworkSpace
 from ....core.system import Observable, System

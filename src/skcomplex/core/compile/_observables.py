@@ -13,20 +13,48 @@ import numpy.typing as npt
 import scipy.sparse
 from sage.all__sagemath_symbolics import SR, I
 
-from ..base import Domain, Expression, RoleError, ValidationError, real_components_of, symbol, symbols_of
-from ..laws import Reduction, Symbols, reductions_in
+from ..base import (
+    Domain,
+    Expression,
+    Form,
+    RoleError,
+    SymbolicVector,
+    ValidationError,
+    VariableKind,
+    declarations_of,
+    symbol,
+    symbols_of,
+    vector,
+)
+from ..components import Aggregate
+from ..laws import Reduction, Symbols, count, maximum, mean, minimum, reductions_in, total, variance
 from ..system import Observable, System, reduce_values
+from ._arrays import Vector
 from ._complex import joined_complex
-from ._kernels import Source
+from ._declarations import Block, Declarations
+from ._kernels import Reference, Source
 from ._layout import Entry
 from ._printing import numpy_function
-from ._problem import Problem, Vector
-from ._quantities import Recorded
-from ._quantum import QuantumProblem, quantum_getters
-from ._reductions import CompiledReduction, Read, ReductionPass
+from ._problem import Getter, Problem
+from ._quantities import _Recorded
+from ._reads import Read
+from ._real_parts import real_components_of
+from ._reductions import CompiledReduction, ReductionPass
+from ._specs import Observed
+from ._tree import Node
 
 type AgentsOf = Callable[[str], list[Any] | None]
-type Getter = Callable[[float, Vector, Vector, Mapping[str, Any]], Any]
+
+REDUCERS: dict[str, Callable[..., Expression]] = {
+    'sum': total,
+    'mean': mean,
+    'max': maximum,
+    'min': minimum,
+    'var': variance,
+}
+
+
+type Declared = dict[str, tuple[str, Observable]]
 
 
 def _from_done(name: str) -> Callable[[Vector, Vector, Mapping[str, Any]], Any]:
@@ -64,27 +92,8 @@ def _join(scope: str, path: str) -> str:
     return f'{scope}/{path}' if scope else path
 
 
-def with_observables(system: System, observables: Sequence[Observable]) -> System:
-    """Return a copy of a system tree that declares observables in the systems their labels name.
-
-    An observable whose label is a path, such as `village/mean_wealth`, belongs to the nested system `village`, and
-    reads the symbols of that system as an observable of it. The system itself is left unchanged.
-
-    Args:
-        system:
-            The root system.
-
-        observables:
-            The observables, labelled by their path from the root.
-
-    Returns:
-        system:
-            The system itself without observables, or a copy of the tree whose systems hold them.
-
-    Raises:
-        ValidationError:
-            A label names a nested system that does not exist.
-    """
+def _with_observables(system: System, observables: Sequence[Observable]) -> System:
+    """Return a copy of a system tree that declares observables in the systems their labels name."""
     if not observables:
         return system
     by_scope: dict[str, list[Observable]] = {}
@@ -123,6 +132,82 @@ def _attached(system: System, by_scope: dict[str, list[Observable]], scope: str)
     return copied
 
 
+def _tree(items: Mapping[str, Any], **root: Any) -> Symbols:  # noqa: ANN401
+    """Return nested namespaces from paths such as `forest/foxes.n` mapped to values, with extra values at the root."""
+    nested: dict[str, Any] = {}
+    for path, value in items.items():
+        *systems, last = path.split('/')
+        node = nested
+        for name in systems:
+            node = node.setdefault(name, {})
+        element, _, variable = last.partition('.')
+        node.setdefault(element, {})[variable] = value
+
+    def build(node: dict[str, Any]) -> Symbols:
+        return Symbols(**{key: build(value) if isinstance(value, dict) else value for key, value in node.items()})
+
+    return Symbols(**{key: build(value) for key, value in nested.items()}, **root)
+
+
+def _is_lowerable(scope: str, observable: Observable, nodes: dict[str, Node]) -> bool:
+    """Check whether laws can read an observable at the current state, as an expression or a symbolic reduction."""
+    if observable.group is None:
+        return True
+    node = nodes.get(_join(scope, observable.group))
+    return node is not None and not node.is_agent and isinstance(observable.reduce, str)
+
+
+def _source_of(block: Block) -> Source:
+    """Return how laws read the variables of a block from outside it, per member for a group."""
+    return Source.MEMBER if block.node.members is not None else Source.SINGLE
+
+
+def _reduced_value(path: str, observable: Observable, block: Block) -> object:
+    """Return an observable that reduces a group as a reduction over the group's member symbols."""
+    namespace, _ = block.namespace(_source_of(block))
+    if observable.reduce == 'count':
+        return count(over=namespace)
+    if observable.variable is not None:
+        if observable.variable not in block.symbols:
+            error_msg = f'Observable {path} reduces {observable.variable}, which {block.node.path} does not declare.'
+            raise ValidationError(error_msg)
+        value: Any = block.symbols[observable.variable]
+    elif observable.expression is None:
+        error_msg = f'Observable {path} reduces {block.node.path} with {observable.reduce!r} but names no variable.'
+        raise ValidationError(error_msg)
+    else:
+        value = observable.expression(namespace) if callable(observable.expression) else observable.expression
+    reducer = REDUCERS[str(observable.reduce)]
+    if isinstance(value, SymbolicVector):
+        return vector(reducer(item, over=namespace) for item in value)
+    return reducer(value, over=namespace)
+
+
+def _role_paths(system: System, scope: str = '') -> set[str]:
+    """Return the paths from the root of everything that roles of a system tree bind to."""
+    paths = set()
+    for interaction in system.interactions:
+        for name in declarations_of(interaction, VariableKind.ROLE):
+            value = getattr(interaction, name)
+            labels = [value] if isinstance(value, str) else list(value) if isinstance(value, list | tuple) else []
+            paths |= {f'{scope}/{label}' if scope else label for label in labels if isinstance(label, str)}
+    for child in system.systems:
+        paths |= _role_paths(child, f'{scope}/{child.label}' if scope else child.label)
+    return paths
+
+
+def _readers_of(problem: Problem, path: str) -> set[str]:
+    """Return the paths of the elements and groups that interactions reading an observable bind their other roles to."""
+    readers: set[str] = set()
+    for interaction in problem.interactions:
+        bound = [
+            item for value in interaction.roles.values() for item in ([value] if isinstance(value, str) else value)
+        ]
+        if path in bound:
+            readers |= set(bound) - {path}
+    return readers
+
+
 def observables_of(system: System, scope: str = '') -> Iterator[tuple[str, Observable]]:
     """Yield the path of every system in a tree that declares observables, with each observable.
 
@@ -143,21 +228,89 @@ def observables_of(system: System, scope: str = '') -> Iterator[tuple[str, Obser
         yield from observables_of(child, _join(scope, child.label))
 
 
-def _tree(items: Mapping[str, Any], **root: Any) -> Symbols:  # noqa: ANN401
-    """Return nested namespaces from paths such as `forest/foxes.n` mapped to values, with extra values at the root."""
-    nested: dict[str, Any] = {}
-    for path, value in items.items():
-        *systems, last = path.split('/')
-        node = nested
-        for name in systems:
-            node = node.setdefault(name, {})
-        element, _, variable = last.partition('.')
-        node.setdefault(element, {})[variable] = value
+def lowerable_observables(system: System, nodes: list[Node]) -> Declared:
+    """Return every observable of a system tree that laws can read at the current state, by path.
 
-    def build(node: dict[str, Any]) -> Symbols:
-        return Symbols(**{key: build(value) if isinstance(value, dict) else value for key, value in node.items()})
+    An expression of a system's symbols is lowerable when every observable declared before it in its system is.
+    """
+    by_path = {node.path: node for node in nodes}
+    lowerable: Declared = {}
+    blocked: set[str] = set()
+    for scope, observable in observables_of(system):
+        if scope in blocked or not _is_lowerable(scope, observable, by_path):
+            blocked.add(scope)
+            continue
+        lowerable[_join(scope, observable.label)] = (scope, observable)
+    return lowerable
 
-    return Symbols(**{key: build(value) for key, value in nested.items()}, **root)
+
+def with_held_observables(system: System, read: set[str], scope: str = '') -> tuple[System, list[str]]:
+    """Return a system tree in which every observable in `read` is also an aggregate, and their paths."""
+    held: list[str] = []
+    aggregates = []
+    for observable in getattr(system, 'observables', ()):
+        path = f'{scope}/{observable.label}' if scope else observable.label
+        if path not in read:
+            continue
+        if observable.group is None or observable.expression is not None:
+            error_msg = (
+                f'A role binds to the observable {path}, which reads agents through an expression or an earlier '
+                'observable. Laws read observables of agents only when they reduce a variable or count the agents. '
+                'Declare it with `group` and `variable`.'
+            )
+            raise ValidationError(error_msg)
+        aggregates.append(
+            Aggregate(observable.label, group=observable.group, reduce=observable.reduce, variable=observable.variable),
+        )
+        held.append(path)
+    children = []
+    for child in system.systems:
+        new_child, child_held = with_held_observables(child, read, f'{scope}/{child.label}' if scope else child.label)
+        children.append(new_child)
+        held += child_held
+    if not held:
+        return system, held
+    copied = copy.copy(system)
+    copied.components = [*system.elements, *aggregates, *children]
+    return copied, held
+
+
+def held_observables(system: System, nodes: list[Node]) -> set[str]:
+    """Return the paths of the observables that roles bind to and laws read only at synchronisation points.
+
+    Args:
+        system:
+            The system, with the observables of the run.
+
+        nodes:
+            The nodes of the system.
+
+    Returns:
+        paths:
+            The paths of the held observables.
+    """
+    lowerable = lowerable_observables(system, nodes)
+    declared = {_join(scope, observable.label) for scope, observable in observables_of(system)}
+    return (_role_paths(system) & declared) - set(lowerable)
+
+
+def check_held_reads(problem: Problem, held: list[str]) -> None:
+    """Raise an error when a law reads an observable that cannot be lowered from the partition that computes it."""
+    groups = {
+        _join(scope, observable.label): _join(scope, observable.group or '')
+        for scope, observable in observables_of(problem.system)  # type: ignore[arg-type]
+    }
+    for path in held:
+        readers = _readers_of(problem, path)
+        shared = [item.name for item in problem.partitions if groups[path] in item.owners and readers & item.owners]
+        if problem.form is not Form.COUPLED or shared:
+            error_msg = (
+                f'A law reads the observable {path} in the partition that computes it, but the observable is a Python '
+                'function of the values or reduces agents, which laws cannot read at the current state. Write it '
+                'symbolically with a variable or an expression of the members, or move the reading law into another '
+                'subsystem of a different form.'
+            )
+            raise ValidationError(error_msg)
 
 
 @dataclass
@@ -293,8 +446,9 @@ class ObservableEvaluator:
         self._scalars = self._scalar_sources()
         self.getters_: dict[str, Getter] = {}
         system = self.problem.system
-        if isinstance(self.problem, QuantumProblem):
-            self.getters_ = quantum_getters(self.problem, observables_of(system) if system is not None else ())
+        own = self.problem.observable_getters(observables_of(system) if system is not None else ())
+        if own is not None:
+            self.getters_ = own
             return
         for scope, observable in observables_of(system) if system is not None else ():
             path = _join(scope, observable.label)
@@ -318,12 +472,12 @@ class ObservableEvaluator:
     def _scalar_sources(self) -> dict[Expression, tuple[str, int]]:
         """Return the vector and flat index of every symbol of a single element or interaction."""
         sources: dict[Expression, tuple[str, int]] = {}
-        for vector, layout in (('x', self.problem.states), ('p', self.problem.parameters)):
+        for name, layout in (('x', self.problem.states), ('p', self.problem.parameters)):
             for entry in layout:
                 if entry.members is not None or entry.name not in self.problem.symbols:
                     continue
                 for column, item in enumerate(real_components_of(self.problem.symbols[entry.name])):
-                    sources[item] = (vector, entry.start + column)
+                    sources[item] = (name, entry.start + column)
         return sources
 
     def _compile(
@@ -360,7 +514,7 @@ class ObservableEvaluator:
 
         return get
 
-    def _recorded_getter(self, recorded: Recorded) -> Getter:
+    def _recorded_getter(self, recorded: _Recorded) -> Getter:
         """Return the getter of a flow or an auxiliary, one value for a single component and one per group member."""
         members: dict[Expression, Callable[[Vector, Vector], Any]] = {}
         for item in symbols_of([recorded.expression]) - {self.problem.time}:
@@ -507,3 +661,61 @@ class ObservableEvaluator:
             done[path] = get(t, x, p, done)
         del done['__agents__']
         return done
+
+
+@dataclass
+class Observer:
+    """Values of the observables that laws read at the current state, built from the blocks of a system."""
+
+    declarations: Declarations
+    live: Declared
+    values: dict[str, tuple[object, dict[Expression, Reference]]] = field(default_factory=dict)
+
+    def _system_value(
+        self,
+        path: str,
+        scope: str,
+        observable: Observable,
+    ) -> tuple[object, dict[Expression, Reference]]:
+        """Return an expression of the symbols of a system's elements, with earlier observables by label."""
+        prefix = f'{scope}/' if scope else ''
+        items: dict[str, Any] = {}
+        references: dict[Expression, Reference] = {}
+        for block in self.declarations.blocks.values():
+            for variable, entry in block.entries.items():
+                if entry.members is None and entry.name.startswith(prefix):
+                    items[entry.name[len(prefix) :]] = block.symbols[variable]
+                    references.update(
+                        {item: block.references[item] for item in real_components_of(block.symbols[variable])},
+                    )
+        namespace = _tree(items)
+        for other, (other_scope, earlier) in self.live.items():
+            if other == path:
+                break
+            if other_scope == scope:
+                value, other_references = self.value(other, other_scope, earlier)
+                setattr(namespace, earlier.label, value)
+                references.update(other_references)
+        expression = observable.expression(namespace) if callable(observable.expression) else observable.expression
+        return expression, references
+
+    def value(self, path: str, scope: str, observable: Observable) -> tuple[object, dict[Expression, Reference]]:
+        """Return the value of an observable with the references of the symbols it reads."""
+        if path in self.values:
+            return self.values[path]
+        if observable.group is None:
+            self.values[path] = self._system_value(path, scope, observable)
+            return self.values[path]
+        block = self.declarations.blocks[_join(scope, observable.group)]
+        _, references = block.namespace(_source_of(block))
+        self.values[path] = (_reduced_value(path, observable, block), references)
+        return self.values[path]
+
+    def __call__(self, node: Node, label: object) -> Observed | None:
+        """Return the namespace of the observable a role binds to, or `None` for a role bound to no live observable."""
+        path = f'{node.scope}{label}' if isinstance(label, str) else None
+        if path not in self.live:
+            return None
+        scope, observable = self.live[path]
+        value, references = self.value(path, scope, observable)
+        return Observed(Symbols(value=value), dict(references))

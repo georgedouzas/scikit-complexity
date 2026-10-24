@@ -4,7 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 
@@ -17,7 +17,7 @@ from ....core.space import LatticeSpace
 from ....core.system import Observable, System
 
 
-def _neighbour_pairs(shape: tuple[int, ...]) -> list[tuple[int, int]]:
+def _neighbor_pairs(shape: tuple[int, ...]) -> list[tuple[int, int]]:
     """Return the pairs of flat indices of every patch and each of its nearest neighbours on a periodic lattice."""
     indices = np.arange(int(np.prod(shape))).reshape(shape)
     pairs: list[tuple[int, int]] = []
@@ -78,14 +78,17 @@ class Hopping(Interaction):
         label:
             The label of the interaction.
 
-        patches:
-            The paths of the patches, such as the members `patches[i]` of a lattice.
-
         links:
             The ordered pairs of entries of `patches` between which organisms hop.
 
-        beta:
-            The rate at which an organism hops to one neighbouring patch.
+        **values:
+            The values of the declared variables, by name:
+
+            patches:
+                The paths of the patches, such as the members `patches[i]` of a lattice.
+
+            beta:
+                The rate at which an organism hops to one neighbouring patch.
 
     Examples:
         >>> from skcomplex.models.biology.ecology import Hopping
@@ -95,7 +98,16 @@ class Hopping(Interaction):
 
     patches: list[str] = role(variadic=True)
     beta: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
-    links: Sequence[tuple[int, int]] = ()
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        links: Sequence[tuple[int, int]] = (),
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.links = links
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return one hop per ordered pair of neighbouring patches.
@@ -164,7 +176,7 @@ def neutral_clustering(
     members = [f'patches[{index}]' for index in range(int(np.prod(lattice)))]
     interactions = []
     if beta:
-        interactions.append(Hopping('hopping', patches=members, links=_neighbour_pairs(lattice), beta=beta))
+        interactions.append(Hopping('hopping', patches=members, links=_neighbor_pairs(lattice), beta=beta))
     return System(
         components=[patches],
         interactions=interactions,

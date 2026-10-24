@@ -4,13 +4,15 @@
 # License: MIT
 
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 from sage.all__sagemath_symbolics import cos
 
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
-from ....core.laws import Energy, Law, Move, Sample, Sampler, Symbols, neighbors, where
+from ....core.formalisms.lattices import Energy, Move, Sample, Sampler
+from ....core.laws import Law, Symbols, neighbors, where
 from ....core.runtime import register_model
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
@@ -25,20 +27,23 @@ class IsingSpin(Element):
         label:
             The label of the spin or the lattice group.
 
-        spin:
-            The initial spin, 1 or -1.
-
-        J:
-            The coupling between neighbouring spins.
-
-        h:
-            The external field.
-
-        temperature:
-            The temperature in units of the coupling.
-
         sampler:
             The acceptance rule, `'metropolis'`, `'glauber'`, or `'heat-bath'`.
+
+        **values:
+            The values of the declared variables, by name:
+
+            spin:
+                The initial spin, 1 or -1.
+
+            J:
+                The coupling between neighbouring spins.
+
+            h:
+                The external field.
+
+            temperature:
+                The temperature in units of the coupling.
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import IsingSpin
@@ -50,7 +55,16 @@ class IsingSpin(Element):
     J: float = parameter(default=1.0)
     h: float = parameter(default=0.0)
     temperature: float = parameter(default=2.0, domain=Domain.POSITIVE)
-    sampler: str = 'metropolis'
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        sampler: str = 'metropolis',
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.sampler = sampler
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the local energy, the spin flip, and the sampler.
@@ -63,7 +77,7 @@ class IsingSpin(Element):
             laws:
                 The laws of the component.
         """
-        energy = -s.J * s.spin * sum(neighbors(s.spin, NEAREST)) - s.h * s.spin
+        energy = -s.J * s.spin * sum(neighbors(s.spin, NEAREST, reduce='each')) - s.h * s.spin
         return [Sample(Energy(energy, NEAREST), Move.flip(s.spin), Sampler(self.sampler, s.temperature))]
 
 
@@ -74,20 +88,23 @@ class PottsSpin(Element):
         label:
             The label of the spin or the lattice group.
 
-        color:
-            The initial state from 0 to `q - 1`.
-
-        J:
-            The coupling between neighbouring spins.
-
-        temperature:
-            The temperature in units of the coupling.
-
         q:
             The number of states.
 
         sampler:
             The acceptance rule, `'metropolis'`, `'glauber'`, or `'heat-bath'`.
+
+        **values:
+            The values of the declared variables, by name:
+
+            color:
+                The initial state from 0 to `q - 1`.
+
+            J:
+                The coupling between neighbouring spins.
+
+            temperature:
+                The temperature in units of the coupling.
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import PottsSpin
@@ -98,8 +115,18 @@ class PottsSpin(Element):
     color: float = state(default=0.0, domain=Domain.NONNEGATIVE_INTEGER)
     J: float = parameter(default=1.0)
     temperature: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    q: int = 3
-    sampler: str = 'heat-bath'
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        q: int = 3,
+        sampler: str = 'heat-bath',
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.q = q
+        self.sampler = sampler
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the local energy, the random value move, and the sampler.
@@ -112,7 +139,7 @@ class PottsSpin(Element):
             laws:
                 The laws of the component.
         """
-        energy = -s.J * sum(where(s.color == item, 1, 0) for item in neighbors(s.color, NEAREST))
+        energy = -s.J * sum(where(s.color == item, 1, 0) for item in neighbors(s.color, NEAREST, reduce='each'))
         return [
             Sample(
                 Energy(energy, NEAREST),
@@ -129,17 +156,20 @@ class XYSpin(Element):
         label:
             The label of the spin or the lattice group.
 
-        theta:
-            The initial angle.
-
-        J:
-            The coupling between neighbouring spins.
-
-        temperature:
-            The temperature in units of the coupling.
-
         width:
             The largest change of a proposed rotation.
+
+        **values:
+            The values of the declared variables, by name:
+
+            theta:
+                The initial angle.
+
+            J:
+                The coupling between neighbouring spins.
+
+            temperature:
+                The temperature in units of the coupling.
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import XYSpin
@@ -150,7 +180,16 @@ class XYSpin(Element):
     theta: float = state(default=0.0, domain=Domain.ANGLE)
     J: float = parameter(default=1.0)
     temperature: float = parameter(default=0.5, domain=Domain.POSITIVE)
-    width: float = 1.0
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        width: float = 1.0,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.width = width
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the local energy, the rotation, and the Metropolis sampler.
@@ -163,7 +202,7 @@ class XYSpin(Element):
             laws:
                 The laws of the component.
         """
-        energy = -s.J * sum(cos(s.theta - item) for item in neighbors(s.theta, NEAREST))
+        energy = -s.J * sum(cos(s.theta - item) for item in neighbors(s.theta, NEAREST, reduce='each'))
         return [Sample(Energy(energy, NEAREST), Move.rotate(s.theta, self.width), Sampler('metropolis', s.temperature))]
 
 

@@ -3,30 +3,28 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import inspect
 import warnings
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any, cast
 
 import numpy as np
-from sage.all__sagemath_symbolics import SR
 
 from ..base import (
     BackendError,
     Categorical,
     Domain,
     DomainKind,
-    Expression,
     Form,
     HilbertFamily,
     HilbertSpace,
-    IncompatibleLawsError,
     LabelError,
+    LawClass,
     LawKind,
     NoiseKind,
     OrderKind,
     ParameterError,
-    Registry,
     Requires,
     RoleError,
     SkcomplexError,
@@ -38,59 +36,35 @@ from ..base import (
     Supports,
     Tensor,
     TimeKind,
+    UnregisteredLawError,
     ValidationError,
     VariableKind,
     declarations_of,
 )
-from ..components import Element, Field, Group, Wiener
-from ..interactions import Match
+from ..components import Element, Group, Wiener
 from ..laws import (
-    Auxiliary,
-    Boundary,
-    Call,
-    Destruction,
-    Dissipator,
-    Drive,
-    Emission,
-    Encounter,
-    Equation,
-    Event,
-    Extremal,
-    Flux,
-    Generator,
-    GraphProduction,
-    Invariant,
     Jump,
-    LocalRule,
     Noise,
-    Objective,
-    Production,
-    Proliferation,
-    Rate,
-    Relaxation,
-    Rule,
-    Sample,
-    Sampler,
-    Substitution,
-    TopologyRequest,
-    Transfer,
-    Transition,
-    Update,
-    neighbourhoods_in,
-    outcome_sums,
-    request_of,
+    law_classes,
+    neighborhoods_in,
+    values_of,
 )
-from ..laws._neighbourhoods import NeighbourReduction
-from ..space import Adjacency, Cone, GroupSpace, LatticeSpace, NetworkSpace, Space
+from ..laws._neighbourhoods import NeighborReduction
+from ..space import Adjacency, Cone, NetworkSpace, SiteSpace, Space
 from ..system import Observable, System
-from ._backends import BACKENDS, load_backends
-from ._compiler import CensusRecord, _held_observables, _process_covariance, _with_held_observables, law_census
+from ._backends import BACKENDS, Backend
+from ._census import Census, CensusRecord
+from ._compilation import Compilation
+from ._issues import ERROR, WARNING, Issue, ValidationWarning, names_of
 from ._layout import Entry
 from ._neighbourhoods import cone_heading, position_state
-from ._observables import with_observables
-from ._quantum import contains_quantum
-from ._rewriting import is_rewriting
-from ._tree import flatten_system
+from ._noise import process_covariance
+from ._observables import _with_observables, held_observables, with_held_observables
+from ._pipeline import _registered_passes, registered_checks, run_passes
+from ._planner import _Plan, solver_classes, solver_registry
+from ._system_passes import claiming_pass
+from ._tree import Node, declared_times
+from .passes._core import CORE_PASSES
 
 OPTIONAL_SOLVERS = {'lammps': 'lammps'}
 COVARIANCE_TOLERANCE = 1e-12
@@ -99,58 +73,23 @@ TIME_CLASSES = {
     TimeKind.DISCRETE: 'DiscreteTime()',
     TimeKind.STATIC: 'StaticTime()',
 }
-PROBABILITY_TOLERANCE = 1e-9
-LISTED_ENCOUNTERS = 3
-OWN_NEIGHBOURHOOD = Requires(space={SpaceKind.LATTICE, SpaceKind.NETWORK})
-
-
-def _solver_registry() -> Registry:
-    """Return the registry of solvers, imported late since the solvers import the compiler."""
-    from ..solvers import SOLVERS  # noqa: PLC0415
-
-    load_backends()
-
-    return SOLVERS
-
-
-def law_types() -> tuple[Any, ...]:
-    """Return every law type of the core.
-
-    Returns:
-        types:
-            The law types, in declaration order.
-    """
-    return (
-        Rate,
-        Noise,
-        Jump,
-        Update,
-        Transition,
-        Emission,
-        Boundary,
-        Rule,
-        Equation,
-        Event,
-        LocalRule,
-        Drive,
-        Extremal,
-        Relaxation,
-        Sample,
-        Match,
-        Flux,
-        Transfer,
-        Auxiliary,
-        Invariant,
-        Objective,
-        Generator,
-        Dissipator,
-        Production,
-        Substitution,
-        GraphProduction,
-        Encounter,
-        Proliferation,
-        Destruction,
-    )
+OWN_NEIGHBORHOOD = Requires(space={SpaceKind.LATTICE, SpaceKind.NETWORK})
+FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
+    LabelError: ('label', 'Give every child of a system a unique label of letters, digits, and underscores.'),
+    RoleError: ('role', 'Bind every role to the path of an element, group, or member of the system.'),
+    SpaceError: ('space-missing', 'Give the system a space whose kind the component supports.'),
+    ParameterError: ('parameter', 'Give the parameter a value inside its domain.'),
+    UnregisteredLawError: (
+        'law-unregistered',
+        'Import the formalism that registers the law class, or register it in a formalism.',
+    ),
+}
+REPLACEMENTS = {
+    DomainKind.CATEGORICAL: 'a jump, transition, or update law',
+    DomainKind.INTEGER: 'a jump or update law',
+    DomainKind.BOOLEAN: 'a jump or update law',
+    DomainKind.HILBERT: 'a generator or dissipator law',
+}
 
 
 def _subclasses(base: type) -> list[type]:
@@ -162,165 +101,8 @@ def _subclasses(base: type) -> list[type]:
     return found
 
 
-def missing_declarations() -> list[str]:
-    """Return the primitives, solvers, and backends that do not declare their requirements or support.
-
-    Every law type declares its law kind and its requirements, every space its kind, every registered solver and
-    backend its support. Validation reads only these declarations, so a primitive without one cannot be validated.
-
-    Returns:
-        missing:
-            One sentence per missing declaration.
-
-    Examples:
-        >>> from skcomplex.core.compile import missing_declarations
-        >>> missing_declarations()
-        []
-    """
-    missing = []
-    for law in law_types():
-        if not isinstance(getattr(law, 'law_kind', None), LawKind):
-            missing.append(f'The law {law.__name__} declares no law kind.')
-        if not isinstance(getattr(law, 'requires', None), Requires):
-            missing.append(f'The law {law.__name__} declares no requirements.')
-    missing.extend(
-        f'The space {space.__name__} declares no space kind.'
-        for space in _subclasses(Space)
-        if not isinstance(getattr(space, 'space_kind', None), SpaceKind)
-    )
-    solvers = _solver_registry()
-    for key in solvers:
-        solver = solvers.resolve(key)
-        if not isinstance(getattr(solver, 'supports', None), Supports):
-            _, name = cast('tuple[Form, str]', key)
-            missing.append(f'The solver {name!r} ({solver.__name__}) declares no support.')
-    for key in BACKENDS:
-        backend = BACKENDS.resolve(key)
-        if not isinstance(getattr(backend, 'supports', None), Supports):
-            missing.append(f'The backend {key!r} ({backend.__name__}) declares no support.')
-    return list(dict.fromkeys(missing))
-
-
-ERROR = 'error'
-WARNING = 'warning'
-FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
-    LabelError: ('label', 'Give every child of a system a unique label of letters, digits, and underscores.'),
-    RoleError: ('role', 'Bind every role to the path of an element, group, or member of the system.'),
-    SpaceError: ('space-missing', 'Give the system a space whose kind the component supports.'),
-    ParameterError: ('parameter', 'Give the parameter a value inside its domain.'),
-}
-REPLACEMENTS = {
-    DomainKind.CATEGORICAL: 'a jump, transition, or update law',
-    DomainKind.INTEGER: 'a jump or update law',
-    DomainKind.BOOLEAN: 'a jump or update law',
-    DomainKind.HILBERT: 'a generator or dissipator law',
-}
-
-
-@dataclass(frozen=True)
-class Issue:
-    """Problem that validation found in a system, with where it is and how to fix it.
-
-    Args:
-        code:
-            The stable code of the problem, such as `'law-domain'`.
-
-        path:
-            The slash path of the component or system the problem is in.
-
-        message:
-            What is wrong and why.
-
-        fix:
-            The change that makes the system valid.
-
-        severity:
-            `'error'` for problems that stop compilation, `'warning'` otherwise.
-
-        error:
-            The class of the error raised for the problem: `ValidationError` or one of its subclasses for the problems
-            validation finds, and the class of the original error for a component that fails to declare.
-    """
-
-    code: str
-    path: str
-    message: str
-    fix: str
-    severity: str = ERROR
-    error: type[SkcomplexError] = field(default=ValidationError, repr=False, compare=False)
-
-    def __str__(self) -> str:
-        """Return the issue as one line with its path, code, message, and fix."""
-        return f'{self.path}: {self.message} {self.fix} [{self.code}]'
-
-
-@dataclass
-class ValidationReport:
-    """Every problem of a system, its solver, and its backend.
-
-    Args:
-        issues:
-            The problems, in the order they were found.
-
-    Examples:
-        >>> from skcomplex.core.compile import validate
-        >>> from skcomplex.core.system import System
-        >>> validate(System()).ok
-        True
-    """
-
-    issues: list[Issue] = field(default_factory=list)
-
-    @property
-    def errors(self) -> list[Issue]:
-        """Return the problems that stop compilation."""
-        return [issue for issue in self.issues if issue.severity == ERROR]
-
-    @property
-    def warnings(self) -> list[Issue]:
-        """Return the problems that do not stop compilation."""
-        return [issue for issue in self.issues if issue.severity == WARNING]
-
-    @property
-    def ok(self) -> bool:
-        """Check whether the report holds no error."""
-        return not self.errors
-
-    def raise_errors(self) -> None:
-        """Raise one error that lists every error of the report, after emitting its warnings.
-
-        Raises:
-            ValidationError:
-                The report holds an error.
-        """
-        for issue in self.warnings:
-            warnings.warn(str(issue), ValidationWarning, stacklevel=3)
-        if self.errors:
-            lines = '\n'.join(f'- {issue}' for issue in self.errors)
-            error_msg = f'The system is not valid, with {len(self.errors)} error(s):\n{lines}'
-            classes = {issue.error for issue in self.errors}
-            raise (classes.pop() if len(classes) == 1 else ValidationError)(error_msg)
-
-
-class ValidationWarning(UserWarning):
-    """Warning of a problem that does not stop compilation."""
-
-
-def domain_kind(entry: Entry, *, vector: bool = False) -> DomainKind:
-    """Return the kind of value a state of the layout holds.
-
-    Args:
-        entry:
-            The layout entry of the state.
-
-        vector:
-            Whether the state is declared as a vector of the space's dimension. The shape of an entry does not tell,
-            since a field holds one value per site.
-
-    Returns:
-        kind:
-            The domain kind.
-    """
+def _domain_kind(entry: Entry, *, vector: bool = False) -> DomainKind:
+    """Return the kind of value a state of the layout holds."""
     domain = entry.domain
     if vector or entry.is_complex or domain is Domain.COMPLEX:
         return DomainKind.VECTOR if vector else DomainKind.COMPLEX
@@ -344,52 +126,6 @@ def _space_kind(space: Space | None) -> SpaceKind:
     return SpaceKind.NONE if space is None else space.space_kind
 
 
-def _names(terms: Iterable[object]) -> str:
-    """Return terms as a sorted, comma-separated list."""
-    return ', '.join(sorted(str(term) for term in terms))
-
-
-def _solver_classes() -> dict[Any, list[str]]:
-    """Return every registered solver class with its names, without the `'auto'` aliases."""
-    classes: dict[Any, list[str]] = {}
-    solvers = _solver_registry()
-    for key in solvers:
-        _, name = cast('tuple[Form, str]', key)
-        if name != 'auto':
-            classes.setdefault(solvers.resolve(key), []).append(name)
-    return classes
-
-
-def _fits(kinds: set[LawKind]) -> bool:
-    """Check whether one registered solver of a single form runs every law kind of a set.
-
-    Co-simulation is left out, since it runs partitions that each need a solver of their own.
-    """
-    return any(kinds <= solver.supports.laws for solver in _solver_classes() if solver.form is not Form.COUPLED)
-
-
-def _structure_issues(system: System) -> list[Issue]:
-    """Return the problems of the system tree that stop the census: wrong child types and bad labels."""
-    try:
-        flatten_system(system)
-    except SkcomplexError as error:
-        code, fix = FIXES.get(
-            type(error),
-            ('structure', 'Pass elements, groups, interactions, and systems as children.'),
-        )
-        return [Issue(code, system.label, str(error), fix, error=type(error))]
-    return []
-
-
-def _declared_times(system: System, scope: str = '', inherited: TimeKind | None = None) -> dict[str, TimeKind | None]:
-    """Return the declared time of every system of a tree by path, a nested system inheriting its parent's."""
-    time = system.time.kind if system.time is not None else inherited
-    times = {scope: time}
-    for child in system.systems:
-        times.update(_declared_times(child, f'{scope}/{child.label}' if scope else child.label, time))
-    return times
-
-
 def _layer_issues(node: Any, space: Space | None) -> list[Issue]:  # noqa: ANN401
     """Return the issue of an interaction over neighbours that names a layer its network does not have."""
     layer = getattr(node.component, 'layer', None)
@@ -404,9 +140,8 @@ def _layer_issues(node: Any, space: Space | None) -> list[Issue]:  # noqa: ANN40
     return [Issue('binding', node.path, message, fix)]
 
 
-def _binding_issues(system: System) -> list[Issue]:
+def _binding_issues(nodes: list[Node]) -> list[Issue]:
     """Return the interactions whose binding lacks its roles and parameters, or that the space does not offer."""
-    nodes = flatten_system(system)
     by_path = {node.path: node for node in nodes}
     issues = []
     for node in nodes:
@@ -424,18 +159,18 @@ def _binding_issues(system: System) -> list[Issue]:
                 issues.append(Issue('binding', node.path, message, fix))
             continue
         bound = [by_path.get(f'{node.scope}{getattr(interaction, name, "")}') for name in roles]
-        nodes = [item for item in bound if item is not None and getattr(item.component, 'on', None) != 'edges']
-        target = next(iter(nodes), None)
+        members = [item for item in bound if item is not None and getattr(item.component, 'on', None) != 'edges']
+        target = next(iter(members), None)
         space = target.space if target is not None else node.space
         offered = (
-            isinstance(space, LatticeSpace | NetworkSpace | GroupSpace)
-            if over == 'neighbours'
+            isinstance(space, SiteSpace | NetworkSpace)
+            if over == 'neighbors'
             else bool(
                 getattr(space, 'hyperedges', ()),
             )
         )
         if not offered:
-            needs = 'a lattice or network space' if over == 'neighbours' else 'a network space with hyperedges'
+            needs = 'a lattice or network space' if over == 'neighbors' else 'a network space with hyperedges'
             message = f'The binding over {over} needs {needs}, but the bound members live on {space!r}.'
             issues.append(Issue('binding', node.path, message, f'Give the bound group {needs}.'))
             continue
@@ -443,10 +178,10 @@ def _binding_issues(system: System) -> list[Issue]:
     return issues
 
 
-def _bound_issues(system: System) -> list[Issue]:
+def _bound_issues(nodes: list[Node]) -> list[Issue]:
     """Return the adaptive parameters whose initial values lie outside their bounds."""
     issues = []
-    for node in flatten_system(system):
+    for node in nodes:
         for name, declaration in declarations_of(node.component_type, VariableKind.STATE).items():
             if declaration.bounds is None:
                 continue
@@ -463,32 +198,11 @@ def _bound_issues(system: System) -> list[Issue]:
     return issues
 
 
-def _schedule_of(law: object) -> str | None:
-    """Return the schedule of a local rule or of the sampler of a sample, the default sampler's without one."""
-    if isinstance(law, LocalRule):
-        return law.schedule
-    if isinstance(law, Sample):
-        return (law.sampler or Sampler()).schedule
-    return None
-
-
-def _space_issues(system: System, records: list[CensusRecord]) -> list[Issue]:
-    """Return the laws and visuals that need options their space lacks, and the spaces above their site limit."""
+def _space_issues(system: System, nodes: list[Node]) -> list[Issue]:
+    """Return the visuals that need options their space lacks, and the spaces whose own check fails."""
     issues = []
-    for record in records:
-        lacks: frozenset[str] = getattr(record.space, 'lacks', frozenset())
-        if 'regular-geometry' in lacks and _schedule_of(record.law) == 'checkerboard':
-            message = (
-                f'The {type(record.law).__name__} law of {record.path} uses the checkerboard schedule, which needs the '
-                f'regular geometry of a square lattice, but the component lives on {type(record.space).__name__}.'
-            )
-            fix = (
-                "Use the 'synchronous' or the 'random-sequential' schedule of a local rule, or the "
-                "'random-sequential' or the 'colored' schedule of a sampler."
-            )
-            issues.append(Issue('schedule-unsupported', record.path, message, fix))
     spaces: dict[int, tuple[str, Space]] = {}
-    for node in flatten_system(system):
+    for node in nodes:
         space = getattr(node.component, 'space', None) or node.space
         visual = getattr(node.component, 'visual', None)
         if space is not None:
@@ -497,7 +211,8 @@ def _space_issues(system: System, records: list[CensusRecord]) -> list[Issue]:
             message = (
                 f'The image visual of {node.path} needs a regular lattice, but its space is {type(space).__name__}.'
             )
-            issues.append(Issue('visual-unsupported', node.path, message, "Use the 'cayley' visual."))
+            fix = f'Use the {space.default_visual!r} visual.' if isinstance(space, SiteSpace) else 'Use another visual.'
+            issues.append(Issue('visual-unsupported', node.path, message, fix))
     if system.space is not None:
         spaces.setdefault(id(system.space), (system.label, system.space))
     for path, space in spaces.values():
@@ -506,8 +221,10 @@ def _space_issues(system: System, records: list[CensusRecord]) -> list[Issue]:
         except SpaceTooLargeError as error:
             fix = 'Ask for a smaller ball, or raise max_sites.'
             issues.append(Issue('space-too-large', path, str(error), fix, error=SpaceTooLargeError))
-        except ValueError:
-            continue
+        except ValueError as error:
+            fix = f'Give the {type(space).__name__} a shape, a boundary, and a geometry that it supports.'
+            holder = path.rpartition('/')[0] or system.label
+            issues.append(Issue('space-invalid', holder, str(error), fix, error=SpaceError))
     return issues
 
 
@@ -519,95 +236,44 @@ def _law_issues(records: list[CensusRecord], times: dict[str, TimeKind | None]) 
         law, requires = record.law, record.law.requires
         name = f'{type(law).__name__} law of {record.path}'
         for entry in record.targets:
-            kind = domain_kind(entry, vector=entry.name in record.vectors)
+            kind = _domain_kind(entry, vector=entry.name in record.vectors)
             if not requires.accepts('domains', kind):
                 fix = f'Use {REPLACEMENTS[kind]}.' if kind in REPLACEMENTS else 'Target a state of a supported domain.'
                 message = (
                     f'The {name} targets {entry.name}, a {kind} state, but {law.law_kind} laws target '
-                    f'{_names(requires.domains)} states.'
+                    f'{names_of(requires.domains)} states.'
                 )
                 issues.append(Issue('law-domain', record.path, message, fix))
         space = _space_kind(record.space)
         if not requires.accepts('space', space):
-            message = f'The {name} needs a {_names(requires.space)} space, but the component lives on {space}.'
+            message = f'The {name} needs a {names_of(requires.space)} space, but the component lives on {space}.'
             issues.append(Issue('law-space', record.path, message, 'Give the system a space of a supported kind.'))
         if time is not None and not requires.accepts('time', time):
-            message = f'The {name} is a {law.law_kind.law_class} law, which needs {_names(requires.time)} time.'
+            message = f'The {name} is a {law.time_class} law, which needs {names_of(requires.time)} time.'
             kinds = {
-                str(item.law_kind) for item in law_types() if item.requires.time and item.requires.accepts('time', time)
+                str(item.law_kind)
+                for item in law_classes()
+                if item.requires.time and item.requires.accepts('time', time)
             }
             classes = ' or '.join(f'`{TIME_CLASSES[kind]}`' for kind in sorted(requires.time))
-            fix = f'Declare {_names(requires.time)} time with {classes}, or use a law of {time} time: {_names(kinds)}.'
+            fix = (
+                f'Declare {names_of(requires.time)} time with {classes}, or use a law of {time} time: '
+                f'{names_of(kinds)}.'
+            )
             issues.append(Issue('law-time', record.path, message, fix))
     return issues
 
 
-def _probability_sum(total: object) -> float | None:
-    """Return the sum of the outcome probabilities of one encounter as a number, or `None` when it holds a symbol."""
-    value = SR(total).simplify_full() if isinstance(total, Expression) else SR(total)
-    return float(value) if value.is_numeric() else None
-
-
-def _unnormalized(law: Encounter | Proliferation) -> list[tuple[int, int, float]]:
-    """Return the candidate and field activities of the encounters whose outcome probabilities do not sum to one."""
-    table = law.transition if isinstance(law, Encounter) else law.outcomes
-    if table is None:
-        return []
-    sums = outcome_sums(table)
-    rates = np.broadcast_to(law.rate, sums.shape)
-    found = []
-    for (candidate, field_activity), total in np.ndenumerate(sums):
-        rate = rates[candidate, field_activity]
-        if SR(rate).is_numeric() and float(SR(rate)) == 0:
-            continue
-        value = _probability_sum(total)
-        if value is not None and abs(value - 1) > PROBABILITY_TOLERANCE:
-            found.append((candidate, field_activity, value))
-    return found
-
-
-def _encounter_issues(records: list[CensusRecord]) -> list[Issue]:
-    """Return the encounter laws whose outcome probabilities do not sum to one over the outcomes of an encounter."""
-    issues = []
-    for record in records:
-        law = record.law
-        if not isinstance(law, Encounter | Proliferation):
-            continue
-        found = _unnormalized(law)
-        if not found:
-            continue
-        listed = '; '.join(
-            f'candidate activity {candidate} with field activity {field_activity} sums to {value:.6g}'
-            for candidate, field_activity, value in found[:LISTED_ENCOUNTERS]
-        )
-        more = f', and {len(found) - LISTED_ENCOUNTERS} more' if len(found) > LISTED_ENCOUNTERS else ''
-        message = (
-            f'The {type(law).__name__} law of {record.path} has outcome probabilities that do not sum to one over the '
-            f'outcomes of an encounter: {listed}{more}.'
-        )
-        fix = 'Give outcome probabilities that sum to one over the outcomes of every encounter with a nonzero rate.'
-        issues.append(Issue('encounter-probabilities', record.path, message, fix))
-    return issues
-
-
-def _reductions_of(value: object) -> list[NeighbourReduction]:
+def _reductions_of(value: object) -> list[NeighborReduction]:
     """Return every neighbourhood reduction of a law value, nested ones included."""
     found = []
-    stack = neighbourhoods_in(value)
+    stack = neighborhoods_in(value)
     while stack:
         reduction = stack.pop()
         found.append(reduction)
-        stack += neighbourhoods_in(reduction.argument)
-        stack += neighbourhoods_in(reduction.weight) if reduction.weight is not None else []
+        stack += neighborhoods_in(reduction.argument)
+        stack += neighborhoods_in(reduction.weight) if reduction.weight is not None else []
     return found
-
-
-def _law_values(law: object) -> list[object]:
-    """Return the values of a law that may hold neighbourhood reductions."""
-    if isinstance(law, Jump):
-        return [law.rate]
-    value = getattr(law, 'value', None)
-    return list(value.arguments) if isinstance(value, Call) else [value]
 
 
 def _space_fix(requires: Requires) -> str:
@@ -635,128 +301,57 @@ def _layer_reduction_issue(name: str, path: str, over: object, space: object) ->
     return Issue('binding', path, message, fix)
 
 
-def _neighbourhood_issues(records: list[CensusRecord], system: System) -> list[Issue]:
+def _neighborhood_issues(records: list[CensusRecord], nodes: list[Node]) -> list[Issue]:
     """Return the neighbourhood reductions whose space does not offer them, and the cones without a heading."""
-    nodes = {node.path: node for node in flatten_system(system)}
+    by_path = {node.path: node for node in nodes}
     issues = []
     for record in records:
         name = f'{type(record.law).__name__} law of {record.path}'
         space = _space_kind(record.space)
-        for value in _law_values(record.law):
-            for reduction in _reductions_of(value):
-                over = reduction.over
-                requires = OWN_NEIGHBOURHOOD if over is None else over.requires
-                described = 'the neighbours of its space' if over is None else repr(over)
-                if not requires.accepts('space', space):
-                    message = (
-                        f'The {name} reduces over {described}, which needs a {_names(requires.space)} space, but the '
-                        f'component lives on {space}.'
+        values = values_of(record.law, include=('rate',) if isinstance(record.law, Jump) else ('value',))
+        reductions = {str(item.call): item for value in values for item in _reductions_of(value)}
+        for reduction in reductions.values():
+            over = reduction.over
+            requires = OWN_NEIGHBORHOOD if over is None else over.requires
+            described = 'the neighbours of its space' if over is None else repr(over)
+            if not requires.accepts('space', space):
+                message = (
+                    f'The {name} reduces over {described}, which needs a {names_of(requires.space)} space, but the '
+                    f'component lives on {space}.'
+                )
+                issues.append(Issue('law-space', record.path, message, _space_fix(requires)))
+                continue
+            layered = _layer_reduction_issue(name, record.path, over, record.space)
+            if layered is not None:
+                issues.append(layered)
+                continue
+            node = by_path.get(record.owner)
+            if node is None or space is not SpaceKind.CONTINUOUS or over is None:
+                continue
+            states = declarations_of(node.component_type, VariableKind.STATE)
+            if position_state(states) is None:
+                message = (
+                    f'The {name} reduces over {over!r}, which measures distances between positions, but '
+                    f'{record.owner} declares no vector position state.'
+                )
+                fix = 'Declare the position with `state(vector=True, position=True)`.'
+                issues.append(Issue('law-domain', record.path, message, fix))
+                continue
+            if isinstance(over, Cone):
+                try:
+                    cone_heading(over, states, getattr(record.space, 'n_dim', 0))
+                except ValidationError as error:
+                    fix = (
+                        "Declare a vector velocity, `state(vector=True, velocity_of='x')`, or name a heading "
+                        "state, such as `Cone(r, angle, heading='theta')`."
                     )
-                    issues.append(Issue('law-space', record.path, message, _space_fix(requires)))
-                    continue
-                layered = _layer_reduction_issue(name, record.path, over, record.space)
-                if layered is not None:
-                    issues.append(layered)
-                    continue
-                node = nodes.get(record.owner)
-                if node is None or space is not SpaceKind.CONTINUOUS or over is None:
-                    continue
-                states = declarations_of(node.component_type, VariableKind.STATE)
-                if position_state(states) is None:
-                    message = (
-                        f'The {name} reduces over {over!r}, which measures distances between positions, but '
-                        f'{record.owner} declares no vector position state.'
-                    )
-                    fix = 'Declare the position with `state(vector=True, position=True)`.'
-                    issues.append(Issue('law-domain', record.path, message, fix))
-                    continue
-                if isinstance(over, Cone):
-                    try:
-                        cone_heading(over, states, getattr(record.space, 'n_dim', 0))
-                    except ValidationError as error:
-                        fix = (
-                            "Declare a vector velocity, `state(vector=True, velocity_of='x')`, or name a heading "
-                            "state, such as `Cone(r, angle, heading='theta')`."
-                        )
-                        issues.append(Issue('law-domain', record.path, f'The {name}: {error}', fix))
-    return issues
-
-
-def _fixed_groups(request: TopologyRequest, owner: Any, groups: list[Any]) -> tuple[list[str], bool]:  # noqa: ANN401
-    """Return the fixed groups a request changes, and whether its layer lacks an edge group."""
-    edges = [node for node in groups if node.component.on == 'edges' and node.component.layer == request.layer]
-    sites = [node for node in groups if node.component.on == 'sites']
-    changed = []
-    if request.on_edges or request.edges:
-        changed += edges
-    if request.kind in {'add-node', 'remove-node'}:
-        changed += sites
-    if owner is not None:
-        changed.append(owner)
-    fixed = list(dict.fromkeys(node.path for node in changed if not node.component.variable))
-    return fixed, (request.on_edges or bool(request.edges)) and not edges
-
-
-def _topology_issues(records: list[CensusRecord], system: System) -> list[Issue]:
-    """Return the topology requests that change fixed groups, or edges of a layer without a variable edge group."""
-    nodes = flatten_system(system)
-    by_path = {node.path: node for node in nodes}
-    issues = []
-    for record in records:
-        try:
-            request = request_of(record.law)
-        except ValidationError as error:
-            issues.append(Issue('value', record.path, str(error), 'Fire one request per jump, with increment 1.'))
-            continue
-        if request is None:
-            continue
-        space = record.space
-        if not isinstance(space, NetworkSpace):
-            spaces = {id(node.space): node.space for node in nodes if isinstance(node.space, NetworkSpace)}
-            space = next(iter(spaces.values())) if len(spaces) == 1 else space
-        groups = [node for node in nodes if isinstance(node.component, Group) and node.space is space]
-        owner = by_path.get(record.owner)
-        owner = owner if owner is not None and isinstance(owner.component, Group) else None
-        fixed, missing = _fixed_groups(request, owner, [node for node in groups if node.component.on])
-        if not fixed and not missing:
-            continue
-        listed = ', '.join(fixed) or 'none'
-        where = f'the layer {request.layer!r}' if request.layer is not None else 'the network'
-        message = f'The {_law_name(record)} requests {request!r}, which changes the fixed groups {listed}.'
-        if missing:
-            message += f' {where[0].upper()}{where[1:]} has no group on its edges.'
-        fix = (
-            'Give the groups on the nodes and the edges of the network `variable=True`, with a group on the edges '
-            'of every layer the request changes, `Group(..., on="edges", variable=True)`.'
-        )
-        issues.append(Issue('group-fixed', record.path, message, fix))
-    return issues
-
-
-def _mixed_issues(system: System, owners: dict[str, set[LawKind]], scope: str = '') -> list[Issue]:
-    """Return the systems whose own laws no single solver runs, naming their components by law class."""
-    under = {owner: kinds for owner, kinds in owners.items() if owner.startswith(scope)}
-    if _fits(set().union(*under.values())):
-        return []
-    own = {owner: kinds for owner, kinds in under.items() if '/' not in owner[len(scope) :]}
-    if not system.systems or not _fits(set().union(*own.values())):
-        classes: dict[str, list[str]] = {}
-        for owner, kinds in (own if system.systems else under).items():
-            for kind in kinds:
-                classes.setdefault(f'{kind}', []).append(owner)
-        listed = '; '.join(f'{kind}: {", ".join(sorted(set(paths)))}' for kind, paths in sorted(classes.items()))
-        message = f'No solver runs the laws of this system together ({listed}).'
-        fix = 'Move the components of each law kind into their own nested system, so they run as coupled partitions.'
-        return [Issue('laws-mixed', scope.rstrip('/') or system.label, message, fix, error=IncompatibleLawsError)]
-    issues = []
-    for child in system.systems:
-        issues += _mixed_issues(child, owners, f'{scope}{child.label}/')
+                    issues.append(Issue('law-domain', record.path, f'The {name}: {error}', fix))
     return issues
 
 
 def _solver_issues(solver: object, records: list[CensusRecord], system: System) -> list[Issue]:
     """Return the requirements of a system that a chosen solver does not support."""
-    classes = _solver_classes()
+    classes = solver_classes()
     if isinstance(solver, str):
         found = [cls for cls, names in classes.items() if solver in names]
         if not found:
@@ -769,10 +364,10 @@ def _solver_issues(solver: object, records: list[CensusRecord], system: System) 
     else:
         stepper = type(solver)
     needs = {
-        'time': {kind for kind in _declared_times(system).values() if kind is not None},
+        'time': {kind for kind in declared_times(system).values() if kind is not None},
         'laws': {record.law.law_kind for record in records},
         'domains': {
-            domain_kind(entry, vector=entry.name in record.vectors) for record in records for entry in record.targets
+            _domain_kind(entry, vector=entry.name in record.vectors) for record in records for entry in record.targets
         },
         'space': {_space_kind(record.space) for record in records},
         'components': {record.component for record in records},
@@ -790,9 +385,34 @@ def _solver_issues(solver: object, records: list[CensusRecord], system: System) 
     return issues
 
 
-def _wiener_nodes(system: System) -> list[tuple[str, Wiener]]:
+def _order_issues(nodes: list[Node]) -> list[Issue]:
+    """Return the states of a fractional order when no registered solver integrates fractional orders."""
+    if any(OrderKind.FRACTIONAL in cls.supports.orders and cls.form is not Form.COUPLED for cls in solver_classes()):
+        return []
+    fractional = [
+        (node.path, name, declaration.order)
+        for node in nodes
+        if isinstance(node.component, Element | Group)
+        for name, declaration in declarations_of(node.component_type, VariableKind.STATE).items()
+        if declaration.is_fractional
+    ]
+    fix = 'Import the formalism of fractional orders, `skcomplex.core.formalisms.fractional`.'
+    return [
+        Issue(
+            'order-unsupported',
+            path,
+            f'The state {path}.{name} declares the fractional order {order}, but no registered solver integrates '
+            'fractional orders.',
+            fix,
+            error=SolverError,
+        )
+        for path, name, order in fractional
+    ]
+
+
+def _wiener_nodes(nodes: list[Node]) -> list[tuple[str, Wiener]]:
     """Return the path and the element of every Wiener element of a system."""
-    return [(node.path, node.component) for node in flatten_system(system) if isinstance(node.component, Wiener)]
+    return [(node.path, node.component) for node in nodes if isinstance(node.component, Wiener)]
 
 
 def _matrix_problem(matrix: np.ndarray) -> str | None:
@@ -823,11 +443,11 @@ def _covariance_problem(wiener: Wiener) -> str | None:
     return _matrix_problem(matrix)
 
 
-def _wiener_issues(system: System) -> list[Issue]:
+def _wiener_issues(system: System, nodes: list[Node]) -> list[Issue]:
     """Return the Wiener elements outside continuous time or with an invalid covariance."""
-    times = _declared_times(system)
+    times = declared_times(system)
     issues = []
-    for path, wiener in _wiener_nodes(system):
+    for path, wiener in _wiener_nodes(nodes):
         time = times.get(path.rpartition('/')[0])
         if time is not None and not wiener.requires.accepts('time', time):
             message = f'The Wiener element {path} declares Wiener processes, which exist only in continuous time.'
@@ -899,7 +519,7 @@ def _sharer(record: CensusRecord, noisy: list[CensusRecord], wieners: dict[str, 
             if item.path == record.path:
                 continue
             for state, process in zip(item.driven, item.processes, strict=True):
-                if process is not None and state in reads and _process_covariance(key, process, wieners):
+                if process is not None and state in reads and process_covariance(key, process, wieners):
                     return item
     return None
 
@@ -952,9 +572,9 @@ def _noise_runners(solver: object, backend: object) -> list[tuple[str, Any]]:
     """Return the solver and the backend that run the noise of a system, leaving out unknown names and backends."""
     runners: list[tuple[str, Any]] = []
     if solver == 'auto':
-        runners.append(('solver', _solver_registry().resolve((Form.SDE, 'auto'))))
+        runners.append(('solver', solver_registry().resolve((Form.SDE, 'auto'))))
     elif isinstance(solver, str):
-        runners += [('solver', cls) for cls, names in _solver_classes().items() if solver in names][:1]
+        runners += [('solver', cls) for cls, names in solver_classes().items() if solver in names][:1]
     else:
         runners.append(('solver', type(solver)))
     if isinstance(backend, str) and backend in set(BACKENDS):
@@ -968,7 +588,7 @@ def _noise_fix(term: NoiseKind) -> str:
     """Return the fix that lists the solvers and backends that support a noise structure."""
     solvers = sorted(
         name
-        for cls, names in _solver_classes().items()
+        for cls, names in solver_classes().items()
         if LawKind.NOISE in cls.supports.laws and term in cls.supports.noise
         for name in names
     )
@@ -996,158 +616,138 @@ def _noise_support_issues(
     return issues
 
 
-def _is_lattice_field(component: object) -> bool:
-    """Check whether a component is a finite-difference field on a square lattice."""
-    return (
-        isinstance(component, Field)
-        and isinstance(component.space, LatticeSpace)
-        and component.space.geometry == 'square'
-        and component.discretization == 'finite-difference'
-    )
-
-
-def _conserved_issues(system: System, records: list[CensusRecord]) -> list[Issue]:
-    """Return the conserved noise laws that drive a state that is not of a finite-difference field on a lattice."""
-    components = {node.path: node.component for node in flatten_system(system)}
-    issues = []
-    for record in _noise_records(records):
-        if not cast('Noise', record.law).conserved:
-            continue
-        outside = [name for name, _ in record.driven if not _is_lattice_field(components.get(name.rpartition('.')[0]))]
-        if outside:
-            message = (
-                f'The conserved {_law_name(record)} drives {", ".join(dict.fromkeys(outside))}, but conserved noise '
-                'needs a state of a finite-difference field on a square lattice, with one process per link.'
-            )
-            fix = 'Declare the state on a `Field` of a `LatticeSpace`, or remove `conserved=True`.'
-            issues.append(Issue('noise-unsupported', record.path, message, fix))
-    return issues
-
-
-def _noise_issues(system: System, records: list[CensusRecord], solver: object, backend: object) -> list[Issue]:
+def _noise_issues(compilation: Compilation, records: list[CensusRecord]) -> list[Issue]:
     """Return the problems of the Wiener elements and the noise laws of a system."""
-    wieners = dict(_wiener_nodes(system))
-    issues = _wiener_issues(system) + _handle_issues(records)
+    nodes = cast('list[Node]', compilation.nodes)
+    solver, backend = compilation.solver, compilation.backend
+    wieners = dict(_wiener_nodes(nodes))
+    issues = _wiener_issues(compilation.system, nodes) + _handle_issues(records)
     if any(issue.code == 'wiener-covariance' for issue in issues):
         return issues
     issues += _convention_issues(records)
     issues += _scope_issues(records, wieners)
-    issues += _conserved_issues(system, records)
     return issues + _noise_support_issues(records, wieners, solver, backend)
 
 
-@dataclass(frozen=True)
-class _FractionalState:
-    """State of a fractional order with the path of its component."""
+def _counted(
+    system: System,
+    solver: object,
+    backend: object,
+    observables: Sequence[Observable],
+) -> tuple[Compilation | None, list[Issue]]:
+    """Return the compilation of a system through the census of its laws, or the issues that stop it before.
 
-    path: str
-    name: str
-    order: float
-
-
-def _fractional_states(system: System) -> list[_FractionalState]:
-    """Return every state of a fractional order of the elements and groups of a system."""
-    found = []
-    for node in flatten_system(system):
-        if not isinstance(node.component, Element | Group):
-            continue
-        for name, declaration in declarations_of(node.component_type, VariableKind.STATE).items():
-            if declaration.is_fractional:
-                found.append(_FractionalState(node.path, f'{node.path}.{name}', declaration.order))
-    return found
-
-
-def _fractional_solvers() -> list[str]:
-    """Return the names of the registered solvers that integrate fractional orders, without co-simulation."""
-    return sorted(
-        {
-            name
-            for cls, names in _solver_classes().items()
-            if OrderKind.FRACTIONAL in cls.supports.orders and cls.form is not Form.COUPLED
-            for name in names
-        },
-    )
-
-
-def _stepper_class(solver: object) -> Any:  # noqa: ANN401
-    """Return the class of a solver given by a registered name or an instance, or `None` for an unknown name."""
-    if not isinstance(solver, str):
-        return type(solver)
-    return next((cls for cls, names in _solver_classes().items() if solver in names), None)
-
-
-def _backend_class(backend: object) -> Any:  # noqa: ANN401
-    """Return the class of a backend given by a registered name or an instance, or `None` for `'auto'` or a typo."""
-    if not isinstance(backend, str):
-        return type(backend)
-    return BACKENDS.resolve(backend) if backend in set(BACKENDS) else None
-
-
-def _support_issues(states: list[_FractionalState], solver: object, backend: object) -> list[Issue]:
-    """Return the fractional states that a chosen solver or backend does not integrate."""
-    stepper = _stepper_class(solver) if solver != 'auto' else None
-    engine = _backend_class(backend)
-    issues = []
-    for item in states:
-        if stepper is not None and OrderKind.FRACTIONAL not in stepper.supports.orders:
-            message = f'The solver {stepper.__name__} does not integrate {item.name}, a state of order {item.order}.'
-            fix = f'Use one of the fractional solvers {", ".join(_fractional_solvers())}.'
-            issues.append(Issue('order-unsupported', item.path, message, fix, error=SolverError))
-        if engine is not None and OrderKind.FRACTIONAL not in engine.supports.orders:
-            capable = sorted(
-                str(key) for key in BACKENDS if OrderKind.FRACTIONAL in BACKENDS.resolve(key).supports.orders
-            )
-            message = f'The backend {engine.__name__} does not run {item.name}, a state of order {item.order}.'
-            fix = f'Use one of the backends {", ".join(capable)}.'
-            issues.append(Issue('order-unsupported', item.path, message, fix, error=BackendError))
-    return issues
-
-
-def _fractional_law_issues(states: list[_FractionalState], records: list[CensusRecord]) -> list[Issue]:
-    """Return the laws on fractional states of a kind that no fractional solver runs."""
-    names = {item.name for item in states}
-    capable = [cls for cls in _solver_classes() if Form.FRACTIONAL in {cls.form, *cls.forms}]
-    supported = set().union(*(cls.supports.laws for cls in capable))
-    issues = []
-    for record in records:
-        targets = sorted({entry.name for entry in record.targets} & names)
-        kind = record.law.law_kind
-        if not targets or kind in supported:
-            continue
-        message = (
-            f'The {type(record.law).__name__} law of {record.path} targets {", ".join(targets)}, a state of a '
-            f'fractional order, but no fractional solver runs {kind} laws.'
+    The compilation stops after flattening for a system that a whole-system pass compiles.
+    """
+    try:
+        observed = _with_observables(system, observables)
+    except ValidationError as error:
+        return None, [Issue('observable-path', system.label, str(error), 'Label observables by their path.')]
+    passes = _registered_passes(CORE_PASSES)
+    compilation = Compilation(observed, cast('str | Backend', backend), solver)
+    try:
+        run_passes(compilation, passes, until='nodes')
+    except SkcomplexError as error:
+        code, fix = FIXES.get(
+            type(error),
+            ('structure', 'Pass elements, groups, interactions, and systems as children.'),
         )
-        fix = f'Declare an integer order, or use {_names(supported)} laws on the state.'
-        issues.append(Issue('solver-unsupported', record.path, message, fix, error=SolverError))
-    return issues
+        return None, [Issue(code, system.label, str(error), fix, error=type(error))]
+    if claiming_pass(observed) is not None:
+        return compilation, []
+    held = held_observables(observed, cast('list[Node]', compilation.nodes))
+    if held:
+        tree, paths = with_held_observables(observed, held)
+        compilation = Compilation(tree, cast('str | Backend', backend), solver, held=tuple(paths))
+    return run_passes(compilation, passes, until='census'), []
 
 
-def _order_issues(system: System, records: list[CensusRecord], *, solver: object, backend: object) -> list[Issue]:
-    """Return the fractional states with an order outside `(0, 1)`, a time that is not continuous, or no support."""
-    states = _fractional_states(system)
-    if not states:
-        return []
-    times = _declared_times(system)
+def _plan_issues(compilation: Compilation) -> list[Issue]:
+    """Return the issues of the partitions of a system, lowering its laws as far as their classes decide its form."""
+    try:
+        run_passes(compilation, _registered_passes(CORE_PASSES), until='plan')
+    except SkcomplexError as error:
+        code, fix = FIXES.get(type(error), ('value', 'Correct the component as the message describes.'))
+        return [Issue(code, compilation.system.label, str(error), fix, error=type(error))]
+    return list(cast('_Plan', compilation.plan).issues)
+
+
+def _census_issues(compilation: Compilation) -> list[Issue]:
+    """Return the issues of the components that fail to declare or collect, unless their binding is the problem."""
+    census = cast('Census', compilation.census)
+    bindings = _binding_issues(cast('list[Node]', compilation.nodes))
+    unbound = {issue.path for issue in bindings}
     issues = []
-    for item in states:
-        if not 0 < item.order < 1:
-            message = (
-                f'The state {item.name} declares the order {item.order}, which is neither an integer nor in (0, 1).'
-            )
-            fix = 'Declare a fractional order in the interval (0, 1), or an integer order of at least 1.'
-            issues.append(Issue('fractional-order', item.path, message, fix))
-        time = times.get(item.path.rpartition('/')[0])
-        if time is not None and time is not TimeKind.CONTINUOUS:
-            message = (
-                f'The state {item.name} has the fractional order {item.order}, but the system declares {time} time.'
-            )
-            fix = 'Declare continuous time, the only time in which fractional derivatives are defined.'
-            issues.append(Issue('fractional-time', item.path, message, fix))
-    issues += _support_issues(states, solver, backend)
-    if solver == 'auto':
-        issues += _fractional_law_issues(states, records)
+    for path, failure in census.errors:
+        if path in unbound:
+            continue
+        code, fix = FIXES.get(type(failure), ('value', 'Correct the component as the message describes.'))
+        issues.append(Issue(code, path, str(failure), fix, error=type(failure)))
+    return issues + bindings
+
+
+def _issues_of(compilation: Compilation) -> list[Issue]:
+    """Return the issues of a compilation planned past the census."""
+    system, solver, backend = compilation.system, compilation.solver, compilation.backend
+    nodes = cast('list[Node]', compilation.nodes)
+    records = cast('Census', compilation.census).records
+    issues = _census_issues(compilation)
+    issues += _bound_issues(nodes)
+    issues += _law_issues(records, declared_times(system))
+    issues += _neighborhood_issues(records, nodes)
+    issues += _space_issues(system, nodes)
+    issues += _order_issues(nodes)
+    issues += [issue for check in registered_checks() for issue in check(compilation)]
+    if solver != 'auto':
+        issues += _solver_issues(solver, records, system)
+    issues += _noise_issues(compilation, records)
+    if isinstance(backend, str) and backend != 'auto' and backend not in set(BACKENDS):
+        message = f'No backend is registered under {backend!r}.'
+        fix = f'Choose one of {names_of(BACKENDS)}.'
+        issues.append(Issue('backend-unknown', system.label, message, fix, error=BackendError))
     return issues
+
+
+def missing_declarations() -> list[str]:
+    """Return the primitives, solvers, and backends that do not declare their requirements or support.
+
+    Every law class declares its law kind, its time class, and its requirements, every space its kind, every registered
+    solver and backend its support. Validation reads only these declarations, so a primitive without one cannot be
+    validated.
+
+    Returns:
+        missing:
+            One sentence per missing declaration.
+
+    Examples:
+        >>> from skcomplex.core.compile import missing_declarations
+        >>> missing_declarations()
+        []
+    """
+    missing = []
+    for law in law_classes():
+        if not isinstance(getattr(law, 'law_kind', None), LawKind):
+            missing.append(f'The law {law.__name__} declares no law kind.')
+        if not isinstance(getattr(law, 'time_class', None), LawClass):
+            missing.append(f'The law {law.__name__} declares no time class.')
+        if not isinstance(getattr(law, 'requires', None), Requires):
+            missing.append(f'The law {law.__name__} declares no requirements.')
+    missing.extend(
+        f'The space {space.__name__} declares no space kind.'
+        for space in _subclasses(Space)
+        if not inspect.isabstract(space) and not isinstance(getattr(space, 'space_kind', None), SpaceKind)
+    )
+    solvers = solver_registry()
+    for key in solvers:
+        solver = solvers.resolve(key)
+        if not isinstance(getattr(solver, 'supports', None), Supports):
+            _, name = cast('tuple[Form, str]', key)
+            missing.append(f'The solver {name!r} ({solver.__name__}) declares no support.')
+    for key in BACKENDS:
+        backend = BACKENDS.resolve(key)
+        if not isinstance(getattr(backend, 'supports', None), Supports):
+            missing.append(f'The backend {key!r} ({backend.__name__}) declares no support.')
+    return list(dict.fromkeys(missing))
 
 
 def validate(
@@ -1156,14 +756,15 @@ def validate(
     solver: object = 'auto',
     backend: object = 'auto',
     observables: Sequence[Observable] = (),
-) -> ValidationReport:
+) -> 'ValidationReport':
     """Return every problem of a system, of its solver, and of its backend, before compilation.
 
     Validation compares the requirements every law declares with the states it targets, the space it lives on, and
     the system's time, checks that one solver runs the laws of every partition, and checks the chosen solver and
     backend against their declared support. A state of a fractional order needs an order in `(0, 1)`, continuous time,
     and a solver and a backend that integrate fractional orders. It reports every problem at once, each with its path
-    and fix.
+    and fix, together with the compilation state planned so far, which compilation continues from. A system without
+    other errors is lowered as far as the classes of its laws decide its partitions.
 
     Args:
         system:
@@ -1180,7 +781,7 @@ def validate(
 
     Returns:
         report:
-            The problems found.
+            The problems found, with the compilation state.
 
     Examples:
         >>> from skcomplex.core.compile import validate
@@ -1190,40 +791,63 @@ def validate(
         >>> [issue.code for issue in validate(create('lotka_volterra'), solver='gillespie').issues]
         ['solver-unsupported']
     """
-    report = ValidationReport(_structure_issues(system))
-    if report.issues or is_rewriting(system) or contains_quantum(system):
-        return report
-    try:
-        observed = with_observables(system, observables)
-    except ValidationError as error:
-        report.issues.append(Issue('observable-path', system.label, str(error), 'Label observables by their path.'))
-        return report
-    held, _ = _with_held_observables(observed, _held_observables(observed))
-    records, errors = law_census(held)
-    bindings = _binding_issues(system)
-    unbound = {issue.path for issue in bindings}
-    for path, failure in errors:
-        if path in unbound:
-            continue
-        code, fix = FIXES.get(type(failure), ('value', 'Correct the component as the message describes.'))
-        report.issues.append(Issue(code, path, str(failure), fix, error=type(failure)))
-    report.issues += bindings
-    report.issues += _bound_issues(system)
-    report.issues += _law_issues(records, _declared_times(system))
-    report.issues += _encounter_issues(records)
-    report.issues += _neighbourhood_issues(records, system)
-    report.issues += _topology_issues(records, system)
-    report.issues += _space_issues(system, records)
-    owners: dict[str, set[LawKind]] = {}
-    for record in records:
-        owners.setdefault(record.owner, set()).add(record.law.law_kind)
-    report.issues += _mixed_issues(system, owners)
-    if solver != 'auto':
-        report.issues += _solver_issues(solver, records, system)
-    report.issues += _noise_issues(system, records, solver, backend)
-    report.issues += _order_issues(system, records, solver=solver, backend=backend)
-    if isinstance(backend, str) and backend != 'auto' and backend not in set(BACKENDS):
-        message = f'No backend is registered under {backend!r}.'
-        fix = f'Choose one of {_names(BACKENDS)}.'
-        report.issues.append(Issue('backend-unknown', system.label, message, fix, error=BackendError))
-    return report
+    compilation, issues = _counted(system, solver, backend, observables)
+    if compilation is None or compilation.census is None:
+        return ValidationReport(issues, compilation)
+    issues = _issues_of(compilation)
+    if not any(issue.severity == ERROR for issue in issues):
+        issues += _plan_issues(compilation)
+    return ValidationReport(issues, compilation)
+
+
+@dataclass
+class ValidationReport:
+    """Every problem of a system, its solver, and its backend, with the compilation state planned so far.
+
+    Args:
+        issues:
+            The problems, in the order they were found.
+
+        compilation:
+            The compilation state through the plan of the partitions, which compilation continues from, or `None`
+            when the system tree cannot be flattened.
+
+    Examples:
+        >>> from skcomplex.core.compile import validate
+        >>> from skcomplex.core.system import System
+        >>> validate(System()).ok
+        True
+    """
+
+    issues: list[Issue] = field(default_factory=list)
+    compilation: Compilation | None = field(default=None, repr=False, compare=False)
+
+    @property
+    def errors(self) -> list[Issue]:
+        """Return the problems that stop compilation."""
+        return [issue for issue in self.issues if issue.severity == ERROR]
+
+    @property
+    def warnings(self) -> list[Issue]:
+        """Return the problems that do not stop compilation."""
+        return [issue for issue in self.issues if issue.severity == WARNING]
+
+    @property
+    def ok(self) -> bool:
+        """Check whether the report holds no error."""
+        return not self.errors
+
+    def raise_errors(self) -> None:
+        """Raise one error that lists every error of the report, after emitting its warnings.
+
+        Raises:
+            ValidationError:
+                The report holds an error.
+        """
+        for issue in self.warnings:
+            warnings.warn(str(issue), ValidationWarning, stacklevel=3)
+        if self.errors:
+            lines = '\n'.join(f'- {issue}' for issue in self.errors)
+            error_msg = f'The system is not valid, with {len(self.errors)} error(s):\n{lines}'
+            classes = {issue.error for issue in self.errors}
+            raise (classes.pop() if len(classes) == 1 else ValidationError)(error_msg)

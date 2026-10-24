@@ -5,7 +5,7 @@
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol
 
 import numpy as np
 import numpy.typing as npt
@@ -13,22 +13,15 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import SR
 
 from ..base import Expression, ValidationError, symbols_of
+from ._arrays import Indices, Vector
 from ._kernels import Kernel, Output, Reference, Source, member_indices
 from ._printing import numpy_function
 from ._reductions import CompiledReduction, ReductionPass
-from ._volumes import FiniteVolume
 
-type Vector = npt.NDArray[np.float64]
-type Indices = npt.NDArray[np.intp]
 type Sparse = scipy.sparse.csr_array
 type Symmetry = tuple[Indices, tuple[int, ...], list[tuple[int, int]]]
 
 PATTERN_LIMIT = 4_000_000
-STENCIL = 2
-
-
-class _TooDense(Exception):  # noqa: N818
-    """Raised internally when the dense blocks of a pattern exceed the size limit."""
 
 
 def _selection(
@@ -54,35 +47,6 @@ def _boolean(matrix: Any) -> Sparse:  # noqa: ANN401
 def _product(first: Any, second: Any) -> Sparse:  # noqa: ANN401
     """Return the structure of the product of two boolean structures."""
     return _boolean(scipy.sparse.csr_array(first, dtype=float) @ scipy.sparse.csr_array(second, dtype=float))
-
-
-@dataclass
-class _Partials:
-    """Partial derivatives of expressions by the symbols they read, compiled into one NumPy function."""
-
-    time: Expression
-    arguments: list[Expression]
-    expressions: list[Expression]
-    by: list[Expression]
-    _function: Callable[..., list[Any]] | None = field(default=None, init=False, repr=False)
-
-    def __post_init__(self) -> None:
-        """Differentiate every expression by every symbol it reads and compile the derivatives."""
-        self.pairs = [
-            (index, item)
-            for index, expression in enumerate(self.expressions)
-            for item in self.by
-            if item in SR(expression).variables()
-        ]
-        derivatives = [SR(self.expressions[index]).diff(item) for index, item in self.pairs]
-        self._function = numpy_function(self.time, self.arguments, derivatives) if derivatives else None
-
-    def evaluate(self, t: float, values: list[Any]) -> list[tuple[int, Expression, Any]]:
-        """Return every derivative with the index of its expression and the symbol it is taken by."""
-        if self._function is None:
-            return []
-        results = self._function(t, *values)
-        return [(index, item, value) for (index, item), value in zip(self.pairs, results, strict=True)]
 
 
 def _output_symbols(output: Output) -> set[Expression] | None:
@@ -120,31 +84,62 @@ def _mirror_projections(symmetries: Sequence[Symmetry], size: int) -> list[Spars
     return projections
 
 
-def _volume_pattern(volume: FiniteVolume, size: int) -> Sparse:
-    """Return the band of the reconstruction stencil of a finite-volume field, coupling all its conserved states."""
-    grid = np.arange(volume.size).reshape(volume.dimensions)
-    kinds = {kind for kind, _ in volume.boundaries}
-    rows, columns = [], []
-    for axis, length in enumerate(volume.dimensions):
-        for offset in range(-STENCIL, STENCIL + 1):
-            shifted = np.arange(length) + offset
-            neighbours = []
-            if 'periodic' in kinds:
-                neighbours.append(np.mod(shifted, length))
-            if kinds - {'periodic'}:
-                neighbours.append(np.clip(shifted, 0, length - 1))
-            for items in neighbours:
-                rows.append(grid.ravel())
-                columns.append(np.take(grid, items, axis=axis).ravel())
-    cells, others = np.concatenate(rows), np.concatenate(columns)
-    pairs = [(first + cells, second + others) for first in volume.starts for second in volume.starts]
-    return _selection(
-        np.concatenate([item for item, _ in pairs]),
-        np.concatenate([item for _, item in pairs]),
-        1.0,
-        size,
-        height=size,
-    )
+def _is_variable(reference: Reference) -> bool:
+    """Check whether a reference stands for a state, a reduction, or a derived read, so derivatives reach the state."""
+    return reference.source in {Source.REDUCED, Source.DERIVED} or reference.is_state
+
+
+class _TooDense(Exception):  # noqa: N818
+    """Raised internally when the dense blocks of a pattern exceed the size limit."""
+
+
+@dataclass
+class _Partials:
+    """Partial derivatives of expressions by the symbols they read, compiled into one NumPy function."""
+
+    time: Expression
+    arguments: list[Expression]
+    expressions: list[Expression]
+    by: list[Expression]
+    _function: Callable[..., list[Any]] | None = field(default=None, init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        """Differentiate every expression by every symbol it reads and compile the derivatives."""
+        self.pairs = [
+            (index, item)
+            for index, expression in enumerate(self.expressions)
+            for item in self.by
+            if item in SR(expression).variables()
+        ]
+        derivatives = [SR(self.expressions[index]).diff(item) for index, item in self.pairs]
+        self._function = numpy_function(self.time, self.arguments, derivatives) if derivatives else None
+
+    def evaluate(self, t: float, values: list[Any]) -> list[tuple[int, Expression, Any]]:
+        """Return every derivative with the index of its expression and the symbol it is taken by."""
+        if self._function is None:
+            return []
+        results = self._function(t, *values)
+        return [(index, item, value) for (index, item), value in zip(self.pairs, results, strict=True)]
+
+
+class _ConservationLaw(Protocol):
+    """Part of a drift that conserves quantities between cells, whose Jacobian is known only by its pattern."""
+
+    @property
+    def owner(self) -> str:
+        """Path of the component whose quantities the law conserves."""
+
+    def pattern(self, size: int) -> Sparse:
+        """Return the entries of the Jacobian that the law can make nonzero.
+
+        Args:
+            size:
+                The size of the state vector.
+
+        Returns:
+            pattern:
+                A sparse matrix of the size of the state vector, nonzero where the law couples two states.
+        """
 
 
 @dataclass
@@ -176,7 +171,7 @@ class ExactJacobian:
             The time symbol.
 
         volumes:
-            The conservation laws of finite-volume fields.
+            The conservation laws, such as those of finite-volume fields.
 
         symmetries:
             The state indices, lattice shape, and axes with their signs of every symmetric field state.
@@ -189,7 +184,7 @@ class ExactJacobian:
     reductions: ReductionPass
     size: int
     time: Expression
-    volumes: tuple[FiniteVolume, ...] = ()
+    volumes: tuple[_ConservationLaw, ...] = ()
     symmetries: tuple[Symmetry, ...] = ()
     constrained: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
     _kernel_partials: list[_Partials] | None = field(default=None, init=False, repr=False)
@@ -427,7 +422,7 @@ class ExactJacobian:
         blocks = [scipy.sparse.eye_array(self.size, format='csr')]
         for kernel in self.kernels:
             blocks.extend(self._kernel_pattern(kernel, supports))
-        blocks.extend(_volume_pattern(volume, self.size) for volume in self.volumes)
+        blocks.extend(volume.pattern(self.size) for volume in self.volumes)
         total = scipy.sparse.csr_array((self.size, self.size))
         for block in blocks:
             total = total + scipy.sparse.csr_array(block, dtype=float)
@@ -551,8 +546,3 @@ class ExactJacobian:
         if reduction.weights is not None:
             return scipy.sparse.csr_array((abs(reduction.weights) != 0).astype(float) @ support.astype(float) != 0)
         return scipy.sparse.csr_array(np.asarray(support.astype(float).sum(axis=0)).reshape(1, -1) != 0)
-
-
-def _is_variable(reference: Reference) -> bool:
-    """Check whether a reference stands for a state, a reduction, or a derived read, so derivatives reach the state."""
-    return reference.source in {Source.REDUCED, Source.DERIVED} or reference.is_state

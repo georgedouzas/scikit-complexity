@@ -5,7 +5,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -13,47 +13,11 @@ import scipy.sparse
 
 from ..base import Expression
 from ..system import reduce_values
+from ._arrays import Indices, Vector
 from ._layout import Entry
+from ._neighbourhoods import CompiledNeighborhood
 from ._printing import numpy_function
-
-if TYPE_CHECKING:
-    from ._neighbourhoods import CompiledNeighbourhood
-
-type Vector = npt.NDArray[np.float64]
-type Indices = npt.NDArray[np.intp]
-
-
-@dataclass(frozen=True)
-class Read:
-    """Values a symbol of a reduction stands for, one per reduced member or one shared value.
-
-    Args:
-        is_state:
-            Whether the values come from the state vector, as opposed to the extended parameter vector.
-
-        index:
-            The flat index of a shared value, or the flat index of the value of every reduced member.
-
-        entry:
-            The layout entry the values belong to, or `None` for an element set.
-
-        column:
-            The component of the entry's member that the symbol stands for.
-
-        stride:
-            The distance between the values of two consecutive members in the vector.
-    """
-
-    is_state: bool
-    index: int | Indices
-    entry: Entry | None = None
-    column: int = 0
-    stride: int = 1
-
-    @property
-    def per_member(self) -> bool:
-        """Whether the symbol has one value per reduced member."""
-        return np.ndim(self.index) > 0
+from ._reads import Read
 
 
 @dataclass
@@ -206,11 +170,11 @@ class ReductionPass:
 
     reductions: tuple[CompiledReduction, ...] = ()
     parameters: int = 0
-    neighbourhoods: tuple['CompiledNeighbourhood', ...] = ()
-    sequence: tuple['CompiledReduction | CompiledNeighbourhood', ...] = ()
+    neighbourhoods: tuple[CompiledNeighborhood, ...] = ()
+    sequence: tuple[CompiledReduction | CompiledNeighborhood, ...] = ()
 
     @property
-    def steps(self) -> tuple['CompiledReduction | CompiledNeighbourhood', ...]:
+    def steps(self) -> tuple[CompiledReduction | CompiledNeighborhood, ...]:
         """Every reduction in the order it is evaluated."""
         return self.sequence or (*self.reductions, *self.neighbourhoods)
 

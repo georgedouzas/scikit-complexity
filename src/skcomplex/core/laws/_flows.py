@@ -16,66 +16,20 @@ from ..base import (
     ConservationError,
     DomainKind,
     Expression,
+    LawClass,
     LawKind,
     Requires,
     SymbolicVector,
+    Trait,
     ValidationError,
     symbol,
 )
 from ._functions import series
+from ._law import Law, register_laws
 from ._laws import _check_value, _is_number
 
 DELAY_NAME = re.compile(r'^(?P<kind>material|smoothing)_delay(?P<order>[1-9][0-9]*)$')
-
-
-class _DelayFunction(BuiltinFunction):
-    """Output of a system-dynamics delay or smoothing of an input with a delay time, `name(input, time)`."""
-
-    def __init__(self, name: str) -> None:
-        super().__init__(name, nargs=2)
-
-    def _eval_(self, value: Expression, time: Expression) -> Expression | None:
-        """Return a constant input unchanged, since every delay of a constant is the constant, or `None` otherwise."""
-        if SR(value).is_numeric():
-            return SR(value)
-        return None
-
-
-@dataclass(frozen=True)
-class Source:
-    """Environment a flow draws a quantity from, outside the system, such as a bank that creates money.
-
-    Args:
-        label:
-            The name of the environment in transaction-flow matrices.
-
-    Examples:
-        >>> from skcomplex.core.laws import Source
-        >>> Source().label
-        'environment'
-    """
-
-    label: str = 'environment'
-
-
-@dataclass(frozen=True)
-class Sink:
-    """Environment a flow releases a quantity to, outside the system, such as a drain or the atmosphere.
-
-    Args:
-        label:
-            The name of the environment in transaction-flow matrices.
-
-    Examples:
-        >>> from skcomplex.core.laws import Sink
-        >>> Sink('drain').label
-        'drain'
-    """
-
-    label: str = 'environment'
-
-
-type Holder = Expression | Source | Sink
+DELAY_FUNCTIONS: dict[str, BuiltinFunction] = {}
 
 
 def _check_holder(name: str, holder: object, environment: type) -> None:
@@ -88,207 +42,6 @@ def _check_holder(name: str, holder: object, environment: type) -> None:
             f'{holder!r}.'
         )
         raise ValidationError(error_msg)
-
-
-@dataclass(frozen=True)
-class Transfer:
-    """Movement of an amount of a quantity from a source holder to a sink holder.
-
-    A transfer is one outflow of its source and one inflow of its sink. Its amount is a rate in a system of rate laws,
-    the amount moved per step in a system of update laws, and the size of every jump when a `rate` is given. The
-    trajectory records the amount at every frame under `<component path>.<label>`.
-
-    Args:
-        source:
-            The symbol of the state the quantity leaves, or `Source()` or `None` for the environment.
-
-        sink:
-            The symbol of the state the quantity enters, or `Sink()` or `None` for the environment.
-
-        amount:
-            The symbolic amount, a rate, a per-step amount, or a jump size.
-
-        label:
-            The name of the flow, unique among the flows and auxiliaries of its component, or `None` for
-            `flow_<index>`.
-
-        rate:
-            The propensity of a jump that moves `amount` at random times, or `None` for a deterministic flow.
-
-    Raises:
-        ValidationError:
-            A holder is not a scalar state symbol or the environment, both holders are the environment, or the
-            amount of a jump holds a symbol.
-
-    Examples:
-        >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Source, Transfer
-        >>> level = symbol('level')
-        >>> Transfer(Source(), level, 5, label='faucet').label
-        'faucet'
-    """
-
-    law_kind: ClassVar[LawKind] = LawKind.TRANSFER
-    requires: ClassVar[Requires] = Requires(domains={DomainKind.REAL})
-
-    source: Holder
-    sink: Holder
-    amount: object
-    label: str | None = None
-    rate: object = None
-
-    def __post_init__(self) -> None:
-        """Take `None` as the environment, and check the holders and the amount of the transfer."""
-        if self.source is None:
-            object.__setattr__(self, 'source', Source())
-        if self.sink is None:
-            object.__setattr__(self, 'sink', Sink())
-        _check_holder('source', self.source, Source)
-        _check_holder('sink', self.sink, Sink)
-        if isinstance(self.source, Source) and isinstance(self.sink, Sink):
-            error_msg = 'A flow moves a quantity into or out of a state, but both of its holders are the environment.'
-            raise ValidationError(error_msg)
-        _check_value(self, 'amount', f'amount of the flow {self.label or ""}'.rstrip())
-        if self.rate is not None and not _is_number(self.amount):
-            error_msg = (
-                f'The flow {self.label} has a rate, so its amount is a jump size, but {self.amount} is a symbol.'
-            )
-            raise ValidationError(error_msg)
-
-
-@dataclass(frozen=True)
-class Auxiliary:
-    """Named intermediate expression that laws reuse through its symbol and that trajectories record.
-
-    Laws use `auxiliary.symbol` where the expression belongs, and the compiler substitutes the expression. The loop
-    analysis keeps auxiliaries as nodes of the feedback graph, and the trajectory records the value under
-    `<component path>.<label>`.
-
-    Args:
-        label:
-            The name of the auxiliary, unique among the flows and auxiliaries of its component.
-
-        expression:
-            The symbolic expression, which can use the symbols of earlier auxiliaries.
-
-    Examples:
-        >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Auxiliary
-        >>> n, b = symbol('n'), symbol('b')
-        >>> births = Auxiliary('births', b * n)
-        >>> births.symbol
-        births__aux
-    """
-
-    law_kind: ClassVar[LawKind] = LawKind.EQUATION
-    requires: ClassVar[Requires] = Requires()
-
-    label: str
-    expression: object
-
-    def __post_init__(self) -> None:
-        """Check the expression of the auxiliary."""
-        _check_value(self, 'expression', f'expression of the auxiliary {self.label}')
-
-    @property
-    def symbol(self) -> Expression:
-        """The symbol laws use in place of the expression."""
-        return symbol(f'{self.label}__aux')
-
-
-@dataclass(frozen=True)
-class Invariant:
-    """Expression of the states of a component that stays constant during a run, such as a conserved total.
-
-    The trajectory records the expression under `<component path>.<label>`, and every run checks at every frame that it
-    differs from its value at the first frame by no more than the tolerance, raising an error that names the invariant
-    and the first frame that breaks it. A group of agents declares an invariant of each member as a module-level
-    function of the member, which the agent stepper checks after every step against the member's first value. An
-    interaction of agents declares an invariant of the agents it binds as a module-level function of its model view,
-    such as the total of a state over a group, which the agent stepper checks after every step against its first value.
-
-    Args:
-        label:
-            The name of the invariant, unique among the transfers, auxiliaries, and invariants of its component.
-
-        expression:
-            The expression of states and parameters, or a module-level function of a member of an agent group or of
-            the model view of an interaction of agents.
-
-        tolerance:
-            The largest change from the first frame that the run accepts.
-
-    Examples:
-        >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Invariant
-        >>> a, b = symbol('a'), symbol('b')
-        >>> Invariant('total', a + b).tolerance
-        1e-09
-    """
-
-    law_kind: ClassVar[LawKind] = LawKind.INVARIANT
-    requires: ClassVar[Requires] = Requires()
-
-    label: str
-    expression: object
-    tolerance: float = 1e-9
-
-    def __post_init__(self) -> None:
-        """Check the expression of the invariant."""
-        if not self.is_member:
-            _check_value(self, 'expression', f'expression of the invariant {self.label}')
-            return
-        try:
-            pickle.dumps(self.expression)
-        except (pickle.PicklingError, AttributeError, TypeError) as error:
-            error_msg = (
-                f'The function of the invariant {self.label!r} cannot be pickled: {error}. Use a module-level function.'
-            )
-            raise ValidationError(error_msg) from error
-
-    @property
-    def is_member(self) -> bool:
-        """Whether the invariant is a function of each member of an agent group or of an interaction's model view."""
-        return callable(self.expression) and not isinstance(self.expression, Expression | SymbolicVector)
-
-    def value_of(self, member: Any) -> float:  # noqa: ANN401
-        """Return the value of the invariant of a member, for an invariant given as a function of a member.
-
-        Args:
-            member:
-                The member, or the model view of an interaction, as rules receive it.
-
-        Returns:
-            value:
-                The value of the function at the member.
-        """
-        function = cast('Callable[[Any], float]', self.expression)
-        return float(function(member))
-
-    def check(self, member: Any, first: float, name: str) -> None:  # noqa: ANN401
-        """Raise an error when the invariant of a member moved from its first value by more than the tolerance.
-
-        Args:
-            member:
-                The member, or the model view of an interaction, as rules receive it.
-
-            first:
-                The value of the invariant when the member was first checked.
-
-            name:
-                The name of the member in the message, such as its group and id, or the path of the interaction.
-
-        Raises:
-            ConservationError:
-                The invariant changed by more than the tolerance.
-        """
-        difference = self.value_of(member) - first
-        if abs(difference) > self.tolerance:
-            error_msg = (
-                f'The invariant {self.label!r} of {name} does not hold: it changed by {difference:.6g}. Change '
-                'the states it reads with transfers, or change all of them in the same rule.'
-            )
-            raise ConservationError(error_msg)
 
 
 def transfer(source: Any, sink: Any, amount: float, state: str, sink_state: str | None = None) -> None:  # noqa: ANN401
@@ -367,9 +120,6 @@ def lookup(value: object, points: Sequence[Sequence[float]]) -> Expression:
     return series(SR(value), [x for x, _ in table], [y for _, y in table])
 
 
-DELAY_FUNCTIONS: dict[str, _DelayFunction] = {}
-
-
 def delay_parts(name: str) -> tuple[bool, int] | None:
     """Return whether a delay function conserves its input, and its order, from its name, or `None` for no delay.
 
@@ -433,3 +183,263 @@ def distributed_delay(value: object, time: object, order: int = 1, *, conserved:
         DELAY_FUNCTIONS[name] = _DelayFunction(name)
     function: Any = DELAY_FUNCTIONS[name]
     return function(value, time)
+
+
+class _DelayFunction(BuiltinFunction):
+    """Output of a system-dynamics delay or smoothing of an input with a delay time, `name(input, time)`."""
+
+    def __init__(self, name: str) -> None:
+        super().__init__(name, nargs=2)
+
+    def _eval_(self, value: Expression, time: Expression) -> Expression | None:
+        """Return a constant input unchanged, since every delay of a constant is the constant, or `None` otherwise."""
+        if SR(value).is_numeric():
+            return SR(value)
+        return None
+
+
+@dataclass(frozen=True)
+class Source:
+    """Environment a flow draws a quantity from, outside the system, such as a bank that creates money.
+
+    Args:
+        label:
+            The name of the environment in transaction-flow matrices.
+
+    Examples:
+        >>> from skcomplex.core.laws import Source
+        >>> Source().label
+        'environment'
+    """
+
+    label: str = 'environment'
+
+
+@dataclass(frozen=True)
+class Sink:
+    """Environment a flow releases a quantity to, outside the system, such as a drain or the atmosphere.
+
+    Args:
+        label:
+            The name of the environment in transaction-flow matrices.
+
+    Examples:
+        >>> from skcomplex.core.laws import Sink
+        >>> Sink('drain').label
+        'drain'
+    """
+
+    label: str = 'environment'
+
+
+type Holder = Expression | Source | Sink
+
+
+@dataclass(frozen=True)
+class Transfer(Law):
+    """Movement of an amount of a quantity from a source holder to a sink holder.
+
+    A transfer is one outflow of its source and one inflow of its sink. Its amount is a rate in a system of rate laws,
+    the amount moved per step in a system of update laws, and the size of every jump when a `rate` is given. The
+    trajectory records the amount at every frame under `<component path>.<label>`.
+
+    Args:
+        source:
+            The symbol of the state the quantity leaves, or `Source()` or `None` for the environment.
+
+        sink:
+            The symbol of the state the quantity enters, or `Sink()` or `None` for the environment.
+
+        amount:
+            The symbolic amount, a rate, a per-step amount, or a jump size.
+
+        label:
+            The name of the flow, unique among the flows and auxiliaries of its component, or `None` for
+            `flow_<index>`.
+
+        rate:
+            The propensity of a jump that moves `amount` at random times, or `None` for a deterministic flow.
+
+    Raises:
+        ValidationError:
+            A holder is not a scalar state symbol or the environment, both holders are the environment, or the
+            amount of a jump holds a symbol.
+
+    Examples:
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.laws import Source, Transfer
+        >>> level = symbol('level')
+        >>> Transfer(Source(), level, 5, label='faucet').label
+        'faucet'
+    """
+
+    law_kind: ClassVar[LawKind] = LawKind.TRANSFER
+    time_class: ClassVar[LawClass] = LawClass.ANY
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.KERNEL_FREE, Trait.DECLARABLE})
+    requires: ClassVar[Requires] = Requires(domains={DomainKind.REAL})
+
+    source: Holder
+    sink: Holder
+    amount: object
+    label: str | None = None
+    rate: object = None
+
+    def __post_init__(self) -> None:
+        """Take `None` as the environment, and check the holders and the amount of the transfer."""
+        if self.source is None:
+            object.__setattr__(self, 'source', Source())
+        if self.sink is None:
+            object.__setattr__(self, 'sink', Sink())
+        _check_holder('source', self.source, Source)
+        _check_holder('sink', self.sink, Sink)
+        if isinstance(self.source, Source) and isinstance(self.sink, Sink):
+            error_msg = 'A flow moves a quantity into or out of a state, but both of its holders are the environment.'
+            raise ValidationError(error_msg)
+        _check_value(self, 'amount', f'amount of the flow {self.label or ""}'.rstrip())
+        if self.rate is not None and not _is_number(self.amount):
+            error_msg = (
+                f'The flow {self.label} has a rate, so its amount is a jump size, but {self.amount} is a symbol.'
+            )
+            raise ValidationError(error_msg)
+
+
+@dataclass(frozen=True)
+class Auxiliary(Law):
+    """Named intermediate expression that laws reuse through its symbol and that trajectories record.
+
+    Laws use `auxiliary.symbol` where the expression belongs, and the compiler substitutes the expression. The loop
+    analysis keeps auxiliaries as nodes of the feedback graph, and the trajectory records the value under
+    `<component path>.<label>`.
+
+    Args:
+        label:
+            The name of the auxiliary, unique among the flows and auxiliaries of its component.
+
+        expression:
+            The symbolic expression, which can use the symbols of earlier auxiliaries.
+
+    Examples:
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.laws import Auxiliary
+        >>> n, b = symbol('n'), symbol('b')
+        >>> births = Auxiliary('births', b * n)
+        >>> births.symbol
+        births__aux
+    """
+
+    law_kind: ClassVar[LawKind] = LawKind.EQUATION
+    time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.KERNEL_FREE, Trait.DECLARABLE})
+    requires: ClassVar[Requires] = Requires()
+
+    label: str
+    expression: object
+
+    def __post_init__(self) -> None:
+        """Check the expression of the auxiliary."""
+        _check_value(self, 'expression', f'expression of the auxiliary {self.label}')
+
+    @property
+    def symbol(self) -> Expression:
+        """The symbol laws use in place of the expression."""
+        return symbol(f'{self.label}__aux')
+
+
+@dataclass(frozen=True)
+class Invariant(Law):
+    """Expression of the states of a component that stays constant during a run, such as a conserved total.
+
+    The trajectory records the expression under `<component path>.<label>`, and every run checks at every frame that it
+    differs from its value at the first frame by no more than the tolerance, raising an error that names the invariant
+    and the first frame that breaks it. A group of agents declares an invariant of each member as a module-level
+    function of the member, which the agent stepper checks after every step against the member's first value. An
+    interaction of agents declares an invariant of the agents it binds as a module-level function of its model view,
+    such as the total of a state over a group, which the agent stepper checks after every step against its first value.
+
+    Args:
+        label:
+            The name of the invariant, unique among the transfers, auxiliaries, and invariants of its component.
+
+        expression:
+            The expression of states and parameters, or a module-level function of a member of an agent group or of
+            the model view of an interaction of agents.
+
+        tolerance:
+            The largest change from the first frame that the run accepts.
+
+    Examples:
+        >>> from skcomplex.core.base import symbol
+        >>> from skcomplex.core.laws import Invariant
+        >>> a, b = symbol('a'), symbol('b')
+        >>> Invariant('total', a + b).tolerance
+        1e-09
+    """
+
+    law_kind: ClassVar[LawKind] = LawKind.INVARIANT
+    time_class: ClassVar[LawClass] = LawClass.CONSTRAINT
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.KERNEL_FREE, Trait.DECLARABLE})
+    requires: ClassVar[Requires] = Requires()
+
+    label: str
+    expression: object
+    tolerance: float = 1e-9
+
+    def __post_init__(self) -> None:
+        """Check the expression of the invariant."""
+        if not self.is_member:
+            _check_value(self, 'expression', f'expression of the invariant {self.label}')
+            return
+        try:
+            pickle.dumps(self.expression)
+        except (pickle.PicklingError, AttributeError, TypeError) as error:
+            error_msg = (
+                f'The function of the invariant {self.label!r} cannot be pickled: {error}. Use a module-level function.'
+            )
+            raise ValidationError(error_msg) from error
+
+    @property
+    def is_member(self) -> bool:
+        """Whether the invariant is a function of each member of an agent group or of an interaction's model view."""
+        return callable(self.expression) and not isinstance(self.expression, Expression | SymbolicVector)
+
+    def value_of(self, member: Any) -> float:  # noqa: ANN401
+        """Return the value of the invariant of a member, for an invariant given as a function of a member.
+
+        Args:
+            member:
+                The member, or the model view of an interaction, as rules receive it.
+
+        Returns:
+            value:
+                The value of the function at the member.
+        """
+        function = cast('Callable[[Any], float]', self.expression)
+        return float(function(member))
+
+    def check(self, member: Any, first: float, name: str) -> None:  # noqa: ANN401
+        """Raise an error when the invariant of a member moved from its first value by more than the tolerance.
+
+        Args:
+            member:
+                The member, or the model view of an interaction, as rules receive it.
+
+            first:
+                The value of the invariant when the member was first checked.
+
+            name:
+                The name of the member in the message, such as its group and id, or the path of the interaction.
+
+        Raises:
+            ConservationError:
+                The invariant changed by more than the tolerance.
+        """
+        difference = self.value_of(member) - first
+        if abs(difference) > self.tolerance:
+            error_msg = (
+                f'The invariant {self.label!r} of {name} does not hold: it changed by {difference:.6g}. Change '
+                'the states it reads with transfers, or change all of them in the same rule.'
+            )
+            raise ConservationError(error_msg)
+
+
+register_laws(Transfer, Auxiliary, Invariant)

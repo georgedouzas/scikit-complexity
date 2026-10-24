@@ -1,19 +1,24 @@
 """Test the validation of systems against the requirements of their laws and the support of solvers and backends."""
 
 import importlib.util
+import subprocess  # nosec B404: the test starts a new Python process without the fractional formalism
 import sys
 
 import pytest
 
-from skcomplex.core.backends import NumpyBackend
-from skcomplex.core.base import Domain, OrderKind, Supports, ValidationError, VisualSpec, parameter, role, state
-from skcomplex.core.compile import Issue, ValidationReport, ValidationWarning, validate
-from skcomplex.core.components import Element
+from skcomplex.core.base import Domain, Form, NoiseKind, ValidationError, VisualSpec, parameter, role, state
+from skcomplex.core.compile import SOLVERS, Issue, ValidationReport, ValidationWarning, compile_system, validate
+from skcomplex.core.components import Element, Wiener
+from skcomplex.core.formalisms.agents import Rule
+from skcomplex.core.formalisms.groups import GroupSpace, finitely_presented_group
+from skcomplex.core.formalisms.lattices import Energy, Move, Sample, Sampler
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Energy, Move, Noise, Objective, Rate, Rule, Sample, Sampler, Update, neighbors
-from skcomplex.core.solvers import GrunwaldLetnikov
-from skcomplex.core.space import DiscreteTime, GroupSpace, Memory, finitely_presented_group
+from skcomplex.core.laws import Noise, Objective, Rate, Update, neighbors
+from skcomplex.core.space import DiscreteTime, LatticeSpace, Memory
 from skcomplex.core.system import System
+
+from ..conftest import Holding, _correlated
+from .conftest import _pair
 
 
 class Stock(Element):
@@ -178,91 +183,6 @@ def test_report_raises_every_error():
     assert '[law-domain]' in str(error.value)
 
 
-class Relaxing(Element):
-    """Element whose state relaxes with a Caputo derivative of order 0.6."""
-
-    x: float = state(1.0, order=0.6)
-
-    def laws(self, s):
-        """Return the relaxation rate."""
-        return [Rate(s.x, -s.x)]
-
-
-class Overordered(Element):
-    """Element whose state declares an order outside the fractional interval."""
-
-    x: float = state(1.0, order=1.5)
-
-
-class Remembering(Element):
-    """Element with a state of a fractional order and no laws."""
-
-    x: float = state(1.0, order=0.5)
-
-
-class Shaken(Element):
-    """Element whose fractional state is driven by noise."""
-
-    x: float = state(1.0, order=0.6)
-
-    def laws(self, s):
-        """Return the noise on the state."""
-        return [Noise(s.x, 0.1)]
-
-
-def test_validate_fractional_state_with_rk4_names_fractional_solvers():
-    """Test that a fractional state with the solver rk4 gives one error naming the state and the fractional solvers."""
-    report = validate(System(components=[Relaxing('r')]), solver='rk4')
-    assert [issue.code for issue in report.errors] == ['order-unsupported']
-    assert 'r.x' in report.errors[0].message
-    assert 'fractional-abm, grunwald-letnikov, l1' in report.errors[0].fix
-
-
-def test_validate_order_out_of_range_names_interval():
-    """Test that a state of order 1.5 gives one error naming the state and the interval of fractional orders."""
-    report = validate(System(components=[Overordered('a')]))
-    assert [issue.code for issue in report.errors] == ['fractional-order']
-    assert 'a.x' in report.errors[0].message
-    assert '(0, 1)' in report.errors[0].fix
-
-
-def test_validate_fractional_state_under_discrete_time_suggests_continuous_time():
-    """Test that a fractional state in a system of discrete time gives one error suggesting continuous time."""
-    report = validate(System(components=[Remembering('a')], time=DiscreteTime()))
-    assert [issue.code for issue in report.errors] == ['fractional-time']
-    assert 'a.x' in report.errors[0].message
-    assert 'continuous time' in report.errors[0].fix
-
-
-def test_validate_fractional_state_with_backend_without_orders():
-    """Test that a backend that declares no fractional orders is reported for a fractional state."""
-
-    class IntegerBackend(NumpyBackend):
-        """NumPy backend that integrates integer orders alone."""
-
-        supports = Supports(orders={OrderKind.INTEGER})
-
-    report = validate(System(components=[Relaxing('r')]), backend=IntegerBackend())
-    assert [issue.code for issue in report.errors] == ['order-unsupported']
-    assert 'numba, numpy' in report.errors[0].fix
-    assert validate(System(components=[Relaxing('r')]), backend='numba').ok
-
-
-def test_validate_noise_on_fractional_state_is_unsupported():
-    """Test that a noise law on a fractional state is reported, since no fractional solver runs noise laws."""
-    report = validate(System(components=[Shaken('a')]))
-    assert [issue.code for issue in report.errors] == ['solver-unsupported']
-    assert 'a.x' in report.errors[0].message
-
-
-def test_validate_fractional_state_with_fractional_solver():
-    """Test that a fractional state with a fractional solver and default settings is valid."""
-    system = System(components=[Relaxing('r')])
-    assert validate(system).ok
-    assert validate(system, solver='l1').ok
-    assert validate(system, solver=GrunwaldLetnikov()).ok
-
-
 class Plant(Element):
     """Element steered by a bounded control input, with a quadratic cost."""
 
@@ -332,7 +252,7 @@ class GroupSpin(Element):
     def laws(self, s):
         """Return the Glauber sampling of a ferromagnetic energy on the generators."""
         memory = Memory(('a', 'a^-1', 'b', 'b^-1'))
-        energy = Energy(-s.spin * sum(neighbors(s.spin, memory)), memory)
+        energy = Energy(-s.spin * sum(neighbors(s.spin, memory, reduce='each')), memory)
         return [Sample(energy, Move.flip(s.spin), Sampler('glauber', 2.0))]
 
 
@@ -360,3 +280,168 @@ def test_group_space_reports_a_ball_above_the_site_limit(monkeypatch):
     issues = validate(System(space=space)).issues
     assert [issue.code for issue in issues] == ['space-too-large']
     assert 'largest radius that fits is 6' in issues[0].message
+
+
+def test_lattice_with_a_bad_boundary_is_reported():
+    """Test that a lattice whose boundary is not supported is a space-invalid error that lists the boundaries."""
+    space = LatticeSpace((4, 4), boundary='spherical')
+    (issue,) = validate(System(components=[Stock('rabbits')], space=space)).errors
+    assert issue.code == 'space-invalid'
+    assert "'spherical'" in issue.message
+    assert 'periodic, fixed, reflecting' in issue.message
+
+
+def test_invalid_space_among_other_errors_is_reported():
+    """Test that an invalid lattice and an unbound role are both reported, and compiling raises the validation error."""
+    system = System(
+        components=[Stock('rabbits')],
+        interactions=[Growth('growth', target='hares')],
+        space=LatticeSpace((4, 4), boundary='spherical'),
+    )
+    assert {issue.code for issue in validate(system).errors} == {'space-invalid', 'role'}
+    with pytest.raises(ValidationError, match='space-invalid'):
+        compile_system(system)
+
+
+def test_validation_keeps_the_planned_compilation():
+    """Test that validation returns the compilation state planned once, which holds the nodes and the plan."""
+    system = System(components=[Stock('rabbits')], interactions=[Growth('growth', target='rabbits')])
+    compilation = validate(system).compilation
+    assert [node.path for node in compilation.nodes] == ['rabbits', 'growth']
+    assert [partition.name for partition in compilation.plan.partitions] == [system.label]
+
+
+def test_validate_fractional_state_without_its_formalism_names_the_formalism():
+    """Test that a fractional state with no fractional solver registered gives an error naming the formalism."""
+    script = (
+        'from skcomplex.core.base import state\n'
+        'from skcomplex.core.compile import validate\n'
+        'from skcomplex.core.components import Element\n'
+        'from skcomplex.core.system import System\n'
+        "Kind = Element.define('Kind', states={'x': state(1.0, order=0.5)})\n"
+        "issue = validate(System(components=[Kind('a')])).errors[0]\n"
+        'print(issue.code, issue.fix)\n'
+    )
+    command = [sys.executable, '-c', script]
+    output = subprocess.run(command, capture_output=True, text=True, check=True).stdout  # noqa: S603  # nosec B603
+    assert output.startswith('order-unsupported')
+    assert 'skcomplex.core.formalisms.fractional' in output
+
+
+class Misuse(Interaction):
+    """Rate law that uses the handle of a Wiener process as a value."""
+
+    target: str = role()
+    noise: str = role()
+
+    def laws(self, s):
+        """Return the rate."""
+        return [Rate(s.target.n, s.noise.dW)]
+
+
+class Coupled(Interaction):
+    """Stratonovich noise on a state, through a Wiener process another component also draws."""
+
+    target: str = role()
+    other: str = role()
+    noise: str = role()
+
+    def laws(self, s):
+        """Return the noise of the target, whose amplitude reads the other state."""
+        return [Noise(s.target.n, s.other.n, convention='stratonovich', process=s.noise.dW)]
+
+
+class Single(Interaction):
+    """Itô noise on one element from a Wiener process."""
+
+    target: str = role()
+    noise: str = role()
+
+    def laws(self, s):
+        """Return the noise."""
+        return [Noise(s.target.n, 1.0, process=s.noise.dW)]
+
+
+def test_validate_reports_mixed_conventions():
+    """Test that laws of different conventions on one process are reported with both laws and the process."""
+    issues = validate(System(components=[_pair(conventions=('ito', 'stratonovich'))('pair')])).issues
+    (issue,) = [issue for issue in issues if issue.code == 'noise-convention-mixed']
+    assert 'ito Noise law of pair' in issue.message
+    assert 'stratonovich Noise law of pair' in issue.message
+    assert "'common'" in issue.message
+    assert 'one convention' in issue.fix
+
+
+def test_validate_reports_correction_out_of_scope():
+    """Test that a Stratonovich law reading a state another component drives on its process is reported."""
+    system = System(
+        components=[Holding('a'), Holding('b', n=1.0), Wiener('market')],
+        interactions=[
+            Coupled('coupled', target='a', other='b', noise='market'),
+            Single('single', target='b', noise='market'),
+        ],
+    )
+    (issue,) = [issue for issue in validate(system).issues if issue.code == 'noise-correction-scope']
+    assert 'Noise law of coupled' in issue.message
+    assert 'Noise law of single' in issue.message
+    assert 'Itô' in issue.fix
+
+
+def test_validate_reports_invalid_covariance():
+    """Test that a covariance with a negative eigenvalue is reported with the element and the eigenvalue."""
+    (issue,) = validate(_correlated([[1.0, 2.0], [2.0, 1.0]])).issues
+    assert issue.code == 'wiener-covariance'
+    assert issue.path == 'market'
+    assert '-1' in issue.message
+
+
+@pytest.mark.parametrize(
+    'covariance',
+    [[[1.0, 0.0, 0.0]], [[1.0, 0.5], [0.0, 1.0]]],
+)
+def test_validate_reports_covariance_shape_and_symmetry(covariance):
+    """Test that a covariance that is not square of the dimension or not symmetric is reported."""
+    assert [issue.code for issue in validate(_correlated(covariance)).issues] == ['wiener-covariance']
+
+
+def test_validate_reports_handle_as_value():
+    """Test that a Wiener handle used inside a rate law is reported with the law."""
+    system = System(
+        components=[Holding('a'), Wiener('market')],
+        interactions=[Misuse('misuse', target='a', noise='market')],
+    )
+    (issue,) = [issue for issue in validate(system).issues if issue.code == 'wiener-handle']
+    assert 'Rate law of misuse' in issue.message
+    assert 'only the process of a noise law' in issue.message
+
+
+def test_validate_reports_wiener_under_discrete_time():
+    """Test that a Wiener element in a system of discrete time is reported with the fix of continuous time."""
+    Counter = Element.define('Counter', states={'k': state(0.0, domain=Domain.REAL)}, laws=lambda s: [Update(s.k, 1)])
+    system = System(components=[Counter('counter'), Wiener('market')], time=DiscreteTime())
+    (issue,) = [issue for issue in validate(system).issues if issue.code == 'wiener-time']
+    assert issue.path == 'market'
+    assert 'continuous time' in issue.fix
+
+
+def test_validate_reports_milstein_with_shared_process():
+    """Test that Milstein with a shared process gives one error that names the law and suggests other solvers."""
+    (issue,) = validate(System(components=[_pair()('pair')]), solver='milstein').issues
+    assert issue.code == 'noise-unsupported'
+    assert 'Noise law of pair' in issue.message
+    assert 'euler-maruyama' in issue.fix
+    assert 'heun' in issue.fix
+
+
+def test_validate_reports_lammps_with_shared_process():
+    """Test that the LAMMPS backend with a shared process is reported with the backends that support it."""
+    issues = validate(System(components=[_pair()('pair')]), solver='lammps').issues
+    (issue,) = [issue for issue in issues if issue.code == 'noise-unsupported']
+    assert 'Noise law of pair' in issue.message
+    assert 'numba, numpy' in issue.fix
+
+
+def test_validate_accepts_correlated_noise_with_automatic_solver():
+    """Test that the automatic SDE solver declares correlated noise, so validation accepts it."""
+    assert validate(_correlated([[1.0, 0.5], [0.5, 1.0]])).ok
+    assert NoiseKind.CORRELATED in SOLVERS.resolve((Form.SDE, 'auto')).supports.noise

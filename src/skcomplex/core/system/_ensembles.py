@@ -9,14 +9,20 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from ..base import ValidationError
-from ..components._components import Element, Group, runs_rules
+from ..base import Trait, ValidationError
+from ..components import Element, Group, probe_laws
+from ..laws import has_trait
 from ._systems import System
+
+
+def _has_agent_laws(element: Element) -> bool:
+    """Check whether the laws of an element make it an agent."""
+    return any(has_trait(law, Trait.AGENT) for law in probe_laws(element) or [])
 
 
 def _check_plain(system: System) -> None:
     """Raise an error unless a system holds single elements alone."""
-    plain = all(isinstance(item, Element) and not runs_rules(item) for item in system.elements)
+    plain = all(isinstance(item, Element) and not _has_agent_laws(item) for item in system.elements)
     if system.interactions or system.systems or not plain:
         error_msg = (
             f'Only systems of plain single elements replicate, but {system.label!r} has interactions, child systems, '

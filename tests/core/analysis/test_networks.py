@@ -180,3 +180,22 @@ def test_network_frames_adaptive_rewiring():
     values = np.asarray([row['mixing'] for row in network_frames(frames, {'mixing': mixing})])
     assert values[-1] > values[0]
     assert values[-1] > 0.9
+
+
+def test_small_world_measures():
+    """Test that rewiring a ring lattice shortens paths while keeping much of its clustering."""
+    ring = summarize_network(nx.watts_strogatz_graph(500, 10, 0.0, seed=0))
+    small_world = summarize_network(nx.watts_strogatz_graph(500, 10, 0.05, seed=0))
+    assert small_world.path_length < ring.path_length / 2
+    assert small_world.clustering > 0.5 * ring.clustering
+    assert ring.components == [500]
+
+
+def test_centralities():
+    """Test that the hub of a star has the largest centrality of every kind."""
+    star = nx.star_graph(5)
+    for kind in ('degree', 'betweenness', 'closeness', 'eigenvector', 'pagerank'):
+        values = centrality(star, kind)
+        assert max(values, key=values.get) == 0
+    with pytest.raises(AnalysisError, match='Unknown centrality'):
+        centrality(star, 'fame')

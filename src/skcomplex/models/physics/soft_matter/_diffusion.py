@@ -5,14 +5,15 @@
 
 import math
 from collections.abc import Sequence
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, exp, sin, sqrt
 
 from ....core.base import Domain, VisualSpec, parameter, role, state, vector
-from ....core.components import Element, Particle
+from ....core.components import Element
+from ....core.formalisms.particles import Particle
 from ....core.interactions import Interaction
 from ....core.laws import Boundary, Law, Noise, Rate, Symbols, pulse_train, where
 from ....core.runtime import register_model
@@ -78,23 +79,26 @@ class OpticalTrap(Interaction):
         label:
             The label of the interaction.
 
-        target:
-            The path of the particle or the group.
-
-        k:
-            The stiffness along every axis.
-
-        amplitude:
-            The amplitude of the oscillation of the center along every axis.
-
-        frequency:
-            The frequency of the oscillation of the center.
-
         blink_period:
             The period of a blinking trap, or `None` for a trap that is always on.
 
         duty:
             The fraction of every blinking period during which the trap is on.
+
+        **values:
+            The values of the declared variables, by name:
+
+            target:
+                The path of the particle or the group.
+
+            k:
+                The stiffness along every axis.
+
+            amplitude:
+                The amplitude of the oscillation of the center along every axis.
+
+            frequency:
+                The frequency of the oscillation of the center.
 
     Examples:
         >>> from skcomplex.models.physics.soft_matter import OpticalTrap
@@ -106,8 +110,18 @@ class OpticalTrap(Interaction):
     k: npt.ArrayLike = parameter(default=1.0, vector=True)
     amplitude: npt.ArrayLike = parameter(default=0.0, vector=True)
     frequency: float = parameter(default=0.0, domain=Domain.NONNEGATIVE)
-    blink_period: float | None = None
-    duty: float = 0.5
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        blink_period: float | None = None,
+        duty: float = 0.5,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.blink_period = blink_period
+        self.duty = duty
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the drift towards the center of the trap.
@@ -139,12 +153,6 @@ class SpeckleField(Interaction):
         label:
             The label of the interaction.
 
-        target:
-            The path of the particle or the group.
-
-        strength:
-            The product `u I0` of the polarizability constant and the reference intensity.
-
         centers:
             The centers of the hotspots.
 
@@ -154,6 +162,15 @@ class SpeckleField(Interaction):
         lengths:
             The decay lengths of the hotspots.
 
+        **values:
+            The values of the declared variables, by name:
+
+            target:
+                The path of the particle or the group.
+
+            strength:
+                The product `u I0` of the polarizability constant and the reference intensity.
+
     Examples:
         >>> from skcomplex.models.physics.soft_matter import SpeckleField
         >>> SpeckleField('speckle', target='bead', centers=((0.0, 0.0),), intensities=(1.0,), lengths=(1.0,)).strength
@@ -162,9 +179,20 @@ class SpeckleField(Interaction):
 
     target: str = role()
     strength: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    centers: tuple[tuple[float, float], ...] = ()
-    intensities: tuple[float, ...] = ()
-    lengths: tuple[float, ...] = ()
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        centers: tuple[tuple[float, float], ...] = (),
+        intensities: tuple[float, ...] = (),
+        lengths: tuple[float, ...] = (),
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.centers = centers
+        self.intensities = intensities
+        self.lengths = lengths
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the drift up the intensity gradient.
@@ -208,17 +236,23 @@ class ModulatedParticle(Element):
         label:
             The label of the particle or the group.
 
-        x:
-            The initial position.
+        convention:
+            The stochastic calculus of the noise, `'ito'`, `'stratonovich'`, or `'anti-ito'`.
 
-        s0:
-            The noise amplitude at the middle of the box.
+        **values:
+            The values of the declared variables, by name:
 
-        ds:
-            The change of the noise amplitude across the box.
+            x:
+                The initial position.
 
-        L:
-            The length of the box.
+            s0:
+                The noise amplitude at the middle of the box.
+
+            ds:
+                The change of the noise amplitude across the box.
+
+            L:
+                The length of the box.
 
     Examples:
         >>> from skcomplex.models.physics.soft_matter import ModulatedParticle
@@ -230,7 +264,16 @@ class ModulatedParticle(Element):
     s0: float = parameter(default=1.0, domain=Domain.POSITIVE)
     ds: float = parameter(default=1.8)
     L: float = parameter(default=100.0, domain=Domain.POSITIVE)
-    convention: str = 'anti-ito'
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        convention: str = 'anti-ito',
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.convention = convention
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the multiplicative noise and the reflecting walls.

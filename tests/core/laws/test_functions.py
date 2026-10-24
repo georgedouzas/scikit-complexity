@@ -4,16 +4,20 @@ import warnings
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import sin
+from sage.all__sagemath_symbolics import abs_symbolic, cos, sin
 
-from skcomplex.core.base import symbol
+from skcomplex.core.base import ValidationError, state, symbol
 from skcomplex.core.compile import NUMPY_DIALECT, SCALAR_DIALECT, compile_system, numpy_function, print_expressions
-from skcomplex.core.components import Element, Particle
-from skcomplex.core.laws import Rate, both, either, mod, series, where
+from skcomplex.core.components import Element
+from skcomplex.core.formalisms.particles import Particle
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import Equation, Rate, Update, both, derivative, either, lag, mod, series, where
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.solvers import RK4, ScipyODE
 from skcomplex.core.space import ContinuousSpace
 from skcomplex.core.system import System
+
+from .conftest import PRECISE, Mass
 
 
 def test_functions_stay_unevaluated_on_symbols():
@@ -144,3 +148,70 @@ def test_condition_on_a_nested_modulo_of_time_compiles():
     problem = compile_system(System(components=[nested('n')]))
     assert problem.drift(0.5, problem.initial_state, problem.initial_parameters)[0] == 1.0
     assert problem.drift(1.5, problem.initial_state, problem.initial_parameters)[0] == 0.0
+
+
+DoublePendulum = Element.define(
+    'DoublePendulum',
+    states={'a': state(default=1.0, order=2), 'b': state(default=0.5, order=2)},
+    parameters={'g': 9.81},
+    laws=lambda s: [
+        Equation(
+            2 * derivative(s.a, 2) + cos(s.a - s.b) * derivative(s.b, 2)
+            == -(derivative(s.b, 1) ** 2) * sin(s.a - s.b) - 2 * s.g * sin(s.a),
+        ),
+        Equation(
+            derivative(s.b, 2) + cos(s.a - s.b) * derivative(s.a, 2)
+            == derivative(s.a, 1) ** 2 * sin(s.a - s.b) - s.g * sin(s.b),
+        ),
+    ],
+)
+
+
+TooFar = Element.define(
+    'TooFar',
+    states={'x': state(default=1.0, lags=1)},
+    laws=lambda s: [Update(s.x, lag(s.x, 2))],
+)
+
+
+Jerk = Element.define(
+    'Jerk',
+    states={'x': state(default=0.0, order=3, initial=(0.0, 1.0))},
+    parameters={'A': 0.6},
+    laws=lambda s: [Rate(s.x, -s.A * derivative(s.x, 2) - derivative(s.x, 1) + abs_symbolic(s.x) - 1)],
+)
+
+
+def test_coupled_equations_conserve_energy():
+    """Test that the double pendulum's coupled equations are solved jointly and conserve its energy."""
+    trajectory = (
+        Simulation(System(components=[DoublePendulum('dp')]), solver=PRECISE, dt=0.05).run(until=10).trajectory_
+    )
+    a, b = trajectory['dp.a'], trajectory['dp.b']
+    a_d1, b_d1 = trajectory['dp.a_d1'], trajectory['dp.b_d1']
+    energy = a_d1**2 + 0.5 * b_d1**2 + a_d1 * b_d1 * np.cos(a - b) - 2 * 9.81 * np.cos(a) - 9.81 * np.cos(b)
+    assert np.abs(energy - energy[0]).max() < 1e-7 * abs(energy[0])
+
+
+def test_lag_beyond_kept_values_is_rejected():
+    """Test that reading a lag the state does not keep raises an error naming the lag."""
+    with pytest.raises(ValidationError, match=r'lag\(.*, 2\)'):
+        Simulation(System(components=[TooFar('t')])).run(until=1)
+
+
+def test_third_order_jerk_is_bounded_and_chaotic():
+    """Test that Sprott's jerk equation compiles to three equations and gives a bounded, sensitive trajectory."""
+    first = Simulation(System(components=[Jerk('j')]), solver=PRECISE, dt=0.5).run(until=300)
+    assert first.problem_.states.names == ['j.x', 'j.x_d1', 'j.x_d2']
+    second = Simulation(System(components=[Jerk('j', x=1e-8)]), solver=PRECISE, dt=0.5).run(until=300)
+    x = first.trajectory_['j.x']
+    assert np.all(np.isfinite(x))
+    assert np.abs(x).max() < 10
+    assert np.abs(x - second.trajectory_['j.x']).max() > 0.1
+
+
+def test_derivative_at_order_is_rejected_in_rates():
+    """Test that a rate cannot read the derivative of a state's own order."""
+    Bad = Interaction.define('Bad', roles=['target'], laws=lambda s: [Rate(s.target.x, derivative(s.target.x, 2))])
+    with pytest.raises(ValidationError, match='below its declared order'):
+        Simulation(System(components=[Mass('mass')], interactions=[Bad('bad', target='mass')])).run(until=1)

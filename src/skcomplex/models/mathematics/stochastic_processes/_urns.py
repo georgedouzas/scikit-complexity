@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 from ....core.base import Domain, state
 from ....core.components import Element
 from ....core.laws import Jump, Law, Symbols
@@ -20,14 +22,17 @@ class PolyaUrn(Element):
         label:
             The label of the urn or the group.
 
-        red:
-            The initial number of red balls.
-
-        blue:
-            The initial number of blue balls.
-
         added:
             The number of balls of the drawn color added after every draw.
+
+        **values:
+            The values of the declared variables, by name:
+
+            red:
+                The initial number of red balls.
+
+            blue:
+                The initial number of blue balls.
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import PolyaUrn
@@ -37,7 +42,16 @@ class PolyaUrn(Element):
 
     red: float = state(default=1.0, domain=Domain.NONNEGATIVE_INTEGER)
     blue: float = state(default=1.0, domain=Domain.NONNEGATIVE_INTEGER)
-    added: int = 1
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        added: int = 1,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.added = added
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the draws of a red and of a blue ball.

@@ -9,10 +9,11 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import Drive, Law, LocalRule, Rule, Symbols
+from ....core.formalisms.agents import AgentView, ModelView, Rule
+from ....core.formalisms.lattices import Drive, LocalRule
+from ....core.laws import Law, Symbols
 from ....core.runtime import register_model
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
@@ -76,14 +77,17 @@ class Q2RSpin(Element):
         label:
             The label of the site or the lattice group.
 
-        spin:
-            The initial spin, 1 or -1.
-
-        phase:
-            The initial phase, 1 for updating and 0 for quiescent.
-
         n_dim:
             The number of dimensions of the lattice.
+
+        **values:
+            The values of the declared variables, by name:
+
+            spin:
+                The initial spin, 1 or -1.
+
+            phase:
+                The initial phase, 1 for updating and 0 for quiescent.
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import Q2RSpin
@@ -93,7 +97,16 @@ class Q2RSpin(Element):
 
     spin: float = state(default=1.0, domain=Domain.INTEGER)
     phase: float = state(default=0.0, domain=Domain.BOOLEAN)
-    n_dim: int = 2
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        n_dim: int = 2,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.n_dim = n_dim
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the reversible energy-conserving flip and the swap of phases.
@@ -199,20 +212,23 @@ class ExclusionSite(Element):
         label:
             The label of the site or the lattice group.
 
-        occupied:
-            The initial occupation.
-
-        p:
-            The probability of a hop.
-
-        alpha:
-            The probability of an entry at the left end of an open line.
-
-        beta:
-            The probability of an exit at the right end of an open line.
-
         ring:
             Whether the line is a ring instead of an open line.
+
+        **values:
+            The values of the declared variables, by name:
+
+            occupied:
+                The initial occupation.
+
+            p:
+                The probability of a hop.
+
+            alpha:
+                The probability of an entry at the left end of an open line.
+
+            beta:
+                The probability of an exit at the right end of an open line.
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import ExclusionSite
@@ -224,7 +240,16 @@ class ExclusionSite(Element):
     p: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
     alpha: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
     beta: float = parameter(default=0.7, domain=Domain.NONNEGATIVE)
-    ring: bool = False
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        ring: bool = False,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.ring = ring
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the parallel update of hops, entries, and exits.

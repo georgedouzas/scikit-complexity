@@ -22,6 +22,18 @@ REDUCTIONS: dict[str, Callable[[Any], Any]] = {
 }
 
 
+def _check_pickles(label: str, name: str, value: object) -> None:
+    """Raise an error when a value of an observable cannot be pickled."""
+    try:
+        pickle.dumps(value)
+    except (pickle.PicklingError, AttributeError, TypeError) as error:
+        error_msg = (
+            f'The {name} of the observable {label!r} cannot be pickled: {error}. Use a module-level function or a '
+            'symbolic expression instead of a lambda or a local function.'
+        )
+        raise ValidationError(error_msg) from error
+
+
 def reduce_values(values: Any, reduce: str | Callable[[Any], Any]) -> Any:  # noqa: ANN401
     """Return the reduction of the values of a group's members.
 
@@ -58,18 +70,6 @@ def reduce_values(values: Any, reduce: str | Callable[[Any], Any]) -> Any:  # no
     if np.ndim(result):
         return result
     return float(result) if np.isrealobj(result) else complex(result)
-
-
-def _check_pickles(label: str, name: str, value: object) -> None:
-    """Raise an error when a value of an observable cannot be pickled."""
-    try:
-        pickle.dumps(value)
-    except (pickle.PicklingError, AttributeError, TypeError) as error:
-        error_msg = (
-            f'The {name} of the observable {label!r} cannot be pickled: {error}. Use a module-level function or a '
-            'symbolic expression instead of a lambda or a local function.'
-        )
-        raise ValidationError(error_msg) from error
 
 
 class Observable(BaseEstimator):

@@ -5,7 +5,7 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 import numpy as np
 import numpy.typing as npt
@@ -13,8 +13,8 @@ from sage.all__sagemath_symbolics import SR
 from scipy import optimize
 
 from ..base import AnalysisError, VariableKind, declarations_of, symbol
-from ..components import Field
-from ..laws import Rate, Symbols, laplacian
+from ..components import Element
+from ..laws import Rate, Symbols
 from ..space import LatticeSpace
 from ..system import System
 from ._kinds import DataKind, analysis
@@ -45,61 +45,6 @@ def _spectrum(grids: Array) -> Array:
     fluctuations = grids - grids.mean(axis=tuple(range(1, grids.ndim)), keepdims=True)
     axes = tuple(range(1, grids.ndim))
     return np.mean(np.abs(np.fft.fftn(fluctuations, axes=axes)) ** 2, axis=0) / np.prod(grids.shape[1:])
-
-
-@dataclass(frozen=True)
-class StructureFactor:
-    """Radially averaged structure factor of a field.
-
-    Args:
-        wavenumbers:
-            The wavenumbers of the shells, without 0.
-
-        power:
-            The mean power of the Fourier modes of the fluctuations in every shell.
-    """
-
-    wavenumbers: Array
-    power: Array
-
-
-@analysis(DataKind.FIELD)
-def structure_factor(field: npt.ArrayLike, *, spacing: float = 1.0, frames: bool = False) -> StructureFactor:
-    """Return the radially averaged structure factor `S(k)` of a field on a periodic grid of any dimension.
-
-    Args:
-        field:
-            The values on the grid, or a stack of frames when `frames` is true.
-
-        spacing:
-            The distance between neighbouring sites.
-
-        frames:
-            Whether the first axis indexes frames, whose structure factors are averaged.
-
-    Returns:
-        factor:
-            The wavenumbers and the power in every shell of width `2 pi / (side spacing)`.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.analysis import structure_factor
-        >>> x = np.arange(64)
-        >>> stripes = np.cos(2 * np.pi * x / 8)[:, None] * np.ones(64)
-        >>> factor = structure_factor(stripes)
-        >>> round(float(2 * np.pi / factor.wavenumbers[factor.power.argmax()]), 1)
-        8.0
-    """
-    grids = _frames(field, frames=frames)
-    power = _spectrum(grids)
-    moduli = _wavenumbers(grids.shape[1:], spacing)
-    width = 2 * np.pi / (max(grids.shape[1:]) * spacing)
-    shells = np.rint(moduli / width).astype(int).ravel()
-    sums = np.bincount(shells, power.ravel())
-    counts = np.bincount(shells)
-    used = counts > 0
-    used[0] = False
-    return StructureFactor(np.flatnonzero(used) * width, sums[used] / counts[used])
 
 
 def _ornstein_zernike_length(hat: Array, power: Array, limit: float) -> float:
@@ -159,6 +104,139 @@ def _fitted_length(grids: Array, spacing: float) -> float:
         bounds=([-5.0, 1e-6, -50.0], [5.0, 1e6, 50.0]),
     )
     return float(parameters[1])
+
+
+def _with_eigenvalue(expression: Any, eigenvalue: Any) -> Any:  # noqa: ANN401
+    """Return an expression with every Laplacian, nested ones included, as a multiplication by its eigenvalue."""
+    operator = expression.operator()
+    if operator is None:
+        return expression
+    name = getattr(operator, 'name', lambda: '')()
+    if name == 'laplacian':
+        return eigenvalue * _with_eigenvalue(expression.operands()[0], eigenvalue)
+    if name in OPERATOR_NAMES:
+        error_msg = f'The dispersion relation linearises laplacian only, but a law applies {name}.'
+        raise AnalysisError(error_msg)
+    return operator(*[_with_eigenvalue(item, eigenvalue) for item in expression.operands()])
+
+
+def _laplacian_eigenvalues(field: '_Field', lattice: LatticeSpace, waves: Array) -> Array:
+    """Return the eigenvalue of the field's Laplacian at every wave vector, for its discretization."""
+    spacings = np.asarray(lattice.spacings, dtype=float)
+    if field.discretization == 'spectral':
+        return -np.sum(waves**2, axis=1)
+    return np.sum((2 * np.cos(waves * spacings) - 2) / spacings**2, axis=1)
+
+
+def _single_field(system: System) -> tuple['_Field', LatticeSpace]:
+    """Return the one field of a system and its periodic lattice, or raise an error."""
+    fields = [component for component in system.components if isinstance(component, _Field)]
+    if len(fields) != 1 or len(system.components) != 1 or system.interactions or system.systems:
+        error_msg = 'The dispersion relation takes a system of one field, a site group on a lattice.'
+        raise AnalysisError(error_msg)
+    field = fields[0]
+    if not isinstance(field.space, LatticeSpace) or field.space.boundary != 'periodic':
+        error_msg = f'The field {field.label} is not on a periodic lattice, so its modes are not Fourier modes.'
+        raise AnalysisError(error_msg)
+    return field, field.space
+
+
+def _linearised_rates(field: '_Field') -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """Return the rate of every state with its Laplacians as eigenvalues, the state symbols, and the field's values."""
+    states = list(declarations_of(field.element, VariableKind.STATE))
+    member = field.element(field.label)
+    values = {name: getattr(member, name) for name in states} | dict(field.values or {})
+    parameters = {}
+    for name in declarations_of(field.element, VariableKind.PARAMETER):
+        value = values.get(name, getattr(member, name))
+        if np.ndim(value):
+            error_msg = f'The parameter {field.label}.{name} varies over the lattice, so there is no uniform state.'
+            raise AnalysisError(error_msg)
+        parameters[name] = float(value)
+    names = {name: symbol(f'_{name}_') for name in states}
+    rates: dict[str, Any] = {}
+    for law in member.laws(Symbols(**names, **parameters, t=symbol('t'))):
+        target = next((name for name, item in names.items() if getattr(law, 'target', None) is item), None)
+        if not isinstance(law, Rate) or target is None:
+            error_msg = f'The dispersion relation takes rate laws of the states of {field.label}, but got {law!r}.'
+            raise AnalysisError(error_msg)
+        rates[target] = SR(rates.get(target, 0) + _with_eigenvalue(SR(law.value), EIGENVALUE))
+    return {name: rates[name] for name in states if name in rates}, names, values
+
+
+def _fixed_point(rates: dict[str, Any], variables: list[Any]) -> Any:  # noqa: ANN401
+    """Return the function that finds the uniform fixed point of the rates nearest a starting point."""
+    local = [rate.subs({EIGENVALUE: 0}) for rate in rates.values()]
+
+    def residual(point: Array) -> list[float]:
+        substitution = dict(zip(variables, map(float, point), strict=True))
+        return [float(item.subs(substitution)) for item in local]
+
+    return lambda start: [float(item) for item in optimize.fsolve(residual, start)]
+
+
+def _eigenvalue_terms(entry: Any, name: str) -> list[tuple[float, int]]:  # noqa: ANN401
+    """Return the coefficients and powers of the Laplacian eigenvalue in an entry of the linearisation."""
+    try:
+        return [(float(coefficient), int(power)) for coefficient, power in entry.coefficients(EIGENVALUE)]
+    except (TypeError, ValueError) as error:
+        error_msg = f'The linearisation of {name} is not a polynomial in its Laplacians: {entry}.'
+        raise AnalysisError(error_msg) from error
+
+
+@dataclass(frozen=True)
+class StructureFactor:
+    """Radially averaged structure factor of a field.
+
+    Args:
+        wavenumbers:
+            The wavenumbers of the shells, without 0.
+
+        power:
+            The mean power of the Fourier modes of the fluctuations in every shell.
+    """
+
+    wavenumbers: Array
+    power: Array
+
+
+@analysis(DataKind.FIELD)
+def structure_factor(field: npt.ArrayLike, *, spacing: float = 1.0, frames: bool = False) -> StructureFactor:
+    """Return the radially averaged structure factor `S(k)` of a field on a periodic grid of any dimension.
+
+    Args:
+        field:
+            The values on the grid, or a stack of frames when `frames` is true.
+
+        spacing:
+            The distance between neighbouring sites.
+
+        frames:
+            Whether the first axis indexes frames, whose structure factors are averaged.
+
+    Returns:
+        factor:
+            The wavenumbers and the power in every shell of width `2 pi / (side spacing)`.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.analysis import structure_factor
+        >>> x = np.arange(64)
+        >>> stripes = np.cos(2 * np.pi * x / 8)[:, None] * np.ones(64)
+        >>> factor = structure_factor(stripes)
+        >>> round(float(2 * np.pi / factor.wavenumbers[factor.power.argmax()]), 1)
+        8.0
+    """
+    grids = _frames(field, frames=frames)
+    power = _spectrum(grids)
+    moduli = _wavenumbers(grids.shape[1:], spacing)
+    width = 2 * np.pi / (max(grids.shape[1:]) * spacing)
+    shells = np.rint(moduli / width).astype(int).ravel()
+    sums = np.bincount(shells, power.ravel())
+    counts = np.bincount(shells)
+    used = counts > 0
+    used[0] = False
+    return StructureFactor(np.flatnonzero(used) * width, sums[used] / counts[used])
 
 
 @analysis(DataKind.FIELD)
@@ -477,84 +555,6 @@ class DispersionRelation:
         return np.unique(np.round(self.magnitudes[self.growth_rates > 0], 12))
 
 
-def _with_eigenvalue(expression: Any, eigenvalue: Any) -> Any:  # noqa: ANN401
-    """Return an expression with every Laplacian, nested ones included, as a multiplication by its eigenvalue."""
-    operator = expression.operator()
-    if operator is None:
-        return expression
-    if operator == laplacian:
-        return eigenvalue * _with_eigenvalue(expression.operands()[0], eigenvalue)
-    name = getattr(operator, 'name', lambda: '')()
-    if name in OPERATOR_NAMES:
-        error_msg = f'The dispersion relation linearises laplacian only, but a law applies {name}.'
-        raise AnalysisError(error_msg)
-    return operator(*[_with_eigenvalue(item, eigenvalue) for item in expression.operands()])
-
-
-def _laplacian_eigenvalues(field: Field, lattice: LatticeSpace, waves: Array) -> Array:
-    """Return the eigenvalue of the field's Laplacian at every wave vector, for its discretization."""
-    spacings = np.asarray(lattice.spacings, dtype=float)
-    if field.discretization == 'spectral':
-        return -np.sum(waves**2, axis=1)
-    return np.sum((2 * np.cos(waves * spacings) - 2) / spacings**2, axis=1)
-
-
-def _single_field(system: System) -> tuple[Field, LatticeSpace]:
-    """Return the one field of a system and its periodic lattice, or raise an error."""
-    fields = [component for component in system.components if isinstance(component, Field)]
-    if len(fields) != 1 or len(system.components) != 1 or system.interactions or system.systems:
-        error_msg = 'The dispersion relation takes a system of one field, a site group on a lattice.'
-        raise AnalysisError(error_msg)
-    field = fields[0]
-    if not isinstance(field.space, LatticeSpace) or field.space.boundary != 'periodic':
-        error_msg = f'The field {field.label} is not on a periodic lattice, so its modes are not Fourier modes.'
-        raise AnalysisError(error_msg)
-    return field, field.space
-
-
-def _linearised_rates(field: Field) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
-    """Return the rate of every state with its Laplacians as eigenvalues, the state symbols, and the field's values."""
-    states = list(declarations_of(field.element, VariableKind.STATE))
-    member = field.element(field.label)
-    values = {name: getattr(member, name) for name in states} | dict(field.values or {})
-    parameters = {}
-    for name in declarations_of(field.element, VariableKind.PARAMETER):
-        value = values.get(name, getattr(member, name))
-        if np.ndim(value):
-            error_msg = f'The parameter {field.label}.{name} varies over the lattice, so there is no uniform state.'
-            raise AnalysisError(error_msg)
-        parameters[name] = float(value)
-    names = {name: symbol(f'_{name}_') for name in states}
-    rates: dict[str, Any] = {}
-    for law in member.laws(Symbols(**names, **parameters, t=symbol('t'))):
-        target = next((name for name, item in names.items() if getattr(law, 'target', None) is item), None)
-        if not isinstance(law, Rate) or target is None:
-            error_msg = f'The dispersion relation takes rate laws of the states of {field.label}, but got {law!r}.'
-            raise AnalysisError(error_msg)
-        rates[target] = SR(rates.get(target, 0) + _with_eigenvalue(SR(law.value), EIGENVALUE))
-    return {name: rates[name] for name in states if name in rates}, names, values
-
-
-def _fixed_point(rates: dict[str, Any], variables: list[Any]) -> Any:  # noqa: ANN401
-    """Return the function that finds the uniform fixed point of the rates nearest a starting point."""
-    local = [rate.subs({EIGENVALUE: 0}) for rate in rates.values()]
-
-    def residual(point: Array) -> list[float]:
-        substitution = dict(zip(variables, map(float, point), strict=True))
-        return [float(item.subs(substitution)) for item in local]
-
-    return lambda start: [float(item) for item in optimize.fsolve(residual, start)]
-
-
-def _eigenvalue_terms(entry: Any, name: str) -> list[tuple[float, int]]:  # noqa: ANN401
-    """Return the coefficients and powers of the Laplacian eigenvalue in an entry of the linearisation."""
-    try:
-        return [(float(coefficient), int(power)) for coefficient, power in entry.coefficients(EIGENVALUE)]
-    except (TypeError, ValueError) as error:
-        error_msg = f'The linearisation of {name} is not a polynomial in its Laplacians: {entry}.'
-        raise AnalysisError(error_msg) from error
-
-
 def dispersion_relation(system: System, at: Mapping[str, float] | None = None) -> DispersionRelation:
     """Return the dispersion relation of a field model, the growth rate of every mode of its linearisation.
 
@@ -607,3 +607,14 @@ def dispersion_relation(system: System, at: Mapping[str, float] | None = None) -
     leading = spectra[np.arange(len(waves)), np.argmax(spectra.real, axis=1)]
     magnitudes = np.linalg.norm(waves, axis=1)
     return DispersionRelation(waves, magnitudes, leading.real, leading.imag, dict(zip(order, uniform, strict=True)))
+
+
+@runtime_checkable
+class _Field(Protocol):
+    """Group of members at the sites of a space whose differential operators a discretization evaluates."""
+
+    label: str
+    element: type[Element]
+    space: object
+    values: Mapping[str, Any] | None
+    discretization: str

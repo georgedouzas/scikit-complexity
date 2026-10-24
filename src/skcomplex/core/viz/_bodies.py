@@ -15,7 +15,9 @@ import rerun.blueprint as rrb
 from ..base import ValidationError
 from ..compile import CompiledAgents, CompiledElement, Problem
 from ..runtime import Frame
-from ._visuals import TRAIL_LENGTH, UPWARD, Visual, _log_scalars, _radius_of, register_visual
+from ._points import TRAIL_LENGTH
+from ._utils import UPWARD, _radius_of, log_scalars
+from ._visuals import Visual, register_visual
 
 type Positions = Callable[..., npt.ArrayLike] | Sequence[str]
 type Outline = Callable[..., Sequence[npt.ArrayLike]] | Sequence[npt.ArrayLike]
@@ -271,7 +273,7 @@ class BodiesVisual(Visual):
             )
         self._log_trail(recording, path, bodies, share * TRAIL_SHARE)
         for state, name in element.states.items():
-            _log_scalars(recording, f'{path}/{state}', frame.value(name))
+            log_scalars(recording, f'{path}/{state}', frame.value(name))
 
     def views(self, element: CompiledElement | CompiledAgents, problem: Problem) -> list[rrb.View]:
         """Return a 2D view of the bodies that covers the drawing, and a time series view of the states.

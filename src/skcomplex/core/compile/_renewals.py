@@ -9,19 +9,19 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
 from ..base import Expression, SolverError, SymbolicVector, ValidationError, components_of, symbol, symbols_of
 from ..laws import Draw, draws_in, has_reductions, is_draw
 from ..laws._laws import Renewal
+from ._arrays import Indices, Vector
 from ._kernels import Reference, Source
+from ._layout import Entry
 from ._printing import numpy_function
 from ._problem import RenewalRecord
+from ._specs import KernelSpec
 from ._stochastic import distribution_of, sample_draw
 
-type Vector = npt.NDArray[np.float64]
-type Indices = npt.NDArray[np.intp]
 type Drawn = dict[str, Vector]
 READ_SOURCES = frozenset({Source.SINGLE, Source.MEMBER})
 
@@ -445,3 +445,35 @@ def compile_renewal(
         before=samplers(first),
         after=samplers(later),
     )
+
+
+@dataclass(frozen=True)
+class RenewalLaw:
+    """Renewal law of a component with its label, the group it renews, and the hidden state that counts it.
+
+    Args:
+        spec:
+            The kernel spec of the component.
+
+        law:
+            The renewal law.
+
+        label:
+            The label of the renewal.
+
+        group:
+            The path of the element or group the renewal resets.
+
+        entry:
+            The hidden state that counts the renewals of every member.
+
+        symbol:
+            The symbol of the count.
+    """
+
+    spec: KernelSpec
+    law: Renewal
+    label: str
+    group: str
+    entry: Entry
+    symbol: Expression

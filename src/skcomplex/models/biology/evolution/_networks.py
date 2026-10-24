@@ -3,30 +3,16 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import networkx as nx
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.components import Element, Group
+from ....core.formalisms.topology import add_edge, add_node, remove_node
 from ....core.interactions import Interaction
-from ....core.laws import (
-    Law,
-    Symbols,
-    Update,
-    add_edge,
-    add_node,
-    both,
-    minimum,
-    mod,
-    neighbors,
-    normal,
-    remove_node,
-    total,
-    uniform,
-    where,
-)
+from ....core.laws import Law, Symbols, Update, both, minimum, mod, neighbors, normal, total, uniform, where
 from ....core.runtime import register_model
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import System
@@ -49,14 +35,17 @@ class Taxon(Element):
         label:
             The label of the species or of the group of species.
 
-        h:
-            The field, the sum of the couplings of its dependencies.
-
-        age:
-            The number of steps since the species appeared.
-
         k:
             The number of dependencies of a new species.
+
+        **values:
+            The values of the declared variables, by name:
+
+            h:
+                The field, the sum of the couplings of its dependencies.
+
+            age:
+                The number of steps since the species appeared.
 
     Examples:
         >>> from skcomplex.models.biology.evolution import Taxon
@@ -66,7 +55,16 @@ class Taxon(Element):
 
     h: float = state(default=1.0, domain=Domain.REAL)
     age: float = state(default=0.0, domain=Domain.NONNEGATIVE)
-    k: int = 5
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        k: int = 5,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.k = k
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the ageing, and the extinction and replacement of a species whose field is negative.
@@ -130,7 +128,7 @@ class CouplingDrift(Interaction):
         0.05
     """
 
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     species: str = role()
     couplings: str = role()
     noise: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
@@ -201,26 +199,29 @@ class Chemical(Element):
         label:
             The label of the species or of the group of species.
 
-        x:
-            The relative population.
-
-        tie:
-            The random key that breaks ties between the least populated species.
-
-        fresh:
-            Whether the species appeared at the previous graph update.
-
-        h:
-            The growth of a step from the catalysts.
-
-        p:
-            The probability of every catalytic link of a new species.
-
-        period:
-            The number of steps between two graph updates.
-
         k:
             The number of catalysts of a new species.
+
+        **values:
+            The values of the declared variables, by name:
+
+            x:
+                The relative population.
+
+            tie:
+                The random key that breaks ties between the least populated species.
+
+            fresh:
+                Whether the species appeared at the previous graph update.
+
+            h:
+                The growth of a step from the catalysts.
+
+            p:
+                The probability of every catalytic link of a new species.
+
+            period:
+                The number of steps between two graph updates.
 
     Examples:
         >>> from skcomplex.models.biology.evolution import Chemical
@@ -234,7 +235,16 @@ class Chemical(Element):
     h: float = parameter(default=0.5, domain=Domain.POSITIVE)
     p: float = parameter(default=0.02, domain=Domain.NONNEGATIVE)
     period: float = parameter(default=10.0, domain=Domain.POSITIVE)
-    k: int = 1
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        k: int = 1,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.k = k
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the catalytic growth, and the replacement of the least populated species at every graph update.

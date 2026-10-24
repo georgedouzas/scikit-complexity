@@ -8,8 +8,9 @@ from collections.abc import Sequence
 import numpy as np
 import numpy.typing as npt
 
-from ....core.components import Element, Field
-from ....core.laws import Rate, laplacian
+from ....core.components import Element
+from ....core.formalisms.fields import Field, laplacian
+from ....core.laws import Rate
 from ....core.runtime import register_model
 from ....core.solvers import RK4
 from ....core.space import LatticeSpace

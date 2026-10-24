@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
 from ....core.laws import Law, Rate, Symbols, pulse_train, step
@@ -20,21 +22,6 @@ class DrugToxicity(Element):
         label:
             The label of the patient.
 
-        c:
-            The initial plasma concentration.
-
-        T:
-            The initial toxicity.
-
-        k:
-            The elimination rate of the drug.
-
-        eta:
-            The rate at which the metabolism lowers the toxicity, 0 for a cumulative toxicity.
-
-        dose:
-            The infusion rate during a dose.
-
         period:
             The time between the starts of doses.
 
@@ -43,6 +30,24 @@ class DrugToxicity(Element):
 
         doses:
             The number of doses.
+
+        **values:
+            The values of the declared variables, by name:
+
+            c:
+                The initial plasma concentration.
+
+            T:
+                The initial toxicity.
+
+            k:
+                The elimination rate of the drug.
+
+            eta:
+                The rate at which the metabolism lowers the toxicity, 0 for a cumulative toxicity.
+
+            dose:
+                The infusion rate during a dose.
 
     Examples:
         >>> from skcomplex.models.biology.physiology import DrugToxicity
@@ -55,9 +60,20 @@ class DrugToxicity(Element):
     k: float = parameter(default=0.5, domain=Domain.NONNEGATIVE)
     eta: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
     dose: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    period: float = 7.0
-    width: float = 1.0
-    doses: int = 6
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        period: float = 7.0,
+        width: float = 1.0,
+        doses: int = 6,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.period = period
+        self.width = width
+        self.doses = doses
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the balance of the drug and the accumulation of toxicity.

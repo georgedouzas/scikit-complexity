@@ -6,6 +6,7 @@
 import itertools
 from collections.abc import Sequence
 from math import prod
+from typing import Any
 
 from sage.all__sagemath_symbolics import SR
 
@@ -167,9 +168,6 @@ class GeneralizedMassAction(Interaction):
         label:
             The label of the interaction.
 
-        species:
-            The paths of the species, in the order of the rows of the stoichiometry.
-
         stoichiometry:
             The stoichiometric coefficient `s_ij` of every species in every flux, one row per species.
 
@@ -179,6 +177,12 @@ class GeneralizedMassAction(Interaction):
         orders:
             The kinetic order `f_jk` of every species in every flux, one row per flux.
 
+        **values:
+            The values of the declared variables, by name:
+
+            species:
+                The paths of the species, in the order of the rows of the stoichiometry.
+
     Examples:
         >>> from skcomplex.models.biology.systems_biology import GeneralizedMassAction
         >>> v = GeneralizedMassAction('v', species=['X'], stoichiometry=((1, -1),), gamma=(1, 2), orders=((0,), (1,)))
@@ -187,9 +191,20 @@ class GeneralizedMassAction(Interaction):
     """
 
     species: list[str] = role(variadic=True)
-    stoichiometry: Sequence[Sequence[float]] = ((0.0,),)
-    gamma: Sequence[float] = (0.0,)
-    orders: Sequence[Sequence[float]] = ((0.0,),)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        stoichiometry: Sequence[Sequence[float]] = ((0.0,),),
+        gamma: Sequence[float] = (0.0,),
+        orders: Sequence[Sequence[float]] = ((0.0,),),
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.stoichiometry = stoichiometry
+        self.gamma = gamma
+        self.orders = orders
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the sum of the power-law fluxes of every species.
@@ -226,20 +241,23 @@ class SSystem(Interaction):
         label:
             The label of the interaction.
 
-        species:
-            The paths of the species.
-
-        alpha:
-            The rate constant of the production of every species.
-
-        beta:
-            The rate constant of the degradation of every species.
-
         g:
             The kinetic orders of the productions, one row per species.
 
         h:
             The kinetic orders of the degradations, one row per species.
+
+        **values:
+            The values of the declared variables, by name:
+
+            species:
+                The paths of the species.
+
+            alpha:
+                The rate constant of the production of every species.
+
+            beta:
+                The rate constant of the degradation of every species.
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import SSystem
@@ -250,8 +268,18 @@ class SSystem(Interaction):
     species: list[str] = role(variadic=True)
     alpha: list[float] = parameter(default=(), per='species', domain=Domain.NONNEGATIVE)
     beta: list[float] = parameter(default=(), per='species', domain=Domain.NONNEGATIVE)
-    g: Sequence[Sequence[float]] = ((0.0,),)
-    h: Sequence[Sequence[float]] = ((0.0,),)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        g: Sequence[Sequence[float]] = ((0.0,),),
+        h: Sequence[Sequence[float]] = ((0.0,),),
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.g = g
+        self.h = h
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the production minus the degradation of every species.

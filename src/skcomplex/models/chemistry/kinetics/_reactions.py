@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping
+from typing import Any
 
 from sage.all__sagemath_symbolics import sqrt
 
@@ -91,23 +92,26 @@ class Binding(Interaction):
         label:
             The label of the reaction.
 
-        first:
-            The path of the first reactant.
-
-        second:
-            The path of the second reactant.
-
-        product:
-            The path of the product.
-
-        k:
-            The rate constant.
-
         stochastic:
             Whether reactions are random events.
 
         langevin:
             Whether the reaction is a chemical Langevin equation.
+
+        **values:
+            The values of the declared variables, by name:
+
+            first:
+                The path of the first reactant.
+
+            second:
+                The path of the second reactant.
+
+            product:
+                The path of the product.
+
+            k:
+                The rate constant.
 
     Examples:
         >>> from skcomplex.models.chemistry.kinetics import Binding
@@ -119,8 +123,18 @@ class Binding(Interaction):
     second: str = role()
     product: str = role()
     k: float = parameter(default=0.01, domain=Domain.NONNEGATIVE)
-    stochastic: bool = False
-    langevin: bool = False
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        stochastic: bool = False,
+        langevin: bool = False,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.stochastic = stochastic
+        self.langevin = langevin
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the reaction at the rate `k * first * second`.
@@ -153,23 +167,26 @@ class Dissociation(Interaction):
         label:
             The label of the reaction.
 
-        complex:
-            The path of the dissociating complex.
-
-        first:
-            The path of the first product.
-
-        second:
-            The path of the second product.
-
-        k:
-            The rate constant.
-
         stochastic:
             Whether reactions are random events.
 
         langevin:
             Whether the reaction is a chemical Langevin equation.
+
+        **values:
+            The values of the declared variables, by name:
+
+            complex:
+                The path of the dissociating complex.
+
+            first:
+                The path of the first product.
+
+            second:
+                The path of the second product.
+
+            k:
+                The rate constant.
 
     Examples:
         >>> from skcomplex.models.chemistry.kinetics import Dissociation
@@ -181,8 +198,18 @@ class Dissociation(Interaction):
     first: str = role()
     second: str = role()
     k: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    stochastic: bool = False
-    langevin: bool = False
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        stochastic: bool = False,
+        langevin: bool = False,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.stochastic = stochastic
+        self.langevin = langevin
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the reaction at the rate `k * complex`.

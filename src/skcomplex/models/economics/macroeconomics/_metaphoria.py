@@ -11,13 +11,13 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.analysis import gini
-from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, parameter, role, state
 from ....core.components import Element
-from ....core.interactions import Interaction, Match, matches
-from ....core.laws import Invariant, Law, Rule, Symbols, transfer
+from ....core.formalisms.agents import AgentView, Match, ModelView, Phase, Phases, Rule, matches
+from ....core.interactions import Interaction
+from ....core.laws import Invariant, Law, Symbols, transfer
 from ....core.runtime import register_model
-from ....core.space import DiscreteTime, LatticeSpace, Phase, Phases
+from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import Observable, System
 
 MODES = ('hunter_gatherer', 'monetary')
@@ -407,8 +407,8 @@ class Business(Element):
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import Business
-        >>> Business.group('businesses', 0, variable=True).size
-        0
+        >>> Business.group('businesses', 2, variable=True).size
+        2
     """
 
     money: float = state(default=0.0, quantity='money')

@@ -3,40 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
 from typing import ClassVar
 
 from sklearn.base import BaseEstimator
 
 from ..base import TimeKind, ValidationError
-from ._phases import Phase
 
 SCHEDULES = ('synchronous', 'random-sequential')
 
 
-class Phases(BaseEstimator):
-    """Schedule of a discrete time that runs named phases in order in every step.
-
-    Args:
-        phases:
-            The phases, each with its rules and activation policy.
-
-    Examples:
-        >>> from skcomplex.core.space import Phase, Phases
-        >>> [phase.name for phase in Phases([Phase('produce'), Phase('trade')]).phases]
-        ['produce', 'trade']
-    """
-
-    def __init__(self, phases: Sequence[Phase]) -> None:
-        self.phases = tuple(phases)
-        names = [phase.name for phase in self.phases]
-        if len(names) != len(set(names)):
-            error_msg = f'The phases {names} repeat a name. Give every phase of a step its own name.'
-            raise ValidationError(error_msg)
+class Schedule(BaseEstimator):
+    """Base class of a schedule of discrete time that a formalism defines, such as the phases of agents."""
 
     def __repr__(self, N_CHAR_MAX: int = 700) -> str:
-        """Return the names of the phases."""
-        return f'Phases({[phase.name for phase in self.phases]!r})'
+        """Return the name of the schedule."""
+        return f'{type(self).__name__}()'
 
 
 class Time(BaseEstimator):
@@ -70,27 +51,22 @@ class DiscreteTime(Time):
     Args:
         schedule:
             `'synchronous'`, every update reads the states of the start of the step, `'random-sequential'`, members
-            update one after another in a new random order, or `Phases`, named phases in order, each with its own
-            activation policy.
+            update one after another in a new random order, or a `Schedule` that a formalism defines, such as the
+            phases of agents.
 
     Examples:
-        >>> from skcomplex.core.space import DiscreteTime, Phase, Phases
-        >>> DiscreteTime(schedule=Phases([Phase('trade')])).schedule
-        Phases(['trade'])
+        >>> from skcomplex.core.space import DiscreteTime
+        >>> DiscreteTime(schedule='random-sequential').schedule
+        'random-sequential'
     """
 
     kind: ClassVar[TimeKind] = TimeKind.DISCRETE
 
-    def __init__(self, schedule: str | Phases = 'synchronous') -> None:
+    def __init__(self, schedule: str | Schedule = 'synchronous') -> None:
         self.schedule = schedule
-        if not isinstance(schedule, Phases) and schedule not in SCHEDULES:
-            error_msg = f'Unknown schedule {schedule!r}. Use one of {", ".join(SCHEDULES)}, or Phases.'
+        if not isinstance(schedule, Schedule) and schedule not in SCHEDULES:
+            error_msg = f'Unknown schedule {schedule!r}. Use one of {", ".join(SCHEDULES)}, or a Schedule.'
             raise ValidationError(error_msg)
-
-    @property
-    def phases(self) -> tuple[Phase, ...]:
-        """Return the phases of the schedule, or none for a synchronous or random-sequential schedule."""
-        return self.schedule.phases if isinstance(self.schedule, Phases) else ()
 
     def __repr__(self, N_CHAR_MAX: int = 700) -> str:
         """Return the schedule."""

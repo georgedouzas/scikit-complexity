@@ -1,12 +1,11 @@
-"""Test the compilation of renewal laws and fractional noise laws."""
+"""Test the compilation of renewal laws."""
 
-import numpy as np
 import pytest
 
 from skcomplex.core.base import Form, ValidationError
 from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
-from skcomplex.core.laws import FractionalNoise, Jump, Noise, Rate, Update, draw, mean, normal
+from skcomplex.core.laws import Jump, Rate, Update, draw, mean, normal
 from skcomplex.core.system import System
 
 Counter = Element.define(
@@ -24,16 +23,6 @@ def _renewal(waiting, reset=None):
         states={'x': 0.0},
         parameters={'a': 1.0},
         laws=lambda s: [Jump(waiting=waiting(s), reset=reset(s) if reset else None)],
-    )
-
-
-def _fractional(amplitude, hurst):
-    """Return an element type driven by one fractional noise law."""
-    return Element.define(
-        'Fractional',
-        states={'x': 0.0},
-        parameters={'D': 1.0},
-        laws=lambda s: [FractionalNoise(s.x, amplitude(s), hurst=hurst)],
     )
 
 
@@ -112,36 +101,3 @@ def test_compile_system_accepts_draws_in_update_laws_from_scipy():
     assert problem.draws is not None
     assert problem.draws.size == 8
     assert problem.draws.sampled[0].rows == 4
-
-
-def test_compile_system_rejects_a_hurst_index_out_of_range():
-    """Test that a Hurst index of 1 names the law and the value and states the open interval."""
-    rough = _fractional(lambda s: 1, 1.0)
-    with pytest.raises(ValidationError, match=r'fractional noise law of f.x of f has the Hurst index 1.*\(0, 1\)'):
-        compile_system(System(components=[rough('f')]))
-
-
-def test_compile_system_rejects_a_state_dependent_fractional_amplitude():
-    """Test that a fractional amplitude that reads its own state names the state and the supported case."""
-    multiplicative = _fractional(lambda s: s.x, 0.7)
-    with pytest.raises(ValidationError, match=r'depends on the state f.x. Only state-independent amplitudes'):
-        compile_system(System(components=[multiplicative('f')]))
-
-
-def test_compile_system_lowers_a_hurst_index_of_one_half_to_noise():
-    """Test that fractional noise of Hurst index 1/2 compiles to an ordinary noise row with no fractional rows."""
-    problem = compile_system(System(components=[_fractional(lambda s: s.x, 0.5).group('f', 3)]))
-    plain = compile_system(
-        System(components=[Element.define('Plain', states={'x': 0.0}, laws=lambda s: [Noise(s.x, s.x)]).group('f', 3)]),
-    )
-    assert problem.form is Form.SDE
-    assert problem.fractional == ()
-    assert np.array_equal(problem.noise_rows, plain.noise_rows)
-
-
-def test_compile_system_records_the_hurst_index_of_fractional_rows():
-    """Test that fractional rows of a group record the Hurst index of every row from the parameters."""
-    problem = compile_system(System(components=[_fractional(lambda s: (2 * s.D) ** 0.5, 0.3).group('f', 4)]))
-    rows = problem.fractional[0]
-    assert rows.positions.tolist() == [0, 1, 2, 3]
-    assert np.allclose(rows.hurst(problem.initial_parameters), 0.3)

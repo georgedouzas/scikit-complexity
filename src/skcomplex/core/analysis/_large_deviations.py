@@ -24,6 +24,14 @@ SMALL_POPULATION = 0.1
 MIN_EFFECTIVE_CLONES = 10
 
 
+def _increment(observable: str | Callable[[Trajectory], float], trajectory: Trajectory) -> float:
+    """Return the increment of a time-additive observable over one segment of a clone."""
+    if callable(observable):
+        return float(observable(trajectory))
+    values = np.asarray(trajectory[observable], dtype=float)
+    return float(np.sum(values[-1] - values[0]))
+
+
 @analysis(DataKind.PATH)
 def tilted_generating_function(rates: npt.ArrayLike, weights: npt.ArrayLike, k: npt.ArrayLike) -> Array:
     """Return the scaled cumulant generating function of a counting observable of a jump process, exactly.
@@ -280,14 +288,6 @@ class Cloning:
     population: int
     duration: float
     effective_population: float
-
-
-def _increment(observable: str | Callable[[Trajectory], float], trajectory: Trajectory) -> float:
-    """Return the increment of a time-additive observable over one segment of a clone."""
-    if callable(observable):
-        return float(observable(trajectory))
-    values = np.asarray(trajectory[observable], dtype=float)
-    return float(np.sum(values[-1] - values[0]))
 
 
 def cloning(

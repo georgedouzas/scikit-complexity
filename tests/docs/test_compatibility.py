@@ -4,7 +4,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from skcomplex.core.base import Form, LawKind
-from skcomplex.core.solvers import SOLVERS
+from skcomplex.core.compile import SOLVERS
 
 SCRIPT = Path(__file__).parents[2] / 'docs' / 'generate_compatibility.py'
 
@@ -45,6 +45,29 @@ def test_table_follows_declarations(monkeypatch):
     assert '`noise`' not in _row(_generator()['compatibility_page'](), '| `iteration` |')
     monkeypatch.setattr(stepper, 'supports', replace(stepper.supports, laws=stepper.supports.laws | {LawKind.NOISE}))
     assert '`noise`' in _row(_generator()['compatibility_page'](), '| `iteration` |')
+
+
+def test_page_lists_the_contributions_of_every_formalism():
+    """Test that the page has a row for every formalism with its dependencies, laws, forms, and solvers."""
+    page = _generator()['compatibility_page']()
+    names = [row.split('`')[1] for row in page.split('## Formalisms')[1].splitlines() if row.startswith('| `')]
+    assert set(names) >= {
+        'agents',
+        'control',
+        'fields',
+        'fractional',
+        'groups',
+        'kinetics',
+        'lattices',
+        'particles',
+        'quantum',
+        'rewriting',
+        'topology',
+    }
+    assert _row(page, '| `fields` |').startswith('| `fields` | `lattices` | `Flux` | `Field` | none |')
+    assert _row(page, '| `quantum` |').startswith(
+        '| `quantum` | none | `Generator`, `Dissipator` | none | `quantum dynamics` | `QuantumPass` | `unitary`,',
+    )
 
 
 def test_tables_list_noise_support():

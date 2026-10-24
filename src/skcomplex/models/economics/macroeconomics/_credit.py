@@ -8,12 +8,12 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, parameter, state
 from ....core.components import Element
-from ....core.laws import Law, Rule, Symbols
+from ....core.formalisms.agents import AgentView, ModelView, Phase, Phases, Rule
+from ....core.laws import Law, Symbols
 from ....core.runtime import register_model
-from ....core.space import DiscreteTime, Phase, Phases
+from ....core.space import DiscreteTime
 from ....core.system import Observable, System
 from ..realizations import Market, SampleAndSwitch, Trade
 
@@ -54,44 +54,47 @@ class Firm(Element):
         lenders:
             The path of the group of banks.
 
-        net_worth:
-            The initial net worth.
+        **values:
+            The values of the declared variables, by name:
 
-        demand:
-            The loan still wanted in the current step.
+            net_worth:
+                The initial net worth.
 
-        bid:
-            The highest interest rate the firm pays.
+            demand:
+                The loan still wanted in the current step.
 
-        loan:
-            The loan of the current step.
+            bid:
+                The highest interest rate the firm pays.
 
-        rate:
-            The interest rate of the loan, zero without a loan.
+            loan:
+                The loan of the current step.
 
-        partner:
-            The id of the bank of the firm, `-1` before its first loan.
+            rate:
+                The interest rate of the loan, zero without a loan.
 
-        gross_return:
-            The return on the capital of the last step.
+            partner:
+                The id of the bank of the firm, `-1` before its first loan.
 
-        injected:
-            The net worth of an entrant that replaced the firm in the last step, zero otherwise.
+            gross_return:
+                The return on the capital of the last step.
 
-        defaulted:
-            Whether the firm defaulted in the last step.
+            injected:
+                The net worth of an entrant that replaced the firm in the last step, zero otherwise.
 
-        leverage:
-            The ratio of the loan wanted to the net worth.
+            defaulted:
+                Whether the firm defaulted in the last step.
 
-        mean_return:
-            The mean return on capital.
+            leverage:
+                The ratio of the loan wanted to the net worth.
 
-        volatility:
-            The standard deviation of the return on capital.
+            mean_return:
+                The mean return on capital.
 
-        entry:
-            The net worth of an entrant.
+            volatility:
+                The standard deviation of the return on capital.
+
+            entry:
+                The net worth of an entrant.
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import Firm
@@ -99,7 +102,6 @@ class Firm(Element):
         10
     """
 
-    lenders: str = 'banks'
     net_worth: float = state(default=10.0, domain=Domain.NONNEGATIVE)
     demand: float = state(default=0.0, domain=Domain.NONNEGATIVE)
     bid: float = state(default=1.0, domain=Domain.NONNEGATIVE)
@@ -113,6 +115,16 @@ class Firm(Element):
     mean_return: float = parameter(default=0.03, domain=Domain.REAL)
     volatility: float = parameter(default=0.3, domain=Domain.NONNEGATIVE)
     entry: float = parameter(default=10.0, domain=Domain.POSITIVE)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        lenders: str = 'banks',
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.lenders = lenders
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the borrowing plan and the investment rule.

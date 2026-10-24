@@ -8,7 +8,7 @@ import itertools
 import math
 import warnings
 from collections.abc import Callable, Iterator, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any, ClassVar
 
@@ -16,8 +16,9 @@ import numpy as np
 from matching.games import HospitalResident
 
 from ....core.base import role
+from ....core.formalisms.agents import Rule
 from ....core.interactions import Interaction
-from ....core.laws import Law, Rule, Symbols
+from ....core.laws import Law, Symbols
 
 type Preference = Callable[[Any, Any], float]
 
@@ -216,6 +217,9 @@ class BilateralSearch(Protocol):
                 if seller.limit <= buyer.limit:
                     _book(trades, buyer, seller, _price(buyer, seller, self.pricing))
         return trades
+
+
+BILATERAL_SEARCH = BilateralSearch()
 
 
 @dataclass(frozen=True)
@@ -626,12 +630,6 @@ class Market(Interaction):
         label:
             The label of the market.
 
-        buyers:
-            The path of the group of buyers.
-
-        sellers:
-            The path of the group of sellers.
-
         protocol:
             The protocol that matches the participants, such as `OrderBook()`.
 
@@ -659,6 +657,15 @@ class Market(Interaction):
         on_trade:
             A function of every trade and the model view, run after the transfers, or `None`.
 
+        **values:
+            The values of the declared variables, by name:
+
+            buyers:
+                The path of the group of buyers.
+
+            sellers:
+                The path of the group of sellers.
+
     Examples:
         >>> from skcomplex.models.economics.realizations import Market, OrderBook
         >>> Market('exchange', buyers='traders', sellers='traders', protocol=OrderBook()).reports
@@ -668,15 +675,32 @@ class Market(Interaction):
     reports: ClassVar[tuple[str, ...]] = ('price', 'volume', 'unmatched')
     buyers: str = role()
     sellers: str = role()
-    protocol: Protocol = field(default_factory=BilateralSearch)
-    phase: str | None = None
-    bid: str = 'bid'
-    ask: str = 'ask'
-    demand: str = 'demand'
-    supply: str = 'supply'
-    money: str | None = 'money'
-    goods: str | None = 'goods'
-    on_trade: Callable[[Trade, Any], None] | None = None
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        protocol: Protocol = BILATERAL_SEARCH,
+        phase: str | None = None,
+        bid: str = 'bid',
+        ask: str = 'ask',
+        demand: str = 'demand',
+        supply: str = 'supply',
+        money: str | None = 'money',
+        goods: str | None = 'goods',
+        on_trade: Callable[[Trade, Any], None] | None = None,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.protocol = protocol
+        self.phase = phase
+        self.bid = bid
+        self.ask = ask
+        self.demand = demand
+        self.supply = supply
+        self.money = money
+        self.goods = goods
+        self.on_trade = on_trade
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the clearing rule in the market's phase.

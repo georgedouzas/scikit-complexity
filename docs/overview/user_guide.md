@@ -4,16 +4,20 @@
 
 `scikit-complexity` separates the description of a model from the way it is solved.
 
-- An **element** is an entity that carries state, such as a particle, a population, a compartment, or a market.
-- An **interaction** couples elements through **roles** and describes its effect with **laws**.
-- A **law** says how a state changes. It is one of four kinds.
+- A **component** is any part of a system. Elements, groups, interactions, and systems are all components.
+    - An **element** is an entity that carries state, such as a particle, a population, a compartment, or a market.
+    - A **group** holds many identical elements of one type as arrays.
+    - An **interaction** couples components through **roles** and describes its effect with **laws**.
+    - A **system** holds components, interactions, child systems, an optional space, and **observables**, named
+      quantities computed from its states at every frame.
+- A **law** says how a state changes. Every law has a kind, and the four most common kinds are these.
     - `Rate` adds a term to the time derivative of a state. Rates on one state add up.
     - `Noise` drives a state with a Wiener process, independent unless laws name a shared or correlated one.
     - `Jump` fires a random event that changes states by fixed increments.
     - `Update` gives the next value of a state after one discrete step.
 - A **space** gives vector states, such as positions, their dimension.
-- A **system** holds elements, interactions, child systems, an optional space, and **observables**, named quantities
-  computed from its states at every frame.
+- A **formalism** adds the laws, components, compilation, and solvers of one kind of dynamics, such as lattice
+  dynamics or quantum dynamics, to the shared core.
 
 These concepts carry no field-specific meaning. A population, a particle, a firm, and a cell are all elements, so a
 model from any science is a configuration of the same interface, and every ready-made model in `skcomplex.models` is a
@@ -28,12 +32,20 @@ Compiling a system infers its mathematical form from its law kinds and builds fa
 | `Jump` | jump process | `Gillespie` |
 | `Update` | discrete map | `Iteration` |
 
-## Defining elements and interactions
+## Defining components
 
-Elements and interactions declare their fields with `state`, `parameter`, and `role`. Each field becomes a constructor
-argument, stored unmodified under its own name.
+Every component type derives from `Component`, which `Element`, `Group`, `Interaction`, and `System` extend. A type
+declares its variables as class attributes made by `state`, `parameter`, and `role`.
+
+- The constructor takes the label first, and then the value of every declared name by keyword.
+- The constructor stores each value unmodified under its own name, and the declared default for a name it is not given.
+- A value for a name the type does not declare raises `ArgumentError`, and so does a missing role.
+- `get_params`, `set_params`, `clone`, and `repr` follow the scikit-learn estimator contract, so every component clones
+  with its values.
 
 ```python
+from sklearn.base import clone
+
 from skcomplex.core.base import Domain, parameter, role, state
 from skcomplex.core.components import Element
 from skcomplex.core.interactions import Interaction
@@ -47,16 +59,75 @@ class Species(Element):
 class Birth(Interaction):
     target: str = role()
     rate: float = parameter(0.5, domain=Domain.NONNEGATIVE)
-    stochastic: bool = False
 
     def laws(self, s):
-        if self.stochastic:
-            return [Jump(s.rate * s.target.n, {s.target.n: 1})]
         return [Rate(s.target.n, s.rate * s.target.n)]
+
+
+deer = Species('deer', n=40.0)
+birth = Birth('birth', target='deer', rate=0.2)
+print(deer.n, clone(birth).rate)
 ```
 
 Inside `laws`, `s.rate` is the symbol of the parameter and `s.target.n` is the symbol of the state of the element bound
 to the role `target`. Because parameters stay symbols, a running simulation can change them without compiling again.
+
+### Constructor settings
+
+A setting that is neither a state, a parameter, nor a role, such as a switch between two sets of laws, a radius, or a
+layer, needs an explicit `__init__` on its type.
+
+- The `__init__` takes the label first and the setting as a keyword-only argument with a default.
+- It passes the label and the remaining values to `super().__init__(label, **values)`.
+- It stores the setting unmodified under its own name.
+
+`get_params` reads the keyword arguments of these constructors along the class hierarchy, so a setting clones and
+prints like a declared value.
+
+```python
+class SwitchedBirth(Birth):
+    def __init__(self, label, *, stochastic=False, **values):
+        super().__init__(label, **values)
+        self.stochastic = stochastic
+
+    def laws(self, s):
+        if self.stochastic:
+            return [Jump(s.rate * s.target.n, {s.target.n: 1})]
+        return super().laws(s)
+
+
+print(clone(SwitchedBirth('birth', target='deer', stochastic=True)))
+```
+
+### Laws
+
+Every law class derives from `Law` and is a frozen dataclass. It declares what it is as class variables, which the
+compiler and validation read instead of lists of their own.
+
+- `law_kind` is the registered kind of the law, such as `LawKind.RATE`. Solvers and backends name the kinds they
+  support.
+- `time_class` is the time the law is valid under: continuous, event, discrete, constraint, or any.
+- `traits` is a set of registered facts about the class.
+    - `Trait.DECLARABLE` marks a law that the `laws` method of a component may return.
+    - `Trait.FORMLESS` marks a law, such as `Boundary`, that joins the form of the other laws of its component and
+      chooses no form of its own.
+    - `Trait.KERNEL_FREE` marks a law, such as `Transfer`, that the compiler lowers into other laws and that needs no
+      numeric function of its own.
+- `requires` states what the law needs from the system: the time, the space, and the domains of the states it
+  targets.
+
+A system holds only laws of registered classes. The shared core registers its general laws, which are `Rate`, `Noise`,
+`Jump`, `Update`, `Transition`, `Emission`, `Event`, `Boundary`, `Equation`, `Transfer`, `Auxiliary`, `Invariant`, and
+`Objective`. Each formalism registers its own law classes when it is imported. `law_classes(trait)` lists the
+registered classes, optionally only those with a trait.
+
+```python
+from skcomplex.core.base import LawKind, Trait
+from skcomplex.core.laws import Boundary, Law, law_classes
+
+print(issubclass(Rate, Law), Rate.law_kind is LawKind.RATE, Rate.time_class)
+print(Trait.FORMLESS in Boundary.traits, Rate in law_classes(Trait.DECLARABLE))
+```
 
 A law can also be a Python function of time and current values, which covers rules that have no closed form.
 
@@ -171,9 +242,13 @@ Agent states stay real, and the LAMMPS backend raises an error naming a complex 
 ### Equations of any order
 
 Laws give the highest time derivative of a state, and a state declares how high that is with `order`. Newton's second
-law for a pendulum, `m l θ'' = -m g sin θ`, is written as it reads. The framework adds the angular velocity as the
-companion state `theta_d1`, sets its initial value from the constructor, and reduces the equation to first order for
-the solvers.
+law for a pendulum, `m l θ'' = -m g sin θ`, is written as it reads. The angular velocity is the companion state
+`theta_d1`, which the type derives from the declaration of `theta`, and the compiler reduces the equation to first
+order for the solvers.
+
+- A companion is a constructor argument with a default of zero, so `Pendulum('bob', theta_d1=0.5)` starts the
+  pendulum with an angular velocity.
+- A companion is not a class attribute. `Pendulum.declarations()` lists it after its state.
 
 ```python
 from sage.all__sagemath_symbolics import sin
@@ -186,6 +261,8 @@ Pendulum = Element.define(
     parameters={'m': 1.0, 'g': 9.81, 'l': 1.0},
     laws=lambda s: [Equation(s.m * s.l * derivative(s.theta, 2) == -s.m * s.g * sin(s.theta))],
 )
+bob = Pendulum('bob', theta_d1=0.5)
+print(list(Pendulum.declarations()), bob.theta_d1, hasattr(Pendulum, 'theta_d1'))
 ```
 
 - On a state of order `k`, rate and noise laws contribute to the `k`-th derivative and add up, so separate interactions
@@ -245,7 +322,9 @@ print(len(simulation.extend(until=20).trajectory_))
 - `start(until)` runs in a background thread, and `pause`, `resume`, `stop`, and `wait` control it.
 - `update_parameters({'hunt.a': 0.05})` changes parameters before the next frame. Values set between runs stay in
   force for the later runs of the same simulation, and `clone(simulation).run(until)` starts afresh.
-- `random_state` makes stochastic runs reproducible.
+- `random_state` makes stochastic runs reproducible. A fixed-step solver splits every frame into
+  `step_count(t, until, dt)` equal steps on every backend, so the same `random_state` gives the same path on the NumPy
+  and Numba backends.
 - `extend(until)` continues a finished run from its last frame with the same stepper, clock, and observers, and
   appends the new frames to the trajectory, while `run` starts again from time 0.
 - `schedule={'hunt.a': lambda t: 0.02 + 0.001 * t}` sets parameters from functions of time at every frame, such as a
@@ -381,8 +460,7 @@ any other state with the code `noise-unsupported`.
 ```python
 from sage.all__sagemath_symbolics import sqrt
 
-from skcomplex.core.components import Field
-from skcomplex.core.laws import laplacian
+from skcomplex.core.formalisms.fields import Field, laplacian
 from skcomplex.core.space import LatticeSpace
 
 Density = Element.define(
@@ -556,8 +634,7 @@ reject fractional noise with an error that names `FractionalEulerMaruyama`. `fra
 noise paths themselves.
 
 ```python
-from skcomplex.core.laws import FractionalNoise
-from skcomplex.core.solvers import FractionalEulerMaruyama
+from skcomplex.core.formalisms.fractional import FractionalEulerMaruyama, FractionalNoise
 
 Rough = Element.define('Rough', states={'x': 0.0}, laws=lambda s: [FractionalNoise(s.x, 1, hurst=0.3)])
 rough = Simulation(
@@ -598,7 +675,7 @@ changed state.
 ```python
 from skcomplex.core.analysis import mittag_leffler
 from skcomplex.core.base import state
-from skcomplex.core.solvers import L1Scheme
+from skcomplex.core.formalisms.fractional import L1Scheme
 
 Relaxing = Element.define('Relaxing', states={'x': state(1.0, order=0.6)}, laws=lambda s: [Rate(s.x, -s.x)])
 relaxing = Simulation(System(components=[Relaxing('a')]), solver=L1Scheme(dt=0.01, memory=10.0), dt=1.0).run(until=20)
@@ -765,7 +842,8 @@ raises `ConservationError` until its holdings are settled with transfers.
 
 ```python
 from skcomplex.core.components import Element
-from skcomplex.core.laws import Invariant, Rule, transfer
+from skcomplex.core.formalisms.agents import Rule
+from skcomplex.core.laws import Invariant, transfer
 
 
 def net_worth(agent):
@@ -837,8 +915,8 @@ arcs, and saddle paths on which the sweep diverges. Both solve the problem over 
 `simulation.stepper_.solution_` holds the solution on its grid, its cost, and, for `Pontryagin`, the costates.
 
 ```python
+from skcomplex.core.formalisms.control import Collocation, Pontryagin
 from skcomplex.core.laws import Objective
-from skcomplex.core.solvers import Collocation, Pontryagin
 
 Plant = Element.define(
     'Plant',
@@ -903,12 +981,231 @@ The library models with optimal controls are `optimal_harvesting` in resources, 
 macroeconomics, `sir_vaccination` in epidemiology, and `optimal_chemotherapy` and `optimal_immunotherapy` in
 oncology.
 
+## Package layout
+
+The package holds two parts. `skcomplex.core` is the domain-agnostic framework, and `skcomplex.models` is the library
+of ready-made models built from it.
+
+### The shared core
+
+The shared core holds the general concepts, one package for each part of a system or step of a run. The packages are
+listed in their import order, so a package imports only the packages above it.
+
+- `base`: symbols, domains, the declarations `state`, `parameter`, and `role`, errors, and the open registries of law
+  kinds, forms, space kinds, and traits.
+- `space`: `Space` and its general kinds, the continuous, lattice, and network spaces, neighbourhoods, and time.
+- `laws`: the `Law` base, the general laws, conditions such as `where`, random draws, reductions, and stocks and flows.
+- `components`: `Component`, `Element`, `Group`, `Wiener`, and `Aggregate`.
+- `interactions`: `Interaction` and the bindings of its roles.
+- `system`: `System`, `Observable`, and ensembles.
+- `compile`: validation and the pipeline of passes that turns a system into a problem.
+- `solvers`: the stepper contract, `step_count`, and the general steppers by form.
+- `backends`: the NumPy and Numba backends.
+- `runtime`: `Simulation`, clocks, observers, and the registry of models.
+- `viz`: the visuals and the Rerun viewer.
+- `experiments`: experiments over grids of parameters and replicates.
+- `analysis`: analyses of systems, trajectories, and data.
+- `formalisms`: one package for each formalism, which may import every package above it.
+
+No package of the shared core imports a formalism, so a system built only from the shared core compiles and simulates
+with no formalism loaded. A test of the package layout enforces the import order.
+
+## Formalisms
+
+A formalism is one kind of dynamics that not every model needs, such as lattice dynamics or quantum dynamics. Each
+formalism is a package of `skcomplex.core.formalisms` that holds its laws, components, compilation passes, solvers,
+backends, visuals, and validation checks, so one kind of dynamics lives in one place.
+
+### The formalisms
+
+- `agents`: `Rule` and `Match`, the phases of a step, agent memory, and the Mesa stepper.
+- `lattices`: `LocalRule`, `Energy`, drives, relaxations, extremal updates, Monte Carlo sampling, and the lattice
+  steppers.
+- `groups`: finitely generated groups, their Cayley graphs as spaces of cellular automata, and the visual of those
+  graphs.
+- `rewriting`: productions on words, substitutions of tiles, graph productions, and their geometry.
+- `quantum`: operators, `Generator` and `Dissipator` laws, quantum elements, and the QuTiP solvers.
+- `fields`: `Field`, differential operators, `Flux` laws, meshes, discretizations, and stiff integrators.
+- `kinetics`: encounter laws, moments, activity levels, and direct simulation Monte Carlo.
+- `fractional`: states of fractional order, Caputo schemes, and fractional noise.
+- `topology`: requests of laws that add and remove the nodes and edges of networks.
+- `particles`: `Particle`, potentials, pair potentials, and the LAMMPS backend.
+- `control`: the optimal control solvers by collocation and by Pontryagin's principle.
+
+`fields` builds on `lattices`, and the other formalisms build on the shared core alone.
+
+### Importing a formalism
+
+A name specific to one formalism is imported from the package of that formalism, as
+`from skcomplex.core.formalisms.<formalism> import <Name>`. The shared packages do not export it.
+
+- Importing any name of a formalism registers the formalism, with every law, solver, and backend it contributes.
+- A system that holds a law of a class that no formalism registered fails validation with an issue that names the
+  class.
+- `registered_formalisms()` lists the registered formalisms in registration order.
+
+```python
+from skcomplex.core.formalisms import registered_formalisms
+from skcomplex.core.formalisms.quantum import Generator
+
+quantum = next(item for item in registered_formalisms() if item.name == 'quantum')
+print([law.__name__ for law in quantum.laws], sorted(quantum.solvers))
+```
+
+### Writing a formalism
+
+A new formalism needs no change to the shared core. It declares its contributions in one `Formalism` and passes it to
+`register` when its package is imported.
+
+- A new law kind is a `LawKind`, and a new form is a `Form`. Both are registered when they are created.
+- A law class derives from `Law` and declares its `law_kind`, `time_class`, `traits`, and `requires`.
+- A `SystemPass` claims the systems it compiles and turns each into a `Problem` of the new form.
+- A solver is a `Stepper` that declares the form it advances and what it supports, and advances the state from one
+  time to the next.
+- `depends` names the formalisms it builds on, which must be registered first.
+
+The example below adds radioactive decay as a formalism with its own law, pass, and exact solver.
+
+```python
+from dataclasses import dataclass
+from typing import ClassVar
+
+import numpy as np
+
+from skcomplex.core.base import (
+    ComponentKind,
+    Domain,
+    DomainKind,
+    Form,
+    LawClass,
+    LawKind,
+    OrderKind,
+    Requires,
+    Supports,
+    TimeKind,
+    Trait,
+    VisualSpec,
+    parameter,
+    state,
+    symbol,
+)
+from skcomplex.core.compile import CompiledElement, Entry, Layout, Problem, SystemPass
+from skcomplex.core.components import Element
+from skcomplex.core.formalisms import Formalism, register
+from skcomplex.core.laws import Law
+from skcomplex.core.runtime import Simulation
+from skcomplex.core.solvers import Stepper
+from skcomplex.core.system import System
+
+DECAY = LawKind('DECAY', 'decay')
+EXPONENTIAL_DECAY = Form('EXPONENTIAL_DECAY', 'exponential decay')
+
+
+@dataclass(frozen=True)
+class Decay(Law):
+    law_kind: ClassVar[LawKind] = DECAY
+    time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
+    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.DECLARABLE})
+    requires: ClassVar[Requires] = Requires()
+
+    target: object
+    rate: object
+
+
+class Nucleus(Element):
+    n: float = state(1.0, domain=Domain.NONNEGATIVE)
+    k: float = parameter(1.0, domain=Domain.POSITIVE)
+
+    def laws(self, s):
+        return [Decay(s.n, s.k)]
+
+
+@dataclass(frozen=True)
+class DecayProblem(Problem):
+    rates: tuple[int, ...] = ()
+
+
+class DecayPass(SystemPass):
+    def claims(self, system):
+        return bool(system.elements) and all(isinstance(item, Nucleus) for item in system.elements)
+
+    def compile(self, system, *, backend, solver, initial_state):
+        nuclei = list(system.elements)
+        states = [Entry(f'{item.label}.n', i, (), Domain.NONNEGATIVE) for i, item in enumerate(nuclei)]
+        rates = [Entry(f'{item.label}.k', i, (), Domain.POSITIVE) for i, item in enumerate(nuclei)]
+        return DecayProblem(
+            form=EXPONENTIAL_DECAY,
+            states=Layout(states),
+            parameters=Layout(rates),
+            initial_state=np.array([float(initial_state.get(f'{item.label}.n', item.n)) for item in nuclei]),
+            initial_parameters=np.array([float(item.k) for item in nuclei]),
+            time=symbol('t'),
+            symbols={},
+            equations={},
+            equation_symbols={},
+            has_callables=False,
+            has_group_sums=False,
+            elements=tuple(
+                CompiledElement(item.label, item, {'n': f'{item.label}.n'}, {'k': f'{item.label}.k'}, VisualSpec())
+                for item in nuclei
+            ),
+            system=system,
+            rates=tuple(entry.start for entry in rates),
+        )
+
+
+class ExactDecay(Stepper):
+    supports: ClassVar[Supports] = Supports(
+        time={TimeKind.CONTINUOUS},
+        laws={DECAY},
+        domains={DomainKind.REAL},
+        components={ComponentKind.ELEMENT},
+        orders={OrderKind.INTEGER},
+    )
+    form: ClassVar[Form] = EXPONENTIAL_DECAY
+
+    def advance(self, t, x, p, until):
+        return x * np.exp(-p[list(self.problem_.rates)] * (until - t))
+
+
+register(
+    Formalism(
+        'decay',
+        laws=(Decay,),
+        components=(Nucleus,),
+        passes=(DecayPass(),),
+        forms=(EXPONENTIAL_DECAY,),
+        solvers={'exact-decay': ExactDecay},
+        defaults=(ExactDecay,),
+    ),
+)
+decayed = Simulation(System(components=[Nucleus('atom', n=2.0, k=0.5)]), dt=0.5).run(until=2)
+print(type(decayed.stepper_).__name__, decayed.trajectory_['atom.n'][-1].round(4))
+```
+
+The formalism packages of `skcomplex.core.formalisms` follow one internal layout, with the modules `_laws`,
+`_components`, `_spaces`, `_passes`, `_solvers`, `_backends`, `_visuals`, and `_checks`, each present only when the
+formalism needs it, and an `__init__` that registers the formalism.
+
+### What stays in the shared core
+
+Some parts look specific to one kind of model but stay in the shared core, because general laws or several formalisms
+need them.
+
+- **Renewals** stay because `Jump` with a clock of waiting times is a general law. Its lowering and its stepper belong
+  with the other jump processes, so a waiting-time jump never compiles as a rate jump when a formalism is missing.
+- **Stocks and flows** stay because their lowering also lowers the general laws `Transfer`, `Invariant`, and
+  `Objective`, and `analysis` reads their feedback loops.
+- **`Objective`** stays because both stock-and-flow models and the `control` formalism read it, so neither depends on
+  the other.
+- **The `'pairs'` binding** stays because models without particles couple the pairs of members of a group closer than
+  a cutoff.
+- **The bodies visual** stays because models without particles draw their members as bodies.
+
 ## The model library
 
-The package holds two parts. `skcomplex.core` is the domain-agnostic framework: `base` for the shared leaves such as
-domains, registries, and errors, `model` for components, laws, and spaces, `compile`, `solvers`, `runtime`, `viz`,
-`experiments`, `analysis`, and `backends`. `skcomplex.models` is the library of ready-made models, organised by
-scientific field and subfield as `skcomplex.models.<field>.<subfield>`.
+`skcomplex.models` is the library of ready-made models, organised by scientific field and subfield as
+`skcomplex.models.<field>.<subfield>`.
 
 | Field | Subfields |
 | --- | --- |
@@ -1001,7 +1298,9 @@ Earlier versions placed the framework at the top level and grouped the models by
 `skcomplex.core`, and the shared leaves moved from `skcomplex.core` to `skcomplex.core.base`. The redesign then split
 `skcomplex.core.model` into `core.system`, `core.components`, `core.interactions`, `core.space`, and `core.laws`, and
 moved named realizations, such as `LennardJones` and `LangevinThermostat`, to `skcomplex.models.physics.realizations`.
-The models moved to their subfields:
+The names specific to one formalism later moved from the shared packages to `skcomplex.core.formalisms.<formalism>`.
+For example, `LocalRule` moved from `skcomplex.core.laws` to `skcomplex.core.formalisms.lattices`, and `Particle` moved
+from `skcomplex.core.components` to `skcomplex.core.formalisms.particles`. The models moved to their subfields:
 
 | Old package | New subfields |
 | --- | --- |
@@ -1024,7 +1323,7 @@ and every law written for one member runs over all members with array operations
 ```python
 import numpy as np
 
-from skcomplex.core.components import Particle
+from skcomplex.core.formalisms.particles import Particle
 from skcomplex.core.space import ContinuousSpace
 
 rng = np.random.default_rng(0)
@@ -1219,7 +1518,7 @@ group or between two groups. `PairPotential` derives the forces from a pair ener
 
 ```python
 from skcomplex.core.base import Domain, parameter
-from skcomplex.core.interactions import PairPotential
+from skcomplex.core.formalisms.particles import PairPotential
 
 
 class LennardJones(PairPotential):
@@ -1255,7 +1554,7 @@ Cellular automata, sandpiles, and spin models live on lattices. `LatticeSpace(sh
 with `'periodic'`, `'fixed'`, or `'reflecting'` edges, and `Element.lattice(label, space, **values)` puts one member
 of an element type on every site, with values given as arrays of the lattice shape. Laws are written for one cell.
 
-**Local rules.** `LocalRule(target, neighborhood, rule)` computes a cell's next value from the ordered values of its
+**Local rules.** `LocalRule(target, over, rule)` computes a cell's next value from the ordered values of its
 neighbourhood. `Neighborhood.moore`, `.von_neumann`, `.radius`, or `Neighborhood(offsets)` give the offsets. A rule is
 a `Table` of patterns, a `Totalistic` or `OuterTotalistic` rule, a rule code whose `table()` returns a table, such
 as `Wolfram` of the automata models, or a function of NumPy arrays,
@@ -1263,7 +1562,8 @@ one per neighbour, that also receives the parameters it names and, for stochasti
 Tables and totalistic rules run as lookups, fused into one compiled loop on the Numba backend.
 
 ```python
-from skcomplex.core.laws import LocalRule, OuterTotalistic
+from skcomplex.core.formalisms.lattices import LocalRule
+from skcomplex.core.laws import OuterTotalistic
 from skcomplex.core.space import LatticeSpace, Neighborhood
 
 Life = Element.define(
@@ -1296,14 +1596,15 @@ trajectory = Simulation(sandpile((20, 20)), dt=100, random_state=0).run(until=20
 print(max(event.size for event in trajectory.events))
 ```
 
-**Monte Carlo.** A `Sample(energy, move, sampler)` law samples states. `Energy(expression, neighborhood)` is the local energy of a site, every term of the total energy
+**Monte Carlo.** A `Sample(energy, move, sampler)` law samples states. `Energy(expression, over)` is the local energy of a site, every term of the total energy
 that involves it, with neighbour values read through `neighbors`. `Move.flip`, `Move.random_value`, and `Move.rotate`
 propose changes, and `Sampler('metropolis' | 'glauber' | 'heat-bath', temperature)` accepts them. The energy change of
 a move is derived symbolically, sweeps update the two sublattices in turn, and the temperature is a parameter that
 changes live.
 
 ```python
-from skcomplex.core.laws import Energy, Move, Sample, Sampler, neighbors
+from skcomplex.core.formalisms.lattices import Energy, Move, Sample, Sampler
+from skcomplex.core.laws import neighbors
 
 nearest = Neighborhood.von_neumann()
 Spin = Element.define(
@@ -1312,7 +1613,7 @@ Spin = Element.define(
     parameters={'J': 1.0, 'temperature': 1.5},
     laws=lambda s: [
         Sample(
-            Energy(-s.J * s.spin * sum(neighbors(s.spin, nearest)), nearest),
+            Energy(-s.J * s.spin * sum(neighbors(s.spin, nearest, reduce='each')), nearest),
             Move.flip(s.spin),
             Sampler('metropolis', s.temperature),
         ),
@@ -1349,16 +1650,16 @@ on graphs take the totalistic forms, and a function rule that names the keyword 
 neighbours of every site. The padded table grows with the largest degree, so graphs with hubs of very high degree,
 beyond scale-free graphs of about 10^5 nodes, use much memory.
 
-**Neighbour sums and colored schedules.** `neighbor_sum(expression)` sums an expression of a site and one neighbour,
-read with `adjacent(state)`, over the real neighbours of the site, so local energies are exact on sites of any degree
-and outside fixed edges. `schedule='colored'` on local rules and samplers updates the classes of a proper coloring of
+**Neighbour sums and colored schedules.** `neighbors(expression, reduce='sum')` sums an expression of a site and one
+neighbour, read through `s.other`, over the real neighbours of the site, so local energies are exact on sites of any
+degree and outside fixed edges. `schedule='colored'` on local rules and samplers updates the classes of a proper coloring of
 the neighbour graph in turn, which NetworkX computes once per law. The checkerboard schedule stays the two-color case
 of square lattices.
 
 ```python
 import networkx as nx
 
-from skcomplex.core.laws import adjacent, neighbor_sum
+from skcomplex.core.laws import neighbors
 from skcomplex.core.space import Adjacency, NetworkSpace
 
 GraphSpin = Element.define(
@@ -1367,7 +1668,7 @@ GraphSpin = Element.define(
     parameters={'J': 1.0, 'temperature': 1.0},
     laws=lambda s: [
         Sample(
-            Energy(-s.J * s.spin * neighbor_sum(adjacent(s.spin)), Adjacency()),
+            Energy(-s.J * s.spin * neighbors(s.other.spin, reduce='sum'), Adjacency()),
             Move.flip(s.spin),
             Sampler('metropolis', s.temperature, schedule='colored'),
         ),
@@ -1378,7 +1679,7 @@ spins = System(components=[GraphSpin.lattice('spins', NetworkSpace(graph))])
 print(abs(Simulation(spins, dt=50, random_state=0).run(until=200).state_.mean()) > 0.9)
 ```
 
-**Extremal updates.** `Extremal(target, neighborhood, rule, key=None, extremum='min', repeat=1)` finds the site with
+**Extremal updates.** `Extremal(target, over, rule, key=None, extremum='min', repeat=1)` finds the site with
 the smallest or largest value of a key state, breaking ties with the simulation's random stream, and applies
 `rule(*values, random, **parameters)` to the site and its real neighbours, `repeat` times per step. Every application
 is recorded among the trajectory's events as an `ExtremalRecord` with its time, site, and extremal value. On the Numba
@@ -1386,7 +1687,7 @@ backend the applications of a step run in one compiled loop when Numba compiles 
 arguments by position or keyword, with no keyword-only arguments, and both backends give the same events.
 
 ```python
-from skcomplex.core.laws import Extremal
+from skcomplex.core.formalisms.lattices import Extremal
 
 
 def renew(fitness, random):
@@ -1442,7 +1743,7 @@ print(space.layer_labels, [item.tolist() for item in space.list_edges('work')])
 ### Interactions over edges
 
 A group on the edges of a network, `Group(..., on='edges')`, holds one member per edge of its layer. An interaction
-with `over = 'neighbours'` binds a group on the nodes and, optionally, a group on the edges of the same network. Its
+with `over = 'neighbors'` binds a group on the nodes and, optionally, a group on the edges of the same network. Its
 laws run once per edge and read `s.source`, `s.target`, and `s.edge`: the members at both ends and the member of the
 edge. Rate, noise, and jump laws may target any of them, and update laws the edge member. The keyword `layer` chooses
 the layer of an interaction without an edge group. Hebbian weights grow with the product of the activities at the ends:
@@ -1467,7 +1768,7 @@ Synapse = Element.define('Synapse', states={'w': 0.1})
 
 
 class Hebbian(Interaction):
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     neurons: str = role()
     synapses: str = role()
     eta: float = parameter(1.0)
@@ -1552,7 +1853,8 @@ adds one node with two edges at every step:
 import numpy as np
 
 from skcomplex.core.components import Element, Group
-from skcomplex.core.laws import Update, add_node, neighbors
+from skcomplex.core.formalisms.topology import add_node
+from skcomplex.core.laws import Update, neighbors
 from skcomplex.core.runtime import Simulation
 from skcomplex.core.space import DiscreteTime, NetworkSpace
 from skcomplex.core.system import System
@@ -1629,7 +1931,7 @@ into another subsystem.
 ```python
 from skcomplex.core.compile import validate
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Encounter
+from skcomplex.core.formalisms.kinetics import Encounter
 
 
 def exchange_table(cooperation, competition):
@@ -1706,7 +2008,7 @@ vector with one weight per reduced member, so laws read them and observables rec
 receives the namespace of one member, and its function must be defined at module level so that it pickles.
 
 ```python
-from skcomplex.core.laws import moment
+from skcomplex.core.formalisms.kinetics import moment
 
 
 def mean_wealth(s):
@@ -1737,7 +2039,7 @@ time, lattice spaces, site groups, and encounter laws only, so validation report
 solvers that run it.
 
 ```python
-from skcomplex.core.solvers import ParticleKinetics
+from skcomplex.core.formalisms.kinetics import ParticleKinetics
 
 sampled = Simulation(economy, dt=10.0, solver=ParticleKinetics(n=20_000), random_state=0).run(until=100)
 print(np.abs(sampled.trajectory_['wealth.f'][-1] - densities[-1]).sum().round(2))
@@ -1753,7 +2055,7 @@ variable group from a distribution. A model can then run one level in a partitio
 level its moments.
 
 ```python
-from skcomplex.core.components import distribution_from, members_from
+from skcomplex.core.formalisms.kinetics import distribution_from, members_from
 
 Trader = Element.define('Trader', states={'w': 0.0})
 traders = members_from(densities[-1], Trader, 1000, activities=classes, random_state=0)
@@ -1777,8 +2079,8 @@ run reads only its neighbour table. Its sites are numbered by word length, `word
 `Memory` of words such as `'a'`, `'a^-1'`, or `'a*b'`, with `'1'` for the cell itself, and `Memory.generators(group)`
 gives the identity followed by every generator and its inverse.
 
-The general constructors of `skcomplex.core.space` give groups by any presentation whose word problem a library
-solves:
+The groups formalism, `skcomplex.core.formalisms.groups`, holds group spaces and the general constructors that give
+groups by any presentation whose word problem a library solves:
 
 - `finitely_presented_group(generators, relators)` takes words such as `'t*a*t^-1*a^-2'`. A free group, without
   relators, reduces its words directly, and otherwise KBMAG in GAP looks for a confluent rewriting system by
@@ -1798,8 +2100,9 @@ an image layout, so validation reports a checkerboard schedule as `schedule-unsu
 rings by word length, colored by state, with the edges of the generators logged once.
 
 ```python
+from skcomplex.core.formalisms.groups import GroupSpace, finitely_presented_group, permutation_group
 from skcomplex.core.laws import Totalistic
-from skcomplex.core.space import GroupSpace, Memory, finitely_presented_group, permutation_group
+from skcomplex.core.space import Memory
 
 free = finitely_presented_group(['a', 'b'])
 tree = GroupSpace(free, ball=4)
@@ -1881,8 +2184,7 @@ the neighbouring sites through differential operators. The method of lines turns
 equations, so every ODE solver and backend runs it.
 
 ```python
-from skcomplex.core.components import Field
-from skcomplex.core.laws import laplacian
+from skcomplex.core.formalisms.fields import Field, laplacian
 
 Diffusion = Element.define(
     'Diffusion',
@@ -1936,8 +2238,7 @@ solves per Fourier mode for spectral fields. `ETDRK4` integrates it exactly per 
 equations take steps far beyond the explicit limit.
 
 ```python
-from skcomplex.core.laws import divergence
-from skcomplex.core.solvers import ETDRK4
+from skcomplex.core.formalisms.fields import ETDRK4, divergence
 
 Chaos = Element.define(
     'Chaos',
@@ -2045,7 +2346,7 @@ trajectories, live parameters, and Rerun visualization. `LammpsBackend` runs par
 integrates them with velocity Verlet.
 
 ```python
-from skcomplex.core.backends import LammpsBackend
+from skcomplex.core.formalisms.particles import LammpsBackend
 from skcomplex.models.physics.realizations import LangevinThermostat, LennardJones
 
 atoms = System(
@@ -2076,7 +2377,7 @@ law it cannot run. The translation is the following.
 | `LangevinThermostat` | `fix langevin`, seeded from the simulation's random state |
 | any other interaction that only changes velocities | `fix external`, evaluated by the framework every step |
 
-Importing `skcomplex.core.backends` also registers the solver name `'lammps'`.
+Importing `skcomplex.core.formalisms.particles` also registers the solver name `'lammps'`.
 
 ## Agent-based models
 
@@ -2092,7 +2393,7 @@ the laws, spaces, and times it does not support.
 ```python
 from skcomplex.core.base import Domain, VisualSpec, parameter, state
 from skcomplex.core.components import Element
-from skcomplex.core.laws import Rule
+from skcomplex.core.formalisms.agents import Rule
 from skcomplex.core.space import LatticeSpace
 
 
@@ -2214,7 +2515,8 @@ agents learn from their past.
   next generation of strategies with the model's random stream.
 
 ```python
-from skcomplex.core.space import DiscreteTime, Phase, Phases
+from skcomplex.core.formalisms.agents import Phase, Phases
+from skcomplex.core.space import DiscreteTime
 from skcomplex.models.economics.realizations import CallAuction, Institution, Market
 
 
@@ -2301,9 +2603,7 @@ A `Rewrite` interaction rewrites its target with fixed rules. Strings are words 
 `Module` gives a symbol parameters.
 
 ```python
-from skcomplex.core.components import Word
-from skcomplex.core.interactions import Rewrite
-from skcomplex.core.laws import Module, Production
+from skcomplex.core.formalisms.rewriting import Module, Production, Rewrite, Word
 
 algae = System(
     components=[Word('algae', axiom='A')],
@@ -2322,7 +2622,7 @@ parameters written as expressions of them and of the parameters of a `Rewriting`
 
 ```python
 from skcomplex.core.base import parameter, symbol
-from skcomplex.core.interactions import Rewriting
+from skcomplex.core.formalisms.rewriting import Rewriting
 
 x = symbol('x')
 
@@ -2346,19 +2646,16 @@ frames before it stay recorded.
 
 ### Word geometries, patches, and measures
 
-A `WordGeometry`, from `skcomplex.core.viz`, draws a word as line segments in two or three dimensions, as the turtle
-interpretation of L-systems does: `F` draws forward, `f` moves, `+` and `-` turn, `[` and `]` push and pop a branch,
-and `contraction` scales the step at every generation. A `Patch` holds tiles, each a `Prototile` segment or polygon
-under an affine placement, and a `Substitution` replaces every tile of a prototile by pieces placed by `Affine` maps
-relative to it. Structures with a geometry report `<element>.length` and
-`<element>.area` at every frame, and give `bounds()` and `raster(resolution)`, a boolean grid that
-`box_counting_dimension` reads.
+A `WordGeometry`, from `skcomplex.core.formalisms.rewriting`, draws a word as line segments in two or three dimensions,
+as the turtle interpretation of L-systems does: `F` draws forward, `f` moves, `+` and `-` turn, `[` and `]` push and pop
+a branch, and `contraction` scales the step at every generation. A `Patch` holds tiles, each a `Prototile` segment or
+polygon under an affine placement, and a `Substitution` replaces every tile of a prototile by pieces placed by `Affine`
+maps relative to it. Structures with a geometry report `<element>.length` and `<element>.area` at every frame, and give
+`bounds()` and `raster(resolution)`, a boolean grid that `box_counting_dimension` reads.
 
 ```python
 from skcomplex.core.analysis import box_counting_dimension
-from skcomplex.core.components import Patch
-from skcomplex.core.laws import Affine, Prototile, Substitution
-from skcomplex.core.viz import WordGeometry
+from skcomplex.core.formalisms.rewriting import Affine, Patch, Prototile, Substitution, WordGeometry
 
 koch = System(
     components=[Word('koch', axiom='F', geometry=WordGeometry(angle=60.0, contraction=1 / 3))],
@@ -2391,8 +2688,7 @@ drawn from the random stream, and skips matches whose deleted nodes would leave 
 ```python
 import networkx as nx
 
-from skcomplex.core.components import HostGraph
-from skcomplex.core.laws import GraphProduction
+from skcomplex.core.formalisms.rewriting import GraphProduction, HostGraph
 
 interface = nx.Graph()
 interface.add_nodes_from('ab')
@@ -2418,7 +2714,7 @@ state of every subsystem is a basis label, an index, or a vector.
 Laws receive the local operators of their subsystems, which combine by sums, products, numbers, and symbolic
 coefficients of parameters and time into an `Operator`. `Generator(operator)` adds to the Hamiltonian, with
 `ħ = 1`, and `Dissipator(operator, rate)` adds a Lindblad dissipator, which makes the system open. An interaction
-with the binding `over = 'neighbours'` is written once for a bond, with `s.first` and `s.second`, and acts on every pair
+with the binding `over = 'neighbors'` is written once for a bond, with `s.first` and `s.second`, and acts on every pair
 of neighbours of the space of the group its one role binds. Compiling checks that the Hamiltonian is Hermitian and that the dimension stays within the
 `max_dimension` of the quantum solver. A whole-system initial state, such as an entangled vector or `'ground'`, is
 given to the simulation as `initial_state={'<system label>.state': value}`.
@@ -2431,16 +2727,16 @@ import numpy as np
 from typing import ClassVar
 
 from skcomplex.core.base import parameter, role
+from skcomplex.core.formalisms.quantum import Generator, expectation
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import Generator
 from skcomplex.core.space import LatticeSpace
-from skcomplex.core.system import System, expectation
+from skcomplex.core.system import System
 from skcomplex.core.runtime import Simulation
 from skcomplex.models.physics.realizations import Spin
 
 
 class Coupling(Interaction):
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     target: str = role()
     J: float = parameter(1.0)
 
@@ -2519,7 +2815,7 @@ import tempfile
 from pathlib import Path
 
 from skcomplex.core.space import ContinuousSpace
-from skcomplex.core.components import Particle
+from skcomplex.core.formalisms.particles import Particle
 from skcomplex.models.physics.realizations import Spring
 from skcomplex.core.viz import RerunObserver
 

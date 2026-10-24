@@ -17,9 +17,11 @@ from ..base import ValidationError
 from ..compile import CompiledElement, Problem, RenewalRecord
 from ..runtime import Frame, Observer
 from ..space import NetworkSpace
+from ._agents import AgentsVisual
 from ._blueprints import default_blueprint, save_blueprint
 from ._traits import agents_visual_of
-from ._visuals import AgentsVisual, Visual, _log_scalars, resolve_visual
+from ._utils import log_scalars
+from ._visuals import Visual, resolve_visual
 
 RENEWAL_MEMBERS = 20
 EXTRA = 'extra'
@@ -193,7 +195,7 @@ class RerunObserver(Observer):
             values = np.atleast_1d(np.abs(value) if np.iscomplexobj(value) else value)
             self.recording_.log(_entity_path(name, owners), rr.Scalars(values))
         for name in frame.problem.parameters.names:
-            _log_scalars(self.recording_, f'parameters/{name}', frame.value(name))
+            log_scalars(self.recording_, f'parameters/{name}', frame.value(name))
         for record in frame.events:
             if isinstance(record, RenewalRecord):
                 self.recording_.log(f'renewals/{record.label}', rr.TextLog(_renewal_text(record)))

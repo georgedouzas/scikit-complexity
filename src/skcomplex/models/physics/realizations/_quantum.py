@@ -13,9 +13,9 @@ import qutip
 import scipy.sparse as sp
 
 from ....core.base import HilbertSpace, ValidationError, VisualSpec, state
-from ....core.components import Element, QuantumView
-from ....core.laws import LocalOperator, Operator, sparse_matrix
-from ....core.space import LatticeSpace, NetworkSpace, Space, neighbour_pairs
+from ....core.components import Element
+from ....core.formalisms.quantum import LocalOperator, Operator, QuantumView, sparse_matrix
+from ....core.space import LatticeSpace, NetworkSpace, Space, neighbor_pairs
 
 DIGEST_SIZE = 8
 
@@ -74,7 +74,7 @@ def _site_space(element: 'Site') -> HilbertSpace:
     else:
         error_msg = f'Site {element.label!r} has space {space!r}. Give it a LatticeSpace or a NetworkSpace.'
         raise ValidationError(error_msg)
-    rows, columns = zip(*neighbour_pairs(space, size), strict=True) if size > 1 else ((), ())
+    rows, columns = zip(*neighbor_pairs(space, size), strict=True) if size > 1 else ((), ())
     adjacency = sp.coo_array((np.ones(len(rows)), (rows, columns)), shape=(size, size))
     laplacian = -sparse_matrix(nx.laplacian_matrix(space.graph)) if isinstance(space, NetworkSpace) else None
     operators = {'laplacian': (laplacian, True), 'adjacency': (adjacency + adjacency.T, True)}
@@ -93,19 +93,31 @@ class Spin(Element):
         j:
             The spin quantum number, a positive multiple of one half.
 
-        initial:
-            The state in the Hilbert space: `'up'`, `'down'`, a basis index, or a vector.
+        **values:
+            The values of the declared variables, by name:
+
+            initial:
+                The state in the Hilbert space: `'up'`, `'down'`, a basis index, or a vector.
 
     Examples:
-        >>> from skcomplex.core.components import QuantumView
+        >>> from skcomplex.core.formalisms.quantum import QuantumView
         >>> from skcomplex.models.physics.realizations import Spin
         >>> QuantumView(Spin('s', j=1)).dimension
         3
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('expectations')
-    j: float = 0.5
     initial: Any = state('up', domain=HilbertSpace.family(_spin_space))
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        j: float = 0.5,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.j = j
 
 
 class Qubit(Element):
@@ -121,7 +133,7 @@ class Qubit(Element):
             The state in the Hilbert space: `'up'`, `'down'`, `'excited'`, `'ground'`, a basis index, or a vector.
 
     Examples:
-        >>> from skcomplex.core.components import QuantumView
+        >>> from skcomplex.core.formalisms.quantum import QuantumView
         >>> from skcomplex.models.physics.realizations import Qubit
         >>> sorted(QuantumView(Qubit('q')).local_operators())
         ['minus', 'plus', 'x', 'y', 'z']
@@ -141,19 +153,31 @@ class Mode(Element):
         quanta:
             The largest number of quanta, so the dimension is `quanta + 1`.
 
-        initial:
-            The state in the Hilbert space: the number of quanta, or a vector.
+        **values:
+            The values of the declared variables, by name:
+
+            initial:
+                The state in the Hilbert space: the number of quanta, or a vector.
 
     Examples:
-        >>> from skcomplex.core.components import QuantumView
+        >>> from skcomplex.core.formalisms.quantum import QuantumView
         >>> from skcomplex.models.physics.realizations import Mode
         >>> QuantumView(Mode('cavity', quanta=4)).dimension
         5
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('expectations')
-    quanta: int = 4
     initial: Any = state(0, domain=HilbertSpace.family(_mode_space))
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        quanta: int = 4,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.quanta = quanta
 
 
 class Site(Element):
@@ -171,11 +195,14 @@ class Site(Element):
         space:
             The lattice or the network.
 
-        initial:
-            The state in the Hilbert space: the initial site, or a vector of amplitudes over the sites.
+        **values:
+            The values of the declared variables, by name:
+
+            initial:
+                The state in the Hilbert space: the initial site, or a vector of amplitudes over the sites.
 
     Examples:
-        >>> from skcomplex.core.components import QuantumView
+        >>> from skcomplex.core.formalisms.quantum import QuantumView
         >>> from skcomplex.core.space import LatticeSpace
         >>> from skcomplex.models.physics.realizations import Site
         >>> QuantumView(Site('particle', space=LatticeSpace(16))).dimension
@@ -183,8 +210,17 @@ class Site(Element):
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('expectations')
-    space: Space | None = None
     initial: Any = state(0, domain=HilbertSpace.family(_site_space))
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        space: Space | None = None,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.space = space
 
     def operator_namespace(self, key: str, view: QuantumView) -> dict[str, Any]:
         """Return the site indices and the functions `projector` and `diagonal` of the particle.

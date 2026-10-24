@@ -3,16 +3,16 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 import numpy.typing as npt
 
-from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, ValidationError, VisualSpec, parameter, role, state
 from ....core.components import Element
+from ....core.formalisms.agents import AgentView, ModelView, Rule
 from ....core.interactions import Interaction
-from ....core.laws import Law, Rule, Symbols
+from ....core.laws import Law, Symbols
 from ....core.runtime import register_model
 from ....core.space import ContinuousSpace, LatticeSpace
 from ....core.system import System
@@ -142,14 +142,17 @@ class Adoption(Interaction):
         label:
             The label of the interaction.
 
-        target:
-            The path of the group of adopters.
-
         size:
             The side of the square torus the agents live on.
 
         mode:
             `'infection'` or `'influence'`.
+
+        **values:
+            The values of the declared variables, by name:
+
+            target:
+                The path of the group of adopters.
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import Adoption
@@ -158,8 +161,18 @@ class Adoption(Interaction):
     """
 
     target: str = role()
-    size: float = 175.0
-    mode: str = 'infection'
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        size: float = 175.0,
+        mode: str = 'infection',
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.size = size
+        self.mode = mode
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the adoption rule.

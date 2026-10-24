@@ -8,8 +8,9 @@ from collections.abc import Sequence
 import numpy as np
 
 from ....core.base import Domain, parameter, state
-from ....core.components import Element, Field
-from ....core.laws import Law, Rate, Symbols, laplacian
+from ....core.components import Element
+from ....core.formalisms.fields import Field, laplacian
+from ....core.laws import Law, Rate, Symbols
 from ....core.runtime import register_model
 from ....core.solvers import RK4
 from ....core.space import LatticeSpace

@@ -14,8 +14,8 @@ an S-shaped curve to the whole crowd.
 import matplotlib.pyplot as plt
 import rerun.blueprint as rrb
 
+from skcomplex.core.formalisms.kinetics import ParticleKinetics
 from skcomplex.core.runtime import Simulation
-from skcomplex.core.solvers import ParticleKinetics
 from skcomplex.core.viz import RerunObserver
 from skcomplex.models import create, describe
 

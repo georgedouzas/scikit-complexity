@@ -4,7 +4,7 @@
 # License: MIT
 
 import math
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import cos, sin
@@ -90,23 +90,26 @@ class PhaseCoupling(Interaction):
         label:
             The label of the interaction.
 
-        first:
-            The path of the group of the first members.
-
-        second:
-            The path of the group of the second members.
-
-        cutoff:
-            The distance beyond which pairs do not interact.
-
         period:
             The side of a periodic box, for minimum image distances, or `None` for an open space.
 
-        K:
-            The coupling strength of one pair.
+        **values:
+            The values of the declared variables, by name:
 
-        alpha:
-            The phase lag.
+            first:
+                The path of the group of the first members.
+
+            second:
+                The path of the group of the second members.
+
+            cutoff:
+                The distance beyond which pairs do not interact.
+
+            K:
+                The coupling strength of one pair.
+
+            alpha:
+                The phase lag.
 
     Examples:
         >>> from skcomplex.models.physics.synchronization import PhaseCoupling
@@ -119,10 +122,19 @@ class PhaseCoupling(Interaction):
     first: str = role()
     second: str = role()
     cutoff: float = parameter(default=1.0, domain=Domain.POSITIVE)
-    period: float | None = None
 
     K: float = parameter(default=1.0)
     alpha: float = parameter(default=0.0)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        period: float | None = None,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.period = period
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the sine coupling of both members of a pair.

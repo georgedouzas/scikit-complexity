@@ -41,16 +41,19 @@ from ..laws import (
     Update,
     categorical,
     draws_in,
+    values_of,
     where,
 )
 from ..laws._laws import Renewal
+from ._arrays import Vector
 from ._kernels import Reference, Source
 from ._layout import Entry
 from ._printing import numpy_function
-from ._problem import Draws, MarkovMatrix, SampledDraw, Vector
+from ._problem import Draws, SampledDraw, _MarkovMatrix
 
 ALPHABET_DOMAINS = (Domain.INTEGER, Domain.NONNEGATIVE_INTEGER, Domain.BOOLEAN)
 NORMAL_KINDS = frozenset({'normal'})
+RANDOM_FIELDS = ('value', 'rate', 'changes', 'lhs', 'rhs', 'guard', 'reset', 'waiting')
 DISTRIBUTIONS = tuple(
     sorted(
         name
@@ -63,135 +66,6 @@ DISTRIBUTIONS = tuple(
 def _is_symbolic(value: object) -> bool:
     """Check whether a law value is symbolic, as opposed to a call or a Python function."""
     return isinstance(value, Expression | SymbolicVector) or not (isinstance(value, Call) or callable(value))
-
-
-def _law_values(law: Law) -> list[object]:
-    """Return the values of a law that can hold random draws."""
-    if isinstance(law, Rate | Noise | Boundary | Update):
-        return [law.value]
-    if isinstance(law, Jump):
-        return [law.rate, *law.changes.values()]
-    if isinstance(law, Equation):
-        return [law.lhs, law.rhs]
-    if isinstance(law, Event):
-        return [law.guard, *(law.reset or {}).values()]
-    if isinstance(law, Renewal):
-        return [law.waiting, *(law.reset or {}).values()]
-    return []
-
-
-def distribution_of(owner: str, description: str, draw: Draw) -> Any:  # noqa: ANN401
-    """Return the `scipy.stats` distribution of a draw, after checking its name and its keywords.
-
-    Args:
-        owner:
-            The path of the component the draw belongs to.
-
-        description:
-            The description of the law that holds the draw.
-
-        draw:
-            The draw, of kind `'draw'`.
-
-    Returns:
-        distribution:
-            The distribution of `scipy.stats`.
-
-    Raises:
-        ValidationError:
-            SciPy has no distribution of that name, or the draw gives a keyword the distribution does not accept or
-            leaves out one of its shape parameters.
-    """
-    name = str(draw.distribution)
-    if name not in DISTRIBUTIONS:
-        closest = ', '.join(difflib.get_close_matches(name, DISTRIBUTIONS, n=3)) or 'none'
-        error_msg = (
-            f'The {description} of {owner} draws {draw.name!r} from the distribution {name!r}, which scipy.stats does '
-            f'not provide. The closest available names are: {closest}.'
-        )
-        raise ValidationError(error_msg)
-    distribution = getattr(stats, name)
-    shapes = [item.strip() for item in (distribution.shapes or '').split(',') if item.strip()]
-    unknown = sorted(set(draw.keywords) - {*shapes, 'loc', 'scale'})
-    missing = sorted(set(shapes) - set(draw.keywords))
-    if unknown or missing:
-        accepted = ', '.join([*shapes, 'loc', 'scale'])
-        error_msg = (
-            f'The {description} of {owner} draws {draw.name!r} from {name} with the keywords '
-            f'{", ".join(draw.keywords) or "none"}, but {name} takes {accepted}, and needs its shape parameters '
-            f'{", ".join(shapes) or "none"}.'
-        )
-        raise ValidationError(error_msg)
-    return distribution
-
-
-def sample_draw(draw: Draw, arguments: Sequence[Any], size: int, rng: np.random.Generator) -> Vector:
-    """Return values of a draw for a number of members, with arguments that hold one value or one per member.
-
-    Args:
-        draw:
-            The draw.
-
-        arguments:
-            The values of the draw's arguments, numbers or arrays with one value per member.
-
-        size:
-            The number of values.
-
-        rng:
-            The random number generator.
-
-    Returns:
-        values:
-            One value per member.
-    """
-    values = [np.broadcast_to(np.asarray(item, dtype=float), (size,)) for item in arguments]
-    if draw.kind == 'uniform':
-        return values[0] + (values[1] - values[0]) * rng.random(size)
-    if draw.kind == 'normal':
-        return values[0] + values[1] * rng.standard_normal(size)
-    if draw.kind == 'bernoulli':
-        return (rng.random(size) < values[0]).astype(float)
-    if draw.kind == 'categorical':
-        weights = np.stack(values, axis=-1)
-        cumulative = np.cumsum(weights, axis=-1)
-        chosen = rng.random(size)[:, np.newaxis] * cumulative[:, -1:]
-        return np.sum(chosen >= cumulative[:, :-1], axis=-1).astype(float)
-    distribution = getattr(stats, str(draw.distribution))
-    sampled = distribution.rvs(**dict(zip(draw.keywords, values, strict=True)), size=size, random_state=rng)
-    return np.asarray(sampled, dtype=float)
-
-
-def check_draw_placement(owner: str, laws: list[Law]) -> None:
-    """Raise an error when a law other than an update or a renewal law holds a random draw, or a draw is unknown.
-
-    Args:
-        owner:
-            The path of the component the laws belong to.
-
-        laws:
-            The laws of the component.
-
-    Raises:
-        IncompatibleLawsError:
-            A rate, noise, jump, boundary, equation, or event law holds a draw.
-
-        ValidationError:
-            A draw names a distribution that `scipy.stats` does not provide, or keywords it does not take.
-    """
-    for law in laws:
-        values = [value for value in _law_values(law) if _is_symbolic(value)]
-        found = draws_in(values)
-        if found and not isinstance(law, Update | Renewal):
-            error_msg = (
-                f'The {type(law).__name__} law of {owner} holds the random draw {found[0].call}, but only update and '
-                'renewal laws take random draws. Model randomness in continuous time with Noise laws for Wiener '
-                'processes, Jump laws for random events, or Renewal laws for events after drawn waiting times.'
-            )
-            raise IncompatibleLawsError(error_msg)
-        for item in found:
-            if item.kind == 'draw':
-                distribution_of(owner, f'{type(law).__name__} law', item)
 
 
 def _alphabet_size(description: str, reference: Reference | None) -> int | None:
@@ -299,49 +173,6 @@ def _emission(
     return Update(law.target, value), MatrixLaw(owner, description, law.matrix)
 
 
-def markov_laws(
-    owner: str,
-    laws: list[Law],
-    references: dict[Expression, Reference],
-) -> tuple[list[Law], list[MatrixLaw]]:
-    """Return the laws of a component with transition and emission laws rewritten as update laws with draws.
-
-    Args:
-        owner:
-            The path of the component.
-
-        laws:
-            The laws of the component.
-
-        references:
-            The references of the symbols the laws read.
-
-    Returns:
-        rewritten:
-            The laws with every Markov law replaced by its update law, in the same order, and the matrices.
-
-    Raises:
-        ValidationError:
-            A Markov law targets a state that is not over a finite alphabet, its matrix has the wrong shape, or an
-            emission reads a hidden state that no update law of the component sets.
-    """
-    matrices: list[MatrixLaw] = []
-    rewritten: list[Law] = []
-    for law in laws:
-        if isinstance(law, Transition):
-            update, matrix = _transition(owner, law, references)
-            rewritten.append(update)
-            matrices.append(matrix)
-        else:
-            rewritten.append(law)
-    updates = {str(law.target): law.value for law in rewritten if isinstance(law, Update)}
-    for index, law in enumerate(rewritten):
-        if isinstance(law, Emission):
-            rewritten[index], matrix = _emission(owner, law, references, updates)
-            matrices.append(matrix)
-    return rewritten, matrices
-
-
 def _matrix_reader(reference: Reference) -> Callable[[Vector], Any]:
     """Return the function that reads a parameter of a matrix for every evaluation row."""
     if reference.source is Source.MEMBER:
@@ -349,64 +180,6 @@ def _matrix_reader(reference: Reference) -> Callable[[Vector], Any]:
         return lambda p: p[members]
     index = reference.index
     return lambda p: p[index]
-
-
-def compile_matrix(
-    law: MatrixLaw,
-    references: dict[Expression, Reference],
-    rows: int,
-    time: Expression,
-) -> MarkovMatrix:
-    """Return the matrix of a Markov law as a function of the parameter vector.
-
-    Args:
-        law:
-            The matrix of the law.
-
-        references:
-            The references of the symbols of the component.
-
-        rows:
-            The number of evaluation rows, the members of a group.
-
-        time:
-            The time symbol.
-
-    Returns:
-        matrix:
-            The matrix as a function of the parameter vector.
-
-    Raises:
-        ValidationError:
-            An entry of the matrix reads a state, time, or a symbol of another component.
-    """
-    entries = [SR(entry) for row in law.matrix for entry in row]
-    arguments = sorted(symbols_of(entries), key=str)
-    for item in arguments:
-        reference = references.get(item)
-        if reference is None or reference.is_state:
-            error_msg = (
-                f'The matrix of the {law.description} reads {item}, but its entries must be numbers or expressions of '
-                'the parameters of its component.'
-            )
-            raise ValidationError(error_msg)
-    function = numpy_function(time, arguments, entries)
-    readers = [_matrix_reader(references[item]) for item in arguments]
-    shape = (len(law.matrix), len(law.matrix[0]))
-    reads = frozenset(
-        int(index)
-        for item in arguments
-        for index in (
-            references[item].flat_indices if references[item].source is Source.MEMBER else [references[item].index]
-        )
-    )
-
-    def evaluate(p: Vector) -> npt.NDArray[np.float64]:
-        values = function(0.0, *(reader(p) for reader in readers))
-        stacked = np.stack([np.broadcast_to(np.asarray(value, dtype=float), (rows,)) for value in values], axis=-1)
-        return stacked.reshape(rows, *shape)
-
-    return MarkovMatrix(law.description, evaluate, reads)
 
 
 def _replacement(draw: Draw, arguments: list[Expression], slot: Expression) -> Expression:
@@ -479,6 +252,246 @@ def _sampler(request: _Request, time: Expression) -> Callable[[float, Vector, Ve
         return sample_draw(draw, values, rows, rng)
 
     return sample
+
+
+def distribution_of(owner: str, description: str, draw: Draw) -> Any:  # noqa: ANN401
+    """Return the `scipy.stats` distribution of a draw, after checking its name and its keywords.
+
+    Args:
+        owner:
+            The path of the component the draw belongs to.
+
+        description:
+            The description of the law that holds the draw.
+
+        draw:
+            The draw, of kind `'draw'`.
+
+    Returns:
+        distribution:
+            The distribution of `scipy.stats`.
+
+    Raises:
+        ValidationError:
+            SciPy has no distribution of that name, or the draw gives a keyword the distribution does not accept or
+            leaves out one of its shape parameters.
+    """
+    name = str(draw.distribution)
+    if name not in DISTRIBUTIONS:
+        closest = ', '.join(difflib.get_close_matches(name, DISTRIBUTIONS, n=3)) or 'none'
+        error_msg = (
+            f'The {description} of {owner} draws {draw.name!r} from the distribution {name!r}, which scipy.stats does '
+            f'not provide. The closest available names are: {closest}.'
+        )
+        raise ValidationError(error_msg)
+    distribution = getattr(stats, name)
+    shapes = [item.strip() for item in (distribution.shapes or '').split(',') if item.strip()]
+    unknown = sorted(set(draw.keywords) - {*shapes, 'loc', 'scale'})
+    missing = sorted(set(shapes) - set(draw.keywords))
+    if unknown or missing:
+        accepted = ', '.join([*shapes, 'loc', 'scale'])
+        error_msg = (
+            f'The {description} of {owner} draws {draw.name!r} from {name} with the keywords '
+            f'{", ".join(draw.keywords) or "none"}, but {name} takes {accepted}, and needs its shape parameters '
+            f'{", ".join(shapes) or "none"}.'
+        )
+        raise ValidationError(error_msg)
+    return distribution
+
+
+def sample_draw(draw: Draw, arguments: Sequence[Any], size: int, rng: np.random.Generator) -> Vector:
+    """Return values of a draw for a number of members, with arguments that hold one value or one per member.
+
+    Args:
+        draw:
+            The draw.
+
+        arguments:
+            The values of the draw's arguments, numbers or arrays with one value per member.
+
+        size:
+            The number of values.
+
+        rng:
+            The random number generator.
+
+    Returns:
+        values:
+            One value per member.
+    """
+    values = [np.broadcast_to(np.asarray(item, dtype=float), (size,)) for item in arguments]
+    if draw.kind == 'uniform':
+        return values[0] + (values[1] - values[0]) * rng.random(size)
+    if draw.kind == 'normal':
+        return values[0] + values[1] * rng.standard_normal(size)
+    if draw.kind == 'bernoulli':
+        return (rng.random(size) < values[0]).astype(float)
+    if draw.kind == 'categorical':
+        weights = np.stack(values, axis=-1)
+        cumulative = np.cumsum(weights, axis=-1)
+        chosen = rng.random(size)[:, np.newaxis] * cumulative[:, -1:]
+        return np.sum(chosen >= cumulative[:, :-1], axis=-1).astype(float)
+    distribution = getattr(stats, str(draw.distribution))
+    sampled = distribution.rvs(**dict(zip(draw.keywords, values, strict=True)), size=size, random_state=rng)
+    return np.asarray(sampled, dtype=float)
+
+
+def check_draw_placement(owner: str, laws: list[Law]) -> None:
+    """Raise an error when a law other than an update or a renewal law holds a random draw, or a draw is unknown.
+
+    Args:
+        owner:
+            The path of the component the laws belong to.
+
+        laws:
+            The laws of the component.
+
+    Raises:
+        IncompatibleLawsError:
+            A rate, noise, jump, boundary, equation, or event law holds a draw.
+
+        ValidationError:
+            A draw names a distribution that `scipy.stats` does not provide, or keywords it does not take.
+    """
+    for law in laws:
+        if not isinstance(law, Rate | Noise | Boundary | Update | Jump | Equation | Event | Renewal):
+            continue
+        values = [value for value in values_of(law, include=RANDOM_FIELDS) if _is_symbolic(value)]
+        found = draws_in(values)
+        if found and not isinstance(law, Update | Renewal):
+            error_msg = (
+                f'The {type(law).__name__} law of {owner} holds the random draw {found[0].call}, but only update and '
+                'renewal laws take random draws. Model randomness in continuous time with Noise laws for Wiener '
+                'processes, Jump laws for random events, or Renewal laws for events after drawn waiting times.'
+            )
+            raise IncompatibleLawsError(error_msg)
+        for item in found:
+            if item.kind == 'draw':
+                distribution_of(owner, f'{type(law).__name__} law', item)
+
+
+def markov_laws(
+    owner: str,
+    laws: list[Law],
+    references: dict[Expression, Reference],
+) -> tuple[list[Law], list[MatrixLaw]]:
+    """Return the laws of a component with transition and emission laws rewritten as update laws with draws.
+
+    Args:
+        owner:
+            The path of the component.
+
+        laws:
+            The laws of the component.
+
+        references:
+            The references of the symbols the laws read.
+
+    Returns:
+        rewritten:
+            The laws with every Markov law replaced by its update law, in the same order, and the matrices.
+
+    Raises:
+        ValidationError:
+            A Markov law targets a state that is not over a finite alphabet, its matrix has the wrong shape, or an
+            emission reads a hidden state that no update law of the component sets.
+    """
+    matrices: list[MatrixLaw] = []
+    rewritten: list[Law] = []
+    for law in laws:
+        if isinstance(law, Transition):
+            update, matrix = _transition(owner, law, references)
+            rewritten.append(update)
+            matrices.append(matrix)
+        else:
+            rewritten.append(law)
+    updates = {str(law.target): law.value for law in rewritten if isinstance(law, Update)}
+    for index, law in enumerate(rewritten):
+        if isinstance(law, Emission):
+            rewritten[index], matrix = _emission(owner, law, references, updates)
+            matrices.append(matrix)
+    return rewritten, matrices
+
+
+def compile_matrix(
+    law: MatrixLaw,
+    references: dict[Expression, Reference],
+    rows: int,
+    time: Expression,
+) -> _MarkovMatrix:
+    """Return the matrix of a Markov law as a function of the parameter vector.
+
+    Args:
+        law:
+            The matrix of the law.
+
+        references:
+            The references of the symbols of the component.
+
+        rows:
+            The number of evaluation rows, the members of a group.
+
+        time:
+            The time symbol.
+
+    Returns:
+        matrix:
+            The matrix as a function of the parameter vector.
+
+    Raises:
+        ValidationError:
+            An entry of the matrix reads a state, time, or a symbol of another component.
+    """
+    entries = [SR(entry) for row in law.matrix for entry in row]
+    arguments = sorted(symbols_of(entries), key=str)
+    for item in arguments:
+        reference = references.get(item)
+        if reference is None or reference.is_state:
+            error_msg = (
+                f'The matrix of the {law.description} reads {item}, but its entries must be numbers or expressions of '
+                'the parameters of its component.'
+            )
+            raise ValidationError(error_msg)
+    function = numpy_function(time, arguments, entries)
+    readers = [_matrix_reader(references[item]) for item in arguments]
+    shape = (len(law.matrix), len(law.matrix[0]))
+    reads = frozenset(
+        int(index)
+        for item in arguments
+        for index in (
+            references[item].flat_indices if references[item].source is Source.MEMBER else [references[item].index]
+        )
+    )
+
+    def evaluate(p: Vector) -> npt.NDArray[np.float64]:
+        values = function(0.0, *(reader(p) for reader in readers))
+        stacked = np.stack([np.broadcast_to(np.asarray(value, dtype=float), (rows,)) for value in values], axis=-1)
+        return stacked.reshape(rows, *shape)
+
+    return _MarkovMatrix(law.description, evaluate, reads)
+
+
+def stochastic_update(update: Callable[..., Vector], draws: Draws) -> Callable[..., Vector]:
+    """Return the update of a stochastic map, which draws its values from a generator before every step.
+
+    Args:
+        update:
+            The update `F(t, x, q)` of the extended parameter vector.
+
+        draws:
+            The draws of the map.
+
+    Returns:
+        update:
+            The update `F(t, x, p, rng)`.
+    """
+
+    def stochastic(t: float, x: Vector, p: Vector, rng: np.random.Generator) -> Vector:
+        extended = draws.extend(p)
+        draws.fill(extended, rng, t, x)
+        return update(t, x, extended)
+
+    return stochastic
 
 
 @dataclass
@@ -590,26 +603,3 @@ class DrawLowering:
                 sampled.append(SampledDraw(position, request.rows, _sampler(request, self.time)))
                 position += request.rows
         self.draws = Draws(self.offset, np.array(flags, dtype=bool), tuple(sampled))
-
-
-def stochastic_update(update: Callable[..., Vector], draws: Draws) -> Callable[..., Vector]:
-    """Return the update of a stochastic map, which draws its values from a generator before every step.
-
-    Args:
-        update:
-            The update `F(t, x, q)` of the extended parameter vector.
-
-        draws:
-            The draws of the map.
-
-    Returns:
-        update:
-            The update `F(t, x, p, rng)`.
-    """
-
-    def stochastic(t: float, x: Vector, p: Vector, rng: np.random.Generator) -> Vector:
-        extended = draws.extend(p)
-        draws.fill(extended, rng, t, x)
-        return update(t, x, extended)
-
-    return stochastic

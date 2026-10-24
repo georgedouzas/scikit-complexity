@@ -1,6 +1,7 @@
 """Test the Rerun observer and the visuals."""
 
 import sys
+import time
 
 import networkx as nx
 import numpy as np
@@ -10,9 +11,13 @@ from sage.all__sagemath_symbolics import I
 
 from skcomplex.core.base import Domain, VisualSpec, state
 from skcomplex.core.compile import compile_system
-from skcomplex.core.components import Element, Field, Group, Particle
-from skcomplex.core.laws import Rate, Rule, Update, add_node
-from skcomplex.core.runtime import Frame, Simulation
+from skcomplex.core.components import Element, Group
+from skcomplex.core.formalisms.agents import Rule
+from skcomplex.core.formalisms.fields import Field
+from skcomplex.core.formalisms.particles import Particle
+from skcomplex.core.formalisms.topology import add_node
+from skcomplex.core.laws import Rate, Update
+from skcomplex.core.runtime import Frame, RealTime, Simulation
 from skcomplex.core.space import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.core.viz import (
@@ -26,6 +31,7 @@ from skcomplex.core.viz import (
 )
 from skcomplex.models import create
 from skcomplex.models.biology.ecology import ExponentialGrowth, Population
+from skcomplex.models.computer_science.automata import game_of_life
 from skcomplex.models.physics.realizations import ConstantForce
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 from skcomplex.models.social.opinion_dynamics import voter_model
@@ -377,3 +383,18 @@ def test_changing_network_logs_present_nodes_and_changed_edges():
     assert [len(item.node_ids.as_arrow_array()) for item in nodes] == [2, 3, 4, 5]
     assert len(edges) == 4
     assert [type(view).__name__ for view in visual.views(element, problem)] == ['GraphView']
+
+
+@pytest.mark.benchmark
+def test_large_game_of_life_runs_in_real_time(tmp_path):
+    """Test that a 1000 x 1000 Game of Life on Numba sustains 30 steps per second while streaming images."""
+    observer = RerunObserver('life', save_path=tmp_path / 'life.rrd')
+    simulation = Simulation(game_of_life((1000, 1000)), dt=1, backend='numba', record=False, observers=[observer])
+    simulation.run(until=2)
+    simulation.observers = [RerunObserver('life', save_path=tmp_path / 'paced.rrd')]
+    simulation.clock = RealTime(30.0)
+    start = time.perf_counter()
+    simulation.run(until=90)
+    assert 90 / (time.perf_counter() - start) >= 29.0
+    assert simulation.problem_.lattice[0].fused
+    assert simulation.observers[0].logged_frames_ == 91

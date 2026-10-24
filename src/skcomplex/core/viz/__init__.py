@@ -1,34 +1,26 @@
 """Visualize running simulations in Rerun."""
 
+from ._agents import AgentsVisual
 from ._blueprints import default_blueprint, primary_view, save_blueprint
 from ._bodies import BodiesVisual
-from ._cayley import CayleyVisual
-from ._expectations import ExpectationVisual
-from ._geometry import GeometryVisual
+from ._colors import colors_of, palette_colors
+from ._images import SPACE_TIME, ImageVisual
+from ._meshes import MeshVisual
+from ._points import PointsVisual
 from ._rerun import RerunObserver
 from ._rings import PhaseRingVisual
+from ._scalars import ScalarsVisual
+from ._sites import SiteVisual
 from ._traits import TraitsVisual, agents_visual_of
-from ._visuals import (
-    VISUALS,
-    AgentsVisual,
-    ImageVisual,
-    MeshVisual,
-    PointsVisual,
-    ScalarsVisual,
-    SiteVisual,
-    Visual,
-    register_visual,
-    resolve_visual,
-)
-from ._words import WordGeometry
+from ._utils import NODE_SPACING, UPWARD, log_scalars
+from ._visuals import Visual, register_visual, resolve_visual
 
 __all__: list[str] = [
-    'VISUALS',
+    'NODE_SPACING',
+    'SPACE_TIME',
+    'UPWARD',
     'AgentsVisual',
     'BodiesVisual',
-    'CayleyVisual',
-    'ExpectationVisual',
-    'GeometryVisual',
     'ImageVisual',
     'MeshVisual',
     'PhaseRingVisual',
@@ -38,9 +30,11 @@ __all__: list[str] = [
     'SiteVisual',
     'TraitsVisual',
     'Visual',
-    'WordGeometry',
     'agents_visual_of',
+    'colors_of',
     'default_blueprint',
+    'log_scalars',
+    'palette_colors',
     'primary_view',
     'register_visual',
     'resolve_visual',

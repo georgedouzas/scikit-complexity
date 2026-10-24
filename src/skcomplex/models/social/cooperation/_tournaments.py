@@ -3,14 +3,16 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 import numpy as np
 import numpy.typing as npt
 
-from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.components import Element
+from ....core.formalisms.agents import AgentView, ModelView, Rule
 from ....core.interactions import Interaction
-from ....core.laws import Law, Rule, Symbols
+from ....core.laws import Law, Symbols
 from ....core.runtime import register_model
 from ....core.system import System
 
@@ -120,11 +122,14 @@ class Tournament(Interaction):
         label:
             The label of the interaction.
 
-        target:
-            The path of the group of strategists.
-
         rounds:
             The number of rounds of every game.
+
+        **values:
+            The values of the declared variables, by name:
+
+            target:
+                The path of the group of strategists.
 
     Examples:
         >>> from skcomplex.models.social.cooperation import Tournament
@@ -133,7 +138,16 @@ class Tournament(Interaction):
     """
 
     target: str = role()
-    rounds: int = 6
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        rounds: int = 6,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.rounds = rounds
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the tournament rule.

@@ -10,13 +10,13 @@ from typing import Any, ClassVar
 import numpy as np
 import numpy.typing as npt
 
-from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.interactions import Interaction, Match, matches
-from ....core.laws import Law, Rule, Symbols, transfer
+from ....core.formalisms.agents import AgentView, Match, ModelView, Phase, Phases, Rule, matches
+from ....core.interactions import Interaction
+from ....core.laws import Law, Symbols, transfer
 from ....core.runtime import register_model
-from ....core.space import DiscreteTime, LatticeSpace, Phase, Phases
+from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import Observable, System
 
 IDLE, PICKING_UP, DELIVERING = 0.0, 1.0, 2.0
@@ -274,20 +274,23 @@ class Dispatch(Interaction):
         label:
             The label of the dispatcher.
 
-        riders:
-            The path of the group of riders.
-
-        cabs:
-            The path of the group of cabs.
-
-        demand:
-            The mean number of new riders in a step.
-
         width:
             The number of columns of the grid.
 
         height:
             The number of rows of the grid.
+
+        **values:
+            The values of the declared variables, by name:
+
+            riders:
+                The path of the group of riders.
+
+            cabs:
+                The path of the group of cabs.
+
+            demand:
+                The mean number of new riders in a step.
 
     Examples:
         >>> from skcomplex.models.engineering.traffic import Dispatch
@@ -299,8 +302,18 @@ class Dispatch(Interaction):
     riders: str = role()
     cabs: str = role()
     demand: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
-    width: int = 30
-    height: int = 30
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        width: int = 30,
+        height: int = 30,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.width = width
+        self.height = height
 
     def laws(self, s: Symbols) -> list[Any]:
         """Return the arrival of riders, the matching of riders with cabs, and the rule that dispatches the cabs.

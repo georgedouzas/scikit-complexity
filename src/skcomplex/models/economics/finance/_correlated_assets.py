@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 from ....core.base import Domain, parameter, role
 from ....core.components import Wiener
 from ....core.interactions import Interaction
@@ -20,20 +22,23 @@ class CorrelatedGeometricBrownianMotion(Interaction):
         label:
             The label of the interaction.
 
-        target:
-            The path of the asset.
-
-        market:
-            The path of the Wiener element whose process drives the price.
-
         index:
             The process of the Wiener element.
 
-        mu:
-            The drift.
+        **values:
+            The values of the declared variables, by name:
 
-        sigma:
-            The volatility.
+            target:
+                The path of the asset.
+
+            market:
+                The path of the Wiener element whose process drives the price.
+
+            mu:
+                The drift.
+
+            sigma:
+                The volatility.
 
     Examples:
         >>> from skcomplex.models.economics.finance import CorrelatedGeometricBrownianMotion
@@ -43,9 +48,18 @@ class CorrelatedGeometricBrownianMotion(Interaction):
 
     target: str = role()
     market: str = role()
-    index: int = 0
     mu: float = parameter(default=0.05, domain=Domain.REAL)
     sigma: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        index: int = 0,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.index = index
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the drift `mu * S` and the noise amplitude `sigma * S` on process `index` of the market.

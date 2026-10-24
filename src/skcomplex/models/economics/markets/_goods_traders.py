@@ -10,15 +10,15 @@ from typing import Any, ClassVar
 
 import numpy as np
 
-from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.components import Element
-from ....core.interactions import Interaction, Match, matches
-from ....core.laws import Invariant, Law, Rule, Symbols
+from ....core.formalisms.agents import AgentView, Match, ModelView, Phase, Phases, Rule, matches
+from ....core.interactions import Interaction
+from ....core.laws import Invariant, Law, Symbols
 from ....core.runtime import register_model
-from ....core.space import DiscreteTime, LatticeSpace, Phase, Phases
+from ....core.space import DiscreteTime, LatticeSpace
 from ....core.system import Observable, System
-from ..realizations import NeighbourPairing, cobb_douglas, trade_goods
+from ..realizations import NeighborPairing, cobb_douglas, trade_goods
 
 type Pairing = Callable[[Sequence[Any], Sequence[Any], np.random.Generator, int], list[tuple[Any, Any]]]
 
@@ -131,17 +131,20 @@ class Exchange(Interaction):
         label:
             The label of the exchange.
 
-        traders:
-            The path of the group of traders.
-
         goods:
             The names of the traded goods.
 
         pairing:
-            The pairing of the matching law, such as `NeighbourPairing()`, or `None` for random pairs.
+            The pairing of the matching law, such as `NeighborPairing()`, or `None` for random pairs.
 
         quantity:
             The quantity of the bought good in every trade.
+
+        **values:
+            The values of the declared variables, by name:
+
+            traders:
+                The path of the group of traders.
 
     Examples:
         >>> from skcomplex.models.economics.markets import Exchange
@@ -151,9 +154,20 @@ class Exchange(Interaction):
 
     reports: ClassVar[tuple[str, ...]] = ('price', 'dispersion', 'volume')
     traders: str = role()
-    goods: tuple[str, ...] = GOODS
-    pairing: Pairing | None = None
-    quantity: float = 0.1
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        goods: tuple[str, ...] = GOODS,
+        pairing: Pairing | None = None,
+        quantity: float = 0.1,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.goods = goods
+        self.pairing = pairing
+        self.quantity = quantity
 
     def laws(self, s: Symbols) -> list[Any]:
         """Return the matching of neighbours, the barter rule, and the invariant of the total of every good.
@@ -277,7 +291,7 @@ def goods_traders(
                 'exchange',
                 traders='traders',
                 goods=GOODS[:goods],
-                pairing=NeighbourPairing(),
+                pairing=NeighborPairing(),
                 quantity=quantity,
             ),
         ],

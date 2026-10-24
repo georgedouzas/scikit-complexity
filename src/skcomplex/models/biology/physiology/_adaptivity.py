@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 from ....core.base import Domain, ValidationError, parameter, state
 from ....core.components import Element
 from ....core.laws import Law, Rate, Symbols, pulse_train, where
@@ -28,57 +30,6 @@ class AdaptiveResponder(Element):
         label:
             The label of the system.
 
-        e:
-            The initial excursion of the critical parameter.
-
-        c:
-            The initial capacity of the response.
-
-        S:
-            The initial reserves, 1 when full.
-
-        response_cost:
-            The initial response cost.
-
-        restore_cost:
-            The initial restore cost.
-
-        repair_cost:
-            The initial repair cost.
-
-        prepare_cost:
-            The initial preparedness cost.
-
-        eta:
-            The rate at which demand builds capacity, 0 for a fixed stimulus-response.
-
-        anticipation:
-            The share `a` of every episode that anticipation avoids.
-
-        c0:
-            The baseline capacity.
-
-        tau:
-            The time over which unused capacity decays.
-
-        k0:
-            The homeostatic relaxation rate of the excursion.
-
-        kappa:
-            The rate of restoring the reserves.
-
-        price:
-            The cost of restoring a unit of reserves.
-
-        theta:
-            The excursion above which damage accrues.
-
-        repair:
-            The repair cost per unit of excursion above the threshold and per unit time.
-
-        upkeep:
-            The cost per unit time of a unit of extra capacity or of anticipation.
-
         height:
             The height of the episodes.
 
@@ -90,6 +41,60 @@ class AdaptiveResponder(Element):
 
         start:
             The start of the first episode.
+
+        **values:
+            The values of the declared variables, by name:
+
+            e:
+                The initial excursion of the critical parameter.
+
+            c:
+                The initial capacity of the response.
+
+            S:
+                The initial reserves, 1 when full.
+
+            response_cost:
+                The initial response cost.
+
+            restore_cost:
+                The initial restore cost.
+
+            repair_cost:
+                The initial repair cost.
+
+            prepare_cost:
+                The initial preparedness cost.
+
+            eta:
+                The rate at which demand builds capacity, 0 for a fixed stimulus-response.
+
+            anticipation:
+                The share `a` of every episode that anticipation avoids.
+
+            c0:
+                The baseline capacity.
+
+            tau:
+                The time over which unused capacity decays.
+
+            k0:
+                The homeostatic relaxation rate of the excursion.
+
+            kappa:
+                The rate of restoring the reserves.
+
+            price:
+                The cost of restoring a unit of reserves.
+
+            theta:
+                The excursion above which damage accrues.
+
+            repair:
+                The repair cost per unit of excursion above the threshold and per unit time.
+
+            upkeep:
+                The cost per unit time of a unit of extra capacity or of anticipation.
 
     Examples:
         >>> from skcomplex.models.biology.physiology import AdaptiveResponder
@@ -114,10 +119,22 @@ class AdaptiveResponder(Element):
     theta: float = parameter(default=1.0, domain=Domain.NONNEGATIVE)
     repair: float = parameter(default=5.0, domain=Domain.NONNEGATIVE)
     upkeep: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    height: float = 1.0
-    width: float = 2.0
-    period: float = 10.0
-    start: float = 1.0
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        height: float = 1.0,
+        width: float = 2.0,
+        period: float = 10.0,
+        start: float = 1.0,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.height = height
+        self.width = width
+        self.period = period
+        self.start = start
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the excursion, the capacity, the reserves, and the four costs.

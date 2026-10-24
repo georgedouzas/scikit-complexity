@@ -1,6 +1,7 @@
 """Test the lowering of member offset reads along the order of a group."""
 
 import time
+from typing import Any
 
 import numpy as np
 import pytest
@@ -29,9 +30,21 @@ class LookAhead(Interaction):
     """Update of every car to the position of the car a number of places ahead."""
 
     cars: str = role()
-    offset: int = 1
-    boundary: str = 'periodic'
-    fill: float = 0.0
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        offset: int = 1,
+        boundary: str = 'periodic',
+        fill: float = 0.0,
+        **values: Any,
+    ) -> None:
+        """Store the settings and pass the values on."""
+        super().__init__(label, **values)
+        self.offset = offset
+        self.boundary = boundary
+        self.fill = fill
 
     def laws(self, s):
         """Return the update of the read position."""
@@ -105,7 +118,17 @@ class Hop(Interaction):
     """Hop of one particle from every site to the next one along the group order, at a rate equal to the occupation."""
 
     sites: str = role()
-    boundary: str = 'periodic'
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        boundary: str = 'periodic',
+        **values: Any,
+    ) -> None:
+        """Store the settings and pass the values on."""
+        super().__init__(label, **values)
+        self.boundary = boundary
 
     def laws(self, s):
         """Return the hop to the next site."""

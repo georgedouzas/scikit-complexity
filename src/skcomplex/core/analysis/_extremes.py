@@ -25,6 +25,11 @@ LAWS = {
 }
 
 
+def _starting_point(_: object, start: Array, *__: object, **___: object) -> Array:
+    """Return SciPy's starting point of a fit, McCulloch's quantile estimate for stable laws, unchanged."""
+    return start
+
+
 @dataclass(frozen=True)
 class ExtremeValueFit:
     """Generalized extreme-value law fitted to block maxima.
@@ -109,11 +114,6 @@ def record_counts(sequences: npt.ArrayLike) -> npt.NDArray[np.int64]:
     previous = np.maximum.accumulate(array, axis=1)
     records = np.concatenate([np.ones((array.shape[0], 1), dtype=bool), array[:, 1:] > previous[:, :-1]], axis=1)
     return records.sum(axis=1).astype(np.int64)
-
-
-def _starting_point(_: object, start: Array, *__: object, **___: object) -> Array:
-    """Return SciPy's starting point of a fit, McCulloch's quantile estimate for stable laws, unchanged."""
-    return start
 
 
 @dataclass(frozen=True)

@@ -22,6 +22,37 @@ HURST_METHODS = ('dfa', 'rs')
 FIT_POINTS = 20
 
 
+def _particle_axes(positions: npt.ArrayLike) -> Array:
+    """Return positions as frames by particles by dimensions."""
+    array = real_array(positions, 'positions')
+    return array.reshape(array.shape[0], array.shape[1] if array.ndim > 1 else 1, -1)
+
+
+def _fit_lags(lags: Array, fit_range: tuple[float, float] | None) -> npt.NDArray[np.intp]:
+    """Return the indices of about 20 lags spaced logarithmically within the fit range."""
+    low, high = (lags[0], lags[-1] / 4) if fit_range is None else fit_range
+    inside = np.flatnonzero((lags >= low) & (lags <= high))
+    if inside.size < 2:  # noqa: PLR2004
+        error_msg = f'The fit range {fit_range} holds fewer than 2 lags. Widen it within {lags[0]} to {lags[-1]}.'
+        raise AnalysisError(error_msg)
+    chosen = np.unique(np.geomspace(1, inside.size, FIT_POINTS).astype(int) - 1)
+    return inside[chosen]
+
+
+def _reddening(segment: Array) -> float:
+    """Return the ratio of the mean power of the lowest eighth of frequencies to that of the highest half."""
+    power = np.abs(np.fft.rfft(segment)[1:]) ** 2
+    low = power[: max(power.size // 8, 1)]
+    high = power[power.size // 2 :]
+    return float(low.mean() / high.mean()) if high.mean() > 0 else float('nan')
+
+
+def _trend(indicator: Array) -> float:
+    """Return Kendall's tau of an indicator against time over its defined values."""
+    valid = ~np.isnan(indicator)
+    return float(stats.kendalltau(np.flatnonzero(valid), indicator[valid]).statistic)
+
+
 @analysis(DataKind.SERIES)
 def autocorrelation(values: npt.ArrayLike, max_lag: int | None = None) -> Array:
     """Return the autocorrelation of a series at lags 0 to `max_lag`, computed with the FFT.
@@ -107,23 +138,6 @@ def power_spectrum(values: npt.ArrayLike, dt: float = 1.0) -> tuple[Array, Array
     """
     array = real_array(values, 'values')
     return signal.welch(array, fs=1 / dt, nperseg=min(array.size, 1024))
-
-
-def _particle_axes(positions: npt.ArrayLike) -> Array:
-    """Return positions as frames by particles by dimensions."""
-    array = real_array(positions, 'positions')
-    return array.reshape(array.shape[0], array.shape[1] if array.ndim > 1 else 1, -1)
-
-
-def _fit_lags(lags: Array, fit_range: tuple[float, float] | None) -> npt.NDArray[np.intp]:
-    """Return the indices of about 20 lags spaced logarithmically within the fit range."""
-    low, high = (lags[0], lags[-1] / 4) if fit_range is None else fit_range
-    inside = np.flatnonzero((lags >= low) & (lags <= high))
-    if inside.size < 2:  # noqa: PLR2004
-        error_msg = f'The fit range {fit_range} holds fewer than 2 lags. Widen it within {lags[0]} to {lags[-1]}.'
-        raise AnalysisError(error_msg)
-    chosen = np.unique(np.geomspace(1, inside.size, FIT_POINTS).astype(int) - 1)
-    return inside[chosen]
 
 
 @dataclass(frozen=True)
@@ -330,20 +344,6 @@ def hurst_exponent(
         0.5
     """
     return detrended_fluctuation(values, scales, order, method=method).exponent
-
-
-def _reddening(segment: Array) -> float:
-    """Return the ratio of the mean power of the lowest eighth of frequencies to that of the highest half."""
-    power = np.abs(np.fft.rfft(segment)[1:]) ** 2
-    low = power[: max(power.size // 8, 1)]
-    high = power[power.size // 2 :]
-    return float(low.mean() / high.mean()) if high.mean() > 0 else float('nan')
-
-
-def _trend(indicator: Array) -> float:
-    """Return Kendall's tau of an indicator against time over its defined values."""
-    valid = ~np.isnan(indicator)
-    return float(stats.kendalltau(np.flatnonzero(valid), indicator[valid]).statistic)
 
 
 @dataclass(frozen=True)

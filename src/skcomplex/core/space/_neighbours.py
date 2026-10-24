@@ -7,21 +7,17 @@ import math
 from dataclasses import dataclass
 from typing import ClassVar
 
-import numpy as np
-
 from ..base import Requires, SpaceKind, ValidationError
-from ._cayley import GroupSpace
-from ._lattices import LatticeSpace
 from ._networks import NetworkSpace
-from ._spaces import Space
+from ._spaces import SiteSpace, Space
 
 
-def neighbour_pairs(space: Space | None, size: int, layer: str | None = None) -> list[tuple[int, int]]:
-    """Return the pairs of neighbouring members of a lattice, a group space, or a network, each pair once.
+def neighbor_pairs(space: Space | None, size: int, layer: str | None = None) -> list[tuple[int, int]]:
+    """Return the pairs of neighbouring members of a space of sites, such as a lattice, or of a network, each pair once.
 
     Args:
         space:
-            The lattice or the network.
+            The space of sites or the network.
 
         size:
             The number of members, one per site or node.
@@ -35,11 +31,11 @@ def neighbour_pairs(space: Space | None, size: int, layer: str | None = None) ->
 
     Raises:
         ValidationError:
-            The space is neither a lattice nor a network.
+            The space is neither a space of sites nor a network.
 
     Examples:
-        >>> from skcomplex.core.space import LatticeSpace, neighbour_pairs
-        >>> neighbour_pairs(LatticeSpace(3, boundary='fixed'), 3)
+        >>> from skcomplex.core.space import LatticeSpace, neighbor_pairs
+        >>> neighbor_pairs(LatticeSpace(3, boundary='fixed'), 3)
         [(0, 1), (1, 2)]
     """
     if isinstance(space, NetworkSpace):
@@ -47,27 +43,10 @@ def neighbour_pairs(space: Space | None, size: int, layer: str | None = None) ->
         return [
             (first, second) for first, second in zip(sources.tolist(), targets.tolist(), strict=True) if first != second
         ]
-    if isinstance(space, GroupSpace):
-        found_edges = {
-            frozenset((first, second)): (first, second) for first, second, _ in space.edges if first != second
-        }
-        return list(found_edges.values())
-    if not isinstance(space, LatticeSpace):
-        error_msg = f'Neighbours are defined on a LatticeSpace, a GroupSpace, or a NetworkSpace, not on {space!r}.'
+    if not isinstance(space, SiteSpace):
+        error_msg = f'Neighbours are defined on a space of sites, such as a lattice, or on a network, not on {space!r}.'
         raise ValidationError(error_msg)
-    dimensions = space.dimensions
-    sites = np.arange(size).reshape(dimensions)
-    found: dict[frozenset[int], tuple[int, int]] = {}
-    for axis, length in enumerate(dimensions):
-        shifted = np.roll(sites, -1, axis=axis)
-        pairs = np.stack([sites.ravel(), shifted.ravel()], axis=1)
-        if space.boundary != 'periodic':
-            edge = np.indices(dimensions)[axis].ravel() == length - 1
-            pairs = pairs[~edge]
-        for first, second in pairs.tolist():
-            if first != second:
-                found.setdefault(frozenset((first, second)), (first, second))
-    return list(found.values())
+    return space.list_neighbor_pairs()
 
 
 @dataclass(frozen=True)
@@ -192,4 +171,4 @@ class Cone:
         object.__setattr__(self, 'angle', float(self.angle))
 
 
-METRIC_NEIGHBOURHOODS = (Radius, Nearest, Cone)
+METRIC_NEIGHBORHOODS = (Radius, Nearest, Cone)

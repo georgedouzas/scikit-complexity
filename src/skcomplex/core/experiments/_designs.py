@@ -16,6 +16,17 @@ from ..base import ValidationError
 type Row = dict[str, Any]
 
 
+def _scale(name: str, bound: Any, uniform: np.ndarray) -> np.ndarray:  # noqa: ANN401
+    """Return uniform samples in [0, 1) mapped to a pair of bounds or through a distribution's quantile function."""
+    if hasattr(bound, 'ppf'):
+        return np.asarray(bound.ppf(uniform), dtype=float)
+    if isinstance(bound, Sequence) and len(bound) == 2:  # noqa: PLR2004
+        low, high = (float(item) for item in bound)
+        return low + uniform * (high - low)
+    error_msg = f'The bounds of {name} must be a pair (low, high) or a SciPy distribution, not {bound!r}.'
+    raise ValidationError(error_msg)
+
+
 class Design(BaseEstimator):
     """Base class of designs, which give rows of values by factory argument or dotted path.
 
@@ -38,6 +49,37 @@ class Design(BaseEstimator):
     def __mul__(self, other: 'Design') -> 'Design':
         """Return the design that runs every combination of a row of each design."""
         return Rows([{**first, **second} for first in self.rows() for second in other.rows()])
+
+
+class _Sampled(Design):
+    """Design of `n` rows sampled over bounds or distributions."""
+
+    def __init__(self, n: int, *, random_state: int | None = None, **bounds: Any) -> None:  # noqa: ANN401
+        self.n = n
+        self.random_state = random_state
+        self.bounds = bounds
+
+    def get_params(self, deep: bool = True) -> dict[str, Any]:
+        """Return the size, the seed, and the bounds by name."""
+        del deep
+        return {'n': self.n, 'random_state': self.random_state, **self.bounds}
+
+    def _uniform(self) -> np.ndarray:
+        """Return `n` uniform points in the unit cube of the bounds' dimension."""
+        return np.random.default_rng(self.random_state).random((self.n, len(self.bounds)))
+
+    def rows(self) -> list[Row]:
+        """Return the sampled rows.
+
+        Returns:
+            rows:
+                One row per sample.
+        """
+        uniform = self._uniform()
+        columns = {
+            name: _scale(name, bound, uniform[:, index]) for index, (name, bound) in enumerate(self.bounds.items())
+        }
+        return [{name: float(column[row]) for name, column in columns.items()} for row in range(self.n)]
 
 
 class Rows(Design):
@@ -102,48 +144,6 @@ class Grid(Design):
         """
         names = list(self.values)
         return [dict(zip(names, combination, strict=True)) for combination in itertools.product(*self.values.values())]
-
-
-def _scale(name: str, bound: Any, uniform: np.ndarray) -> np.ndarray:  # noqa: ANN401
-    """Return uniform samples in [0, 1) mapped to a pair of bounds or through a distribution's quantile function."""
-    if hasattr(bound, 'ppf'):
-        return np.asarray(bound.ppf(uniform), dtype=float)
-    if isinstance(bound, Sequence) and len(bound) == 2:  # noqa: PLR2004
-        low, high = (float(item) for item in bound)
-        return low + uniform * (high - low)
-    error_msg = f'The bounds of {name} must be a pair (low, high) or a SciPy distribution, not {bound!r}.'
-    raise ValidationError(error_msg)
-
-
-class _Sampled(Design):
-    """Design of `n` rows sampled over bounds or distributions."""
-
-    def __init__(self, n: int, *, random_state: int | None = None, **bounds: Any) -> None:  # noqa: ANN401
-        self.n = n
-        self.random_state = random_state
-        self.bounds = bounds
-
-    def get_params(self, deep: bool = True) -> dict[str, Any]:
-        """Return the size, the seed, and the bounds by name."""
-        del deep
-        return {'n': self.n, 'random_state': self.random_state, **self.bounds}
-
-    def _uniform(self) -> np.ndarray:
-        """Return `n` uniform points in the unit cube of the bounds' dimension."""
-        return np.random.default_rng(self.random_state).random((self.n, len(self.bounds)))
-
-    def rows(self) -> list[Row]:
-        """Return the sampled rows.
-
-        Returns:
-            rows:
-                One row per sample.
-        """
-        uniform = self._uniform()
-        columns = {
-            name: _scale(name, bound, uniform[:, index]) for index, (name, bound) in enumerate(self.bounds.items())
-        }
-        return [{name: float(column[row]) for name, column in columns.items()} for row in range(self.n)]
 
 
 class RandomDesign(_Sampled):

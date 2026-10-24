@@ -9,7 +9,7 @@ import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 
@@ -148,6 +148,38 @@ def _check_bounds(bounds: tuple[float, float], *, adaptive: bool) -> None:
         raise ValueError(error_msg)
 
 
+def _companions_of(name: str, declaration: Variable, default: Any) -> dict[str, Any]:
+    """Return the companion state fields of a state of higher order or with lags, by field name.
+
+    The derivatives of a complex state are complex, and those of any other state are real.
+
+    Args:
+        name:
+            The name of the state.
+
+        declaration:
+            The declaration of the state.
+
+        default:
+            The default value of the state, which missing past values take.
+
+    Returns:
+        fields:
+            The companion fields, empty for a first-order state without lags.
+    """
+    fields = {}
+    domain = Domain.COMPLEX if declaration.domain is Domain.COMPLEX else Domain.REAL
+    for index in range(1, declaration.derivatives + 1):
+        value = declaration.initial[index - 1] if index <= len(declaration.initial) else 0.0
+        companion = Variable(VariableKind.STATE, domain, declaration.vector, derivative_of=name, index=index)
+        fields[f'{name}_d{index}'] = _declare_field(value, companion)
+    for index in range(1, declaration.lags + 1):
+        value = declaration.initial[index - 1] if index <= len(declaration.initial) else default
+        companion = Variable(VariableKind.STATE, declaration.domain, declaration.vector, lag_of=name, index=index)
+        fields[f'{name}_lag{index}'] = _declare_field(value, companion)
+    return fields
+
+
 def state(
     default: Any = 0.0,
     *,
@@ -268,38 +300,6 @@ def declaration_of(value: object) -> Variable | None:
     return None
 
 
-def companions_of(name: str, declaration: Variable, default: Any) -> dict[str, Any]:
-    """Return the companion state fields of a state of higher order or with lags, by field name.
-
-    The derivatives of a complex state are complex, and those of any other state are real.
-
-    Args:
-        name:
-            The name of the state.
-
-        declaration:
-            The declaration of the state.
-
-        default:
-            The default value of the state, which missing past values take.
-
-    Returns:
-        fields:
-            The companion fields, empty for a first-order state without lags.
-    """
-    fields = {}
-    domain = Domain.COMPLEX if declaration.domain is Domain.COMPLEX else Domain.REAL
-    for index in range(1, declaration.derivatives + 1):
-        value = declaration.initial[index - 1] if index <= len(declaration.initial) else 0.0
-        companion = Variable(VariableKind.STATE, domain, declaration.vector, derivative_of=name, index=index)
-        fields[f'{name}_d{index}'] = _declare_field(value, companion)
-    for index in range(1, declaration.lags + 1):
-        value = declaration.initial[index - 1] if index <= len(declaration.initial) else default
-        companion = Variable(VariableKind.STATE, declaration.domain, declaration.vector, lag_of=name, index=index)
-        fields[f'{name}_lag{index}'] = _declare_field(value, companion)
-    return fields
-
-
 def parameter(
     default: Any = dataclasses.MISSING,
     *,
@@ -413,6 +413,41 @@ def role(*, variadic: bool = False) -> Any:
     return _declare_field(dataclasses.MISSING, Variable(VariableKind.ROLE, variadic=variadic))
 
 
+def declared_fields(component: Any) -> dict[str, Any]:
+    """Return the fields a component class declares with `state`, `parameter`, and `role`, with their companions.
+
+    The fields come in the order of the classes from the base to the class, each class in definition order followed by
+    the companion states of its states of higher order or with lags, `<name>_d1` to `<name>_d<k-1>` and
+    `<name>_lag1` to `<name>_lag<m>`. A field declared again in a subclass keeps its place.
+
+    Args:
+        component:
+            A component class or instance.
+
+    Returns:
+        fields:
+            A mapping from name to the field that carries the declaration and the default.
+
+    Examples:
+        >>> from skcomplex.core.base import declared_fields, state
+        >>> class Pendulum:
+        ...     theta = state(0.1, order=2)
+        >>> list(declared_fields(Pendulum))
+        ['theta', 'theta_d1']
+    """
+    cls = component if isinstance(component, type) else type(component)
+    fields: dict[str, Any] = {}
+    for klass in reversed(cls.__mro__):
+        own = {name: value for name, value in vars(klass).items() if declaration_of(value) is not None}
+        fields.update(own)
+        for name, value in own.items():
+            declaration = cast('Variable', declaration_of(value))
+            default = value.default if value.default is not dataclasses.MISSING else 0.0
+            companions = _companions_of(name, declaration, default)
+            fields.update({key: item for key, item in companions.items() if key not in vars(klass)})
+    return fields
+
+
 def declarations_of(component: Any, kind: VariableKind) -> dict[str, Variable]:
     """Return the declared fields of one kind of a component, in declaration order.
 
@@ -428,7 +463,7 @@ def declarations_of(component: Any, kind: VariableKind) -> dict[str, Variable]:
             A mapping from field name to declaration.
     """
     return {
-        field.name: field.metadata[METADATA_KEY]
-        for field in dataclasses.fields(component)
-        if METADATA_KEY in field.metadata and field.metadata[METADATA_KEY].kind is kind
+        name: field.metadata[METADATA_KEY]
+        for name, field in declared_fields(component).items()
+        if field.metadata[METADATA_KEY].kind is kind
     }

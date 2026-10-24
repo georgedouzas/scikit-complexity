@@ -4,7 +4,6 @@
 # License: MIT
 
 import copy
-import dataclasses
 import re
 from dataclasses import dataclass
 from typing import Any, cast
@@ -17,21 +16,133 @@ from ..base import (
     Domain,
     LabelError,
     SpaceError,
+    TimeKind,
+    Trait,
     ValidationError,
     Variable,
-    VariableKind,
-    declarations_of,
 )
-from ..components import Element, Group, probe_laws, runs_rules
-from ..components._components import part_count
-from ..interactions import Interaction, Match
-from ..laws import Rule
-from ..space import LatticeSpace, NetworkSpace, Space
+from ..components import Element, Group, probe_laws
+from ..interactions import Interaction
+from ..laws import has_trait
+from ..space import LatticeSpace, NetworkSpace, Space, part_count
 from ..system import System
 
 LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
-MEMBER_SUFFIX = re.compile(r'\[-?\d+\]$')
 MAX_SHOWN_COMPONENTS = 10
+
+
+def _check_label(label: object, scope: str) -> None:
+    """Raise an error for a label that is not a non-empty word."""
+    if isinstance(label, str) and LABEL_PATTERN.match(label):
+        return
+    where = scope or 'the root system'
+    error_msg = (
+        f'Label {label!r} in {where} is not valid. A label must be a non-empty string of letters, digits, '
+        'underscores, and hyphens.'
+    )
+    raise LabelError(error_msg)
+
+
+def _check_network_lattice(space: NetworkSpace, size: int, where: str) -> None:
+    """Raise an error for a lattice group on a network with a capacity or a size other than its number of nodes."""
+    if space.capacity is not None:
+        error_msg = (
+            f'{where} has its sites on a network with capacity {space.capacity}, but sites hold states, not agents. '
+            'Leave the capacity as None.'
+        )
+        raise ValidationError(error_msg)
+    if space.graph.number_of_nodes() != size:
+        error_msg = f'{where} has size {size}, but its network has {space.graph.number_of_nodes()} nodes.'
+        raise ValidationError(error_msg)
+
+
+def _check_group(group: Group, scope: str) -> None:
+    """Raise an error for a group with an element type or size that is not valid."""
+    where = f'Group {group.label!r} in {scope or "the root system"}'
+    if group.size is None and group.on is not None:
+        return
+    space = getattr(group, 'space', None)
+    if isinstance(space, LatticeSpace):
+        try:
+            space.check()
+        except ValueError as error:
+            error_msg = f'{where} has a lattice that is not valid. {error}'
+            raise ValidationError(error_msg) from error
+        if space.size != group.size:
+            error_msg = f'{where} has size {group.size}, but its lattice has {space.size} sites.'
+            raise ValidationError(error_msg)
+    if (
+        isinstance(space, NetworkSpace)
+        and not group.variable
+        and group.on in {None, 'sites'}
+        and group.size is not None
+    ):
+        _check_network_lattice(space, group.size, where)
+
+
+def _check_children(system: System, scope: str) -> None:
+    """Raise an error for a child of the wrong type or a duplicated label."""
+    children: list[tuple[Element | Group | Interaction | System, type | tuple[type, ...]]] = [
+        *((element, (Element, Group)) for element in system.elements),
+        *((interaction, Interaction) for interaction in system.interactions),
+        *((child, System) for child in system.systems),
+    ]
+    labels: set[str] = set()
+    for child, expected_type in children:
+        if not isinstance(child, expected_type):
+            names = ' or '.join(
+                kind.__name__ for kind in (expected_type if isinstance(expected_type, tuple) else (expected_type,))
+            )
+            error_msg = f'{child!r} in {scope or "the root system"} is not an instance of {names}.'
+            raise ValidationError(error_msg)
+        if isinstance(child, Group):
+            _check_group(child, scope)
+        _check_label(child.label, scope)
+        if child.label in labels:
+            error_msg = f'Label {child.label!r} is used by more than one child of {scope or "the root system"}.'
+            raise LabelError(error_msg)
+        labels.add(child.label)
+
+
+def _sized(element: Element | Group, space: Space | None) -> Element | Group:
+    """Return a group on parts of the space it inherits with its size counted from them, or the element itself."""
+    if not isinstance(element, Group) or element.size is not None:
+        return element
+    if space is None:
+        error_msg = f'Group {element.label!r} lives on {element.on} but has neither a size nor a space.'
+        raise SpaceError(error_msg)
+    sized = copy.copy(element)
+    sized.size = part_count(space, element.on or 'sites', element.label, element.layer)
+    return sized
+
+
+def _with_capacity(element: Element | Group, space: Space | None) -> tuple[Element | Group, int | None]:
+    """Return a variable group on a network with its capacity as its size, and its initial size, or the element."""
+    if not is_topology_group(element, space):
+        return element, None
+    group = cast('Group', element)
+    initial = int(group.size) if group.size is not None else 0
+    capacity = group.capacity if group.capacity is not None else max(2 * initial, 1)
+    if capacity < initial:
+        error_msg = (
+            f'Group {group.label!r} has the capacity {capacity}, below its {initial} initial members. Give a capacity '
+            'of at least its size.'
+        )
+        raise ValidationError(error_msg)
+    sized = copy.copy(group)
+    sized.size = capacity
+    return sized, initial
+
+
+def _canonical(space: Space | None, seen: list[Space]) -> Space | None:
+    """Return the first network space seen that equals a space, so clones of one network share one space."""
+    if not isinstance(space, NetworkSpace):
+        return space
+    for known in seen:
+        if isinstance(known, NetworkSpace) and known.equals(space):
+            return known
+    seen.append(space)
+    return space
 
 
 @dataclass(frozen=True)
@@ -52,7 +163,7 @@ class Node:
             The nearest enclosing space.
 
         agent:
-            Whether the component runs on the agent stepper, as `agent_paths` decides.
+            Whether the component runs on the agent stepper, as a pass of a formalism decides.
 
         active:
             The initial number of members of a variable group on the sites or edges of a network, whose capacity is
@@ -95,9 +206,7 @@ class Node:
         if not isinstance(self.component, Group):
             return getattr(self.component, variable)
         values = self.component.values or {}
-        field = next(field for field in dataclasses.fields(self.component.element) if field.name == variable)
-        factory = field.default_factory
-        default = factory() if callable(factory) else field.default
+        default = self.component.element.get_default(variable)
         if variable not in values:
             return default
         value = values[variable]
@@ -111,206 +220,8 @@ class Node:
         return value
 
 
-def _check_label(label: object, scope: str) -> None:
-    """Raise an error for a label that is not a non-empty word."""
-    if isinstance(label, str) and LABEL_PATTERN.match(label):
-        return
-    where = scope or 'the root system'
-    error_msg = (
-        f'Label {label!r} in {where} is not valid. A label must be a non-empty string of letters, digits, '
-        'underscores, and hyphens.'
-    )
-    raise LabelError(error_msg)
-
-
-def _check_network_lattice(space: NetworkSpace, size: int, where: str) -> None:
-    """Raise an error for a lattice group on a network with a capacity or a size other than its number of nodes."""
-    if space.capacity is not None:
-        error_msg = (
-            f'{where} has its sites on a network with capacity {space.capacity}, but sites hold states, not agents. '
-            'Leave the capacity as None.'
-        )
-        raise ValidationError(error_msg)
-    if space.graph.number_of_nodes() != size:
-        error_msg = f'{where} has size {size}, but its network has {space.graph.number_of_nodes()} nodes.'
-        raise ValidationError(error_msg)
-
-
-def _check_group(group: Group, scope: str) -> None:
-    """Raise an error for a group with an element type or size that is not valid."""
-    where = f'Group {group.label!r} in {scope or "the root system"}'
-    if not (isinstance(group.element, type) and issubclass(group.element, Element)):
-        error_msg = f'{where} has element {group.element!r}, which is not an Element subclass.'
-        raise ValidationError(error_msg)
-    if group.size is None and group.on is not None:
-        return
-    empty = group.variable and group.on in {'sites', 'edges'} and group.size == 0
-    if not empty and not (Domain.POSITIVE.contains(group.size) and Domain.INTEGER.contains(group.size)):
-        error_msg = f'{where} has size {group.size!r}, which is not a positive integer.'
-        raise ValidationError(error_msg)
-    space = getattr(group, 'space', None)
-    if isinstance(space, LatticeSpace):
-        try:
-            space.check()
-        except ValueError as error:
-            error_msg = f'{where} has a lattice that is not valid. {error}'
-            raise ValidationError(error_msg) from error
-        if space.size != group.size:
-            error_msg = f'{where} has size {group.size}, but its lattice has {space.size} sites.'
-            raise ValidationError(error_msg)
-    if (
-        isinstance(space, NetworkSpace)
-        and not group.variable
-        and group.on in {None, 'sites'}
-        and group.size is not None
-    ):
-        _check_network_lattice(space, group.size, where)
-    unknown = set(group.values or {}) - {field.name for field in dataclasses.fields(group.element)} - {'label'}
-    if unknown:
-        error_msg = f'{where} sets {", ".join(sorted(unknown))}, which {group.element.__name__} does not declare.'
-        raise ValidationError(error_msg)
-
-
-def _check_children(system: System, scope: str) -> None:
-    """Raise an error for a child of the wrong type or a duplicated label."""
-    children: list[tuple[Element | Group | Interaction | System, type | tuple[type, ...]]] = [
-        *((element, (Element, Group)) for element in system.elements),
-        *((interaction, Interaction) for interaction in system.interactions),
-        *((child, System) for child in system.systems),
-    ]
-    labels: set[str] = set()
-    for child, expected_type in children:
-        if not isinstance(child, expected_type):
-            names = ' or '.join(
-                kind.__name__ for kind in (expected_type if isinstance(expected_type, tuple) else (expected_type,))
-            )
-            error_msg = f'{child!r} in {scope or "the root system"} is not an instance of {names}.'
-            raise ValidationError(error_msg)
-        if isinstance(child, Group):
-            _check_group(child, scope)
-        _check_label(child.label, scope)
-        if child.label in labels:
-            error_msg = f'Label {child.label!r} is used by more than one child of {scope or "the root system"}.'
-            raise LabelError(error_msg)
-        labels.add(child.label)
-
-
-def _sized(element: Element | Group, space: Space | None) -> Element | Group:
-    """Return a group on parts of the space it inherits with its size counted from them, or the element itself."""
-    if not isinstance(element, Group) or element.size is not None:
-        return element
-    if space is None:
-        error_msg = f'Group {element.label!r} lives on {element.on} but has neither a size nor a space.'
-        raise SpaceError(error_msg)
-    sized = copy.copy(element)
-    sized.size = part_count(space, element.on or 'sites', element.label, element.layer)
-    return sized
-
-
-def is_topology_group(component: object, space: Space | None) -> bool:
-    """Check whether a component is a variable group on the sites or edges of a network without rules of its own.
-
-    Compiled backends run such a group with a capacity layout, whose rows hold the members present and room for new
-    ones, so laws that change the topology of the network add and remove its members.
-
-    Args:
-        component:
-            The element, group, or interaction.
-
-        space:
-            The space of the component.
-
-    Returns:
-        topology_group:
-            Whether the group runs with a capacity layout.
-    """
-    if not (isinstance(component, Group) and component.variable and component.on in {'sites', 'edges'}):
-        return False
-    if not isinstance(space, NetworkSpace):
-        return False
-    return not any(isinstance(law, Rule) for law in probe_laws(component) or [])
-
-
-def _with_capacity(element: Element | Group, space: Space | None) -> tuple[Element | Group, int | None]:
-    """Return a variable group on a network with its capacity as its size, and its initial size, or the element."""
-    if not is_topology_group(element, space):
-        return element, None
-    group = cast('Group', element)
-    initial = int(group.size) if group.size is not None else 0
-    capacity = group.capacity if group.capacity is not None else max(2 * initial, 1)
-    if capacity < initial:
-        error_msg = (
-            f'Group {group.label!r} has the capacity {capacity}, below its {initial} initial members. Give a capacity '
-            'of at least its size.'
-        )
-        raise ValidationError(error_msg)
-    sized = copy.copy(group)
-    sized.size = capacity
-    return sized, initial
-
-
-def _is_passive(component: object) -> bool:
-    """Check whether a component is a group off the parts of the space whose element type has no laws of its own."""
-    return isinstance(component, Group) and component.on is None and probe_laws(component) == []
-
-
-def _bound_paths(node: Node) -> set[str]:
-    """Return the paths of the components the roles of an interaction bind, without member indices."""
-    paths = set()
-    for name in declarations_of(type(node.component), VariableKind.ROLE):
-        value = getattr(node.component, name)
-        for item in [value] if isinstance(value, str) else value or ():
-            paths.add(MEMBER_SUFFIX.sub('', f'{node.scope}{item}'))
-    return paths
-
-
-def agent_paths(nodes: list[Node]) -> set[str]:
-    """Return the paths of the elements and groups of a system tree that run on the agent stepper.
-
-    An agent is a member of a variable group, or of an element or group whose own laws include a `Rule`. When the tree
-    holds rules, of components or of interactions, the groups whose element type has no laws of its own are agents
-    too, as passive agents that rules read and change, unless an interaction whose laws are not all rules or matchings
-    binds them through a role. Single elements, such as aggregates, and groups on the sites, edges, or hyperedges of a
-    space are never passive agents.
-
-    Args:
-        nodes:
-            The nodes of the tree.
-
-    Returns:
-        paths:
-            The paths of the agent elements and groups.
-    """
-    agents = {node.path for node in nodes if runs_rules(node.component) and node.active is None}
-    passive = [node for node in nodes if node.path not in agents and _is_passive(node.component)]
-    if not passive:
-        return agents
-    interactions = [(node, probe_laws(node.component)) for node in nodes if isinstance(node.component, Interaction)]
-    has_rules = bool(agents) or any(any(isinstance(law, Rule) for law in laws or ()) for _, laws in interactions)
-    if not has_rules:
-        return agents
-    bound = {
-        path
-        for node, laws in interactions
-        if laws is None or not all(isinstance(law, Rule | Match) for law in laws)
-        for path in _bound_paths(node)
-    }
-    return agents | {node.path for node in passive if node.path not in bound}
-
-
-def _canonical(space: Space | None, seen: list[Space]) -> Space | None:
-    """Return the first network space seen that equals a space, so clones of one network share one space."""
-    if not isinstance(space, NetworkSpace):
-        return space
-    for known in seen:
-        if isinstance(known, NetworkSpace) and known.equals(space):
-            return known
-    seen.append(space)
-    return space
-
-
 def _flatten(system: System, scope: str, space: Space | None, seen: list[Space] | None = None) -> list[Node]:
-    """Return the nodes of a system tree in tree order, before the agents are recognized."""
+    """Return the nodes of a system tree in tree order."""
     if not isinstance(system, System):
         error_msg = f'{system!r} is not an instance of System.'
         raise ValidationError(error_msg)
@@ -326,70 +237,6 @@ def _flatten(system: System, scope: str, space: Space | None, seen: list[Space] 
     for child in system.systems:
         nodes += _flatten(child, f'{scope}{child.label}/', space, seen)
     return nodes
-
-
-def flatten_system(system: System, scope: str = '', space: Space | None = None) -> list[Node]:
-    """Return the elements and interactions of a system tree with their paths, and which of them are agents.
-
-    Args:
-        system:
-            The root of the tree.
-
-        scope:
-            The path prefix of the system.
-
-        space:
-            The space inherited from the parent system.
-
-    Returns:
-        nodes:
-            The elements and interactions, in tree order, with the agents that `agent_paths` recognizes.
-
-    Raises:
-        ValidationError:
-            A child has the wrong type.
-
-        LabelError:
-            A label is not valid or is duplicated among siblings.
-    """
-    nodes = _flatten(system, scope, space)
-    agents = agent_paths(nodes)
-    return [dataclasses.replace(node, agent=node.path in agents) for node in nodes]
-
-
-def shape_of(name: str, declaration: Variable, space: Space | None) -> tuple[int, ...]:
-    """Return the shape of a declared variable in its space.
-
-    Args:
-        name:
-            The dotted name of the variable.
-
-        declaration:
-            The declaration of the variable.
-
-        space:
-            The nearest enclosing space.
-
-    Returns:
-        shape:
-            `()` for a scalar and `(n_dim,)` for a vector.
-
-    Raises:
-        SpaceError:
-            A vector variable has no enclosing space.
-
-        ValidationError:
-            The space dimension is not a positive integer.
-    """
-    if not declaration.vector:
-        return ()
-    if space is None:
-        error_msg = f'{name} is a vector, so the system that holds it or one of its parents must have a space.'
-        raise SpaceError(error_msg)
-    if not Domain.POSITIVE.contains(space.n_dim) or not Domain.INTEGER.contains(space.n_dim):
-        error_msg = f'The space of {name} has n_dim = {space.n_dim!r}, which is not a positive integer.'
-        raise ValidationError(error_msg)
-    return (int(space.n_dim),)
 
 
 def _describe(value: object) -> str:
@@ -437,6 +284,116 @@ def _flat_value(
         error_msg = f'{name} = {_describe(value)} has shape {array.shape}, but the variable has shape {shape}.'
         raise ValidationError(error_msg)
     return array.ravel()
+
+
+def is_topology_group(component: object, space: Space | None) -> bool:
+    """Check whether a component is a variable group on the sites or edges of a network without agent laws of its own.
+
+    Compiled backends run such a group with a capacity layout, whose rows hold the members present and room for new
+    ones, so laws that change the topology of the network add and remove its members.
+
+    Args:
+        component:
+            The element, group, or interaction.
+
+        space:
+            The space of the component.
+
+    Returns:
+        topology_group:
+            Whether the group runs with a capacity layout.
+    """
+    if not (isinstance(component, Group) and component.variable and component.on in {'sites', 'edges'}):
+        return False
+    if not isinstance(space, NetworkSpace):
+        return False
+    return not any(has_trait(law, Trait.AGENT) for law in probe_laws(component) or [])
+
+
+def flatten_system(system: System, scope: str = '', space: Space | None = None) -> list[Node]:
+    """Return the elements and interactions of a system tree with their paths.
+
+    Args:
+        system:
+            The root of the tree.
+
+        scope:
+            The path prefix of the system.
+
+        space:
+            The space inherited from the parent system.
+
+    Returns:
+        nodes:
+            The elements and interactions, in tree order, none of them marked as an agent yet.
+
+    Raises:
+        ValidationError:
+            A child has the wrong type.
+
+        LabelError:
+            A label is not valid or is duplicated among siblings.
+    """
+    return _flatten(system, scope, space)
+
+
+def declared_times(system: System, scope: str = '', inherited: TimeKind | None = None) -> dict[str, TimeKind | None]:
+    """Return the declared time of every system of a tree by path, a nested system inheriting its parent's.
+
+    Args:
+        system:
+            The root of the tree.
+
+        scope:
+            The path of the system.
+
+        inherited:
+            The time of the parent system.
+
+    Returns:
+        times:
+            The time of every system by path, `None` for a system without a declared time.
+    """
+    time = system.time.kind if system.time is not None else inherited
+    times = {scope: time}
+    for child in system.systems:
+        times.update(declared_times(child, f'{scope}/{child.label}' if scope else child.label, time))
+    return times
+
+
+def shape_of(name: str, declaration: Variable, space: Space | None) -> tuple[int, ...]:
+    """Return the shape of a declared variable in its space.
+
+    Args:
+        name:
+            The dotted name of the variable.
+
+        declaration:
+            The declaration of the variable.
+
+        space:
+            The nearest enclosing space.
+
+    Returns:
+        shape:
+            `()` for a scalar and `(n_dim,)` for a vector.
+
+    Raises:
+        SpaceError:
+            A vector variable has no enclosing space.
+
+        ValidationError:
+            The space dimension is not a positive integer.
+    """
+    if not declaration.vector:
+        return ()
+    if space is None:
+        error_msg = f'{name} is a vector, so the system that holds it or one of its parents must have a space.'
+        raise SpaceError(error_msg)
+    if not Domain.POSITIVE.contains(space.n_dim) or not Domain.INTEGER.contains(space.n_dim):
+        error_msg = f'The space of {name} has n_dim = {space.n_dim!r}, which is not a positive integer.'
+        raise ValidationError(error_msg)
+    return (int(space.n_dim),)
 
 
 def coerce_value(

@@ -6,8 +6,9 @@
 import numpy as np
 
 from ....core.base import Domain, state
-from ....core.components import Element, Field
-from ....core.laws import Law, Rate, Symbols, both, laplacian, where
+from ....core.components import Element
+from ....core.formalisms.fields import Field, laplacian
+from ....core.laws import Law, Rate, Symbols, both, where
 from ....core.runtime import register_model
 from ....core.solvers import RK4
 from ....core.space import LatticeSpace

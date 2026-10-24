@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 from ....core.base import Domain, Expression, parameter, role, state
 from ....core.components import Element
 from ....core.interactions import Interaction
@@ -44,17 +46,20 @@ class Infection(Interaction):
         label:
             The label of the interaction.
 
-        susceptible:
-            The path of the susceptible compartment.
-
-        infected:
-            The path of the infected compartment.
-
-        beta:
-            The transmission rate.
-
         stochastic:
             Whether infections are random events.
+
+        **values:
+            The values of the declared variables, by name:
+
+            susceptible:
+                The path of the susceptible compartment.
+
+            infected:
+                The path of the infected compartment.
+
+            beta:
+                The transmission rate.
 
     Examples:
         >>> from skcomplex.models.biology.epidemiology import Infection
@@ -65,7 +70,16 @@ class Infection(Interaction):
     susceptible: str = role()
     infected: str = role()
     beta: float = parameter(default=0.001, domain=Domain.NONNEGATIVE)
-    stochastic: bool = False
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        stochastic: bool = False,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.stochastic = stochastic
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the transfer of `beta * S * I` from susceptible to infected.
@@ -91,17 +105,20 @@ class Recovery(Interaction):
         label:
             The label of the interaction.
 
-        infected:
-            The path of the infected compartment.
-
-        recovered:
-            The path of the recovered compartment.
-
-        gamma:
-            The recovery rate.
-
         stochastic:
             Whether recoveries are random events.
+
+        **values:
+            The values of the declared variables, by name:
+
+            infected:
+                The path of the infected compartment.
+
+            recovered:
+                The path of the recovered compartment.
+
+            gamma:
+                The recovery rate.
 
     Examples:
         >>> from skcomplex.models.biology.epidemiology import Recovery
@@ -112,7 +129,16 @@ class Recovery(Interaction):
     infected: str = role()
     recovered: str = role()
     gamma: float = parameter(default=0.1, domain=Domain.NONNEGATIVE)
-    stochastic: bool = False
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        stochastic: bool = False,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.stochastic = stochastic
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the transfer of `gamma * I` from infected to recovered.
@@ -137,17 +163,20 @@ class ImmunityLoss(Interaction):
         label:
             The label of the interaction.
 
-        recovered:
-            The path of the recovered compartment.
-
-        susceptible:
-            The path of the susceptible compartment.
-
-        xi:
-            The rate at which immunity wanes.
-
         stochastic:
             Whether losses of immunity are random events.
+
+        **values:
+            The values of the declared variables, by name:
+
+            recovered:
+                The path of the recovered compartment.
+
+            susceptible:
+                The path of the susceptible compartment.
+
+            xi:
+                The rate at which immunity wanes.
 
     Examples:
         >>> from skcomplex.models.biology.epidemiology import ImmunityLoss
@@ -158,7 +187,16 @@ class ImmunityLoss(Interaction):
     recovered: str = role()
     susceptible: str = role()
     xi: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
-    stochastic: bool = False
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        stochastic: bool = False,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.stochastic = stochastic
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the transfer of `xi * R` from recovered to susceptible.

@@ -43,20 +43,23 @@ class LearningAgent(Element):
         label:
             The label of the agent or the group.
 
-        sigma:
-            The initial action, -1 or 1.
-
-        Q:
-            The initial incentive.
-
-        alpha:
-            The memory parameter, the weight of the latest reward.
-
-        temperature:
-            The exploration temperature `T` of the softmax policy.
-
         couplings:
             The coupling matrix `J`, one row and one column per agent.
+
+        **values:
+            The values of the declared variables, by name:
+
+            sigma:
+                The initial action, -1 or 1.
+
+            Q:
+                The initial incentive.
+
+            alpha:
+                The memory parameter, the weight of the latest reward.
+
+            temperature:
+                The exploration temperature `T` of the softmax policy.
 
     Examples:
         >>> from skcomplex.models.physics.criticality import LearningAgent
@@ -68,7 +71,16 @@ class LearningAgent(Element):
     Q: float = state(default=0.0)
     alpha: float = parameter(default=0.5, domain=Domain.POSITIVE)
     temperature: float = parameter(default=0.5, domain=Domain.POSITIVE)
-    couplings: Any = None
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        couplings: Any = None,  # noqa: ANN401
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.couplings = couplings
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the reinforcement of the incentive and the softmax draw of the action, both in parallel.

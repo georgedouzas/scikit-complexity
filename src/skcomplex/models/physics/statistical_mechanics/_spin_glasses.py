@@ -10,7 +10,8 @@ import numpy.typing as npt
 
 from ....core.base import Domain, Expression, ValidationError, VisualSpec, parameter, state
 from ....core.components import Element
-from ....core.laws import Energy, Law, Move, Sample, Sampler, Symbols, neighbors
+from ....core.formalisms.lattices import Energy, Move, Sample, Sampler
+from ....core.laws import Law, Symbols, neighbors
 from ....core.runtime import register_model
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import Observable, System
@@ -102,7 +103,10 @@ class BondSpin(Element):
                 The laws of the component.
         """
         couplings = (s.J_up, s.J_left, s.J_right, s.J_down)
-        field = sum(coupling * other for coupling, other in zip(couplings, neighbors(s.spin, NEAREST), strict=True))
+        field = sum(
+            coupling * other
+            for coupling, other in zip(couplings, neighbors(s.spin, NEAREST, reduce='each'), strict=True)
+        )
         return [
             Sample(Energy(-s.spin * (field + s.h), NEAREST), Move.flip(s.spin), Sampler('metropolis', s.temperature)),
         ]

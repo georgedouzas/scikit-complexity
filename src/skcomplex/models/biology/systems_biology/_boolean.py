@@ -5,6 +5,7 @@
 
 from collections.abc import Sequence
 from math import prod
+from typing import Any
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR
@@ -70,14 +71,17 @@ class BooleanFunction(Interaction):
         label:
             The label of the interaction.
 
-        target:
-            The path of the updated node.
-
-        inputs:
-            The paths of the input nodes, in the order of the bits of the table.
-
         table:
             The next value of the target for each of the `2^k` input patterns.
+
+        **values:
+            The values of the declared variables, by name:
+
+            target:
+                The path of the updated node.
+
+            inputs:
+                The paths of the input nodes, in the order of the bits of the table.
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import BooleanFunction
@@ -87,7 +91,16 @@ class BooleanFunction(Interaction):
 
     target: str = role()
     inputs: list[str] = role(variadic=True)
-    table: tuple[int, ...] = (0,)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        table: tuple[int, ...] = (0,),
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.table = table
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the update of the target by the truth table.
@@ -125,17 +138,20 @@ class ThresholdFunction(Interaction):
         label:
             The label of the interaction.
 
-        target:
-            The path of the updated node.
-
-        inputs:
-            The paths of the input nodes.
-
-        weights:
-            The weight of every input, positive for activation and negative for inhibition.
-
         decays:
             Whether the node turns off without net input.
+
+        **values:
+            The values of the declared variables, by name:
+
+            target:
+                The path of the updated node.
+
+            inputs:
+                The paths of the input nodes.
+
+            weights:
+                The weight of every input, positive for activation and negative for inhibition.
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import ThresholdFunction
@@ -146,7 +162,16 @@ class ThresholdFunction(Interaction):
     target: str = role()
     inputs: list[str] = role(variadic=True)
     weights: list[float] = parameter(default=(), per='inputs')
-    decays: bool = False
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        decays: bool = False,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.decays = decays
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the threshold update of the target.

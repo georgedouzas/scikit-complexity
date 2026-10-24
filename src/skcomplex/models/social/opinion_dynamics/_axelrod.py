@@ -3,17 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 import numpy.typing as npt
 from scipy import ndimage
 
-from ....core.backends import AgentView, ModelView
 from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.components import Element
+from ....core.formalisms.agents import AgentView, ModelView, Rule
 from ....core.interactions import Interaction
-from ....core.laws import Law, Rule, Symbols
+from ....core.laws import Law, Symbols
 from ....core.runtime import register_model
 from ....core.space import LatticeSpace
 from ....core.system import System
@@ -155,9 +155,6 @@ class CultureCensus(Interaction):
         label:
             The label of the census.
 
-        villages:
-            The path of the group of villages.
-
         width:
             The number of columns of the grid.
 
@@ -167,6 +164,12 @@ class CultureCensus(Interaction):
         phase:
             The phase in which the census counts.
 
+        **values:
+            The values of the declared variables, by name:
+
+            villages:
+                The path of the group of villages.
+
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import CultureCensus
         >>> CultureCensus('census', villages='villages', width=5, height=5).width
@@ -175,9 +178,20 @@ class CultureCensus(Interaction):
 
     reports: ClassVar[tuple[str, ...]] = ('largest_region', 'cultures')
     villages: str = role()
-    width: int = 10
-    height: int = 10
-    phase: str | None = None
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        width: int = 10,
+        height: int = 10,
+        phase: str | None = None,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.width = width
+        self.height = height
+        self.phase = phase
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the rule of the census in its phase.

@@ -10,8 +10,9 @@ from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.components import Element, Group
+from ....core.formalisms.topology import rewire
 from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols, Update, neighbors, rewire, uniform, where
+from ....core.laws import Law, Symbols, Update, neighbors, uniform, where
 from ....core.runtime import register_model
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import System
@@ -121,7 +122,7 @@ class Separation(Interaction):
         'ties'
     """
 
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     voters: str = role()
     ties: str = role()
 

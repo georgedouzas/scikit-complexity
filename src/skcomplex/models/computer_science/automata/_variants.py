@@ -12,7 +12,8 @@ import numpy.typing as npt
 
 from ....core.base import Domain, ParameterError, parameter, state
 from ....core.components import Element
-from ....core.laws import Law, LocalRule, Symbols
+from ....core.formalisms.lattices import LocalRule
+from ....core.laws import Law, Symbols
 from ....core.runtime import register_model
 from ....core.space import LatticeSpace, Neighborhood
 from ....core.system import System
@@ -40,14 +41,17 @@ class NoisyElementaryCell(Element):
         label:
             The label of the cell or the lattice group.
 
-        alive:
-            The initial value, 0 or 1.
-
-        noise:
-            The probability that the output of the rule is flipped.
-
         rule:
             The Wolfram number of the rule.
+
+        **values:
+            The values of the declared variables, by name:
+
+            alive:
+                The initial value, 0 or 1.
+
+            noise:
+                The probability that the output of the rule is flipped.
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import NoisyElementaryCell
@@ -57,7 +61,16 @@ class NoisyElementaryCell(Element):
 
     alive: float = state(default=0, domain=Domain.BOOLEAN)
     noise: float = parameter(0.01, domain=Domain.NONNEGATIVE)
-    rule: int = 18
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        rule: int = 18,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.rule = rule
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the elementary rule followed by a random flip.

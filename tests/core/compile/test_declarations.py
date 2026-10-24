@@ -7,7 +7,6 @@ import pytest
 
 import skcomplex.core.compile._validation as validation
 from skcomplex.core.base import (
-    VOCABULARY,
     DomainKind,
     Form,
     LawClass,
@@ -18,12 +17,16 @@ from skcomplex.core.base import (
     SpaceKind,
     Supports,
     TimeKind,
+    vocabulary,
 )
-from skcomplex.core.compile import BACKENDS, law_types, missing_declarations
-from skcomplex.core.components import Field
-from skcomplex.core.laws import Generator, Rate, Rule, Sampler, Update
-from skcomplex.core.solvers import SOLVERS, Stepper
-from skcomplex.core.space import ContinuousSpace, LatticeSpace, Mesh, NetworkSpace
+from skcomplex.core.compile import BACKENDS, SOLVERS, missing_declarations
+from skcomplex.core.formalisms.agents import Rule
+from skcomplex.core.formalisms.fields import Field, Mesh
+from skcomplex.core.formalisms.lattices import Sampler
+from skcomplex.core.formalisms.quantum import Generator
+from skcomplex.core.laws import Rate, Update, law_classes
+from skcomplex.core.solvers import Stepper
+from skcomplex.core.space import ContinuousSpace, LatticeSpace, NetworkSpace
 
 INVENTORY = Path(__file__).parents[3] / 'docs' / 'overview' / 'inventory.toml'
 
@@ -31,16 +34,16 @@ INVENTORY = Path(__file__).parents[3] / 'docs' / 'overview' / 'inventory.toml'
 def test_vocabulary_matches_inventory():
     """Test that the core vocabulary and the inventory vocabulary define the same terms in every category."""
     inventory = tomllib.loads(INVENTORY.read_text())['vocabulary']
-    assert set(inventory) == set(VOCABULARY)
-    for category, terms in VOCABULARY.items():
+    assert set(inventory) == set(vocabulary())
+    for category, terms in vocabulary().items():
         assert set(inventory[category]) == {str(term) for term in terms}, category
 
 
 def test_inventory_law_classes_match_core():
     """Test that every law of the inventory vocabulary has the time semantics of the core law kind."""
     laws = tomllib.loads(INVENTORY.read_text())['vocabulary']['laws']
-    for kind in LawKind:
-        assert laws[str(kind)]['class'] == str(kind.law_class), kind
+    for law in law_classes():
+        assert laws[str(law.law_kind)]['class'] == str(law.time_class), law
 
 
 def test_every_primitive_solver_and_backend_declares():
@@ -58,7 +61,7 @@ def test_missing_solver_declaration_is_named(monkeypatch):
 
     registry = Registry[type[Stepper]]('solver')
     registry.register((Form.ODE, 'undeclared'), Undeclared)
-    monkeypatch.setattr(validation, '_solver_registry', lambda: registry)
+    monkeypatch.setattr(validation, 'solver_registry', lambda: registry)
     assert missing_declarations() == ["The solver 'undeclared' (Undeclared) declares no support."]
 
 
@@ -75,7 +78,7 @@ def test_missing_solver_declaration_is_named(monkeypatch):
 def test_law_kinds_and_classes(law, kind, law_class):
     """Test that law types declare their kind and the time semantics of the kind."""
     assert law.law_kind is kind
-    assert law.law_kind.law_class is law_class
+    assert law.time_class is law_class
 
 
 def test_law_requirements():
@@ -111,7 +114,7 @@ def test_solver_support_names_missing_terms():
     support = SOLVERS.resolve((Form.ODE, 'auto')).supports
     assert support.missing('laws', {LawKind.RATE, LawKind.NOISE}) == ['noise']
     assert Supports().missing('time', {TimeKind.STATIC}) == ['static']
-    assert len(law_types()) == len(set(law_types()))
+    assert len(law_classes()) == len(set(law_classes()))
 
 
 def test_every_solver_and_backend_declares_orders():

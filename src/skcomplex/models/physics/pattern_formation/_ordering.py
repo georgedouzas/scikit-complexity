@@ -8,10 +8,10 @@ from collections.abc import Sequence
 import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
-from ....core.components import Element, Field
-from ....core.laws import Noise, Rate, laplacian
+from ....core.components import Element
+from ....core.formalisms.fields import ETDRK4, Field, laplacian
+from ....core.laws import Noise, Rate
 from ....core.runtime import register_model
-from ....core.solvers import ETDRK4
 from ....core.space import LatticeSpace
 from ....core.system import System
 

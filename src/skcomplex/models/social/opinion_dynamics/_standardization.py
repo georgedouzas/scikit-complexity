@@ -3,15 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 import numpy as np
 import numpy.typing as npt
 from scipy.special import expit
 
-from ....core.backends import ModelView
 from ....core.base import Domain, parameter, role, state
 from ....core.components import Element
+from ....core.formalisms.agents import ModelView, Rule
 from ....core.interactions import Interaction
-from ....core.laws import Law, Rule, Symbols
+from ....core.laws import Law, Symbols
 from ....core.runtime import register_model
 from ....core.system import Observable, System
 
@@ -80,20 +82,23 @@ class Standardization(Interaction):
         label:
             The label of the interaction.
 
-        agents:
-            The path of the group of agents.
-
-        K:
-            The coupling of the characteristics `|S_i|`, which standardizes the agents.
-
-        J:
-            The coupling of the spins `S_i`, which orders the standardized agents.
-
-        T:
-            The temperature, the randomness of the choices.
-
         H:
             The number of configurations without the characteristic.
+
+        **values:
+            The values of the declared variables, by name:
+
+            agents:
+                The path of the group of agents.
+
+            K:
+                The coupling of the characteristics `|S_i|`, which standardizes the agents.
+
+            J:
+                The coupling of the spins `S_i`, which orders the standardized agents.
+
+            T:
+                The temperature, the randomness of the choices.
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import Standardization
@@ -105,7 +110,16 @@ class Standardization(Interaction):
     K: float = parameter(default=10.0, domain=Domain.NONNEGATIVE)
     J: float = parameter(default=1.0, domain=Domain.REAL)
     T: float = parameter(default=0.5, domain=Domain.POSITIVE)
-    H: int = 50
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        H: int = 50,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.H = H
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the rule of the configuration changes.

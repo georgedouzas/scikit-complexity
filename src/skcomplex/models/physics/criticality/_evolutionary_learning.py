@@ -44,27 +44,6 @@ class Learner(Element):
         label:
             The label of the agent or the group.
 
-        incentive:
-            The initial incentive `Q`.
-
-        spin:
-            The initial action, -1 or 1.
-
-        temperature:
-            The initial temperature `T` of the softmax policy.
-
-        fitness:
-            The initial fitness `s Q`.
-
-        reward:
-            The initial reward `s h`.
-
-        memory:
-            The weight `alpha` of the latest field in the incentive, so small values keep a long memory.
-
-        max_temperature:
-            The largest temperature of a newcomer.
-
         couplings:
             The coupling matrix `J`, one row and one column per agent.
 
@@ -74,6 +53,30 @@ class Learner(Element):
         settling:
             The number of steps of learning alone after every replacement, so replacements happen when `t` is a
             multiple of `settling + 1`.
+
+        **values:
+            The values of the declared variables, by name:
+
+            incentive:
+                The initial incentive `Q`.
+
+            spin:
+                The initial action, -1 or 1.
+
+            temperature:
+                The initial temperature `T` of the softmax policy.
+
+            fitness:
+                The initial fitness `s Q`.
+
+            reward:
+                The initial reward `s h`.
+
+            memory:
+                The weight `alpha` of the latest field in the incentive, so small values keep a long memory.
+
+            max_temperature:
+                The largest temperature of a newcomer.
 
     Examples:
         >>> from skcomplex.models.physics.criticality import Learner
@@ -88,9 +91,20 @@ class Learner(Element):
     reward: float = state(default=0.0)
     memory: float = parameter(default=0.75, domain=Domain.NONNEGATIVE)
     max_temperature: float = parameter(default=2.0, domain=Domain.POSITIVE)
-    couplings: Any = None
-    evolving: bool = True
-    settling: int = 2
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        couplings: Any = None,  # noqa: ANN401
+        evolving: bool = True,
+        settling: int = 2,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.couplings = couplings
+        self.evolving = evolving
+        self.settling = settling
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the replacement of the least fit agent, the learning of the incentive, and the softmax action.

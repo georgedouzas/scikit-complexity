@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, parameter, state
@@ -25,41 +27,44 @@ class RadiationCompetition(Element):
         label:
             The label of the tissue.
 
-        N:
-            The initial concentration of normal cells.
-
-        A:
-            The initial concentration of tumour cells.
-
-        r1:
-            The growth rate of the normal cells.
-
-        r2:
-            The growth rate of the tumour cells.
-
-        b1:
-            The reciprocal carrying capacity of the normal cells.
-
-        b2:
-            The reciprocal carrying capacity of the tumour cells.
-
-        c1:
-            The rate at which the tumour cells suppress the normal cells.
-
-        c2:
-            The rate at which the normal cells suppress the tumour cells.
-
-        a2:
-            The per capita rate at which the radiation kills tumour cells during an irradiation.
-
-        epsilon:
-            The per capita rate at which the spilled radiation kills normal cells.
-
         period:
             The time between the starts of irradiations.
 
         width:
             The duration of an irradiation.
+
+        **values:
+            The values of the declared variables, by name:
+
+            N:
+                The initial concentration of normal cells.
+
+            A:
+                The initial concentration of tumour cells.
+
+            r1:
+                The growth rate of the normal cells.
+
+            r2:
+                The growth rate of the tumour cells.
+
+            b1:
+                The reciprocal carrying capacity of the normal cells.
+
+            b2:
+                The reciprocal carrying capacity of the tumour cells.
+
+            c1:
+                The rate at which the tumour cells suppress the normal cells.
+
+            c2:
+                The rate at which the normal cells suppress the tumour cells.
+
+            a2:
+                The per capita rate at which the radiation kills tumour cells during an irradiation.
+
+            epsilon:
+                The per capita rate at which the spilled radiation kills normal cells.
 
     Examples:
         >>> from skcomplex.models.biology.oncology import RadiationCompetition
@@ -77,8 +82,18 @@ class RadiationCompetition(Element):
     c2: float = parameter(default=0.15, domain=Domain.NONNEGATIVE)
     a2: float = parameter(default=0.2, domain=Domain.NONNEGATIVE)
     epsilon: float = parameter(default=0.001, domain=Domain.NONNEGATIVE)
-    period: float = 7.0
-    width: float = 5.0
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        period: float = 7.0,
+        width: float = 5.0,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.period = period
+        self.width = width
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the competition of the normal and tumour cells and the kill of the radiation.
@@ -111,60 +126,6 @@ class IrradiatedTumour(Element):
         label:
             The label of the tumour.
 
-        A1:
-            The initial volume of proliferating cells.
-
-        A2:
-            The initial volume of the first dying compartment.
-
-        A3:
-            The initial volume of the second dying compartment.
-
-        A4:
-            The initial volume of the third dying compartment.
-
-        A5:
-            The initial volume of lethally irradiated cells that divide once more.
-
-        A6:
-            The initial volume of lethally irradiated cells that no longer divide.
-
-        Us:
-            The initial plasma concentration of the radiosensitizer.
-
-        u_tot:
-            The initial accumulated dose.
-
-        k:
-            The number of fractions delivered.
-
-        r:
-            The growth rate.
-
-        m1:
-            The transit rate of the damaged cells.
-
-        a_gamma:
-            The inhibition of proliferation per unit of accumulated dose.
-
-        alpha:
-            The linear coefficient of the linear-quadratic model.
-
-        beta:
-            The quadratic coefficient of the linear-quadratic model.
-
-        ap:
-            The potency of the radiosensitizer in raising the cell kill.
-
-        au:
-            The potency of the radiosensitizer in raising the accumulated dose.
-
-        du:
-            The elimination rate of the radiosensitizer.
-
-        dose:
-            The dose of a fraction.
-
         period:
             The time between fractions.
 
@@ -173,6 +134,63 @@ class IrradiatedTumour(Element):
 
         fractions:
             The number of fractions.
+
+        **values:
+            The values of the declared variables, by name:
+
+            A1:
+                The initial volume of proliferating cells.
+
+            A2:
+                The initial volume of the first dying compartment.
+
+            A3:
+                The initial volume of the second dying compartment.
+
+            A4:
+                The initial volume of the third dying compartment.
+
+            A5:
+                The initial volume of lethally irradiated cells that divide once more.
+
+            A6:
+                The initial volume of lethally irradiated cells that no longer divide.
+
+            Us:
+                The initial plasma concentration of the radiosensitizer.
+
+            u_tot:
+                The initial accumulated dose.
+
+            k:
+                The number of fractions delivered.
+
+            r:
+                The growth rate.
+
+            m1:
+                The transit rate of the damaged cells.
+
+            a_gamma:
+                The inhibition of proliferation per unit of accumulated dose.
+
+            alpha:
+                The linear coefficient of the linear-quadratic model.
+
+            beta:
+                The quadratic coefficient of the linear-quadratic model.
+
+            ap:
+                The potency of the radiosensitizer in raising the cell kill.
+
+            au:
+                The potency of the radiosensitizer in raising the accumulated dose.
+
+            du:
+                The elimination rate of the radiosensitizer.
+
+            dose:
+                The dose of a fraction.
 
     Examples:
         >>> from skcomplex.models.biology.oncology import IrradiatedTumour
@@ -198,9 +216,20 @@ class IrradiatedTumour(Element):
     au: float = parameter(default=0.15, domain=Domain.NONNEGATIVE)
     du: float = parameter(default=5.544, domain=Domain.NONNEGATIVE)
     dose: float = parameter(default=2.0, domain=Domain.NONNEGATIVE)
-    period: float = 1.0
-    start: float = 0.125
-    fractions: int = 10
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        period: float = 1.0,
+        start: float = 0.125,
+        fractions: int = 10,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.period = period
+        self.start = start
+        self.fractions = fractions
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the growth and transit of the compartments and the fractions as events.

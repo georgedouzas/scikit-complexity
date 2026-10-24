@@ -3,15 +3,16 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import networkx as nx
 import numpy as np
 
 from ....core.base import Domain, VisualSpec, parameter, role, state
 from ....core.components import Element, Group
+from ....core.formalisms.topology import add_node, remove_node
 from ....core.interactions import Interaction
-from ....core.laws import Law, Symbols, Update, add_node, neighbors, remove_node, total, uniform, where
+from ....core.laws import Law, Symbols, Update, neighbors, total, uniform, where
 from ....core.runtime import register_model
 from ....core.space import DiscreteTime, NetworkSpace
 from ....core.system import System
@@ -29,17 +30,20 @@ class Abundance(Element):
         label:
             The label of the species or of the group of species.
 
-        x:
-            The relative abundance.
-
-        age:
-            The number of steps since the species appeared.
-
-        threshold:
-            The abundance below which the species goes extinct.
-
         k:
             The number of interactions of a new species.
+
+        **values:
+            The values of the declared variables, by name:
+
+            x:
+                The relative abundance.
+
+            age:
+                The number of steps since the species appeared.
+
+            threshold:
+                The abundance below which the species goes extinct.
 
     Examples:
         >>> from skcomplex.models.biology.ecology import Abundance
@@ -50,7 +54,16 @@ class Abundance(Element):
     x: float = state(default=0.01, domain=Domain.NONNEGATIVE)
     age: float = state(default=0.0, domain=Domain.NONNEGATIVE)
     threshold: float = parameter(default=1e-3, domain=Domain.NONNEGATIVE)
-    k: int = 4
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        k: int = 4,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.k = k
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the ageing, and the extinction and replacement of a species below the threshold.
@@ -111,7 +124,7 @@ class InfluenceDraw(Interaction):
         'influences'
     """
 
-    over: ClassVar[str] = 'neighbours'
+    over: ClassVar[str] = 'neighbors'
     species: str = role()
     influences: str = role()
 

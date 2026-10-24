@@ -9,7 +9,8 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.base import Domain, VisualSpec, parameter, state
-from ....core.components import Element, Field
+from ....core.components import Element
+from ....core.formalisms.fields import Field
 from ....core.laws import Update, where
 from ....core.runtime import register_model
 from ....core.space import LatticeSpace

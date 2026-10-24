@@ -7,10 +7,10 @@ import numpy as np
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, parameter, state
-from ....core.components import Element, Field
-from ....core.laws import Flux, Rate, laplacian
+from ....core.components import Element
+from ....core.formalisms.fields import SSPRK, Field, Flux, laplacian
+from ....core.laws import Rate
 from ....core.runtime import register_model
-from ....core.solvers import SSPRK
 from ....core.space import LatticeSpace
 from ....core.system import System
 

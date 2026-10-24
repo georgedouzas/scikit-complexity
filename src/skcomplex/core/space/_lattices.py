@@ -15,7 +15,7 @@ from ..base import (
     Requires,
     SpaceKind,
 )
-from ._spaces import Space
+from ._spaces import SiteSpace
 
 BOUNDARIES = ('periodic', 'fixed', 'reflecting')
 GEOMETRIES = ('square', 'triangular')
@@ -26,7 +26,7 @@ type Cell = tuple[int, ...]
 type Offset = tuple[int, ...]
 
 
-class LatticeSpace(Space):
+class LatticeSpace(SiteSpace['Neighborhood']):
     """Box of the integer lattice `Z^d`, or of the triangular lattice in 2D, whose sites hold lattice group members.
 
     Sites are numbered in row-major order, so site `(i, j)` of a lattice of shape `(n, m)` is member `i * m + j`. A
@@ -65,6 +65,7 @@ class LatticeSpace(Space):
     """
 
     space_kind: ClassVar[SpaceKind] = SpaceKind.LATTICE
+    boundaries: ClassVar[tuple[str, ...]] = BOUNDARIES
 
     def __init__(
         self,
@@ -121,6 +122,11 @@ class LatticeSpace(Space):
     def size(self) -> int:
         """Number of sites."""
         return int(np.prod(self.dimensions))
+
+    @property
+    def default_visual(self) -> str:
+        """Name of the visual of groups on the lattice, an image on a square lattice and sites otherwise."""
+        return 'image' if self.geometry == 'square' else 'sites'
 
     @property
     def positions(self) -> npt.NDArray[np.float64]:
@@ -247,6 +253,50 @@ class LatticeSpace(Space):
             flat = np.ravel_multi_index(tuple(shifted), self.dimensions)
             table[:, column] = np.where(outside, self.size, flat)
         return table
+
+    def compute_ball(self, radius: int) -> 'Neighborhood':
+        """Return the box of offsets within a radius along every dimension, the site itself included.
+
+        Args:
+            radius:
+                The largest offset along any dimension.
+
+        Returns:
+            neighborhood:
+                The neighbourhood.
+
+        Examples:
+            >>> from skcomplex.core.space import LatticeSpace
+            >>> LatticeSpace(5).compute_ball(1).offsets
+            ((-1,), (0,), (1,))
+        """
+        return Neighborhood.radius(radius, n_dim=self.n_dim)
+
+    def list_neighbor_pairs(self) -> list[tuple[int, int]]:
+        """Return the pairs of distinct sites one step apart along a dimension, each pair once.
+
+        Returns:
+            pairs:
+                The sites of every pair of neighbours.
+
+        Examples:
+            >>> from skcomplex.core.space import LatticeSpace
+            >>> LatticeSpace(3, boundary='fixed').list_neighbor_pairs()
+            [(0, 1), (1, 2)]
+        """
+        dimensions = self.dimensions
+        sites = np.arange(self.size).reshape(dimensions)
+        found: dict[frozenset[int], tuple[int, int]] = {}
+        for axis, length in enumerate(dimensions):
+            shifted = np.roll(sites, -1, axis=axis)
+            pairs = np.stack([sites.ravel(), shifted.ravel()], axis=1)
+            if self.boundary != 'periodic':
+                edge = np.indices(dimensions)[axis].ravel() == length - 1
+                pairs = pairs[~edge]
+            for first, second in pairs.tolist():
+                if first != second:
+                    found.setdefault(frozenset((first, second)), (first, second))
+        return list(found.values())
 
 
 @dataclass(frozen=True)

@@ -10,13 +10,9 @@ import numpy as np
 import numpy.typing as npt
 
 from ..compile import (
-    EventRecord,
-    ExtremalRecord,
     NetworkSnapshot,
     Problem,
-    RelaxationRecord,
-    RenewalRecord,
-    Structure,
+    Record,
 )
 from ..solvers import AgentSnapshot
 
@@ -76,8 +72,8 @@ class Trajectory:
         agents: Sequence[Mapping[str, AgentSnapshot]] = (),
         reporters: Sequence[Mapping[str, float]] = (),
         observables: Sequence[Mapping[str, Any]] = (),
-        events: Sequence[EventRecord | RelaxationRecord | RenewalRecord | ExtremalRecord] = (),
-        structures: Sequence[Mapping[str, Structure]] = (),
+        events: Sequence[Record] = (),
+        structures: Sequence[Mapping[str, Any]] = (),
     ) -> None:
         self.problem = problem
         self.times = times
@@ -280,7 +276,7 @@ class Trajectory:
             raise KeyError(error_msg)
         return topology.read_network(self.parameters[frame], nodes, layer)
 
-    def structure(self, path: str, frame: int) -> Structure:
+    def structure(self, path: str, frame: int) -> Any:  # noqa: ANN401
         """Return the word, patch, or host graph of a rewritten element at a frame.
 
         Args:

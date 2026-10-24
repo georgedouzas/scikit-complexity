@@ -20,6 +20,10 @@ class LabelError(ValidationError):
     """A label is missing, duplicated, or produces a name collision."""
 
 
+class ArgumentError(SkcomplexError, TypeError):
+    """A component is given an argument its type does not declare, or misses a required one."""
+
+
 class RoleError(ValidationError):
     """A role of an interaction refers to an element that does not exist."""
 
@@ -36,12 +40,20 @@ class WordProblemError(SpaceError):
     """A group has no word problem the library can solve, so a ball of its Cayley graph cannot be built."""
 
 
+class UnregisteredLawError(ValidationError):
+    """A system holds a law of a class that neither the shared core nor a formalism registered."""
+
+
 class IncompatibleLawsError(ValidationError):
     """A system mixes law kinds that no single form supports."""
 
 
 class BackendError(SkcomplexError):
     """A backend is not registered or cannot compile a problem."""
+
+
+class PipelineError(SkcomplexError):
+    """The passes of a compilation cannot be ordered, or a pass reads a field that no pass writes."""
 
 
 class SolverError(SkcomplexError):
@@ -76,8 +88,16 @@ class RewritingError(SkcomplexError):
     """A rewriting system is malformed, or a generation would exceed its maximum size."""
 
 
+class RegistryError(SkcomplexError):
+    """A name is registered twice with different meanings, or a registration is not valid or misses what it needs."""
+
+
 class HilbertSpaceError(SkcomplexError):
     """A quantum system has a Hilbert space larger than its declared limit."""
+
+
+class BackendWarning(UserWarning):
+    """A part of a problem runs on another backend than the one requested, or a compiled kernel runs in Python."""
 
 
 class UnobservedStatesWarning(UserWarning):

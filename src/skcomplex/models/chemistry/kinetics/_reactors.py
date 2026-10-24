@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Any
+
 from sage.all__sagemath_symbolics import exp
 
 from ....core.base import Domain, parameter, state
@@ -30,32 +32,35 @@ class PulsedElectrode(Element):
         label:
             The label of the electrode.
 
-        eta:
-            The initial overpotential.
-
-        c:
-            The initial reactant concentration, relative to the feed.
-
-        C:
-            The capacitance of the double layer.
-
-        alpha:
-            The transfer coefficient.
-
-        tau:
-            The residence time of the reactor.
-
-        kappa:
-            The consumption of reactant per unit of Faradaic current.
-
-        current:
-            The current of a pulse.
-
         period:
             The time between the starts of pulses.
 
         width:
             The duration of a pulse.
+
+        **values:
+            The values of the declared variables, by name:
+
+            eta:
+                The initial overpotential.
+
+            c:
+                The initial reactant concentration, relative to the feed.
+
+            C:
+                The capacitance of the double layer.
+
+            alpha:
+                The transfer coefficient.
+
+            tau:
+                The residence time of the reactor.
+
+            kappa:
+                The consumption of reactant per unit of Faradaic current.
+
+            current:
+                The current of a pulse.
 
     Examples:
         >>> from skcomplex.models.chemistry.kinetics import PulsedElectrode
@@ -70,8 +75,18 @@ class PulsedElectrode(Element):
     tau: float = parameter(default=10.0, domain=Domain.POSITIVE)
     kappa: float = parameter(default=0.05, domain=Domain.NONNEGATIVE)
     current: float = parameter(default=5.0, domain=Domain.REAL)
-    period: float = 10.0
-    width: float = 2.0
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        period: float = 10.0,
+        width: float = 2.0,
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.period = period
+        self.width = width
 
     def laws(self, s: Symbols) -> list[Law]:
         """Return the charging of the double layer and the balance of the reactant.

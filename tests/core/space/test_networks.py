@@ -8,7 +8,7 @@ from skcomplex.core.base import ValidationError
 from skcomplex.core.compile import compile_system
 from skcomplex.core.components import Element
 from skcomplex.core.laws import Update, neighbors
-from skcomplex.core.space import Adjacency, Layer, NetworkSpace, neighbour_pairs
+from skcomplex.core.space import Adjacency, Layer, NetworkSpace, neighbor_pairs
 from skcomplex.core.system import System
 
 BACKENDS = ('numpy', 'numba')
@@ -116,7 +116,7 @@ def test_layers_hold_relations_over_the_same_nodes():
     assert space.layer_labels == (None, 'work')
     assert space.resolve_graph('work') is work.graph
     assert len(space.list_edges('work')[0]) == 6
-    assert neighbour_pairs(space, 4, 'work') == list(
+    assert neighbor_pairs(space, 4, 'work') == list(
         zip(*[item.tolist() for item in space.list_edges('work')], strict=True),
     )
     assert space.index_table(Adjacency(layer='work')).shape == (4, 3)

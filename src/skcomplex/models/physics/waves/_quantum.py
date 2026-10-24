@@ -8,11 +8,12 @@ from typing import Any
 import numpy as np
 
 from ....core.base import Domain, ValidationError, parameter, role
-from ....core.components import Element, Field
+from ....core.components import Element
+from ....core.formalisms.fields import ETDRK4, Field, laplacian
+from ....core.formalisms.quantum import Dissipator, Generator
 from ....core.interactions import Interaction
-from ....core.laws import Dissipator, Generator, Rate, Symbols, laplacian
+from ....core.laws import Rate, Symbols
 from ....core.runtime import register_model
-from ....core.solvers import ETDRK4
 from ....core.space import LatticeSpace
 from ....core.system import System
 from ..realizations import Site
@@ -37,14 +38,17 @@ class LatticeHamiltonian(Interaction):
         label:
             The label of the interaction.
 
-        target:
-            The path of the particle.
-
-        D:
-            The coefficient of the Laplacian, `ħ / (2 m)`.
-
         potential:
             The potential at every site.
+
+        **values:
+            The values of the declared variables, by name:
+
+            target:
+                The path of the particle.
+
+            D:
+                The coefficient of the Laplacian, `ħ / (2 m)`.
 
     Examples:
         >>> from skcomplex.models.physics.waves import LatticeHamiltonian
@@ -54,7 +58,16 @@ class LatticeHamiltonian(Interaction):
 
     target: str = role()
     D: float = parameter(default=0.5, domain=Domain.POSITIVE)
-    potential: Any = 0.0
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        potential: Any = 0.0,  # noqa: ANN401
+        **values: Any,  # noqa: ANN401
+    ) -> None:
+        super().__init__(label, **values)
+        self.potential = potential
 
     def laws(self, s: Symbols) -> list[Any]:
         """Return the Hamiltonian of the particle.

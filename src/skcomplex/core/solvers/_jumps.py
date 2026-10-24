@@ -1,0 +1,215 @@
+"""Simulate jump processes exactly, by the Gillespie direct method or from renewal to renewal."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from typing import ClassVar
+
+import numpy as np
+
+from ..base import (
+    ComponentKind,
+    DomainKind,
+    Form,
+    LawKind,
+    NoiseKind,
+    OrderKind,
+    SolverError,
+    SpaceKind,
+    Supports,
+    TimeKind,
+)
+from ..compile import Problem, Vector
+from ._hybrid import reject_hybrid
+from ._stepper import Stepper, register_solver
+
+
+class Gillespie(Stepper):
+    """Exact stochastic simulation of jump processes by the Gillespie direct method.
+
+    An event that would fire after `until` is discarded, which is exact because waiting times are memoryless.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.core.system import System
+        >>> from skcomplex.models.biology.epidemiology import Compartment, Recovery
+        >>> from skcomplex.core.solvers import Gillespie
+        >>> problem = compile_system(
+        ...     System(
+        ...         components=[Compartment('I', n=10), Compartment('R', n=0)],
+        ...         interactions=[Recovery('rec', infected='I', recovered='R', gamma=1.0, stochastic=True)],
+        ...     ),
+        ... )
+        >>> stepper = Gillespie()
+        >>> stepper.initialize(problem, np.random.default_rng(0))
+        >>> stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 100.0).tolist()
+        [0.0, 10.0]
+    """
+
+    supports: ClassVar[Supports] = Supports(
+        time={TimeKind.CONTINUOUS},
+        space=set(SpaceKind.registered()),
+        laws={LawKind.JUMP, LawKind.BOUNDARY, LawKind.TRANSFER},
+        domains=set(DomainKind) - {DomainKind.HILBERT},
+        components={
+            ComponentKind.ELEMENT,
+            ComponentKind.GROUP,
+            ComponentKind.SITE_GROUP,
+            ComponentKind.EDGE_GROUP,
+            ComponentKind.VARIABLE_GROUP,
+            ComponentKind.SYSTEM,
+        },
+        orders={OrderKind.INTEGER},
+    )
+
+    form: ClassVar[Form] = Form.JUMP
+
+    def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
+        """Prepare the stepper for a problem.
+
+        Args:
+            problem:
+                The compiled problem.
+
+            rng:
+                The random number generator.
+
+        Raises:
+            SolverError:
+                The problem has another form, delays, or events.
+        """
+        super().initialize(problem, rng)
+        reject_hybrid(problem, type(self).__name__)
+
+    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+        """Fire random events from time `t` until the next event falls after `until`.
+
+        Args:
+            t:
+                The current time.
+
+            x:
+                The current state vector.
+
+            p:
+                The parameter vector.
+
+            until:
+                The time to advance to.
+
+        Returns:
+            state:
+                The state vector at time `until`.
+
+        Raises:
+            SolverError:
+                A propensity is negative or not finite.
+        """
+        propensities, jumps = self.problem_.propensities, self.problem_.jumps
+        if propensities is None:
+            return x
+        accelerated = self.problem_.accelerated
+        if accelerated is not None and accelerated.gillespie is not None:
+            try:
+                return accelerated.gillespie(t, x, p, until, self.rng_)
+            except ValueError as error:
+                error_msg = f'Propensities at t = {t} must be finite and non-negative: {error}'
+                raise SolverError(error_msg) from error
+        offsets = np.array([channels.offset for channels in jumps])
+        state = x.copy()
+        while True:
+            rates = propensities(t, state, p)
+            if np.any(rates < 0) or not np.all(np.isfinite(rates)):
+                error_msg = f'Propensities {rates.tolist()} at t = {t} must be finite and non-negative.'
+                raise SolverError(error_msg)
+            total = float(rates.sum())
+            if total == 0:
+                return state
+            t += self.rng_.exponential(1 / total)
+            if t > until:
+                return state
+            event = min(
+                int(np.searchsorted(np.cumsum(rates), self.rng_.uniform(0, total), side='right')),
+                len(rates) - 1,
+            )
+            channel = int(np.searchsorted(offsets, event, side='right')) - 1
+            channels = jumps[channel]
+            topology = self.problem_.topology
+            if topology is not None and channel in topology.channels:
+                state = topology.fire(channel, event - channels.offset, t, state, p, rng=self.rng_)
+                state = self._bounded(t, state, p)
+                continue
+            targets = channels.targets[:, event - channels.offset]
+            kept = targets >= 0
+            np.add.at(state, targets[kept], channels.increments[kept])
+            state = self._bounded(t, state, p)
+
+
+class RenewalStepper(Stepper):
+    """Exact stepper of renewal processes, which jumps from renewal to renewal without a time grid.
+
+    Every member renews on its own clock, and a frame holds the states the last renewal at or before its time set.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.compile import compile_system
+        >>> from skcomplex.core.components import Element
+        >>> from skcomplex.core.laws import Jump, draw
+        >>> from skcomplex.core.system import System
+        >>> from skcomplex.core.solvers import RenewalStepper
+        >>> Counter = Element.define(
+        ...     'Counter',
+        ...     states={'n': 0.0},
+        ...     laws=lambda s: [Jump(waiting=draw('wait', 'expon'), reset={s.n: s.n + 1})],
+        ... )
+        >>> problem = compile_system(System(components=[Counter.group('counters', 3)]))
+        >>> stepper = RenewalStepper()
+        >>> stepper.initialize(problem, np.random.default_rng(0))
+        >>> state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 100.0)
+        >>> bool(np.all(state[:3] > 50))
+        True
+    """
+
+    supports: ClassVar[Supports] = Supports(
+        time={TimeKind.CONTINUOUS},
+        space=set(SpaceKind.registered()),
+        laws={LawKind.JUMP, LawKind.RATE, LawKind.NOISE, LawKind.EQUATION, LawKind.BOUNDARY},
+        domains=set(DomainKind) - {DomainKind.HILBERT},
+        components={ComponentKind.ELEMENT, ComponentKind.GROUP, ComponentKind.SITE_GROUP, ComponentKind.SYSTEM},
+        noise={NoiseKind.DIAGONAL},
+        orders={OrderKind.INTEGER},
+    )
+
+    form: ClassVar[Form] = Form.RENEWAL
+    renews: ClassVar[bool] = True
+
+    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+        """Fire every renewal from time `t` up to time `until`, each member in time order.
+
+        Args:
+            t:
+                The current time.
+
+            x:
+                The current state vector.
+
+            p:
+                The parameter vector.
+
+            until:
+                The time to advance to.
+
+        Returns:
+            state:
+                The state vector at time `until`.
+        """
+        clock = self.renewals_
+        if until <= t or clock is None:
+            return x
+        clock.begin(t, x, p)
+        return self._bounded(until, clock.fire_until(until, x, p), p)
+
+
+register_solver('gillespie', Gillespie, default=True)
+register_solver('renewal', RenewalStepper, default=True)

@@ -12,7 +12,8 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos
 
 from ....core.base import Domain, ValidationError, VisualSpec, parameter, state
-from ....core.components import Element, Particle
+from ....core.components import Element
+from ....core.formalisms.particles import Particle
 from ....core.laws import Rate, derivative
 from ....core.runtime import register_model
 from ....core.space import ContinuousSpace

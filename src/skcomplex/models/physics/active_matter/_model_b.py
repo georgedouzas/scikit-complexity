@@ -9,8 +9,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
 from ....core.base import Domain, parameter
-from ....core.components import Element, Field
-from ....core.laws import Law, Noise, Rate, Symbols, divergence, gradient, laplacian
+from ....core.components import Element
+from ....core.formalisms.fields import Field, divergence, gradient, laplacian
+from ....core.laws import Law, Noise, Rate, Symbols
 from ....core.runtime import register_model
 from ....core.solvers import EulerMaruyama
 from ....core.space import LatticeSpace

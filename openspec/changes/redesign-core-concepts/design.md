@@ -95,7 +95,7 @@ The shared core holds the general concepts, one package per part of a system or 
 | `formalisms` | plug-ins | one subpackage per formalism |
 
 The general laws are `Rate`, `Noise`, `Jump` with its exponential and waiting-time clocks, `Update`, `Transition`,
-`Emission`, `Event`, `Boundary`, `Equation`, `Transfer`, `Invariant`, and `Call`. Each is used across fields, or it
+`Emission`, `Event`, `Boundary`, `Equation`, `Transfer`, `Invariant`, `Objective`, and `Call`. Each is used across fields, or it
 belongs to the general forms: ODE, SDE, DAE, discrete map, jump process, and co-simulation. Delays and events stay in
 the core, because any ODE or map can carry them.
 
@@ -110,12 +110,19 @@ Each formalism gathers modules that are scattered today:
 | `quantum` | `Generator`, `Dissipator`, operators, expectations, QuTiP solvers | `laws/_operators`, `components/_quantum`, `system/_expectations`, `compile/_quantum`, `solvers/_quantum`, `viz/_expectations` |
 | `fields` | `Field`, differential operators, flux laws, meshes, finite differences, finite volumes, spectral and stiff integrators, conserved noise | `laws/_fields`, `components/_fields`, `space/_meshes`, `compile/_fields`, `_volumes`, `_splitting`, `_conserved`, `solvers/_stiff` |
 | `kinetics` | encounter laws, moments, activity levels, DSMC | `laws/_encounters`, `laws/_moments`, `components/_levels`, `compile/_encounters`, `_contractions`, `solvers/_kinetics` |
-| `flows` | stocks, flows, auxiliaries, lookups, system-dynamics delays, conservation monitoring | `laws/_flows`, `compile/_flows`, `_quantities`, `runtime/_conservation` |
-| `renewals` | renewal clocks of members | `compile/_renewals`, `solvers/_renewals` |
 | `fractional` | the fractional form, Caputo schemes, fractional noise | the fractional parts of `_compiler.py` and `laws/_laws`, `solvers/_caputo`, `solvers/_fractional` |
 | `topology` | topology requests, capacity layouts | `laws/_topology`, `compile/_topology` |
 | `particles` | `Particle`, potentials, pair potentials, the LAMMPS backend, body visuals | `components/_particles`, `interactions/_potentials`, `backends/_lammps`, `_lammps_lepton`, `viz/_bodies` |
-| `control` | `Objective`, collocation, Pontryagin, receding-horizon following | `laws/_laws`, `solvers/_collocation`, `_optimal`, `_pontryagin` |
+| `control` | collocation, Pontryagin, receding-horizon following | `solvers/_collocation`, `_optimal`, `_pontryagin` |
+
+Two parts stay in the shared core. **Renewals** stay because `Jump` with a waiting-time clock is a general law, so the
+lowering of waiting-time jumps and their stepper belong with jump processes. A formalism would let a waiting jump compile
+silently as a rate jump when the formalism was not imported. **`Objective`** stays because both `flows`, for the
+objectives of stock-and-flow models, and `control` read it. Neither formalism then depends on the other.
+
+**Stocks and flows** stay too: their lowering also lowers the general laws `Transfer`, `Invariant`, and `Objective`,
+and `analysis` reads their loop terms. **The `'pairs'` binding and the bodies visual** stay because models without
+particles use them, so `particles` holds only `Particle`, the potentials, and LAMMPS.
 
 Every formalism has the same internal layout: `_laws`, `_components`, `_spaces`, `_passes`, `_solvers`, `_backends`,
 `_visuals`, and `_checks`, each present only when needed, plus the `__init__` that registers the formalism.
@@ -138,6 +145,16 @@ Every formalism has the same internal layout: `_laws`, `_components`, `_spaces`,
 - `get_params`, which returns `label` and the declared names, so `clone`, `set_params`, and `repr` follow the estimator
   contract;
 - `laws(s)`, which returns no laws by default.
+
+A constructor setting that is not a state, parameter, or role, such as `radius`, `dimension`, or `layer`, is declared by
+an explicit `__init__` on its class. That `__init__` takes the setting as a keyword-only argument, stores it under its own
+name, and passes the remaining values to `super().__init__(label, **values)`. `get_params` returns the keyword arguments
+of the `__init__` signatures along the class's method resolution order, plus the declared names, each with its value or
+its default. `replicate` and the other readers of all values read `get_params`.
+- **Alternative: a fourth declaration, `option(default)`.** It was rejected by the maintainer in favour of the explicit
+  constructor.
+- **Alternative: read plain annotated class attributes.** It was rejected because the constructor would read
+  annotations implicitly.
 
 `Element`, `Group`, `Interaction`, and `System` derive from it.
 - **`Group`** holds an element type, a size, values, and a placement: `on='members' | 'sites' | 'edges' |
@@ -201,6 +218,10 @@ and `problem`.
   state. `compile_system` continues from that state, so the system is flattened once.
 - The planner is one function, `plan_partitions(census, solvers)`. It reads the registered forms and the solvers'
   `supports.laws`, and both validation and compilation call it.
+- The planner, `plan_partitions(census, kinds, solvers)`, needs both a registered form for the lowered law classes and
+  a solver for the declared law kinds, because a solver alone can accept a mix, such as a jump with a rate in the
+  renewal solver, that no form lowers. Validation therefore lowers every system without errors up to the `kinds` field,
+  and a lowering error becomes a validation issue.
 - The mutable accumulators `_Hybrid` and `_Fields` become fields of `Compilation` written by declared passes, so the
   order of the passes is explicit.
 
@@ -289,6 +310,11 @@ The work proceeds in phases, each of which ends with a green suite.
    - the layout and the extension points;
    - the ecosystem contract, which no longer generates dataclass constructors.
 7. The full gate. Then the active changes are updated.
+
+Because the lowering of topology, renewals, fractional dynamics, control, kinetics, particles, lattices, fields, and
+agents is buried in `_compiler.py`, the pass pipeline (phase 3) lands before those formalisms move. Quantum, rewriting,
+and groups move in parallel with phase 3, because they already compile through whole-system passes or touch no
+compiler code. Phase 4 and the layout checks of task 5.1 run in parallel with both.
 
 Rollback is by branch: `development` is untouched until the gate passes.
 
