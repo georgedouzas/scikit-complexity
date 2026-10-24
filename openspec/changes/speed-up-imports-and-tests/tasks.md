@@ -11,7 +11,7 @@
 
 ## 2. Test session
 
-- [ ] 2.1 Move coverage from `addopts` to the `tests` session, and add the `--slow` option and `slow` marker to
+- [x] 2.1 Move coverage from `addopts` to the `tests` session, and add the `--slow` option and `slow` marker to
   `tests/conftest.py`. Verify with the scenarios "Default run", "Gate run", "Plain run", and "Gate coverage".
 - [ ] 2.2 Run the suite once with `--durations=0` on an idle machine, and mark every test above 10 seconds as slow.
   Trim every test above 60 seconds, starting with the avalanche test, keeping its tolerances. Verify with the
