@@ -104,6 +104,7 @@ checks = [
     "interrogate>=1.7.0",
     "pydoclint>=0.9.1",
     "deptry>=0.25.1",
+    "import-linter>=2.15",
 ]
 tests = [
     "pytest>=8.2.2",
@@ -111,6 +112,7 @@ tests = [
     "pytest-randomly>=3.15.0",
     "pytest-xdist>=3.6.1",
     "quantecon>=0.10",
+    "pytest-markdown-docs>=0.9.2",
 ]
 changelog = [
     "git-changelog>=2.5.2",
@@ -229,8 +231,9 @@ DEP004 = ["pandas"]
 
 [tool.pytest.ini_options]
 python_files = ["test_*.py"]
-addopts = "--cov=src --cov=tests"
-testpaths = ["tests"]
+addopts = "--cov=src --cov=tests --doctest-modules --markdown-docs"
+testpaths = ["tests", "src/skcomplex", "README.md", "docs/overview/user_guide.md"]
+doctest_optionflags = ["ELLIPSIS"]
 
 [tool.coverage.run]
 branch = true

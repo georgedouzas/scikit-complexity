@@ -2,9 +2,9 @@
 
 ## 1. Examples in the test session
 
-- [ ] 1.1 Configure pytest to collect the docstring examples of `src/skcomplex` with `ELLIPSIS`, and point the `tests`
+- [x] 1.1 Configure pytest to collect the docstring examples of `src/skcomplex` with `ELLIPSIS`, and point the `tests`
   session at the configured paths. Verify that a planted failing docstring example fails the session, then remove it.
-- [ ] 1.2 Add `pytest-markdown-docs` to the `tests` dependency group. Run the Python blocks of `README.md` and
+- [x] 1.2 Add `pytest-markdown-docs` to the `tests` dependency group. Run the Python blocks of `README.md` and
   `docs/overview/user_guide.md` with it, tagging blocks that build on earlier ones as continuations and keeping a
   viewer from spawning. Verify that every block runs, and that a planted failing block fails the session.
 
