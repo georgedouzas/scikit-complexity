@@ -1,7 +1,7 @@
 """Test the open vocabularies of named terms."""
 
 import copy
-import pickle
+import pickle  # nosec B403: the test round-trips only the terms it pickles itself
 
 import pytest
 
@@ -35,7 +35,7 @@ def test_term_survives_copy_and_pickle():
     """Test that copying and pickling a term return the registered term."""
     assert copy.deepcopy(LawKind.RATE) is LawKind.RATE
     assert copy.copy(SpaceKind.MESH) is SpaceKind.MESH
-    assert pickle.loads(pickle.dumps(Form.SDE)) is Form.SDE  # noqa: S301
+    assert pickle.loads(pickle.dumps(Form.SDE)) is Form.SDE  # noqa: S301  # nosec B301: loads only what it dumped
 
 
 def test_term_is_frozen():
