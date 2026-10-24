@@ -146,6 +146,8 @@ def checks(session: nox.Session, file: str) -> None:
     session.run('pdm', 'install', '-dG', 'checks', '--no-default', external=True)
     if arg in ['quality', 'all']:
         session.run('ruff', 'check', file)
+        if file == 'src':
+            session.run('lint-imports', env={'PYTHONPATH': 'src'})
     if arg in ['types', 'all']:
         session.run('mypy', file)
     if arg in ['security', 'all']:
