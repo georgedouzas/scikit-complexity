@@ -32,7 +32,7 @@ the shared core SHALL compile and simulate with no formalism imported.
 
 #### Scenario: Planted import
 - **WHEN** a module of `skcomplex.core.compile` imports from `skcomplex.core.formalisms.lattices`
-- **THEN** the layout check fails and names the module
+- **THEN** the import contracts of the checks session fail and name the module
 
 ### Requirement: A formalism registers through one declaration
 Each formalism SHALL describe everything it contributes in one declaration that its package registers when it is
@@ -68,4 +68,4 @@ dependencies SHALL form no cycle.
 #### Scenario: Undeclared import
 - **WHEN** a module of `skcomplex.core.formalisms.kinetics` imports from `skcomplex.core.formalisms.agents` and
   `kinetics` does not declare `agents`
-- **THEN** the layout check fails and names both formalisms
+- **THEN** the import contracts of the checks session fail and name both formalisms

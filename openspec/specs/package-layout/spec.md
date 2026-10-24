@@ -23,7 +23,7 @@ The package SHALL expose exactly two subpackages: `skcomplex.core`, holding ever
 
 #### Scenario: Upward import
 - **WHEN** a module of `skcomplex.core.solvers` imports from `skcomplex.core.backends`
-- **THEN** the layout check fails and names the module and the package it reached
+- **THEN** the import contracts of the checks session fail and name the importing module and the imported one
 
 ### Requirement: The core never depends on models
 No module of `skcomplex.core` SHALL import `skcomplex.models`, and every core feature SHALL work without the model
@@ -36,62 +36,54 @@ library imported.
 
 #### Scenario: Planted reverse import
 - **WHEN** a core module imports from `skcomplex.models`
-- **THEN** the layout check fails and names the module
+- **THEN** the import contracts of the checks session fail and name the module
 
 ### Requirement: Models use only the public core
 Modules of `skcomplex.models` SHALL import only public names of `skcomplex.core` packages and third-party libraries,
 never private modules or names.
 
 #### Scenario: Private core import
-- **WHEN** a model module imports a private name, such as `skcomplex.core.compile._compiler`
-- **THEN** the layout check fails and names the module and the import
+- **WHEN** a model module imports a private module, such as `skcomplex.core.compile._compile`
+- **THEN** the import contracts of the checks session fail and name the module and the import
 
 ### Requirement: Model packages are self-contained
 Every subfield package of `skcomplex.models` SHALL be self-contained: it SHALL NOT import any other model package, of
-its own field or another. A component that more than one model package needs SHALL be domain-agnostic and live in the
-core.
+its own field or another, except the shared realizations of its own field in `skcomplex.models.<field>.realizations`.
+A component that more than one field needs SHALL be domain-agnostic and live in the core.
 
 #### Scenario: Import across model packages
 - **WHEN** a module of `skcomplex.models.biology.collective_behaviour` imports from
   `skcomplex.models.physics.mechanics`, or from `skcomplex.models.biology.ecology`
-- **THEN** the layout check fails and names the module and the import
+- **THEN** the import contracts of the checks session fail and name the module and the import
+
+#### Scenario: Realizations of the own field
+- **WHEN** a module of `skcomplex.models.physics.mechanics` imports from `skcomplex.models.physics.realizations`
+- **THEN** the import contracts of the checks session pass
 
 #### Scenario: Removing a model package
 - **WHEN** any one subfield package is deleted from the library
 - **THEN** every other model package still imports, and its models still pass the conformance suite
 
-### Requirement: Modules hold one concept in a fixed order
-Every module of `skcomplex.core` SHALL hold one concept, SHALL define private functions, public functions, private
-classes, and public classes in that order unless a name is needed before its turn, and SHALL NOT define a helper that
-serves a concept owned by another module. The module that defines a base class of components or laws SHALL import only
-`skcomplex.core.base`. No module SHALL guard an import behind a type-checking condition.
-
-#### Scenario: Helper between classes
-- **WHEN** a module defines a private function after a public class
-- **THEN** the layout check fails and names the module and the function
-
-#### Scenario: Base class with wide imports
-- **WHEN** the module that defines `Component` imports from `skcomplex.core.space`
-- **THEN** the layout check fails and names the module
-
-#### Scenario: Guarded import
-- **WHEN** a core module imports a name under `if TYPE_CHECKING:`
-- **THEN** the layout check fails and names the module
-
-### Requirement: Packages export only what clients use
-A core package SHALL re-export only the names that the models, the tests, or the documentation use, or that another
-core package uses as a concept of the exporting package. A helper that only one other package uses SHALL move into that
-package, so no package exports the internals of another.
-
-#### Scenario: Compiler internal leaks
-- **WHEN** `skcomplex.core.laws` lists in `__all__` a helper that only `skcomplex.core.compile` uses
-- **THEN** the export check fails and names the package and the helper
-
 ### Requirement: The test tree mirrors the source tree
-Every test module other than the repository-wide checks SHALL test one source module and SHALL live at the path that
-mirrors it, so `tests/core/<package>/test_<module>.py` tests `skcomplex.core.<package>._<module>`, and
-`tests/models/<field>/<subfield>/test_<module>.py` tests the module of that model package.
+Every test module SHALL test one module of `skcomplex` and SHALL live at the path that mirrors it, so
+`tests/core/<package>/test_<module>.py` tests `skcomplex.core.<package>._<module>`, and
+`tests/models/<field>/<subfield>/test_<module>.py` tests the module of that model package. No test module SHALL check
+repository conventions, documentation tooling, or documentation data.
 
 #### Scenario: Test without a mirrored module
-- **WHEN** `tests/core/compile/test_compiler.py` exists and `skcomplex.core.compile` has no module `_compiler`
-- **THEN** the layout check fails and names the test module
+- **WHEN** the test modules under `tests` are listed
+- **THEN** each one names a module of `skcomplex` at the mirrored path, and none lies outside `tests/core` and
+  `tests/models`
+
+### Requirement: The test session runs the examples of docstrings and documents
+The test session SHALL run every docstring example of `skcomplex` through pytest's doctest collection, and every Python
+block of `README.md` and the user guide through `pytest-markdown-docs`, with no test module for either. A block that
+builds on earlier blocks of its document SHALL be marked as their continuation.
+
+#### Scenario: Failing docstring example
+- **WHEN** a docstring example of a core module prints a value other than the one it shows
+- **THEN** the test session fails and names the module and the example
+
+#### Scenario: Failing user guide block
+- **WHEN** a Python block of the user guide raises an error
+- **THEN** the test session fails and names the document and the block
