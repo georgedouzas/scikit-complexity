@@ -8,14 +8,14 @@ depends on any formalism and a new formalism needs no change to existing core mo
 ## Requirements
 
 ### Requirement: Formalisms live in one package each
-Every formalism SHALL be one subpackage of `skcomplex.core.formalisms` that holds its laws, components, compilation,
+Every formalism SHALL be one subpackage of `skcomplex.formalisms` that holds its laws, components, compilation,
 solvers, backends, visuals, and validation checks. The formalisms SHALL be `agents`, `lattices`, `groups`, `rewriting`,
 `quantum`, `fields`, `kinetics`, `fractional`, `topology`, `particles`, and `control`. A name
 specific to one formalism SHALL be imported from that formalism's package.
 
 #### Scenario: Formalism imports
-- **WHEN** a user imports `LocalRule` from `skcomplex.core.formalisms.lattices`, `Production` from
-  `skcomplex.core.formalisms.rewriting`, and `Generator` from `skcomplex.core.formalisms.quantum`
+- **WHEN** a user imports `LocalRule` from `skcomplex.formalisms.lattices`, `Production` from
+  `skcomplex.formalisms.rewriting`, and `Generator` from `skcomplex.formalisms.quantum`
 - **THEN** every import succeeds
 
 #### Scenario: Old paths are gone
@@ -23,15 +23,15 @@ specific to one formalism SHALL be imported from that formalism's package.
 - **THEN** the import fails
 
 ### Requirement: The shared core never imports a formalism
-No module of `skcomplex.core` outside `skcomplex.core.formalisms` SHALL import a formalism, and a system built only from
-the shared core SHALL compile and simulate with no formalism imported.
+No module of `skcomplex.core` or `skcomplex.engine` SHALL import a formalism, and a system built only from the core
+SHALL compile and simulate with the engine and no formalism imported.
 
 #### Scenario: Shared core alone
 - **WHEN** a user builds, compiles, and simulates a logistic growth model written with `Element`, `Rate`, and `System`
-- **THEN** the run succeeds and no module of `skcomplex.core.formalisms` is loaded
+- **THEN** the run succeeds and no module of `skcomplex.formalisms` is loaded
 
 #### Scenario: Planted import
-- **WHEN** a module of `skcomplex.core.compile` imports from `skcomplex.core.formalisms.lattices`
+- **WHEN** a module of `skcomplex.engine.compile` imports from `skcomplex.formalisms.lattices`
 - **THEN** the import contracts of the checks session fail and name the module
 
 ### Requirement: A formalism registers through one declaration
@@ -41,7 +41,7 @@ and validation checks. The core SHALL resolve laws, forms, solvers, backends, an
 registrations.
 
 #### Scenario: Registered contributions are listed
-- **WHEN** a user imports `skcomplex.core.formalisms.quantum` and lists the registered formalisms
+- **WHEN** a user imports `skcomplex.formalisms.quantum` and lists the registered formalisms
 - **THEN** the listing shows `quantum` with its law kinds, its form, and its solvers
 
 #### Scenario: Unregistered law
@@ -58,14 +58,14 @@ any module of the shared core.
 - **THEN** a system using that law validates, compiles, and simulates without changes to `skcomplex.core`
 
 ### Requirement: Formalisms declare their dependencies
-A formalism SHALL declare the formalisms it builds on, may import only those and the shared core, and the declared
-dependencies SHALL form no cycle.
+A formalism SHALL declare the formalisms it builds on, may import only those, `skcomplex.core`, and
+`skcomplex.engine`, and the declared dependencies SHALL form no cycle.
 
 #### Scenario: Declared dependency
 - **WHEN** `fields` declares that it builds on `lattices`
-- **THEN** importing `skcomplex.core.formalisms.fields` registers both formalisms
+- **THEN** importing `skcomplex.formalisms.fields` registers both formalisms
 
 #### Scenario: Undeclared import
-- **WHEN** a module of `skcomplex.core.formalisms.kinetics` imports from `skcomplex.core.formalisms.agents` and
+- **WHEN** a module of `skcomplex.formalisms.kinetics` imports from `skcomplex.formalisms.agents` and
   `kinetics` does not declare `agents`
 - **THEN** the import contracts of the checks session fail and name both formalisms

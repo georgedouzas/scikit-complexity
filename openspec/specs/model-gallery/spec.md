@@ -62,7 +62,7 @@ at the size the gallery displays it.
 Every curated example SHALL show at least one Matplotlib figure computed from its own run, from the trajectory, the
 observables, or the agents of the simulation, that exhibits the behaviour its model is known for. Each figure SHALL
 have labelled axes and a title, and the text before it SHALL state the agreement the reader should see. The analysis
-SHALL use the functions of `skcomplex.core.analysis` where they fit, and NumPy or SciPy otherwise.
+SHALL use the functions of `skcomplex.engine.analysis` where they fit, and NumPy or SciPy otherwise.
 
 #### Scenario: Ideal gas speeds
 - **WHEN** a user opens the ideal gas example page

@@ -62,7 +62,7 @@ both written as symbolic expressions of the predecessor's parameters and the sys
   longer rewritten because its condition is false
 
 ### Requirement: Turtles interpret words as geometry
-The visual `WordGeometry` of `skcomplex.core.viz`, the turtle interpretation of L-systems, SHALL interpret a word as line
+The visual `WordGeometry` of `skcomplex.engine.viz`, the turtle interpretation of L-systems, SHALL interpret a word as line
 segments in two or three dimensions from declared symbol meanings: moving with or without drawing, turning by a
 parameter angle, pushing and popping its state with brackets, and scaling its step per generation. A module's first
 parameter SHALL override the step or the angle. A word SHALL take it as its `geometry`.
