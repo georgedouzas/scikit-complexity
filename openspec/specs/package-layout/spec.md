@@ -14,8 +14,6 @@ The package SHALL expose exactly four subpackages, which together hold every dom
 - `skcomplex.formalisms` holds the formalisms.
 - `skcomplex.models` holds the domain models.
 
-Within `core` and within `engine`, each package SHALL import only the packages listed before it. `core` SHALL import
-neither `engine` nor `formalisms`, and `engine` SHALL import `core` and not `formalisms`.
 
 #### Scenario: Framework imports
 - **WHEN** a user imports `Element` from `skcomplex.core.components`, `Simulation` from `skcomplex.engine.runtime`, `RK4`
@@ -26,6 +24,10 @@ neither `engine` nor `formalisms`, and `engine` SHALL import `core` and not `for
 - **WHEN** a user imports `skcomplex.model`, `skcomplex.core.model`, `skcomplex.core.compile`, `skcomplex.core.solvers`,
   `skcomplex.core.formalisms`, `skcomplex.solvers`, or `skcomplex.runtime`
 - **THEN** the import fails
+
+### Requirement: Dependencies run from formalisms to engine to core
+Within `core` and within `engine`, each package SHALL import only the packages listed before it. `core` SHALL import
+neither `engine` nor `formalisms`, and `engine` SHALL import `core` and not `formalisms`.
 
 #### Scenario: Upward import
 - **WHEN** a module of `skcomplex.engine.solvers` imports from `skcomplex.engine.backends`
