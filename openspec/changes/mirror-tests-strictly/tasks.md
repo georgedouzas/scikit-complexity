@@ -17,7 +17,7 @@
 
 ## 3. Inventory check in the docs build
 
-- [ ] 3.1 Move the inventory rules from the deleted test module into `docs/generate_models.py`, and make the
+- [x] 3.1 Move the inventory rules from the deleted test module into `docs/generate_models.py`, and make the
   generator fail with every issue before it writes a page. Verify that the generator passes on the current inventory,
   and that a planted unregistered entry makes it fail with the entry's name.
 
