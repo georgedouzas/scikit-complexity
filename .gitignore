@@ -37,6 +37,8 @@ site/
 docs/generated/
 docs/examples/**/*.rrd
 docs/examples/**/*.rbl
+/*.rrd
+/*.rbl
 
 # IDE and editors
 .idea/
