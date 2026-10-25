@@ -46,8 +46,8 @@ class System(BaseEstimator):
         ...     components=[PopulationComponent('rabbits', n=10)],
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
         ... )
-        >>> system
-        System(components=1, interactions=1)
+        >>> [element.label for element in system.elements], [item.label for item in system.interactions]
+        (['rabbits'], ['growth'])
     """
 
     component_kind: ClassVar[ComponentKind] = ComponentKind.SYSTEM
@@ -76,8 +76,3 @@ class System(BaseEstimator):
     def systems(self) -> tuple['System', ...]:
         """Return the nested systems among the components, in order."""
         return tuple(component for component in self.components if isinstance(component, System))
-
-    def __repr__(self, N_CHAR_MAX: int = 700) -> str:
-        """Return the label and the number of components and interactions."""
-        label = '' if self.label == 'system' else f'{self.label!r}, '
-        return f'System({label}components={len(self.components)}, interactions={len(self.interactions)})'

@@ -605,7 +605,7 @@ def toner_tu(
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import toner_tu
-        >>> toner_tu((8, 8)).elements[0].size
+        >>> toner_tu((8, 8)).elements[0].prepare().size_
         64
     """
     shape = tuple(shape)

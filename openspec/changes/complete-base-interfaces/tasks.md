@@ -23,7 +23,7 @@
 
   Make child-only methods private or move them to their users. Verify with the scenarios "One vocabulary", "A new
   child through hooks", and "Designs combine by name".
-- [ ] 2.3 Make the runtime call `prepare` before the first frame, `run` at every frame, and `run(..., final=True)` at the
+- [x] 2.3 Make the runtime call `prepare` before the first frame, `run` at every frame, and `run(..., final=True)` at the
   last. Remove its `getattr` fallbacks, and move `engine/analysis/_quantum.py` to `formalisms/quantum`. Verify with
   the scenario "Quantum run through the base".
 - [x] 2.4 Make the surrogates estimators with `prepare` and `run`, replacing `fit_dmd`, `fit_sindy`, and `fit_reservoir`.

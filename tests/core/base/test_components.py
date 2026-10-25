@@ -14,8 +14,6 @@ from skcomplex.core.base import (
     BaseDomain,
     BaseInteraction,
     BaseLaw,
-    BaseProblem,
-    BaseSolver,
     BaseSpace,
     BaseTime,
     RoleError,
@@ -27,7 +25,7 @@ from skcomplex.core.base import (
 )
 from skcomplex.core.components import Aggregate, ElementComponent, GroupComponent, Wiener
 from skcomplex.core.laws import JumpLaw, RateLaw, Symbols, UpdateLaw, neighbors
-from skcomplex.core.problems import BaseBackend
+from skcomplex.core.problems import BaseBackend, BaseProblem, BaseSolver
 from skcomplex.core.space import DiscreteTime, LatticeSpace, Layer, NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import BaseSystemCompiler, compile_system, validate
@@ -121,7 +119,7 @@ def test_component_parameters_list_settings_and_declared_names():
         'value': 0.0,
         'variable': None,
     }
-    assert repr(aggregate) == "Aggregate(group='farmers', label='size')"
+    assert repr(aggregate) == "Aggregate(group='farmers', label='size', value=0.0)"
     assert Wiener.get_argument_names() == ['dimension', 'covariance']
 
 

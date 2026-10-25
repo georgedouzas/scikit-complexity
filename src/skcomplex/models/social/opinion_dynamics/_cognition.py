@@ -79,8 +79,9 @@ class ThinkerComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import ThinkerComponent
-        >>> ThinkerComponent.group('thinkers', 5, valences=[1.0, 1.0, -1.0])
-        GroupComponent('thinkers', element=ThinkerComponent, size=5)
+        >>> group = ThinkerComponent.group('thinkers', 5, valences=[1.0, 1.0, -1.0])
+        >>> group.label, group.element.__name__, group.size
+        ('thinkers', 'ThinkerComponent', 5)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'attitude', 'color_range': (-1.0, 1.0)})

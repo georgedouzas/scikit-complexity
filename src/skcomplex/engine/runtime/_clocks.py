@@ -11,8 +11,8 @@ from ...core.base import BaseEstimator
 class BaseClock(BaseEstimator):
     """Base class of clocks, which decide how long to wait between frames.
 
-    A clock is prepared at the start of a run with `prepare()`, which marks the wall time, and `run(elapsed)` waits until a
-    frame that is `elapsed` simulated time units after the start is due. Subclasses implement `_run`.
+    A clock is prepared at the start of a run with `prepare()`, which marks the wall time, and `run(elapsed)` waits
+    until a frame that is `elapsed` simulated time units after the start is due. Subclasses implement `_run`.
 
     Attributes:
         started_:

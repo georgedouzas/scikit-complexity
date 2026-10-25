@@ -10,10 +10,9 @@ from collections.abc import Callable, Mapping, Sequence
 
 import numpy as np
 import numpy.typing as npt
-from sklearn.base import BaseEstimator
 
 from ...core.base import (
-    BaseProblem,
+    BaseEstimator,
     Entry,
     Form,
     NumericDomain,
@@ -22,7 +21,7 @@ from ...core.base import (
     ValidationError,
     Vector,
 )
-from ...core.problems import BaseBackend, Problem, with_initial_state
+from ...core.problems import BaseBackend, BaseProblem, with_initial_state
 from ...core.system import Observable, System
 from ..compile import ObservableEvaluator, compile_system, validate
 from ..solvers import AgentState, Solver, StructureState, resolve_solver
@@ -40,7 +39,7 @@ TIME_TOLERANCE = 1e-9
 
 def _partition_problems(problem: BaseProblem) -> tuple[BaseProblem, ...]:
     """Return the problems of the partitions of a compiled problem, none for a problem without partitions."""
-    return tuple(partition.problem for partition in problem.partitions) if isinstance(problem, Problem) else ()
+    return tuple(partition.problem for partition in problem.partitions)
 
 
 def _default_dt(until: float) -> float:
@@ -63,6 +62,10 @@ class Simulation(BaseEstimator):
     frames through `update_parameters`, also while a background run started with `start` is going. Values set
     between runs stay in force for the later runs of the simulation, and `extend` continues a run from its last
     frame.
+
+    A simulation speaks the verbs of every configurable object: `check()` validates the system, `prepare(until)`
+    compiles it and prepares the stepper and the observers, and `run(until)` prepares and runs from time 0. A run
+    prepares every observer before the first frame, runs it at every frame, and runs it with `final=True` at the end.
 
     Args:
         system:
@@ -192,11 +195,24 @@ class Simulation(BaseEstimator):
         problem: BaseProblem = self.problem_
         return problem.parameters.names, self.parameters_.copy()
 
-    def _prepare(self, until: float) -> None:
-        """Compile the system, build the stepper, and notify the observers of the start."""
-        previous = self._previous_parameters()
+    def _check(self) -> None:
+        """Validate the system against the solver, the backend, and the observables, unless it is a compiled problem.
+
+        Raises:
+            ValidationError:
+                The system cannot be compiled or run, with every problem found.
+        """
         if not isinstance(self.system, BaseProblem):
             validate(self.system, solver=self.solver, backend=self.backend, observables=self.observables).raise_errors()
+
+    def _prepare(self, until: float = math.inf) -> None:
+        """Compile the system, prepare the stepper, and prepare the observers for a run until a time.
+
+        Args:
+            until:
+                The simulated time the run stops at.
+        """
+        previous = self._previous_parameters()
         initial = dict(self.initial_state or {})
         self.problem_ = (
             with_initial_state(self.system, initial)
@@ -204,7 +220,7 @@ class Simulation(BaseEstimator):
             else compile_system(self.system, self.backend, self.observables, solver=self.solver, initial_state=initial)
         )
         self._prepared_system = self.system
-        self._adaptive = self.problem_.adaptive_parameters if isinstance(self.problem_, Problem) else {}
+        self._adaptive = self.problem_.adaptive_parameters
         self.dt_ = self._check_dt(self.problem_, until)
         self.stepper_ = resolve_solver(self.problem_, self.solver)
         self.observables_ = ObservableEvaluator(self.problem_).prepare()
@@ -212,7 +228,7 @@ class Simulation(BaseEstimator):
         initial_state = self.stepper_.initial_state_.copy()
         self.clock_ = self.clock if self.clock is not None else AsFastAsPossibleClock()
         self.recorder_ = RecorderObserver() if self.record else None
-        stock_flow = self.problem_.stock_flow if isinstance(self.problem_, Problem) else None
+        stock_flow = self.problem_.stock_flow
         invariants = stock_flow is not None and stock_flow.invariants
         monitors = [InvariantObserver()] if invariants else []
         self.observers_ = [*monitors, *self.observers, *([self.recorder_] if self.recorder_ is not None else [])]
@@ -228,40 +244,8 @@ class Simulation(BaseEstimator):
         self._running.set()
         self._thread: threading.Thread | None = None
         self._error: BaseException | None = None
-        self._compile_functions()
         for observer in self.observers_:
             observer.prepare(self.problem_)
-
-    def _compile_functions(self) -> None:
-        """Call every numeric function of the problem and its partitions once, before the clock starts."""
-        for problem in (self.problem_, *_partition_problems(self.problem_)):
-            if isinstance(problem, Problem):
-                self._compile_problem(problem)
-
-    def _compile_problem(self, problem: Problem) -> None:
-        """Call every numeric function of one problem once, so compiled backends finish compiling."""
-        x, p = self.state_, self.parameters_
-        rng = np.random.default_rng(0)
-        drawn = (rng,) if problem.stochastic else ()
-        for function in (problem.drift, problem.diffusion, problem.propensities, problem.boundary):
-            if function is not None:
-                function(0.0, x, p)
-        if problem.update is not None:
-            problem.update(0.0, x, p, *drawn)
-        accelerated = problem.accelerated
-        if accelerated is None:
-            return
-        if accelerated.rk4 is not None:
-            accelerated.rk4(0.0, x, p, 0.0, 1.0)
-        if accelerated.velocity_verlet is not None:
-            empty = np.zeros(0, dtype=np.int64)
-            accelerated.velocity_verlet(0.0, x, p, 0.0, 1.0, empty, empty)
-        if accelerated.euler_maruyama is not None:
-            accelerated.euler_maruyama(0.0, x, p, 0.0, 1.0, rng)
-        if accelerated.gillespie is not None:
-            accelerated.gillespie(0.0, x, p, 0.0, rng)
-        if accelerated.iterate is not None:
-            accelerated.iterate(0.0, x, p, 0.0, *drawn)
 
     def _emit(self, step: int) -> None:
         """Hand the current frame, with the events since the previous one, to every observer."""
@@ -380,7 +364,7 @@ class Simulation(BaseEstimator):
     def _check_matrices(self, changes: list[tuple[str, slice, Vector]]) -> None:
         """Raise an error when parameter changes would break a transition or emission matrix."""
         problems = (self.problem_, *_partition_problems(self.problem_))
-        matrices = [matrix for problem in problems if isinstance(problem, Problem) for matrix in problem.matrices]
+        matrices = [matrix for problem in problems for matrix in problem.matrices]
         if not matrices:
             return
         candidate = self.parameters_.copy()
@@ -405,8 +389,8 @@ class Simulation(BaseEstimator):
             error_msg = 'The simulation has not been run or started. Call `run` or `start` first.'
             raise SimulationError(error_msg)
 
-    def run(self, until: float) -> 'Simulation':
-        """Run the simulation from time 0 to `until` in the calling thread.
+    def _run(self, until: float) -> 'Simulation':
+        """Prepare the simulation and run it from time 0 to `until` in the calling thread.
 
         The run starts from the initial state and keeps the parameter values of the previous run of the same system,
         such as values set with `update_parameters` between runs. `clone(simulation).run(until)` starts afresh.
@@ -419,7 +403,7 @@ class Simulation(BaseEstimator):
             simulation:
                 The simulation itself.
         """
-        self._prepare(until)
+        self.prepare(until)
         self._loop(until)
         return self
 
@@ -485,7 +469,7 @@ class Simulation(BaseEstimator):
             simulation:
                 The simulation itself.
         """
-        self._prepare(until)
+        self.prepare(until)
         self._thread = threading.Thread(target=self._run_in_background, args=(until,), daemon=True)
         self._thread.start()
         return self

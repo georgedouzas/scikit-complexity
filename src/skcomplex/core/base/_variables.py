@@ -18,7 +18,6 @@ from ._domains import BaseDomain, NumericDomain
 from ._errors import ArgumentError, LabelError
 
 METADATA_KEY = 'skcomplex'
-UNSET = (inspect.Parameter.empty, dataclasses.MISSING)
 
 
 class VariableKind(Enum):
@@ -349,19 +348,6 @@ def _get_params(instance: Any, root: type, *, deep: bool) -> dict[str, Any]:
             params.update({f'{name}__{key}': item for key, item in value.get_params().items()})
         params[name] = value
     return params
-
-
-def _declared_repr(instance: Any, root: type, limit: int) -> str:
-    """Return the type, the label, and the arguments that differ from their defaults."""
-    defaults = {name: item.default for name, item in _settings(type(instance), root).items()}
-    defaults.update({name: _default_of(field) for name, field in _fields(type(instance)).items()})
-    shown = [
-        f'{name}={value!r}'
-        for name, value in _get_params(instance, root, deep=False).items()
-        if name not in defaults or any(defaults[name] is item for item in UNSET) or repr(value) != repr(defaults[name])
-    ]
-    text = f'{type(instance).__name__}({", ".join(shown)})'
-    return text if len(text) <= limit else f'{text[: limit - 4]}...)'
 
 
 def state(

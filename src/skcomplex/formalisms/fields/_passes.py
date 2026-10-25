@@ -29,7 +29,7 @@ from ...engine.compile import (
     Node,
     target_references,
 )
-from ._components import FieldComponent
+from ._components import FieldComponent, boundary_of
 from ._conserved import conserved_outputs
 from ._laws import FluxLaw
 from ._lowering import FieldLowering, has_operators
@@ -156,7 +156,7 @@ def _mesh_constraints(blocks: list[Block]) -> tuple[npt.NDArray[np.intp], npt.ND
         for variable, entry in block.entries.items():
             if variable not in declarations_of(place.element, VariableKind.STATE):
                 continue
-            kind, value = place.boundary_of(variable)
+            kind, value = boundary_of(place, variable)
             if kind != 'fixed':
                 continue
             fixed = value(*coordinates.T) if callable(value) else value
@@ -190,7 +190,7 @@ def _symmetries(blocks: list[Block]) -> list[tuple[npt.NDArray[np.intp], tuple[i
                     raise ValidationError(error_msg)
                 if parity is not None:
                     signs.append((axis, -1 if parity == 'odd' else 1))
-            indices = entry.start + np.arange(place.size or 0) * entry.columns
+            indices = entry.start + np.arange(place.size_) * entry.columns
             found.append((indices, space.shape_, signs))
     return found
 

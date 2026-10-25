@@ -30,6 +30,7 @@ from ...core.problems import LATTICE_BOUNDARIES, Problem, numpy_function
 from ...core.space import LatticeSpace, Neighborhood, NetworkSpace
 from ...engine.compile import spectral_multiplier
 from ...engine.solvers import Solver, step_count
+from ._components import boundary_of
 from ._lowering import mesh_laplacian
 from ._spaces import MeshSpace
 
@@ -58,8 +59,8 @@ def _rows(reference: Any) -> npt.NDArray[np.intp]:  # noqa: ANN401
 def _lattice_operator(name: str, axis: int, place: Any, reference: Any) -> csr_matrix:  # noqa: ANN401
     """Return the stencil matrix of a finite-difference operator on a field state, without its boundary values."""
     space = place.space
-    size = place.size
-    kind, _ = place.boundary_of(reference.entry.name.rpartition('.')[2])
+    size = place.size_
+    kind, _ = boundary_of(place, reference.entry.name.rpartition('.')[2])
 
     def shift(offset: Any) -> csr_matrix:  # noqa: ANN401
         lattice = LatticeSpace(space.shape_, boundary=LATTICE_BOUNDARIES[kind]).prepare()
@@ -90,7 +91,7 @@ def _lattice_operator(name: str, axis: int, place: Any, reference: Any) -> csr_m
 def _term_matrix(term: Any, coefficient: Any) -> csr_matrix:  # noqa: ANN401
     """Return the sparse matrix of a linear term of a finite-difference or finite element field."""
     place = term.place
-    matrix = identity(place.size, format='csr')
+    matrix = identity(place.size_, format='csr')
     for name, axis in reversed(term.chain):
         operator = (
             _mesh_operator(place.space, name)
@@ -98,7 +99,7 @@ def _term_matrix(term: Any, coefficient: Any) -> csr_matrix:  # noqa: ANN401
             else _lattice_operator(name, axis, place, term.source)
         )
         matrix = operator @ matrix
-    return diags(np.broadcast_to(np.asarray(coefficient, dtype=float), place.size)) @ matrix
+    return diags(np.broadcast_to(np.asarray(coefficient, dtype=float), place.size_)) @ matrix
 
 
 def _sparse(triplets: list[tuple[Any, Any, csr_matrix]], problem: Problem) -> csr_matrix | None:

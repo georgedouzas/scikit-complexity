@@ -11,8 +11,7 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...core.base import BaseProblem
-from ...core.problems import CompiledAgents, CompiledElement
+from ...core.problems import BaseProblem, CompiledAgents, CompiledElement
 from ..runtime import Frame
 from ._colors import _widened, colors_of
 from ._utils import UPWARD, _radius_of, log_scalars
@@ -119,7 +118,7 @@ class PointsVisual(BaseVisual):
         """Return the positions of every element drawn by a points visual of the same position state and dimension."""
         positions = [
             np.atleast_2d(np.asarray(frame.value(other.states[self.position]), dtype=float))
-            for other in getattr(frame.problem, 'elements', ())
+            for other in frame.problem.elements
             if other.visual.kind == 'points'
             and other.visual.options.get('position') == self.position
             and self.position in other.states

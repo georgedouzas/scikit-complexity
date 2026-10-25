@@ -9,7 +9,7 @@ from typing import Any
 
 import numpy as np
 
-from ...core.base import BaseProblem
+from ...core.problems import BaseProblem
 from ...core.system import Observable, System
 from ..compile import observables_of
 from ..runtime import BaseObserver, Frame, Simulation, Trajectory
@@ -82,7 +82,7 @@ def _scalars(name: str, value: Any) -> dict[str, Any]:  # noqa: ANN401
 
 def _default_outputs(problem: BaseProblem) -> list[str]:
     """Return every observable of a problem's system, or every state when it declares none."""
-    system = getattr(problem, 'system', None)
+    system = problem.system
     observables = [
         f'{scope}/{observable.label}' if scope else observable.label
         for scope, observable in (observables_of(system) if system is not None else ())

@@ -17,6 +17,7 @@ from ._kernels import (
 from ._printing import NUMPY_DIALECT, SCALAR_DIALECT, Dialect, numpy_function, print_expressions
 from ._problem import (
     Accelerated,
+    BaseProblem,
     CompiledAgents,
     CompiledElement,
     CompiledInteraction,
@@ -33,6 +34,7 @@ from ._problem import (
 )
 from ._quantities import LoopTerm, StockFlow
 from ._reductions import ReductionSchedule
+from ._solvers import BaseSolver
 
 __all__: list[str] = [
     'BACKENDS',
@@ -42,6 +44,8 @@ __all__: list[str] = [
     'SCALAR_DIALECT',
     'Accelerated',
     'BaseBackend',
+    'BaseProblem',
+    'BaseSolver',
     'CompiledAgents',
     'CompiledElement',
     'CompiledEvent',

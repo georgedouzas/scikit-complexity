@@ -20,7 +20,7 @@ from ...core.laws import where
 from ...core.problems import LATTICE_BOUNDARIES, MODES, NeighborRead, Reference, Source, numpy_function
 from ...core.space import Adjacency, LatticeSpace, Neighborhood, NetworkSpace
 from ...engine.compile import spectral_multiplier
-from ._components import FieldComponent
+from ._components import FieldComponent, boundary_of
 from ._spaces import MeshSpace
 
 type Indices = npt.NDArray[np.intp]
@@ -282,7 +282,7 @@ class FieldLowering:
         reference = self.references[item]
         variable = reference.entry.name.rpartition('.')[2]
         if reference.is_state:
-            kind, value = place.boundary_of(variable)
+            kind, value = boundary_of(place, variable)
         else:
             kind, value = (
                 'periodic' if getattr(place.space, 'boundary', 'periodic') == 'periodic' else 'zero-flux',

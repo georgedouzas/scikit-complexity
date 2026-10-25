@@ -62,8 +62,9 @@ def ideal_gas(
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import ideal_gas
-        >>> ideal_gas(1000, random_state=0).elements[0]
-        GroupComponent('gas', element=ParticleComponent, size=1000)
+        >>> group = ideal_gas(1000, random_state=0).elements[0]
+        >>> group.label, group.element.__name__, group.size
+        ('gas', 'ParticleComponent', 1000)
     """
     rng = np.random.default_rng(random_state)
     velocities = rng.normal(0.0, np.sqrt(kT / mass), size=(n_molecules, n_dim))

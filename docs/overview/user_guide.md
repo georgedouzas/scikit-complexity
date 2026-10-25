@@ -3058,12 +3058,13 @@ state for a closed system and a density matrix for an open one. Its solvers hand
 the Schrödinger equation, `lindblad`, the default, for the master equation, and `quantum_trajectories` for quantum
 jumps drawn from the run's random stream. `expectation` makes observables of operators, one value per member for a
 group, and every quantum run also records its `energy`, and its `purity` when it is open. Groups on a lattice stream
-the space-time image of their local expectations to Rerun. `spectrum` and `ground_state` diagonalise the Hamiltonian
-exactly, optionally in the sector of a conserved diagonal operator, `purity` and `entanglement_entropy` read
-trajectories, and `hamiltonian_of` prints the Hamiltonian in operator notation.
+the space-time image of their local expectations to Rerun. The quantum formalism also holds its analyses: `spectrum`
+and `ground_state` diagonalise the Hamiltonian exactly, optionally in the sector of a conserved diagonal operator,
+`purity` and `entanglement_entropy` read trajectories, and `hamiltonian_of` prints the Hamiltonian in operator
+notation.
 
 ```python
-from skcomplex.engine.analysis import spectrum
+from skcomplex.formalisms.quantum import spectrum
 from skcomplex.models import create
 
 print(spectrum(create('quantum_heisenberg', n_sites=4), k=2).energies.round(6).tolist())

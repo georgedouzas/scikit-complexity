@@ -33,7 +33,7 @@ class ParticleComponent(ElementComponent):
     Examples:
         >>> from skcomplex.formalisms.particles import ParticleComponent
         >>> ParticleComponent('ball', x=[0, 1], m=2.0)
-        ParticleComponent(label='ball', m=2.0, x=[0, 1])
+        ParticleComponent(label='ball', m=2.0, v=0.0, x=[0, 1])
     """
 
     requires: ClassVar[Requires] = Requires(space={SpaceKind.CONTINUOUS})

@@ -36,8 +36,9 @@ class VoterComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import VoterComponent
-        >>> VoterComponent.group('voters', 20, opinion=1.0)
-        GroupComponent('voters', element=VoterComponent, size=20)
+        >>> group = VoterComponent.group('voters', 20, opinion=1.0)
+        >>> group.label, group.element.__name__, group.size
+        ('voters', 'VoterComponent', 20)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
@@ -128,8 +129,9 @@ class VariantVoterComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import VariantVoterComponent
-        >>> VariantVoterComponent.group('voters', 10, threshold=0.5)
-        GroupComponent('voters', element=VariantVoterComponent, size=10)
+        >>> group = VariantVoterComponent.group('voters', 10, threshold=0.5)
+        >>> group.label, group.element.__name__, group.size
+        ('voters', 'VariantVoterComponent', 10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})

@@ -31,8 +31,9 @@ class ResidentComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.segregation import ResidentComponent
-        >>> ResidentComponent.group('residents', 10, kind=1.0)
-        GroupComponent('residents', element=ResidentComponent, size=10)
+        >>> group = ResidentComponent.group('residents', 10, kind=1.0)
+        >>> group.label, group.element.__name__, group.size
+        ('residents', 'ResidentComponent', 10)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'kind', 'color_range': (0.0, 1.0)})

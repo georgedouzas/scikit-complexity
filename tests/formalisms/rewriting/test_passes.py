@@ -7,17 +7,8 @@ import numpy as np
 import pytest
 import shapely
 
-from skcomplex.core.base import (
-    BaseProblem,
-    Form,
-    IncompatibleLawsError,
-    LawKind,
-    RoleError,
-    ValidationError,
-    parameter,
-    symbol,
-)
-from skcomplex.core.problems import Problem
+from skcomplex.core.base import Form, IncompatibleLawsError, LawKind, RoleError, ValidationError, parameter, symbol
+from skcomplex.core.problems import BaseProblem, Problem
 from skcomplex.core.system import System
 from skcomplex.engine.analysis import box_counting_dimension
 from skcomplex.engine.compile import claiming_compiler, compile_system

@@ -202,9 +202,10 @@ def test_group_on_edges_outside_a_network_is_reported():
 
 
 def test_unknown_part_is_rejected():
-    """Test that a group on a part other than sites, edges, and hyperedges is rejected."""
+    """Test that checking a group on a part other than sites, edges, and hyperedges raises an error."""
+    group = GroupComponent('cells', element=StockComponent, on='faces', space=LatticeSpace(4))
     with pytest.raises(SpaceError, match='faces'):
-        GroupComponent('cells', element=StockComponent, on='faces', space=LatticeSpace(4))
+        group.check()
 
 
 PAULI = HilbertDomain(
@@ -318,10 +319,10 @@ class SoftSphereInteraction(PairPotentialInteraction):
         return s.k * (s.cutoff - r) ** 2 / 2
 
 
-def test_system_repr_counts_children():
-    """Test that a system shows its label and the number of each child kind."""
-    system = System('meadow', components=[PopulationComponent('rabbits')], space=ContinuousSpace(n_dim=2))
-    assert repr(system) == "System('meadow', components=1, interactions=0)"
+def test_system_prints_its_parameters():
+    """Test that a system prints the parameters it was given, through scikit-learn."""
+    system = System('meadow', components=[PopulationComponent('rabbits')])
+    assert repr(system) == "System(components=[PopulationComponent(label='rabbits', n=1.0)], label='meadow')"
 
 
 def test_periodic_box_wraps_member_with_same_velocity():

@@ -33,8 +33,9 @@ class WordComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.spreading import WordComponent
-        >>> WordComponent.group('words', 1, count=1.0)
-        GroupComponent('words', element=WordComponent, size=1)
+        >>> group = WordComponent.group('words', 1, count=1.0)
+        >>> group.label, group.element.__name__, group.size
+        ('words', 'WordComponent', 1)
     """
 
     count: float = state(default=1.0, domain=NumericDomain.NONNEGATIVE_INTEGER)

@@ -34,8 +34,9 @@ class ReducingBallComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import ReducingBallComponent
-        >>> ReducingBallComponent.group('balls', 3, n_states=10.0)
-        GroupComponent('balls', element=ReducingBallComponent, size=3)
+        >>> group = ReducingBallComponent.group('balls', 3, n_states=10.0)
+        >>> group.label, group.element.__name__, group.size
+        ('balls', 'ReducingBallComponent', 3)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'level'})
@@ -90,8 +91,9 @@ class FragmentComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import FragmentComponent
-        >>> FragmentComponent.group('fragments', 1, length=100.0)
-        GroupComponent('fragments', element=FragmentComponent, size=1)
+        >>> group = FragmentComponent.group('fragments', 1, length=100.0)
+        >>> group.label, group.element.__name__, group.size
+        ('fragments', 'FragmentComponent', 1)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('agents', {'color_by': 'length'})

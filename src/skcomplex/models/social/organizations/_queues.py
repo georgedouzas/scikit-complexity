@@ -36,8 +36,9 @@ class TaskComponent(ElementComponent):
 
     Examples:
         >>> from skcomplex.models.social.organizations import TaskComponent
-        >>> TaskComponent.group('tasks', 2, priority=[0.2, 0.7])
-        GroupComponent('tasks', element=TaskComponent, size=2)
+        >>> group = TaskComponent.group('tasks', 2, priority=[0.2, 0.7])
+        >>> group.label, group.element.__name__, group.size
+        ('tasks', 'TaskComponent', 2)
     """
 
     visual: ClassVar[VisualSpec] = VisualSpec('traits', {'color_by': 'age', 'shown': ('agents',)})
