@@ -148,11 +148,11 @@ class SiteVisual(BaseVisual):
             if isinstance(space, NetworkSpace):
                 self._log_graph(recording, path, space, values)
                 continue
-            lattice = space if isinstance(space, LatticeSpace) else LatticeSpace(values.size)
-            positions = lattice.positions
+            lattice = space if isinstance(space, LatticeSpace) else LatticeSpace(values.size).fit()
+            positions = lattice.positions_
             if positions.shape[1] == 1:
                 positions = np.column_stack([positions[:, 0], np.zeros(len(positions))])
-            radius = HEXAGON_RADIUS * min(lattice.spacings)
+            radius = HEXAGON_RADIUS * min(lattice.spacings_)
             recording.log(path, rr.Points2D(positions, colors=self._colors(values), radii=radius))
 
     def views(self, element: CompiledElement | CompiledAgents, problem: BaseProblem) -> list[rrb.View]:

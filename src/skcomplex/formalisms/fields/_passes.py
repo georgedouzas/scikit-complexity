@@ -151,8 +151,8 @@ def _mesh_constraints(blocks: list[Block]) -> tuple[npt.NDArray[np.intp], npt.ND
         if place.discretization != 'finite-element':
             error_msg = f'Field {block.node.path} lives on a mesh, which needs the finite-element discretization.'
             raise ValidationError(error_msg)
-        nodes = place.space.boundary_nodes()
-        coordinates = place.space.nodes[nodes]
+        nodes = place.space.boundary_nodes_
+        coordinates = place.space.positions_[nodes]
         for variable, entry in block.entries.items():
             if variable not in declarations_of(place.element, VariableKind.STATE):
                 continue
@@ -180,7 +180,7 @@ def _symmetries(blocks: list[Block]) -> list[tuple[npt.NDArray[np.intp], tuple[i
             raise ValidationError(error_msg)
         for variable, parities in place.symmetry.items():
             entry = block.entries.get(variable)
-            if entry is None or len(parities) != space.n_dim:
+            if entry is None or len(parities) != space.n_dim_:
                 error_msg = f'The symmetry of {block.node.path}.{variable} needs a state and one parity per axis.'
                 raise ValidationError(error_msg)
             signs = []
@@ -191,7 +191,7 @@ def _symmetries(blocks: list[Block]) -> list[tuple[npt.NDArray[np.intp], tuple[i
                 if parity is not None:
                     signs.append((axis, -1 if parity == 'odd' else 1))
             indices = entry.start + np.arange(place.size or 0) * entry.columns
-            found.append((indices, space.dimensions, signs))
+            found.append((indices, space.shape_, signs))
     return found
 
 

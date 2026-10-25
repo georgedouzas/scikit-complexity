@@ -29,53 +29,51 @@ class MeshSpace(BaseSpace):
         cells:
             The node indices of every triangle or tetrahedron, one column per cell.
 
+    Attributes:
+        mesh_:
+            The scikit-fem mesh of the nodes and cells, a `MeshTri` in 2D or a `MeshTet` in 3D.
+
+        boundary_nodes_:
+            The indices of the nodes on the boundary of the mesh.
+
     Examples:
         >>> from skcomplex.formalisms.fields import MeshSpace
-        >>> mesh = MeshSpace.rectangle(4, 3)
-        >>> mesh.size, mesh.n_dim
-        (20, 2)
+        >>> mesh = MeshSpace.rectangle(4, 3).fit()
+        >>> mesh.size_, mesh.n_dim_, mesh.positions_.shape
+        (20, 2, (20, 2))
+        >>> mesh.run(0).tolist()
+        [1, 4, 5]
     """
 
     space_kind: ClassVar[SpaceKind] = SpaceKind.MESH
+
+    size_: int
+    mesh_: Any
+    boundary_nodes_: npt.NDArray[np.intp]
 
     def __init__(self, points: npt.ArrayLike, cells: npt.ArrayLike) -> None:
         self.points = points
         self.cells = cells
 
-    @property
-    def nodes(self) -> npt.NDArray[np.float64]:
-        """Coordinates of the nodes, one row per node."""
-        return np.asarray(self.points, dtype=float).T
-
-    @property
-    def n_dim(self) -> int:  # type: ignore[override]
-        """Number of dimensions."""
-        return int(np.shape(self.points)[0])
-
-    @property
-    def size(self) -> int:
-        """Number of nodes."""
-        return int(np.shape(self.points)[1])
-
-    def skfem_mesh(self) -> Any:  # noqa: ANN401
-        """Return the scikit-fem mesh of the nodes and cells.
-
-        Returns:
-            mesh:
-                A `MeshTri` in 2D or a `MeshTet` in 3D.
-        """
+    def _fit(self) -> None:
+        """Set the nodes, the scikit-fem mesh, and the boundary nodes."""
+        points = np.asarray(self.points, dtype=float)
         skfem = _skfem()
-        kind = skfem.MeshTri if self.n_dim == 2 else skfem.MeshTet  # noqa: PLR2004
-        return kind(np.asarray(self.points, dtype=float), np.asarray(self.cells, dtype=np.int64))
+        kind = skfem.MeshTri if points.shape[0] == 2 else skfem.MeshTet  # noqa: PLR2004
+        self.mesh_ = kind(points, np.asarray(self.cells, dtype=np.int64))
+        self.boundary_nodes_ = np.asarray(self.mesh_.boundary_nodes(), dtype=np.intp)
+        self.n_dim_ = int(points.shape[0])
+        self.size_ = int(points.shape[1])
+        self.shape_ = (self.size_,)
+        self.positions_ = points.T
+        self.periodic_ = False
+        self.default_visual_ = None
 
-    def boundary_nodes(self) -> npt.NDArray[np.intp]:
-        """Return the indices of the nodes on the boundary of the mesh.
-
-        Returns:
-            nodes:
-                The boundary node indices.
-        """
-        return np.asarray(self.skfem_mesh().boundary_nodes(), dtype=np.intp)
+    def _run(self, site: int, neighborhood: Any = None) -> npt.NDArray[np.intp]:  # noqa: ANN401
+        """Return the nodes that share a cell with a node, in increasing order."""
+        cells = np.asarray(self.cells, dtype=np.intp)
+        around = np.unique(cells[:, (cells == site).any(axis=0)])
+        return around[around != site]
 
     @classmethod
     def _of(cls, mesh: Any) -> 'MeshSpace':  # noqa: ANN401

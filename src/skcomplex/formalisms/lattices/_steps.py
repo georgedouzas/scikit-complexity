@@ -16,15 +16,15 @@ import numpy.typing as npt
 import scipy.sparse
 from sage.all__sagemath_symbolics import SR
 
-from ...core.base import Expression, SolverError, ValidationError, symbol
+from ...core.base import BaseSpace, Expression, SolverError, ValidationError, symbol
 from ...core.laws import OuterTotalistic, Table, Totalistic, neighborhoods_in
 from ...core.problems import numpy_function
-from ...core.space import Adjacency, LatticeSpace, Memory, Neighborhood, NetworkSpace, SiteSpace
+from ...core.space import Adjacency, LatticeSpace, Memory, Neighborhood, NetworkSpace
 from ._laws import DriveLaw, Energy, ExtremalLaw, LocalRuleLaw, MoveLaw, RelaxationLaw, SamplerLaw
 
 type Vector = npt.NDArray[np.float64]
 type Indices = npt.NDArray[np.intp]
-type Sites = SiteSpace | NetworkSpace
+type Sites = BaseSpace
 
 LOOKUP_KINDS = {'table': 0, 'totalistic': 1, 'outer': 2}
 COLORING_STRATEGY = 'largest_first'
@@ -33,15 +33,13 @@ type LatticeStep = CompiledRule | CompiledDrive | CompiledRelaxation | CompiledM
 
 def _shape_of(space: Sites) -> tuple[int, ...]:
     """Return the lattice shape of a lattice, or the number of nodes of a network as a one-dimensional shape."""
-    if isinstance(space, NetworkSpace):
-        return (space.graph.number_of_nodes(),)
-    return space.dimensions
+    return space.shape_
 
 
 def _index_table(space: Sites, neighborhood: Neighborhood | Adjacency | Memory, owner: str) -> Indices:
     """Return the neighbour table of a lattice or a network, or raise an error naming the law that reads it."""
     try:
-        return space.index_table(neighborhood)  # type: ignore[arg-type]
+        return space._index_table(neighborhood)
     except (ValueError, ValidationError) as error:
         error_msg = f'{owner}: {error}'
         raise ValidationError(error_msg) from error
@@ -91,7 +89,7 @@ def _accepted(function: Callable[..., Any], names: Sequence[str]) -> tuple[str, 
 @functools.cache
 def _sublattices(space: LatticeSpace) -> tuple[Indices, Indices]:
     """Return the sites of even and of odd coordinate sum."""
-    colors = np.indices(space.dimensions).reshape(space.n_dim, -1).sum(axis=0) % 2
+    colors = np.indices(space.shape_).reshape(space.n_dim_, -1).sum(axis=0) % 2
     return np.flatnonzero(colors == 0), np.flatnonzero(colors == 1)
 
 
@@ -104,7 +102,7 @@ def _check_checkerboard(space: Sites, neighborhood: Neighborhood | Adjacency | M
         )
         raise ValidationError(error_msg)
     odd = all(sum(offset) % 2 for offset in neighborhood.offsets)
-    even = space.boundary != 'periodic' or all(size % 2 == 0 for size in space.dimensions)
+    even = space.boundary != 'periodic' or all(size % 2 == 0 for size in space.shape_)
     if not (odd and even):
         error_msg = (
             f'{owner} uses a checkerboard schedule, which needs neighbours on the other sublattice and even sizes on '

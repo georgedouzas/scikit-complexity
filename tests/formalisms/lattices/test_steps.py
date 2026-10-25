@@ -76,11 +76,11 @@ class Recording:
 
 def test_triangular_neighbours_wrap_on_torus_at_unit_distance():
     """Test that the six triangular neighbours of the corner of a periodic 10 x 10 lattice lie at distance 1."""
-    space = LatticeSpace((10, 10), geometry='triangular')
-    neighbours = space.neighbors((0, 0), Neighborhood.triangular())
+    space = LatticeSpace((10, 10), geometry='triangular').fit()
+    neighbours = [tuple(np.unravel_index(site, space.shape_)) for site in space.run(0, Neighborhood.triangular())]
     assert len(set(neighbours)) == 6
     assert {(0, 9), (9, 0), (9, 1)} <= set(neighbours)
-    positions = space.positions.reshape(10, 10, 2)
+    positions = space.positions_.reshape(10, 10, 2)
     rows, columns = np.array([5.0, 10 * np.sqrt(3) / 2]), np.array([10.0, 0.0])
     images = [i * rows + j * columns for i, j in itertools.product((-1, 0, 1), repeat=2)]
     for cell in neighbours:
@@ -90,16 +90,16 @@ def test_triangular_neighbours_wrap_on_torus_at_unit_distance():
 
 def test_triangular_opposite_directions_return_to_start():
     """Test that a step in direction k and a step in direction k + 3 return to the starting site."""
-    space = LatticeSpace((7, 9), geometry='triangular')
-    offsets = Neighborhood.triangular().offsets
-    for cell in itertools.product(range(7), range(9)):
+    space = LatticeSpace((7, 9), geometry='triangular').fit()
+    table = space._index_table(Neighborhood.triangular())
+    for site in range(space.size_):
         for k in range(6):
-            assert space.neighbor(space.neighbor(cell, offsets[k]), offsets[(k + 3) % 6]) == cell
+            assert table[table[site, k], (k + 3) % 6] == site
 
 
 def test_triangular_geometry_needs_two_dimensions():
     """Test that a triangular lattice of another dimension is rejected."""
-    with pytest.raises(ValueError, match='two dimensions'):
+    with pytest.raises(ValidationError, match='two dimensions'):
         LatticeSpace((5, 5, 5), geometry='triangular').check()
 
 
@@ -117,18 +117,19 @@ def test_triangular_rule_spreads_as_hexagons(backend):
 
 def test_network_index_table_pads_with_size():
     """Test that the adjacency table of a star graph pads the leaves with the number of nodes."""
-    table = NetworkSpace(nx.star_graph(3)).index_table(Adjacency(center=True))
+    space = NetworkSpace(nx.star_graph(3)).fit()
+    table = space._index_table(Adjacency(center=True))
     assert table.tolist() == [[0, 1, 2, 3], [1, 0, 4, 4], [2, 0, 4, 4], [3, 0, 4, 4]]
     with pytest.raises(ValidationError, match='Adjacency'):
-        NetworkSpace(nx.star_graph(3)).index_table(Neighborhood.moore())
+        space.run(0, Neighborhood.moore())
 
 
 def test_grid_graph_matches_square_lattice():
     """Test that a glider gives the same configurations on a periodic lattice and on its Moore graph for 40 steps."""
-    lattice = LatticeSpace((20, 20))
-    table = lattice.index_table(Neighborhood.moore())
+    lattice = LatticeSpace((20, 20)).fit()
+    table = lattice._index_table(Neighborhood.moore())
     graph = nx.Graph()
-    graph.add_nodes_from(range(lattice.size))
+    graph.add_nodes_from(range(lattice.size_))
     graph.add_edges_from((site, int(other)) for site, row in enumerate(table) for other in row)
     glider = np.zeros((20, 20))
     glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
@@ -327,7 +328,7 @@ def test_triangular_forest_fire_streams_hexagonal_cells(tmp_path):
     assert path == 'forest/cover'
     assert type(points).__name__ == 'Points2D'
     positions = np.asarray(points.positions.as_arrow_array().to_numpy(zero_copy_only=False).tolist())
-    assert np.allclose(positions, LatticeSpace((12, 10), geometry='triangular').positions)
+    assert np.allclose(positions, LatticeSpace((12, 10), geometry='triangular').fit().positions_)
     assert len(points.colors.as_arrow_array()) == 120
     observer = RerunObserver('forest', save_path=tmp_path / 'forest.rrd')
     Simulation(hexagonal_forest_fire((12, 10)), dt=1, observers=[observer]).run(until=3)

@@ -221,7 +221,7 @@ def test_points_visual_draws_two_dimensions_with_vertical_axis_up():
 def test_agents_visual_widens_color_range_of_equal_start():
     """Test that agents that all start with one value get different colors once their values spread."""
     visual, logs = AgentsVisual(color_by='rank'), Logs()
-    space = ContinuousSpace(10.0, 10.0)
+    space = ContinuousSpace(10.0, 10.0).fit()
     first = AgentSnapshot(np.arange(3), {'rank': np.zeros(3)}, np.zeros((3, 2)))
     later = AgentSnapshot(np.arange(3), {'rank': np.array([0.0, 1.0, 2.0])}, np.zeros((3, 2)))
     visual.log_agents(logs, 'animals', first, space)
@@ -272,7 +272,7 @@ def test_scalars_visual_logs_chosen_components():
 
 def test_agents_visual_draws_continuous_spaces_with_vertical_axis_up():
     """Test that agents in a continuous space are logged with y negated and the view covers the whole space."""
-    space = ContinuousSpace(10.0, 20.0)
+    space = ContinuousSpace(10.0, 20.0).fit()
     snapshot = AgentSnapshot(np.arange(1), {'rank': np.zeros(1)}, np.array([[3.0, 4.0]]))
     logs = Logs()
     AgentsVisual().log_agents(logs, 'birds', snapshot, space)

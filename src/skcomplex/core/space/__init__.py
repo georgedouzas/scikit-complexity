@@ -3,7 +3,7 @@
 from ._lattices import LatticeSpace, Neighborhood
 from ._neighbours import Cone, Memory, Nearest, Radius, neighbor_pairs
 from ._networks import Adjacency, Layer, NetworkSpace, part_count
-from ._spaces import ContinuousSpace, SiteSpace
+from ._spaces import ContinuousSpace
 from ._time import ContinuousTime, DiscreteTime, Schedule, StaticTime
 
 __all__: list[str] = [
@@ -20,7 +20,6 @@ __all__: list[str] = [
     'NetworkSpace',
     'Radius',
     'Schedule',
-    'SiteSpace',
     'StaticTime',
     'neighbor_pairs',
     'part_count',

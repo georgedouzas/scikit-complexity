@@ -352,7 +352,7 @@ def ring_road_drivers(
 
     Examples:
         >>> from skcomplex.models.engineering.traffic import ring_road_drivers
-        >>> ring_road_drivers(10).space.width
+        >>> ring_road_drivers(10).space.fit().extent_[0]
         1000.0
     """
     positions = np.linspace(0.0, length, n_cars, endpoint=False)

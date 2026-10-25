@@ -97,7 +97,7 @@ class AgentsVisual(BaseVisual):
         if space is None or isinstance(space, LatticeSpace | NetworkSpace):
             return GRID_RADIUS
         if isinstance(space, ContinuousSpace):
-            return _radius_of(float(max(space.width, space.height)), len(positions))
+            return _radius_of(float(max(space.extent_[:2])), len(positions))
         extent = float(np.ptp(positions, axis=0).max()) if len(positions) else 0.0
         return _radius_of(extent, len(positions))
 
@@ -222,10 +222,11 @@ class AgentsVisual(BaseVisual):
             return [rrb.GraphView(origin=element.path, name=element.path, visual_bounds=bounds)]
         space = getattr(problem, 'agent_space', None)
         if isinstance(space, ContinuousSpace):
-            margin = VIEW_MARGIN * max(space.width, space.height)
+            width, height = space.extent_[:2]
+            margin = VIEW_MARGIN * max(width, height)
             bounds = rrb.VisualBounds2D(
-                x_range=(-margin, space.width + margin),
-                y_range=(-space.height - margin, margin),
+                x_range=(-margin, width + margin),
+                y_range=(-height - margin, margin),
             )
             return [rrb.Spatial2DView(origin=element.path, name=element.path, visual_bounds=bounds)]
         return [rrb.Spatial2DView(origin=element.path, name=element.path)]

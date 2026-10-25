@@ -668,7 +668,10 @@ def neighbors(
         if not isinstance(over, Neighborhood | Memory):
             error_msg = f"The reduction 'each' reads the offsets of a Neighborhood or a Memory, not {over!r}."
             raise ValidationError(error_msg)
-        return vector(neighbor(expression, SR(index)) for index in range(len(over)))
+        return vector(
+            neighbor(expression, SR(index))
+            for index in range(len(over.offsets if isinstance(over, Neighborhood) else over.elements))
+        )
     if kind not in NEIGHBOR_REDUCTIONS:
         error_msg = f'Unknown neighbourhood reduction {kind!r}. Use one of {", ".join((*NEIGHBOR_REDUCTIONS, "each"))}.'
         raise ValidationError(error_msg)

@@ -6,15 +6,15 @@
 import itertools
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import GF, QQ, LaurentPolynomialRing, matrix
 
-from ...core.base import AnalysisError
+from ...core.base import AnalysisError, BaseSpace
 from ...core.laws import OuterTotalistic, Table, Totalistic
-from ...core.space import LatticeSpace, Memory, Neighborhood, SiteSpace
+from ...core.space import LatticeSpace, Memory, Neighborhood
 from ._information import entropy_rate
 from ._kinds import DataKind, analysis
 from ._lazy import module
@@ -28,7 +28,29 @@ IDENTITY = '1'
 type Codes = npt.NDArray[np.int64]
 type Indices = npt.NDArray[np.intp]
 type Reach = Neighborhood | Memory
-type Sites = SiteSpace
+type Sites = BaseSpace
+
+
+def _fitted(space: Sites) -> Sites:
+    """Return a space of sites, fitting it on its first use."""
+    if not hasattr(space, 'size_'):
+        space.fit()
+    return space
+
+
+def _table(space: Sites, reach: Reach) -> Indices:
+    """Return the site of every neighbour of every site of a space, with the number of sites outside the space."""
+    return _fitted(space)._index_table(reach)
+
+
+def _count(reach: Reach) -> int:
+    """Return the number of cells a neighbourhood of offsets or a memory set reads."""
+    return len(reach.offsets if isinstance(reach, Neighborhood) else reach.elements)
+
+
+def _size(space: Sites) -> int:
+    """Return the number of sites of a space."""
+    return int(_fitted(space).size_ or 0)
 
 
 def _rule_table(rule: object) -> object:
@@ -183,7 +205,7 @@ class Automaton:
     @property
     def size(self) -> int:
         """Number of sites."""
-        return int(self.space.size)
+        return _size(self.space)
 
     def table(self) -> Indices:
         """Return the site of every cell the rule reads at every site, with the number of sites outside the space.
@@ -192,7 +214,7 @@ class Automaton:
             table:
                 One row per site and one column per cell of `reads`.
         """
-        return self.space.index_table(self.reads)
+        return _table(self.space, self.reads)
 
     def local_map(self) -> Codes:
         """Return the next value of every pattern of the cells the rule reads, indexed by the code of the pattern.
@@ -205,7 +227,7 @@ class Automaton:
             AnalysisError:
                 The rule returns a value outside `0` to `states - 1`.
         """
-        patterns = _patterns(self.states, len(self.reads))
+        patterns = _patterns(self.states, _count(self.reads))
         values = np.asarray(_evaluate(_rule_table(self.rule), patterns), dtype=float)
         if values.size and (values.min() < 0 or values.max() >= self.states or not np.all(values == np.rint(values))):
             error_msg = f'The rule returns values outside the integers 0 to {self.states - 1}.'
@@ -332,7 +354,7 @@ def _ball_neighborhood(automaton: Automaton, radius: int) -> Reach:
     if isinstance(automaton.space, LatticeSpace) and not isinstance(automaton.neighborhood, Neighborhood):
         error_msg = 'An inverse is searched on a lattice with a neighbourhood of offsets or on a group space.'
         raise AnalysisError(error_msg)
-    return automaton.space.compute_ball(radius)
+    return cast('Reach', _fitted(automaton.space)._ball(radius))
 
 
 def _field_of(field: str) -> Any:  # noqa: ANN401
@@ -539,7 +561,7 @@ def inverse(automaton: Automaton, max_radius: int = 2) -> Automaton | None:
         pairs = np.unique(np.column_stack([patterns, values]), axis=0)
         if np.unique(pairs[:, 0]).size != pairs.shape[0]:
             continue
-        rows = _patterns(automaton.states, len(candidate.reads))
+        rows = _patterns(automaton.states, _count(candidate.reads))
         mapping = {tuple(int(item) for item in rows[code]): int(value) for code, value in pairs}
         return Automaton(automaton.space, candidate.reads, Table(mapping, states=automaton.states), automaton.states)
     return None
@@ -706,14 +728,14 @@ class Subshift:
         """Return the codes of the forbidden patterns."""
         patterns = np.asarray([tuple(pattern) for pattern in self.forbidden], dtype=np.int64).reshape(
             -1,
-            len(self.neighborhood),
+            _count(self.neighborhood),
         )
         return _codes(patterns, self.states)
 
     def _complete(self, space: Sites) -> tuple[Indices, npt.NDArray[np.bool_]]:
         """Return the neighbour table of a space and the sites whose patterns lie inside it."""
-        table = space.index_table(self.neighborhood)
-        return table, (table < space.size).all(axis=1)
+        table = _table(space, self.neighborhood)
+        return table, (table < _size(space)).all(axis=1)
 
     def violations(self, configuration: npt.ArrayLike, space: Sites) -> npt.NDArray[np.bool_]:
         """Return the sites at which a forbidden pattern appears.
@@ -766,7 +788,7 @@ class Subshift:
         """
         table, complete = self._complete(space)
         forbidden = {tuple(int(item) for item in pattern) for pattern in self.forbidden}
-        checks: list[list[int]] = [[] for _ in range(space.size)]
+        checks: list[list[int]] = [[] for _ in range(_size(space))]
         for site in np.flatnonzero(complete):
             checks[int(table[site].max())].append(int(site))
         needed = [
@@ -775,14 +797,14 @@ class Subshift:
                     {int(cell) for later in checks[site:] for anchor in later for cell in table[anchor] if cell < site},
                 ),
             )
-            for site in range(space.size + 1)
+            for site in range(_size(space) + 1)
         ]
-        values = [0] * space.size
+        values = [0] * _size(space)
         memo: dict[tuple[int, tuple[int, ...]], int] = {}
 
         def extend(site: int) -> int:
             """Return the number of admissible completions of the values before a site."""
-            if site == space.size:
+            if site == _size(space):
                 return 1
             key = (site, tuple(values[cell] for cell in needed[site]))
             if key not in memo:
@@ -828,18 +850,20 @@ class Subshift:
                 The initial configuration is not admissible.
         """
         rng = np.random.default_rng(random_state)
-        values = np.zeros(space.size, dtype=np.int64) if initial is None else np.asarray(initial, dtype=np.int64).copy()
+        values = (
+            np.zeros(_size(space), dtype=np.int64) if initial is None else np.asarray(initial, dtype=np.int64).copy()
+        )
         if not self.is_admissible(values, space):
             error_msg = 'The initial configuration holds a forbidden pattern. Give an admissible one.'
             raise AnalysisError(error_msg)
         table, complete = self._complete(space)
-        touching: list[list[int]] = [[] for _ in range(space.size)]
+        touching: list[list[int]] = [[] for _ in range(_size(space))]
         for anchor in np.flatnonzero(complete):
             for cell in set(table[anchor].tolist()):
                 touching[cell].append(int(anchor))
         forbidden = {tuple(int(item) for item in pattern) for pattern in self.forbidden}
         for _ in range(sweeps):
-            for site in rng.permutation(space.size):
+            for site in rng.permutation(_size(space)):
                 previous = values[site]
                 values[site] = rng.integers(self.states)
                 if any(tuple(values[table[anchor]].tolist()) in forbidden for anchor in touching[site]):
@@ -882,11 +906,11 @@ def configuration_entropy(
     entropies = []
     for window in windows:
         if isinstance(subject, Subshift):
-            entropies.append(np.log(subject.count(window)) / window.size)
+            entropies.append(np.log(subject.count(window)) / _size(window))
             continue
         automaton = Automaton(window, subject.neighborhood, subject.rule, subject.states)
-        interior = np.flatnonzero((automaton.table() < window.size).all(axis=1))
-        images = automaton.step(_configurations(automaton.states, window.size))[:, interior]
+        interior = np.flatnonzero((automaton.table() < _size(window)).all(axis=1))
+        images = automaton.step(_configurations(automaton.states, _size(window)))[:, interior]
         count = np.unique(_codes(images, automaton.states)).size
         entropies.append(np.log(count) / max(interior.size, 1))
     return np.asarray(entropies) / np.log(base)
@@ -956,7 +980,7 @@ class LinearAutomaton:
             image:
                 The next values, reduced modulo the field size over a prime field.
         """
-        table = self.space.index_table(self.neighborhood)
+        table = _table(self.space, self.neighborhood)
         values = np.append(np.asarray(configuration), getattr(self.space, 'fill', 0))
         image = values[table] @ np.asarray(self.coefficients)
         characteristic = int(_field_of(self.field).characteristic())
@@ -973,12 +997,12 @@ class LinearAutomaton:
             AnalysisError:
                 A site reads a cell outside the space.
         """
-        table = self.space.index_table(self.neighborhood)
-        if (table >= self.space.size).any():
+        table = _table(self.space, self.neighborhood)
+        if (table >= _size(self.space)).any():
             error_msg = 'A linear automaton has a matrix on a periodic lattice or a finite group, not on a ball.'
             raise AnalysisError(error_msg)
         field = _field_of(self.field)
-        entries = matrix(field, self.space.size, self.space.size)
+        entries = matrix(field, _size(self.space), _size(self.space))
         for site, row in enumerate(table.tolist()):
             for neighbour, coefficient in zip(row, self.coefficients, strict=True):
                 entries[site, neighbour] += field(QQ(coefficient))

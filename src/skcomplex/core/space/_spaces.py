@@ -1,94 +1,15 @@
-"""Define the spaces that vector states live in."""
+"""Define the continuous space that position states live in."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 import numpy.typing as npt
 
 from ..base import BaseSpace, SpaceKind, ValidationError
-
-
-class SiteSpace[Reach](BaseSpace, ABC):
-    """Base class of spaces of numbered sites, where every site reads its neighbours through a neighbour table.
-
-    The type parameter is the neighbourhood the space reads, such as offsets on a lattice. A site outside the space
-    reads the value `fill`.
-    """
-
-    fill: float
-
-    @property
-    @abstractmethod
-    def size(self) -> int:
-        """Number of sites."""
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def dimensions(self) -> tuple[int, ...]:
-        """Shape of the arrays of cells."""
-        raise NotImplementedError
-
-    @property
-    def default_visual(self) -> str:
-        """Name of the visual of groups on the space when neither the group nor its element type declares one."""
-        return 'sites'
-
-    @abstractmethod
-    def index_table(self, neighborhood: Reach) -> npt.NDArray[np.intp]:
-        """Return the site of every neighbour of every site, with `size` for neighbours outside the space.
-
-        Args:
-            neighborhood:
-                The neighbourhood.
-
-        Returns:
-            table:
-                One row per site and one column per neighbour.
-
-        Raises:
-            NotImplementedError:
-                The subclass does not implement the method.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def compute_ball(self, radius: int) -> Reach:
-        """Return the neighbourhood of every site within a radius, the site itself included.
-
-        Args:
-            radius:
-                The radius.
-
-        Returns:
-            neighborhood:
-                The neighbourhood.
-
-        Raises:
-            NotImplementedError:
-                The subclass does not implement the method.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def list_neighbor_pairs(self) -> list[tuple[int, int]]:
-        """Return the pairs of distinct neighbouring sites, each pair once.
-
-        Returns:
-            pairs:
-                The sites of every pair of neighbours.
-
-        Raises:
-            NotImplementedError:
-                The subclass does not implement the method.
-        """
-        raise NotImplementedError
-
 
 BOUNDARIES = ('open', 'periodic', 'reflecting')
 
@@ -100,7 +21,8 @@ class ContinuousSpace(BaseSpace):
     components on it: `'open'` leaves positions alone, `'periodic'` joins opposite sides and measures pair distances by
     the minimum image, and `'reflecting'` mirrors positions back into the box and reverses the velocity across the wall.
     Without an extent the space is unbounded and has `n_dim` dimensions. Agents on a two-dimensional box move in it and
-    find neighbours within a radius.
+    find neighbours within a radius. The positions are states of the members, so the space has no sites, and a site
+    has no neighbours in it.
 
     Args:
         *sides:
@@ -115,20 +37,21 @@ class ContinuousSpace(BaseSpace):
         boundary:
             `'open'`, `'periodic'`, or `'reflecting'`.
 
-    Raises:
-        ValidationError:
-            The boundary is unknown, the space has neither an extent nor a dimension, a side is not positive, or an
-            unbounded space has a boundary other than open.
+    Attributes:
+        extent_:
+            The side of the box along every dimension, or `()` for an unbounded space.
 
     Examples:
         >>> from skcomplex.core.space import ContinuousSpace
-        >>> ContinuousSpace(10.0, 5.0, boundary='periodic').height
-        5.0
-        >>> ContinuousSpace(n_dim=3).n_dim
+        >>> ContinuousSpace(10.0, 5.0, boundary='periodic').fit().extent_
+        (10.0, 5.0)
+        >>> ContinuousSpace(n_dim=3).fit().n_dim_
         3
     """
 
     space_kind: ClassVar[SpaceKind] = SpaceKind.CONTINUOUS
+
+    extent_: tuple[float, ...]
 
     def __init__(
         self,
@@ -137,44 +60,57 @@ class ContinuousSpace(BaseSpace):
         n_dim: int | None = None,
         boundary: str = 'open',
     ) -> None:
-        given = tuple(float(side) for side in (sides or extent))
-        self.extent = extent if not sides and isinstance(extent, tuple) and extent == given else given
-        self.n_dim = n_dim if n_dim is not None else len(self.extent)
+        self.sides = sides
+        self.extent = extent
+        self.n_dim = n_dim
         self.boundary = boundary
-        if boundary not in BOUNDARIES:
-            error_msg = f'Unknown boundary {boundary!r}. Use one of {", ".join(BOUNDARIES)}.'
+
+    def get_params(self, deep: bool = True) -> dict[str, Any]:
+        """Return the extent, the dimension, and the boundary, so the space clones.
+
+        Args:
+            deep:
+                Unused, since the arguments hold no estimators.
+
+        Returns:
+            params:
+                The sides given as one extent, the dimension, and the boundary.
+        """
+        return {'extent': tuple(self.sides or self.extent), 'n_dim': self.n_dim, 'boundary': self.boundary}
+
+    def _check(self) -> None:
+        """Raise an error for an unknown boundary, a missing dimension, a side that is not positive, or walls in `R^d`.
+
+        Raises:
+            ValidationError:
+                The boundary is unknown, the space has neither an extent nor a dimension, a side is not positive, or an
+                unbounded space has a boundary other than open.
+        """
+        extent = tuple(self.sides or self.extent)
+        n_dim = self.n_dim if self.n_dim is not None else len(extent)
+        if self.boundary not in BOUNDARIES:
+            error_msg = f'Unknown boundary {self.boundary!r}. Use one of {", ".join(BOUNDARIES)}.'
             raise ValidationError(error_msg)
-        if not self.n_dim:
+        if not n_dim:
             error_msg = 'A continuous space needs the sides of its box or a number of dimensions.'
             raise ValidationError(error_msg)
-        if self.extent and (len(self.extent) != self.n_dim or min(self.extent) <= 0):
-            error_msg = f'The box {self.extent} needs one positive side for each of its {self.n_dim} dimensions.'
+        if extent and (len(extent) != n_dim or min(extent) <= 0):
+            error_msg = f'The box {extent} needs one positive side for each of its {n_dim} dimensions.'
             raise ValidationError(error_msg)
-        if not self.extent and boundary != 'open':
-            error_msg = f'An unbounded space has no walls for its boundary {boundary!r}. Give the sides of a box.'
+        if not extent and self.boundary != 'open':
+            error_msg = f'An unbounded space has no walls for its boundary {self.boundary!r}. Give the sides of a box.'
             raise ValidationError(error_msg)
 
-    @property
-    def width(self) -> float:
-        """Return the side of the box along the first dimension."""
-        return self.extent[0]
+    def _fit(self) -> None:
+        """Set the extent of the box, its dimension, and its boundary, with no sites."""
+        self.extent_ = tuple(float(side) for side in (self.sides or self.extent))
+        self.n_dim_ = int(self.n_dim) if self.n_dim is not None else len(self.extent_)
+        self.size_ = None
+        self.shape_ = ()
+        self.positions_ = np.zeros((0, self.n_dim_))
+        self.periodic_ = self.boundary == 'periodic'
+        self.default_visual_ = None
 
-    @property
-    def height(self) -> float:
-        """Return the side of the box along the second dimension."""
-        return self.extent[1]
-
-    @property
-    def torus(self) -> bool:
-        """Check whether opposite sides of the box are joined."""
-        return self.boundary == 'periodic'
-
-    def get_params(self, deep: bool = True) -> dict[str, object]:
-        """Return the extent, the dimension, and the boundary, so the space clones."""
-        return {'extent': self.extent, 'n_dim': self.n_dim, 'boundary': self.boundary}
-
-    def __repr__(self, N_CHAR_MAX: int = 700) -> str:
-        """Return the extent or the dimension, and the boundary."""
-        sides = ', '.join(map(repr, self.extent)) if self.extent else f'n_dim={self.n_dim}'
-        boundary = '' if self.boundary == 'open' else f', boundary={self.boundary!r}'
-        return f'ContinuousSpace({sides}{boundary})'
+    def _run(self, site: int, neighborhood: Any = None) -> npt.NDArray[np.intp]:  # noqa: ANN401
+        """Return no neighbours, since the space has no sites."""
+        return np.zeros(0, dtype=np.intp)

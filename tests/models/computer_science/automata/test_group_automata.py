@@ -27,9 +27,9 @@ def _run(system, until):
 
 def _majority_holds(space, memory, before, after):
     """Check that every interior cell takes the majority value of its memory set."""
-    table = space.index_table(memory)
-    interior = (table < space.size).all(axis=1)
-    expected = before[table[interior]].sum(axis=1) > len(memory) / 2
+    table = space._index_table(memory)
+    interior = (table < space.size_).all(axis=1)
+    expected = before[table[interior]].sum(axis=1) > len(memory.elements) / 2
     return bool(np.array_equal(after[interior], expected))
 
 
@@ -38,8 +38,8 @@ def test_grigorchuk_automaton_runs_the_majority_rule():
     simulation = _run(create('grigorchuk_automaton'), 1)
     space = simulation.system.elements[0].space
     alive = simulation.trajectory_['cells.alive']
-    assert space.size == 271
-    assert space.ball_sizes() == GRIGORCHUK_BALLS
+    assert space.size_ == 271
+    assert space.ball_sizes_ == GRIGORCHUK_BALLS
     assert _majority_holds(space, Memory(('1', 'a', 'b', 'c', 'd')), alive[0], alive[1])
     assert (
         next(entry for entry in catalog() if entry.name == 'grigorchuk_automaton').field == 'computer_science/automata'
@@ -68,7 +68,7 @@ def test_grigorchuk_automaton_in_the_viewer():
     nodes = [archetype for static, archetype in logged if not static]
     positions = np.asarray(nodes[0].positions.as_arrow_array().to_pylist())
     assert positions.shape == (271, 2)
-    np.testing.assert_allclose(np.linalg.norm(positions, axis=1) / 40.0, space.lengths)
+    np.testing.assert_allclose(np.linalg.norm(positions, axis=1) / 40.0, space.lengths_)
     first, last = (np.asarray(node.colors.as_arrow_array().to_pylist()) for node in nodes)
     assert not np.array_equal(first, last)
     assert sum(static for static, _ in logged) == 1
@@ -79,7 +79,7 @@ def test_free_group_automaton_runs_the_majority_rule():
     simulation = _run(free_group_automaton(radius=6), 1)
     space = simulation.system.elements[0].space
     alive = simulation.trajectory_['cells.alive']
-    assert space.size == 1457
+    assert space.size_ == 1457
     assert _majority_holds(space, Memory(('1', 'a', 'a^-1', 'b', 'b^-1')), alive[0], alive[1])
 
 
@@ -89,7 +89,7 @@ def test_majority_automata_on_balls(factory, size):
     simulation = _run(factory(radius=2), 1)
     space = simulation.system.elements[0].space
     alive = simulation.trajectory_['cells.alive']
-    assert space.size == size
+    assert space.size_ == size
     assert _majority_holds(space, Memory.generators(space.group), alive[0], alive[1])
 
 
@@ -97,10 +97,10 @@ def test_lamplighter_automaton_is_linear():
     """Test that the parity automaton on the lamplighter ball maps a sum of configurations to the sum of images."""
     system = lamplighter_automaton(radius=5)
     space = system.elements[0].space
-    table = space.index_table(Memory(('1', 'a', 'b')))
-    interior = (table < space.size).all(axis=1)
+    table = space._index_table(Memory(('1', 'a', 'b')))
+    interior = (table < space.size_).all(axis=1)
     rng = np.random.default_rng(0)
-    first, second = rng.integers(2, size=(2, space.size))
+    first, second = rng.integers(2, size=(2, space.size_))
     images = [np.append(cells, 0)[table].sum(axis=1) % 2 for cells in (first, second, (first + second) % 2)]
     np.testing.assert_array_equal(((images[0] + images[1]) % 2)[interior], images[2][interior])
     alive = _run(system, 1).trajectory_['cells.alive']

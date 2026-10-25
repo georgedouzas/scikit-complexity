@@ -20,6 +20,7 @@ from ...core.base import (
     NumericDomain,
     Registry,
     RoleError,
+    SpaceKind,
     SymbolicVector,
     ValidationError,
     VariableKind,
@@ -33,7 +34,7 @@ from ...core.laws import JumpLaw, Symbols, has_reductions, neighborhoods_in, red
 from ...core.problems import EdgeSearch, Reference, Source
 from ...core.problems._kernels import Search
 from ...core.problems._problem import real_components_of
-from ...core.space import NetworkSpace, SiteSpace, neighbor_pairs
+from ...core.space import NetworkSpace, neighbor_pairs
 from ._declarations import ACTIVE, ENDS, Block, Declarations, is_interaction
 from ._tree import Node
 
@@ -346,12 +347,18 @@ def _edge_search(
     if changing is not None:
         return _changing_search(node, nodes, edges, changing)
     if isinstance(space, NetworkSpace):
-        sources, targets = space.list_edges(layer)
-        size = space.size
-    elif isinstance(space, SiteSpace) and edges is None and layer is None:
-        pairs = np.array(neighbor_pairs(space, space.size), dtype=np.intp).reshape(-1, 2)
+        if layer not in space.edges_:
+            known = ', '.join(repr(label) for label in space.edges_)
+            error_msg = (
+                f'Interaction {node.path} runs on the layer {layer!r}, but the layers of its network are {known}.'
+            )
+            raise RoleError(error_msg)
+        sources, targets = space.edges_[layer]
+        size = space.size_
+    elif space is not None and space.space_kind == SpaceKind.LATTICE and edges is None and layer is None:
+        size = int(space.size_ or 0)
+        pairs = np.array(neighbor_pairs(space, size), dtype=np.intp).reshape(-1, 2)
         sources, targets = pairs[:, 0].copy(), pairs[:, 1].copy()
-        size = space.size
     else:
         error_msg = (
             f'Interaction {node.path} over neighbours binds {nodes.node.path}, which lives on {space!r}. Bind a group '

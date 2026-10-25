@@ -14,7 +14,7 @@ def _site_of(space, word):
     """Return the site reached from the identity along the letters of a word."""
     site = 0
     for letter in parse_word(word, space.group.generators):
-        site = int(space.generator_table[site, 2 * (abs(letter) - 1) + (letter < 0)])
+        site = int(space.generator_table_[site, 2 * (abs(letter) - 1) + (letter < 0)])
     return site
 
 
@@ -33,31 +33,31 @@ def test_grigorchuk_group_is_an_automaton_group():
 
 def test_grigorchuk_growth():
     """Test that the balls of radii 0 to 5 hold 1 to 68 sites, all distinct elements as their level-12 actions show."""
-    ball = CayleySpace(grigorchuk_group(), ball=5)
-    assert ball.ball_sizes() == GRIGORCHUK_BALLS[:6]
+    ball = CayleySpace(grigorchuk_group(), ball=5).fit()
+    assert ball.ball_sizes_ == GRIGORCHUK_BALLS[:6]
     action = grigorchuk_group().level_quotient(12).word_problem()
     keys = set()
-    for word in ball.words:
+    for word in ball.words_:
         element = action.identity()
         for letter in parse_word(word, ball.group.generators):
             element = action.multiply(element, letter)
         keys.add(action.key(element))
-    assert len(keys) == ball.size
+    assert len(keys) == ball.size_
 
 
 def test_grigorchuk_level_quotients_run_periodic_rules():
     """Test that the quotients of levels 1 to 4 hold 2, 8, 128, and 4096 sites and every cell reads inside them."""
     sizes = []
     for level in (1, 2, 3, 4):
-        space = CayleySpace(grigorchuk_group(), quotient=level)
-        sizes.append(space.size)
-        assert (space.index_table(Memory(('1', 'a', 'b', 'c', 'd'))) < space.size).all()
+        space = CayleySpace(grigorchuk_group(), quotient=level).fit()
+        sizes.append(space.size_)
+        assert (space._index_table(Memory(('1', 'a', 'b', 'c', 'd'))) < space.size_).all()
     assert sizes == [2, 8, 128, 4096]
 
 
 def test_heisenberg_commutator_is_central():
     """Test that the commutator of the Heisenberg generators commutes with both generators."""
-    space = CayleySpace(heisenberg(), ball=6)
+    space = CayleySpace(heisenberg(), ball=6).fit()
     commutator = 'a*b*a^-1*b^-1'
     for generator in ('a', 'b'):
         assert _site_of(space, f'{commutator}*{generator}') == _site_of(space, f'{generator}*{commutator}')

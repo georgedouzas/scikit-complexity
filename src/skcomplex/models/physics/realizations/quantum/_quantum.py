@@ -67,10 +67,8 @@ def _mode_space(element: 'ModeComponent') -> HilbertDomain:
 def _site_space(element: 'SiteComponent') -> HilbertDomain:
     """Return the space of a particle on the sites of a lattice or a network, with its Laplacian and adjacency."""
     space = element.space
-    if isinstance(space, LatticeSpace):
-        size = space.size
-    elif isinstance(space, NetworkSpace):
-        size = int(space.graph.number_of_nodes())
+    if isinstance(space, LatticeSpace | NetworkSpace):
+        size = int(space.fit().size_ or 0)
     else:
         error_msg = f'Site {element.label!r} has space {space!r}. Give it a LatticeSpace or a NetworkSpace.'
         raise ValidationError(error_msg)

@@ -64,7 +64,7 @@ def _mesh_matrices(
     nodes = np.frombuffer(points).reshape(shape)
     elements = np.frombuffer(cells, dtype=np.int64).reshape(cell_shape)
     space = MeshSpace(nodes, elements)
-    basis = Basis(space.skfem_mesh(), ElementTriP1() if shape[0] == 2 else ElementTetP1())  # noqa: PLR2004
+    basis = Basis(space.fit().mesh_, ElementTriP1() if shape[0] == 2 else ElementTetP1())  # noqa: PLR2004
     stiffness = asm(laplace, basis).tocsr()
     lumped = np.asarray(asm(mass, basis).sum(axis=1)).ravel()
     return stiffness, lumped
@@ -292,13 +292,13 @@ class FieldLowering:
         if key not in self._tables:
             space = place.space
             if isinstance(space, NetworkSpace):
-                table = space.index_table(Adjacency())
+                table = space._index_table(Adjacency())
                 sites = np.arange(table.shape[0])[:, None]
                 self._tables[key] = (np.where(table == table.shape[0], sites, table)[:, offset], None)
             else:
-                dimensions = cast('LatticeSpace', space).dimensions
-                lattice = LatticeSpace(dimensions, boundary=LATTICE_BOUNDARIES[kind], fill=value)
-                table = lattice.index_table(Neighborhood((offset,)))[:, 0]  # type: ignore[arg-type]
+                dimensions = cast('LatticeSpace', space).shape_
+                lattice = LatticeSpace(dimensions, boundary=LATTICE_BOUNDARIES[kind], fill=value).fit()
+                table = lattice._index_table(Neighborhood((offset,)))[:, 0]  # type: ignore[arg-type]
                 self._tables[key] = (table, value if kind == 'fixed' else None)
         table, ghost = self._tables[key]
         return table, ghost, MODES[kind]
@@ -345,7 +345,7 @@ class FieldLowering:
                 read = NeighborRead(
                     table,
                     ghost,
-                    place.space.dimensions if lattice else None,  # type: ignore[union-attr]
+                    place.space.shape_ if lattice else None,  # type: ignore[union-attr]
                     total if lattice else None,  # type: ignore[arg-type]
                     mode,
                 )
@@ -401,26 +401,26 @@ class FieldLowering:
         """Return the stencil of the Laplacian of an expression."""
         space = self._space(expression)
         if isinstance(space, NetworkSpace):
-            width = space.index_table(Adjacency()).shape[1]
+            width = space._index_table(Adjacency()).shape[1]
             return sum((self.shift(expression, slot) - expression for slot in range(width)), SR(0))
         total = SR(0)
-        for axis in range(space.n_dim):
-            step = tuple(int(axis == other) for other in range(space.n_dim))
+        for axis in range(space.n_dim_):
+            step = tuple(int(axis == other) for other in range(space.n_dim_))
             back = tuple(-item for item in step)
             total += (self.shift(expression, step) + self.shift(expression, back) - 2 * expression) / (
-                space.spacings[axis] ** 2
+                space.spacings_[axis] ** 2
             )
         return total
 
     def _lattice(self, expression: Expression, axis: int, name: str) -> tuple[LatticeSpace, Offset, Offset]:
         """Return the lattice of an expression and the unit offsets along an axis."""
         space = self._space(expression)
-        if not isinstance(space, LatticeSpace) or not 0 <= axis < space.n_dim:
+        if not isinstance(space, LatticeSpace) or not 0 <= axis < space.n_dim_:
             error_msg = (
                 f'A law of {self.owner} takes the {name} of {expression} along axis {axis}, which needs a lattice.'
             )
             raise ValidationError(error_msg)
-        step = tuple(int(axis == other) for other in range(space.n_dim))
+        step = tuple(int(axis == other) for other in range(space.n_dim_))
         return space, step, tuple(-item for item in step)
 
     def lower(self, expression: object) -> object:
@@ -460,10 +460,10 @@ class FieldLowering:
         value = SR(operands[0])
         space, step, back = self._lattice(value, axis, 'derivative' if name == 'partial' else 'advection')
         if name == 'partial':
-            return (self.shift(value, step) - self.shift(value, back)) / (2 * space.spacings[axis])
+            return (self.shift(value, step) - self.shift(value, back)) / (2 * space.spacings_[axis])
         velocity = SR(operands[2])
-        behind = (value - self.shift(value, back)) / space.spacings[axis]
-        ahead = (self.shift(value, step) - value) / space.spacings[axis]
+        behind = (value - self.shift(value, back)) / space.spacings_[axis]
+        ahead = (self.shift(value, step) - value) / space.spacings_[axis]
         return velocity * where(velocity > 0, behind, ahead)
 
     def _derived(self, place: FieldComponent, read: DerivedRead) -> Expression:
@@ -488,11 +488,11 @@ class FieldLowering:
             velocity = SR(operands[2])
             return velocity * self._spectral('partial', [operands[0], operands[1]], place)
         axis = int(SR(operands[1])) if name == 'partial' else 0
-        if name == 'partial' and not 0 <= axis < space.n_dim:
-            error_msg = f'A law of {self.owner} takes a derivative along axis {axis} of a {space.n_dim}D lattice.'
+        if name == 'partial' and not 0 <= axis < space.n_dim_:
+            error_msg = f'A law of {self.owner} takes a derivative along axis {axis} of a {space.n_dim_}D lattice.'
             raise ValidationError(error_msg)
-        dimensions = space.dimensions
-        multiplier = spectral_multiplier(name, axis, dimensions, space.spacings)
+        dimensions = space.shape_
+        multiplier = spectral_multiplier(name, axis, dimensions, space.spacings_)
         operand = SR(operands[0])
         inner = self.derived.get(operand)
         if inner is not None and inner[1].multiplier is not None:
@@ -544,7 +544,7 @@ class FieldLowering:
             if isinstance(space, NetworkSpace):
                 stiffness = max((item for _, item in space.graph.degree), default=1)
             else:
-                stiffness = sum(2 / step**2 for step in cast('LatticeSpace', space).spacings)
+                stiffness = sum(2 / step**2 for step in cast('LatticeSpace', space).spacings_)
             if stiffness == 0:
                 continue
             if place.discretization == 'finite-volume':

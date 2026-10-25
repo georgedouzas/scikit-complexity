@@ -69,8 +69,8 @@ class MeshVisual(BaseVisual):
         colors: npt.NDArray[np.uint8],
     ) -> None:
         """Log node values as a flat triangle mesh with the values as height, or as points of a tetrahedral mesh."""
-        nodes, cells = mesh.nodes, np.asarray(mesh.cells)
-        if mesh.n_dim != 2:  # noqa: PLR2004
+        nodes, cells = mesh.positions_, np.asarray(mesh.cells)
+        if mesh.n_dim_ != 2:  # noqa: PLR2004
             recording.log(path, rr.Points3D(nodes, colors=colors))
             return
         positions = np.column_stack([nodes, values])

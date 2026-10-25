@@ -5,9 +5,10 @@
 
 from typing import ClassVar
 
-from sklearn.base import BaseEstimator
+import numpy as np
+import numpy.typing as npt
 
-from ..base import BaseTime, TimeKind, ValidationError
+from ..base import BaseEstimator, BaseTime, TimeKind, ValidationError
 
 SCHEDULES = ('synchronous', 'random-sequential')
 
@@ -15,17 +16,13 @@ SCHEDULES = ('synchronous', 'random-sequential')
 class Schedule(BaseEstimator):
     """Base class of a schedule of discrete time that a formalism defines, such as the phases of agents."""
 
-    def __repr__(self, N_CHAR_MAX: int = 700) -> str:
-        """Return the name of the schedule."""
-        return f'{type(self).__name__}()'
-
 
 class ContinuousTime(BaseTime):
     """Continuous time, in which rates, noise, implicit equations, jumps, and events change the states.
 
     Examples:
         >>> from skcomplex.core.space import ContinuousTime
-        >>> str(ContinuousTime().kind)
+        >>> str(ContinuousTime().fit().time_kind_)
         'continuous'
     """
 
@@ -43,21 +40,33 @@ class DiscreteTime(BaseTime):
 
     Examples:
         >>> from skcomplex.core.space import DiscreteTime
-        >>> DiscreteTime(schedule='random-sequential').schedule
-        'random-sequential'
+        >>> time = DiscreteTime(schedule='random-sequential').fit()
+        >>> time.schedule_, time.run(3).tolist()
+        ('random-sequential', [0.0, 1.0, 2.0, 3.0])
     """
 
     kind: ClassVar[TimeKind] = TimeKind.DISCRETE
 
     def __init__(self, schedule: str | Schedule = 'synchronous') -> None:
         self.schedule = schedule
-        if not isinstance(schedule, Schedule) and schedule not in SCHEDULES:
-            error_msg = f'Unknown schedule {schedule!r}. Use one of {", ".join(SCHEDULES)}, or a Schedule.'
+
+    def _check(self) -> None:
+        """Raise an error for a schedule that is neither known nor a `Schedule`."""
+        if isinstance(self.schedule, Schedule):
+            self.schedule.check()
+            return
+        if self.schedule not in SCHEDULES:
+            error_msg = f'Unknown schedule {self.schedule!r}. Use one of {", ".join(SCHEDULES)}, or a Schedule.'
             raise ValidationError(error_msg)
 
-    def __repr__(self, N_CHAR_MAX: int = 700) -> str:
-        """Return the schedule."""
-        return f'DiscreteTime(schedule={self.schedule!r})'
+    def _fit(self) -> None:
+        """Set the kind of the time and its schedule."""
+        self.time_kind_ = self.kind
+        self.schedule_ = self.schedule
+
+    def _run(self, until: float) -> npt.NDArray[np.float64]:
+        """Return every step from 0 to a time."""
+        return np.arange(int(np.floor(until)) + 1, dtype=float)
 
 
 class StaticTime(BaseTime):
@@ -65,8 +74,12 @@ class StaticTime(BaseTime):
 
     Examples:
         >>> from skcomplex.core.space import StaticTime
-        >>> str(StaticTime().kind)
-        'static'
+        >>> StaticTime().fit().run(10.0).tolist()
+        [0.0]
     """
 
     kind: ClassVar[TimeKind] = TimeKind.STATIC
+
+    def _run(self, until: float) -> npt.NDArray[np.float64]:
+        """Return the one frame of the solution."""
+        return np.zeros(1)
