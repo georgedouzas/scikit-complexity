@@ -55,6 +55,6 @@ def test_solver_rejects_a_problem_of_another_form():
 
         form = Form.ODE
 
-    problem = BaseProblem(Form.DISCRETE, Layout([]), Layout([]), None, None, symbol('t'))  # type: ignore[arg-type]
+    problem = BaseProblem(Form.DISCRETE, Layout([]), Layout([]), None, None, symbol('t'))
     with pytest.raises(SolverError, match='discrete map'):
-        OdeSolver().initialize(problem, None)  # type: ignore[arg-type]
+        OdeSolver().initialize(problem, None)

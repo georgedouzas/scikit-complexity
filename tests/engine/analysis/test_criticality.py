@@ -39,7 +39,7 @@ def _galton_watson(rng: np.random.Generator, trees: int) -> Avalanches:
         durations[alive] += 1
         active = rng.poisson(active)
         alive, active = alive[active > 0], active[active > 0]
-    shapes = []
+    shapes: list[np.ndarray] = []
     for duration in DURATIONS:
         chosen = np.flatnonzero(durations == duration)
         profiles = np.asarray([members[np.searchsorted(ids, chosen)] for ids, members in history[:duration]]).T
