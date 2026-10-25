@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
@@ -209,7 +210,7 @@ class _SplitSolver(Solver):
     def __init__(self, dt: float = 0.01) -> None:
         self.dt = dt
 
-    def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
+    def _fit(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Prepare the stepper and check that the problem has linear terms to treat apart.
 
         Args:
@@ -219,11 +220,14 @@ class _SplitSolver(Solver):
             rng:
                 The random number generator, unused.
 
+            until:
+                The end time of the run.
+
         Raises:
             SolverError:
                 The problem is not an ODE, has no linear terms of fields, or has delays or events.
         """
-        super().initialize(problem, rng)
+        super()._fit(problem, rng, until)
         if not problem.linear:
             error_msg = (
                 f'{type(self).__name__} splits the rates of fields into linear and nonlinear parts, but the problem '
@@ -265,7 +269,7 @@ class _SplitSolver(Solver):
         """Return the state after one step."""
         raise NotImplementedError
 
-    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Integrate from time `t` to time `until` in equal steps no longer than `dt`.
 
         Args:
@@ -418,9 +422,8 @@ class IMEXEulerSolver(_SplitSolver):
         >>> from skcomplex.models.physics.heat import heat_diffusion
         >>> from skcomplex.formalisms.fields import IMEXEulerSolver
         >>> problem = compile_system(heat_diffusion((16, 16)))
-        >>> stepper = IMEXEulerSolver(dt=1.0)
-        >>> stepper.initialize(problem, np.random.default_rng(0))
-        >>> state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 10.0)
+        >>> stepper = IMEXEulerSolver(dt=1.0).fit(problem, np.random.default_rng(0))
+        >>> state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 10.0)
         >>> bool(np.isclose(state.sum(), problem.initial_state.sum()))
         True
     """
@@ -570,9 +573,8 @@ class SSPRKSolver(Solver):
         >>> from skcomplex.models.physics.fluids import burgers
         >>> from skcomplex.formalisms.fields import SSPRKSolver
         >>> problem = compile_system(burgers(64))
-        >>> stepper = SSPRKSolver()
-        >>> stepper.initialize(problem, np.random.default_rng(0))
-        >>> state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)
+        >>> stepper = SSPRKSolver().fit(problem, np.random.default_rng(0))
+        >>> state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> bool(np.isclose(state.sum(), problem.initial_state.sum()))
         True
     """
@@ -599,7 +601,7 @@ class SSPRKSolver(Solver):
         self.cfl = cfl
         self.dt = dt
 
-    def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
+    def _fit(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Prepare the stepper and check its order.
 
         Args:
@@ -609,11 +611,14 @@ class SSPRKSolver(Solver):
             rng:
                 The random number generator, unused.
 
+            until:
+                The end time of the run.
+
         Raises:
             SolverError:
                 The order is not 2 or 3, or the problem is not an ODE.
         """
-        super().initialize(problem, rng)
+        super()._fit(problem, rng, until)
         if self.order not in {2, 3}:
             error_msg = f'SSPRKSolver has order 2 or 3, not {self.order}.'
             raise SolverError(error_msg)
@@ -630,7 +635,7 @@ class SSPRKSolver(Solver):
             return step
         return min(step, self.cfl * self.spacing_ / speed)
 
-    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Integrate from time `t` to time `until` with steps of the CFL condition.
 
         Args:

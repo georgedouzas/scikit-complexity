@@ -13,7 +13,7 @@ import numpy as np
 from numba.extending import register_jitable
 
 from ...core.base import BackendError, BaseProblem, BaseSolver, Form, LawKind, SolverError, Vector
-from ...core.problems import Problem, Record
+from ...core.problems import Problem
 from ..compile import SOLVERS, solver_registry
 from ._hybrid import RESTART, EventLocator, History, find_bounds
 from ._renewals import RenewalClock
@@ -53,7 +53,7 @@ def step_count(t: float, until: float, dt: float) -> int:
 class Solver(BaseSolver[Problem]):
     """Base of the solvers of the compiler's problem, which run its events, renewals, delays, and boundary laws.
 
-    Every call to `advance` receives the current parameters, so parameter changes apply at the next call, and applies
+    Every call to `run` receives the current parameters, so parameter changes apply at the next call, and applies
     the boundary laws of the problem after every internal step.
     """
 
@@ -114,7 +114,7 @@ class Solver(BaseSolver[Problem]):
             time = bound
         return state
 
-    def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
+    def _fit(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Prepare the stepper for a problem.
 
         Args:
@@ -124,12 +124,15 @@ class Solver(BaseSolver[Problem]):
             rng:
                 The random number generator of stochastic solvers.
 
+            until:
+                The end time of the run.
+
         Raises:
             SolverError:
                 The problem has a form the stepper does not solve, or renewal laws or fractional noise it does not
                 integrate.
         """
-        super().initialize(problem, rng)
+        super()._fit(problem, rng, until)
         self._check_capabilities(problem)
         self.locator_ = EventLocator(problem)
         self.renewals_ = RenewalClock(problem, rng, self.locator_) if problem.renewals else None
@@ -145,24 +148,11 @@ class Solver(BaseSolver[Problem]):
             )
             warnings.warn(warning_msg, UserWarning, stacklevel=2)
 
-    def drain_events(self) -> list[Record]:
-        """Return the events recorded since the last call, and forget them.
-
-        Returns:
-            events:
-                The events in the order they happened.
-        """
-        locator = getattr(self, 'locator_', None)
-        if locator is None:
-            return []
-        records, locator.records = locator.records, []
-        return records
-
-    @property
-    def stopped_at(self) -> float | None:
-        """Time at which a terminal event ended the run, or `None` while it goes on."""
-        locator = getattr(self, 'locator_', None)
-        return None if locator is None else locator.stopped_at
+    def _collect(self) -> None:
+        """Set the events recorded since the last run, and forget them, and the time of a terminal event."""
+        locator = self.locator_
+        self.events_, locator.records = locator.records, []
+        self.stopped_at_ = locator.stopped_at
 
 
 def register_solver(name: str, stepper: type[Solver], *, default: bool = False) -> None:
@@ -215,16 +205,16 @@ def resolve_solver(problem: BaseProblem, solver: str | BaseSolver[Any]) -> BaseS
 class ExternalSolver(Solver):
     """Base class of solvers that translate a compiled problem into a third-party library.
 
-    Subclasses set the class variables `name` and `forms`, and implement `check`, `build`, and `advance`. Before the
-    first frame, `initialize` checks every element, interaction, and law, and raises one error that lists everything the
-    library cannot run.
+    Subclasses set the class variables `name` and `forms`, and implement `_unsupported`, `_build`, and `_advance`.
+    Before the first frame, `fit` checks every element, interaction, and law, and raises one error that lists
+    everything the library cannot run.
     """
 
     name: ClassVar[str]
     forms: ClassVar[frozenset[Form]]
 
     @abstractmethod
-    def check(self, problem: Problem) -> list[str]:
+    def _unsupported(self, problem: Problem) -> list[str]:
         """Return a description of every element, interaction, or law of a problem the library cannot run.
 
         Args:
@@ -242,7 +232,7 @@ class ExternalSolver(Solver):
         raise NotImplementedError
 
     @abstractmethod
-    def build(self, problem: Problem, rng: np.random.Generator) -> None:
+    def _build(self, problem: Problem, rng: np.random.Generator) -> None:
         """Build the library model of a supported problem.
 
         Args:
@@ -258,7 +248,7 @@ class ExternalSolver(Solver):
         """
         raise NotImplementedError
 
-    def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
+    def _fit(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Check that the library supports a problem and build its model.
 
         Args:
@@ -268,17 +258,19 @@ class ExternalSolver(Solver):
             rng:
                 The random number generator that seeds the library.
 
+            until:
+                The end time of the run.
+
         Raises:
             BackendError:
                 The problem has a form, a complex state, an element, an interaction, or a law the library cannot run.
         """
         unsupported = [] if problem.form in self.forms else [f'the {problem.form.value} form']
         unsupported += [f'the complex state {entry.name}' for entry in problem.states if entry.is_complex]
-        unsupported += self.check(problem)
+        unsupported += self._unsupported(problem)
         if unsupported:
             items = '; '.join(unsupported)
             error_msg = f'The {self.name} backend cannot run this system. Unsupported: {items}.'
             raise BackendError(error_msg)
-        self.problem_ = problem
-        self.rng_ = rng
-        self.build(problem, rng)
+        super()._fit(problem, rng, until)
+        self._build(problem, rng)

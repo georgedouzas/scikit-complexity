@@ -23,6 +23,7 @@ from ...core.base import (
     NoiseKind,
     NumericDomain,
     OrderKind,
+    SolverError,
     SpaceKind,
     Supports,
     TimeKind,
@@ -247,7 +248,10 @@ class LammpsSolver(ExternalSolver):
 
     Attributes:
         lammps_:
-            The LAMMPS instance.
+            The LAMMPS instance, which the final run `run(..., final=True)` closes.
+
+        released_:
+            Whether the LAMMPS instance is closed.
 
     Examples:
         >>> import numpy as np
@@ -283,7 +287,7 @@ class LammpsSolver(ExternalSolver):
     def __init__(self, dt: float = 0.005) -> None:
         self.dt = dt
 
-    def check(self, problem: Problem) -> list[str]:
+    def _unsupported(self, problem: Problem) -> list[str]:
         """Return the elements and interactions of a problem that LAMMPS cannot run.
 
         Args:
@@ -495,7 +499,7 @@ class LammpsSolver(ExternalSolver):
             parameters[entry.indices] = self.parameters_[self.problem_.parameters.entry(entry.name).indices]
         return parameters
 
-    def build(self, problem: Problem, rng: np.random.Generator) -> None:
+    def _build(self, problem: Problem, rng: np.random.Generator) -> None:
         """Create the LAMMPS instance, the box, the atoms, and every pair style and fix.
 
         Args:
@@ -515,6 +519,7 @@ class LammpsSolver(ExternalSolver):
         self.parameters_ = problem.initial_parameters.copy()
         self.time_, self.timestep_, self.start_step_ = 0.0, self.dt, 0
         self.lammps_ = lammps(cmdargs=LAMMPS_ARGUMENTS)
+        self.released_ = False
         self.lammps_.commands_list(self._box_commands(problem, problem.initial_state))
         for element in self.atoms_.elements:
             self.lammps_.command(f'mass {self.atoms_.types[element.path]} {_mass(problem, self.parameters_, element)}')
@@ -565,7 +570,7 @@ class LammpsSolver(ExternalSolver):
         order = np.asarray(numpy.extract_atom('id')[:count], dtype=np.intp) - 1
         return order, numpy.extract_atom('x')[:count], numpy.extract_atom('v')[:count]
 
-    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Write the state into LAMMPS, run it to time `until`, and read the state back.
 
         Args:
@@ -584,9 +589,14 @@ class LammpsSolver(ExternalSolver):
         Returns:
             state:
                 The state vector at time `until`.
+
+        Raises:
+            SolverError:
+                The LAMMPS instance was closed by a final run.
         """
-        if until <= t:
-            return x
+        if self.released_:
+            error_msg = 'LammpsSolver closed its LAMMPS instance at the end of the run. Fit the solver again to rerun.'
+            raise SolverError(error_msg)
         if not np.array_equal(p, self.parameters_):
             self._update_parameters(p)
         atoms = self.atoms_
@@ -606,6 +616,12 @@ class LammpsSolver(ExternalSolver):
         state[atoms.positions[order]] = positions[:, : atoms.n_dim]
         state[atoms.velocities[order]] = velocities[:, : atoms.n_dim]
         return state
+
+    def _release(self) -> None:
+        """Close the LAMMPS instance."""
+        if not self.released_:
+            self.lammps_.close()
+            self.released_ = True
 
 
 SOLVERS.register((Form.SDE, 'lammps'), LammpsSolver)

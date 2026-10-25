@@ -241,7 +241,7 @@ class OptimalControlSolver(Solver):
 
     The solver reads the bounded adaptive parameters of the system as its controls and its objective law as its cost.
     It solves the problem over the whole run from the initial state and the initial parameters at the start of the
-    run, and then follows the solution frame by frame. Subclasses implement `solve`, and may implement `prepare`.
+    run, and then follows the solution frame by frame. Subclasses implement `_solve`, and may implement `_prepare`.
 
     Attributes:
         control_problem_:
@@ -303,7 +303,7 @@ class OptimalControlSolver(Solver):
         cost = self._cost(times, states, controls, p)
         return ControlSolution(times, full, dict(costates or {}), cost, iterations)
 
-    def initialize(self, problem: Problem, rng: np.random.Generator) -> None:
+    def _fit(self, problem: Problem, rng: np.random.Generator, until: float = math.inf) -> None:
         """Prepare the solver for a problem and read its optimal control problem.
 
         Args:
@@ -313,51 +313,29 @@ class OptimalControlSolver(Solver):
             rng:
                 The random number generator, which the solver does not use.
 
+            until:
+                The end time of the run, the horizon of the objective, which must be finite.
+
         Raises:
             SolverError:
                 The problem is not an ODE, or has no objective, no bounded adaptive parameter, or laws the solver
-                cannot differentiate symbolically.
+                cannot differentiate symbolically, or the run has no end.
         """
-        super().initialize(problem, rng)
+        super()._fit(problem, rng, until)
         control_problem = _ControlProblem.of(problem)
-        self.control_problem_ = control_problem
-        self.horizon_ = math.nan
-        self.rates_ = control_problem.function(control_problem.rates)
-        self.running_ = control_problem.function([control_problem.running])
-        self.terminal_ = control_problem.function([control_problem.terminal])
-        self.prepare(control_problem)
-
-    def plan(self, until: float) -> None:
-        """Take the end of the run as the horizon of the objective.
-
-        Args:
-            until:
-                The end time of the run.
-
-        Raises:
-            SolverError:
-                The run has no end.
-        """
         if not math.isfinite(until):
             error_msg = 'An optimal control run needs a finite horizon. Run the simulation with `run(until=...)`.'
             raise SolverError(error_msg)
+        self.control_problem_ = control_problem
         self.horizon_ = float(until)
+        self.rates_ = control_problem.function(control_problem.rates)
+        self.running_ = control_problem.function([control_problem.running])
+        self.terminal_ = control_problem.function([control_problem.terminal])
+        self._prepare(control_problem)
+        self.solution_ = self._solve(self.initial_state_.copy(), problem.initial_parameters.copy(), self.horizon_)
+        self.initial_state_ = self.solution_.state_at(0.0)
 
-    def initial_state(self, x: Vector) -> Vector:
-        """Solve the optimal control problem from an initial state and return the state of the first frame.
-
-        Args:
-            x:
-                The initial state vector of the problem.
-
-        Returns:
-            state:
-                The initial state with the controls at their optimal values.
-        """
-        self.solution_ = self.solve(x.copy(), self.problem_.initial_parameters.copy(), self.horizon_)
-        return self.solution_.state_at(0.0)
-
-    def advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
+    def _advance(self, t: float, x: Vector, p: Vector, until: float) -> Vector:
         """Return the state of the optimal solution at a time of the run.
 
         Args:
@@ -390,7 +368,7 @@ class OptimalControlSolver(Solver):
             raise SolverError(error_msg)
         return self.solution_.state_at(until)
 
-    def prepare(self, control_problem: _ControlProblem) -> None:
+    def _prepare(self, control_problem: _ControlProblem) -> None:
         """Derive what the solver needs from the optimal control problem, once per compiled problem.
 
         Args:
@@ -400,7 +378,7 @@ class OptimalControlSolver(Solver):
         del control_problem
 
     @abstractmethod
-    def solve(self, x0: Vector, p: Vector, horizon: float) -> ControlSolution:
+    def _solve(self, x0: Vector, p: Vector, horizon: float) -> ControlSolution:
         """Return the optimal solution from an initial state over a horizon.
 
         Args:

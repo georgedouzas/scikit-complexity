@@ -53,8 +53,8 @@ def test_scipy_ode_matches_exponential(method):
     """Test that the ODE stepper integrates exponential growth accurately."""
     problem = _growth_problem()
     stepper = ScipyODESolver(method=method, rtol=1e-9, atol=1e-12)
-    stepper.initialize(problem, np.random.default_rng(0))
-    state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 2.0)
+    stepper.fit(problem, np.random.default_rng(0))
+    state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 2.0)
     assert state[0] == pytest.approx(np.exp(2.0), rel=1e-6)
 
 
@@ -74,9 +74,9 @@ def test_scipy_ode_failure_raises_error():
         System(components=[PopulationComponent('a', n=1)], interactions=[ExplosionInteraction('boom', target='a')]),
     )
     stepper = ScipyODESolver()
-    stepper.initialize(problem, np.random.default_rng(0))
+    stepper.fit(problem, np.random.default_rng(0))
     with pytest.raises(SolverError, match='failed'):
-        stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 2.0)
+        stepper.run(0.0, problem.initial_state, problem.initial_parameters, 2.0)
 
 
 def test_simulation_runs_stiff_model_with_default_solver():
@@ -254,9 +254,9 @@ def _timed_scipy(problem, method, jacobian, until=10.0):
     """Return the duration, the final state, the drift evaluations, and the stepper of one call of ScipyODE."""
     problem, calls = _counted(problem)
     stepper = ScipyODESolver(method=method, rtol=1e-6, jacobian=jacobian)
-    stepper.initialize(problem, np.random.default_rng(0))
+    stepper.fit(problem, np.random.default_rng(0))
     start = time.perf_counter()
-    state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, until)
+    state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, until)
     return time.perf_counter() - start, state, calls[0], stepper
 
 
@@ -335,9 +335,9 @@ def _stiff_fisher(size=SIZE):
 def _advance(problem, until=1.0, p=None, **options):
     """Return the state of a problem after one call of ScipyODE with options, and the stepper."""
     stepper = ScipyODESolver(**options)
-    stepper.initialize(problem, np.random.default_rng(0))
+    stepper.fit(problem, np.random.default_rng(0))
     parameters = problem.initial_parameters if p is None else p
-    return stepper.advance(0.0, problem.initial_state, parameters, until), stepper
+    return stepper.run(0.0, problem.initial_state, parameters, until), stepper
 
 
 def _relative(first, second):
@@ -541,9 +541,9 @@ def test_unknown_option_raises():
     """Test that an unknown Jacobian option or method raises an error that lists the options."""
     problem = compile_system(fisher_kpp(10))
     with pytest.raises(SolverError, match="'auto', 'exact', 'dense'"):
-        ScipyODESolver(jacobian='sparse').initialize(problem, np.random.default_rng(0))
+        ScipyODESolver(jacobian='sparse').fit(problem, np.random.default_rng(0))
     with pytest.raises(SolverError, match='BDF'):
-        ScipyODESolver(method='Euler').initialize(problem, np.random.default_rng(0))
+        ScipyODESolver(method='Euler').fit(problem, np.random.default_rng(0))
 
 
 def test_exact_option_with_callable_law_raises_on_initialize():
@@ -555,7 +555,7 @@ def test_exact_option_with_callable_law_raises_on_initialize():
     )
     problem = compile_system(System(components=[FieldComponent('line', DecayComponent, LatticeSpace(10))]))
     with pytest.raises(ValidationError, match="jacobian='auto'"):
-        ScipyODESolver(method='BDF', jacobian='exact').initialize(problem, np.random.default_rng(0))
+        ScipyODESolver(method='BDF', jacobian='exact').fit(problem, np.random.default_rng(0))
 
 
 def test_exact_jacobian_follows_parameter_changes():
@@ -565,11 +565,11 @@ def test_exact_jacobian_follows_parameter_changes():
     states = {}
     for option in ['exact', 'dense']:
         stepper = ScipyODESolver(method='BDF', rtol=1e-8, jacobian=option)
-        stepper.initialize(problem, np.random.default_rng(0))
-        x = stepper.advance(0.0, problem.initial_state, p, 0.5)
+        stepper.fit(problem, np.random.default_rng(0))
+        x = stepper.run(0.0, problem.initial_state, p, 0.5)
         changed = p.copy()
         changed[problem.parameters.entry('line.D').indices] = 3.0
-        states[option] = stepper.advance(0.5, x, changed, 1.0)
+        states[option] = stepper.run(0.5, x, changed, 1.0)
         if option == 'exact':
             jacobian = stepper._solver.jac(0.5, x).toarray()
             np.testing.assert_allclose(jacobian, problem.jacobian(0.5, x, changed).toarray())
@@ -594,7 +594,7 @@ def test_stability_warning_names_the_stiff_path():
     """Test that the stability warning of a fixed-step explicit stepper names BDF and Radau."""
     problem = _stiff_fisher(50)
     with pytest.warns(UserWarning, match=r"method='BDF'.*method='Radau'"):
-        RK4Solver(dt=0.01).initialize(problem, np.random.default_rng(0))
+        RK4Solver(dt=0.01).fit(problem, np.random.default_rng(0))
 
 
 def test_adaptive_explicit_method_warns_once_on_stiff_field():
@@ -602,12 +602,12 @@ def test_adaptive_explicit_method_warns_once_on_stiff_field():
     problem = _stiff_fisher(100)
     assert problem.stable_step == pytest.approx(1.25e-3)
     stepper = ScipyODESolver(method='RK45')
-    stepper.initialize(problem, np.random.default_rng(0))
+    stepper.fit(problem, np.random.default_rng(0))
     with pytest.warns(UserWarning, match=r"method='BDF'.*method='Radau'"):
-        x = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 2.0)
+        x = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 2.0)
     with warnings.catch_warnings():
         warnings.simplefilter('error')
-        stepper.advance(2.0, x, problem.initial_parameters, 4.0)
+        stepper.run(2.0, x, problem.initial_parameters, 4.0)
 
 
 def test_ode_solvers_derive_from_the_solver_base():

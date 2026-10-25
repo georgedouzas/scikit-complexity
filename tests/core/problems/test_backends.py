@@ -367,8 +367,8 @@ def test_rk4_matches_exponential(backend, numba_backend):
         backend=numba_backend if backend == 'numba' else backend,
     )
     stepper = RK4Solver(dt=0.001)
-    stepper.initialize(problem, np.random.default_rng(0))
-    state = stepper.advance(0.0, problem.initial_state, problem.initial_parameters, 1.0)
+    stepper.fit(problem, np.random.default_rng(0))
+    state = stepper.run(0.0, problem.initial_state, problem.initial_parameters, 1.0)
     assert np.allclose(state, np.e, rtol=1e-10)
 
 

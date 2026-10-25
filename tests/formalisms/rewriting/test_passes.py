@@ -474,7 +474,7 @@ def test_snapshot_is_a_structure_state():
         components=[WordComponent('algae', axiom='A')],
         interactions=[Rewrite('rules', target='algae', rules=[ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')])],
     )
-    snapshot = Simulation(system).run(until=2).stepper_.snapshot()
+    snapshot = Simulation(system).run(until=2).stepper_.snapshot_
     assert isinstance(snapshot, StructureState)
     assert len(snapshot.structures['algae']) == 3
 

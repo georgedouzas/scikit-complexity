@@ -273,9 +273,9 @@ def test_steppers_without_hybrid_path_reject_events():
     """Test that velocity Verlet and Gillespie name the steppers to use for events and delays."""
     problem = compile_system(bouncing_ball())
     with pytest.raises(SolverError, match='does not integrate delays or events'):
-        VelocityVerletSolver().initialize(problem, np.random.default_rng(0))
+        VelocityVerletSolver().fit(problem, np.random.default_rng(0))
     with pytest.raises(SolverError):
-        GillespieSolver().initialize(problem, np.random.default_rng(0))
+        GillespieSolver().fit(problem, np.random.default_rng(0))
 
 
 def test_fixed_step_longer_than_delay_is_rejected():

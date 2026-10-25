@@ -404,7 +404,7 @@ def _views(space, locations):
     system = System(components=[CattleComponent.group('cows', 2, location=locations)], space=space)
     simulation = Simulation(system, random_state=0).run(until=0)
     stepper = simulation.stepper_
-    return [AgentView(agent, stepper) for agent in stepper.group_agents('cows')]
+    return [AgentView(agent, stepper) for agent in stepper._group_agents('cows')]
 
 
 def test_displacement_across_torus_seam():
@@ -480,3 +480,16 @@ def test_one_agent_takes_one_entry_values():
     snapshot = Simulation(system).run(until=0).trajectory_.agents('one', 0)
     assert snapshot.locations.tolist() == [[1, 1]]
     assert snapshot.values['n'].tolist() == [3.0]
+
+
+def test_mesa_solver_run_sets_agents_and_snapshot():
+    """Test that every run of the Mesa solver sets the alive agents by group and the snapshot of the step."""
+    system = System(components=[BreederComponent.group('breeders', 2, variable=True)])
+    problem = compile_system(system)
+    solver = MesaSolver().fit(problem, np.random.default_rng(0), 3.0)
+    assert len(solver.agents_['breeders']) == 2
+    solver.run(0.0, problem.initial_state, problem.initial_parameters, 2.0)
+    assert len(solver.agents_['breeders']) == 8
+    assert solver.snapshot_.reporters['breeders.count'] == 8.0
+    for name in ('agents_of', 'snapshot', 'create_agent', 'resolve_group', 'spec_of', 'group_agents'):
+        assert not hasattr(solver, name)

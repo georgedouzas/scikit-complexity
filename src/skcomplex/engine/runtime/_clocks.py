@@ -9,15 +9,26 @@ from ...core.base import BaseEstimator
 
 
 class BaseClock(BaseEstimator):
-    """Base class of clocks, which decide how long to wait between frames."""
+    """Base class of clocks, which decide how long to wait between frames.
 
-    def start(self) -> None:
+    A clock is fitted at the start of a run with `fit()`, which marks the wall time, and `run(elapsed)` waits until a
+    frame that is `elapsed` simulated time units after the start is due. Subclasses implement `_run`.
+
+    Attributes:
+        started_:
+            The wall time at which the run started, in seconds of `time.perf_counter`.
+
+        max_lag_:
+            The largest delay of a frame behind its due time, in seconds.
+    """
+
+    def _fit(self) -> None:
         """Mark the wall time at which the run starts."""
-        self.started_at_ = time.perf_counter()
+        self.started_ = time.perf_counter()
         self.max_lag_ = 0.0
 
-    def wait(self, elapsed: float) -> None:
-        """Wait until a frame that is `elapsed` simulated time units after the start is due.
+    def _run(self, elapsed: float) -> None:
+        """Wait until a frame that is `elapsed` simulated time units after the start is due; never wait by default.
 
         Args:
             elapsed:
@@ -30,9 +41,8 @@ class AsFastAsPossibleClock(BaseClock):
 
     Examples:
         >>> from skcomplex.engine.runtime import AsFastAsPossibleClock
-        >>> clock = AsFastAsPossibleClock()
-        >>> clock.start()
-        >>> clock.wait(10.0)
+        >>> clock = AsFastAsPossibleClock().fit()
+        >>> clock.run(10.0)
     """
 
 
@@ -47,9 +57,8 @@ class RealTimeClock(BaseClock):
 
     Examples:
         >>> from skcomplex.engine.runtime import RealTimeClock
-        >>> clock = RealTimeClock(speed=100.0)
-        >>> clock.start()
-        >>> clock.wait(1.0)
+        >>> clock = RealTimeClock(speed=100.0).fit()
+        >>> clock.run(1.0)
         >>> clock.max_lag_ < 0.1
         True
     """
@@ -57,14 +66,14 @@ class RealTimeClock(BaseClock):
     def __init__(self, speed: float = 1.0) -> None:
         self.speed = speed
 
-    def wait(self, elapsed: float) -> None:
+    def _run(self, elapsed: float) -> None:
         """Sleep until the frame is due, or record the lag when the run is behind.
 
         Args:
             elapsed:
                 The simulated time since the start of the run.
         """
-        delay = self.started_at_ + elapsed / self.speed - time.perf_counter()
+        delay = self.started_ + elapsed / self.speed - time.perf_counter()
         if delay > 0:
             time.sleep(delay)
             return
