@@ -13,7 +13,7 @@ from ....core.base import BaseLaw, Expression, NumericDomain, VisualSpec, parame
 from ....core.components import ElementComponent
 from ....core.laws import JumpLaw, Symbols, count, mean, total, where
 from ....core.space import LatticeSpace
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 
 type Array = npt.NDArray[np.float64]
@@ -28,9 +28,9 @@ def _initial_spins(n_spins: int, initial: str, random_state: int | np.random.Gen
     return np.random.default_rng(random_state).choice([-1.0, 1.0], size=n_spins).astype(np.float64)
 
 
-def _magnetization() -> Observable:
+def _magnetization() -> ObservableQuantity:
     """Return the observable of the mean spin of the group `spins`."""
-    return Observable('magnetization', group='spins', variable='spin')
+    return ObservableQuantity('magnetization', group='spins', variable='spin')
 
 
 class FullyConnectedSpinComponent(ElementComponent):

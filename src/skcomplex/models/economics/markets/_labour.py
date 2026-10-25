@@ -11,7 +11,7 @@ from ....core.base import BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import ElementComponent
 from ....core.laws import Symbols
 from ....core.space import DiscreteTime
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, Phase, PhasesSchedule, RuleLaw
 from ..realizations._institutions import InstitutionInteraction
@@ -236,7 +236,7 @@ def _unemployed(agent: AgentView) -> float:
     tags=('labour', 'market', 'matching', 'agents'),
     references=('Hamill and Gilbert 2016 ch. 7',),
     defaults={'until': 200},
-    observables=lambda system: [Observable('unemployment', _unemployed, group='workers')],
+    observables=lambda system: [ObservableQuantity('unemployment', _unemployed, group='workers')],
 )
 def labour_market(
     n_workers: int = 200,

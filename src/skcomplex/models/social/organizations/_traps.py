@@ -5,20 +5,23 @@
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import Auxiliary, Sink, Source, Symbols, TransferLaw, distributed_delay, lookup, where
+from ....core.laws import AuxiliaryQuantity, Sink, Source, Symbols, TransferLaw, distributed_delay, lookup, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
 ALLOCATION_TABLE = ((0.0, 0.0), (0.2, 0.05), (0.5, 0.5), (0.8, 0.95), (1.0, 1.0))
 
 
+def _contest_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
+    """Return the past success of the first competitor and the share of the budget it gets."""
+    success = AuxiliaryQuantity('success', s.a / (s.a + s.b))
+    return [success, AuxiliaryQuantity('allocation', lookup(success.symbol, ALLOCATION_TABLE))]
+
+
 def _contest_laws(s: Symbols) -> list[BaseLaw]:
     """Return the laws of two competitors that share a budget in proportion to their past success."""
-    success = Auxiliary('success', s.a / (s.a + s.b))
-    allocation = Auxiliary('allocation', lookup(success.symbol, ALLOCATION_TABLE))
+    _, allocation = _contest_quantities(s)
     return [
-        success,
-        allocation,
         TransferLaw(Source('budget'), s.a, s.budget * allocation.symbol, label='allocation_a'),
         TransferLaw(Source('budget'), s.b, s.budget * (1 - allocation.symbol), label='allocation_b'),
         TransferLaw(s.a, Sink('depreciation'), s.a / s.lifetime, label='depreciation_a'),
@@ -37,15 +40,20 @@ ContestComponent = ElementComponent.define(
         'lifetime': parameter(default=10.0, domain=NumericDomain.POSITIVE),
     },
     laws=_contest_laws,
+    quantities=_contest_quantities,
 )
+
+
+def _burden_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
+    """Return the symptom, the gap between the desired and the current state of the problem."""
+    return [AuxiliaryQuantity('symptom', s.desired - s.capability - s.intervention)]
 
 
 def _burden_laws(s: Symbols) -> list[BaseLaw]:
     """Return the laws of a problem that a quick fix relieves while it erodes the capability of a fundamental one."""
-    symptom = Auxiliary('symptom', s.desired - s.capability - s.intervention)
+    (symptom,) = _burden_quantities(s)
     building = distributed_delay(symptom.symbol, conserved=False, time=s.solution_delay) / s.build_time
     return [
-        symptom,
         TransferLaw(Source('intervener'), s.intervention, s.fix_rate * symptom.symbol, label='fixing'),
         TransferLaw(Source('learning'), s.capability, building, label='building'),
         TransferLaw(s.capability, Sink('atrophy'), s.erosion * s.intervention * s.capability, label='erosion'),
@@ -66,24 +74,30 @@ BurdenComponent = ElementComponent.define(
         'erosion': parameter(default=0.5, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_burden_laws,
+    quantities=_burden_quantities,
 )
+
+
+def _escalation_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
+    """Return the stock each party desires, a margin above its delayed view of the other's."""
+    return [
+        AuxiliaryQuantity(
+            'desired_a',
+            (1 + s.margin) * distributed_delay(s.b, conserved=False, time=s.perception_delay),
+        ),
+        AuxiliaryQuantity(
+            'desired_b',
+            (1 + s.margin) * distributed_delay(s.a, conserved=False, time=s.perception_delay),
+        ),
+    ]
 
 
 def _escalation_laws(s: Symbols) -> list[BaseLaw]:
     """Return the laws of two parties that each build their stock up to a margin above their view of the other's."""
-    desired_a = Auxiliary(
-        'desired_a',
-        (1 + s.margin) * distributed_delay(s.b, conserved=False, time=s.perception_delay),
-    )
-    desired_b = Auxiliary(
-        'desired_b',
-        (1 + s.margin) * distributed_delay(s.a, conserved=False, time=s.perception_delay),
-    )
+    desired_a, desired_b = _escalation_quantities(s)
     build_a = where(desired_a.symbol > s.a, desired_a.symbol - s.a, 0) / s.adjustment_time
     build_b = where(desired_b.symbol > s.b, desired_b.symbol - s.b, 0) / s.adjustment_time
     return [
-        desired_a,
-        desired_b,
         TransferLaw(Source('production'), s.a, build_a, label='build_a'),
         TransferLaw(Source('production'), s.b, build_b, label='build_b'),
     ]
@@ -101,6 +115,7 @@ ArmsRaceComponent = ElementComponent.define(
         'perception_delay': parameter(default=1.0, domain=NumericDomain.POSITIVE),
     },
     laws=_escalation_laws,
+    quantities=_escalation_quantities,
 )
 
 

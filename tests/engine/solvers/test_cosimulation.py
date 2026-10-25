@@ -15,7 +15,7 @@ from skcomplex.core.base import (
     role,
     state,
 )
-from skcomplex.core.components import Aggregate, ElementComponent
+from skcomplex.core.components import AggregateQuantity, ElementComponent
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
@@ -115,7 +115,7 @@ def _counting_system(agents=3, reduce='count', variable=None):
                 'village',
                 components=[
                     BreederComponent.group('farmers', agents, variable=True),
-                    Aggregate('size', group='farmers', reduce=reduce, variable=variable),
+                    AggregateQuantity('size', group='farmers', reduce=reduce, variable=variable),
                 ],
             ),
         ],
@@ -213,7 +213,7 @@ def test_aggregate_reductions_of_agent_states(reduce, expected):
                 'village',
                 components=[
                     IdleComponent.group('farmers', 3),
-                    Aggregate('total', group='farmers', reduce=reduce, variable='wealth'),
+                    AggregateQuantity('total', group='farmers', reduce=reduce, variable='wealth'),
                 ],
             ),
         ],
@@ -231,7 +231,7 @@ def test_aggregate_reduces_element_group():
                 'herds',
                 components=[
                     PopulationComponent.group('herd', 3, n=[1.0, 2.0, 3.0]),
-                    Aggregate('total', group='herd', reduce='sum', variable='n'),
+                    AggregateQuantity('total', group='herd', reduce='sum', variable='n'),
                 ],
                 interactions=[ExponentialGrowthInteraction('growth', target='herd')],
             ),
@@ -280,7 +280,10 @@ def test_gauss_seidel_reads_already_advanced_values():
         components=[
             System(
                 'village',
-                components=[BreederComponent.group('farmers', 3, variable=True), Aggregate('size', group='farmers')],
+                components=[
+                    BreederComponent.group('farmers', 3, variable=True),
+                    AggregateQuantity('size', group='farmers'),
+                ],
             ),
             System('land', components=[PopulationComponent('soil', n=0.0)]),
         ],

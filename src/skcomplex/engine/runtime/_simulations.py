@@ -22,7 +22,7 @@ from ...core.base import (
     Vector,
 )
 from ...core.problems import BaseBackend, BaseProblem, with_initial_state
-from ...core.system import Observable, System
+from ...core.system import ObservableQuantity, System
 from ..compile import ObservableEvaluator, compile_system, validate
 from ..solvers import AgentState, Solver, StructureState, resolve_solver
 from ._clocks import AsFastAsPossibleClock, BaseClock
@@ -158,7 +158,7 @@ class Simulation(BaseEstimator):
         random_state: int | np.random.Generator | None = None,
         checked: bool = False,
         schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,
-        observables: Sequence[Observable] = (),
+        observables: Sequence[ObservableQuantity] = (),
         initial_state: Mapping[str, object] | None = None,
     ) -> None:
         self.system = system

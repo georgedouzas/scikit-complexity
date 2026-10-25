@@ -7,8 +7,8 @@ from sage.all__sagemath_symbolics import exp
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import Objective, RateLaw, Symbols
-from ....core.system import Observable, System
+from ....core.laws import ObjectiveQuantity, RateLaw, Symbols
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....formalisms.control import CollocationSolver
 
@@ -75,7 +75,7 @@ class HarvestedResourceComponent(ElementComponent):
     delta: float = parameter(default=0.1, domain=NumericDomain.NONNEGATIVE)
 
     def laws(self, s: Symbols) -> list[BaseLaw]:
-        """Return the regrowth less the catch, and the discounted profit to maximise.
+        """Return the regrowth less the catch.
 
         Args:
             s:
@@ -85,11 +85,21 @@ class HarvestedResourceComponent(ElementComponent):
             laws:
                 The laws of the component.
         """
+        return [RateLaw(s.x, s.r * s.x * (1 - s.x / s.K) - s.q * s.effort * s.x)]
+
+    def quantities(self, s: Symbols) -> list[ObjectiveQuantity]:
+        """Return the discounted profit of the fishery to maximise.
+
+        Args:
+            s:
+                The namespace of the symbols the quantities can use.
+
+        Returns:
+            quantities:
+                The quantities of the component.
+        """
         profit = exp(-s.delta * s.t) * (s.p * s.q * s.x - s.c) * s.effort
-        return [
-            RateLaw(s.x, s.r * s.x * (1 - s.x / s.K) - s.q * s.effort * s.x),
-            Objective(profit, sense='max', label='profit'),
-        ]
+        return [ObjectiveQuantity('profit', profit, sense='max')]
 
 
 @register_model(
@@ -97,7 +107,7 @@ class HarvestedResourceComponent(ElementComponent):
     tags=('optimal control', 'harvesting', 'bang-bang', 'singular arc', 'ode'),
     references=('Clark 1990',),
     defaults={'until': 20.0, 'dt': 0.2, 'solver': CollocationSolver(nodes=101, scheme='trapezoidal')},
-    observables=lambda system: [Observable('catch', _catch)],
+    observables=lambda system: [ObservableQuantity('catch', _catch)],
 )
 def optimal_harvesting(
     x: float = 1.0,

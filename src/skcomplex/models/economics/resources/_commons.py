@@ -12,7 +12,7 @@ from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, p
 from ....core.components import ElementComponent
 from ....core.laws import Symbols, transfer
 from ....core.space import DiscreteTime, LatticeSpace
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, MatchLaw, ModelView, Phase, PhasesSchedule, RuleLaw, matches
 from ..realizations._institutions import InstitutionInteraction
@@ -20,13 +20,13 @@ from ..realizations._institutions import InstitutionInteraction
 UNLIMITED = 1e9
 
 
-def _commons_observables(system: System) -> list[Observable]:
+def _commons_observables(system: System) -> list[ObservableQuantity]:
     """Return the grass on the meadow, the size of the herd, and the mean quota of the herders."""
     del system
     return [
-        Observable('grass', group='meadow', variable='grass', reduce='sum'),
-        Observable('herd', group='cows', variable='energy', reduce='count'),
-        Observable('quota', group='herders', variable='quota', reduce='mean'),
+        ObservableQuantity('grass', group='meadow', variable='grass', reduce='sum'),
+        ObservableQuantity('herd', group='cows', variable='energy', reduce='count'),
+        ObservableQuantity('quota', group='herders', variable='quota', reduce='mean'),
     ]
 
 

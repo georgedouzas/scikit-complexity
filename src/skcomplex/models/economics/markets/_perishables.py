@@ -10,7 +10,7 @@ from scipy.special import expit
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import ElementComponent
 from ....core.laws import Symbols
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
@@ -232,7 +232,7 @@ class PerishableTradeInteraction(BaseInteraction):
     tags=('agents', 'discrete choice', 'symmetry breaking', 'phase transition', 'retail'),
     references=('Bertin 2021', 'Bouchaud 2013'),
     defaults={'until': 300},
-    observables=lambda system: [Observable('m', group='shops', variable='share', reduce=_asymmetry)],
+    observables=lambda system: [ObservableQuantity('m', group='shops', variable='share', reduce=_asymmetry)],
 )
 def perishable_goods_duopoly(
     customers: int = 200,

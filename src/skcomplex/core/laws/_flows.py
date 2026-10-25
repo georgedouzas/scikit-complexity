@@ -14,6 +14,7 @@ from sage.symbolic.function import BuiltinFunction
 
 from ..base import (
     BaseLaw,
+    BaseQuantity,
     ConservationError,
     DomainKind,
     Expression,
@@ -305,42 +306,32 @@ class TransferLaw(BaseLaw):
 
 
 @dataclass(frozen=True)
-class Auxiliary(BaseLaw):
+class AuxiliaryQuantity(BaseQuantity):
     """Named intermediate expression that laws reuse through its symbol and that trajectories record.
 
-    Laws use `auxiliary.symbol` where the expression belongs, and the compiler substitutes the expression. The loop
-    analysis keeps auxiliaries as nodes of the feedback graph, and the trajectory records the value under
-    `<component path>.<label>`.
+    A component returns its auxiliaries from `quantities`, and its laws use `auxiliary.symbol` where the expression
+    belongs, and the compiler substitutes the expression. The loop analysis keeps auxiliaries as nodes of the feedback
+    graph, and the trajectory records the value under `<component path>.<label>`.
 
     Args:
         label:
-            The name of the auxiliary, unique among the flows and auxiliaries of its component.
+            The name of the auxiliary, unique among the flows and quantities of its component.
 
         expression:
             The symbolic expression, which can use the symbols of earlier auxiliaries.
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Auxiliary
+        >>> from skcomplex.core.laws import AuxiliaryQuantity
         >>> n, b = symbol('n'), symbol('b')
-        >>> births = Auxiliary('births', b * n)
+        >>> births = AuxiliaryQuantity('births', b * n)
         >>> births.symbol
         births__aux
     """
 
-    law_kind: ClassVar[LawKind] = LawKind.EQUATION
-    time_class: ClassVar[LawClass] = LawClass.CONTINUOUS
-    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.KERNEL_FREE, Trait.DECLARABLE})
-    requires: ClassVar[Requires] = Requires()
-
-    label: str
-    expression: object
-
     def _check(self) -> Self:
-        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
-        changes: dict[str, Any] = {}
-        changes['expression'] = _checked_value(f'expression of the auxiliary {self.label}', self.expression)
-        return replace(self, **changes) if changes else self
+        """Return the auxiliary with its expression checked and normalized, raising a named error for an invalid one."""
+        return replace(self, expression=_checked_value(f'expression of the auxiliary {self.label}', self.expression))
 
     @property
     def symbol(self) -> Expression:
@@ -349,19 +340,20 @@ class Auxiliary(BaseLaw):
 
 
 @dataclass(frozen=True)
-class Invariant(BaseLaw):
+class InvariantQuantity(BaseQuantity):
     """Expression of the states of a component that stays constant during a run, such as a conserved total.
 
-    The trajectory records the expression under `<component path>.<label>`, and every run checks at every frame that it
-    differs from its value at the first frame by no more than the tolerance, raising an error that names the invariant
-    and the first frame that breaks it. A group of agents declares an invariant of each member as a module-level
-    function of the member, which the agent stepper checks after every step against the member's first value. An
-    interaction of agents declares an invariant of the agents it binds as a module-level function of its model view,
-    such as the total of a state over a group, which the agent stepper checks after every step against its first value.
+    A component returns its invariants from `quantities`. The trajectory records the expression under
+    `<component path>.<label>`, and every run checks at every frame that it differs from its value at the first frame by
+    no more than the tolerance, raising an error that names the invariant and the first frame that breaks it. A group
+    of agents declares an invariant of each member as a module-level function of the member, which the agent stepper
+    checks after every step against the member's first value. An interaction of agents declares an invariant of the
+    agents it binds as a module-level function of its model view, such as the total of a state over a group, which the
+    agent stepper checks after every step against its first value.
 
     Args:
         label:
-            The name of the invariant, unique among the transfers, auxiliaries, and invariants of its component.
+            The name of the invariant, unique among the flows and quantities of its component.
 
         expression:
             The expression of states and parameters, or a module-level function of a member of an agent group or of
@@ -372,27 +364,21 @@ class Invariant(BaseLaw):
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Invariant
+        >>> from skcomplex.core.laws import InvariantQuantity
         >>> a, b = symbol('a'), symbol('b')
-        >>> Invariant('total', a + b).tolerance
+        >>> InvariantQuantity('total', a + b).tolerance
         1e-09
     """
 
-    law_kind: ClassVar[LawKind] = LawKind.INVARIANT
-    time_class: ClassVar[LawClass] = LawClass.CONSTRAINT
-    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.KERNEL_FREE, Trait.DECLARABLE})
-    requires: ClassVar[Requires] = Requires()
-
-    label: str
-    expression: object
     tolerance: float = 1e-9
 
     def _check(self) -> Self:
-        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
-        changes: dict[str, Any] = {}
+        """Return the invariant with its expression checked and normalized, raising a named error for an invalid one."""
         if not self.is_member:
-            changes['expression'] = _checked_value(f'expression of the invariant {self.label}', self.expression)
-            return replace(self, **changes) if changes else self
+            return replace(
+                self,
+                expression=_checked_value(f'expression of the invariant {self.label}', self.expression),
+            )
         try:
             pickle.dumps(self.expression)
         except (pickle.PicklingError, AttributeError, TypeError) as error:
@@ -400,7 +386,7 @@ class Invariant(BaseLaw):
                 f'The function of the invariant {self.label!r} cannot be pickled: {error}. Use a module-level function.'
             )
             raise ValidationError(error_msg) from error
-        return replace(self, **changes) if changes else self
+        return self
 
     @property
     def is_member(self) -> bool:
@@ -447,4 +433,4 @@ class Invariant(BaseLaw):
             raise ConservationError(error_msg)
 
 
-register_laws(TransferLaw, Auxiliary, Invariant)
+register_laws(TransferLaw)

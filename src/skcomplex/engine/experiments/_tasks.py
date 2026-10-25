@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 
 from ...core.problems import BaseProblem
-from ...core.system import Observable, System
+from ...core.system import ObservableQuantity, System
 from ..compile import observables_of
 from ..runtime import BaseObserver, Frame, Simulation, Trajectory
 from ._designs import Row
@@ -70,7 +70,7 @@ class Task:
     settings: Mapping[str, Any]
     outputs: Sequence[Output] | None
     warmup: float
-    observables: Sequence[Observable] | str | None = None
+    observables: Sequence[ObservableQuantity] | str | None = None
 
 
 def _scalars(name: str, value: Any) -> dict[str, Any]:  # noqa: ANN401

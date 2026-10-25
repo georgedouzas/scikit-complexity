@@ -5,7 +5,7 @@
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import Auxiliary, Sink, Source, Symbols, TransferLaw, distributed_delay, lookup, step
+from ....core.laws import AuxiliaryQuantity, Sink, Source, Symbols, TransferLaw, distributed_delay, lookup, step
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -13,23 +13,29 @@ PRICE_TABLE = ((0.0, 3.0), (0.5, 1.8), (1.0, 1.0), (1.5, 0.65), (2.0, 0.5), (3.0
 INVESTMENT_TABLE = ((0.0, 0.0), (0.5, 0.1), (1.0, 1.0), (1.25, 2.5), (1.5, 4.0), (2.0, 5.0), (3.0, 5.5))
 
 
-def _commodity_laws(s: Symbols) -> list[BaseLaw]:
-    """Return the laws of the commodity market."""
+def _commodity_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
+    """Return the coverage of demand by the inventory, the price, the expected price, and the orders of capacity."""
     demand = s.demand + step(s.t, s.step_time, s.demand_step)
-    coverage = Auxiliary('coverage', s.inventory / demand)
-    price = Auxiliary('price', s.reference_price * lookup(coverage.symbol / s.desired_coverage, PRICE_TABLE))
-    relative_price = price.symbol / s.reference_price
-    expected = Auxiliary('expected_price', distributed_delay(price.symbol, conserved=False, time=s.expectation_time))
-    production = s.capacity * relative_price**s.supply_elasticity
-    starts = Auxiliary(
+    coverage = AuxiliaryQuantity('coverage', s.inventory / demand)
+    price = AuxiliaryQuantity('price', s.reference_price * lookup(coverage.symbol / s.desired_coverage, PRICE_TABLE))
+    expected = AuxiliaryQuantity(
+        'expected_price',
+        distributed_delay(price.symbol, conserved=False, time=s.expectation_time),
+    )
+    starts = AuxiliaryQuantity(
         'capacity_orders',
         s.capacity / s.lifetime * lookup(expected.symbol / s.reference_price, INVESTMENT_TABLE),
     )
+    return [coverage, price, expected, starts]
+
+
+def _commodity_laws(s: Symbols) -> list[BaseLaw]:
+    """Return the laws of the commodity market."""
+    demand = s.demand + step(s.t, s.step_time, s.demand_step)
+    _, price, _, starts = _commodity_quantities(s)
+    relative_price = price.symbol / s.reference_price
+    production = s.capacity * relative_price**s.supply_elasticity
     return [
-        coverage,
-        price,
-        expected,
-        starts,
         TransferLaw(Source('producers'), s.inventory, production, label='production'),
         TransferLaw(
             s.inventory,
@@ -66,6 +72,7 @@ CommodityMarketComponent = ElementComponent.define(
         'lifetime': parameter(default=15.0, domain=NumericDomain.POSITIVE),
     },
     laws=_commodity_laws,
+    quantities=_commodity_quantities,
 )
 
 

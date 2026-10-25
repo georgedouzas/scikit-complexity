@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import exp
 
 from skcomplex.core.base import BaseLaw, NumericDomain, parameter, state
 from skcomplex.core.components import ElementComponent
-from skcomplex.core.laws import Objective, RateLaw, Symbols
+from skcomplex.core.laws import ObjectiveQuantity, RateLaw, Symbols
 from skcomplex.core.system import System
 
 HORIZON = 1.0
@@ -24,8 +24,12 @@ class IntegratorComponent(ElementComponent):
     u: float = parameter(0.0, adaptive=True, bounds=(-10, 10))
 
     def laws(self, s: Symbols) -> list[BaseLaw]:
-        """Return the rate of the state and the cost `(x^2 + u^2) / 2`."""
-        return [RateLaw(s.x, s.u), Objective((s.x**2 + s.u**2) / 2)]
+        """Return the rate of the state."""
+        return [RateLaw(s.x, s.u)]
+
+    def quantities(self, s: Symbols) -> list[ObjectiveQuantity]:
+        """Return the cost `(x^2 + u^2) / 2`."""
+        return [ObjectiveQuantity('objective', (s.x**2 + s.u**2) / 2)]
 
 
 class FisheryComponent(ElementComponent):
@@ -37,9 +41,13 @@ class FisheryComponent(ElementComponent):
     discount: float = parameter(0.1)
 
     def laws(self, s: Symbols) -> list[BaseLaw]:
-        """Return the logistic regrowth less the harvest, and the discounted profit to maximise."""
+        """Return the logistic regrowth less the harvest."""
+        return [RateLaw(s.x, s.x * (1 - s.x) - s.effort * s.x)]
+
+    def quantities(self, s: Symbols) -> list[ObjectiveQuantity]:
+        """Return the discounted profit to maximise."""
         profit = exp(-s.discount * s.t) * (s.x - s.cost) * s.effort
-        return [RateLaw(s.x, s.x * (1 - s.x) - s.effort * s.x), Objective(profit, sense='max')]
+        return [ObjectiveQuantity('objective', profit, sense='max')]
 
 
 def _riccati_control(times: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:

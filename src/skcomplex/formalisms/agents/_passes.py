@@ -21,9 +21,20 @@ from ...core.base import (
     declarations_of,
 )
 from ...core.components import GroupComponent, probe_laws
-from ...core.laws import Invariant
+from ...core.laws import InvariantQuantity
 from ...core.problems import CompiledAgents, Problem
-from ...engine.compile import BasePass, Block, BlockLaws, Compilation, Declarations, KernelSpec, Laws, Node, visual_of
+from ...engine.compile import (
+    BasePass,
+    Block,
+    BlockLaws,
+    Compilation,
+    Declarations,
+    KernelSpec,
+    Laws,
+    Node,
+    Quantities,
+    visual_of,
+)
 from ._laws import MatchLaw, RuleLaw, runs_rules
 
 MEMBER_SUFFIX = re.compile(r'\[-?\d+\]$')
@@ -88,16 +99,26 @@ def _agent_owner(spec: KernelSpec, law: BaseLaw, agents: set[str]) -> str | None
     return next((path for path in paths if path in agents), next(iter(paths), spec.owner))
 
 
+def _member_invariants(quantities: Quantities) -> list[tuple[str, InvariantQuantity]]:
+    """Return the invariants of members and of model views, with the path of the component that declares each."""
+    return [
+        (spec.owner, quantity)
+        for spec, items in quantities
+        for quantity in items
+        if isinstance(quantity, InvariantQuantity) and quantity.is_member
+    ]
+
+
 def _compiled_agents(
     blocks: list[Block],
     rules: list[tuple[KernelSpec, tuple[RuleLaw, ...]]],
-    specs: Laws,
+    invariants: list[tuple[str, InvariantQuantity]],
 ) -> tuple[CompiledAgents, ...]:
-    """Return the agent elements and groups with their states, initial values, parameters, and rules."""
+    """Return the agent elements and groups with their states, initial values, parameters, rules, and invariants."""
     by_owner = {spec.owner: items for spec, items in rules}
-    invariants = {
-        spec.owner: tuple(law for law in laws if isinstance(law, Invariant) and law.is_member) for spec, laws in specs
-    }
+    by_path: dict[str, tuple[InvariantQuantity, ...]] = {}
+    for owner, invariant in invariants:
+        by_path[owner] = (*by_path.get(owner, ()), invariant)
     agents = []
     for block in blocks:
         node = block.node
@@ -123,7 +144,7 @@ def _compiled_agents(
                 parameters={name: entry.name for name, entry in block.entries.items()},
                 rules=by_owner.get(node.path, ()),
                 visual=_agent_visual(node),
-                invariants=invariants.get(node.path, ()),
+                invariants=by_path.get(node.path, ()),
             ),
         )
     return tuple(agents)
@@ -230,7 +251,7 @@ class SetRulesApartPass(BasePass):
 class AgentsProblemPass(BasePass):
     """Pass that adds the agents with their rules, the rules of other components, and the agent space to the problem."""
 
-    reads = ('problem', 'layout', 'reduced', 'rules')
+    reads = ('problem', 'layout', 'reduced', 'rules', 'quantities')
     writes = ('problem',)
 
     def _run(self, compilation: Compilation) -> None:
@@ -242,17 +263,17 @@ class AgentsProblemPass(BasePass):
         """
         blocks = list(cast('Declarations', compilation.layout).blocks.values())
         rules = cast('list[tuple[KernelSpec, tuple[RuleLaw, ...]]]', compilation.facts['rules'])
-        reduced = cast('Laws', compilation.reduced)
+        owners = compilation.owners
+        invariants = [
+            (owner, invariant)
+            for owner, invariant in _member_invariants(cast('Quantities', compilation.quantities))
+            if owners is None or owner in owners
+        ]
         agents = {block.node.path for block in blocks if block.node.is_agent}
         compilation.problem = replace(
             cast('Problem', compilation.problem),
-            agents=_compiled_agents(blocks, rules, reduced),
+            agents=_compiled_agents(blocks, rules, invariants),
             model_rules=tuple((spec.owner, law) for spec, items in rules for law in items if spec.owner not in agents),
-            model_invariants=tuple(
-                (spec.owner, law)
-                for spec, laws in reduced
-                for law in laws
-                if isinstance(law, Invariant) and law.is_member and spec.owner not in agents
-            ),
+            model_invariants=tuple((owner, invariant) for owner, invariant in invariants if owner not in agents),
             agent_space=_agent_space(blocks),
         )

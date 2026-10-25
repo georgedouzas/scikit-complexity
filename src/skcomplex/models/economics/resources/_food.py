@@ -5,7 +5,7 @@
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import Auxiliary, RateLaw, Sink, Source, Symbols, TransferLaw, lookup
+from ....core.laws import AuxiliaryQuantity, RateLaw, Sink, Source, Symbols, TransferLaw, lookup
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -14,25 +14,31 @@ LEARNING_EFFECT = ((0.0, 0.0), (0.25, 0.4), (0.5, 0.7), (0.75, 0.9), (1.0, 1.0))
 TONNES_PER_KG = 1e-3
 
 
-def _rice_laws(s: Symbols) -> list[BaseLaw]:
-    """Return the development and loss of rice land, the population, and the factors of the rice productivity."""
+def _rice_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
+    """Return the input ratio, the productivity, the production, the requirement, and the self-sufficiency of rice."""
     chemical = 1 - s.bio_fraction
-    input_ratio = Auxiliary('input_ratio', s.bio_fraction + chemical * (s.subsidy + (1 - s.subsidy) * s.farmer_inputs))
-    productivity = Auxiliary(
+    input_ratio = AuxiliaryQuantity(
+        'input_ratio',
+        s.bio_fraction + chemical * (s.subsidy + (1 - s.subsidy) * s.farmer_inputs),
+    )
+    productivity = AuxiliaryQuantity(
         'productivity',
         s.potential * lookup(input_ratio.symbol, INPUT_EFFECT) * s.soil_quality * s.practice,
     )
-    production = Auxiliary(
+    production = AuxiliaryQuantity(
         'production',
         s.milling_rate * productivity.symbol * s.rice_area * s.cropping_intensity,
     )
-    requirement = Auxiliary('requirement', s.consumption * TONNES_PER_KG * s.population)
+    requirement = AuxiliaryQuantity('requirement', s.consumption * TONNES_PER_KG * s.population)
+    self_sufficiency = AuxiliaryQuantity('self_sufficiency', production.symbol / requirement.symbol)
+    return [input_ratio, productivity, production, requirement, self_sufficiency]
+
+
+def _rice_laws(s: Symbols) -> list[BaseLaw]:
+    """Return the development and loss of rice land, the population, and the factors of the rice productivity."""
+    chemical = 1 - s.bio_fraction
+    input_ratio, *_ = _rice_quantities(s)
     return [
-        input_ratio,
-        productivity,
-        production,
-        requirement,
-        Auxiliary('self_sufficiency', production.symbol / requirement.symbol),
         TransferLaw(s.available_land, s.rice_area, s.available_land / s.conversion_time, label='development'),
         TransferLaw(s.rice_area, Sink('urban'), s.discard_rate * s.rice_area, label='discard'),
         TransferLaw(Source('births'), s.population, s.growth_rate * s.population, label='population_growth'),
@@ -84,6 +90,7 @@ RiceSectorComponent = ElementComponent.define(
         'implementation_time': parameter(default=10.0, domain=NumericDomain.POSITIVE),
     },
     laws=_rice_laws,
+    quantities=_rice_quantities,
 )
 
 

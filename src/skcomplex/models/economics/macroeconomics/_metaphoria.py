@@ -12,9 +12,9 @@ import numpy.typing as npt
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import ElementComponent
-from ....core.laws import Invariant, Symbols, transfer
+from ....core.laws import InvariantQuantity, Symbols, transfer
 from ....core.space import DiscreteTime, LatticeSpace
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.analysis import gini
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, MatchLaw, ModelView, Phase, PhasesSchedule, RuleLaw, matches
@@ -532,7 +532,7 @@ class CentralBankComponent(ElementComponent):
     loans: float = state(default=0.0, quantity='credit')
 
     def laws(self, s: Symbols) -> list[BaseLaw]:
-        """Return the dividend rule in the phase of banking and the invariant of the balance sheet.
+        """Return the dividend rule in the phase of banking.
 
         Args:
             s:
@@ -542,11 +542,20 @@ class CentralBankComponent(ElementComponent):
             laws:
                 The laws of the component.
         """
-        laws: list[Any] = [
-            RuleLaw(self.distribute, phase='banking'),
-            Invariant('balance', _bank_balance, tolerance=1e-6),
-        ]
-        return laws
+        return [RuleLaw(self.distribute, phase='banking')]
+
+    def quantities(self, s: Symbols) -> list[InvariantQuantity]:
+        """Return the invariant of the balance sheet of the bank.
+
+        Args:
+            s:
+                The namespace of the symbols the quantities can use.
+
+        Returns:
+            quantities:
+                The quantities of the component.
+        """
+        return [InvariantQuantity('balance', _bank_balance, tolerance=1e-6)]
 
     def distribute(self, agent: AgentView, model: ModelView) -> None:
         """Pay the income of the step to a random person, or to a random firm when nobody lives.
@@ -784,8 +793,8 @@ class CensusInteraction(BaseInteraction):
     references=('Gooding 2019',),
     defaults={'until': 300},
     observables=lambda system: [
-        Observable('population', group='people', variable='fate', reduce=_living),
-        Observable('money_gini', group='people', variable='money', reduce=gini),
+        ObservableQuantity('population', group='people', variable='fate', reduce=_living),
+        ObservableQuantity('money_gini', group='people', variable='money', reduce=gini),
     ],
 )
 def metaphoria(

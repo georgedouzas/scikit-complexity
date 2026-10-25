@@ -2,12 +2,12 @@
 
 from ._capacity import CapacityRows, capacity_rows
 from ._census import Census, CensusRecord, OwnerRule, register_owner
-from ._compilation import BlockLaws, Compilation, Laws
+from ._compilation import BlockLaws, Compilation, Laws, Quantities
 from ._compile import compile_system, compiled_problem, partition_system
 from ._declarations import Block, Declarations, is_interaction, member_count
 from ._forms import register_combined, register_form
 from ._issues import Issue, ValidationWarning, names_of
-from ._observables import ObservableEvaluator, observables_of
+from ._observables import ObservableEvaluator, aggregates_of, observables_of
 from ._pipeline import BasePass, Check, order_passes, register_check, register_pass, run_passes
 from ._planner import SOLVERS, solver_classes, solver_registry
 from ._specs import (
@@ -46,8 +46,10 @@ __all__: list[str] = [
     'Node',
     'ObservableEvaluator',
     'OwnerRule',
+    'Quantities',
     'ValidationReport',
     'ValidationWarning',
+    'aggregates_of',
     'capacity_rows',
     'claiming_compiler',
     'coerce_value',

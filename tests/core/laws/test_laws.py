@@ -8,9 +8,7 @@ import skcomplex.formalisms.control  # noqa: F401  # registers the optimal contr
 from skcomplex.core.base import (
     BaseInteraction,
     ConservationError,
-    LawKind,
     NumericDomain,
-    TimeKind,
     ValidationError,
     parameter,
     role,
@@ -20,10 +18,10 @@ from skcomplex.core.base import (
 from skcomplex.core.components import ElementComponent
 from skcomplex.core.laws import (
     EquationLaw,
-    Invariant,
+    InvariantQuantity,
     JumpLaw,
     NoiseLaw,
-    Objective,
+    ObjectiveQuantity,
     RateLaw,
     UpdateLaw,
     derivative,
@@ -142,10 +140,8 @@ PumpComponent = ElementComponent.define(
     'PumpComponent',
     states={'x': 1.0},
     parameters={'u': parameter(0.0, adaptive=True, bounds=(0, 1)), 'weight': 2.0},
-    laws=lambda s: [
-        RateLaw(s.x, -s.x + s.u),
-        Objective(s.x**2 + s.weight * s.u, terminal=s.x, sense='max', label='gain'),
-    ],
+    laws=lambda s: [RateLaw(s.x, -s.x + s.u)],
+    quantities=lambda s: [ObjectiveQuantity('gain', s.x**2 + s.weight * s.u, terminal=s.x, sense='max')],
 )
 
 
@@ -283,7 +279,8 @@ def test_violated_invariant_names_itself_and_the_frame():
     LeakyComponent = ElementComponent.define(
         'LeakyComponent',
         states={'a': 1.0},
-        laws=lambda s: [RateLaw(s.a, 1.0), Invariant('total', s.a)],
+        laws=lambda s: [RateLaw(s.a, 1.0)],
+        quantities=lambda s: [InvariantQuantity('total', s.a)],
     )
     with pytest.raises(ConservationError, match=r'invariant l\.total .* at frame 1'):
         Simulation(System(components=[LeakyComponent('l')]), dt=0.5).run(until=2)
@@ -319,16 +316,17 @@ def test_multiplier_accelerator_oscillates_with_growing_amplitude():
     assert np.all(np.abs(roots) > 1)
 
 
-def test_objective_declares_constraint_kind_and_times():
-    """Test that an objective is a constraint law valid under static and continuous time."""
-    assert Objective.law_kind == LawKind.OBJECTIVE
-    assert Objective.requires.time == {TimeKind.STATIC, TimeKind.CONTINUOUS}
+def test_objective_checks_its_values():
+    """Test that checking an objective turns its running and terminal values into symbolic expressions."""
+    checked = ObjectiveQuantity('cost', symbol('x'), terminal=1).check()
+    assert (checked.label, checked.sense) == ('cost', 'min')
+    assert str(checked.terminal) == '1'
 
 
 def test_objective_rejects_unknown_sense():
     """Test that an objective takes the sense `min` or `max` only."""
     with pytest.raises(ValidationError, match='Unknown sense'):
-        Objective(symbol('x'), sense='best').check()
+        ObjectiveQuantity('objective', symbol('x'), sense='best').check()
 
 
 def test_objective_compiles_running_and_terminal_values():

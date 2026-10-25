@@ -9,6 +9,7 @@ from ._errors import (
     BackendWarning,
     CapacityError,
     ConservationError,
+    DeclarationError,
     ExperimentError,
     IncompatibleLawsError,
     LabelError,
@@ -46,6 +47,7 @@ from ._kinds import (
 )
 from ._laws import BaseLaw, has_trait, is_registered, law_classes, register_laws
 from ._problems import Entry, Layout
+from ._quantities import BaseQuantity
 from ._spaces import BaseNeighborhood, BaseSpace, BaseTime
 from ._symbolic import Expression, SymbolicVector, components_of, domain_of, symbol, symbols_of, vector
 from ._utils import Indices, Registry, Vector, VisualSpec, wrap_angle
@@ -63,6 +65,7 @@ __all__: list[str] = [
     'BaseInteraction',
     'BaseLaw',
     'BaseNeighborhood',
+    'BaseQuantity',
     'BaseSpace',
     'BaseTime',
     'Binding',
@@ -70,6 +73,7 @@ __all__: list[str] = [
     'CategoricalDomain',
     'ComponentKind',
     'ConservationError',
+    'DeclarationError',
     'DomainKind',
     'Entry',
     'ExperimentError',

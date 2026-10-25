@@ -11,9 +11,9 @@ import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import ElementComponent
-from ....core.laws import Invariant, Symbols, transfer
+from ....core.laws import InvariantQuantity, Symbols, transfer
 from ....core.space import DiscreteTime, LatticeSpace
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, MatchLaw, ModelView, Phase, PhasesSchedule, RuleLaw, matches
 from ..realizations._markets import OrderBook, Trade
@@ -26,12 +26,12 @@ def _total(holding: str, model: Any) -> float:  # noqa: ANN401
     return float(sum(getattr(agent, holding) for agent in model.agents('traders')))
 
 
-def _order_book_observables(system: System) -> list[Observable]:
+def _order_book_observables(system: System) -> list[ObservableQuantity]:
     """Return the share of chartists and the mean wealth of the traders."""
     del system
     return [
-        Observable('chartists', group='traders', variable='strategy', reduce='mean'),
-        Observable('mean_wealth', group='traders', variable='wealth', reduce='mean'),
+        ObservableQuantity('chartists', group='traders', variable='strategy', reduce='mean'),
+        ObservableQuantity('mean_wealth', group='traders', variable='wealth', reduce='mean'),
     ]
 
 
@@ -232,7 +232,7 @@ class BookInteraction(BaseInteraction):
         self.opening = opening
 
     def laws(self, s: Symbols) -> list[Any]:
-        """Return the matching of orders, the settlement rule, and the invariants of money and shares.
+        """Return the matching of orders and the settlement rule.
 
         Args:
             s:
@@ -245,10 +245,22 @@ class BookInteraction(BaseInteraction):
         return [
             MatchLaw('traders', pairing=OrderBook().evaluate, label='trades', phase='trade'),
             RuleLaw(self.settle, phase='trade'),
-            *(
-                Invariant(f'total {name}', functools.partial(_total, name), tolerance=1e-6)
-                for name in ('money', 'shares')
-            ),
+        ]
+
+    def quantities(self, s: Symbols) -> list[InvariantQuantity]:
+        """Return the invariants of the total money and the total shares of the traders.
+
+        Args:
+            s:
+                The namespace of the symbols the quantities can use.
+
+        Returns:
+            quantities:
+                The quantities of the interaction.
+        """
+        return [
+            InvariantQuantity(f'total {name}', functools.partial(_total, name), tolerance=1e-6)
+            for name in ('money', 'shares')
         ]
 
     def settle(self, model: Any) -> None:  # noqa: ANN401

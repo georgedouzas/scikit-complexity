@@ -9,23 +9,23 @@ from typing import ClassVar
 from sklearn.base import BaseEstimator
 
 from ..base import BaseInteraction, BaseSpace, BaseTime, ComponentKind
-from ..components import ElementComponent, GroupComponent
+from ..components import AggregateQuantity, ElementComponent, GroupComponent
 
 
 class System(BaseEstimator):
     """Composition of components and the interactions between them, on a space, in a time.
 
     A system is defined by its components, its interactions, its space, and its time, and by nothing about how it
-    runs. Components are elements, groups, and nested systems, so systems nest to any depth. An interaction refers to a
-    component by its path relative to the system that holds the interaction, so `forest/foxes` names the element
-    `foxes` of the nested system `forest`.
+    runs. Components are elements, groups, aggregates, and nested systems, so systems nest to any depth. An interaction
+    refers to a component by its path relative to the system that holds the interaction, so `forest/foxes` names the
+    element `foxes` of the nested system `forest`.
 
     Args:
         label:
             The label of the system. It names the system when it is nested in another one.
 
         components:
-            The elements, groups, and nested systems.
+            The elements, groups, aggregates of groups, and nested systems.
 
         interactions:
             The interactions between the components.
@@ -56,7 +56,7 @@ class System(BaseEstimator):
         self,
         label: str = 'system',
         *,
-        components: Sequence['ElementComponent | GroupComponent | System'] = (),
+        components: Sequence['ElementComponent | GroupComponent | AggregateQuantity | System'] = (),
         interactions: Sequence[BaseInteraction] = (),
         space: BaseSpace | None = None,
         time: BaseTime | None = None,
@@ -70,7 +70,14 @@ class System(BaseEstimator):
     @property
     def elements(self) -> tuple['ElementComponent | GroupComponent', ...]:
         """Return the elements and groups among the components, in order."""
-        return tuple(component for component in self.components if not isinstance(component, System))
+        return tuple(
+            component for component in self.components if not isinstance(component, System | AggregateQuantity)
+        )
+
+    @property
+    def aggregates(self) -> tuple[AggregateQuantity, ...]:
+        """Return the aggregates among the components, in order."""
+        return tuple(component for component in self.components if isinstance(component, AggregateQuantity))
 
     @property
     def systems(self) -> tuple['System', ...]:

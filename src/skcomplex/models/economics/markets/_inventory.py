@@ -3,32 +3,38 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.base import BaseLaw, NumericDomain, parameter, state
+from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import Auxiliary, Sink, Source, Symbols, TransferLaw, distributed_delay, step, where
+from ....core.laws import AuxiliaryQuantity, Sink, Source, Symbols, TransferLaw, distributed_delay, step, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
+def _sales(s: Symbols) -> Expression:
+    """Return the sales of the car dealership, the demand up to the inventory."""
+    demand = s.demand + step(s.t, s.step_time, s.demand_step)
+    return where(s.inventory < demand, s.inventory, demand)
+
+
+def _dealer_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
+    """Return the perceived sales, the desired inventory, and the orders of the car dealership."""
+    perceived = AuxiliaryQuantity('perceived', distributed_delay(_sales(s), conserved=False, time=s.perception_delay))
+    desired = AuxiliaryQuantity('desired_inventory', s.coverage * perceived.symbol)
+    gap_orders = perceived.symbol + (desired.symbol - s.inventory) / s.response_delay
+    return [perceived, desired, AuxiliaryQuantity('orders', where(gap_orders > 0, gap_orders, 0))]
+
+
 def _dealer_laws(s: Symbols) -> list[BaseLaw]:
     """Return the laws of the car dealership."""
-    demand = s.demand + step(s.t, s.step_time, s.demand_step)
-    sales = where(s.inventory < demand, s.inventory, demand)
-    perceived = Auxiliary('perceived', distributed_delay(sales, conserved=False, time=s.perception_delay))
-    desired = Auxiliary('desired_inventory', s.coverage * perceived.symbol)
-    gap_orders = perceived.symbol + (desired.symbol - s.inventory) / s.response_delay
-    orders = Auxiliary('orders', where(gap_orders > 0, gap_orders, 0))
+    *_, orders = _dealer_quantities(s)
     return [
-        perceived,
-        desired,
-        orders,
         TransferLaw(
             Source('factory'),
             s.inventory,
             distributed_delay(orders.symbol, order=3, time=s.delivery_delay),
             label='deliveries',
         ),
-        TransferLaw(s.inventory, Sink('customers'), sales, label='sales'),
+        TransferLaw(s.inventory, Sink('customers'), _sales(s), label='sales'),
     ]
 
 
@@ -45,6 +51,7 @@ CarDealershipComponent = ElementComponent.define(
         'delivery_delay': parameter(default=5.0, domain=NumericDomain.POSITIVE),
     },
     laws=_dealer_laws,
+    quantities=_dealer_quantities,
 )
 
 

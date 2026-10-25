@@ -11,7 +11,7 @@ from ....core.base import Expression, NumericDomain, parameter, state
 from ....core.components import ElementComponent, GroupComponent
 from ....core.laws import NoiseLaw, RateLaw, Symbols, count, mean
 from ....core.space import NetworkSpace
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....formalisms.fields import FieldComponent, laplacian
 
@@ -51,7 +51,7 @@ MeanFieldSaverComponent = ElementComponent.define(
     tags=('wealth', 'sde', 'network', 'pareto'),
     references=('Yakovenko and Rosser 2009', 'Bouchaud and Mezard 2000'),
     defaults={'until': 1.0, 'dt': 0.1},
-    observables=lambda system: [Observable('mean_wealth', group='agents', variable='W')],
+    observables=lambda system: [ObservableQuantity('mean_wealth', group='agents', variable='W')],
 )
 def bouchaud_mezard_wealth(
     n_agents: int = 20,

@@ -18,7 +18,7 @@ import numpy as np
 import rerun.blueprint as rrb
 from scipy import stats
 
-from skcomplex.core.system import Observable
+from skcomplex.core.system import ObservableQuantity
 from skcomplex.engine.analysis import ccdf, gini
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
@@ -28,7 +28,10 @@ MODEL = 'bouchaud_mezard_wealth'
 N_AGENTS, J, SIGMA, DT, UNTIL = 500, 0.5, 1.0, 0.01, 30.0
 
 system = create(MODEL, n_agents=N_AGENTS, J=J, sigma=SIGMA)
-observables = [*describe(MODEL).observables_of(system), Observable('gini', group='agents', variable='W', reduce=gini)]
+observables = [
+    *describe(MODEL).observables_of(system),
+    ObservableQuantity('gini', group='agents', variable='W', reduce=gini),
+]
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
     rrb.TimeSeriesView(origin='/gini', name='Gini coefficient', axis_x=rrb.TimeAxis(view_range=whole_run)),

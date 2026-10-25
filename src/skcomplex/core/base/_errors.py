@@ -16,6 +16,10 @@ class ConservationError(ValidationError):
     """A conserved quantity changes outside its flows, or a balance-sheet identity does not hold."""
 
 
+class DeclarationError(ValidationError):
+    """A component returns a quantity from its laws, or a law from its quantities."""
+
+
 class LabelError(ValidationError):
     """A label is missing, duplicated, or produces a name collision."""
 

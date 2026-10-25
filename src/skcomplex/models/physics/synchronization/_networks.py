@@ -13,7 +13,7 @@ from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, V
 from ....core.components import ElementComponent, GroupComponent
 from ....core.laws import RateLaw, Symbols, UpdateLaw, neighbors
 from ....core.space import DiscreteTime, NetworkSpace
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ._kuramoto import PhaseOscillatorComponent
 from ._utils import _order_parameter
@@ -184,7 +184,7 @@ def kuramoto_on_networks(
     tags=('synchronization', 'map', 'chaos', 'network'),
     references=('Arenas et al. 2008', 'Kaneko 1989'),
     defaults={'until': 100.0, 'dt': 1.0},
-    observables=lambda system: [Observable('spread', group='maps', variable='x', reduce='var')],
+    observables=lambda system: [ObservableQuantity('spread', group='maps', variable='x', reduce='var')],
 )
 def coupled_map_lattices_on_networks(
     n_nodes: int = 100,

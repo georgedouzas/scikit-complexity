@@ -5,12 +5,12 @@
 
 import pickle  # nosec B403: pickles the model's own functions to check that they pickle, and never loads
 from collections.abc import Callable
-from typing import Any
+from dataclasses import dataclass, field
+from typing import Any, Self
 
 import numpy as np
-from sklearn.base import BaseEstimator
 
-from ..base import ValidationError
+from ..base import BaseQuantity, ValidationError
 
 REDUCTIONS: dict[str, Callable[[Any], Any]] = {
     'count': lambda array: np.full(array.shape[1:], float(array.shape[0])),
@@ -72,12 +72,14 @@ def reduce_values(values: Any, reduce: str | Callable[[Any], Any]) -> Any:  # no
     return float(result) if np.isrealobj(result) else complex(result)
 
 
-class Observable(BaseEstimator):
+@dataclass(frozen=True)
+class ObservableQuantity(BaseQuantity):
     """Named quantity of a system, computed from its states and parameters at every frame.
 
     An observable is either an expression of the system's symbols, or a reduction over the members of a group of an
-    expression or a variable of each member. It is recorded in trajectories under `<system path>/<label>`, logged to
-    Rerun, and readable by laws of other partitions through a role bound to its path, like an aggregate.
+    expression or a variable of each member. A run takes its observables, records them in trajectories under
+    `<system path>/<label>`, logs them to Rerun, and lets laws of other partitions read them through a role bound to
+    their path, like an aggregate.
 
     Args:
         label:
@@ -102,25 +104,19 @@ class Observable(BaseEstimator):
             The expression or a function reduction cannot be pickled, such as a lambda.
 
     Examples:
-        >>> from skcomplex.core.system import Observable
-        >>> Observable('mean_wealth', group='traders', variable='wealth').reduce
+        >>> from skcomplex.core.system import ObservableQuantity
+        >>> ObservableQuantity('mean_wealth', group='traders', variable='wealth').check().reduce
         'mean'
     """
 
-    def __init__(
-        self,
-        label: str,
-        expression: Callable[..., Any] | Any | None = None,  # noqa: ANN401
-        *,
-        group: str | None = None,
-        reduce: str | Callable[[Any], Any] = 'mean',
-        variable: str | None = None,
-    ) -> None:
-        self.label = label
-        self.expression = expression
-        self.group = group
-        self.reduce = reduce
-        self.variable = variable
-        _check_pickles(label, 'expression', expression)
-        if callable(reduce):
-            _check_pickles(label, 'reduction', reduce)
+    expression: object = None
+    group: str | None = field(default=None, kw_only=True)
+    reduce: str | Callable[[Any], Any] = field(default='mean', kw_only=True)
+    variable: str | None = field(default=None, kw_only=True)
+
+    def _check(self) -> Self:
+        """Return the observable after checking that its expression and its reduction pickle."""
+        _check_pickles(self.label, 'expression', self.expression)
+        if callable(self.reduce):
+            _check_pickles(self.label, 'reduction', self.reduce)
+        return self

@@ -18,7 +18,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.system import Observable
+from skcomplex.core.system import ObservableQuantity
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
@@ -51,7 +51,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, n_fish=50, informed=0.1, size=SIZE, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-heading_x = Observable('heading_x', group='shoal', variable='vx')
+heading_x = ObservableQuantity('heading_x', group='shoal', variable='vx')
 simulation = Simulation(system, dt=1, observers=[observer], observables=[heading_x], random_state=0).run(until=150)
 
 # %%

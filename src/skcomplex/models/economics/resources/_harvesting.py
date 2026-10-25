@@ -6,7 +6,7 @@
 from typing import Any
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
-from ....core.components import Aggregate, ElementComponent
+from ....core.components import AggregateQuantity, ElementComponent
 from ....core.laws import RateLaw, Symbols
 from ....core.system import System
 from ....engine.runtime import register_model
@@ -164,7 +164,7 @@ def harvesting(farmers: int = 10, *, effort: float = 0.05, r: float = 1.0, K: fl
     land = System('land', components=[StockComponent('stock', n=K, r=r, K=K)])
     village = System(
         'village',
-        components=[FarmerComponent.group('farmers', farmers), Aggregate('size', group='farmers')],
+        components=[FarmerComponent.group('farmers', farmers), AggregateQuantity('size', group='farmers')],
     )
     harvest = HarvestInteraction('harvest', resource='land/stock', harvesters='village/size', effort=effort)
     return System(components=[land, village], interactions=[harvest])

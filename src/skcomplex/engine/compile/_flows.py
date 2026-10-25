@@ -15,6 +15,7 @@ from sage.all__sagemath_symbolics import SR
 
 from ...core.base import (
     BaseLaw,
+    BaseQuantity,
     ConservationError,
     Entry,
     Expression,
@@ -28,13 +29,13 @@ from ...core.base import (
     symbols_of,
 )
 from ...core.laws import (
-    Auxiliary,
+    AuxiliaryQuantity,
     BoundaryLaw,
     EventLaw,
-    Invariant,
+    InvariantQuantity,
     JumpLaw,
     NoiseLaw,
-    Objective,
+    ObjectiveQuantity,
     RateLaw,
     Sink,
     TransferLaw,
@@ -202,6 +203,14 @@ def _merge_references(host: _Spec, spec: _Spec, value: Expression) -> None:
         host.references[item] = reference
 
 
+def _claim_label(labels: set[str], owner: str, label: str) -> None:
+    """Add the label of a flow or a quantity of a component, raising an error for a label it already declares."""
+    if label in labels:
+        error_msg = f'{owner} declares two flows or quantities labelled {label!r}. Rename one.'
+        raise LabelError(error_msg)
+    labels.add(label)
+
+
 def quantities_of(blocks: Mapping[str, Any]) -> dict[str, str]:
     """Return the quantity of every state tagged with one, by entry name.
 
@@ -301,8 +310,30 @@ class StockFlowPass:
         self._terms.append((spec, 'flow', path, SR(flow.amount), names, source, sink))
         return laws
 
-    def expand(self, spec: _Spec, laws: list[BaseLaw]) -> list[BaseLaw]:
+    def _expand_quantity(
+        self,
+        spec: _Spec,
+        quantity: BaseQuantity,
+        mapping: dict[Expression, Expression],
+        names: dict[Expression, str],
+    ) -> None:
+        """Record an auxiliary, an invariant, or an objective, and add the expression of an auxiliary to the mapping."""
+        path = f'{spec.owner}.{quantity.label}'
+        value = SR(_substituted(quantity.expression, mapping))
+        record = _Record(path, value, spec)
+        self._records.append(record)
+        if isinstance(quantity, ObjectiveQuantity):
+            self._objectives.append((record, SR(_substituted(quantity.terminal, mapping)), quantity.sense))
+        elif isinstance(quantity, InvariantQuantity):
+            self._invariants[path] = quantity.tolerance
+        elif isinstance(quantity, AuxiliaryQuantity):
+            self._terms.append((spec, 'auxiliary', path, SR(quantity.expression), names, None, None))
+            mapping[quantity.symbol], names[quantity.symbol] = value, path
+
+    def expand(self, spec: _Spec, laws: list[BaseLaw], quantities: list[BaseQuantity]) -> list[BaseLaw]:
         """Return the laws of a component with flows and auxiliaries expanded into laws of the other kinds.
+
+        The quantities are recorded in order before the laws, so the laws can use every auxiliary.
 
         Args:
             spec:
@@ -311,13 +342,16 @@ class StockFlowPass:
             laws:
                 The laws of the component.
 
+            quantities:
+                The auxiliaries, invariants, and objectives of the component.
+
         Returns:
             laws:
                 The expanded laws.
 
         Raises:
             LabelError:
-                Two flows or auxiliaries of the component share a label.
+                Two flows or quantities of the component share a label.
 
             ConservationError:
                 A flow connects holders of different quantities.
@@ -325,42 +359,26 @@ class StockFlowPass:
         mapping: dict[Expression, Expression] = {}
         names: dict[Expression, str] = {}
         labels: set[str] = set()
+        for quantity in quantities:
+            if isinstance(quantity, InvariantQuantity) and quantity.is_member:
+                continue
+            _claim_label(labels, spec.owner, quantity.label)
+            self._expand_quantity(spec, quantity, mapping, names)
         expanded: list[BaseLaw] = []
         for index, law in enumerate(laws):
-            if isinstance(law, Invariant) and law.is_member:
-                expanded.append(law)
-                continue
-            if isinstance(law, Auxiliary | TransferLaw | Invariant | Objective):
+            if isinstance(law, TransferLaw):
                 label = law.label or f'flow_{index}'
-                if label in labels:
-                    error_msg = f'{spec.owner} declares two flows or auxiliaries labelled {label!r}. Rename one.'
-                    raise LabelError(error_msg)
-                labels.add(label)
-            if isinstance(law, Objective):
-                record = _Record(f'{spec.owner}.{law.label}', SR(_substituted(law.expression, mapping)), spec)
-                self._records.append(record)
-                self._objectives.append((record, SR(_substituted(law.terminal, mapping)), law.sense))
-            elif isinstance(law, Invariant):
-                path = f'{spec.owner}.{law.label}'
-                self._records.append(_Record(path, SR(_substituted(law.expression, mapping)), spec))
-                self._invariants[path] = law.tolerance
-            elif isinstance(law, Auxiliary):
-                value = SR(_substituted(law.expression, mapping))
-                path = f'{spec.owner}.{law.label}'
-                self._records.append(_Record(path, value, spec))
-                self._terms.append((spec, 'auxiliary', path, SR(law.expression), names, None, None))
-                mapping[law.symbol], names[law.symbol] = value, path
-            elif isinstance(law, TransferLaw):
+                _claim_label(labels, spec.owner, label)
                 expanded.extend(self._expand_flow(spec, law, label, mapping, names))
-            else:
-                if (
-                    isinstance(law, RateLaw)
-                    and isinstance(law.value, Expression)
-                    and isinstance(law.targets[0], Expression)
-                ):
-                    target, _ = self._quantity_of(law.targets[0], spec)
-                    self._terms.append((spec, 'rate', target, law.value, names, None, None))
-                expanded.append(_with_auxiliaries(law, mapping))
+                continue
+            if (
+                isinstance(law, RateLaw)
+                and isinstance(law.value, Expression)
+                and isinstance(law.targets[0], Expression)
+            ):
+                target, _ = self._quantity_of(law.targets[0], spec)
+                self._terms.append((spec, 'rate', target, law.value, names, None, None))
+            expanded.append(_with_auxiliaries(law, mapping))
         return expanded
 
     def _check_conserved(self, spec: _Spec, law: BaseLaw) -> None:

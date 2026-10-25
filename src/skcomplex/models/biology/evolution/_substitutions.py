@@ -13,7 +13,7 @@ from ....core.base import BaseInteraction, BaseLaw, Expression, NumericDomain, V
 from ....core.components import ElementComponent
 from ....core.laws import JumpLaw, Symbols, total
 from ....core.space import LatticeSpace
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 
 type Array = npt.NDArray[np.float64]
@@ -142,15 +142,20 @@ class SubstitutionInteraction(BaseInteraction):
         ]
 
 
-def _walk_observables(system: System) -> list[Observable]:
+def _walk_observables(system: System) -> list[ObservableQuantity]:
     """Return the shares of the fields and the couplings in the fitness, and the fitness of the genome."""
     couplings = system.interactions[0].couplings
-    loci = int(system.components[0].size or 0)
+    loci = int(system.elements[0].size or 0)
     matrix = np.zeros((loci, loci)) if couplings is None else np.asarray(couplings)
     return [
-        Observable('field_share', _field_share, group='genome', reduce='sum'),
-        Observable('coupling_share', group='genome', variable='s', reduce=partial(_coupling_share, couplings=matrix)),
-        Observable('fitness', _genome_fitness),
+        ObservableQuantity('field_share', _field_share, group='genome', reduce='sum'),
+        ObservableQuantity(
+            'coupling_share',
+            group='genome',
+            variable='s',
+            reduce=partial(_coupling_share, couplings=matrix),
+        ),
+        ObservableQuantity('fitness', _genome_fitness),
     ]
 
 

@@ -12,7 +12,7 @@ from ....core.base import BaseLaw, Expression, NumericDomain, ValidationError, V
 from ....core.components import ElementComponent
 from ....core.laws import Symbols, neighbors
 from ....core.space import LatticeSpace, Neighborhood
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....formalisms.lattices import Energy, MoveLaw, SampleLaw, SamplerLaw
 from ._fully_connected_spins import SPIN_IMAGE
@@ -156,9 +156,9 @@ class MattisSpinComponent(BondSpinComponent):
     pattern: float = state(default=1.0, domain=NumericDomain.INTEGER)
 
 
-def _magnetization_observables(system: System) -> list[Observable]:
+def _magnetization_observables(system: System) -> list[ObservableQuantity]:
     """Return the magnetization of the spins."""
-    return [Observable('magnetization', group='spins', variable='spin')]
+    return [ObservableQuantity('magnetization', group='spins', variable='spin')]
 
 
 @register_model(
@@ -239,11 +239,11 @@ def edwards_anderson(
     return System(components=[group])
 
 
-def _pattern_observables(system: System) -> list[Observable]:
+def _pattern_observables(system: System) -> list[ObservableQuantity]:
     """Return the magnetization of the spins and their overlap with the pattern."""
     return [
-        Observable('magnetization', group='spins', variable='spin'),
-        Observable('overlap', _overlap, group='spins'),
+        ObservableQuantity('magnetization', group='spins', variable='spin'),
+        ObservableQuantity('overlap', _overlap, group='spins'),
     ]
 
 

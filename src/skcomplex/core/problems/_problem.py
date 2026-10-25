@@ -30,8 +30,8 @@ from ..base import (
     declarations_of,
 )
 from ..components import ElementComponent, GroupComponent
-from ..laws import Invariant
-from ..system import Observable, System
+from ..laws import InvariantQuantity
+from ..system import ObservableQuantity, System
 from ._hybrid import CompiledEvent, _Breakpoints, _Delay
 from ._quantities import StockFlow, _CompiledObjective
 from ._reductions import CompiledReduction
@@ -397,7 +397,7 @@ class CompiledAgents:
     parameters: Mapping[str, str]
     rules: tuple[BaseLaw, ...]
     visual: VisualSpec
-    invariants: tuple[Invariant, ...] = ()
+    invariants: tuple[InvariantQuantity, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -684,7 +684,7 @@ class BaseProblem:
         del name
         return None
 
-    def observable_getters(self, observables: Iterable[tuple[str, Observable]]) -> dict[str, Getter] | None:
+    def observable_getters(self, observables: Iterable[tuple[str, ObservableQuantity]]) -> dict[str, Getter] | None:
         """Return the getters of observables by path when the problem evaluates them itself, or `None` otherwise.
 
         Args:
@@ -884,7 +884,7 @@ class Problem(BaseProblem):
     has_callables: bool
     has_group_sums: bool
     model_rules: tuple[tuple[str, BaseLaw], ...] = ()
-    model_invariants: tuple[tuple[str, Invariant], ...] = ()
+    model_invariants: tuple[tuple[str, InvariantQuantity], ...] = ()
     delays: tuple[_Delay, ...] = ()
     events: tuple[CompiledEvent, ...] = ()
     breakpoints: _Breakpoints = field(default_factory=_Breakpoints)

@@ -5,7 +5,7 @@
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import Auxiliary, RateLaw, Sink, Symbols, TransferLaw, lookup, where
+from ....core.laws import AuxiliaryQuantity, RateLaw, Sink, Symbols, TransferLaw, lookup, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -82,22 +82,24 @@ def _positive(value: Expression) -> Expression:
     return where(value > 0, value, 0)
 
 
-def _cocoa_laws(s: Symbols) -> list[BaseLaw]:
-    """Return the planting, abandonment, and conversion of cocoa land, and the thinning of shade and the insects."""
-    cocoa_yield = Auxiliary(
+def _cocoa_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
+    """Return the yield of cocoa, the profit per area, and the profitability of cocoa land."""
+    cocoa_yield = AuxiliaryQuantity(
         'cocoa_yield',
         s.yield_normal * lookup(s.insects, ECOLOGICAL_EFFECT) * lookup(s.shade_removal, INTENSIFICATION_EFFECT),
     )
     revenue = s.price * cocoa_yield.symbol
-    profit = Auxiliary('profit_per_area', revenue - s.cost - s.thinning_cost * s.shade_removal / FULL_INDEX)
-    profitability = Auxiliary('profitability', _positive(profit.symbol) / revenue)
+    profit = AuxiliaryQuantity('profit_per_area', revenue - s.cost - s.thinning_cost * s.shade_removal / FULL_INDEX)
+    return [cocoa_yield, profit, AuxiliaryQuantity('profitability', _positive(profit.symbol) / revenue)]
+
+
+def _cocoa_laws(s: Symbols) -> list[BaseLaw]:
+    """Return the planting, abandonment, and conversion of cocoa land, and the thinning of shade and the insects."""
+    cocoa_yield, profit, profitability = _cocoa_quantities(s)
     desired = s.area * lookup(profitability.symbol, PROFITABILITY_EFFECT)
     conversion = _positive(s.palm_margin - profitability.symbol) / s.palm_margin
     unprotected = 1 - s.subsidy
     return [
-        cocoa_yield,
-        profit,
-        profitability,
         TransferLaw(
             s.forest,
             s.area,
@@ -145,6 +147,7 @@ PlantationComponent = ElementComponent.define(
         'subsidy': parameter(default=0.0, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_cocoa_laws,
+    quantities=_cocoa_quantities,
 )
 
 

@@ -12,9 +12,9 @@ import numpy as np
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, VisualSpec, parameter, role, state
 from ....core.components import ElementComponent
-from ....core.laws import Invariant, Symbols
+from ....core.laws import InvariantQuantity, Symbols
 from ....core.space import DiscreteTime, LatticeSpace
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, MatchLaw, ModelView, Phase, PhasesSchedule, RuleLaw, matches
 from ..realizations._exchange import cobb_douglas, neighbor_pairing, trade_goods
@@ -35,12 +35,12 @@ def _utility(agent: Any) -> float:  # noqa: ANN401
     return cobb_douglas(agent, GOODS, WEIGHTS)
 
 
-def _goods_observables(system: System) -> list[Observable]:
+def _goods_observables(system: System) -> list[ObservableQuantity]:
     """Return the mean utility of the traders and the total of every good."""
     del system
     return [
-        Observable('utility', _utility, group='traders', reduce='mean'),
-        *(Observable(good, group='traders', variable=good, reduce='sum') for good in GOODS),
+        ObservableQuantity('utility', _utility, group='traders', reduce='mean'),
+        *(ObservableQuantity(good, group='traders', variable=good, reduce='sum') for good in GOODS),
     ]
 
 
@@ -169,7 +169,7 @@ class ExchangeInteraction(BaseInteraction):
         self.quantity = quantity
 
     def laws(self, s: Symbols) -> list[Any]:
-        """Return the matching of neighbours, the barter rule, and the invariant of the total of every good.
+        """Return the matching of neighbours and the barter rule.
 
         Args:
             s:
@@ -182,7 +182,21 @@ class ExchangeInteraction(BaseInteraction):
         return [
             MatchLaw('traders', pairing=self.pairing, label='partners', phase='trade'),
             RuleLaw(self.trade, phase='trade'),
-            *(Invariant(f'total {good}', functools.partial(_total, good), tolerance=1e-6) for good in self.goods),
+        ]
+
+    def quantities(self, s: Symbols) -> list[InvariantQuantity]:
+        """Return the invariant of the total of every good over the traders.
+
+        Args:
+            s:
+                The namespace of the symbols the quantities can use.
+
+        Returns:
+            quantities:
+                The quantities of the interaction.
+        """
+        return [
+            InvariantQuantity(f'total {good}', functools.partial(_total, good), tolerance=1e-6) for good in self.goods
         ]
 
     def trade(self, model: Any) -> None:  # noqa: ANN401

@@ -12,7 +12,7 @@ from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
 from ....core.components import ElementComponent
 from ....core.laws import Symbols
 from ....core.space import NetworkSpace
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.analysis import assortativity, centrality, communities, motif_zscores, summarize_network
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
@@ -132,18 +132,18 @@ def _reference(graph: nx.Graph, attribute: str | None) -> list[object] | None:
     return [values[node] for node in graph.nodes()] if len(values) == graph.number_of_nodes() else None
 
 
-def _structure_observables(system: System) -> list[Observable]:
+def _structure_observables(system: System) -> list[ObservableQuantity]:
     """Return the clustering, path length, assortativity, modularity, agreement, and triangle z-score.
 
     The agreement is 0 without a reference partition, and the triangle z-score is 0 without null samples.
     """
     return [
-        Observable('clustering', group='nodes', variable='clustering', reduce='mean'),
-        Observable('path_length', _path_length),
-        Observable('assortativity', _assortativity),
-        Observable('modularity', _modularity),
-        Observable('agreement', _agreement),
-        Observable('triangle_zscore', _triangle_zscore),
+        ObservableQuantity('clustering', group='nodes', variable='clustering', reduce='mean'),
+        ObservableQuantity('path_length', _path_length),
+        ObservableQuantity('assortativity', _assortativity),
+        ObservableQuantity('modularity', _modularity),
+        ObservableQuantity('agreement', _agreement),
+        ObservableQuantity('triangle_zscore', _triangle_zscore),
     ]
 
 

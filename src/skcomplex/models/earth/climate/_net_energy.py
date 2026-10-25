@@ -5,23 +5,26 @@
 
 from ....core.base import BaseLaw, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import Auxiliary, RateLaw, Sink, Source, Symbols, TransferLaw
+from ....core.laws import AuxiliaryQuantity, RateLaw, Sink, Source, Symbols, TransferLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 
 
+def _energy_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
+    """Return the energy return on investment, the gross energy, its extraction cost, and the net energy per capita."""
+    remaining = s.reserve / s.reserve_size
+    eroi = AuxiliaryQuantity('eroi', 1 + (s.initial_eroi - 1) * remaining**s.decline)
+    gross = AuxiliaryQuantity('gross_energy', s.capacity * remaining)
+    cost = AuxiliaryQuantity('extraction_cost', gross.symbol / eroi.symbol)
+    net = gross.symbol - cost.symbol
+    return [eroi, gross, cost, AuxiliaryQuantity('net_per_capita', net / s.population)]
+
+
 def _energy_laws(s: Symbols) -> list[BaseLaw]:
     """Return the extraction of the reserve, its energy cost, the growth of the capacity, and the population."""
-    remaining = s.reserve / s.reserve_size
-    eroi = Auxiliary('eroi', 1 + (s.initial_eroi - 1) * remaining**s.decline)
-    gross = Auxiliary('gross_energy', s.capacity * remaining)
-    cost = Auxiliary('extraction_cost', gross.symbol / eroi.symbol)
+    _, gross, cost, _ = _energy_quantities(s)
     net = gross.symbol - cost.symbol
     return [
-        eroi,
-        gross,
-        cost,
-        Auxiliary('net_per_capita', net / s.population),
         TransferLaw(s.reserve, Sink('extraction_work'), cost.symbol, label='energy_cost'),
         TransferLaw(s.reserve, Sink('society'), net, label='net_energy'),
         RateLaw(s.capacity, s.reinvestment * net - s.capacity / s.lifetime),
@@ -47,6 +50,7 @@ EnergySectorComponent = ElementComponent.define(
         'death_rate': parameter(default=0.015, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_energy_laws,
+    quantities=_energy_quantities,
 )
 
 

@@ -16,6 +16,7 @@ from skcomplex.core.base import (
     BaseLaw,
     BaseSpace,
     BaseTime,
+    ConservationError,
     RoleError,
     ValidationError,
     parameter,
@@ -23,8 +24,16 @@ from skcomplex.core.base import (
     state,
     symbol,
 )
-from skcomplex.core.components import Aggregate, ElementComponent, GroupComponent, Wiener
-from skcomplex.core.laws import JumpLaw, RateLaw, Symbols, UpdateLaw, neighbors
+from skcomplex.core.components import ElementComponent, GroupComponent, Wiener
+from skcomplex.core.laws import (
+    AuxiliaryQuantity,
+    InvariantQuantity,
+    JumpLaw,
+    RateLaw,
+    Symbols,
+    UpdateLaw,
+    neighbors,
+)
 from skcomplex.core.problems import BaseBackend, BaseProblem, BaseSolver
 from skcomplex.core.space import DiscreteTime, LatticeSpace, Layer, NetworkSpace
 from skcomplex.core.system import System
@@ -32,6 +41,34 @@ from skcomplex.engine.compile import BaseSystemCompiler, compile_system, validat
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
 from skcomplex.models.biology.ecology import PopulationComponent, PredationInteraction
+
+
+class TallyComponent(ElementComponent):
+    """Element with a setting next to its declared state."""
+
+    value: float = state(0.0)
+
+    def __init__(self, label, *, source='', **values):
+        """Store the label, the source, and the values."""
+        super().__init__(label, **values)
+        self.source = source
+
+
+class TanksComponent(ElementComponent):
+    """Two tanks that drain into each other at a rate an auxiliary names, under the invariant of their total."""
+
+    a: float = state(3.0)
+    b: float = state(1.0)
+    k: float = parameter(0.5)
+
+    def laws(self, s):
+        """Return the rate of the first tank and of the second through the auxiliary."""
+        outflow, _ = self.quantities(s)
+        return [RateLaw(s.a, -outflow.symbol), RateLaw(s.b, outflow.symbol)]
+
+    def quantities(self, s):
+        """Return the outflow of the first tank and the invariant of the total."""
+        return [AuxiliaryQuantity('outflow', s.k * s.a), InvariantQuantity('total', s.a + s.b)]
 
 
 class PendulumComponent(ElementComponent):
@@ -109,17 +146,40 @@ def test_component_runs_its_laws_and_prepares_its_declarations():
     assert law.value == r * n
 
 
+def test_quantities_are_none_by_default():
+    """Test that a component and an interaction return no quantities unless their type declares some."""
+    s = Symbols(n=symbol('n'))
+    assert PopulationComponent('rabbits').quantities(s) == []
+    assert BaseInteraction('coupling').quantities(s) == []
+
+
+def test_quantities_substitute_into_laws_and_hold_every_frame():
+    """Test that the auxiliary of a component reaches its rates and its invariant is checked at every frame."""
+    system = System(components=[TanksComponent('tanks')])
+    problem = compile_system(system)
+    assert str(problem.equations['tanks.a']) == '-a_tanks*k_tanks'
+    trajectory = Simulation(system, dt=0.5).run(until=2).trajectory_
+    np.testing.assert_allclose(trajectory.values('tanks.total'), 4.0)
+    np.testing.assert_allclose(trajectory.values('tanks.outflow'), 0.5 * trajectory.values('tanks.a'))
+
+
+def test_violated_quantity_is_checked_at_every_frame():
+    """Test that an invariant the laws break raises the conservation error at the first frame that breaks it."""
+    LeakyTanksComponent = ElementComponent.define(
+        'LeakyTanksComponent',
+        states={'a': 1.0},
+        laws=lambda s: [RateLaw(s.a, 1.0)],
+        quantities=lambda s: [InvariantQuantity('total', s.a)],
+    )
+    with pytest.raises(ConservationError, match=r'invariant leaky\.total .* at frame 1'):
+        Simulation(System(components=[LeakyTanksComponent('leaky')]), dt=0.5).run(until=2)
+
+
 def test_component_parameters_list_settings_and_declared_names():
     """Test that the parameters are the label, the settings, and every declared name with its value or default."""
-    aggregate = Aggregate('size', group='farmers')
-    assert aggregate.get_params() == {
-        'group': 'farmers',
-        'label': 'size',
-        'reduce': 'count',
-        'value': 0.0,
-        'variable': None,
-    }
-    assert repr(aggregate) == "Aggregate(group='farmers', label='size', value=0.0)"
+    tally = TallyComponent('size', source='farmers')
+    assert tally.get_params() == {'label': 'size', 'source': 'farmers', 'value': 0.0}
+    assert repr(tally) == "TallyComponent(label='size', source='farmers', value=0.0)"
     assert Wiener.get_argument_names() == ['dimension', 'covariance']
 
 

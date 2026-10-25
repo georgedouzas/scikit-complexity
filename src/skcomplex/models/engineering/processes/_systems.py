@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import sin
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import Auxiliary, RateLaw, Sink, Source, Symbols, TransferLaw, lookup, step, where
+from ....core.laws import AuxiliaryQuantity, RateLaw, Sink, Source, Symbols, TransferLaw, lookup, step, where
 from ....core.system import System
 from ....engine.runtime import register_model
 from ._delays import delay3, smooth
@@ -38,17 +38,22 @@ def _season(mean: Expression, amplitude: Expression, t: Expression, period: floa
     return mean * (1 + amplitude * sin(2 * math.pi * t / period))
 
 
+def _rice_mill_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
+    """Return the procurement of paddy, and the indicated and the actual milling of a rice mill."""
+    harvest = _season(s.harvest, s.seasonality, s.t, MONTHS_PER_YEAR)
+    indicated = AuxiliaryQuantity('indicated_milling', s.paddy / s.milling_time)
+    return [
+        AuxiliaryQuantity('procurement', delay3(harvest, s.procurement_delay)),
+        indicated,
+        AuxiliaryQuantity('milling', _smaller(indicated.symbol, s.capacity)),
+    ]
+
+
 def _rice_mill_laws(s: Symbols) -> list[BaseLaw]:
     """Return the procurement, milling, and sales of a rice mill, and the adjustment of its milling capacity."""
-    harvest = _season(s.harvest, s.seasonality, s.t, MONTHS_PER_YEAR)
-    procurement = Auxiliary('procurement', delay3(harvest, s.procurement_delay))
-    indicated = Auxiliary('indicated_milling', s.paddy / s.milling_time)
-    milling = Auxiliary('milling', _smaller(indicated.symbol, s.capacity))
+    procurement, indicated, milling = _rice_mill_quantities(s)
     losses = 1 - s.outturn - s.husk_share - s.bran_share
     return [
-        procurement,
-        indicated,
-        milling,
         TransferLaw(Source('farms'), s.paddy, procurement.symbol, label='paddy_purchases'),
         TransferLaw(s.paddy, s.rice, s.outturn * milling.symbol, label='milled_rice'),
         TransferLaw(s.paddy, s.husk, s.husk_share * milling.symbol, label='husk_output'),
@@ -61,16 +66,20 @@ def _rice_mill_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
+def _waste_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
+    """Return the generation and the collection of waste, and the share of it the landfill accepts."""
+    return [
+        AuxiliaryQuantity('generation', s.per_capita * s.population),
+        AuxiliaryQuantity('collection', _smaller(s.uncollected / s.collection_time, s.collection_capacity)),
+        AuxiliaryQuantity('acceptance', lookup(s.landfill / s.landfill_capacity, LANDFILL_ACCEPTANCE)),
+    ]
+
+
 def _waste_laws(s: Symbols) -> list[BaseLaw]:
     """Return the generation, collection, treatment, and disposal of the solid waste of a growing city."""
-    generation = Auxiliary('generation', s.per_capita * s.population)
-    collection = Auxiliary('collection', _smaller(s.uncollected / s.collection_time, s.collection_capacity))
-    acceptance = Auxiliary('acceptance', lookup(s.landfill / s.landfill_capacity, LANDFILL_ACCEPTANCE))
+    generation, collection, acceptance = _waste_quantities(s)
     residual = (1 - s.recycling_share - s.composting_share) * collection.symbol
     return [
-        generation,
-        collection,
-        acceptance,
         TransferLaw(Source('births'), s.population, s.growth_rate * s.population, label='population_growth'),
         TransferLaw(Source('households'), s.uncollected, generation.symbol, label='waste_generation'),
         TransferLaw(s.uncollected, s.recycled, s.recycling_share * collection.symbol, label='recycling'),
@@ -83,15 +92,18 @@ def _waste_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
-def _relief_laws(s: Symbols) -> list[BaseLaw]:
-    """Return the shipments, arrivals, and distribution of relief food after a disaster."""
-    need = Auxiliary('need', s.ration * s.affected * step(s.t, s.onset))
+def _relief_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
+    """Return the need of relief food and the shipments that close the gaps of the stock and of the pipeline."""
+    need = AuxiliaryQuantity('need', s.ration * s.affected * step(s.t, s.onset))
     stock_gap = (s.cover * need.symbol - s.warehouse) / s.stock_time
     pipeline_gap = (s.shipping_delay * need.symbol - s.in_transit) / s.pipeline_time
-    shipments = Auxiliary('shipments', _positive(need.symbol + stock_gap + pipeline_gap))
+    return [need, AuxiliaryQuantity('shipments', _positive(need.symbol + stock_gap + pipeline_gap))]
+
+
+def _relief_laws(s: Symbols) -> list[BaseLaw]:
+    """Return the shipments, arrivals, and distribution of relief food after a disaster."""
+    need, shipments = _relief_quantities(s)
     return [
-        need,
-        shipments,
         TransferLaw(Source('donors'), s.in_transit, shipments.symbol, label='shipping'),
         TransferLaw(s.in_transit, s.warehouse, delay3(shipments.symbol, s.shipping_delay), label='arrivals'),
         TransferLaw(
@@ -103,18 +115,27 @@ def _relief_laws(s: Symbols) -> list[BaseLaw]:
     ]
 
 
+def _irrigation_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
+    """Return the water demand of the crops, the release of the reservoir, and the pumping of groundwater."""
+    demand = AuxiliaryQuantity(
+        'demand',
+        _positive(s.potential_et + (s.target * s.field_capacity - s.soil) / s.refill_time),
+    )
+    release = AuxiliaryQuantity('release', _smaller(demand.symbol / (1 - s.canal_loss), s.reservoir / s.release_time))
+    unmet = demand.symbol - (1 - s.canal_loss) * release.symbol
+    pumping = AuxiliaryQuantity(
+        'pumping',
+        _smaller(_positive(unmet), _smaller(s.pump_capacity, s.groundwater / s.pump_time)),
+    )
+    return [demand, release, pumping]
+
+
 def _irrigation_laws(s: Symbols) -> list[BaseLaw]:
     """Return the water balance of a reservoir, the root zone of the irrigated crops, and the aquifer below them."""
-    demand = Auxiliary('demand', _positive(s.potential_et + (s.target * s.field_capacity - s.soil) / s.refill_time))
-    release = Auxiliary('release', _smaller(demand.symbol / (1 - s.canal_loss), s.reservoir / s.release_time))
-    unmet = demand.symbol - (1 - s.canal_loss) * release.symbol
-    pumping = Auxiliary('pumping', _smaller(_positive(unmet), _smaller(s.pump_capacity, s.groundwater / s.pump_time)))
+    _, release, pumping = _irrigation_quantities(s)
     crop_water = s.potential_et * lookup(s.soil / s.field_capacity, WATER_STRESS)
     spill = _positive(s.reservoir - s.reservoir_capacity) / s.spill_time
     return [
-        demand,
-        release,
-        pumping,
         TransferLaw(
             Source('river'),
             s.reservoir,
@@ -155,6 +176,7 @@ RiceMillComponent = ElementComponent.define(
         'expansion_time': parameter(default=12.0, domain=NumericDomain.POSITIVE),
     },
     laws=_rice_mill_laws,
+    quantities=_rice_mill_quantities,
 )
 
 WasteSystemComponent = ElementComponent.define(
@@ -180,6 +202,7 @@ WasteSystemComponent = ElementComponent.define(
         'capacity_time': parameter(default=3.0, domain=NumericDomain.POSITIVE),
     },
     laws=_waste_laws,
+    quantities=_waste_quantities,
 )
 
 ReliefPipelineComponent = ElementComponent.define(
@@ -199,6 +222,7 @@ ReliefPipelineComponent = ElementComponent.define(
         'distribution_time': parameter(default=1.0, domain=NumericDomain.POSITIVE),
     },
     laws=_relief_laws,
+    quantities=_relief_quantities,
 )
 
 IrrigationSchemeComponent = ElementComponent.define(
@@ -226,6 +250,7 @@ IrrigationSchemeComponent = ElementComponent.define(
         'baseflow_time': parameter(default=500.0, domain=NumericDomain.POSITIVE),
     },
     laws=_irrigation_laws,
+    quantities=_irrigation_quantities,
 )
 
 

@@ -12,7 +12,7 @@ from ....core.base import BaseLaw, NumericDomain, VisualSpec, state
 from ....core.components import ElementComponent
 from ....core.laws import Symbols
 from ....core.space import DiscreteTime
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import Phase, PhasesSchedule
 from ..realizations._exchange import cobb_douglas
@@ -28,12 +28,12 @@ def _utility(agent: Any) -> float:  # noqa: ANN401
     return cobb_douglas(agent, GOODS, WEIGHTS)
 
 
-def _barter_observables(system: System) -> list[Observable]:
+def _barter_observables(system: System) -> list[ObservableQuantity]:
     """Return the mean utility of the barterers and the total of both goods."""
     del system
     return [
-        Observable('utility', _utility, group='barterers', reduce='mean'),
-        *(Observable(good, group='barterers', variable=good, reduce='sum') for good in GOODS),
+        ObservableQuantity('utility', _utility, group='barterers', reduce='mean'),
+        *(ObservableQuantity(good, group='barterers', variable=good, reduce='sum') for good in GOODS),
     ]
 
 

@@ -12,7 +12,7 @@ import numpy.typing as npt
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, role, state
 from ....core.components import ElementComponent
 from ....core.laws import Symbols
-from ....core.system import Observable, System
+from ....core.system import ObservableQuantity, System
 from ....engine.runtime import register_model
 from ....formalisms.agents import AgentView, ModelView, RuleLaw
 
@@ -302,7 +302,7 @@ class InventionInteraction(BaseInteraction):
     tags=('innovation', 'technology', 'learning curve', 'agents'),
     references=('Thurner et al. 2018', 'McNerney et al. 2011'),
     defaults={'until': 200},
-    observables=lambda system: [Observable('total_cost', group='components', reduce='sum', variable='cost')],
+    observables=lambda system: [ObservableQuantity('total_cost', group='components', reduce='sum', variable='cost')],
 )
 def nk_technology(
     n_components: int = 10,

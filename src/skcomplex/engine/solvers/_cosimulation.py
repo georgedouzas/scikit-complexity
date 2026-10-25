@@ -5,7 +5,7 @@
 
 import math
 from collections.abc import Mapping
-from typing import Any, ClassVar, cast
+from typing import Any, ClassVar
 
 import numpy as np
 from sklearn.base import clone
@@ -25,10 +25,9 @@ from ...core.base import (
     ValidationError,
     Vector,
 )
-from ...core.components import Aggregate
 from ...core.problems import Partition, Problem
 from ...core.system import reduce_values
-from ..compile import partition_system
+from ..compile import aggregates_of, partition_system
 from ._snapshots import AgentState
 from ._stepper import Solver, register_solver, resolve_solver
 
@@ -170,7 +169,7 @@ class CoSimulationSolver(Solver):
             stepper = resolve_solver(partition.problem, clone(solver) if isinstance(solver, Solver) else solver)
             stepper.prepare(partition.problem, generator, until)
             self.steppers_[partition.name] = stepper
-        self._aggregates = [element for element in problem.elements if isinstance(element.element, Aggregate)]
+        self._aggregates = aggregates_of(problem)
         self.initial_state_ = initial_state
         self._update_aggregates(initial_state)
         self.events_, self.stopped_at_ = [], None
@@ -196,9 +195,8 @@ class CoSimulationSolver(Solver):
     def _update_aggregates(self, x: Vector) -> None:
         """Write the current value of every aggregate into the state vector."""
         problem = self.problem_
-        for element in self._aggregates:
-            aggregate = cast('Aggregate', element.element)
-            scope = element.path.rpartition('/')[0]
+        for path, aggregate in self._aggregates:
+            scope = path.rpartition('/')[0]
             group = f'{scope}/{aggregate.group}' if scope else aggregate.group
             agents = self._agents_of(group)
             values: Any
@@ -206,7 +204,7 @@ class CoSimulationSolver(Solver):
                 values = [getattr(agent, aggregate.variable) for agent in agents] if aggregate.variable else agents
             else:
                 values = np.ravel(problem.states.read(x, f'{group}.{aggregate.variable or "value"}'))
-            entry = problem.states.entry(f'{element.path}.value')
+            entry = problem.states.entry(f'{path}.value')
             x[entry.indices] = float(np.real(reduce_values(values, aggregate.reduce)))
 
     def _agents_of(self, group: str) -> list[Any] | None:

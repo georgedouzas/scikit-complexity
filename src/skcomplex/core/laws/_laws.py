@@ -12,6 +12,7 @@ from sage.all__sagemath_symbolics import SR
 
 from ..base import (
     BaseLaw,
+    BaseQuantity,
     DomainKind,
     Expression,
     LawClass,
@@ -525,14 +526,18 @@ class BoundaryLaw(BaseLaw):
 
 
 @dataclass(frozen=True)
-class Objective(BaseLaw):
+class ObjectiveQuantity(BaseQuantity):
     """Cost or gain of a system that optimal control solvers minimise or maximise over its controls.
 
-    Under continuous time the value of a run is the integral of the running value `expression` over the run plus the
-    terminal value `terminal` at its horizon, the time `until` of the run. The controls are the bounded adaptive
-    parameters of the system. The trajectory records the running value under `<component path>.<label>`.
+    A component returns its objective from `quantities`. Under continuous time the value of a run is the integral of
+    the running value `expression` over the run plus the terminal value `terminal` at its horizon, the time `until` of
+    the run. The controls are the bounded adaptive parameters of the system. The trajectory records the running value
+    under `<component path>.<label>`. An objective needs static or continuous time.
 
     Args:
+        label:
+            The name of the running value in the trajectory, unique among the flows and quantities of its component.
+
         expression:
             The running value, a symbolic expression of states, controls, parameters, and time.
 
@@ -542,41 +547,31 @@ class Objective(BaseLaw):
         sense:
             `'min'` for a cost to minimise or `'max'` for a gain to maximise.
 
-        label:
-            The name of the running value in the trajectory, unique among the transfers, auxiliaries, invariants, and
-            objectives of its component.
-
     Raises:
         ValidationError:
             The sense is neither `'min'` nor `'max'`.
 
     Examples:
         >>> from skcomplex.core.base import symbol
-        >>> from skcomplex.core.laws import Objective
+        >>> from skcomplex.core.laws import ObjectiveQuantity
         >>> x, u = symbol('x'), symbol('u')
-        >>> Objective(x**2 + u**2, terminal=x**2).terminal
+        >>> ObjectiveQuantity('cost', x**2 + u**2, terminal=x**2).terminal
         x^2
     """
 
-    law_kind: ClassVar[LawKind] = LawKind.OBJECTIVE
-    time_class: ClassVar[LawClass] = LawClass.CONSTRAINT
-    traits: ClassVar[frozenset[Trait]] = frozenset({Trait.KERNEL_FREE, Trait.DECLARABLE})
-    requires: ClassVar[Requires] = Requires(time={TimeKind.STATIC, TimeKind.CONTINUOUS})
-
-    expression: object
     terminal: object = 0
     sense: str = 'min'
-    label: str = 'objective'
 
     def _check(self) -> Self:
-        """Return the law with its values checked and normalized, raising a named error for an invalid one."""
-        changes: dict[str, Any] = {}
-        changes['expression'] = _checked_value(f'running value of the objective {self.label}', self.expression)
-        changes['terminal'] = _checked_value(f'terminal value of the objective {self.label}', self.terminal)
+        """Return the objective with its values checked and normalized, raising a named error for an invalid one."""
         if self.sense not in SENSES:
             error_msg = f'Unknown sense {self.sense!r} of the objective {self.label}. Use one of {", ".join(SENSES)}.'
             raise ValidationError(error_msg)
-        return replace(self, **changes) if changes else self
+        return replace(
+            self,
+            expression=_checked_value(f'running value of the objective {self.label}', self.expression),
+            terminal=_checked_value(f'terminal value of the objective {self.label}', self.terminal),
+        )
 
 
 @dataclass(frozen=True)
@@ -714,7 +709,6 @@ register_laws(
     TransitionLaw,
     EmissionLaw,
     BoundaryLaw,
-    Objective,
     EventLaw,
     RenewalLaw,
     EquationLaw,

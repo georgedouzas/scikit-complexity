@@ -5,7 +5,7 @@
 
 from ....core.base import BaseInteraction, BaseLaw, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import Auxiliary, Sink, Source, Symbols, TransferLaw, UpdateLaw
+from ....core.laws import AuxiliaryQuantity, Sink, Source, Symbols, TransferLaw, UpdateLaw
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -29,17 +29,23 @@ MonetaryBankComponent = ElementComponent.define(
 )
 
 
+def _circuit_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
+    """Return the consumption demand of the households and the new loans of the firms."""
+    households, firms = s.households, s.firms
+    return [
+        AuxiliaryQuantity(
+            'consumption_demand',
+            s.alpha_income * s.wage_share * firms.sales + s.alpha_wealth * households.deposits,
+        ),
+        AuxiliaryQuantity('new_loans', s.credit * firms.sales),
+    ]
+
+
 def _circuit(s: Symbols) -> list[BaseLaw]:
     """Return the transactions of one period between households, firms, and the bank."""
     households, firms, bank = s.households, s.firms, s.bank
-    consumption = Auxiliary(
-        'consumption_demand',
-        s.alpha_income * s.wage_share * firms.sales + s.alpha_wealth * households.deposits,
-    )
-    lending = Auxiliary('new_loans', s.credit * firms.sales)
+    consumption, lending = _circuit_quantities(s)
     return [
-        consumption,
-        lending,
         TransferLaw(households.deposits, firms.deposits, consumption.symbol, label='consumption'),
         TransferLaw(firms.deposits, households.deposits, s.wage_share * firms.sales, label='wages'),
         TransferLaw(firms.deposits, bank.deposits, s.interest * firms.loans, label='interest'),
@@ -66,6 +72,7 @@ CircuitInteraction = BaseInteraction.define(
         'repayment': parameter(default=0.08, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_circuit,
+    quantities=_circuit_quantities,
 )
 
 

@@ -5,7 +5,7 @@
 
 from ....core.base import BaseLaw, Expression, NumericDomain, parameter, state
 from ....core.components import ElementComponent
-from ....core.laws import Auxiliary, Sink, Source, Symbols, TransferLaw, where
+from ....core.laws import AuxiliaryQuantity, Sink, Source, Symbols, TransferLaw, where
 from ....core.system import System
 from ....engine.runtime import register_model
 
@@ -44,16 +44,21 @@ def _stage(
     ]
 
 
+def _hilsa_quantities(s: Symbols) -> list[AuxiliaryQuantity]:
+    """Return the nests of the spawners, and the weights of the adults and of the juveniles."""
+    spawning = (1 - s.adult_harvest) * s.spawners / s.spawning_time
+    return [
+        AuxiliaryQuantity('nests', _smaller(s.female_fraction * spawning, s.max_nests)),
+        AuxiliaryQuantity('adult_weight', s.weight_per_adult * s.spawners * TONNES_PER_MILLION_KG),
+        AuxiliaryQuantity('juvenile_weight', s.weight_per_juvenile * s.juveniles * TONNES_PER_MILLION_KG),
+    ]
+
+
 def _hilsa_laws(s: Symbols) -> list[BaseLaw]:
     """Return the spawning, hatching, growth, migration, losses, and catch of the stages of the hilsa life cycle."""
     spawning = (1 - s.adult_harvest) * s.spawners / s.spawning_time
-    nests = Auxiliary('nests', _smaller(s.female_fraction * spawning, s.max_nests))
-    adult_weight = Auxiliary('adult_weight', s.weight_per_adult * s.spawners * TONNES_PER_MILLION_KG)
-    juvenile_weight = Auxiliary('juvenile_weight', s.weight_per_juvenile * s.juveniles * TONNES_PER_MILLION_KG)
+    nests, *_ = _hilsa_quantities(s)
     return [
-        nests,
-        adult_weight,
-        juvenile_weight,
         TransferLaw(Source('spawning'), s.eggs, s.eggs_per_nest * nests.symbol, label='egg_deposition'),
         *_stage(s.eggs, s.larvae, s.hatching_time, [(s.egg_loss, 'mortality')], 'hatching'),
         *_stage(s.larvae, s.juveniles, s.larval_time, [(s.larval_loss, 'mortality')], 'juvenile_entering'),
@@ -114,6 +119,7 @@ HilsaComponent = ElementComponent.define(
         'weight_per_juvenile': parameter(default=0.09, domain=NumericDomain.NONNEGATIVE),
     },
     laws=_hilsa_laws,
+    quantities=_hilsa_quantities,
 )
 
 
